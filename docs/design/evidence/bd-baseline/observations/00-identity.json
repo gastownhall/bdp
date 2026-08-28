@@ -1,0 +1,18 @@
+{
+  "portable": {
+    "version_json": {
+      "branch": "v1.0.5",
+      "build": "Homebrew",
+      "schema_version": 1,
+      "version": "1.0.5"
+    },
+    "version_text": "bd version 1.0.5 (Homebrew)"
+  },
+  "host_local": {
+    "invoked_as": "bd",
+    "resolved_from_path": "/opt/homebrew/bin/bd",
+    "real_path": "/opt/homebrew/Cellar/beads/1.0.5/bin/beads",
+    "sha256": "2fff6a2dc534cf8b56ec1f7a0c98b1e8509a0a5408905c420769a7213ee34707"
+  },
+  "source_provenance": "unverified: bd self-reports only a branch label and a build channel in `version --json`, which are claims by the binary rather than proof, and no command on this host maps that binary back to the sources that built it"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@bdp/adapter-bd",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@bdp/protocol": "workspace:*",
+    "@bdp/server": "workspace:*"
+  }
+}

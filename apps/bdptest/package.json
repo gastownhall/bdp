@@ -1,0 +1,23 @@
+{
+  "name": "@bdp/bdptest",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "bdptest": "./dist/main.js"
+  },
+  "dependencies": {
+    "@bdp/adapter-in-memory": "workspace:*",
+    "@bdp/config": "workspace:*",
+    "@bdp/server": "workspace:*"
+  },
+  "devDependencies": {
+    "@bdp/bd-domain": "workspace:*",
+    "@bdp/client": "workspace:*",
+    "@bdp/conformance": "workspace:*"
+  }
+}

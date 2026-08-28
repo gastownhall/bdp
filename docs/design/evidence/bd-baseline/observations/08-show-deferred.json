@@ -1,0 +1,16 @@
+[
+  {
+    "id": "demo-l",
+    "title": "L: deferred with no blockers",
+    "status": "deferred",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependent_count": 1,
+    "dependency_count": 0,
+    "comment_count": 0
+  }
+]

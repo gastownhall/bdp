@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # The evidence gate proves run-head ancestry and delta confinement
+          # with git history; a shallow clone cannot decide either fact.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.20.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.16.0
+          cache: pnpm
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.2
+          cache: false
+      - run: test "$(node --version)" = "v24.16.0"
+      - run: test "$(pnpm --version)" = "11.20.0"
+      - run: sudo apt-get update
+      - run: sudo apt-get install --yes libicu-dev
+      - run: mkdir -p "$RUNNER_TEMP/bdp-tools"
+      - run: go install github.com/steveyegge/beads/cmd/bd@v1.0.5
+        env:
+          GOBIN: ${{ runner.temp }}/bdp-tools
+      - name: Verify the Go-installed source-build bd identity
+        run: |
+          test "$(cd "$RUNNER_TEMP/bdp-tools" && ./bd --version)" = "bd version 1.0.5 (dev)"
+          (cd "$RUNNER_TEMP/bdp-tools" && ./bd version --json) | node -e '
+            const { isDeepStrictEqual } = require("node:util");
+            let source = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", (chunk) => { source += chunk; });
+            process.stdin.on("end", () => {
+              const actual = JSON.parse(source);
+              const expected = { build: "dev", schema_version: 1, version: "1.0.5" };
+              if (!isDeepStrictEqual(actual, expected)) process.exit(1);
+            });
+          '
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm check:boundaries
+      - run: pnpm typecheck
+      - run: pnpm test
+        env:
+          BDP_BD_MATRIX_EXECUTABLE: ${{ runner.temp }}/bdp-tools/bd
+          BDP_REQUIRE_BD_MATRIX: "1"
+      - run: pnpm build
+      - run: pnpm e2e:ready:preflight
+      - run: pnpm smoke
+      - name: Read-cohort evidence gate
+        # Exit 2 alone passes: it means no evidence is claimed and shipping
+        # admission stays fail-closed. Exit 1 (claimed but unproved) and exit 3
+        # (the gate could not inspect the claim — missing or stale build) both
+        # fail the job; a claim that cannot be checked is not a passing state.
+        run: pnpm evidence:verify || test $? -eq 2

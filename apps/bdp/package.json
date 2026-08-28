@@ -1,0 +1,19 @@
+{
+  "name": "@bdp/bdp",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "bdp": "./dist/main.js"
+  },
+  "dependencies": {
+    "@bdp/bd-domain": "workspace:*",
+    "@bdp/client": "workspace:*",
+    "@bdp/config": "workspace:*",
+    "@bdp/protocol": "workspace:*"
+  }
+}

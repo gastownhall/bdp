@@ -1,0 +1,30 @@
+[
+  {
+    "id": "demo-e",
+    "title": "E: blocker that gets closed",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "closed_at": "<TIMESTAMP>",
+    "close_reason": "baseline closed blocker",
+    "dependency_type": "blocks"
+  },
+  {
+    "id": "demo-k",
+    "title": "K: second blocker that gets closed",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "closed_at": "<TIMESTAMP>",
+    "close_reason": "baseline closed blocker",
+    "dependency_type": "blocks"
+  }
+]

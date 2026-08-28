@@ -1,0 +1,38 @@
+[
+  {
+    "id": "demo-b",
+    "title": "B: blocked by an open bead",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependency_type": "blocks"
+  },
+  {
+    "id": "demo-f",
+    "title": "F: only non-blocking links",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependency_type": "related"
+  },
+  {
+    "id": "demo-i",
+    "title": "I: one closed and one open blocker",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependency_type": "blocks"
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "name": "@bdp/conformance",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist",
+    "catalog",
+    "matrices",
+    "fixtures"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./catalog/read-v1.json": "./catalog/read-v1.json",
+    "./fixtures/read-reference-v1.json": "./fixtures/read-reference-v1.json",
+    "./fixtures/read-bdpbd-v1.json": "./fixtures/read-bdpbd-v1.json",
+    "./matrices/read-v1.json": "./matrices/read-v1.json"
+  },
+  "dependencies": {
+    "@bdp/protocol": "workspace:*",
+    "ajv": "8.17.1"
+  }
+}

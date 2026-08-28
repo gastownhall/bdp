@@ -1,0 +1,31 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "rootDir": ".",
+    "paths": {
+      "@bdp/adapter-bd": ["./packages/adapter-bd/src/index.ts"],
+      "@bdp/adapter-in-memory": ["./packages/adapter-in-memory/src/index.ts"],
+      "@bdp/bd-domain": ["./packages/bd-domain/src/index.ts"],
+      "@bdp/client": ["./packages/client/src/index.ts"],
+      "@bdp/client/testing": ["./packages/client/test-support/testing.ts"],
+      "@bdp/config": ["./packages/config/src/index.ts"],
+      "@bdp/conformance": ["./packages/conformance/src/index.ts"],
+      "@bdp/conformance/testing": ["./packages/conformance/test-support/testing.ts"],
+      "@bdp/protocol": ["./packages/protocol/src/index.ts"],
+      "@bdp/server": ["./packages/server/src/index.ts"],
+      "@bdp/server/testing": ["./packages/server/test-support/testing.ts"]
+    }
+  },
+  "include": [
+    "apps/*/src/**/*.ts",
+    "packages/*/src/**/*.ts",
+    "packages/*/test-support/**/*.ts",
+    "scripts/generate-read-cohort.mts",
+    "vitest.config.ts",
+    "vitest.evidence.config.ts"
+  ]
+}

@@ -1,0 +1,544 @@
+{
+  "fixtureVersion": 1,
+  "id": "reference-read-v1",
+  "realization": "bdpbd",
+  "seed": 0,
+  "capabilities": [
+    "public-http",
+    "controlled-read-advertised-limits-v1",
+    "controlled-read-external-endpoint-v1",
+    "controlled-read-pagination-v1",
+    "controlled-read-problem-table-v1",
+    "controlled-read-scope-restore-v1",
+    "controlled-external-type-publisher-v1",
+    "exact-raw-request-target",
+    "reference-read-v1",
+    "reference-read-v1-single-page",
+    "cors-disabled",
+    "unexpected-internal-fault"
+  ],
+  "bindings": {
+    "bead.demo-a": "beads/demo-a",
+    "bead.demo-b": "beads/demo-b",
+    "bead.demo-c": "beads/demo-c",
+    "link.demo-b-a": "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"
+  },
+  "private": {
+    "internalFaultSentinel": "bdp-private-internal-fault-bdpbd-e69028371d4a"
+  },
+  "bd": {
+    "acceptedBuildIdentities": [
+      {
+        "provenance": "homebrew-local",
+        "versionJson": {
+          "branch": "v1.0.5",
+          "build": "Homebrew",
+          "schema_version": 1,
+          "version": "1.0.5"
+        },
+        "versionText": "bd version 1.0.5 (Homebrew)"
+      },
+      {
+        "provenance": "source-build-hosted-ci",
+        "versionJson": {
+          "build": "dev",
+          "schema_version": 1,
+          "version": "1.0.5"
+        },
+        "versionText": "bd version 1.0.5 (dev)"
+      }
+    ],
+    "actor": "bdp-conformance",
+    "prefix": "demo",
+    "beads": [
+      {
+        "id": "demo-a",
+        "title": "A",
+        "type": "task",
+        "priority": 2,
+        "status": "open",
+        "created_at": "2026-08-08T23:33:31Z"
+      },
+      {
+        "id": "demo-b",
+        "title": "B",
+        "type": "task",
+        "priority": 2,
+        "status": "open",
+        "created_at": "2026-08-08T23:33:32Z"
+      },
+      {
+        "id": "demo-c",
+        "title": "C",
+        "type": "task",
+        "priority": 2,
+        "status": "closed",
+        "created_at": "2026-08-08T23:33:33Z"
+      },
+      {
+        "id": "demo-d",
+        "title": "D",
+        "type": "task",
+        "priority": 2,
+        "status": "open",
+        "created_at": "2026-08-08T23:33:34Z"
+      },
+      {
+        "id": "demo-e",
+        "title": "E",
+        "type": "bug",
+        "priority": 2,
+        "status": "deferred",
+        "created_at": "2026-08-08T23:33:35Z"
+      },
+      {
+        "id": "demo-f",
+        "title": "F",
+        "type": "decision",
+        "priority": 2,
+        "status": "open",
+        "created_at": "2026-08-08T23:33:36Z"
+      },
+      {
+        "id": "demo-i",
+        "title": "I",
+        "type": "task",
+        "priority": 2,
+        "status": "open",
+        "created_at": "2026-08-08T23:33:37Z"
+      },
+      {
+        "id": "demo-j",
+        "title": "J",
+        "type": "task",
+        "priority": 2,
+        "status": "open",
+        "created_at": "2026-08-08T23:33:38Z"
+      },
+      {
+        "id": "demo-k",
+        "title": "K",
+        "type": "task",
+        "priority": 2,
+        "status": "closed",
+        "created_at": "2026-08-08T23:33:39Z"
+      }
+    ],
+    "links": [
+      { "source": "demo-b", "target": "demo-a", "type": "blocks" },
+      { "source": "demo-a", "target": "demo-c", "type": "blocks" },
+      { "source": "demo-d", "target": "demo-c", "type": "blocks" },
+      { "source": "demo-f", "target": "demo-e", "type": "blocks" },
+      { "source": "demo-e", "target": "demo-f", "type": "related" },
+      { "source": "demo-i", "target": "demo-a", "type": "blocks" },
+      { "source": "demo-i", "target": "demo-c", "type": "blocks" },
+      { "source": "demo-j", "target": "demo-c", "type": "blocks" },
+      { "source": "demo-j", "target": "demo-k", "type": "blocks" }
+    ]
+  },
+  "typeDescriptors": [
+    {
+      "id": "https://work.example/types/task",
+      "name": "Task",
+      "describes": "bead",
+      "conformsTo": ["https://work.example/types/work-item"]
+    },
+    {
+      "id": "https://work.example/types/blocks",
+      "name": "Blocks",
+      "describes": "link",
+      "conformsTo": ["https://work.example/types/dependency"],
+      "source": { "conformsTo": [] },
+      "target": { "conformsTo": [] }
+    }
+  ],
+  "oracles": {
+    "external-endpoint": {
+      "input": {
+        "linkIds": [
+          "links/b64_ZGVtby1m/b64_ZXh0ZXJuYWw6YmVhZHM6bW9sLXJ1bi1hc3NpZ25lZQ/b64_cmVsYXRlZA"
+        ]
+      },
+      "rows": [
+        [
+          "links/b64_ZGVtby1m/b64_ZXh0ZXJuYWw6YmVhZHM6bW9sLXJ1bi1hc3NpZ25lZQ/b64_cmVsYXRlZA",
+          "types/related",
+          ["beads/demo-f", "https://work.example/types/decision"],
+          [
+            "external:beads:mol-run-assignee",
+            "https://github.com/gastownhall/bdp/types/external-reference"
+          ]
+        ]
+      ],
+      "externalEndpoints": 1,
+      "localSource": 1,
+      "localTarget": 0
+    },
+    "scope-restore": {
+      "input": {
+        "stableId": "beads/demo-a",
+        "deletedId": "beads/demo-f",
+        "restoredScope": "https://scope.example/restored/",
+        "view": "restore-view",
+        "epoch": "restore-epoch"
+      },
+      "evidence": {
+        "mode": "new-scope",
+        "scopeChanged": true,
+        "stableIdentityChanged": true,
+        "deletedStatusAtRestoredScope": 200,
+        "deletedCodeAtRestoredScope": null,
+        "scopeEpochChanged": null,
+        "staleCursorStatus": null,
+        "staleCursorCode": null,
+        "oldStableStatus": 404,
+        "oldDeletedStatus": 404
+      }
+    },
+    "cross-target": {
+      "input": {
+        "relationshipRoles": [
+          { "type": "https://work.example/types/blocks", "role": "blocks" },
+          { "type": "types/related", "role": "relates" }
+        ]
+      },
+      "projection": {
+        "beadStatuses": [
+          ["A", "open", 2],
+          ["B", "open", 2],
+          ["C", "closed", 2],
+          ["D", "open", 2],
+          ["E", "deferred", 2],
+          ["F", "open", 2],
+          ["I", "open", 2],
+          ["J", "open", 2],
+          ["K", "closed", 2]
+        ],
+        "relationships": [
+          ["A", "C", "blocks"],
+          ["B", "A", "blocks"],
+          ["D", "C", "blocks"],
+          ["E", "F", "relates"],
+          ["F", "E", "blocks"],
+          ["I", "A", "blocks"],
+          ["I", "C", "blocks"],
+          ["J", "C", "blocks"],
+          ["J", "K", "blocks"]
+        ]
+      }
+    },
+    "pagination": {
+      "selector": {
+        "input": {
+          "collection": "beads",
+          "selector": "$[?@.properties.status == \"open\" && @.type == \"https://work.example/types/task\"]",
+          "limit": 2,
+          "syntaxSelector": "$[?]",
+          "overLimitSelector": "$[?@.properties.status == \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"]",
+          "selectorLimits": { "bytes": 128, "depth": 16, "nodes": 64 },
+          "authorizationExcludedId": "beads/demo-b",
+          "view": "view-a",
+          "epoch": "epoch-a"
+        },
+        "expectedIds": ["beads/demo-a", "beads/demo-d", "beads/demo-i", "beads/demo-j"],
+        "expectedPageSizes": [2, 2]
+      },
+      "collection-snapshot": {
+        "input": {
+          "collection": "beads",
+          "limit": 2,
+          "mutation": {
+            "candidateIds": ["beads/demo-k"],
+            "revision": "conformance-mutated-revision"
+          },
+          "view": "view-a",
+          "epoch": "epoch-a"
+        },
+        "expectedIds": [
+          "beads/demo-a",
+          "beads/demo-b",
+          "beads/demo-c",
+          "beads/demo-d",
+          "beads/demo-e",
+          "beads/demo-f",
+          "beads/demo-i",
+          "beads/demo-j",
+          "beads/demo-k"
+        ],
+        "expectedPageSizes": [2, 2, 2, 2, 1]
+      },
+      "cursor-errors": {
+        "input": {
+          "collection": "beads",
+          "limit": 2,
+          "malformedQuery": { "cursor": "not-issued", "limit": "2" },
+          "clockAdvanceMs": 101,
+          "initialView": "view-a",
+          "foreignView": "view-b",
+          "initialEpoch": "epoch-a",
+          "foreignEpoch": "epoch-b"
+        }
+      },
+      "incident-links": {
+        "input": {
+          "collection": "links",
+          "bead": "beads/demo-a",
+          "direction": "both",
+          "limit": 1,
+          "mutation": {
+            "candidateIds": [
+              "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+              "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+              "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"
+            ],
+            "revision": "conformance-mutated-revision"
+          },
+          "clockAdvanceMs": 101,
+          "view": "view-a",
+          "epoch": "epoch-a"
+        },
+        "expectedCollectionIds": [
+          "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+          "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+          "links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz",
+          "links/b64_ZGVtby1l/b64_ZGVtby1m/b64_cmVsYXRlZA",
+          "links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz",
+          "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz",
+          "links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz",
+          "links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz",
+          "links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz"
+        ],
+        "expectedIncidentLinkIds": [
+          "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+          "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+          "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"
+        ],
+        "expectedCollectionPageSizes": [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        "expectedIncidentPageSizes": [1, 1, 1],
+        "publicRequests": 16
+      }
+    },
+    "resources": {
+      "bead.demo-a": {
+        "id": "beads/demo-a",
+        "properties": {
+          "id": "demo-a",
+          "title": "A",
+          "status": "open",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "bdp-conformance@invalid",
+          "created_at": "2026-08-08T23:33:31Z",
+          "created_by": "bdp-conformance",
+          "updated_at": "2026-08-08T23:33:31Z",
+          "dependencies": [
+            {
+              "issue_id": "demo-a",
+              "depends_on_id": "demo-c",
+              "type": "blocks",
+              "created_at": "2026-08-08T23:33:31Z",
+              "created_by": "bdp-conformance",
+              "metadata": "{}"
+            }
+          ],
+          "dependency_count": 1,
+          "dependent_count": 2,
+          "comment_count": 0
+        }
+      },
+      "link.demo-b-a": {
+        "id": "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+        "source": "beads/demo-b",
+        "target": "beads/demo-a",
+        "properties": {}
+      }
+    },
+    "collections": {
+      "bead-titles": ["A", "B", "C", "D", "E", "F", "I", "J", "K"],
+      "link-records": [
+        [
+          "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+          "https://work.example/types/blocks",
+          "sha256_SJH7PnnvvB-8GmFWfIl0ldMNm9nPE94Gyi2aTwXaaC0",
+          "beads/demo-b",
+          "https://work.example/types/task",
+          "beads/demo-a",
+          "https://work.example/types/task",
+          {}
+        ],
+        [
+          "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+          "https://work.example/types/blocks",
+          "sha256_3_62A7JMBFMwphUBljsMNAMybxpiI1vQuLQhfHGjNEc",
+          "beads/demo-a",
+          "https://work.example/types/task",
+          "beads/demo-c",
+          "https://work.example/types/task",
+          {}
+        ],
+        [
+          "links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz",
+          "https://work.example/types/blocks",
+          "sha256_-aLhQMo2aoS_NBTAEtrDE8gfgtD4O15NOA87jJarPf4",
+          "beads/demo-d",
+          "https://work.example/types/task",
+          "beads/demo-c",
+          "https://work.example/types/task",
+          {}
+        ],
+        [
+          "links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz",
+          "https://work.example/types/blocks",
+          "sha256_J6QBLy1aV32XGhf1jYTJWKtnenqDLpkZjP2Goy8uX0k",
+          "beads/demo-f",
+          "https://work.example/types/decision",
+          "beads/demo-e",
+          "https://work.example/types/bug",
+          {}
+        ],
+        [
+          "links/b64_ZGVtby1l/b64_ZGVtby1m/b64_cmVsYXRlZA",
+          "types/related",
+          "sha256_j6m0SEY80kf40_gANsMgLziZLk0SFrbR1xk4wJTVhxA",
+          "beads/demo-e",
+          "https://work.example/types/bug",
+          "beads/demo-f",
+          "https://work.example/types/decision",
+          {}
+        ],
+        [
+          "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz",
+          "https://work.example/types/blocks",
+          "sha256_4MUpvIcWKq9Sdvfw19P2MrSQQSNV3H-_RC9R6g-93o8",
+          "beads/demo-i",
+          "https://work.example/types/task",
+          "beads/demo-a",
+          "https://work.example/types/task",
+          {}
+        ],
+        [
+          "links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz",
+          "https://work.example/types/blocks",
+          "sha256_BzsdBWlfsC3wJ98QH-q_q0QqNBjddxnX9-DF96ABuOA",
+          "beads/demo-i",
+          "https://work.example/types/task",
+          "beads/demo-c",
+          "https://work.example/types/task",
+          {}
+        ],
+        [
+          "links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz",
+          "https://work.example/types/blocks",
+          "sha256_7kPQdSTnjnGlwXUYcqCFjIPTn7FZ7omQUdVfqOCRJKI",
+          "beads/demo-j",
+          "https://work.example/types/task",
+          "beads/demo-c",
+          "https://work.example/types/task",
+          {}
+        ],
+        [
+          "links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz",
+          "https://work.example/types/blocks",
+          "sha256_JI96zKP5KWt428ZQjXF1Amb-zmdf2wNR7QM-bNQFGPA",
+          "beads/demo-j",
+          "https://work.example/types/task",
+          "beads/demo-k",
+          "https://work.example/types/task",
+          {}
+        ]
+      ],
+      "type-ids": [
+        "https://work.example/types/tracked-item",
+        "https://work.example/types/work-item",
+        "https://work.example/types/task",
+        "https://work.example/types/bug",
+        "https://work.example/types/feature",
+        "https://work.example/types/chore",
+        "https://work.example/types/epic",
+        "https://work.example/types/decision",
+        "https://work.example/types/relationship",
+        "https://work.example/types/dependency",
+        "https://work.example/types/blocks",
+        "https://work.example/types/relates",
+        "types/related"
+      ]
+    },
+    "structural-predicates": {
+      "beads-type": ["A", "B", "C", "D", "I", "J", "K"],
+      "beads-type-is-exact": [],
+      "beads-conforms-to-declared-type": ["A", "B", "C", "D", "I", "J", "K"],
+      "beads-conforms-to": ["A", "B", "C", "D", "E", "I", "J", "K"],
+      "beads-predicates-and": [],
+      "links-source-local": ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"],
+      "links-target-absolute": [
+        "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz"
+      ],
+      "links-endpoint-or": [
+        "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"
+      ],
+      "links-type": [
+        "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz"
+      ],
+      "links-type-is-exact": [],
+      "links-conforms-to-declared-type": [
+        "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz"
+      ],
+      "links-conforms-to": [
+        "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz"
+      ],
+      "links-conforms-to-cross-kind": [],
+      "links-predicates-and": ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"]
+    },
+    "incident-links": {
+      "demo-a-inbound": [
+        "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"
+      ],
+      "demo-a-outbound": ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"],
+      "demo-b-outbound": ["links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"],
+      "demo-b-inbound": [],
+      "demo-a-both": [
+        "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"
+      ],
+      "demo-a-default": [
+        "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+        "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
+        "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"
+      ]
+    }
+  },
+  "expectations": {
+    "readyTitles": ["J", "D", "A"],
+    "beadCount": 9,
+    "linkCount": 9,
+    "typeCount": 13
+  }
+}

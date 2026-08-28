@@ -1,0 +1,16 @@
+[
+  {
+    "id": "demo-a",
+    "title": "A: unblocked leaf",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependent_count": 3,
+    "dependency_count": 0,
+    "comment_count": 0
+  }
+]

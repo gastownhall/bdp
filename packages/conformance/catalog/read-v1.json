@@ -1,0 +1,444 @@
+{
+  "catalogVersion": 1,
+  "scenarios": [
+    {
+      "id": "read.discovery.scope-service-desc",
+      "title": "Scope response exposes service-desc discovery",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "An ordinary `GET` of the Scope URI MUST return a successful response carrying a registered [`service-desc` link relation](https://www.rfc-editor.org/rfc/rfc8631.html) to the machine-readable JSON discovery document."
+        }
+      ]
+    },
+    {
+      "id": "read.discovery.document",
+      "title": "Read discovery has the exact required and prohibited members",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "`bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types` are required in every profile. `operations` is required in Read+Update and Transactional and prohibited in Read."
+        }
+      ]
+    },
+    {
+      "id": "read.discovery.canonical-navigation",
+      "title": "Discovery navigation is canonical and Scope-confined",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "For the canonical Scope URL `S`, `beads` MUST equal the URL produced by resolving `beads/` against `S`, `links` MUST equal `links/` resolved against `S`, and `types` MUST equal `types/` resolved against `S`."
+        }
+      ]
+    },
+    {
+      "id": "read.discovery.optional-limits",
+      "title": "Advertised Read limits are valid and binding",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#advertised-limits",
+          "selectedText": "Omission means only that the bound is not pre-advertised; it does not mean infinite capacity and does not permit silent truncation, partial mutation, or a non-normative failure response."
+        }
+      ]
+    },
+    {
+      "id": "read.discovery.unsupported-client-input",
+      "title": "Generic clients reject unsupported versions and profiles",
+      "kind": "diagnostic",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "Profile negotiation MUST begin with Scope discovery and MUST reject unsupported BDP versions rather than guessing compatibility."
+        }
+      ]
+    },
+    {
+      "id": "read.resource.bead-record",
+      "title": "Individual Bead reads return complete canonical records",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#resource-records",
+          "selectedText": "Every successful `GET` of a Bead or Link returns one self-contained Resource record."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#effective-type-contracts",
+          "selectedText": "A successful Resource read returns the complete stored properties object, including properties not declared by any effective schema, and an update preserves every untouched property."
+        }
+      ]
+    },
+    {
+      "id": "read.resource.link-record",
+      "title": "Individual Link reads return complete canonical records",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#resource-records",
+          "selectedText": "Every successful `GET` of a Bead or Link returns one self-contained Resource record."
+        }
+      ]
+    },
+    {
+      "id": "read.resource.external-endpoint",
+      "title": "External Link endpoints remain opaque, typed, and citation-faithful",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "Out-of-Scope endpoints MUST use the BDP v0 External Reference sentinel `https://github.com/gastownhall/bdp/types/external-reference` as their Type."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "An Out-of-Scope endpoint MAY carry an opaque `revision` member citing the external Resource state referenced; an authority MUST preserve and echo it byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it."
+        }
+      ]
+    },
+    {
+      "id": "read.resource.properties-view",
+      "title": "Properties views return the complete open properties object",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#resource-views",
+          "selectedText": "`view=properties` is valid for both Beads and Links and returns exactly the complete stored `properties` object:"
+        }
+      ]
+    },
+    {
+      "id": "read.resource.default-bounded",
+      "title": "Default Bead reads do not embed incident Links",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#resource-views",
+          "selectedText": "The default Bead `GET` remains bounded and does not include Links."
+        }
+      ]
+    },
+    {
+      "id": "read.resource.not-found-nondisclosure",
+      "title": "Unknown, deleted, and non-visible Resources share one response",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a Bead, `view=links` return the same `404` `resource-not-found` problem used for an unknown or non-visible identity."
+        }
+      ]
+    },
+    {
+      "id": "read.types.inventory",
+      "title": "Type inventory returns paginated exact summaries",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "Each page is an object containing `items` and `next`; each item is exactly the Type summary `{id, name, describes}`."
+        }
+      ]
+    },
+    {
+      "id": "read.types.descriptor",
+      "title": "Controlled Type publishers return closed descriptors",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "Descriptor objects and endpoint-constraint objects are closed: no members are allowed except those defined above."
+        }
+      ]
+    },
+    {
+      "id": "read.types.no-eager-resolution",
+      "title": "Generic Resource reads do not require descriptor retrieval",
+      "kind": "diagnostic",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "A generic client MUST be able to parse and issue protocol requests without retrieving a Type Descriptor."
+        }
+      ]
+    },
+    {
+      "id": "read.collections.beads",
+      "title": "Bead collection returns complete records and continuation",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "An ordinary `GET` of a discovered collection returns a paginated `items` array and a `next` URL."
+        }
+      ]
+    },
+    {
+      "id": "read.collections.links",
+      "title": "Link collection returns complete records and continuation",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "The `beads/` and `links/` collections return complete Resource records; the `types/` collection returns Type summaries."
+        }
+      ]
+    },
+    {
+      "id": "read.collections.structural-predicates",
+      "title": "Collection structural predicates compose exactly",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "Different predicates are combined with logical AND. Within `endpoint`, source and target are combined with logical OR."
+        }
+      ]
+    },
+    {
+      "id": "read.collections.selector",
+      "title": "Bounded Selector evaluates over canonical candidate records",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "The structural predicates and Selector decide the complete matching set before pagination, but only within the request's Authorization View."
+        }
+      ]
+    },
+    {
+      "id": "read.collections.pagination-snapshot",
+      "title": "Collection continuations preserve one logical snapshot",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "A cursor continues one logical projected snapshot: every page belongs to the same selected set, authorization projection, and Resource revisions as the initial request."
+        }
+      ]
+    },
+    {
+      "id": "read.collections.cursor-errors",
+      "title": "Expired and foreign-view cursors fail without restart",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "If the authority can no longer continue the snapshot, or if the request no longer belongs to that projection, it returns an expired- or foreign-view-cursor problem rather than silently restarting against newer state."
+        }
+      ]
+    },
+    {
+      "id": "read.collections.invalid-query",
+      "title": "Unsupported and repeated collection parameters are rejected",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "A parameter may occur at most once in BDP v0; repeated parameters are errors rather than implicit unions."
+        }
+      ]
+    },
+    {
+      "id": "read.bead-links.directions",
+      "title": "Incident Link direction selection and default are exact",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#incident-link-reads",
+          "selectedText": "`direction` is `inbound`, `outbound`, or `both`, and defaults to `both` when omitted."
+        }
+      ]
+    },
+    {
+      "id": "read.bead-links.pagination",
+      "title": "Incident Link continuations preserve one snapshot",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#incident-link-reads",
+          "selectedText": "As with collection pagination, that continuation walks one logical snapshot and an expired cursor is an error rather than a silent restart against newer state."
+        }
+      ]
+    },
+    {
+      "id": "read.http.get-head",
+      "title": "Application resources support GET and HEAD",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "An implementation advertising the `read` profile MUST support `GET` and `HEAD` for application requests."
+        }
+      ]
+    },
+    {
+      "id": "read.http.method-405",
+      "title": "Unsupported methods receive 405 without a BDP Problem representation",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Every such `405` MUST include `Allow: GET, HEAD`, plus `OPTIONS` when cross-origin access is enabled, and MUST NOT include a BDP Problem body."
+        }
+      ]
+    },
+    {
+      "id": "read.http.problem-table",
+      "title": "Every Read Problem preserves its status, family, code, and retry row",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Each code fixes its HTTP status and retry disposition. The Read profile uses this closed table:"
+        }
+      ]
+    },
+    {
+      "id": "read.http.internal-fault",
+      "title": "Unexpected internal faults are body-less and redacted",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "An implementation MUST respond to an unexpected internal server fault with a body-less `500 Internal Server Error`, MUST NOT include a BDP Problem body, and MUST keep internal fault details off the wire."
+        }
+      ]
+    },
+    {
+      "id": "read.http.cache-cors",
+      "title": "Read caching and optional CORS fields are observable",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "Scope-bounded representations that depend on authorization use `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "read.http.raw-request-targets",
+      "title": "Raw invalid request targets cannot bypass Scope identity",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "Empty, `.`, and `..` segments, controls, backslashes, queries, fragments, scheme-relative references, and encoded `/` or `\\` separators are invalid."
+        }
+      ]
+    },
+    {
+      "id": "read.transport.disconnect-recovery",
+      "title": "Coverage diagnostic for disconnect recovery",
+      "kind": "diagnostic",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#conformance-and-quality-requirements",
+          "selectedText": "The matrix MUST cover positive, negative, profile, concurrency, disconnect, expiry, restore, and cross-implementation cases applicable to each profile."
+        }
+      ]
+    },
+    {
+      "id": "read.scope.restore-identity",
+      "title": "Restore preserves identity or moves to a new Scope URL",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scopes-and-identity",
+          "selectedText": "A restore that cannot preserve that guarantee creates a different logical Scope and therefore uses a different canonical Scope URL."
+        }
+      ]
+    },
+    {
+      "id": "read.client.malformed-response",
+      "title": "Coverage diagnostic for malformed client responses",
+      "kind": "diagnostic",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#conformance-and-quality-requirements",
+          "selectedText": "The conformance kit MUST validate normative schemas and observable semantics independently of the server implementation wherever practical, reducing common-mode defects."
+        }
+      ]
+    },
+    {
+      "id": "read.cross.reference-equivalence",
+      "title": "Portability diagnostic for cross-target fixture equivalence",
+      "kind": "diagnostic",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#normative-conformance-matrix",
+          "selectedText": "Tests exercise public HTTP behavior and consume the normative schema bundle; they do not inspect an implementation's storage or internal server interfaces."
+        }
+      ]
+    }
+  ]
+}

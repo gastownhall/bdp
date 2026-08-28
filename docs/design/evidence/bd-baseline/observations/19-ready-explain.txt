@@ -1,0 +1,39 @@
+
+📊 Ready Work Explanation
+
+● Ready (5 issues):
+
+  demo-c [● P1] C: unlinked, higher priority
+    Reason: no blocking dependencies
+
+  demo-j [● P2] J: every blocker closed
+    Reason: 2 blocker(s) resolved
+    Resolved blockers: demo-e, demo-k
+
+  demo-f [● P2] F: only non-blocking links
+    Reason: no blocking dependencies
+
+  demo-d [● P2] D: blocked only by a closed bead
+    Reason: 1 blocker(s) resolved
+    Resolved blockers: demo-e
+
+  demo-a [● P2] A: unblocked leaf
+    Reason: no blocking dependencies
+    Unblocks: 2 issue(s)
+
+● Blocked (4 issues):
+
+  demo-m [● P2] M: blocked only by a deferred bead
+    ← blocked by demo-l: L: deferred with no blockers [deferred]
+
+  demo-i [● P2] I: one closed and one open blocker
+    ← blocked by demo-a: A: unblocked leaf [open]
+
+  demo-h [● P2] H: blocked transitively through B
+    ← blocked by demo-b: B: blocked by an open bead [open]
+
+  demo-b [● P2] B: blocked by an open bead
+    ← blocked by demo-a: A: unblocked leaf [open]
+
+─ Summary: 5 ready, 4 blocked
+

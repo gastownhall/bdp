@@ -1,0 +1,60 @@
+--- stdout ---
+○ demo-a [● P2] [task] - A: unblocked leaf (blocks: demo-b, demo-i)
+● demo-b [● P2] [task] - B: blocked by an open bead (blocked by: demo-a, blocks: demo-h)
+○ demo-c [● P1] [task] - C: unlinked, higher priority
+○ demo-d [● P2] [task] - D: blocked only by a closed bead
+✓ demo-e [P2] [task] - E: blocker that gets closed
+○ demo-f [● P2] [task] - F: only non-blocking links
+○ demo-f01 [● P3] [task] - Filler 01: population past the default list limit
+○ demo-f02 [● P3] [task] - Filler 02: population past the default list limit
+○ demo-f03 [● P3] [task] - Filler 03: population past the default list limit
+○ demo-f04 [● P3] [task] - Filler 04: population past the default list limit
+○ demo-f05 [● P3] [task] - Filler 05: population past the default list limit
+○ demo-f06 [● P3] [task] - Filler 06: population past the default list limit
+○ demo-f07 [● P3] [task] - Filler 07: population past the default list limit
+○ demo-f08 [● P3] [task] - Filler 08: population past the default list limit
+○ demo-f09 [● P3] [task] - Filler 09: population past the default list limit
+○ demo-f10 [● P3] [task] - Filler 10: population past the default list limit
+○ demo-f11 [● P3] [task] - Filler 11: population past the default list limit
+○ demo-f12 [● P3] [task] - Filler 12: population past the default list limit
+○ demo-f13 [● P3] [task] - Filler 13: population past the default list limit
+○ demo-f14 [● P3] [task] - Filler 14: population past the default list limit
+○ demo-f15 [● P3] [task] - Filler 15: population past the default list limit
+○ demo-f16 [● P3] [task] - Filler 16: population past the default list limit
+○ demo-f17 [● P3] [task] - Filler 17: population past the default list limit
+○ demo-f18 [● P3] [task] - Filler 18: population past the default list limit
+○ demo-f19 [● P3] [task] - Filler 19: population past the default list limit
+○ demo-f20 [● P3] [task] - Filler 20: population past the default list limit
+○ demo-f21 [● P3] [task] - Filler 21: population past the default list limit
+○ demo-f22 [● P3] [task] - Filler 22: population past the default list limit
+○ demo-f23 [● P3] [task] - Filler 23: population past the default list limit
+○ demo-f24 [● P3] [task] - Filler 24: population past the default list limit
+○ demo-f25 [● P3] [task] - Filler 25: population past the default list limit
+○ demo-f26 [● P3] [task] - Filler 26: population past the default list limit
+○ demo-f27 [● P3] [task] - Filler 27: population past the default list limit
+○ demo-f28 [● P3] [task] - Filler 28: population past the default list limit
+○ demo-f29 [● P3] [task] - Filler 29: population past the default list limit
+○ demo-f30 [● P3] [task] - Filler 30: population past the default list limit
+○ demo-f31 [● P3] [task] - Filler 31: population past the default list limit
+○ demo-f32 [● P3] [task] - Filler 32: population past the default list limit
+○ demo-f33 [● P3] [task] - Filler 33: population past the default list limit
+○ demo-f34 [● P3] [task] - Filler 34: population past the default list limit
+○ demo-f35 [● P3] [task] - Filler 35: population past the default list limit
+○ demo-f36 [● P3] [task] - Filler 36: population past the default list limit
+○ demo-f37 [● P3] [task] - Filler 37: population past the default list limit
+○ demo-f38 [● P3] [task] - Filler 38: population past the default list limit
+○ demo-f39 [● P3] [task] - Filler 39: population past the default list limit
+○ demo-f40 [● P3] [task] - Filler 40: population past the default list limit
+○ demo-f41 [● P3] [task] - Filler 41: population past the default list limit
+○ demo-f42 [● P3] [task] - Filler 42: population past the default list limit
+○ demo-f43 [● P3] [task] - Filler 43: population past the default list limit
+○ demo-f44 [● P3] [task] - Filler 44: population past the default list limit
+○ demo-f45 [● P3] [task] - Filler 45: population past the default list limit
+◐ demo-g [● P2] [task] - G: in progress, no blockers
+● demo-h [● P2] [task] - H: blocked transitively through B (blocked by: demo-b)
+● demo-i [● P2] [task] - I: one closed and one open blocker (blocked by: demo-a)
+○ demo-j [● P2] [task] - J: every blocker closed
+✓ demo-k [P2] [task] - K: second blocker that gets closed
+❄ demo-l [● P2] [task] - L: deferred with no blockers (blocks: demo-m)
+● demo-m [● P2] [task] - M: blocked only by a deferred bead (blocked by: demo-l)
+--- stderr ---

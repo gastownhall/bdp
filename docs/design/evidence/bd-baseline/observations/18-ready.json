@@ -1,0 +1,126 @@
+[
+  {
+    "id": "demo-c",
+    "title": "C: unlinked, higher priority",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "demo-j",
+    "title": "J: every blocker closed",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependencies": [
+      {
+        "issue_id": "demo-j",
+        "depends_on_id": "demo-e",
+        "type": "blocks",
+        "created_at": "<TIMESTAMP>",
+        "created_by": "bdp-baseline",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "demo-j",
+        "depends_on_id": "demo-k",
+        "type": "blocks",
+        "created_at": "<TIMESTAMP>",
+        "created_by": "bdp-baseline",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 2,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "demo-f",
+    "title": "F: only non-blocking links",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependencies": [
+      {
+        "issue_id": "demo-f",
+        "depends_on_id": "demo-a",
+        "type": "related",
+        "created_at": "<TIMESTAMP>",
+        "created_by": "bdp-baseline",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "demo-f",
+        "depends_on_id": "demo-b",
+        "type": "discovered-from",
+        "created_at": "<TIMESTAMP>",
+        "created_by": "bdp-baseline",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "demo-f",
+        "depends_on_id": "demo-c",
+        "type": "tracks",
+        "created_at": "<TIMESTAMP>",
+        "created_by": "bdp-baseline",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "demo-d",
+    "title": "D: blocked only by a closed bead",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependencies": [
+      {
+        "issue_id": "demo-d",
+        "depends_on_id": "demo-e",
+        "type": "blocks",
+        "created_at": "<TIMESTAMP>",
+        "created_by": "bdp-baseline",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "demo-a",
+    "title": "A: unblocked leaf",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "bdp-baseline@invalid",
+    "created_at": "<TIMESTAMP>",
+    "created_by": "bdp-baseline",
+    "updated_at": "<TIMESTAMP>",
+    "dependency_count": 0,
+    "dependent_count": 2,
+    "comment_count": 0
+  }
+]
