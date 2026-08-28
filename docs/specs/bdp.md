@@ -81,7 +81,7 @@ validators MUST load it without network retrieval.
 
 This provisional prefix knowingly occupies GitHub-controlled path space; it
 does not assert that GitHub serves protocol artifacts at those paths. The
-project accepts that hosting and reassignment risk while the draft namespace is
+project accepts the hosting and reassignment risk while the draft namespace is
 provisional. Implementations compare these identifiers exactly and MUST NOT
 depend on dereferencing them.
 
@@ -179,24 +179,24 @@ behavior defined below; it never redefines BDP `batch`.
 
 ## The uniformity principle
 
-The Beads Protocol (BDP) is a set of norms over the most widely adopted
+The Bead Protocol (BDP) is a set of norms over the most widely adopted
 protocols and formats of the Web. BDP applies these norms *uniformly* to reduce
 the overhead of Bead implementations and to let generic clients work with
 Beads without a domain-specific protocol surface.
 
 This uniformity principle applies both to accessing a given collection of
-Beads and to using uniform formats and operations across different Bead types.
+Beads and to using uniform formats and operations across different Bead Types.
 
-Put more directly, if you know how to work with *one* Bead type, you know how to
-work with *all* Bead types.
+Put more directly, if you know how to work with *one* Bead Type, you know how to
+work with *all* Bead Types.
 
 Within one conformance profile, one common operation vocabulary,
-representation envelope, and set of operation semantics applies to all Beads
+representation envelope, and set of operation semantics apply to all Beads
 and Links. A higher or lower profile changes availability and guarantees only
 where its profile definition says so. Types may vary the validity constraints
-on individual representations and Links; authoritative graph scopes may vary
+on individual representations and Links; authoritative graph Scopes may vary
 aggregate constraints. Neither changes how generic requests and responses are
-formed or interpreted. A generic client does not need a Type descriptor to make
+formed or interpreted. A generic client does not need a Type Descriptor to make
 a request or parse a response; it may consult the descriptor to predict whether
 a requested state will be accepted. Scope membership is discoverable through
 uniform generic mechanisms rather than domain-specific operations.
@@ -323,8 +323,8 @@ It changes whenever a grant, revocation, policy replacement, or other authority
 change may alter that projection. Snapshot handles, read and Event cursors,
 changefeed checkpoints, minimum-read barriers, and cached representations are
 bound to both the Scope epoch and Authorization View token. A token change
-requires a fresh snapshot; BDP v0 does not require incremental authorization-
-policy Events. The token is not a credential, and possessing or replaying it
+requires a fresh snapshot; BDP v0 does not require incremental
+authorization-policy Events. The token is not a credential, and possessing or replaying it
 does not grant access to that view.
 
 Mutation authorization is operation-local and atomic. When each operation is
@@ -332,7 +332,7 @@ reached, its policy observes the authenticated principal, staged pre-state, and
 proposed post-state. A set Selector ranges only over Resources visible in the
 request's Authorization View. If any selected Resource is not writable, the
 complete transaction fails; the authority never silently filters an unwritable
-subset. Authorization-view changes do not create a new idempotency namespace:
+subset. Authorization View changes do not create a new idempotency namespace:
 the principal-bound disposition remains durable and cannot execute again.
 Detailed receipt results are re-authorized when later read.
 
@@ -548,7 +548,7 @@ records using the three members above:
 ```
 
 An absent member or empty array means that the Scope defines no such policies.
-The administrator mechanism remains outside BDP. A policy replacement is
+The administrative mechanism remains outside BDP. A policy replacement is
 atomic and serialized relative to mutations; tightening is rejected when the
 live graph already violates the proposed maximum. A Transactional mutation
 observes either the complete old or complete new policy set. Each Read+Update
@@ -917,7 +917,7 @@ server-side bulk job that restores cross-chunk atomicity. Domain or
 administrator bulk facilities are outside BDP, and an implementation MUST NOT
 relax changefeed completeness or omit Events to admit an oversized mutation.
 
-For example, this operation deletes every Link incident to `bead-42`:
+For example, this operation deletes every Link incident upon `task-42`:
 
 ```text
 DeleteWhere(
@@ -1187,7 +1187,7 @@ boundary.
 
 `eventCount` equals the number of entries in `events`. `events` is the
 application-facing ordered fact sequence. It preserves operation order and
-assigns each Event its stable authority-group ordinal. A projected event list
+assigns each Event its stable authority-group ordinal. A projected Event list
 may therefore contain ordinal gaps where intervening facts are hidden; it never
 renumbers visible facts. One normalized state-change entry may correspond to
 several Events, as when ordered updates touch one Resource more than once or
@@ -1260,7 +1260,7 @@ the base used to resolve local IDs and durable relative references, even when a
 request reached the Scope through an alias or redirect. An ordinary `GET` of
 the Scope URI MUST return a successful response carrying a registered
 [`service-desc` link relation](https://www.rfc-editor.org/rfc/rfc8631.html) to
-the machine-readable JSON discovery document. The Link field is the normative
+the machine-readable JSON discovery document. The `Link` field is the normative
 machine discovery mechanism; a client never interprets the Scope response body
 as discovery metadata.
 
@@ -1873,7 +1873,7 @@ A Bead Type Descriptor contains the common Type members:
 ```
 
 A Link Type Descriptor is the same contract plus `source` and `target`
-endpoint constraints. This `assigned-to` Link accepts any Work Item as its
+endpoint constraints. This `assigned-to` Link Type accepts any Work Item as its
 source and any Person as its target:
 
 ```json
@@ -1913,6 +1913,7 @@ The descriptor members have these meanings:
   the corresponding in-Scope endpoint Bead must satisfy. Every listed Type is
   required; an empty list accepts any in-Scope Bead at that endpoint. An
   out-of-Scope endpoint is opaque and is not checked against these lists.
+
 Descriptor objects and endpoint-constraint objects are closed: no members are
 allowed except those defined above. Type-ID arrays contain unique Type URLs and
 may be empty where this specification permits an unconstrained endpoint.
@@ -2164,7 +2165,7 @@ The request body contains one ordered operation list:
 
 `name` is the wire spelling of the model's transaction-local label. In a
 Resource-reference member, a string beginning with `@` refers to the Resource
-created by the preceding named operation. It denotes only Resource identity;
+created by the preceding operation with that name. It denotes only Resource identity;
 it is not an expression and cannot be followed by a property or result path.
 
 Labels match `[A-Za-z][A-Za-z0-9_-]*` and are unique within the batch. The
@@ -2395,7 +2396,7 @@ endpoint Bead or changes its revision.
 
 The singleton target for an operation accepts the corresponding record with
 `operation` and `name` removed. Their meanings are supplied by the target URL
-and a batch respectively. Thus the batch schema and singleton request bodies
+and a batch, respectively. Thus the batch schema and singleton request bodies
 share one field vocabulary.
 
 ### Property-change values
@@ -2971,7 +2972,7 @@ Accept: application/json
 ```
 
 `changes` contains the final canonical postimages needed to advance the
-Authorization View and identity-bearing tombstones for Resources that leave
+Authorization View, and identity-bearing tombstones for Resources that leave
 it. For an underlying deletion, a tombstone contains `resourceKind`, absolute
 `id`, immutable `type`, and final live `revision`; for any other projection
 removal within a stable view it contains the last values visible in that view
@@ -3011,8 +3012,8 @@ when `groups` is empty. A page and an SSE message never split a group.
 Accepting `text/event-stream` on the same Resource delivers one complete group
 per SSE message. The SSE `id` is the group's checkpoint, `event` is
 `change-group`, and `data` is the complete JSON group. On automatic reconnect,
-`Last-Event-ID` overrides the original `after` value. A stale, unavailable, or
-foreign-epoch or foreign-view checkpoint fails explicitly and requires a new
+`Last-Event-ID` overrides the original `after` value. A stale, unavailable,
+foreign-epoch, or foreign-view checkpoint fails explicitly and requires a new
 snapshot; the authority never advances it silently to
 `minimumReplayPosition`.
 
@@ -3032,7 +3033,7 @@ the lossless replication changefeed. An Event is visible only when its fact is
 part of the projected transition: `created` and `linked` references are visible
 in the post-state, `deleted` and `unlinked` references were visible in the
 pre-state, and `updated` references are visible in both. Its cursor is bound to
-that view, and a changed view token requires a new snapshot or Event-source
+that view, and a changed view token requires a new snapshot or Event-Source
 start according to the source's retention contract. A finite read returns
 Events in source order:
 
@@ -3229,7 +3230,7 @@ prefix, with the release-stability rule stated above.
    closes when the complete reviewed bundle exists.
 6. **Read table recorded 2026-08-12; later-profile rows pending:** BDP uses a
    small set of RFC 9457 problem families plus a normative `code`, fixed status,
-   and `retry` disposition. The Read profile table is closed. Direct Problem
+   and `retry` disposition. The Read profile table is closed. Direct problem
    `status` is optional but, when present, must match the HTTP status; extension
    members are allowed. Unsupported and repeated collection query parameters
    use `invalid-parameter`, family `request`, status `400`, and retry `never`.
