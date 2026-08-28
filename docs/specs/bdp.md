@@ -36,10 +36,9 @@ determine where additional members are allowed; no implicit minor-version
 rule decides that.
 
 This draft is co-designed against other beads-related tools, infrastructure,
-and stores. That includes a primary implementation vehicle that is not yet
-public. At the baseline reviewed for this draft, that implementation
-intentionally provides a `bd`-compatible Issue/Dependency model and a
-command-oriented API. Its data and storage schemas are deliberately
+and stores, both public and in-flight pre-release. At the baseline reviewed
+for this draft, the primary pre-release implementation intentionally provides
+a `bd`-compatible Issue/Dependency model and a command-oriented API. Its data and storage schemas are deliberately
 malleable — they are expected to change. They describe current implementation
 state and migration work, not a candidate BDP contract.
 
@@ -55,7 +54,7 @@ provide conformance evidence. But neither its storage schemas nor its
 incidental implementation-language choices define BDP. The current `bd`
 implementation, and the compatibility code that mirrors it, supply
 requirements and failure evidence. They are not design authorities for the
-new data model or protocol.
+BDP data model or protocol.
 
 Examples are illustrative, and they must remain consistent with the
 requirements they demonstrate. Some text is explicitly identified as an open
