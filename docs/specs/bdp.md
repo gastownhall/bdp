@@ -52,9 +52,9 @@ compatibility inputs rather than selected generic BDP behavior.
 Implementation work there is expected to expose protocol pressure and provide
 conformance evidence, but neither its storage schemas nor incidental
 implementation-language choices define BDP. The current `bd`
-implementation and the compatibility code that mirrors it are later migration,
-compatibility, and subsumption targets; they supply requirements and failure
-evidence but are not design authorities for the new data model or protocol.
+implementation and the compatibility code that mirrors it supply requirements
+and failure evidence but are not design authorities for the new data model or
+protocol.
 
 Examples are illustrative and must remain consistent with the requirements they
 demonstrate. Text explicitly identified as an open question, deferred feature,
@@ -96,7 +96,10 @@ persisted v0 identifiers to follow repository relocation.
 
 ## Conformance profiles and reading guide
 
-BDP defines three cumulative profiles per Scope. A service may host Scopes at
+In this specification, an **authority** is the logical owner of a Scope
+history — the single writer that orders its mutations — while a **service**
+is an HTTP deployment that exposes one or more Scopes. BDP defines three
+cumulative profiles per Scope. A service may host Scopes at
 different profiles, but one Scope has one advertised profile at a time. Claiming
 a higher profile claims every lower profile:
 
@@ -131,7 +134,7 @@ The minimum Read profile consists of:
 - paginated Bead and Link collection retrieval with the structural predicates
   and bounded Selector defined below;
 - the `properties` view for a Bead or Link; and
-- the incident-Link `links` view for an in-Scope Bead.
+- the incident Link `links` view for an in-Scope Bead.
 
 The `include=links` aggregate, Resource Event views, Scope Events, receipts,
 snapshots, changefeeds, and every mutation target are outside the minimum Read
@@ -242,7 +245,7 @@ spaces owned by different Scopes do not overlap.
 A local Bead ID begins with the fixed `beads/` segment and a local Link ID
 begins with the fixed `links/` segment. Each then contains one or more safe
 URI-path segments that form opaque identity within its Scope. Protocol
-resolution against the canonical Scope URI produces one absolute canonical
+resolution against the canonical Scope URL produces one absolute canonical
 Resource URL. That URL is immutable and, once committed, is never reassigned to
 an unrelated Resource in the lifetime of the logical Scope, including after
 deletion or a Scope-epoch change. An implementation preserves a compact
@@ -308,7 +311,7 @@ projections equivalent. The canonical Scope, Bead, and Link URLs remain
 identity and do not vary by view.
 
 An Authorization View is a closed projection of the Scope. Every read,
-Selector, incident-Link view, snapshot, changefeed, Event Source, and
+Selector, incident Link view, snapshot, changefeed, Event Source, and
 representation for the request observes that same projection. A Link is visible
 only when the Link and every in-Scope endpoint Bead are visible. An out-of-Scope
 endpoint is opaque and does not independently gate Link visibility. A visible
@@ -399,7 +402,7 @@ External Reference sentinel. BDP treats the `id` as an opaque reference: the
 target MAY be a Bead, another kind of Resource, or nothing currently
 dereferenceable. The authority does not dereference it, infer its kind or Type,
 subject it to in-Scope endpoint-Type or aggregate constraints, expose Bead
-operations or incident-Link traversal for it, or make its lifecycle part of
+operations or incident Link traversal for it, or make its lifecycle part of
 the Scope's integrity guarantees. External endpoint equality is exact `id`
 equality; BDP defines no cross-authority canonicalization. At least one endpoint
 of every BDP v0 Link MUST be an in-Scope Bead. A Scope therefore cannot own a
@@ -569,8 +572,8 @@ with RFC 6902 object and array semantics. `replace` and `remove` require their
 targets to exist. `move`, `copy`, and `test` are not part of BDP v0.
 
 Assigning JSON `null` and removing a member are distinct operations. The patch
-must yield a JSON object, and the authority validates that complete result—not
-merely changed members—against every effective Type contract. Advertised limits
+must yield a JSON object, and the authority validates that complete result — not
+merely changed members — against every effective Type contract. Advertised limits
 bound patch operation count, path size and depth, and resulting representation
 size.
 
@@ -614,7 +617,7 @@ constraints, deletion safety, Type contracts, and every other Scope invariant,
 without prescribing a particular storage isolation level.
 
 An admitted mutation's `idempotencyKey` identifies its complete semantic
-request within the canonical Scope URI, Scope epoch, and authenticated
+request within the canonical Scope URL, Scope epoch, and authenticated
 principal. The authority normalizes local references, expands protocol defaults,
 preserves operation and array order, ignores JSON object member order, and
 excludes delivery-only metadata before comparing requests. It may store that
@@ -673,7 +676,7 @@ Resource references are kind-checked. A Link reference cannot be used where a
 Bead reference is required. Only Resource identity is bindable; revisions,
 properties, timestamps, query results, and other operation-result data are not.
 
-A durable relative reference is resolved against the canonical Scope URI and
+A durable relative reference is resolved against the canonical Scope URL and
 normalized to an absolute canonical URL before use. It must remain beneath the
 fixed `beads/` or `links/` root required by the reference's Resource kind. An
 endpoint `id` that is relative therefore always denotes an in-Scope endpoint
@@ -1106,7 +1109,7 @@ may cover a collection, graph Scope, or complete service.
 For a self-Link, the one endpoint Bead receives two graph facts in the same
 group: one whose `endpoint` is `source` and one whose `endpoint` is `target`.
 Both count against the transaction's Event-expansion limit. These derived facts
-and the incident-Link view do not mutate the Bead or advance its Resource
+and the incident Link view do not mutate the Bead or advance its Resource
 revision.
 
 Events describe data-model facts, not protocol methods. Full replacement and
@@ -1117,7 +1120,7 @@ no observable Events.
 For Event purposes, `UpdateWhere` and `DeleteWhere` expand over their selected
 Resources as the corresponding singleton operations. Each affected Resource
 produces exactly the Event facts that its singleton update or deletion would
-produce, including incident-Link facts at in-Scope endpoint Beads. A zero-match
+produce, including incident Link facts at in-Scope endpoint Beads. A zero-match
 operation produces no Events. All Events induced by one Mutation Transaction
 carry that transaction's identity and become observable together only after
 commit.
@@ -1134,7 +1137,7 @@ emits the same committed facts.
 
 > **Transactional/Replication only — Transactional profile.**
 >
-> Implementations of the Read and Read+Update profiles may skip Change Groups,
+> Implementations of the Read and Read+Update profiles may skip change groups,
 > postimages, tombstones, projection advances, and replica reconstruction.
 
 Every successful transaction that induces at least one Event produces exactly
@@ -1255,7 +1258,7 @@ protocol uses one small, uniform surface:
 
 ### Scope discovery and human documentation
 
-Every BDP Scope has one absolute canonical Scope URI ending in `/`. That URI is
+Every BDP Scope has one absolute canonical Scope URL ending in `/`. That URI is
 the base used to resolve local IDs and durable relative references, even when a
 request reached the Scope through an alias or redirect. An ordinary `GET` of
 the Scope URI MUST return a successful response carrying a registered
@@ -1495,10 +1498,9 @@ bundle without network retrieval, and generated language types derive from
 that same artifact. BDP v0 does not publish independently versioned schema
 fragments whose references could resolve to a mixed protocol version.
 
-The discovery and Read definitions in the bundle are part of the Read
-implementation gate. Each later profile's definitions gate that profile's
-implementation wave, and the packaging question closes only when the complete
-reviewed BDP v0 bundle exists.
+The discovery and Read definitions in the bundle are complete. Each later
+profile's definitions must exist before that profile can be implemented, and
+the bundle is finished only when it covers the complete BDP v0 surface.
 
 ### Problem details
 
@@ -1530,8 +1532,8 @@ and `retry`. In the Read profile, `retry` is exactly `never`,
 `after-state-change`, or `after-delay`. `after-state-change` requires the
 caller to refresh state or construct a new request. `after-delay` responses
 SHOULD carry `Retry-After` when the authority can state a useful delay.
-Mutation-only dispositions and problem codes are defined with their profiles;
-Read does not publish them early.
+Mutation-only dispositions and problem codes are defined with their
+profiles rather than in the Read table.
 
 A direct problem uses its code's HTTP status. Its RFC 9457 `status` member is
 optional, but when present it MUST match the HTTP status. RFC 9457 extension
@@ -1544,9 +1546,9 @@ ordinary direct response. This locates failure without creating a different
 sequence-only taxonomy.
 
 The Read family model, required fields, status mapping, and retry table are
-closed. Completing the code table for every remaining normative later-profile
-failure is part of that profile's schema-bundle and conformance work before the
-affected profile is implemented. An implementation advertising the `read`
+closed. The code table for later-profile failures is completed with each later
+profile's schema bundle and conformance material; a profile cannot be
+implemented before its table exists. An implementation advertising the `read`
 profile MUST support `GET` and `HEAD` for application requests. It MUST NOT
 assign application semantics to `OPTIONS`. When it enables cross-origin access,
 it MUST answer `OPTIONS` according to the CORS rules below. It MUST respond with
@@ -1557,13 +1559,13 @@ body. These are HTTP-native rejections rather than members of the Read
 problem-code table.
 Implementations advertising later cumulative profiles MUST retain `GET` and
 `HEAD` support; those profiles define their additional methods and `Allow`
-values. Unacceptable response media types and unsupported request media types
-remain explicit Read conformance work; this draft does not assign their BDP
-problem codes in the Read table above. An implementation MUST respond to an
+values. This draft does not yet assign BDP problem codes for unacceptable response
+media types or unsupported request media types; the Read table above
+deliberately omits them. An implementation MUST respond to an
 unexpected internal server fault with a body-less `500 Internal Server Error`,
 MUST NOT include a BDP Problem body, and MUST keep internal fault details off the
-wire. Assigning a future BDP Problem mapping for those faults remains explicit
-Read conformance work.
+wire. A future revision may assign a BDP Problem mapping for those faults; this
+draft deliberately does not.
 
 ### HTTP consistency, caching, and CORS fields
 
@@ -1942,7 +1944,7 @@ pinned local copy. Administrative limits bound descriptor count and size,
 closure depth, schema count and size, reference depth, retrieval time, and
 compiled-validator resources.
 
-Every BDP properties schema uses JSON Schema Draft 2020-12. An omitted
+Every BDP properties schema uses JSON Schema 2020-12. An omitted
 `$schema` is interpreted as that dialect; a schema declaring another dialect is
 invalid for BDP v0. `$id`, `$ref`, anchors, and the declared vocabularies have
 their Draft 2020-12 meanings. Installation resolves the complete transitive
@@ -1992,7 +1994,7 @@ the effective contract is uninhabitable and all writes of that Type fail
 validation. An authority reports contradictions it detects but is not required
 to prove that an arbitrary schema intersection is satisfiable.
 
-During bootstrap, the root object described by every `propertiesSchema` is
+In the v0 baseline, the root object described by every `propertiesSchema` is
 open. A root-level `additionalProperties` or `unevaluatedProperties` member is
 therefore omitted or `true`; a root-level `false` or schema-valued restriction
 is invalid for BDP. Nested objects may be closed independently. This lets
@@ -2010,7 +2012,7 @@ required. A local source Bead is valid only when its effective Type set contains
 every source requirement; the target rule is identical and is never
 directionally swapped. This is an intersection: an endpoint requiring both
 `WorkItem` and `Auditable` accepts only a Bead that conforms to both. Union
-constraints are not part of the bootstrap model. An out-of-Scope endpoint is
+constraints are not part of the v0 baseline. An out-of-Scope endpoint is
 opaque and neither satisfies nor fails these requirements.
 
 Maximum endpoint multiplicity is instead a Scope-owned aggregate policy because
@@ -2095,8 +2097,8 @@ idempotency conflict.
 The sequence carrier itself does not use an `Idempotency-Key` HTTP field; its
 member keys are authoritative. The normative request and response envelope
 definitions, key syntax and qualification, duplicate-join behavior, and finite
-outcome-retention rules remain schema/problem artifacts that MUST be authored
-and reviewed before the Read+Update implementation wave. This semantic
+outcome-retention rules are not yet part of this draft; until they exist,
+the Read+Update profile cannot be implemented. This semantic
 decision does not authorize an implementation to invent those wire details.
 
 ### Batch operation target
@@ -2176,7 +2178,7 @@ ambiguity with a transaction-local reference. Singleton operations do not
 accept transaction-local references.
 
 Before idempotency comparison or execution, durable relative Resource
-references are resolved against the canonical Scope URI and normalized to
+references are resolved against the canonical Scope URL and normalized to
 absolute canonical URLs. JSON object member order and equivalent accepted local
 versus absolute spellings therefore do not cause a false idempotency conflict;
 operation order, array order, member presence, and JSON values remain semantic.
@@ -2192,7 +2194,7 @@ operation order, array order, member presence, and JSON values remain semantic.
 > and body-level `idempotencyKey` as described below.
 
 Every object in a batch conforms to the bundle's operation definition. The
-following non-normative drafting sketch previews the eight-record
+following non-normative sketch previews the eight-record
 Transactional union; it has no independent `$id`. The `operation`
 discriminator selects one of the eight generic operation records:
 
@@ -2384,7 +2386,7 @@ and `target` are `EndpointReference` objects whose `id` accepts those same
 local Bead spellings or an absolute out-of-Scope URI and whose `type` is always
 an absolute URL. The authority performs reference resolution,
 canonicalization, label resolution, and Resource-kind validation. A durable
-relative endpoint `id` resolves against the canonical Scope URI rather than the
+relative endpoint `id` resolves against the canonical Scope URL rather than the
 request or containing Link URL and must name a live Bead whose declared Type
 equals the supplied `type`. An absolute endpoint `id` outside the Scope is
 accepted only with the BDP v0 External Reference sentinel; it remains opaque
@@ -2492,7 +2494,7 @@ filtering that Resource out. The authority nevertheless evaluates global graph
 constraints against complete authoritative state and may return a
 non-disclosing conflict when hidden state prevents the mutation.
 
-The incident-Link deletion can compose with explicit Bead deletion in the same
+The incident Link deletion can compose with explicit Bead deletion in the same
 transaction:
 
 ```json
@@ -2605,7 +2607,7 @@ identifying the failing operation by zero-based index and, when present,
 transaction is rolled back. Retrying returns that same failed receipt. Request
 syntax and authentication failures that occur before admission return a direct
 problem response and do not create receipts. Exact HTTP statuses and receipt
-problem schemas remain part of wire-contract closure.
+problem schemas are not yet assigned in this draft.
 
 ### Incident Link reads
 
@@ -3149,8 +3151,9 @@ cursor for a live request. Because the reconnect uses the original URL, a
 query parameter selects an initial cursor; the standard header advances it on
 automatic reconnect. Clients never submit Events as mutation operations.
 
-The receipt's `effectPosition` and the change group's Event ordinals replace an
-unframed Event range in Mutation Receipts. Event IDs, checkpoints, caching, and
+The receipt's `effectPosition` and the change group's Event ordinals identify
+the Events a mutation produced; Mutation Receipts carry no separate Event
+range. Event IDs, checkpoints, caching, and
 expired-cursor failures use the cross-cutting contracts defined above.
 
 ### Normative conformance matrix
@@ -3176,9 +3179,9 @@ The matrix covers, where applicable:
 - cross-implementation client/server combinations, including the reference
   implementations and every shipping product claiming the applicable profile.
 
-The decision and coverage categories are normative. The question closes when
-the reviewed matrix, fixtures, and expected results exist in the repository;
-until then the affected implementation wave lacks complete acceptance evidence.
+The decision and coverage categories are normative. The matrix, fixtures,
+and expected results must exist in the repository for an implementation to
+claim complete acceptance evidence.
 
 ### Open protocol questions
 
@@ -3195,8 +3198,8 @@ prefix, with the release-stability rule stated above.
    and Type inventories; individual Bead and Link reads; paginated collection
    retrieval and bounded selection; the Resource `properties` view; and the
    Bead `links` view. It excludes `include=links`, Resource and Scope Events,
-   receipts, snapshots, changefeeds, and mutation targets. Product readiness
-   remains client-owned behavior over those generic reads.
+   receipts, snapshots, changefeeds, and mutation targets. Domain-specific readiness
+   computations remain client-owned behavior over those generic reads.
 2. **Decision recorded 2026-08-08; wire artifacts pending before mutation:**
    Read+Update supplies individually atomic singleton
    mutations plus strictly declaration-ordered `sequence`. A sequence does not
@@ -3249,7 +3252,7 @@ prefix, with the release-stability rule stated above.
    HTTP fields, SSE `id`, and `Last-Event-ID`.
 9. **Resolved 2026-08-08:** deleted, unknown, and non-visible Resources return
    the same `404` `resource-not-found` response for ordinary, properties, and
-   incident-Link reads. Non-reuse remains an internal obligation. Transactional
+   incident Link reads. Non-reuse remains an internal obligation. Transactional
    Event history may outlive its deleted subject for its retention period.
 10. **Resolved 2026-08-08:** authority-attested actor attribution is excluded
     from BDP v0. Authentication remains an authorization input; private audit
@@ -3283,7 +3286,7 @@ wire behavior.
 ### Deferred companion work and implementation evidence
 
 This subsection is a non-normative development ledger. It records required
-follow-on work so moving the specification does not silently discard it:
+follow-on work so that it is not silently discarded:
 
 - Define a separate administrator/operator specification for installing,
   pinning, inventorying, replacing, and evolving Type Descriptor contract
