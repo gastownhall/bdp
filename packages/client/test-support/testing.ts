@@ -85,6 +85,8 @@ export function createBdpClientScenarioActionExecutor(
         );
       case "external-link-endpoints":
         return observeExternalLinkEndpoints(execution, fetchImplementation);
+      case "owned-references":
+        return observeOwnedReferences(execution, fetchImplementation);
       default:
         throw new Error("unsupported client scenario operation");
     }
@@ -173,6 +175,41 @@ async function observeExternalLinkEndpoints(
         return source[0]?.startsWith("beads/") === true || target[0]?.startsWith("beads/") === true;
       }),
     };
+  } finally {
+    await client.close();
+  }
+}
+
+async function observeOwnedReferences(
+  execution: BdpClientScenarioActionExecution,
+  fetchImplementation: typeof fetch | undefined,
+) {
+  if (fetchImplementation === undefined)
+    throw new Error("owned-references requires a routed public Fetch implementation");
+  if (
+    !isPlainRecord(execution.input) ||
+    Reflect.ownKeys(execution.input).length !== 1 ||
+    typeof execution.input.bead !== "string" ||
+    execution.input.bead.length === 0 ||
+    execution.input.bead.length > 2_048
+  )
+    throw new Error("owned-references input must name one bead");
+  const scope = execution.scope as AbsoluteHttpUrl;
+  const id = new URL(execution.input.bead, scope).href;
+  if (!id.startsWith(scope)) throw new Error("owned-references bead escaped the Scope");
+  const client = new BdpClient({
+    scope,
+    transport: createFetchTransport(fetchImplementation, TARGET_DIAGNOSTIC_TRANSPORT_LIMITS),
+  });
+  try {
+    const result = await client.perform(
+      { kind: "resource", resource: "bead", id },
+      { signal: execution.signal },
+    );
+    if (isBdpClientProblem(result)) return { outcome: "problem", code: result.code };
+    // The owned-references plane as served, or null where the realization's
+    // Type declares no ownership — the honest-absence half of the proof.
+    return { outcome: "success", references: result.references ?? null };
   } finally {
     await client.close();
   }
@@ -293,6 +330,15 @@ async function observePublicLogicalProjection(
     throw new Error("public-logical-projection requires a public target Fetch implementation");
   const scope = execution.scope as AbsoluteHttpUrl;
   const relationshipRoles = parseRelationshipRoles(execution.input, scope);
+  // Realization-only Links (owned-reference and pin realizations) are not
+  // part of the shared logical topology the two targets must agree on.
+  const realizationOnly = new Set(
+    Array.isArray((execution.input as { realizationOnlyLinkIds?: unknown }).realizationOnlyLinkIds)
+      ? (
+          execution.input as { realizationOnlyLinkIds: readonly unknown[] }
+        ).realizationOnlyLinkIds.filter((value): value is string => typeof value === "string")
+      : [],
+  );
   const client = new BdpClient({
     scope,
     transport: createFetchTransport(fetchImplementation, TARGET_DIAGNOSTIC_TRANSPORT_LIMITS),
@@ -323,6 +369,8 @@ async function observePublicLogicalProjection(
       ] as const;
     });
     const relationships = links.items.flatMap((link) => {
+      if (realizationOnly.has(link.id.startsWith(scope) ? link.id.slice(scope.length) : link.id))
+        return [];
       const source = titleById.get(referenceUri(link.source));
       const target = titleById.get(referenceUri(link.target));
       const role = relationshipRoles.get(link.type);
@@ -357,10 +405,18 @@ function parseRelationshipRoles(
 ): ReadonlyMap<string, string> {
   if (
     !isPlainRecord(input) ||
-    Reflect.ownKeys(input).length !== 1 ||
+    Reflect.ownKeys(input).some(
+      (key) => key !== "relationshipRoles" && key !== "realizationOnlyLinkIds",
+    ) ||
     !Array.isArray(input.relationshipRoles) ||
     input.relationshipRoles.length === 0 ||
-    input.relationshipRoles.length > 64
+    input.relationshipRoles.length > 64 ||
+    (input.realizationOnlyLinkIds !== undefined &&
+      (!Array.isArray(input.realizationOnlyLinkIds) ||
+        input.realizationOnlyLinkIds.length > 64 ||
+        input.realizationOnlyLinkIds.some(
+          (value) => typeof value !== "string" || value.length === 0 || value.length > 2_048,
+        )))
   )
     throw new Error("public-logical-projection action input was invalid");
   const roles = new Map<string, string>();

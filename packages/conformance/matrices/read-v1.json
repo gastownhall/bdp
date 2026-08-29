@@ -5477,6 +5477,29 @@
               "equals": true
             }
           ]
+        },
+        {
+          "id": "owned-references",
+          "family": "client",
+          "operation": "owned-references",
+          "inputFixturePointer": "/oracles/owned-references/input",
+          "captures": [],
+          "assertions": [
+            {
+              "id": "success",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "success"
+            },
+            {
+              "id": "plane",
+              "kind": "json-pointer",
+              "pointer": "/references",
+              "exists": true,
+              "fixturePointer": "/oracles/owned-references/references"
+            }
+          ]
         }
       ],
       "cleanup": {

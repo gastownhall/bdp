@@ -371,6 +371,16 @@
         },
         "target": {
           "$ref": "#/$defs/endpointConstraint"
+        },
+        "ownsOutgoing": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/absoluteHttpUrl"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/ownedReferenceDeclaration"
+          }
         }
       },
       "allOf": [
@@ -412,6 +422,21 @@
                   "required": ["target"]
                 }
               ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "describes": {
+                "const": "link"
+              }
+            },
+            "required": ["describes"]
+          },
+          "then": {
+            "properties": {
+              "ownsOutgoing": false
             }
           }
         }
@@ -481,6 +506,18 @@
         },
         "links": {
           "$ref": "#/$defs/linkCollection"
+        },
+        "references": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/absoluteHttpUrl"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/reference"
+            }
+          }
         }
       },
       "additionalProperties": false
@@ -758,6 +795,20 @@
         "revision": {
           "type": "string",
           "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "ownedReferenceDeclaration": {
+      "type": "object",
+      "required": ["max"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "max": {
+          "$ref": "#/$defs/positiveInteger"
         }
       },
       "additionalProperties": false

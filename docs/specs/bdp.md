@@ -251,7 +251,8 @@ profile, and each of its sections says so in a banner.
 
 A **Bead** is the unit of shared state in this model: one identified,
 typed thing — a task, a bug, a decision, a memory — whose content is a
-single JSON `properties` document. Beads are what people and agents read,
+single JSON `properties` document and, when its Type owns outgoing Link
+Types, the owned references made from it. Beads are what people and agents read,
 create, and update, and every change to a Bead's properties produces a new
 named version of it.
 
@@ -261,7 +262,8 @@ one of its two endpoints is a Bead in the Link's own Scope; the other may
 instead reference something outside it. Links are not
 embedded in either endpoint: a Link has its own identity, its own type, and
 its own `properties`, and creating or deleting one never changes the Beads
-it connects. Beads and Links together form a graph, and a bounded, owned
+it connects — except that a source whose Type owns the Link's type is
+versioned by it, under [Owned references](#owned-references). Beads and Links together form a graph, and a bounded, owned
 graph is called a **Scope** (defined under
 [Scopes and identity](#scopes-and-identity) below).
 
@@ -272,6 +274,7 @@ Bead {
   id: BeadId
   type: BeadTypeId
   properties: JsonObject
+  references?   // owned-references plane; owning Types only
 }
 ```
 
@@ -289,9 +292,13 @@ Link {
 ```
 
 For a Bead, `id` and `type` are immutable. For a Link, `id`, `type`,
-`source`, and `target` are immutable. Only `properties` may be updated.
-Assigning a new value to an immutable member is not an update. Deleting a
-Resource and creating another Resource are distinct operations.
+`source`, and `target` are immutable. `properties` may be updated, and a
+Bead's `references` plane changes only through its owned Links.
+Assigning a new value to an immutable member is not an update. Because a
+Link's endpoints are immutable, repointing or re-pinning an owned
+reference is a delete-and-create pair, each of which versions the source.
+Deleting a Resource and creating another Resource are distinct
+operations.
 
 Every Link has independent Resource identity. Its `type`, `source`, and
 `target` describe it but do not identify it. BDP v0 permits multiple Links
@@ -357,6 +364,42 @@ alone; a pin adds no identity component. References do not carry the
 endpoint Bead's declared Type: readers that need endpoint Types use the
 read views, and an authority validates endpoint Types against the
 identified Beads themselves.
+
+#### Owned references
+
+A Bead Type MAY declare that certain outgoing Link Types are **owned**:
+part of the source Bead's own versioned state. Ownership is declared per
+(Bead Type, Link Type) pair in the owning Bead Type's descriptor —
+`ownsOutgoing`, an object keyed by owned Link Type URL whose values are
+`{ label?, max }` — and never on the Link Type, so the same Link Type may
+be owned by one Bead Type and unowned by another. Nothing is owned by
+default, only Bead Types may own, and keying by Link Type URL declares
+each pair at most once by construction. Each declaration MUST carry
+`max`, the largest owned set the Type permits.
+`label` is documentation for display and SDK projection, like `name`: it
+appears only in the Type Descriptor and MUST NOT appear in any Resource
+record — the `references` member is keyed by Link Type URL alone.
+
+Creating, deleting, or changing the target Reference of an owned Link —
+including adding, removing, or changing its pin — versions the source
+Bead. An incoming Link never versions its target, whatever its type, so
+reverse projections such as cited-by remain computed views. An owned Link
+remains a first-class Link: its own `properties` are the Link's state
+under the Link's own revision, not the source's.
+
+A Bead whose Type owns outgoing Link Types carries a **references**
+member in its record: one entry per declared owned Link Type, keyed by
+the Link Type URL, whose value is the array of the owned Links' target
+References — pins included — in a deterministic order the authority
+documents. An entry is present, possibly empty, for every declared owned
+type; the member is absent for Beads whose Type owns nothing. The record
+read always serves the member, because the Bead's revision covers it: a
+reader holding a revision can always see everything that revision covers.
+The `properties` view remains the authored JSON document alone.
+
+The posture in one sentence: owned references are outgoing, bounded,
+inline, and versioned; incident Links are unbounded, a view, and version
+nothing.
 
 ### Types
 
@@ -519,8 +562,9 @@ read, mutate, or traverse it.
 
 ### Revisions
 
-Every successful create, and every update that changes `properties`, produces
-a fresh opaque Resource revision. A client compares revisions only for
+Every successful create — and every update that changes `properties` or,
+for a Bead whose Type owns outgoing Link Types, its owned references —
+produces a fresh opaque Resource revision. A client compares revisions only for
 equality and must not derive meaning from their spelling. If applying an
 update produces a `properties` value that is equal, under the JSON
 value-comparison rules of RFC 6902 Section 4.6, to the value immediately
@@ -742,8 +786,10 @@ unrelated to the containing Link's own `revision` and to
 `expectedRevision` guards. It does not participate in Link identity or
 Reference comparison.
 
-Creating or deleting a Link does not mutate an in-Scope endpoint Bead, and it
-does not change that Bead's Resource revision.
+Creating or deleting a Link does not mutate an in-Scope endpoint Bead or
+change that Bead's Resource revision — with one declared exception: when
+the Link's type is owned by the source Bead's declared Type, the source's
+revision changes. The target's never does.
 
 ### Explicit Bead operations
 
@@ -1083,7 +1129,8 @@ materialize or index a projection without changing its contents or order.
 The model defines five domain-independent Event Types:
 
 - **created** — a Bead or Link began to exist;
-- **updated** — the mutable properties of a Bead or Link changed;
+- **updated** — the mutable properties of a Bead or Link changed, or an
+  owned reference of a Bead changed;
 - **deleted** — a Bead or Link ceased to exist;
 - **linked** — a Link became incident upon a Bead; and
 - **unlinked** — a Link ceased to be incident upon a Bead.
@@ -1110,15 +1157,23 @@ UpdatedData {
   change: PropertyChange
 }
 
+
 DeletedData {
   revision: Revision
 }
 ```
 
+An owned-reference change produces an `updated` Event on the source Bead
+with its fresh revision. The delta member carrying the owned-reference
+change is not yet part of this draft; until it exists, the Transactional
+profile cannot be implemented for owning Types.
+
+
 `CreatedData` contains the complete initial properties, because creation is
 the delta from absence to the initial state. For a Link, it also contains the
 Link's source and target endpoint references. `UpdatedData` contains the
-committed Property Change rather than a resulting properties snapshot.
+committed Property Change — or, once its pending delta member exists, the
+owned-reference change — rather than a resulting state snapshot.
 `DeletedData.revision` is the Resource's final live revision. Deleted Events
 do not retain the Resource's properties.
 
@@ -1164,7 +1219,10 @@ For a self-Link, whose source and target are the same Bead, that one endpoint
 Bead receives two graph facts in the same group: one whose `endpoint` is
 `source` and one whose `endpoint` is `target`. Both count against the
 transaction's Event-expansion limit. These derived facts and the incident
-Link view do not mutate the Bead or advance its Resource revision.
+Link view do not mutate the Bead or advance its Resource revision; a
+source Bead whose Type owns the Link's type is versioned by the owned
+change itself, under [Owned references](#owned-references), not by these
+derived facts.
 
 Events describe data-model facts, not protocol methods. Full replacement and
 partial update therefore produce the same abstract `updated` Event when they
@@ -1723,7 +1781,12 @@ A Link record is:
 }
 ```
 
-`id` and `type` are always absolute canonical URLs in responses. Link
+`id` and `type` are always absolute canonical URLs in responses. A Bead
+whose Type owns outgoing Link Types additionally carries its `references`
+member — one entry per declared owned Link Type, keyed by the Link Type
+URL, valued by the owned Links' target References with their pins — on
+every record read; the member is absent for Beads whose Type owns
+nothing. Link
 `source` and `target` are References as defined under
 [Beads and Links](#beads-and-links): an in-Scope endpoint's `uri` is the
 Bead's absolute canonical URL, an out-of-Scope endpoint's `uri` is its
@@ -1977,7 +2040,14 @@ The descriptor members have these meanings:
 - for a Link Type, `source.conformsTo` and `target.conformsTo` list Types that
   the corresponding in-Scope endpoint Bead must satisfy. Every listed Type is
   required, and an empty list accepts any in-Scope Bead at that endpoint. An
-  out-of-Scope endpoint is opaque and is not checked against these lists.
+  out-of-Scope endpoint is opaque and is not checked against these lists; and
+- for a Bead Type, `ownsOutgoing`, when present, declares the outgoing
+  Link Types the Type owns: an object keyed by owned Link Type URL whose
+  values are `{ label?, max }`, under
+  [Owned references](#owned-references). `max` is the required bound on
+  the owned set, and `label` is display documentation, like `name`: it
+  appears only in the descriptor and never in any Resource record. A Link
+  Type Descriptor must not carry `ownsOutgoing`.
 
 Descriptor objects and endpoint-constraint objects are closed: no members are
 allowed except those defined above. Type-ID arrays contain unique Type URLs and
@@ -2469,7 +2539,9 @@ the Scope is accepted as an opaque external reference, subject to the Link
 Type's external-endpoint policy. Such an endpoint is not kind-checked or
 dereferenced. Either endpoint may be supplied as a Pinned Reference under
 [Batch-local Resource references](#batch-local-resource-references).
-Neither case mutates an endpoint Bead or changes its revision.
+Neither case mutates an endpoint Bead or changes its revision — unless
+the Link's type is owned by the source Bead's declared Type, in which
+case the source's revision changes and the target's never does.
 
 The singleton target for an operation accepts the corresponding record with
 `operation` and `name` removed. The target URL supplies the meaning of
@@ -3160,7 +3232,9 @@ contains deltas rather than Resource snapshots:
   stored pin preserved byte-identically.
 - `updated` carries `previousRevision`, `revision`, and `change`. `change`
   uses the same committed Property Change representation accepted by
-  singleton DML.
+  singleton DML; for an owned-reference change on the source Bead, the
+  delta member is pending as recorded in the model section, and the wire
+  form arrives with it.
 - `deleted` carries only `revision`, meaning the final live Resource
   revision.
 - `linked` and `unlinked` carry `endpoint`, a typed `link` reference, and the

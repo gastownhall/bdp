@@ -1,3 +1,5 @@
+import { REFERENCE_TYPE_DESCRIPTORS } from "@bdp/protocol";
+import { BD_SERVED_TYPE_DESCRIPTORS } from "./index.js";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -28,6 +30,15 @@ afterEach(async () => {
 });
 
 describe("bd process Scope port", () => {
+  it("serves the shared domain descriptors with ownership stripped — bd declares no ownership", () => {
+    const decision = BD_SERVED_TYPE_DESCRIPTORS.find(({ id }) => id.endsWith("/decision"));
+    expect(decision).toBeDefined();
+    expect(decision).not.toHaveProperty("ownsOutgoing");
+    expect(REFERENCE_TYPE_DESCRIPTORS.find(({ id }) => id.endsWith("/decision"))).toHaveProperty(
+      "ownsOutgoing",
+    );
+  });
+
   it("combines structural predicates over the projected reference Type closure", async () => {
     const { port } = await createPort();
 

@@ -317,6 +317,37 @@ describe("Type artifact parsing", () => {
     expect([invalidLink.describes, invalidBead.describes]).toEqual(["link", "bead"]);
   });
 
+  it("enforces owned-declaration uniqueness and canonical Type URLs", () => {
+    const descriptor = {
+      id: "https://work.example/types/decision",
+      name: "Decision",
+      describes: "bead",
+      conformsTo: [],
+      ownsOutgoing: { "https://work.example/types/cites": { label: "cites", max: 8 } },
+    };
+    expect(parseTypeDescriptor(descriptor)).toEqual(descriptor);
+    expect(() =>
+      parseTypeDescriptor({
+        ...descriptor,
+        ownsOutgoing: { "https://user:pw@work.example/types/cites": { max: 8 } },
+      }),
+    ).toThrow();
+    const record = {
+      id: `${scope}beads/demo-f`,
+      type: "https://work.example/types/decision",
+      revision: "1",
+      properties: {},
+      references: { "https://user:pw@work.example/types/cites": [] },
+    };
+    expect(() => parseBeadRecord(record)).toThrow();
+    expect(
+      parseBeadRecord({
+        ...record,
+        references: { "https://work.example/types/cites": [`${scope}beads/demo-a`] },
+      }).references,
+    ).toEqual({ "https://work.example/types/cites": [`${scope}beads/demo-a`] });
+  });
+
   it("round-trips endpoint-constraint external policies and rejects unknown tokens", () => {
     const descriptor = {
       id: "https://work.example/types/blocks",

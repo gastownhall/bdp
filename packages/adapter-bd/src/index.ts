@@ -38,6 +38,20 @@ import {
 /** Identifies the bd adapter package without invoking bd during Gate 0. */
 export const packageName = "@bdp/adapter-bd";
 
+/**
+ * The bd realization declares no reference ownership: bd cannot version a
+ * bead by its outgoing links, so serving the shared domain's ownsOutgoing
+ * would advertise a plane this realization never populates. Honest absence:
+ * the served descriptors strip the declaration, and records carry no
+ * references member.
+ */
+export const BD_SERVED_TYPE_DESCRIPTORS: readonly TypeDescriptor[] = REFERENCE_TYPE_DESCRIPTORS.map(
+  (descriptor) =>
+    descriptor.describes === "bead" && descriptor.ownsOutgoing !== undefined
+      ? (({ ownsOutgoing: _ownsOutgoing, ...rest }) => rest)(descriptor)
+      : descriptor,
+);
+
 export interface BdWorkspaceScope {
   readonly scope: AbsoluteHttpUrl;
   readonly port: ScopePort;
@@ -111,10 +125,10 @@ export function createBdProcessScopePort(
   let beads: BeadRecord[] | undefined;
   let links: LinkRecord[] | undefined;
   const referenceDescriptorsById = new Map(
-    REFERENCE_TYPE_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
+    BD_SERVED_TYPE_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
   );
   let observedTypes = REFERENCE_TYPE_SUMMARIES;
-  let observedDescriptors = REFERENCE_TYPE_DESCRIPTORS;
+  let observedDescriptors = BD_SERVED_TYPE_DESCRIPTORS;
   let typeConformance = createTypeConformanceIndex(observedDescriptors);
   let loading: InFlightLoad | undefined;
   let loadedAt = 0;

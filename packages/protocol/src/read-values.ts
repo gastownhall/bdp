@@ -61,6 +61,9 @@ export function parseTypeDescriptor(value: unknown, path = "Type Descriptor"): T
   validateResourceTypeIds(type.conformsTo, `${path}.conformsTo`);
   if (type.source !== undefined) validateEndpointConstraint(type.source, `${path}.source`);
   if (type.target !== undefined) validateEndpointConstraint(type.target, `${path}.target`);
+  if (type.ownsOutgoing !== undefined)
+    for (const key of Object.keys(type.ownsOutgoing as Readonly<Record<string, unknown>>))
+      parseResourceTypeId(key, `${path}.ownsOutgoing key`);
   return type as unknown as TypeDescriptor;
 }
 
@@ -95,6 +98,9 @@ export function parseBeadRecord(value: unknown, path = "Bead record"): BeadRecor
   validateFromSchema(getProtocolValueValidators().beadRecord, record, path);
   parseCanonicalTypeId(record.id, `${path}.id`);
   parseResourceTypeId(record.type, `${path}.type`);
+  if (record.references !== undefined)
+    for (const key of Object.keys(record.references as Readonly<Record<string, unknown>>))
+      parseResourceTypeId(key, `${path}.references key`);
   const links =
     record.links === undefined ? undefined : parseLinkCollection(record.links, `${path}.links`);
   return Object.freeze({

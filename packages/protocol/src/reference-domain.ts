@@ -18,6 +18,7 @@ export const REFERENCE_LINK_TYPES = [
   ["https://work.example/types/dependency", "Dependency"],
   [REFERENCE_BLOCKING_LINK_TYPE_ID, "Blocks"],
   ["https://work.example/types/relates", "Relates"],
+  ["https://work.example/types/cites", "Cites"],
 ] as const;
 
 export const REFERENCE_TYPE_SUMMARIES: readonly TypeSummary[] = [
@@ -52,5 +53,16 @@ export const REFERENCE_TYPE_DESCRIPTORS: readonly TypeDescriptor[] = REFERENCE_T
                   summary.id !== "https://work.example/types/decision"
                 ? ["https://work.example/types/work-item"]
                 : [],
+          // Decision owns its citations: the owned-references realization
+          // for the reference domain. Bounded so the plane is always
+          // servable inline; the label is descriptor documentation and
+          // never appears in Resource records.
+          ...(summary.id === "https://work.example/types/decision"
+            ? {
+                ownsOutgoing: {
+                  "https://work.example/types/cites": { label: "cites", max: 8 },
+                },
+              }
+            : {}),
         },
 );

@@ -511,7 +511,8 @@
         "https://work.example/types/dependency",
         "https://work.example/types/blocks",
         "https://work.example/types/relates",
-        "types/related"
+        "types/related",
+        "https://work.example/types/cites"
       ]
     },
     "structural-predicates": {
@@ -588,12 +589,18 @@
         "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
         "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"
       ]
+    },
+    "owned-references": {
+      "input": {
+        "bead": "beads/demo-f"
+      },
+      "references": null
     }
   },
   "expectations": {
     "readyTitles": ["J", "D", "A"],
     "beadCount": 9,
     "linkCount": 9,
-    "typeCount": 13
+    "typeCount": 14
   }
 }
