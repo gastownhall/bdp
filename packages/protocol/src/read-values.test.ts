@@ -18,15 +18,19 @@ import {
   type TypeDescriptor,
 } from "./index.js";
 
-// Compile-time contract: a reference is a URI string, or the external
-// Pinned Reference with exactly uri and revision.
+// Compile-time contract: a Reference is a URI string, or a Pinned
+// Reference with exactly uri and revision — for either reference class.
 const _plainReference: Reference = "https://scope.example/acme/beads/demo-a";
 const _externalPolicies: readonly ExternalEndpointPolicy[] = ["none", "opaque", "bead"];
 // @ts-expect-error — the policy union is exactly none | opaque | bead
 const _invalidPolicy: ExternalEndpointPolicy = "always";
 void _externalPolicies;
 void _invalidPolicy;
-const _externalCitation: Reference = { uri: "urn:external:cited", revision: "cited-1" };
+const _pinnedExternal: Reference = { uri: "urn:external:cited", revision: "cited-1" };
+const _pinnedLocal: Reference = {
+  uri: "https://scope.example/acme/beads/demo-a",
+  revision: "pin-a-r1",
+};
 const _pinRejectsExtras: Reference = {
   uri: "urn:external:cited",
   revision: "cited-1",
@@ -34,7 +38,8 @@ const _pinRejectsExtras: Reference = {
   type: "https://work.example/types/task",
 };
 void _plainReference;
-void _externalCitation;
+void _pinnedExternal;
+void _pinnedLocal;
 void _pinRejectsExtras;
 
 const scope = "https://scope.example/acme/" as AbsoluteHttpUrl;

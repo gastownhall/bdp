@@ -1733,12 +1733,22 @@ returned on every successful read. That does not mean they are accepted as
 update targets. An implementation may store local identifiers internally.
 That choice does not alter the response spelling.
 
-For example, a pinned external endpoint is represented as:
+A pinned endpoint is represented the same way for both reference classes.
+For example, pinning an external target:
 
 ```json
 {
   "uri": "https://github.example/issues/123",
   "revision": "8f0e2b"
+}
+```
+
+and pinning an in-Scope Bead:
+
+```json
+{
+  "uri": "https://beads.example/acme/beads/task-42",
+  "revision": "opaque-task-revision"
 }
 ```
 

@@ -1314,9 +1314,9 @@ function evaluateAssertion(
           if (projection.normalize === "scope-relative-or-absolute-uri")
             return scopeRelativeOrAbsoluteUri(value, scope);
           if (projection.normalize === "endpoint-uri") {
-            const isCitation = typeof value === "object" && value !== null && !Array.isArray(value);
+            const isPin = typeof value === "object" && value !== null && !Array.isArray(value);
             return scopeRelativeOrAbsoluteUri(
-              isCitation ? (value as { readonly uri?: unknown }).uri : value,
+              isPin ? (value as { readonly uri?: unknown }).uri : value,
               scope,
             );
           }

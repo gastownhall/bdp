@@ -514,7 +514,7 @@ describe("checked-in Read matrix artifacts", () => {
         fixturePath,
       ).toEqual(fixture.realization === "bdptest" ? [3, 3, 1, 2] : [1, 1, 1, 0]);
       // The reference realization proves both spellings of the optional
-      // endpoint citation: one external endpoint echoes a stored revision and
+      // endpoint pin: one external endpoint echoes a stored revision and
       // one omits the member. bd stores no pin, so bdpbd proves omission.
       const externalArities = external.rows
         .map(([, , source, target]) =>
