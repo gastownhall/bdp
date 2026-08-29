@@ -29,8 +29,8 @@ function link(
     id: `https://beads.example/acme/links/${id}`,
     type: "https://beads.example/acme/types/blocks",
     revision: `revision-${id}`,
-    source: { id: source, type: BEAD_TYPE },
-    target: { id: target, type: BEAD_TYPE },
+    source,
+    target,
     properties,
   } as LinkRecord;
 }
@@ -149,7 +149,7 @@ describe("Read Selector", () => {
       matchingBead,
     ]);
     expect(
-      selectReadResources(`$[?@.source.id == "${local}" && @.target.id == "${external}"]`, LIMITS, [
+      selectReadResources(`$[?@.source == "${local}" && @.target == "${external}"]`, LIMITS, [
         matchingLink,
         otherLink,
       ]),

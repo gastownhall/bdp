@@ -26,7 +26,7 @@ import type {
   TypeSummary,
 } from "@bdp/protocol";
 import {
-  BDP_EXTERNAL_REFERENCE_TYPE,
+  endpointUri,
   isJsonSchemaUri,
   isReadProblem,
   ProtocolArtifactValidationError,
@@ -2195,8 +2195,8 @@ function validateBeadLinksBody(
   const direction = operation.direction ?? "both";
   for (const link of page.items) {
     validateServerLink(link, scope);
-    const inbound = link.target.id === operation.bead;
-    const outbound = link.source.id === operation.bead;
+    const inbound = endpointUri(link.target) === operation.bead;
+    const outbound = endpointUri(link.source) === operation.bead;
     if (
       (direction === "inbound" && !inbound) ||
       (direction === "outbound" && !outbound) ||
@@ -2238,14 +2238,16 @@ function validateServerLink(link: LinkRecord, scope: AbsoluteHttpUrl): void {
 }
 
 function validateServerEndpoint(endpoint: Endpoint, scope: AbsoluteHttpUrl): boolean {
-  if (endpoint.type === BDP_EXTERNAL_REFERENCE_TYPE) {
-    if (endpointAliasesScope(endpoint.id, scope))
-      throw new ProtocolArtifactValidationError(
-        "ScopePort Link used External Reference for an in-Scope endpoint",
-      );
-    return false;
-  }
-  validateServerLocalResourceId(endpoint.id, scope, "bead");
+  // In-Scope or external is derived from the URI: a Scope-alias URI claims an
+  // in-Scope Bead (and must be its canonical spelling, with no citation);
+  // every other URI is an opaque external reference.
+  const uri = endpointUri(endpoint);
+  if (!endpointAliasesScope(uri, scope)) return false;
+  if (typeof endpoint !== "string")
+    throw new ProtocolArtifactValidationError(
+      "ScopePort in-Scope endpoint must not carry a revision citation",
+    );
+  validateServerLocalResourceId(uri, scope, "bead");
   return true;
 }
 
@@ -2302,18 +2304,18 @@ function validateLinkCollectionFilters(
     throw new ProtocolArtifactValidationError(
       "ScopePort Link collection violated the requested Type filter",
     );
-  if (operation.source !== undefined && link.source.id !== operation.source)
+  if (operation.source !== undefined && endpointUri(link.source) !== operation.source)
     throw new ProtocolArtifactValidationError(
       "ScopePort Link collection violated the requested source filter",
     );
-  if (operation.target !== undefined && link.target.id !== operation.target)
+  if (operation.target !== undefined && endpointUri(link.target) !== operation.target)
     throw new ProtocolArtifactValidationError(
       "ScopePort Link collection violated the requested target filter",
     );
   if (
     operation.endpoint !== undefined &&
-    link.source.id !== operation.endpoint &&
-    link.target.id !== operation.endpoint
+    endpointUri(link.source) !== operation.endpoint &&
+    endpointUri(link.target) !== operation.endpoint
   )
     throw new ProtocolArtifactValidationError(
       "ScopePort Link collection violated the requested endpoint filter",

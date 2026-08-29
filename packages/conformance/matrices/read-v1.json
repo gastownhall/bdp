@@ -794,18 +794,20 @@
                   "pointer": "/revision"
                 },
                 {
-                  "pointer": "/source/id",
-                  "normalize": "scope-relative-or-absolute-uri"
+                  "pointer": "/source",
+                  "normalize": "endpoint-uri"
                 },
                 {
-                  "pointer": "/source/type"
+                  "pointer": "/source",
+                  "normalize": "endpoint-revision"
                 },
                 {
-                  "pointer": "/target/id",
-                  "normalize": "scope-relative-or-absolute-uri"
+                  "pointer": "/target",
+                  "normalize": "endpoint-uri"
                 },
                 {
-                  "pointer": "/target/type"
+                  "pointer": "/target",
+                  "normalize": "endpoint-revision"
                 },
                 {
                   "pointer": "/properties"
@@ -2317,7 +2319,7 @@
             {
               "id": "source",
               "kind": "json-pointer",
-              "pointer": "/source/id",
+              "pointer": "/source",
               "exists": true,
               "fixturePointer": "/oracles/resources/link.demo-b-a/source",
               "normalize": "scope-relative-url"
@@ -2325,7 +2327,7 @@
             {
               "id": "target",
               "kind": "json-pointer",
-              "pointer": "/target/id",
+              "pointer": "/target",
               "exists": true,
               "fixturePointer": "/oracles/resources/link.demo-b-a/target",
               "normalize": "scope-relative-url"

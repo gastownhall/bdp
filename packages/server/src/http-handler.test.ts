@@ -104,8 +104,8 @@ describe("BDP public HTTP handler", () => {
           id: operation.id,
           type: "https://work.example/types/blocks",
           revision: "opaque-link-revision",
-          source: { id: `${SCOPE}beads/a`, type: "https://work.example/types/task" },
-          target: { id: `${SCOPE}beads/b`, type: "https://work.example/types/task" },
+          source: `${SCOPE}beads/a`,
+          target: `${SCOPE}beads/b`,
           properties: {},
         } as never);
       }

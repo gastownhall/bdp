@@ -16,7 +16,7 @@ import type {
   TypeInventoryRequest,
 } from "@bdp/protocol";
 import {
-  BDP_EXTERNAL_REFERENCE_TYPE,
+  endpointUri,
   ProtocolArtifactValidationError,
   parseBeadCollection,
   parseBeadRecord,
@@ -2240,8 +2240,8 @@ function validateIncidentLinkCollection(
 ): LinkCollection {
   const validated = validateLinkCollection(page, scope);
   for (const link of validated.items) {
-    const outbound = link.source.id === bead;
-    const inbound = link.target.id === bead;
+    const outbound = endpointUri(link.source) === bead;
+    const inbound = endpointUri(link.target) === bead;
     if (
       (direction === "inbound" && !inbound) ||
       (direction === "outbound" && !outbound) ||
@@ -2296,30 +2296,30 @@ function validateLinkRecord(record: LinkRecord, scope: AbsoluteHttpUrl): LinkRec
 }
 
 function validateEndpoint(endpoint: LinkRecord["source"], scope: AbsoluteHttpUrl): boolean {
-  if (endpoint.type === BDP_EXTERNAL_REFERENCE_TYPE) {
-    try {
-      const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(endpoint.id)?.[1]?.toLowerCase();
-      const normalized = scheme === "http" || scheme === "https" ? new URL(endpoint.id) : undefined;
-      if (normalized !== undefined && isWithinScopeAlias(scope, normalized))
-        throw new ReadResponseValidationError("in-Scope endpoint used External Reference");
-    } catch (error) {
-      if (error instanceof ReadResponseValidationError) throw error;
-      // Schema validation already proved this is an absolute URI. Some opaque URI
-      // spellings are deliberately outside WHATWG URL representation.
-    }
-    return false;
+  // In-Scope or external is derived, never declared: an endpoint URI that is
+  // (an alias of) this Scope claims an in-Scope Bead and must be canonical;
+  // every other URI is an opaque external reference.
+  const uri = endpointUri(endpoint);
+  let claimsScope = false;
+  try {
+    const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(uri)?.[1]?.toLowerCase();
+    const normalized = scheme === "http" || scheme === "https" ? new URL(uri) : undefined;
+    claimsScope = normalized !== undefined && isWithinScopeAlias(scope, normalized);
+  } catch {
+    // Schema validation already proved this is an absolute URI. Some opaque URI
+    // spellings are deliberately outside WHATWG URL representation.
   }
+  if (!claimsScope) return false;
+  if (typeof endpoint !== "string")
+    throw new ReadResponseValidationError("in-Scope endpoint must not carry a revision citation");
   let canonicalEndpoint: AbsoluteHttpUrl;
   try {
-    canonicalEndpoint = parseCanonicalHttpUrl(endpoint.id, "Link endpoint ID");
-    parseCanonicalTypeId(endpoint.type, "Link endpoint Type");
+    canonicalEndpoint = parseCanonicalHttpUrl(uri, "Link endpoint ID");
   } catch (error) {
     if (error instanceof ProtocolArtifactValidationError)
       throw new ReadResponseValidationError("in-Scope endpoint is not canonical");
     throw error;
   }
-  if (!isWithinScope(scope, new URL(canonicalEndpoint)))
-    throw new ReadResponseValidationError("out-of-Scope endpoint used ordinary Type");
   const localId = canonicalEndpoint.slice(scope.length);
   let resolvedEndpoint: AbsoluteHttpUrl;
   try {

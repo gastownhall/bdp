@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  BDP_EXTERNAL_REFERENCE_TYPE,
   BDP_PROBLEM_FAMILY_PREFIX,
   BDP_V0_SCHEMA_ID,
   isProtocolProfile,
@@ -52,9 +51,6 @@ describe("Read problem definitions", () => {
   it("exports the canonical BDP v0 schema and problem identifiers", () => {
     expect(BDP_V0_SCHEMA_ID).toBe("https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json");
     expect(BDP_PROBLEM_FAMILY_PREFIX).toBe("https://github.com/gastownhall/bdp/problems/");
-    expect(BDP_EXTERNAL_REFERENCE_TYPE).toBe(
-      "https://github.com/gastownhall/bdp/types/external-reference",
-    );
   });
 
   it("enumerates the accepted Gate 0 Read problem table exactly", () => {

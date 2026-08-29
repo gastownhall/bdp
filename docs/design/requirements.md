@@ -41,16 +41,13 @@ here rather than being invented by an implementation.
 - **PROTO-003**: Bead and Link records, Type IDs, local and absolute identities,
   selections, mutations, receipts, Events, snapshots, and changefeeds MUST use
   the normative wire forms once those forms are closed in the draft.
-- **PROTO-004**: Every Link endpoint MUST contain `id` and `type`. In-Scope
-  endpoints MUST contain exactly those two members, MUST identify a live Bead,
-  and MUST state its exact declared Type. Out-of-Scope endpoints MUST use the
-  BDP v0 External Reference sentinel
-  `https://github.com/gastownhall/bdp/types/external-reference` as their Type.
-  An Out-of-Scope endpoint MAY carry an opaque `revision` member citing the
-  external Resource state referenced; an authority MUST preserve and echo it
-  byte-identically, MUST compare it only for equality, and MUST NOT validate,
-  dereference, or interpret it. An In-Scope endpoint MUST NOT carry a
-  `revision` member in BDP v0.
+- **PROTO-004**: Every Link endpoint MUST be a reference: a URI, or the
+  external citation object with exactly `uri` and `revision`. An in-Scope
+  endpoint MUST identify a live Bead by its canonical URL and MUST NOT carry
+  a citation. An out-of-Scope endpoint is opaque; when it carries a
+  citation, an authority MUST preserve and echo the citation
+  byte-identically, MUST compare it only for equality, and MUST NOT
+  validate, dereference, or interpret it.
   At least one endpoint of every v0 Link MUST be an in-Scope Bead.
 - **PROTO-005**: A generic client MUST be able to parse and issue protocol
   requests without retrieving a Type Descriptor. Descriptor retrieval is for

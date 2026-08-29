@@ -125,15 +125,51 @@
       }
     ],
     "links": [
-      { "source": "demo-b", "target": "demo-a", "type": "blocks" },
-      { "source": "demo-a", "target": "demo-c", "type": "blocks" },
-      { "source": "demo-d", "target": "demo-c", "type": "blocks" },
-      { "source": "demo-f", "target": "demo-e", "type": "blocks" },
-      { "source": "demo-e", "target": "demo-f", "type": "related" },
-      { "source": "demo-i", "target": "demo-a", "type": "blocks" },
-      { "source": "demo-i", "target": "demo-c", "type": "blocks" },
-      { "source": "demo-j", "target": "demo-c", "type": "blocks" },
-      { "source": "demo-j", "target": "demo-k", "type": "blocks" }
+      {
+        "source": "demo-b",
+        "target": "demo-a",
+        "type": "blocks"
+      },
+      {
+        "source": "demo-a",
+        "target": "demo-c",
+        "type": "blocks"
+      },
+      {
+        "source": "demo-d",
+        "target": "demo-c",
+        "type": "blocks"
+      },
+      {
+        "source": "demo-f",
+        "target": "demo-e",
+        "type": "blocks"
+      },
+      {
+        "source": "demo-e",
+        "target": "demo-f",
+        "type": "related"
+      },
+      {
+        "source": "demo-i",
+        "target": "demo-a",
+        "type": "blocks"
+      },
+      {
+        "source": "demo-i",
+        "target": "demo-c",
+        "type": "blocks"
+      },
+      {
+        "source": "demo-j",
+        "target": "demo-c",
+        "type": "blocks"
+      },
+      {
+        "source": "demo-j",
+        "target": "demo-k",
+        "type": "blocks"
+      }
     ]
   },
   "typeDescriptors": [
@@ -148,8 +184,12 @@
       "name": "Blocks",
       "describes": "link",
       "conformsTo": ["https://work.example/types/dependency"],
-      "source": { "conformsTo": [] },
-      "target": { "conformsTo": [] }
+      "source": {
+        "conformsTo": []
+      },
+      "target": {
+        "conformsTo": []
+      }
     }
   ],
   "oracles": {
@@ -163,11 +203,8 @@
         [
           "links/b64_ZGVtby1m/b64_ZXh0ZXJuYWw6YmVhZHM6bW9sLXJ1bi1hc3NpZ25lZQ/b64_cmVsYXRlZA",
           "types/related",
-          ["beads/demo-f", "https://work.example/types/decision"],
-          [
-            "external:beads:mol-run-assignee",
-            "https://github.com/gastownhall/bdp/types/external-reference"
-          ]
+          ["beads/demo-f"],
+          ["external:beads:mol-run-assignee"]
         ]
       ],
       "externalEndpoints": 1,
@@ -198,8 +235,14 @@
     "cross-target": {
       "input": {
         "relationshipRoles": [
-          { "type": "https://work.example/types/blocks", "role": "blocks" },
-          { "type": "types/related", "role": "relates" }
+          {
+            "type": "https://work.example/types/blocks",
+            "role": "blocks"
+          },
+          {
+            "type": "types/related",
+            "role": "relates"
+          }
         ]
       },
       "projection": {
@@ -235,7 +278,11 @@
           "limit": 2,
           "syntaxSelector": "$[?]",
           "overLimitSelector": "$[?@.properties.status == \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"]",
-          "selectorLimits": { "bytes": 128, "depth": 16, "nodes": 64 },
+          "selectorLimits": {
+            "bytes": 128,
+            "depth": 16,
+            "nodes": 64
+          },
           "authorizationExcludedId": "beads/demo-b",
           "view": "view-a",
           "epoch": "epoch-a"
@@ -271,7 +318,10 @@
         "input": {
           "collection": "beads",
           "limit": 2,
-          "malformedQuery": { "cursor": "not-issued", "limit": "2" },
+          "malformedQuery": {
+            "cursor": "not-issued",
+            "limit": "2"
+          },
           "clockAdvanceMs": 101,
           "initialView": "view-a",
           "foreignView": "view-b",
@@ -359,91 +409,91 @@
         [
           "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_SJH7PnnvvB-8GmFWfIl0ldMNm9nPE94Gyi2aTwXaaC0",
+          "sha256_DD4UJ_I7SO3dc6XWpLfJgGtAXKkZQXVknUWHavfs3gc",
           "beads/demo-b",
-          "https://work.example/types/task",
+          "",
           "beads/demo-a",
-          "https://work.example/types/task",
+          "",
           {}
         ],
         [
           "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_3_62A7JMBFMwphUBljsMNAMybxpiI1vQuLQhfHGjNEc",
+          "sha256_qBFYW9JintFG74XeOqD5LJD6WY2InkI7A-WxLH0XZoc",
           "beads/demo-a",
-          "https://work.example/types/task",
+          "",
           "beads/demo-c",
-          "https://work.example/types/task",
+          "",
           {}
         ],
         [
           "links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_-aLhQMo2aoS_NBTAEtrDE8gfgtD4O15NOA87jJarPf4",
+          "sha256_Xk1f94AIaKtMd6E0Ix6cZ8vk7EdUITgjxDhUJUqeCGc",
           "beads/demo-d",
-          "https://work.example/types/task",
+          "",
           "beads/demo-c",
-          "https://work.example/types/task",
+          "",
           {}
         ],
         [
           "links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_J6QBLy1aV32XGhf1jYTJWKtnenqDLpkZjP2Goy8uX0k",
+          "sha256_oSIf8_qOIk2yvdVk1BpcruqJOUHy77aRLDEok9E_2Ao",
           "beads/demo-f",
-          "https://work.example/types/decision",
+          "",
           "beads/demo-e",
-          "https://work.example/types/bug",
+          "",
           {}
         ],
         [
           "links/b64_ZGVtby1l/b64_ZGVtby1m/b64_cmVsYXRlZA",
           "types/related",
-          "sha256_j6m0SEY80kf40_gANsMgLziZLk0SFrbR1xk4wJTVhxA",
+          "sha256_opSosgC78qYE-aElmxZ5VqE37d0O7pbzCfSVaQcyNoQ",
           "beads/demo-e",
-          "https://work.example/types/bug",
+          "",
           "beads/demo-f",
-          "https://work.example/types/decision",
+          "",
           {}
         ],
         [
           "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_4MUpvIcWKq9Sdvfw19P2MrSQQSNV3H-_RC9R6g-93o8",
+          "sha256_L3svcS8QsedvjtpTwK8fTq_zqh5bPzBXuuFmEaMMVA0",
           "beads/demo-i",
-          "https://work.example/types/task",
+          "",
           "beads/demo-a",
-          "https://work.example/types/task",
+          "",
           {}
         ],
         [
           "links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_BzsdBWlfsC3wJ98QH-q_q0QqNBjddxnX9-DF96ABuOA",
+          "sha256_OTfZkHw-_YiGOHz3SqzK0B_tR8UO8dtYEZPCEmiyewU",
           "beads/demo-i",
-          "https://work.example/types/task",
+          "",
           "beads/demo-c",
-          "https://work.example/types/task",
+          "",
           {}
         ],
         [
           "links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_7kPQdSTnjnGlwXUYcqCFjIPTn7FZ7omQUdVfqOCRJKI",
+          "sha256_odxEPnL2O7WhDNizLL-aP91fCH_wtS4igM2KGM6wrRo",
           "beads/demo-j",
-          "https://work.example/types/task",
+          "",
           "beads/demo-c",
-          "https://work.example/types/task",
+          "",
           {}
         ],
         [
           "links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_JI96zKP5KWt428ZQjXF1Amb-zmdf2wNR7QM-bNQFGPA",
+          "sha256_FhD5IkHtE5DID6xBsSqBkrKTe3vVGlm721bZHiDEvhw",
           "beads/demo-j",
-          "https://work.example/types/task",
+          "",
           "beads/demo-k",
-          "https://work.example/types/task",
+          "",
           {}
         ]
       ],

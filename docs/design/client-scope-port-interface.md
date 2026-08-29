@@ -164,7 +164,7 @@ inventory entries, Type Descriptors, and properties. The snapshots are frozen
 before callers receive them. The client then applies request-context checks the
 standalone schemas cannot express: exact singleton identity, fixed Scope roots,
 canonical local Bead and Link IDs, authoritative continuation confinement,
-External Reference endpoint pairing, and the requirement that every Link have
+endpoint-reference classification, and the requirement that every Link have
 at least one in-Scope endpoint. Cached discovery is therefore owned and
 immutable rather than a transport-owned object that can change navigation after
 validation.

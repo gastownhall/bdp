@@ -460,8 +460,8 @@ describe("Read server contract", () => {
       id: `${SCOPE}links/a-b`,
       type: "https://work.example/types/blocks",
       revision: "r1",
-      source: { id: `${SCOPE}beads/b`, type: "https://work.example/types/task" },
-      target: { id: beadId, type: "https://work.example/types/task" },
+      source: `${SCOPE}beads/b`,
+      target: beadId,
       properties: {},
     };
     const server = readServer({
@@ -630,8 +630,8 @@ describe("Read server contract", () => {
         id: `${SCOPE}links/${local}`,
         type: "https://work.example/types/blocks",
         revision: `r-${local}`,
-        source: { id: `${SCOPE}beads/a`, type: "https://work.example/types/task" },
-        target: { id: `${SCOPE}beads/b`, type: "https://work.example/types/task" },
+        source: `${SCOPE}beads/a`,
+        target: `${SCOPE}beads/b`,
         properties: {},
       })),
       continue: (next: string) =>
@@ -660,8 +660,8 @@ describe("Read server contract", () => {
         id: `${SCOPE}links/${local}`,
         type: "https://work.example/types/blocks",
         revision: `r-${local}`,
-        source: { id: `${SCOPE}beads/a`, type: "https://work.example/types/task" },
-        target: { id: `${SCOPE}beads/b`, type: "https://work.example/types/task" },
+        source: `${SCOPE}beads/a`,
+        target: `${SCOPE}beads/b`,
         properties: {},
       })),
       continue: (next: string) =>
@@ -1405,8 +1405,8 @@ function resultFor<Request extends ReadRequest>(request: Request): ReadBodyFor<R
           id: request.id,
           type: "https://work.example/types/blocks",
           revision: "1",
-          source: { id: `${SCOPE}beads/a`, type: "https://work.example/types/task" },
-          target: { id: `${SCOPE}beads/b`, type: "https://work.example/types/task" },
+          source: `${SCOPE}beads/a`,
+          target: `${SCOPE}beads/b`,
           properties: {},
         };
       }

@@ -3,7 +3,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  BDP_EXTERNAL_REFERENCE_TYPE,
   createTypeConformanceIndex,
   READ_PROBLEM_DEFINITIONS,
   REFERENCE_TYPE_DESCRIPTORS,
@@ -65,8 +64,8 @@ interface ReadFixture {
     readonly localId: string;
     readonly type: string;
     readonly revision: string;
-    readonly source: string | { readonly id: string; readonly revision: string };
-    readonly target: string | { readonly id: string; readonly revision: string };
+    readonly source: string | { readonly uri: string; readonly revision: string };
+    readonly target: string | { readonly uri: string; readonly revision: string };
     readonly properties: Readonly<Record<string, unknown>>;
   }[];
   readonly types: readonly { readonly id: string }[];
@@ -420,10 +419,8 @@ describe("checked-in Read matrix artifacts", () => {
   });
 
   it("binds external endpoints and Scope restoration to both target-realization fixtures", () => {
-    type Endpoint =
-      | readonly [id: string, type: string]
-      | readonly [id: string, type: string, revision: string];
-    type AuthoredEndpoint = string | { readonly id: string; readonly revision: string };
+    type Endpoint = readonly [uri: string] | readonly [uri: string, revision: string];
+    type AuthoredEndpoint = string | { readonly uri: string; readonly revision: string };
     type ExternalEndpointFixture = {
       readonly realization: string;
       readonly links?: readonly {
@@ -466,32 +463,29 @@ describe("checked-in Read matrix artifacts", () => {
       let localSource = 0;
       let localTarget = 0;
       for (const [rowLinkId, , source, target] of external.rows) {
-        const sourceIsExternal = source[1] === BDP_EXTERNAL_REFERENCE_TYPE;
-        const targetIsExternal = target[1] === BDP_EXTERNAL_REFERENCE_TYPE;
+        const sourceIsExternal = !source[0].startsWith("beads/");
+        const targetIsExternal = !target[0].startsWith("beads/");
         expect(Number(sourceIsExternal) + Number(targetIsExternal), fixturePath).toBe(1);
         const externalEndpoint = sourceIsExternal ? source : target;
         const localEndpoint = sourceIsExternal ? target : source;
-        // The external endpoint is [id, sentinel] or, when the realization
-        // stores the optional citation, [id, sentinel, revision]. Where the
-        // fixture authors its links directly (the reference realization),
-        // the oracle tuple is bound exactly to the authored endpoint, so the
-        // oracle and the authored citation cannot drift together.
+        // The external endpoint is [uri] or, when the realization stores the
+        // optional citation, [uri, revision]. Where the fixture authors its
+        // links directly (the reference realization), the oracle tuple is
+        // bound exactly to the authored endpoint, so the oracle and the
+        // authored citation cannot drift together.
         const authored = fixture.links?.find(({ localId }) => localId === rowLinkId);
         const authoredExternal =
           authored === undefined ? undefined : sourceIsExternal ? authored.source : authored.target;
         if (authoredExternal !== undefined) {
           expect(externalEndpoint, fixturePath).toEqual(
             typeof authoredExternal === "string"
-              ? [authoredExternal, BDP_EXTERNAL_REFERENCE_TYPE]
-              : [authoredExternal.id, BDP_EXTERNAL_REFERENCE_TYPE, authoredExternal.revision],
+              ? [authoredExternal]
+              : [authoredExternal.uri, authoredExternal.revision],
           );
         } else {
-          expect(externalEndpoint, fixturePath).toEqual([
-            opaqueExternalId,
-            BDP_EXTERNAL_REFERENCE_TYPE,
-          ]);
+          expect(externalEndpoint, fixturePath).toEqual([opaqueExternalId]);
         }
-        expect(localEndpoint, fixturePath).toHaveLength(2);
+        expect(localEndpoint, fixturePath).toHaveLength(1);
         expect(localEndpoint[0], fixturePath).toMatch(/^beads\//);
         externalCount += Number(sourceIsExternal) + Number(targetIsExternal);
         localSource += Number(!sourceIsExternal);
@@ -516,11 +510,11 @@ describe("checked-in Read matrix artifacts", () => {
       // one omits the member. bd stores no citation, so bdpbd proves omission.
       const externalArities = external.rows
         .map(([, , source, target]) =>
-          source[1] === BDP_EXTERNAL_REFERENCE_TYPE ? source.length : target.length,
+          source[0].startsWith("beads/") ? target.length : source.length,
         )
         .sort();
       expect(externalArities, fixturePath).toEqual(
-        fixture.realization === "bdptest" ? [2, 3] : [2],
+        fixture.realization === "bdptest" ? [1, 2] : [1],
       );
 
       const restore = fixture.oracles["scope-restore"];
@@ -1384,15 +1378,10 @@ describe("checked-in Read matrix artifacts", () => {
       ),
     )[0];
     expect(linkRecordTuples?.kind).toBe("json-array-tuples");
-    const beadTypeById = new Map(fixture.beads.map(({ localId, type }) => [localId, type]));
-    const endpointId = (value: string | { readonly id: string }): string =>
-      typeof value === "string" ? value : value.id;
-    const endpointType = (id: string): string => {
-      const type = beadTypeById.get(id);
-      if (type !== undefined) return type;
-      if (URL.canParse(id)) return BDP_EXTERNAL_REFERENCE_TYPE;
-      throw new Error(`fixture Link endpoint '${id}' does not name a fixture Bead`);
-    };
+    const endpointCells = (
+      value: string | { readonly uri: string; readonly revision: string },
+    ): readonly [uri: string, revision: string] =>
+      typeof value === "string" ? [value, ""] : [value.uri, value.revision];
     expect(
       linkRecordTuples?.kind === "json-array-tuples"
         ? resolveArrayExpected(linkRecordTuples, fixture)
@@ -1402,10 +1391,8 @@ describe("checked-in Read matrix artifacts", () => {
         link.localId,
         link.type,
         link.revision,
-        endpointId(link.source),
-        endpointType(endpointId(link.source)),
-        endpointId(link.target),
-        endpointType(endpointId(link.target)),
+        ...endpointCells(link.source),
+        ...endpointCells(link.target),
         link.properties,
       ]),
     );
@@ -1708,7 +1695,7 @@ describe("checked-in Read matrix artifacts", () => {
           properties.status === "open" &&
           blockers.every(
             ({ target }) =>
-              statusById.get(typeof target === "string" ? target : target.id) === "closed",
+              statusById.get(typeof target === "string" ? target : target.uri) === "closed",
           )
         );
       })

@@ -1,6 +1,6 @@
 import {
   type AbsoluteHttpUrl,
-  BDP_EXTERNAL_REFERENCE_TYPE,
+  endpointUri,
   type BeadCollectionRequest as BeadCollectionOperation,
   type BeadLinksRequest as BeadLinksOperation,
   type BeadPropertiesRequest as BeadPropertiesOperation,
@@ -128,11 +128,13 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
                     (operation.type === undefined || link.type === operation.type) &&
                     (operation.conformsTo === undefined ||
                       typeConformance.includes(link.type, operation.conformsTo)) &&
-                    (operation.source === undefined || link.source.id === operation.source) &&
-                    (operation.target === undefined || link.target.id === operation.target) &&
+                    (operation.source === undefined ||
+                      endpointUri(link.source) === operation.source) &&
+                    (operation.target === undefined ||
+                      endpointUri(link.target) === operation.target) &&
                     (operation.endpoint === undefined ||
-                      link.source.id === operation.endpoint ||
-                      link.target.id === operation.endpoint),
+                      endpointUri(link.source) === operation.endpoint ||
+                      endpointUri(link.target) === operation.endpoint),
                 ),
               ),
               next: null,
@@ -179,10 +181,11 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
         const items = Object.freeze(
           links.filter((link) =>
             operation.direction === "inbound"
-              ? link.target.id === operation.bead
+              ? endpointUri(link.target) === operation.bead
               : operation.direction === "outbound"
-                ? link.source.id === operation.bead
-                : link.source.id === operation.bead || link.target.id === operation.bead,
+                ? endpointUri(link.source) === operation.bead
+                : endpointUri(link.source) === operation.bead ||
+                  endpointUri(link.target) === operation.bead,
           ),
         );
         return scopePortSuccess<BeadLinksOperation>(Object.freeze({ items, next: null }));
@@ -191,6 +194,10 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
     throw new Error("unsupported operation");
   }
   return createInMemoryScopePort(perform);
+}
+
+function freezeEndpoint(endpoint: Endpoint): Endpoint {
+  return typeof endpoint === "string" ? endpoint : Object.freeze({ ...endpoint });
 }
 
 function snapshotPreparedReferenceFixture(
@@ -207,8 +214,8 @@ function snapshotPreparedReferenceFixture(
     prepared.links.map((link) =>
       Object.freeze({
         ...link,
-        source: Object.freeze({ ...link.source }),
-        target: Object.freeze({ ...link.target }),
+        source: freezeEndpoint(link.source),
+        target: freezeEndpoint(link.target),
       }),
     ),
   );
@@ -310,17 +317,12 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
     const resolveEndpoint = (name: string) => {
       if (name === externalEndpointId)
         return localId === "external-target"
-          ? ({
-              id: name,
-              type: BDP_EXTERNAL_REFERENCE_TYPE,
-              revision: externalEndpointRevision,
-            } as const)
-          : ({ id: name, type: BDP_EXTERNAL_REFERENCE_TYPE } as const);
+          ? ({ uri: name, revision: externalEndpointRevision } as const)
+          : name;
       const beadId = new URL(`beads/${name}`, scope).href;
-      const bead = beadById.get(beadId);
-      if (bead === undefined)
+      if (!beadById.has(beadId))
         throw new Error("reference Link endpoint does not name a reference Bead");
-      return { id: beadId, type: bead.type } as const;
+      return beadId;
     };
     const type = typeByName.get(String(typeName));
     if (type === undefined) throw new Error(`reference domain does not define ${String(typeName)}`);
@@ -463,26 +465,23 @@ function readFixtureEndpoint(
   let endpointValue = value;
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     const record = readRecord(value, path);
-    requireAllowedKeys(record, ["id", "revision"], path);
+    requireAllowedKeys(record, ["uri", "revision"], path);
     citedRevision = readNonemptyString(record.revision, `${path}.revision`);
-    endpointValue = record.id;
+    endpointValue = record.uri;
   }
   const id = readNonemptyString(endpointValue, path);
   const localBead = beadsByLocalId.get(id);
   if (localBead !== undefined) {
     if (citedRevision !== undefined)
       throw new Error(`${path} in-Scope endpoint must not carry a revision citation`);
-    return { endpoint: { id: localBead.id, type: localBead.type }, local: true };
+    return { endpoint: localBead.id, local: true };
   }
   if (isJsonSchemaUri(id)) {
     if (endpointAliasesScope(id, scope))
       throw new Error("fixture in-Scope Link endpoint must name a fixture Bead");
     requireSafeCanonicalExternalEndpoint(id, path);
     return {
-      endpoint:
-        citedRevision === undefined
-          ? { id, type: BDP_EXTERNAL_REFERENCE_TYPE }
-          : { id, type: BDP_EXTERNAL_REFERENCE_TYPE, revision: citedRevision },
+      endpoint: citedRevision === undefined ? id : { uri: id, revision: citedRevision },
       local: false,
     };
   }

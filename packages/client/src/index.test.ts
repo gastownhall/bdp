@@ -21,7 +21,6 @@ const BEADS = `${SCOPE}beads/`;
 const LINKS = `${SCOPE}links/`;
 const TASK_TYPE = "https://work.example/types/task";
 const LINK_TYPE = "https://work.example/types/blocks";
-const EXTERNAL_REFERENCE_TYPE = "https://github.com/gastownhall/bdp/types/external-reference";
 const OUTSIDE_SCOPE_PROBLEM = {
   type: "https://github.com/gastownhall/bdp/problems/authorization",
   code: "forbidden",
@@ -73,8 +72,8 @@ function validLink(overrides: Record<string, unknown> = {}): Record<string, unkn
     id: `${LINKS}blocks-a-b`,
     type: LINK_TYPE,
     revision: "1",
-    source: { id: `${BEADS}a`, type: TASK_TYPE },
-    target: { id: `${BEADS}b`, type: TASK_TYPE },
+    source: `${BEADS}a`,
+    target: `${BEADS}b`,
     properties: {},
     ...overrides,
   };
@@ -644,7 +643,6 @@ describe("BdpClient", () => {
   it.each([
     ["extra record member", { ...validBead(), extra: true }],
     ["empty revision", { ...validBead(), revision: "" }],
-    ["external-reference declared Type", { ...validBead(), type: EXTERNAL_REFERENCE_TYPE }],
     ["unexpected embedded Links", { ...validBead(), links: { items: [], next: null } }],
   ] as const)("rejects a structurally invalid Bead %s", async (_label, bead) => {
     const client = new BdpClient({
@@ -661,80 +659,42 @@ describe("BdpClient", () => {
   });
 
   it.each([
+    ["two external endpoints", validLink({ source: "urn:source", target: "urn:target" })],
     [
-      "ordinary Type on external endpoint",
-      validLink({ target: { id: "https://outside.example/beads/b", type: TASK_TYPE } }),
+      "revision citation on an in-Scope endpoint",
+      validLink({ target: { uri: `${BEADS}b`, revision: "cited-1" } }),
     ],
     [
-      "External Reference on in-Scope endpoint",
-      validLink({ target: { id: `${BEADS}b`, type: EXTERNAL_REFERENCE_TYPE } }),
-    ],
-    [
-      "External Reference on a noncanonical in-Scope endpoint path",
-      validLink({ target: { id: `${BEADS}b%2Fc`, type: EXTERNAL_REFERENCE_TYPE } }),
-    ],
-    [
-      "External Reference on a normalized in-Scope HTTP alias",
+      "revision citation on a normalized in-Scope HTTP alias",
       validLink({
-        target: {
-          id: "https://BEADS.example:443/acme/beads/b",
-          type: EXTERNAL_REFERENCE_TYPE,
-        },
+        target: { uri: "https://BEADS.example:443/acme/beads/b", revision: "cited-1" },
       }),
     ],
+    ["citation object missing its revision", validLink({ target: { uri: "urn:target" } })],
     [
-      "External Reference on an encoded Scope-prefix alias",
-      validLink({
-        target: {
-          id: "https://beads.example/%61cme/beads/b",
-          type: EXTERNAL_REFERENCE_TYPE,
-        },
-      }),
+      "citation object with an empty revision",
+      validLink({ target: { uri: "urn:target", revision: "" } }),
     ],
     [
-      "External Reference on a special-scheme alias without slashes",
-      validLink({
-        target: {
-          id: "https:beads.example/acme/beads/b",
-          type: EXTERNAL_REFERENCE_TYPE,
-        },
-      }),
-    ],
-    [
-      "External Reference on a special-scheme alias with one slash",
-      validLink({
-        target: {
-          id: "https:/beads.example/acme/beads/b",
-          type: EXTERNAL_REFERENCE_TYPE,
-        },
-      }),
-    ],
-    [
-      "two external endpoints",
-      validLink({
-        source: { id: "urn:source", type: EXTERNAL_REFERENCE_TYPE },
-        target: { id: "urn:target", type: EXTERNAL_REFERENCE_TYPE },
-      }),
-    ],
-    [
-      "extra endpoint member",
-      validLink({ source: { id: `${BEADS}a`, type: TASK_TYPE, extra: true } }),
-    ],
-    [
-      "non-HTTP ordinary endpoint",
-      validLink({ target: { id: "javascript:alert(1)", type: TASK_TYPE } }),
+      "extra citation member",
+      validLink({ target: { uri: "urn:target", revision: "cited-1", extra: true } }),
     ],
     [
       "noncanonical in-Scope endpoint ID",
-      validLink({ source: { id: "https://BEADS.example:443/acme/beads/a", type: TASK_TYPE } }),
+      validLink({ source: "https://BEADS.example:443/acme/beads/a" }),
+    ],
+    ["noncanonical in-Scope endpoint path", validLink({ target: `${BEADS}b%2Fc` })],
+    [
+      "encoded Scope-prefix alias endpoint",
+      validLink({ target: "https://beads.example/%61cme/beads/b" }),
     ],
     [
-      "noncanonical endpoint Type",
-      validLink({ source: { id: `${BEADS}a`, type: "https://WORK.example:443/types/task" } }),
+      "special-scheme Scope alias without slashes",
+      validLink({ target: "https:beads.example/acme/beads/b" }),
     ],
     [
-      "credential-bearing endpoint Type",
-      validLink({ source: { id: `${BEADS}a`, type: "https://user:pw@work.example/types/task" } }),
+      "special-scheme Scope alias with one slash",
+      validLink({ target: "https:/beads.example/acme/beads/b" }),
     ],
   ] as const)("rejects an invalid Link with %s", async (_label, link) => {
     const client = new BdpClient({
@@ -751,7 +711,7 @@ describe("BdpClient", () => {
   });
 
   it("accepts an opaque RFC URI that the WHATWG URL parser cannot represent as external", async () => {
-    const link = validLink({ target: { id: "https:/", type: EXTERNAL_REFERENCE_TYPE } });
+    const link = validLink({ target: "https:/" });
     const client = new BdpClient({
       scope: SCOPE,
       transport: new RecordingTransport({ items: [link], next: null }),
@@ -764,12 +724,7 @@ describe("BdpClient", () => {
   });
 
   it("keeps reserved path escapes opaque when classifying an external HTTP URI", async () => {
-    const link = validLink({
-      target: {
-        id: "https://beads.example/acme%2Foutside",
-        type: EXTERNAL_REFERENCE_TYPE,
-      },
-    });
+    const link = validLink({ target: "https://beads.example/acme%2Foutside" });
     const client = new BdpClient({
       scope: SCOPE,
       transport: new RecordingTransport({ items: [link], next: null }),
@@ -786,16 +741,16 @@ describe("BdpClient", () => {
       "unrelated",
       "both",
       validLink({
-        source: { id: `${BEADS}b`, type: TASK_TYPE },
-        target: { id: `${BEADS}c`, type: TASK_TYPE },
+        source: `${BEADS}b`,
+        target: `${BEADS}c`,
       }),
     ],
     [
       "wrong outbound direction",
       "outbound",
       validLink({
-        source: { id: `${BEADS}b`, type: TASK_TYPE },
-        target: { id: `${BEADS}a`, type: TASK_TYPE },
+        source: `${BEADS}b`,
+        target: `${BEADS}a`,
       }),
     ],
     ["wrong inbound direction", "inbound", validLink()],
@@ -1024,8 +979,8 @@ describe("BdpClient", () => {
     transport.result = {
       items: [
         validLink({
-          source: { id: `${BEADS}b`, type: TASK_TYPE },
-          target: { id: `${BEADS}a`, type: TASK_TYPE },
+          source: `${BEADS}b`,
+          target: `${BEADS}a`,
         }),
       ],
       next: null,
@@ -1054,8 +1009,8 @@ describe("BdpClient", () => {
     transport.result = {
       items: [
         validLink({
-          source: { id: `${BEADS}b`, type: TASK_TYPE },
-          target: { id: `${BEADS}a`, type: TASK_TYPE },
+          source: `${BEADS}b`,
+          target: `${BEADS}a`,
         }),
       ],
       next: null,

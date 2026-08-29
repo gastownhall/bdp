@@ -5,9 +5,6 @@ export const BDP_V0_SCHEMA_ID = "https://github.com/gastownhall/bdp/schemas/bdp-
 
 export const BDP_PROBLEM_FAMILY_PREFIX = "https://github.com/gastownhall/bdp/problems/";
 
-export const BDP_EXTERNAL_REFERENCE_TYPE =
-  "https://github.com/gastownhall/bdp/types/external-reference";
-
 export {
   REFERENCE_BEAD_TYPES,
   REFERENCE_BLOCKING_LINK_TYPE_ID,
@@ -127,8 +124,18 @@ export interface TypeSummary {
   readonly describes: "bead" | "link";
 }
 
+export type ExternalEndpointPolicy = "none" | "opaque" | "bead";
+
 export interface EndpointConstraint {
   readonly conformsTo: readonly AbsoluteHttpUrl[];
+  /**
+   * Whether this endpoint may reference an out-of-Scope target: "none"
+   * rejects external URIs at creation, "opaque" admits any external URI,
+   * and "bead" admits external URIs that are bead-shaped (a canonical
+   * .../beads/{id} URL) at creation time — declared intent, not an ongoing
+   * guarantee. Absent means "opaque", preserving the pre-policy behavior.
+   */
+  readonly external?: ExternalEndpointPolicy;
 }
 
 interface TypeDescriptorMembers {
@@ -174,22 +181,30 @@ export {
 
 export { isJsonSchemaUri } from "./schema-formats.js";
 
-/** An in-Scope endpoint: exactly the Bead's identity and declared Type. */
-export interface LocalEndpoint {
-  readonly id: AbsoluteUri;
-  readonly type: AbsoluteHttpUrl;
-  readonly revision?: never;
+/**
+ * A reference to a Link endpoint. A plain URI string covers every in-Scope
+ * reference (in-Scope or external is derived by resolution against the
+ * canonical Scope URL, never declared) and every unversioned external
+ * reference. The object form exists for exactly one case: citing a version
+ * of a target whose namespace this Scope does not own. The citation is
+ * opaque, echoed byte-identically, and compared only for equality.
+ */
+export interface ExternalCitation {
+  readonly uri: AbsoluteUri;
+  readonly revision: string;
 }
 
-/** An out-of-Scope endpoint: the sentinel Type plus an optional opaque citation. */
-export interface ExternalEndpoint {
-  readonly id: AbsoluteUri;
-  readonly type: typeof BDP_EXTERNAL_REFERENCE_TYPE;
-  /** Opaque citation of the external state referenced; equality-only. */
-  readonly revision?: string;
+export type Endpoint = AbsoluteUri | ExternalCitation;
+
+/** The identity of a reference: the URI without any citation. */
+export function endpointUri(endpoint: Endpoint): AbsoluteUri {
+  return typeof endpoint === "string" ? endpoint : endpoint.uri;
 }
 
-export type Endpoint = LocalEndpoint | ExternalEndpoint;
+/** The citation on a reference, when one is present. */
+export function endpointRevision(endpoint: Endpoint): string | undefined {
+  return typeof endpoint === "string" ? undefined : endpoint.revision;
+}
 
 export interface PropertiesRecord {
   readonly [key: string]: unknown;

@@ -354,7 +354,7 @@ letters: `/local-testing/` is a different first segment.
 
 The BDP v0 protocol-identifier prefix is separate from `scope.url`, which is a
 *deployment* address chosen by whoever runs the server. This seam invents no
-protocol namespace, sentinel URI, schema `$id`, or problem URI, and the
+protocol namespace, schema `$id`, or problem URI, and the
 provisional-namespace decision does not change the deployment's Scope URL. `local-test` is a
 reserved *path segment* in a deployment address, not a protocol identifier.
 
