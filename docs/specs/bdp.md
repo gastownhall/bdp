@@ -1129,9 +1129,9 @@ LinkDeltaData {
 
 The typed Link reference contains only the immutable `id` and `type`.
 `linked` and `unlinked` Events contain no Bead or Link properties. Carrying
-the Type of each in-Scope endpoint lets a consumer understand an unlink after
-the Link is no longer readable, without asserting a Type for an opaque
-external reference.
+the Link's own Type and both endpoint references lets a consumer understand
+an unlink after the Link is no longer readable, without asserting anything
+about an opaque external reference.
 
 A Link-scoped Event Source reports `created`, `updated`, and `deleted` facts
 about that Link. A Bead-scoped Event Source reports:
@@ -2714,9 +2714,9 @@ collections accept these structural predicates:
 | --- | --- | --- | --- | --- |
 | `type` | yes | yes | no | Exact Type ID |
 | `conformsTo` | yes | yes | no | Effective conformance to the named Type ID |
-| `source` | no | yes | no | Exact source endpoint ID |
-| `target` | no | yes | no | Exact target endpoint ID |
-| `endpoint` | no | yes | no | Source or target ID equals the supplied ID |
+| `source` | no | yes | no | Exact source reference URI |
+| `target` | no | yes | no | Exact target reference URI |
+| `endpoint` | no | yes | no | Source or target reference URI equals the supplied URI |
 | `selector` | yes | yes | no | Bounded Selector over each candidate record |
 | `limit` | yes | yes | yes | Maximum records in this page |
 | `cursor` | yes | yes | yes | Opaque continuation supplied by `next` |
