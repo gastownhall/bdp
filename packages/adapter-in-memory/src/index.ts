@@ -292,8 +292,8 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   const beadById = new Map(beads.map((bead) => [bead.id, bead]));
   // The accepted external-endpoint realization is part of the reference domain:
   // two blocks Links around the Decision Bead, one with an external source and
-  // one with an external target. They carry the External Reference sentinel
-  // type on the external end and change no bead's readiness or dependency
+  // one with an external target. The external end is an opaque URI reference
+  // and changes no bead's readiness or dependency
   // counts: demo-f is already blocked by the local demo-f-e Link. The
   // external-target Link's external end additionally carries the optional
   // endpoint revision citation; external-source's stays bare, so the domain
@@ -458,7 +458,7 @@ function readFixtureEndpoint(
   path: string,
   beadsByLocalId: ReadonlyMap<string, BeadRecord>,
 ): { readonly endpoint: Endpoint; readonly local: boolean } {
-  // An external endpoint may be authored as { id, revision } to carry the
+  // An external endpoint may be authored as { uri, revision } to carry the
   // optional opaque citation; the object form is external-only, matching the
   // wire contract's in-Scope prohibition.
   let citedRevision: string | undefined;

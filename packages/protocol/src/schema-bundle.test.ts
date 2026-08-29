@@ -210,6 +210,13 @@ describe("BDP v0 schema bundle", () => {
     // A reference is a URI string, or exactly { uri, revision } for an
     // external citation: the old object-with-type spelling, a citation
     // missing its revision, and an empty citation must all fail.
+    // Endpoint-constraint external policy: the three tokens are accepted,
+    // omission is accepted (meaning opaque), and unknown tokens fail.
+    for (const external of ["none", "opaque", "bead"] as const)
+      expectValid("endpointConstraint", { conformsTo: [], external });
+    expectValid("endpointConstraint", { conformsTo: [] });
+    expectInvalid("endpointConstraint", { conformsTo: [], external: "always" });
+    expectInvalid("endpointConstraint", { conformsTo: [], external: true });
     expectValid("endpoint", "https://beads.example/acme/beads/demo-a");
     expectValid("endpoint", "urn:external:123");
     expectValid("endpoint", { uri: "urn:external:123", revision: "cited-9f2c" });

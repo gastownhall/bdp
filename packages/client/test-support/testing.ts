@@ -119,9 +119,10 @@ async function observeExternalLinkEndpoints(
   });
   const normalizeType = (id: string): string =>
     id.startsWith(scope) ? id.slice(scope.length) : id;
-  // An external endpoint carrying the optional revision citation projects a
-  // third element, so the oracle rows prove byte-identical echo where the
-  // realization stores one and exact omission where it does not.
+  // An external endpoint carrying the optional revision citation projects
+  // as [uri, revision] and a bare reference as [uri], so the oracle rows
+  // prove byte-identical echo where the realization stores a citation and
+  // exact omission where it does not.
   type EndpointRow = readonly [uri: string] | readonly [uri: string, revision: string];
   type LinkRow = readonly [id: string, type: string, source: EndpointRow, target: EndpointRow];
   try {

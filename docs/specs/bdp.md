@@ -293,8 +293,8 @@ Resource and creating another Resource are distinct operations.
 
 Every Link has independent Resource identity. Its `type`, `source`, and
 `target` describe it but do not identify it. BDP v0 permits multiple Links
-to share the same Link `type`, `source.id`, and `target.id` tuple. Endpoint
-`type` is validated metadata and is not an additional tuple component.
+to share the same Link `type`, `source`, and `target` tuple; endpoint
+comparison uses the reference URI alone.
 Maximum multiplicity constraints may independently limit how many Links can
 share either endpoint. BDP v0 does not define a tuple-uniqueness constraint.
 
@@ -685,8 +685,8 @@ label with `@`:
 ```text
 CreateLink(
   type: "assigned-to",
-  source: { id: @newTask, type: "https://work.example/types/task" },
-  target: { id: "person-42", type: "https://people.example/types/person" },
+  source: @newTask,
+  target: "person-42",
   properties: {}
 )
 ```
@@ -1006,7 +1006,7 @@ For example, this operation deletes every Link incident upon `task-42`:
 ```text
 DeleteWhere(
   Links,
-  $[?@.source.id == "https://beads.example/acme/beads/task-42" || @.target.id == "https://beads.example/acme/beads/task-42"]
+  $[?@.source == "https://beads.example/acme/beads/task-42" || @.target == "https://beads.example/acme/beads/task-42"]
 )
 ```
 
@@ -1703,14 +1703,8 @@ A Link record is:
   "id": "https://beads.example/acme/links/assigned-to-81",
   "type": "https://work.example/types/assigned-to",
   "revision": "opaque-link-revision",
-  "source": {
-    "id": "https://beads.example/acme/beads/task-42",
-    "type": "https://work.example/types/task"
-  },
-  "target": {
-    "id": "https://beads.example/acme/beads/person-7",
-    "type": "https://people.example/types/person"
-  },
+  "source": "https://beads.example/acme/beads/task-42",
+  "target": "https://beads.example/acme/beads/person-7",
   "properties": {
     "since": "2026-08-04"
   }
@@ -1805,14 +1799,8 @@ page of the same result exposed by `view=links`:
         "id": "https://beads.example/acme/links/assigned-to-81",
         "type": "https://work.example/types/assigned-to",
         "revision": "opaque-link-revision",
-        "source": {
-          "id": "https://beads.example/acme/beads/task-42",
-          "type": "https://work.example/types/task"
-        },
-        "target": {
-          "id": "https://beads.example/acme/beads/person-7",
-          "type": "https://people.example/types/person"
-        },
+        "source": "https://beads.example/acme/beads/task-42",
+        "target": "https://beads.example/acme/beads/person-7",
         "properties": {
           "since": "2026-08-04"
         }
@@ -2220,14 +2208,8 @@ The request body contains one ordered operation list:
     {
       "operation": "createLink",
       "type": "https://work.example/types/assigned-to",
-      "source": {
-        "id": "@newTask",
-        "type": "https://work.example/types/task"
-      },
-      "target": {
-        "id": "beads/person-7",
-        "type": "https://people.example/types/person"
-      },
+      "source": "@newTask",
+      "target": "beads/person-7",
       "properties": {}
     }
   ]
@@ -2291,14 +2273,18 @@ of the eight generic operation records:
       "minLength": 1
     },
     "endpointReference": {
-      "type": "object",
-      "required": ["id", "type"],
-      "properties": {
-        "id": { "$ref": "#/$defs/resourceReference" },
-        "type": { "$ref": "#/$defs/typeId" },
-        "revision": { "type": "string", "minLength": 1 }
-      },
-      "additionalProperties": false
+      "oneOf": [
+        { "$ref": "#/$defs/resourceReference" },
+        {
+          "type": "object",
+          "required": ["uri", "revision"],
+          "properties": {
+            "uri": { "$ref": "#/$defs/resourceReference" },
+            "revision": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "typeId": {
       "type": "string",
@@ -2544,7 +2530,7 @@ Set operations name one collection and carry a bounded JSONPath Selector:
 {
   "operation": "deleteWhere",
   "collection": "links",
-  "selector": "$[?@.source.id == \"https://beads.example/acme/beads/task-42\" || @.target.id == \"https://beads.example/acme/beads/task-42\"]",
+  "selector": "$[?@.source == \"https://beads.example/acme/beads/task-42\" || @.target == \"https://beads.example/acme/beads/task-42\"]",
   "cardinality": {
     "max": 1000
   }
@@ -2575,7 +2561,7 @@ transaction:
     {
       "operation": "deleteWhere",
       "collection": "links",
-      "selector": "$[?@.source.id == \"https://beads.example/acme/beads/task-42\" || @.target.id == \"https://beads.example/acme/beads/task-42\"]",
+      "selector": "$[?@.source == \"https://beads.example/acme/beads/task-42\" || @.target == \"https://beads.example/acme/beads/task-42\"]",
       "cardinality": {
         "max": 1000
       }
@@ -2634,14 +2620,8 @@ declaration order:
         "id": "https://beads.example/acme/links/assigned-to-81",
         "type": "https://work.example/types/assigned-to",
         "revision": "opaque-link-revision",
-        "source": {
-          "id": "https://beads.example/acme/beads/task-104",
-          "type": "https://work.example/types/task"
-        },
-        "target": {
-          "id": "https://beads.example/acme/beads/person-7",
-          "type": "https://people.example/types/person"
-        },
+        "source": "https://beads.example/acme/beads/task-104",
+        "target": "https://beads.example/acme/beads/person-7",
         "properties": {}
       }
     }
@@ -2706,8 +2686,8 @@ Accept: application/json
 ```
 
 `direction` is `inbound`, `outbound`, or `both`, and defaults to `both` when
-omitted. `inbound` selects Links whose `target.id` is the Bead. `outbound`
-selects Links whose `source.id` is the Bead. `both` selects their union. The
+omitted. `inbound` selects Links whose `target` is the Bead. `outbound`
+selects Links whose `source` is the Bead. `both` selects their union. The
 response is a paginated `items` array of complete Link records plus a `next`
 URL. The initial request may supply `limit`. Subsequent requests follow
 `next`. As with collection pagination, that continuation walks one logical
@@ -2759,7 +2739,7 @@ The `selector` value is the same JSONPath Selector string accepted by
 `updateWhere` and `deleteWhere`. It is percent-encoded in the request target:
 
 ```http
-GET /acme/links/?selector=%24%5B%3F%40.source.id%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%20%7C%7C%20%40.target.id%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%5D HTTP/1.1
+GET /acme/links/?selector=%24%5B%3F%40.source%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%20%7C%7C%20%40.target%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%5D HTTP/1.1
 Host: beads.example
 Accept: application/json
 ```
@@ -2767,7 +2747,7 @@ Accept: application/json
 The decoded Selector is:
 
 ```text
-$[?@.source.id == "https://beads.example/acme/beads/task-42" || @.target.id == "https://beads.example/acme/beads/task-42"]
+$[?@.source == "https://beads.example/acme/beads/task-42" || @.target == "https://beads.example/acme/beads/task-42"]
 ```
 
 The structural predicates and Selector decide the complete matching set before
@@ -2932,14 +2912,8 @@ first page of each typed stream and may contain both streams completely:
         "id": "https://beads.example/acme/links/assigned-to-81",
         "type": "https://work.example/types/assigned-to",
         "revision": "opaque-link-revision",
-        "source": {
-          "id": "https://beads.example/acme/beads/task-42",
-          "type": "https://work.example/types/task"
-        },
-        "target": {
-          "id": "https://beads.example/acme/beads/person-7",
-          "type": "https://people.example/types/person"
-        },
+        "source": "https://beads.example/acme/beads/task-42",
+        "target": "https://beads.example/acme/beads/person-7",
         "properties": {}
       }
     ],
@@ -3141,14 +3115,8 @@ Accept: application/json
           "id": "https://beads.example/acme/links/assigned-to-81",
           "type": "https://work.example/types/assigned-to"
         },
-        "source": {
-          "id": "https://beads.example/acme/beads/task-42",
-          "type": "https://work.example/types/task"
-        },
-        "target": {
-          "id": "https://beads.example/acme/beads/person-7",
-          "type": "https://people.example/types/person"
-        }
+        "source": "https://beads.example/acme/beads/task-42",
+        "target": "https://beads.example/acme/beads/person-7"
       }
     }
   ],

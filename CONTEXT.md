@@ -15,7 +15,8 @@ The single JSON Schema bundle containing BDP v0's normative JSON wire
 definitions.
 _Avoid_: schema fragments, implementation schema
 
-**External Reference sentinel**:
-The BDP protocol identifier used as the endpoint Type when a Link endpoint is
-outside its Scope and therefore opaque to that Scope.
+**External reference**:
+A Link endpoint URI outside its Scope, opaque to that Scope; it may be
+written as the citation object `{ uri, revision }` to pin the external
+state it was made against.
 _Avoid_: external Type, remote Bead Type
