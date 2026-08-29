@@ -1,13 +1,13 @@
 import {
   type AbsoluteHttpUrl,
-  BDP_EXTERNAL_REFERENCE_TYPE,
+  referenceUri,
   type BeadCollectionRequest as BeadCollectionOperation,
   type BeadLinksRequest as BeadLinksOperation,
   type BeadPropertiesRequest as BeadPropertiesOperation,
   type BeadRecord,
   type BeadResourceRequest as BeadResourceOperation,
   createTypeConformanceIndex,
-  type Endpoint,
+  type Reference,
   isJsonSchemaUri,
   type LinkCollectionRequest as LinkCollectionOperation,
   type LinkPropertiesRequest as LinkPropertiesOperation,
@@ -128,11 +128,13 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
                     (operation.type === undefined || link.type === operation.type) &&
                     (operation.conformsTo === undefined ||
                       typeConformance.includes(link.type, operation.conformsTo)) &&
-                    (operation.source === undefined || link.source.id === operation.source) &&
-                    (operation.target === undefined || link.target.id === operation.target) &&
+                    (operation.source === undefined ||
+                      referenceUri(link.source) === operation.source) &&
+                    (operation.target === undefined ||
+                      referenceUri(link.target) === operation.target) &&
                     (operation.endpoint === undefined ||
-                      link.source.id === operation.endpoint ||
-                      link.target.id === operation.endpoint),
+                      referenceUri(link.source) === operation.endpoint ||
+                      referenceUri(link.target) === operation.endpoint),
                 ),
               ),
               next: null,
@@ -179,10 +181,11 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
         const items = Object.freeze(
           links.filter((link) =>
             operation.direction === "inbound"
-              ? link.target.id === operation.bead
+              ? referenceUri(link.target) === operation.bead
               : operation.direction === "outbound"
-                ? link.source.id === operation.bead
-                : link.source.id === operation.bead || link.target.id === operation.bead,
+                ? referenceUri(link.source) === operation.bead
+                : referenceUri(link.source) === operation.bead ||
+                  referenceUri(link.target) === operation.bead,
           ),
         );
         return scopePortSuccess<BeadLinksOperation>(Object.freeze({ items, next: null }));
@@ -191,6 +194,10 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
     throw new Error("unsupported operation");
   }
   return createInMemoryScopePort(perform);
+}
+
+function freezeEndpoint(endpoint: Reference): Reference {
+  return typeof endpoint === "string" ? endpoint : Object.freeze({ ...endpoint });
 }
 
 function snapshotPreparedReferenceFixture(
@@ -207,8 +214,8 @@ function snapshotPreparedReferenceFixture(
     prepared.links.map((link) =>
       Object.freeze({
         ...link,
-        source: Object.freeze({ ...link.source }),
-        target: Object.freeze({ ...link.target }),
+        source: freezeEndpoint(link.source),
+        target: freezeEndpoint(link.target),
       }),
     ),
   );
@@ -285,14 +292,16 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   const beadById = new Map(beads.map((bead) => [bead.id, bead]));
   // The accepted external-endpoint realization is part of the reference domain:
   // two blocks Links around the Decision Bead, one with an external source and
-  // one with an external target. They carry the External Reference sentinel
-  // type on the external end and change no bead's readiness or dependency
+  // one with an external target. The external end is an opaque URI reference
+  // and changes no bead's readiness or dependency
   // counts: demo-f is already blocked by the local demo-f-e Link. The
   // external-target Link's external end additionally carries the optional
-  // endpoint revision citation; external-source's stays bare, so the domain
-  // realizes both the echoed-citation and the omitted-member spellings.
+  // endpoint pin; external-source's stays bare, so the domain realizes
+  // both the echoed-pin and the omitted-member spellings.
   const externalEndpointId = "external:beads:mol-run-assignee";
   const externalEndpointRevision = "  Cited-9F2c — α/β (draft) Å\t";
+  const pinWitnessId = "urn:external:pin-witness";
+  const pinnedLocalRevision = "pin-a-r1 (as-written)";
   const links: LinkRecord[] = [
     ["demo-b-a", "demo-b", "demo-a", "Blocks"],
     ["demo-a-c", "demo-a", "demo-c", "Blocks"],
@@ -305,22 +314,24 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
     ["demo-j-k", "demo-j", "demo-k", "Blocks"],
     ["external-target", "demo-f", externalEndpointId, "Blocks"],
     ["external-source", externalEndpointId, "demo-f", "Blocks"],
+    ["pinned-local", pinWitnessId, "demo-f", "Blocks"],
   ].map(([id, source, target, typeName]) => {
     const localId = String(id);
     const resolveEndpoint = (name: string) => {
       if (name === externalEndpointId)
         return localId === "external-target"
-          ? ({
-              id: name,
-              type: BDP_EXTERNAL_REFERENCE_TYPE,
-              revision: externalEndpointRevision,
-            } as const)
-          : ({ id: name, type: BDP_EXTERNAL_REFERENCE_TYPE } as const);
+          ? ({ uri: name, revision: externalEndpointRevision } as const)
+          : name;
+      if (name === pinWitnessId) return name;
       const beadId = new URL(`beads/${name}`, scope).href;
-      const bead = beadById.get(beadId);
-      if (bead === undefined)
+      if (!beadById.has(beadId))
         throw new Error("reference Link endpoint does not name a reference Bead");
-      return { id: beadId, type: bead.type } as const;
+      // The pinned-local Link's in-Scope target carries a pin: the domain
+      // realizes the in-Scope Pinned Reference spelling alongside the
+      // external one.
+      if (localId === "pinned-local")
+        return { uri: beadId, revision: pinnedLocalRevision } as const;
+      return beadId;
     };
     const type = typeByName.get(String(typeName));
     if (type === undefined) throw new Error(`reference domain does not define ${String(typeName)}`);
@@ -455,34 +466,35 @@ function readFixtureEndpoint(
   value: unknown,
   path: string,
   beadsByLocalId: ReadonlyMap<string, BeadRecord>,
-): { readonly endpoint: Endpoint; readonly local: boolean } {
-  // An external endpoint may be authored as { id, revision } to carry the
-  // optional opaque citation; the object form is external-only, matching the
-  // wire contract's in-Scope prohibition.
-  let citedRevision: string | undefined;
+): { readonly endpoint: Reference; readonly local: boolean } {
+  // Any endpoint may be authored as { uri, revision } — a Pinned Reference
+  // recording the revision the link was made against. The URI alone is the
+  // identity; the pin is stored and echoed byte-identically.
+  let pinnedRevision: string | undefined;
   let endpointValue = value;
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     const record = readRecord(value, path);
-    requireAllowedKeys(record, ["id", "revision"], path);
-    citedRevision = readNonemptyString(record.revision, `${path}.revision`);
-    endpointValue = record.id;
+    requireAllowedKeys(record, ["uri", "revision"], path);
+    pinnedRevision = readNonemptyString(record.revision, `${path}.revision`);
+    endpointValue = record.uri;
   }
   const id = readNonemptyString(endpointValue, path);
   const localBead = beadsByLocalId.get(id);
   if (localBead !== undefined) {
-    if (citedRevision !== undefined)
-      throw new Error(`${path} in-Scope endpoint must not carry a revision citation`);
-    return { endpoint: { id: localBead.id, type: localBead.type }, local: true };
+    return {
+      endpoint:
+        pinnedRevision === undefined
+          ? localBead.id
+          : { uri: localBead.id, revision: pinnedRevision },
+      local: true,
+    };
   }
   if (isJsonSchemaUri(id)) {
     if (endpointAliasesScope(id, scope))
       throw new Error("fixture in-Scope Link endpoint must name a fixture Bead");
     requireSafeCanonicalExternalEndpoint(id, path);
     return {
-      endpoint:
-        citedRevision === undefined
-          ? { id, type: BDP_EXTERNAL_REFERENCE_TYPE }
-          : { id, type: BDP_EXTERNAL_REFERENCE_TYPE, revision: citedRevision },
+      endpoint: pinnedRevision === undefined ? id : { uri: id, revision: pinnedRevision },
       local: false,
     };
   }

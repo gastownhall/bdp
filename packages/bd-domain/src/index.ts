@@ -1,5 +1,5 @@
 import {
-  BDP_EXTERNAL_REFERENCE_TYPE,
+  referenceUri,
   isReadProblem,
   readProblem,
   REFERENCE_BLOCKING_LINK_TYPE_ID,
@@ -61,10 +61,10 @@ export function readyBeadsFromRecords(
   for (const bead of beads) {
     const blockingLinks =
       bead.links?.items.filter(
-        (link) => link.type === options.blockingLinkType && link.source.id === bead.id,
+        (link) => link.type === options.blockingLinkType && referenceUri(link.source) === bead.id,
       ) ?? [];
     const resolvedBlockers = blockingLinks
-      .map((link) => beadById.get(link.target.id))
+      .map((link) => beadById.get(referenceUri(link.target)))
       .filter((candidate): candidate is BeadRecord => candidate !== undefined);
     if (resolvedBlockers.length === blockingLinks.length && isReadyBead(bead, resolvedBlockers)) {
       ready.push(Object.freeze({ bead, blockers: Object.freeze(resolvedBlockers) }));
@@ -130,13 +130,15 @@ export async function readyBeadsFromClient(
     for (const bead of withLinks) {
       for (const link of bead.links?.items ?? []) {
         // External targets stay opaque. They remain unresolved blockers in
-        // readyBeadsFromRecords, but the domain must never dereference them as Beads.
+        // readyBeadsFromRecords, but the domain must never dereference them as
+        // Beads; in-Scope-ness is derived from the discovery beads root.
+        const targetUri = referenceUri(link.target);
         if (
           link.type === options.blockingLinkType &&
-          link.target.type !== BDP_EXTERNAL_REFERENCE_TYPE &&
-          !knownIds.has(link.target.id)
+          targetUri.startsWith(discovery.beads) &&
+          !knownIds.has(targetUri)
         ) {
-          missingBlockerIds.add(link.target.id);
+          missingBlockerIds.add(targetUri);
         }
       }
     }

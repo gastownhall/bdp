@@ -1,4 +1,4 @@
-import { BDP_EXTERNAL_REFERENCE_TYPE, ProtocolArtifactValidationError } from "@bdp/protocol";
+import { ProtocolArtifactValidationError } from "@bdp/protocol";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -497,11 +497,11 @@ describe("reference fixture Scope port", () => {
         items: [
           expect.objectContaining({
             id: `${scope}links/outbound`,
-            target: { id: external, type: BDP_EXTERNAL_REFERENCE_TYPE },
+            target: external,
           }),
           expect.objectContaining({
             id: `${scope}links/inbound`,
-            source: { id: external, type: BDP_EXTERNAL_REFERENCE_TYPE },
+            source: external,
           }),
         ],
         next: null,
@@ -542,22 +542,18 @@ describe("reference fixture Scope port", () => {
       ).resolves.toMatchObject({
         kind: "success",
         body: {
-          items: [
-            orientation === "source"
-              ? { source: { id: external, type: BDP_EXTERNAL_REFERENCE_TYPE } }
-              : { target: { id: external, type: BDP_EXTERNAL_REFERENCE_TYPE } },
-          ],
+          items: [orientation === "source" ? { source: external } : { target: external }],
           next: null,
         },
       });
     },
   );
 
-  it("round-trips the optional external revision citation from the object authoring form", async () => {
+  it("round-trips the optional pin from the object authoring form", async () => {
     const external = "urn:external:cited";
     const port = createPortableReferenceFixturePort(
       scope,
-      externalEndpointFixture({ id: external, revision: "cited-1" }),
+      externalEndpointFixture({ uri: external, revision: "cited-1" }),
     );
     await expect(
       port.perform({ kind: "collection", collection: "links", endpoint: external }, options),
@@ -566,7 +562,7 @@ describe("reference fixture Scope port", () => {
       body: {
         items: [
           {
-            target: { id: external, type: BDP_EXTERNAL_REFERENCE_TYPE, revision: "cited-1" },
+            target: { uri: external, revision: "cited-1" },
           },
         ],
         next: null,
@@ -574,16 +570,23 @@ describe("reference fixture Scope port", () => {
     });
   });
 
-  it("rejects a revision citation on an in-Scope fixture endpoint", () => {
-    expect(() =>
-      createPortableReferenceFixturePort(
-        scope,
-        externalEndpointFixture("urn:external:bare", "target", {
-          id: "beads/a",
-          revision: "cited-1",
-        }),
-      ),
-    ).toThrow("in-Scope endpoint must not carry a revision citation");
+  it("round-trips a pin on an in-Scope fixture endpoint", async () => {
+    const port = createPortableReferenceFixturePort(
+      scope,
+      externalEndpointFixture("urn:external:bare", "target", {
+        uri: "beads/a",
+        revision: "pinned-3",
+      }),
+    );
+    await expect(
+      port.perform({ kind: "collection", collection: "links" }, options),
+    ).resolves.toMatchObject({
+      kind: "success",
+      body: {
+        items: [{ source: { uri: `${scope}beads/a`, revision: "pinned-3" } }],
+        next: null,
+      },
+    });
   });
 
   it("rejects an endpoint object with members beyond id and revision", () => {
@@ -591,7 +594,7 @@ describe("reference fixture Scope port", () => {
       createPortableReferenceFixturePort(
         scope,
         externalEndpointFixture({
-          id: "urn:external:cited",
+          uri: "urn:external:cited",
           revision: "cited-1",
           extra: true,
         } as never),
@@ -599,11 +602,11 @@ describe("reference fixture Scope port", () => {
     ).toThrow();
   });
 
-  it("rejects an empty revision citation", () => {
+  it("rejects an empty pin", () => {
     expect(() =>
       createPortableReferenceFixturePort(
         scope,
-        externalEndpointFixture({ id: "urn:external:cited", revision: "" }),
+        externalEndpointFixture({ uri: "urn:external:cited", revision: "" }),
       ),
     ).toThrow("must be a non-empty string");
   });
@@ -642,9 +645,9 @@ describe("reference fixture Scope port", () => {
 });
 
 function externalEndpointFixture(
-  external: string | { id: string; revision: string },
+  external: string | { uri: string; revision: string },
   orientation: "source" | "target" = "target",
-  local: string | { id: string; revision: string } = "beads/a",
+  local: string | { uri: string; revision: string } = "beads/a",
 ) {
   const task = {
     id: "https://work.example/types/task",

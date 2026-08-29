@@ -109,8 +109,7 @@ export function parseLinkRecord(value: unknown, path = "Link record"): LinkRecor
   validateFromSchema(getProtocolValueValidators().linkRecord, record, path);
   parseCanonicalTypeId(record.id, `${path}.id`);
   parseResourceTypeId(record.type, `${path}.type`);
-  validateEndpointType(record.source, `${path}.source`);
-  validateEndpointType(record.target, `${path}.target`);
+
   return record as unknown as LinkRecord;
 }
 
@@ -226,17 +225,8 @@ function validateResourceTypeIds(value: unknown, path: string): void {
     parseResourceTypeId(entry, `${path}[${index}]`);
 }
 
-function validateEndpointType(value: unknown, path: string): void {
-  const endpoint = readRecord(value, path);
-  if (endpoint.type !== "https://github.com/gastownhall/bdp/types/external-reference")
-    parseResourceTypeId(endpoint.type, `${path}.type`);
-}
-
 function parseResourceTypeId(value: unknown, path: string): AbsoluteHttpUrl {
-  const type = parseCanonicalTypeId(value, path);
-  if (type === "https://github.com/gastownhall/bdp/types/external-reference")
-    throw new ProtocolArtifactValidationError(`${path} must name a Resource Type Descriptor`);
-  return type;
+  return parseCanonicalTypeId(value, path);
 }
 
 function getProtocolValueValidators(): ProtocolValueValidators {

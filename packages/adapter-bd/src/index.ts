@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { StringDecoder } from "node:string_decoder";
 import {
   type AbsoluteHttpUrl,
-  BDP_EXTERNAL_REFERENCE_TYPE,
+  referenceUri,
   type BeadCollectionRequest as BeadCollectionOperation,
   type BeadLinksRequest as BeadLinksOperation,
   type BeadPropertiesRequest as BeadPropertiesOperation,
@@ -292,11 +292,8 @@ export function createBdProcessScopePort(
         const link = {
           id: linkId(sourceLocalId, targetId, type),
           type: linkType,
-          source: { id: beadId(sourceLocalId), type: source.type },
-          target:
-            target === undefined
-              ? { id: targetId, type: BDP_EXTERNAL_REFERENCE_TYPE }
-              : { id: beadId(targetId), type: target.type },
+          source: beadId(sourceLocalId),
+          target: target === undefined ? targetId : beadId(targetId),
           properties: {},
         } as const;
         nextLinks.push({ ...link, revision: projectedResourceRevision(link) });
@@ -448,11 +445,11 @@ export function createBdProcessScopePort(
               (operation.type === undefined || link.type === operation.type) &&
               (operation.conformsTo === undefined ||
                 typeConformance.includes(link.type, operation.conformsTo)) &&
-              (operation.source === undefined || link.source.id === operation.source) &&
-              (operation.target === undefined || link.target.id === operation.target) &&
+              (operation.source === undefined || referenceUri(link.source) === operation.source) &&
+              (operation.target === undefined || referenceUri(link.target) === operation.target) &&
               (operation.endpoint === undefined ||
-                link.source.id === operation.endpoint ||
-                link.target.id === operation.endpoint),
+                referenceUri(link.source) === operation.endpoint ||
+                referenceUri(link.target) === operation.endpoint),
           );
           return scopePortSuccess<LinkCollectionOperation>(page(filtered));
         }
@@ -503,10 +500,11 @@ export function createBdProcessScopePort(
           return scopePortProblem<BeadLinksOperation>(adapterNotFound());
         const filtered = allLinks.filter((link) =>
           operation.direction === "inbound"
-            ? link.target.id === operation.bead
+            ? referenceUri(link.target) === operation.bead
             : operation.direction === "outbound"
-              ? link.source.id === operation.bead
-              : link.source.id === operation.bead || link.target.id === operation.bead,
+              ? referenceUri(link.source) === operation.bead
+              : referenceUri(link.source) === operation.bead ||
+                referenceUri(link.target) === operation.bead,
         );
         return scopePortSuccess<BeadLinksOperation>(page(filtered));
       }

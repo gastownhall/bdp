@@ -15,7 +15,8 @@ The single JSON Schema bundle containing BDP v0's normative JSON wire
 definitions.
 _Avoid_: schema fragments, implementation schema
 
-**External Reference sentinel**:
-The BDP protocol identifier used as the endpoint Type when a Link endpoint is
-outside its Scope and therefore opaque to that Scope.
+**Reference / Pinned Reference**:
+How anything in BDP points at anything: a URI — or a Pinned Reference,
+`{ uri, revision }`, the URI plus the revision it was made against. Either
+reference class may be pinned; the URI alone is identity.
 _Avoid_: external Type, remote Bead Type

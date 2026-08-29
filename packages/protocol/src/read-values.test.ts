@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  BDP_EXTERNAL_REFERENCE_TYPE,
   parseBeadCollection,
   parseBeadRecord,
   parseCanonicalHttpUrl,
@@ -14,30 +13,55 @@ import {
   parseTypeSummary,
   resolveCanonicalLocalResourceId,
   type AbsoluteHttpUrl,
-  type Endpoint,
+  type Reference,
+  type ExternalEndpointPolicy,
   type TypeDescriptor,
 } from "./index.js";
 
-// Compile-time contract: the revision citation is External Reference only.
-// A local endpoint carrying one must not type-check; the external spelling
-// with a citation must.
-const _externalEndpointWithCitation: Endpoint = {
-  id: "urn:external:cited",
-  type: BDP_EXTERNAL_REFERENCE_TYPE,
-  revision: "cited-1",
+// Compile-time contract: a Reference is a URI string, or a Pinned
+// Reference with exactly uri and revision — for either reference class.
+const _plainReference: Reference = "https://scope.example/acme/beads/demo-a";
+const _externalPolicies: readonly ExternalEndpointPolicy[] = ["none", "opaque", "bead"];
+// @ts-expect-error — the policy union is exactly none | opaque | bead
+const _invalidPolicy: ExternalEndpointPolicy = "always";
+void _externalPolicies;
+void _invalidPolicy;
+const _pinnedExternal: Reference = { uri: "urn:external:cited", revision: "cited-1" };
+const _pinnedLocal: Reference = {
+  uri: "https://scope.example/acme/beads/demo-a",
+  revision: "pin-a-r1",
 };
-// @ts-expect-error — revision is permitted on External Reference endpoints only
-const _localEndpointRejectsCitation: Endpoint = {
-  id: "https://scope.example/acme/beads/demo-a",
-  type: "https://work.example/types/task" as AbsoluteHttpUrl,
+const _pinRejectsExtras: Reference = {
+  uri: "urn:external:cited",
   revision: "cited-1",
+  // @ts-expect-error — a Pinned Reference carries exactly uri and revision
+  type: "https://work.example/types/task",
 };
-void _externalEndpointWithCitation;
-void _localEndpointRejectsCitation;
+void _plainReference;
+void _pinnedExternal;
+void _pinnedLocal;
+void _pinRejectsExtras;
 
 const scope = "https://scope.example/acme/" as AbsoluteHttpUrl;
 
 describe("Read envelope parsing", () => {
+  it("freezes parsed pins so a mutated input cannot reach the snapshot", () => {
+    const source = { uri: "urn:external:pin-witness", revision: "pin-1" };
+    const record = {
+      id: `${scope}links/pinned`,
+      type: "https://work.example/types/blocks",
+      revision: "1",
+      source,
+      target: { uri: `${scope}beads/demo-a`, revision: "pin-a-r1" },
+      properties: {},
+    };
+    const parsed = parseLinkRecord(record);
+    source.revision = "tampered";
+    expect(parsed.source).toEqual({ uri: "urn:external:pin-witness", revision: "pin-1" });
+    expect(Object.isFrozen(parsed.source)).toBe(true);
+    expect(Object.isFrozen(parsed.target)).toBe(true);
+  });
+
   it("snapshots and closes Read discovery", () => {
     const source = {
       bdpVersion: "0",
@@ -113,11 +137,8 @@ describe("Read envelope parsing", () => {
       id: `${scope}links/blocks-a-b`,
       type: "https://work.example/types/blocks",
       revision: "1",
-      source: { id: `${scope}beads/a`, type: "https://work.example/types/task" },
-      target: {
-        id: "urn:external:b",
-        type: "https://github.com/gastownhall/bdp/types/external-reference",
-      },
+      source: `${scope}beads/a`,
+      target: { uri: "urn:external:b", revision: "cited-1" },
       properties: {},
     };
     const parsed = parseBeadCollection({ items: [bead], next: null });
@@ -130,13 +151,13 @@ describe("Read envelope parsing", () => {
     expect(() =>
       parseLinkRecord({
         ...link,
-        target: { id: "javascript:alert(1)", type: "https://work.example/types/task" },
+        target: { uri: "urn:external:b" },
       }),
     ).toThrow();
     expect(() =>
       parseLinkRecord({
         ...link,
-        source: { ...link.source, type: "https://user:pw@work.example/types/task#fragment" },
+        source: { uri: `${scope}beads/a`, revision: "cited-1", extra: true },
       }),
     ).toThrow();
   });
@@ -235,39 +256,6 @@ describe("canonical local Resource IDs", () => {
 });
 
 describe("Type artifact parsing", () => {
-  it("never treats the External Reference sentinel as an installed or conforming Type", () => {
-    const beadDescriptor = {
-      id: "https://work.example/types/task",
-      name: "Task",
-      describes: "bead",
-      conformsTo: [],
-    };
-    const linkDescriptor = {
-      id: "https://work.example/types/blocks",
-      name: "Blocks",
-      describes: "link",
-      conformsTo: [],
-      source: { conformsTo: [] },
-      target: { conformsTo: [] },
-    };
-
-    expect(() =>
-      parseTypeSummary({ id: BDP_EXTERNAL_REFERENCE_TYPE, name: "External", describes: "bead" }),
-    ).toThrow("must name a Resource Type Descriptor");
-    expect(() =>
-      parseTypeDescriptor({ ...beadDescriptor, id: BDP_EXTERNAL_REFERENCE_TYPE }),
-    ).toThrow("must name a Resource Type Descriptor");
-    expect(() =>
-      parseTypeDescriptor({ ...beadDescriptor, conformsTo: [BDP_EXTERNAL_REFERENCE_TYPE] }),
-    ).toThrow("must name a Resource Type Descriptor");
-    expect(() =>
-      parseTypeDescriptor({
-        ...linkDescriptor,
-        source: { conformsTo: [BDP_EXTERNAL_REFERENCE_TYPE] },
-      }),
-    ).toThrow("must name a Resource Type Descriptor");
-  });
-
   it("validates discovery multiplicity Type IDs as descriptor identities", () => {
     const discovery = {
       bdpVersion: "0",
@@ -282,14 +270,6 @@ describe("Type artifact parsing", () => {
     };
 
     expect(parseReadDiscovery(discovery)).toEqual(discovery);
-    expect(() =>
-      parseReadDiscovery({
-        ...discovery,
-        maximumEndpointMultiplicity: [
-          { linkConformsTo: BDP_EXTERNAL_REFERENCE_TYPE, endpoint: "source", max: 1 },
-        ],
-      }),
-    ).toThrow("must name a Resource Type Descriptor");
     expect(() =>
       parseReadDiscovery({
         ...discovery,
@@ -335,6 +315,24 @@ describe("Type artifact parsing", () => {
       target: { conformsTo: [] },
     };
     expect([invalidLink.describes, invalidBead.describes]).toEqual(["link", "bead"]);
+  });
+
+  it("round-trips endpoint-constraint external policies and rejects unknown tokens", () => {
+    const descriptor = {
+      id: "https://work.example/types/blocks",
+      name: "Blocks",
+      describes: "link",
+      conformsTo: [],
+      source: { conformsTo: [], external: "none" },
+      target: { conformsTo: [], external: "bead" },
+    };
+    expect(parseTypeDescriptor(descriptor)).toEqual(descriptor);
+    expect(
+      parseTypeDescriptor({ ...descriptor, target: { conformsTo: [], external: "opaque" } }),
+    ).toEqual({ ...descriptor, target: { conformsTo: [], external: "opaque" } });
+    expect(() =>
+      parseTypeDescriptor({ ...descriptor, source: { conformsTo: [], external: "always" } }),
+    ).toThrow();
   });
 
   it("preserves every optional member of a closed Link Type Descriptor", () => {

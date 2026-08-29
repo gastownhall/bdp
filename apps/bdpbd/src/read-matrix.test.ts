@@ -725,14 +725,12 @@ function expectLogicalReadinessEquivalence(
     const id = new URL(bdLinkLocalId(source, target, type), scope).href;
     const projectedLinkType = projectedTypeId(type, "link");
     const sourceId = new URL(`beads/${encodeURIComponent(source)}`, scope).href;
-    const sourceType = projectedTypeId(sourceBead.type, "bead");
     const targetId = new URL(`beads/${encodeURIComponent(target)}`, scope).href;
-    const targetType = projectedTypeId(targetBead.type, "bead");
     const revision = projectedResourceRevisionForOracle({
       id,
       type: new URL(projectedLinkType, scope).href,
-      source: { id: sourceId, type: new URL(sourceType, scope).href },
-      target: { id: targetId, type: new URL(targetType, scope).href },
+      source: sourceId,
+      target: targetId,
       properties: {},
     });
     return [
@@ -740,9 +738,9 @@ function expectLogicalReadinessEquivalence(
       projectedLinkType,
       revision,
       toFixtureId(sourceId),
-      sourceType,
+      "",
       toFixtureId(targetId),
-      targetType,
+      "",
       {},
     ] satisfies readonly JsonValue[];
   });
@@ -760,7 +758,7 @@ function expectLogicalReadinessEquivalence(
     beads: reference.beads.length,
     links: referenceLocalLinks.length,
   });
-  expect(reference.expectations).toMatchObject({ beadCount: 9, linkCount: 11, typeCount: 12 });
+  expect(reference.expectations).toMatchObject({ beadCount: 9, linkCount: 12, typeCount: 12 });
   expect(bd.expectations).toMatchObject({ beadCount: 9, linkCount: 9, typeCount: 13 });
   expect(bd.oracles.collections["bead-titles"]).toHaveLength(bd.expectations.beadCount);
   expect(bd.oracles.collections["link-records"]).toHaveLength(bd.expectations.linkCount);
@@ -911,10 +909,13 @@ function expectBdOracleParity(
   );
 }
 
+function authoredEndpointUri(endpoint: string | { readonly uri: string }): string {
+  return typeof endpoint === "string" ? endpoint : endpoint.uri;
+}
+
 function projectReferenceReadyRecords(
   reference: ReferenceFixture,
 ): Parameters<typeof readyBeadsFromRecords>[0] {
-  const beadById = new Map(reference.beads.map((bead) => [bead.localId, bead]));
   return reference.beads.map((bead) => ({
     id: new URL(bead.localId, scope).href,
     type: bead.type,
@@ -927,14 +928,8 @@ function projectReferenceReadyRecords(
           id: new URL(link.localId, scope).href,
           type: link.type,
           revision: link.revision,
-          source: {
-            id: new URL(link.source, scope).href,
-            type: beadById.get(link.source)?.type ?? "",
-          },
-          target: {
-            id: new URL(link.target, scope).href,
-            type: beadById.get(link.target)?.type ?? "",
-          },
+          source: new URL(authoredEndpointUri(link.source), scope).href,
+          target: new URL(authoredEndpointUri(link.target), scope).href,
           properties: link.properties,
         })),
       next: null,
@@ -956,7 +951,6 @@ function projectBdReadyRecords(
     typeByName.get(`bead:${name}`) ?? `${scope}types/${name}`;
   const linkType = (name: string): string =>
     typeByName.get(`link:${name}`) ?? `${scope}types/${name}`;
-  const beadById = new Map(bd.bd.beads.map((bead) => [bead.id, bead]));
   return bd.bd.beads.map((bead) => ({
     id: `${scope}beads/${bead.id}`,
     type: beadType(bead.type),
@@ -975,14 +969,8 @@ function projectBdReadyRecords(
           id: `${scope}links/${link.source}-${link.target}-${link.type}`,
           type: linkType(link.type),
           revision: "1",
-          source: {
-            id: `${scope}beads/${link.source}`,
-            type: beadType(beadById.get(link.source)?.type ?? ""),
-          },
-          target: {
-            id: `${scope}beads/${link.target}`,
-            type: beadType(beadById.get(link.target)?.type ?? ""),
-          },
+          source: `${scope}beads/${link.source}`,
+          target: `${scope}beads/${link.target}`,
           properties: {},
         })),
       next: null,

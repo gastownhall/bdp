@@ -184,7 +184,11 @@ export type ScenarioAssertion =
       readonly pointer: string;
       readonly projections: readonly {
         readonly pointer: string;
-        readonly normalize?: "scope-relative-url" | "scope-relative-or-absolute-uri";
+        readonly normalize?:
+          | "scope-relative-url"
+          | "scope-relative-or-absolute-uri"
+          | "endpoint-uri"
+          | "endpoint-revision";
       }[];
       readonly equals: readonly (readonly JsonValue[])[];
       readonly fixturePointer?: never;
@@ -195,7 +199,11 @@ export type ScenarioAssertion =
       readonly pointer: string;
       readonly projections: readonly {
         readonly pointer: string;
-        readonly normalize?: "scope-relative-url" | "scope-relative-or-absolute-uri";
+        readonly normalize?:
+          | "scope-relative-url"
+          | "scope-relative-or-absolute-uri"
+          | "endpoint-uri"
+          | "endpoint-revision";
       }[];
       readonly equals?: never;
       /** Exact expected tuple multiset selected from the bound target realization. */
@@ -1714,7 +1722,11 @@ function parseAssertions(
       const projectionsValue = ownValue(candidate, "projections");
       const projections: {
         pointer: string;
-        normalize?: "scope-relative-url" | "scope-relative-or-absolute-uri";
+        normalize?:
+          | "scope-relative-url"
+          | "scope-relative-or-absolute-uri"
+          | "endpoint-uri"
+          | "endpoint-revision";
       }[] = [];
       if (!Array.isArray(projectionsValue) || projectionsValue.length === 0) {
         issues.push({
@@ -1738,11 +1750,14 @@ function parseAssertions(
           const normalizeIsValid =
             normalize === undefined ||
             normalize === "scope-relative-url" ||
-            normalize === "scope-relative-or-absolute-uri";
+            normalize === "scope-relative-or-absolute-uri" ||
+            normalize === "endpoint-uri" ||
+            normalize === "endpoint-revision";
           if (!normalizeIsValid)
             issues.push({
               path: `${projectionPath}.normalize`,
-              message: "must be scope-relative-url or scope-relative-or-absolute-uri",
+              message:
+                "must be scope-relative-url, scope-relative-or-absolute-uri, endpoint-uri, or endpoint-revision",
             });
           if (projectionPointer !== undefined && normalizeIsValid)
             projections.push({

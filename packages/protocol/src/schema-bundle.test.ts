@@ -6,7 +6,6 @@ import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 
 import {
-  BDP_EXTERNAL_REFERENCE_TYPE,
   BDP_PROBLEM_FAMILY_PREFIX,
   BDP_V0_SCHEMA_ID,
   PROTOCOL_PROFILES,
@@ -49,18 +48,19 @@ describe("BDP v0 schema bundle", () => {
       "bdpVersion",
       "beadCollection",
       "beadRecord",
-      "endpoint",
       "endpointConstraint",
       "iso8601Duration",
       "linkCollection",
       "linkRecord",
       "maximumEndpointMultiplicityPolicy",
+      "pinnedReference",
       "positiveInteger",
       "properties",
       "protocolProfile",
       "readDiscovery",
       "readProblem",
       "readProblemCode",
+      "reference",
       "retryDisposition",
       "typeDescriptor",
       "typeIdArray",
@@ -208,31 +208,33 @@ describe("BDP v0 schema bundle", () => {
       ...beadTypeDescriptor(),
       conformsTo: ["https://work.example/types/work-item", "https://work.example/types/work-item"],
     });
-    expectInvalid("endpoint", {
+    // A reference is a URI string, or exactly { uri, revision } for an
+    // Pinned Reference: the old object-with-type spelling, a pin missing
+    // its revision, and an empty pin must all fail.
+    // Reference-constraint external policy: the three tokens are accepted,
+    // omission is accepted (meaning opaque), and unknown tokens fail.
+    for (const external of ["none", "opaque", "bead"] as const)
+      expectValid("endpointConstraint", { conformsTo: [], external });
+    expectValid("endpointConstraint", { conformsTo: [] });
+    expectInvalid("endpointConstraint", { conformsTo: [], external: "always" });
+    expectInvalid("endpointConstraint", { conformsTo: [], external: true });
+    expectValid("reference", "https://beads.example/acme/beads/demo-a");
+    expectValid("reference", "urn:external:123");
+    expectValid("reference", { uri: "urn:external:123", revision: "cited-9f2c" });
+    expectValid("reference", {
+      uri: "https://beads.example/acme/beads/demo-a",
+      revision: "pin-a-r1",
+    });
+    expectInvalid("reference", {
       id: "urn:external:123",
       type: "https://work.example/types/task",
     });
-    // The optional endpoint revision citation is External Reference only: an
-    // in-Scope endpoint carrying it must fail even though the member is
-    // declared, and the external spelling with and without it must pass.
-    expectInvalid("endpoint", {
-      id: "https://beads.example/acme/beads/demo-a",
+    expectInvalid("reference", { uri: "urn:external:123" });
+    expectInvalid("reference", { uri: "urn:external:123", revision: "" });
+    expectInvalid("reference", {
+      uri: "urn:external:123",
+      revision: "cited-9f2c",
       type: "https://work.example/types/task",
-      revision: "cited-9f2c",
-    });
-    expectInvalid("endpoint", {
-      id: "urn:external:123",
-      type: "https://github.com/gastownhall/bdp/types/external-reference",
-      revision: "",
-    });
-    expectValid("endpoint", {
-      id: "urn:external:123",
-      type: "https://github.com/gastownhall/bdp/types/external-reference",
-      revision: "cited-9f2c",
-    });
-    expectValid("endpoint", {
-      id: "urn:external:123",
-      type: "https://github.com/gastownhall/bdp/types/external-reference",
     });
     expectInvalid("readProblem", {
       type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
@@ -278,14 +280,8 @@ function linkRecord(): SchemaRecord {
     id: "https://beads.example/acme/links/assigned-to-81",
     type: "https://work.example/types/assigned-to",
     revision: "opaque-link-revision",
-    source: {
-      id: "https://beads.example/acme/beads/task-42",
-      type: "https://work.example/types/task",
-    },
-    target: {
-      id: "urn:person:7",
-      type: BDP_EXTERNAL_REFERENCE_TYPE,
-    },
+    source: "https://beads.example/acme/beads/task-42",
+    target: { uri: "urn:person:7", revision: "cited-9f2c" },
     properties: { since: "2026-08-04" },
   };
 }

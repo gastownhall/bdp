@@ -1,7 +1,6 @@
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { BDP_EXTERNAL_REFERENCE_TYPE } from "@bdp/protocol";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { type AbsoluteHttpUrl, type BdProcessOptions, createBdProcessScopePort } from "./index.js";
@@ -84,8 +83,8 @@ describe("bd process Scope port", () => {
           {
             id: linkUrl("a", "b", "blocks"),
             type: "https://work.example/types/blocks",
-            source: { id: beadUrl("a") },
-            target: { id: beadUrl("b") },
+            source: beadUrl("a"),
+            target: beadUrl("b"),
           },
         ],
         next: null,
@@ -275,11 +274,8 @@ describe("bd process Scope port", () => {
             id: linkUrl("a", "external:beads:mol-run-assignee", "blocks"),
             type: "https://work.example/types/blocks",
             revision: expect.stringMatching(/^sha256_[A-Za-z0-9_-]{43}$/),
-            source: { id: beadUrl("a"), type: "https://work.example/types/task" },
-            target: {
-              id: "external:beads:mol-run-assignee",
-              type: BDP_EXTERNAL_REFERENCE_TYPE,
-            },
+            source: beadUrl("a"),
+            target: "external:beads:mol-run-assignee",
             properties: {},
           },
         ],
@@ -290,7 +286,7 @@ describe("bd process Scope port", () => {
       port.perform({ kind: "bead-links", bead: beadUrl("a"), direction: "outbound" }, options),
     ).resolves.toMatchObject({
       kind: "success",
-      body: { items: [{ target: { id: "external:beads:mol-run-assignee" } }], next: null },
+      body: { items: [{ target: "external:beads:mol-run-assignee" }], next: null },
     });
     await expect(
       port.perform({ kind: "bead-links", bead: beadUrl("a"), direction: "inbound" }, options),
@@ -299,7 +295,7 @@ describe("bd process Scope port", () => {
       port.perform({ kind: "bead-links", bead: beadUrl("a"), direction: "both" }, options),
     ).resolves.toMatchObject({
       kind: "success",
-      body: { items: [{ target: { id: "external:beads:mol-run-assignee" } }], next: null },
+      body: { items: [{ target: "external:beads:mol-run-assignee" }], next: null },
     });
     await expect(
       port.perform({ kind: "properties", resource: "bead", id: beadUrl("a") }, options),
@@ -318,7 +314,7 @@ describe("bd process Scope port", () => {
     const types = await port.perform({ kind: "collection", collection: "types" }, options);
     expect(types).toMatchObject({ kind: "success" });
     if (types.kind !== "success") throw new Error("Type inventory must succeed");
-    expect(types.body.items.map(({ id }) => id)).not.toContain(BDP_EXTERNAL_REFERENCE_TYPE);
+    for (const { id } of types.body.items) expect(id).toMatch(/^https:\/\/work\.example\/types\//);
   });
 
   it("resolves a live local target before classifying an external-looking native ID", async () => {
@@ -331,11 +327,8 @@ describe("bd process Scope port", () => {
       body: {
         items: [
           {
-            source: { id: beadUrl("a") },
-            target: {
-              id: beadUrl("external:beads:local"),
-              type: "https://work.example/types/task",
-            },
+            source: beadUrl("a"),
+            target: beadUrl("external:beads:local"),
           },
         ],
       },
@@ -379,8 +372,8 @@ describe("bd process Scope port", () => {
             id: linkUrl("a", "b", "blocks"),
             type: "https://work.example/types/blocks",
             revision: expect.stringMatching(/^sha256_[A-Za-z0-9_-]{43}$/),
-            source: { id: beadUrl("a"), type: "https://work.example/types/task" },
-            target: { id: beadUrl("b"), type: "https://work.example/types/decision" },
+            source: beadUrl("a"),
+            target: beadUrl("b"),
             properties: {},
           },
         ],
@@ -497,8 +490,8 @@ describe("bd process Scope port", () => {
           {
             id: linkUrl("a", "b", "blocks"),
             type: "https://work.example/types/blocks",
-            source: { id: beadUrl("a") },
-            target: { id: beadUrl("b") },
+            source: beadUrl("a"),
+            target: beadUrl("b"),
           },
         ],
         next: null,
@@ -524,8 +517,8 @@ describe("bd process Scope port", () => {
       body: {
         items: [
           {
-            source: { id: beadUrl("a") },
-            target: { id: beadUrl("b") },
+            source: beadUrl("a"),
+            target: beadUrl("b"),
           },
         ],
       },
@@ -543,13 +536,13 @@ describe("bd process Scope port", () => {
         items: [
           {
             type: "https://work.example/types/blocks",
-            source: { id: beadUrl("a") },
-            target: { id: beadUrl("c") },
+            source: beadUrl("a"),
+            target: beadUrl("c"),
           },
           {
             type: "https://work.example/types/blocks",
-            source: { id: beadUrl("b") },
-            target: { id: beadUrl("c") },
+            source: beadUrl("b"),
+            target: beadUrl("c"),
           },
         ],
       },
@@ -587,7 +580,7 @@ describe("bd process Scope port", () => {
       port.perform({ kind: "collection", collection: "links" }, options),
     ).resolves.toMatchObject({
       kind: "success",
-      body: { items: [{ source: { id: beadUrl("--profile") }, target: { id: beadUrl("b") } }] },
+      body: { items: [{ source: beadUrl("--profile"), target: beadUrl("b") }] },
     });
     const calls = (await readFile(callsFile, "utf8"))
       .trim()
@@ -649,7 +642,7 @@ describe("bd process Scope port", () => {
     expect(second.body.revision).not.toBe(first.body.revision);
   });
 
-  it("changes a Link revision when its complete projected representation changes", async () => {
+  it("keeps a Link revision stable when only an endpoint Bead's Type changes", async () => {
     const { port } = await createPort("changing-link-representation", undefined, {
       snapshotTtlMs: 0,
     });
@@ -664,9 +657,10 @@ describe("bd process Scope port", () => {
       throw new Error("changing Link fixture must contain a Link");
 
     expect(firstLink.id).toBe(secondLink.id);
-    expect(firstLink.target.type).toBe("https://work.example/types/decision");
-    expect(secondLink.target.type).toBe("https://work.example/types/task");
-    expect(secondLink.revision).not.toBe(firstLink.revision);
+    // References no longer carry endpoint Types, so retyping the target Bead
+    // leaves the Link's projected representation — and its revision — alone.
+    expect(secondLink.target).toBe(firstLink.target);
+    expect(secondLink.revision).toBe(firstLink.revision);
   });
 
   it("fails closed after the deadline when a child traps SIGTERM and later exits zero", async () => {

@@ -794,18 +794,20 @@
                   "pointer": "/revision"
                 },
                 {
-                  "pointer": "/source/id",
-                  "normalize": "scope-relative-or-absolute-uri"
+                  "pointer": "/source",
+                  "normalize": "endpoint-uri"
                 },
                 {
-                  "pointer": "/source/type"
+                  "pointer": "/source",
+                  "normalize": "endpoint-revision"
                 },
                 {
-                  "pointer": "/target/id",
-                  "normalize": "scope-relative-or-absolute-uri"
+                  "pointer": "/target",
+                  "normalize": "endpoint-uri"
                 },
                 {
-                  "pointer": "/target/type"
+                  "pointer": "/target",
+                  "normalize": "endpoint-revision"
                 },
                 {
                   "pointer": "/properties"
@@ -1221,6 +1223,50 @@
               "pointer": "/items",
               "itemPointer": "/id",
               "fixturePointer": "/oracles/structural-predicates/links-endpoint-or",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "links-endpoint-pinned-target",
+          "method": "GET",
+          "target": {
+            "binding": "links",
+            "query": {
+              "endpoint": {
+                "binding": "bead.demo-f",
+                "representation": "absolute-url"
+              }
+            }
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/linkCollection"
+            },
+            {
+              "id": "complete-page",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "endpoint-link-ids",
+              "kind": "json-array-set",
+              "pointer": "/items",
+              "itemPointer": "/id",
+              "fixturePointer": "/oracles/structural-predicates/links-endpoint-pinned-target",
               "normalize": "scope-relative-url"
             }
           ]
@@ -2317,7 +2363,7 @@
             {
               "id": "source",
               "kind": "json-pointer",
-              "pointer": "/source/id",
+              "pointer": "/source",
               "exists": true,
               "fixturePointer": "/oracles/resources/link.demo-b-a/source",
               "normalize": "scope-relative-url"
@@ -2325,7 +2371,7 @@
             {
               "id": "target",
               "kind": "json-pointer",
-              "pointer": "/target/id",
+              "pointer": "/target",
               "exists": true,
               "fixturePointer": "/oracles/resources/link.demo-b-a/target",
               "normalize": "scope-relative-url"

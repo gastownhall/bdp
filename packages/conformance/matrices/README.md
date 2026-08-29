@@ -198,9 +198,10 @@ creates its native local-source/external-target `related` dependency with
 baseline,
 observes that exact `external:beads:mol-run-assignee` identity, and confines the
 mutation to a dedicated workspace discarded with the matrix temporary root;
-the shared corpus is never mutated. Fixture-owned tuple oracles require the External Reference
-sentinel, exact opaque identity, the expected local orientation count, and at
-least one in-Scope Bead on every selected Link.
+the shared corpus is never mutated. Fixture-owned tuple oracles require the
+exact opaque external identity (with its pin where one is stored), the
+expected local orientation count, and at least one in-Scope Bead on every
+selected Link.
 
 The `GET`/`HEAD` catalog row now runs through a fresh bounded `node:net` or
 `node:tls` connection for every exchange. The canonical Scope URL remains the

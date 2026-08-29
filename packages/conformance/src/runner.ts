@@ -1313,6 +1313,20 @@ function evaluateAssertion(
           if (projection.normalize === "scope-relative-url") return scopeRelativeUrl(value, scope);
           if (projection.normalize === "scope-relative-or-absolute-uri")
             return scopeRelativeOrAbsoluteUri(value, scope);
+          if (projection.normalize === "endpoint-uri") {
+            const isPin = typeof value === "object" && value !== null && !Array.isArray(value);
+            return scopeRelativeOrAbsoluteUri(
+              isPin ? (value as { readonly uri?: unknown }).uri : value,
+              scope,
+            );
+          }
+          if (projection.normalize === "endpoint-revision") {
+            if (typeof value === "string") return "";
+            const revision = (value as { readonly revision?: unknown }).revision;
+            if (typeof revision !== "string")
+              throw new Error("endpoint pin revision was not a string");
+            return revision;
+          }
           return value;
         }),
       );

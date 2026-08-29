@@ -71,9 +71,7 @@ The BDP v0 protocol-identifier prefix is
 
 - normative schema bundle:
   `https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json`;
-- problem-family prefix: `https://github.com/gastownhall/bdp/problems/`; and
-- External Reference sentinel:
-  `https://github.com/gastownhall/bdp/types/external-reference`.
+- problem-family prefix: `https://github.com/gastownhall/bdp/problems/`.
 
 These URIs are protocol identities; dereferenceability is not required for
 their use or comparison. In other words, they work as identifiers even if
@@ -257,9 +255,10 @@ single JSON `properties` document. Beads are what people and agents read,
 create, and update, and every change to a Bead's properties produces a new
 named version of it.
 
-A **Link** is a first-class directed relationship between two Beads — one
-Issue depends on another, a memory cites a source, a task is assigned to a
-person. Links are not
+A **Link** is a first-class directed relationship — one Issue depends on
+another, a memory cites a source, a task is assigned to a person. At least
+one of its two endpoints is a Bead in the Link's own Scope; the other may
+instead reference something outside it. Links are not
 embedded in either endpoint: a Link has its own identity, its own type, and
 its own `properties`, and creating or deleting one never changes the Beads
 it connects. Beads and Links together form a graph, and a bounded, owned
@@ -276,14 +275,15 @@ Bead {
 }
 ```
 
-A **Link** is a first-class directed relationship with two endpoint references:
+A **Link** is a first-class directed relationship whose `source` and
+`target` each carry a Reference:
 
 ```text
 Link {
   id: LinkId
   type: LinkTypeId
-  source: EndpointReference
-  target: EndpointReference
+  source: Reference
+  target: Reference
   properties: JsonObject
 }
 ```
@@ -295,8 +295,8 @@ Resource and creating another Resource are distinct operations.
 
 Every Link has independent Resource identity. Its `type`, `source`, and
 `target` describe it but do not identify it. BDP v0 permits multiple Links
-to share the same Link `type`, `source.id`, and `target.id` tuple. Endpoint
-`type` is validated metadata and is not an additional tuple component.
+to share the same Link `type`, `source`, and `target` tuple; endpoint
+comparison uses the reference URI alone.
 Maximum multiplicity constraints may independently limit how many Links can
 share either endpoint. BDP v0 does not define a tuple-uniqueness constraint.
 
@@ -304,68 +304,59 @@ A URI-valued Bead or Link property is ordinary JSON data. BDP does not infer
 a Link merely because a property contains a URI.
 
 Each endpoint is either an **in-Scope endpoint** or an **out-of-Scope
-endpoint**. An in-Scope endpoint `id` may use a durable local Bead ID, the
-Bead's absolute canonical URL, or a transaction-local Bead reference
+endpoint**. An in-Scope endpoint reference may use a durable local Bead ID,
+the Bead's absolute canonical URL, or a transaction-local Bead reference
 introduced by an earlier creation operation. It MUST identify a live Bead in
 the Link's Scope. The authority emits its absolute canonical Bead URL.
 
-An out-of-Scope endpoint MUST be an absolute URI outside the canonical Scope
-URI. Its `type` MUST be
-`https://github.com/gastownhall/bdp/types/external-reference`, the BDP v0
-External Reference sentinel. BDP treats the `id` as an opaque reference: the
-target MAY be a Bead, another kind of Resource, or nothing currently
-dereferenceable. The authority does not dereference it. It does not infer
-its kind or Type, does not subject it to in-Scope endpoint-Type or aggregate
-constraints, does not expose Bead operations or incident Link traversal for
-it, and does not make its lifecycle part of the Scope's integrity
-guarantees. External endpoint equality is exact `id` equality. BDP defines
-no cross-authority canonicalization. At least one endpoint
+An out-of-Scope endpoint is an absolute URI outside the canonical Scope
+URL. BDP treats it as an opaque reference: the target MAY be a Bead, another
+kind of Resource, or nothing currently dereferenceable. The authority does
+not dereference it. It does not infer its kind or Type, does not subject it
+to in-Scope endpoint-Type or aggregate constraints, does not expose Bead
+operations or incident Link traversal for it, and does not make its
+lifecycle part of the Scope's integrity guarantees. External endpoint
+equality is exact URI equality. BDP defines no cross-authority
+canonicalization. At least one endpoint
 of every BDP v0 Link MUST be an in-Scope Bead. A Scope therefore cannot own
 a Link between two opaque external URIs. A future cross-Scope indexing
 profile may define ownership, lifecycle, authorization, and duplicate
 handling for such Links without weakening the v0 rule.
 
-> **Simplification planned.** This reference form is being redesigned:
-> the External Reference sentinel and the discriminator retire in favor of
-> URI-native references, with one object form for citing versions of
-> external targets and per-endpoint external policy declared on the Link
-> Type. See [gastownhall/bdp#6](https://github.com/gastownhall/bdp/issues/6);
-> the form below is current normative text until that design lands.
-
-Every canonical endpoint reference has two required members and, for external
-references only, one optional member:
+A **Reference** is how anything in BDP points at anything. It is a URI —
+or a **Pinned Reference**: the URI plus the revision it was made against.
 
 ```text
-EndpointReference {
-  id: URI
-  type: BeadTypeId | ExternalReferenceSentinel
-  revision?   // opaque nonempty string; External Reference endpoints only
+Reference = URI
+          | PinnedReference
+
+PinnedReference {
+  uri: URI
+  revision   // opaque nonempty string
 }
 ```
 
-For an in-Scope endpoint, `id` is the Bead's absolute canonical URL and
-`type` is its exact immutable declared Type. An in-Scope endpoint carries
-exactly those two members and MUST NOT carry `revision`. The authority MUST
-reject a mismatched pair. For an out-of-Scope endpoint, `id` is the opaque
-absolute URI and `type` is the External Reference sentinel. It MAY
-additionally carry the opaque `revision` citation defined under
-[Batch-local Resource references](#batch-local-resource-references). A sentinel paired
-with an in-Scope ID, or any other Type paired with an out-of-Scope ID, is
-invalid. Endpoint equality, incident traversal, and multiplicity use `id`.
-`type` is validated metadata, and `revision` is preserved citation data —
-neither adds another identity component.
+The URI is always the complete identity. Whether a Reference is in-Scope or
+out-of-Scope is derived from it, never declared: a URI that resolves to (an
+alias of) the canonical Scope URL claims an in-Scope Bead, and the
+authority MUST reject it unless it is the Bead's canonical spelling; every
+other URI is an opaque external reference. The pin is recorded provenance —
+the revision the Reference was made against — with one law for every
+Reference: the authority stores and echoes the `revision` token
+byte-identically, compares it only for equality, and applies no semantic
+validation to it in BDP v0. The `uri` follows the ordinary reference
+rules — an in-Scope spelling is canonicalized like any other reference; an
+external URI is preserved byte-identically like any other external
+reference. An in-Scope pin's token is opaque and unvalidated in v0;
+validating or resolving one against retained history arrives with
+historical resolution. An external pin's token belongs to a namespace this
+Scope does not own and is never validated or dereferenced.
 
-The External Reference sentinel is protocol vocabulary, not a Type
-Descriptor. It cannot be installed, declared by a Bead, or used in a Type
-conformance graph. It also cannot be treated as an assertion about the
-Resource identified by an external URI.
-
-Repeating a local Bead's declared Type in the endpoint is deliberate.
-Because that Type is immutable, an implementation may use the supplied value
-to route directly to Type-specific storage, and it may index or denormalize
-the value with the Link. The value is still untrusted request data: the
-authority MUST verify it against the identified Bead before committing the
-Link.
+Reference equality, incident traversal, and multiplicity use the URI
+alone; a pin adds no identity component. References do not carry the
+endpoint Bead's declared Type: readers that need endpoint Types use the
+read views, and an authority validates endpoint Types against the
+identified Beads themselves.
 
 ### Types
 
@@ -596,12 +587,13 @@ $[?@.type == "https://work.example/types/task" && @.properties.status == "closed
 ```
 
 The identity-bearing candidate members `id` and `type` contain absolute
-canonical URLs. `source` and `target` are endpoint objects. Their `id`
-members contain a local canonical Bead URL or an opaque external URI, and
-their `type` members contain the declared Bead Type or the External Reference
-sentinel. A Selector compares those strings exactly. BDP does not reinterpret
-or normalize arbitrary JSONPath string literals as identifiers, so callers
-use the stored spelling in Selector expressions.
+canonical URLs. `source` and `target` are References: a local
+canonical Bead URL, an opaque external URI, or a Pinned Reference.
+A Selector compares stored values exactly. BDP does not reinterpret or
+normalize arbitrary JSONPath string literals as identifiers, so callers use
+the stored spelling in Selector expressions; the dedicated `source`,
+`target`, and `endpoint` collection filters compare by reference URI and are
+the pin-transparent way to select by endpoint.
 
 The same Selector semantics drive retrieval and set mutation:
 
@@ -704,8 +696,8 @@ label with `@`:
 ```text
 CreateLink(
   type: "assigned-to",
-  source: { id: @newTask, type: "https://work.example/types/task" },
-  target: { id: "person-42", type: "https://people.example/types/person" },
+  source: @newTask,
+  target: "person-42",
   properties: {}
 )
 ```
@@ -733,24 +725,22 @@ data are not.
 A durable relative reference is resolved against the canonical Scope URL and
 normalized to an absolute canonical URL before use. It must remain beneath
 the fixed `beads/` or `links/` root required by the reference's Resource
-kind. An endpoint `id` that is relative therefore always denotes an in-Scope
-endpoint. It must identify a live Bead whose declared Type equals the
-accompanying `type`. An endpoint `id` that is an absolute URI outside the
-canonical Scope instead requires the External Reference sentinel and is
-handled as opaque.
+kind. An endpoint reference that is relative therefore always denotes an in-Scope
+endpoint and must identify a live Bead. An endpoint reference that is an
+absolute URI outside the canonical Scope is handled as opaque.
 
-An External Reference endpoint may carry an optional opaque endpoint
-`revision` member. That member cites the state of the external Resource the
-reference was made against. On the wire it is a nonempty JSON string, and
-that structural rule is the only validation an authority applies. The member
-is a citation pin, not a constraint: an authority stores and echoes it
-byte-identically, compares it only for equality, and performs no semantic
-validation, dereferencing, or interpretation — the cited Resource is outside
-the authority's Scope. The member is unrelated to the containing Link's own
-`revision` and to `expectedRevision` guards. It does not participate in Link
-identity or endpoint tuple comparison. An in-Scope endpoint must not carry a
-`revision` member in BDP v0; citation of in-Scope historical states is
-deferred with historical resolution.
+Any Reference may be written as a Pinned Reference `{ uri, revision }`,
+recording the revision of the target the Reference was made against. On the
+wire `revision` is a nonempty JSON string, and that structural rule is the
+only validation an authority applies in BDP v0. The pin is provenance, not
+a constraint: an authority stores and echoes it byte-identically, compares
+it only for equality, and performs no semantic validation, dereferencing,
+or interpretation — for an external target because its namespace is not
+ours, and for an in-Scope target because validating a past revision
+requires historical resolution, which arrives separately. The pin is
+unrelated to the containing Link's own `revision` and to
+`expectedRevision` guards. It does not participate in Link identity or
+Reference comparison.
 
 Creating or deleting a Link does not mutate an in-Scope endpoint Bead, and it
 does not change that Bead's Resource revision.
@@ -805,10 +795,10 @@ in the same Mutation Transaction.
 
 If `id` is omitted, the authority allocates one. If `id` is supplied, its
 canonical Resource URL must never previously have been committed in the
-logical Scope. `source.id` and `target.id` may refer to Beads created earlier
-in the same Mutation Transaction. Their accompanying `type` values MUST equal
-the Types on those creation operations. An out-of-Scope endpoint instead
-pairs its absolute URI `id` with the External Reference sentinel.
+logical Scope. `source` and `target` may refer to Beads created earlier
+in the same Mutation Transaction. Each is a Reference and either may be
+pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
+`uri` alone.
 
 ```text
 UpdateLinkProperties(
@@ -844,8 +834,8 @@ state before evaluating the next operation. It checks:
 - reference resolution and Resource kind;
 - liveness, exact declared-Type match, kind, and effective-Type constraints for
   in-Scope Link endpoints;
-- sentinel pairing, syntactic validity, and opaque handling of out-of-Scope
-  endpoint URIs;
+- Link-Type external-endpoint policy, syntactic validity, and opaque
+  handling of out-of-Scope endpoint URIs;
 - immutable-member rules;
 - Type and properties-schema constraints;
 - applicable Scope aggregate constraints;
@@ -1028,7 +1018,7 @@ For example, this operation deletes every Link incident upon `task-42`:
 ```text
 DeleteWhere(
   Links,
-  $[?@.source.id == "https://beads.example/acme/beads/task-42" || @.target.id == "https://beads.example/acme/beads/task-42"]
+  $[?@.source == "https://beads.example/acme/beads/task-42" || @.target == "https://beads.example/acme/beads/task-42"]
 )
 ```
 
@@ -1110,8 +1100,8 @@ The lifecycle Event deltas are:
 CreatedData {
   revision: Revision
   properties: JsonObject
-  source?: EndpointReference
-  target?: EndpointReference
+  source?: Reference
+  target?: Reference
 }
 
 UpdatedData {
@@ -1132,11 +1122,10 @@ committed Property Change rather than a resulting properties snapshot.
 `DeletedData.revision` is the Resource's final live revision. Deleted Events
 do not retain the Resource's properties.
 
-An Event uses the same `EndpointReference` form as canonical Link state,
-including a stored external `revision` citation, which propagates
-byte-identically. An in-Scope reference carries the Bead's immutable declared
-Type. An out-of-Scope reference carries the External Reference sentinel,
-which makes no claim about what the URI identifies.
+An Event uses the same `Reference` form as canonical Link state,
+including a stored Pinned Reference, which propagates
+byte-identically. A reference makes no claim about what an out-of-Scope URI
+identifies.
 
 The graph Event delta is:
 
@@ -1144,16 +1133,16 @@ The graph Event delta is:
 LinkDeltaData {
   endpoint: source | target
   link: TypedLinkReference
-  source: EndpointReference
-  target: EndpointReference
+  source: Reference
+  target: Reference
 }
 ```
 
 The typed Link reference contains only the immutable `id` and `type`.
 `linked` and `unlinked` Events contain no Bead or Link properties. Carrying
-the Type of each in-Scope endpoint lets a consumer understand an unlink after
-the Link is no longer readable, without asserting a Type for an opaque
-external reference.
+the Link's own Type and both endpoint references lets a consumer understand
+an unlink after the Link is no longer readable, without asserting anything
+about an opaque external reference.
 
 A Link-scoped Event Source reports `created`, `updated`, and `deleted` facts
 about that Link. A Bead-scoped Event Source reports:
@@ -1483,10 +1472,9 @@ An input Resource reference may use that canonical local spelling or the
 absolute canonical URL. The authority resolves a local reference against
 `scope` and canonicalizes it. Before lookup, it verifies that the first
 segment is the fixed root for the required Resource kind. A relative endpoint
-`id` therefore must identify a live Bead in this Scope. Its `type` must match
-that Bead's declared Type. An absolute endpoint `id` outside `scope` remains
-opaque and requires the External Reference sentinel as its `type`. Resolution
-never mutates an endpoint Bead.
+reference therefore must identify a live Bead in this Scope. An absolute
+endpoint reference outside `scope` remains opaque. Resolution never mutates
+an endpoint Bead.
 
 When the Scope's profile supports mutation, `operations` identifies an
 Operation Directory rather than a collection of transactions. Its named
@@ -1496,9 +1484,8 @@ includes `batch`, which executes an ordered Mutation Transaction.
 Discovery-document members and Operation Directory members defined by this
 specification are fixed BDP vocabulary. Scope, Resource, Type, schema,
 discovery navigation, and pagination `next` members are HTTP(S) URLs. BDP
-permits arbitrary absolute URIs only for opaque external endpoint identities
-represented with the External Reference sentinel. BDP schemas assert this
-distinction with JSON Schema patterns. Schema-aware tooling may additionally
+permits arbitrary absolute URIs only for opaque external endpoint
+references. BDP schemas assert this distinction with JSON Schema patterns. Schema-aware tooling may additionally
 use JSON Schema `format` annotations, but format behavior is not the sole
 enforcement mechanism. BDP v0 does not duplicate navigation through
 BDP-specific HTTP link relations. `service-desc` is the one required machine
@@ -1728,14 +1715,8 @@ A Link record is:
   "id": "https://beads.example/acme/links/assigned-to-81",
   "type": "https://work.example/types/assigned-to",
   "revision": "opaque-link-revision",
-  "source": {
-    "id": "https://beads.example/acme/beads/task-42",
-    "type": "https://work.example/types/task"
-  },
-  "target": {
-    "id": "https://beads.example/acme/beads/person-7",
-    "type": "https://people.example/types/person"
-  },
+  "source": "https://beads.example/acme/beads/task-42",
+  "target": "https://beads.example/acme/beads/person-7",
   "properties": {
     "since": "2026-08-04"
   }
@@ -1743,25 +1724,31 @@ A Link record is:
 ```
 
 `id` and `type` are always absolute canonical URLs in responses. Link
-`source` and `target` are endpoint objects. An in-Scope endpoint has exactly
-two members: the Bead's absolute canonical URL and exact declared Type. An
-out-of-Scope endpoint has its opaque absolute URI and the BDP v0 External
-Reference sentinel. It may additionally carry the optional opaque endpoint
-`revision` member defined under **Batch-local Resource references**. `revision` is
-protocol metadata rather than mutable Bead or Link state. `id`, `type`,
-`revision`, and, for Links, `source` and `target` are returned on every
-successful read. That does not mean they are accepted as update targets. An
-implementation may store local identifiers internally. That choice does not
-alter the response spelling.
+`source` and `target` are References as defined under
+[Beads and Links](#beads-and-links): an in-Scope endpoint's `uri` is the
+Bead's absolute canonical URL, an out-of-Scope endpoint's `uri` is its
+opaque absolute URI, and either may be a Pinned Reference. `revision` is protocol metadata rather than mutable Bead or Link
+state. `id`, `type`, `revision`, and, for Links, `source` and `target` are
+returned on every successful read. That does not mean they are accepted as
+update targets. An implementation may store local identifiers internally.
+That choice does not alter the response spelling.
 
-For example, an opaque external target citing a specific external state is
-represented as:
+A pinned endpoint is represented the same way for both reference classes.
+For example, pinning an external target:
 
 ```json
 {
-  "id": "https://github.example/issues/123",
-  "type": "https://github.com/gastownhall/bdp/types/external-reference",
+  "uri": "https://github.example/issues/123",
   "revision": "8f0e2b"
+}
+```
+
+and pinning an in-Scope Bead:
+
+```json
+{
+  "uri": "https://beads.example/acme/beads/task-42",
+  "revision": "opaque-task-revision"
 }
 ```
 
@@ -1832,14 +1819,8 @@ page of the same result exposed by `view=links`:
         "id": "https://beads.example/acme/links/assigned-to-81",
         "type": "https://work.example/types/assigned-to",
         "revision": "opaque-link-revision",
-        "source": {
-          "id": "https://beads.example/acme/beads/task-42",
-          "type": "https://work.example/types/task"
-        },
-        "target": {
-          "id": "https://beads.example/acme/beads/person-7",
-          "type": "https://people.example/types/person"
-        },
+        "source": "https://beads.example/acme/beads/task-42",
+        "target": "https://beads.example/acme/beads/person-7",
         "properties": {
           "since": "2026-08-04"
         }
@@ -2098,8 +2079,19 @@ parent Types is required. A local source Bead is valid only when its effective
 Type set contains every source requirement. The target rule is identical and
 is never directionally swapped. This is an intersection: an endpoint requiring
 both `WorkItem` and `Auditable` accepts only a Bead that conforms to both.
-Union constraints are not part of the v0 baseline. An out-of-Scope endpoint is
-opaque and neither satisfies nor fails these requirements.
+Union constraints are not part of the v0 baseline. An out-of-Scope endpoint
+is opaque and neither satisfies nor fails `conformsTo` requirements.
+
+Each endpoint constraint additionally declares its **external-endpoint
+policy** through the optional `external` member: `none` rejects an
+out-of-Scope reference at that endpoint when the Link is created, `opaque`
+admits any external URI, and `bead` admits an external URI only when it is
+bead-shaped — a canonical HTTP(S) URL whose path contains a `beads/{id}`
+tail. An absent member means `opaque`. The `bead` policy is validated,
+declared intent about creation time, not an ongoing guarantee: the external
+target can stop being a Bead through exogenous means, and the authority
+never dereferences it to find out. A reference remains a claim about the
+time it was written.
 
 Maximum endpoint multiplicity is different: it is a Scope-owned aggregate
 policy, because checking it means inspecting other Links. The data-model
@@ -2236,14 +2228,8 @@ The request body contains one ordered operation list:
     {
       "operation": "createLink",
       "type": "https://work.example/types/assigned-to",
-      "source": {
-        "id": "@newTask",
-        "type": "https://work.example/types/task"
-      },
-      "target": {
-        "id": "beads/person-7",
-        "type": "https://people.example/types/person"
-      },
+      "source": "@newTask",
+      "target": "beads/person-7",
       "properties": {}
     }
   ]
@@ -2306,12 +2292,17 @@ of the eight generic operation records:
       "type": "string",
       "minLength": 1
     },
-    "endpointReference": {
+    "reference": {
+      "oneOf": [
+        { "$ref": "#/$defs/resourceReference" },
+        { "$ref": "#/$defs/pinnedReference" }
+      ]
+    },
+    "pinnedReference": {
       "type": "object",
-      "required": ["id", "type"],
+      "required": ["uri", "revision"],
       "properties": {
-        "id": { "$ref": "#/$defs/resourceReference" },
-        "type": { "$ref": "#/$defs/typeId" },
+        "uri": { "$ref": "#/$defs/resourceReference" },
         "revision": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
@@ -2408,8 +2399,8 @@ of the eight generic operation records:
         "name": { "$ref": "#/$defs/name" },
         "id": { "$ref": "#/$defs/resourceReference" },
         "type": { "$ref": "#/$defs/typeId" },
-        "source": { "$ref": "#/$defs/endpointReference" },
-        "target": { "$ref": "#/$defs/endpointReference" },
+        "source": { "$ref": "#/$defs/reference" },
+        "target": { "$ref": "#/$defs/reference" },
         "properties": { "$ref": "#/$defs/properties" }
       },
       "additionalProperties": false
@@ -2468,19 +2459,17 @@ never permitted. `properties` defaults to an empty object when omitted.
 
 `bead` and `link` contain a durable local ID, an absolute canonical Resource
 URL, or, in a batch only, an `@label` of the required Resource kind. `source`
-and `target` are `EndpointReference` objects. Their `id` accepts those same
-local Bead spellings or an absolute out-of-Scope URI, and their `type` is
-always an absolute URL. The authority performs reference resolution,
-canonicalization, label resolution, and Resource-kind validation. A durable
-relative endpoint `id` resolves against the canonical Scope URL, not against
-the request URL or the containing Link URL. It must name a live Bead whose
-declared Type equals the supplied `type`. An absolute endpoint `id` outside
-the Scope is accepted only with the BDP v0 External Reference sentinel. Such
-an endpoint remains opaque: it is not kind-checked or dereferenced. Only that
-sentinel form may supply the optional endpoint `revision` citation under
-[Batch-local Resource references](#batch-local-resource-references); an in-Scope endpoint
-reference carrying `revision` is rejected. Neither case mutates an endpoint
-Bead or changes its revision.
+and `target` are endpoint references accepting those same local Bead
+spellings, an absolute out-of-Scope URI, or a Pinned Reference.
+The authority performs reference resolution, canonicalization, label
+resolution, and Resource-kind validation. A durable relative endpoint
+reference resolves against the canonical Scope URL, not against the request
+URL or the containing Link URL, and must name a live Bead. An absolute endpoint reference outside
+the Scope is accepted as an opaque external reference, subject to the Link
+Type's external-endpoint policy. Such an endpoint is not kind-checked or
+dereferenced. Either endpoint may be supplied as a Pinned Reference under
+[Batch-local Resource references](#batch-local-resource-references).
+Neither case mutates an endpoint Bead or changes its revision.
 
 The singleton target for an operation accepts the corresponding record with
 `operation` and `name` removed. The target URL supplies the meaning of
@@ -2559,7 +2548,7 @@ Set operations name one collection and carry a bounded JSONPath Selector:
 {
   "operation": "deleteWhere",
   "collection": "links",
-  "selector": "$[?@.source.id == \"https://beads.example/acme/beads/task-42\" || @.target.id == \"https://beads.example/acme/beads/task-42\"]",
+  "selector": "$[?@.source == \"https://beads.example/acme/beads/task-42\" || @.target == \"https://beads.example/acme/beads/task-42\"]",
   "cardinality": {
     "max": 1000
   }
@@ -2590,7 +2579,7 @@ transaction:
     {
       "operation": "deleteWhere",
       "collection": "links",
-      "selector": "$[?@.source.id == \"https://beads.example/acme/beads/task-42\" || @.target.id == \"https://beads.example/acme/beads/task-42\"]",
+      "selector": "$[?@.source == \"https://beads.example/acme/beads/task-42\" || @.target == \"https://beads.example/acme/beads/task-42\"]",
       "cardinality": {
         "max": 1000
       }
@@ -2649,14 +2638,8 @@ declaration order:
         "id": "https://beads.example/acme/links/assigned-to-81",
         "type": "https://work.example/types/assigned-to",
         "revision": "opaque-link-revision",
-        "source": {
-          "id": "https://beads.example/acme/beads/task-104",
-          "type": "https://work.example/types/task"
-        },
-        "target": {
-          "id": "https://beads.example/acme/beads/person-7",
-          "type": "https://people.example/types/person"
-        },
+        "source": "https://beads.example/acme/beads/task-104",
+        "target": "https://beads.example/acme/beads/person-7",
         "properties": {}
       }
     }
@@ -2721,8 +2704,8 @@ Accept: application/json
 ```
 
 `direction` is `inbound`, `outbound`, or `both`, and defaults to `both` when
-omitted. `inbound` selects Links whose `target.id` is the Bead. `outbound`
-selects Links whose `source.id` is the Bead. `both` selects their union. The
+omitted. `inbound` selects Links whose `target` is the Bead. `outbound`
+selects Links whose `source` is the Bead. `both` selects their union. The
 response is a paginated `items` array of complete Link records plus a `next`
 URL. The initial request may supply `limit`. Subsequent requests follow
 `next`. As with collection pagination, that continuation walks one logical
@@ -2749,9 +2732,9 @@ collections accept these structural predicates:
 | --- | --- | --- | --- | --- |
 | `type` | yes | yes | no | Exact Type ID |
 | `conformsTo` | yes | yes | no | Effective conformance to the named Type ID |
-| `source` | no | yes | no | Exact source endpoint ID |
-| `target` | no | yes | no | Exact target endpoint ID |
-| `endpoint` | no | yes | no | Source or target ID equals the supplied ID |
+| `source` | no | yes | no | Exact source reference URI |
+| `target` | no | yes | no | Exact target reference URI |
+| `endpoint` | no | yes | no | Source or target reference URI equals the supplied URI |
 | `selector` | yes | yes | no | Bounded Selector over each candidate record |
 | `limit` | yes | yes | yes | Maximum records in this page |
 | `cursor` | yes | yes | yes | Opaque continuation supplied by `next` |
@@ -2774,7 +2757,7 @@ The `selector` value is the same JSONPath Selector string accepted by
 `updateWhere` and `deleteWhere`. It is percent-encoded in the request target:
 
 ```http
-GET /acme/links/?selector=%24%5B%3F%40.source.id%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%20%7C%7C%20%40.target.id%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%5D HTTP/1.1
+GET /acme/links/?selector=%24%5B%3F%40.source%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%20%7C%7C%20%40.target%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%5D HTTP/1.1
 Host: beads.example
 Accept: application/json
 ```
@@ -2782,7 +2765,7 @@ Accept: application/json
 The decoded Selector is:
 
 ```text
-$[?@.source.id == "https://beads.example/acme/beads/task-42" || @.target.id == "https://beads.example/acme/beads/task-42"]
+$[?@.source == "https://beads.example/acme/beads/task-42" || @.target == "https://beads.example/acme/beads/task-42"]
 ```
 
 The structural predicates and Selector decide the complete matching set before
@@ -2947,14 +2930,8 @@ first page of each typed stream and may contain both streams completely:
         "id": "https://beads.example/acme/links/assigned-to-81",
         "type": "https://work.example/types/assigned-to",
         "revision": "opaque-link-revision",
-        "source": {
-          "id": "https://beads.example/acme/beads/task-42",
-          "type": "https://work.example/types/task"
-        },
-        "target": {
-          "id": "https://beads.example/acme/beads/person-7",
-          "type": "https://people.example/types/person"
-        },
+        "source": "https://beads.example/acme/beads/task-42",
+        "target": "https://beads.example/acme/beads/person-7",
         "properties": {}
       }
     ],
@@ -3156,14 +3133,8 @@ Accept: application/json
           "id": "https://beads.example/acme/links/assigned-to-81",
           "type": "https://work.example/types/assigned-to"
         },
-        "source": {
-          "id": "https://beads.example/acme/beads/task-42",
-          "type": "https://work.example/types/task"
-        },
-        "target": {
-          "id": "https://beads.example/acme/beads/person-7",
-          "type": "https://people.example/types/person"
-        }
+        "source": "https://beads.example/acme/beads/task-42",
+        "target": "https://beads.example/acme/beads/person-7"
       }
     }
   ],
@@ -3185,10 +3156,8 @@ identifier, an RFC 3339 `time`, and a Type-specific `data` object. Event data
 contains deltas rather than Resource snapshots:
 
 - `created` carries `revision` and the complete initial `properties`. For a
-  Link it also carries `source` and `target` endpoint references. An in-Scope
-  reference carries the Bead's declared Type and exactly `id` and `type`. An
-  out-of-Scope reference carries the External Reference sentinel and
-  preserves a stored endpoint `revision` citation byte-identically.
+  Link it also carries the `source` and `target` endpoint references, with a
+  stored pin preserved byte-identically.
 - `updated` carries `previousRevision`, `revision`, and `change`. `change`
   uses the same committed Property Change representation accepted by
   singleton DML.

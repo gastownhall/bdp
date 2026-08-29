@@ -69,33 +69,57 @@
       "allOf": [
         {
           "if": {
-            "properties": { "code": { "const": "malformed-request" } },
+            "properties": {
+              "code": {
+                "const": "malformed-request"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/request" },
-              "status": { "const": 400 },
-              "retry": { "const": "never" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/request"
+              },
+              "status": {
+                "const": 400
+              },
+              "retry": {
+                "const": "never"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "invalid-parameter" } },
+            "properties": {
+              "code": {
+                "const": "invalid-parameter"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/request" },
-              "status": { "const": 400 },
-              "retry": { "const": "never" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/request"
+              },
+              "status": {
+                "const": 400
+              },
+              "retry": {
+                "const": "never"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "unauthenticated" } },
+            "properties": {
+              "code": {
+                "const": "unauthenticated"
+              }
+            },
             "required": ["code"]
           },
           "then": {
@@ -103,112 +127,196 @@
               "type": {
                 "const": "https://github.com/gastownhall/bdp/problems/authentication"
               },
-              "status": { "const": 401 },
-              "retry": { "const": "after-state-change" }
+              "status": {
+                "const": 401
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "forbidden" } },
+            "properties": {
+              "code": {
+                "const": "forbidden"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/authorization" },
-              "status": { "const": 403 },
-              "retry": { "const": "after-state-change" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/authorization"
+              },
+              "status": {
+                "const": 403
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "resource-not-found" } },
+            "properties": {
+              "code": {
+                "const": "resource-not-found"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/not-found" },
-              "status": { "const": 404 },
-              "retry": { "const": "after-state-change" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/not-found"
+              },
+              "status": {
+                "const": 404
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "foreign-view" } },
+            "properties": {
+              "code": {
+                "const": "foreign-view"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/conflict" },
-              "status": { "const": 409 },
-              "retry": { "const": "after-state-change" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "cursor-expired" } },
+            "properties": {
+              "code": {
+                "const": "cursor-expired"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/gone" },
-              "status": { "const": 410 },
-              "retry": { "const": "after-state-change" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "request-too-large" } },
+            "properties": {
+              "code": {
+                "const": "request-too-large"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/size" },
-              "status": { "const": 413 },
-              "retry": { "const": "never" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/size"
+              },
+              "status": {
+                "const": 413
+              },
+              "retry": {
+                "const": "never"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "limit-exceeded" } },
+            "properties": {
+              "code": {
+                "const": "limit-exceeded"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/size" },
-              "status": { "const": 413 },
-              "retry": { "const": "never" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/size"
+              },
+              "status": {
+                "const": 413
+              },
+              "retry": {
+                "const": "never"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "rate-limited" } },
+            "properties": {
+              "code": {
+                "const": "rate-limited"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/rate-limit" },
-              "status": { "const": 429 },
-              "retry": { "const": "after-delay" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/rate-limit"
+              },
+              "status": {
+                "const": 429
+              },
+              "retry": {
+                "const": "after-delay"
+              }
             }
           }
         },
         {
           "if": {
-            "properties": { "code": { "const": "temporarily-unavailable" } },
+            "properties": {
+              "code": {
+                "const": "temporarily-unavailable"
+              }
+            },
             "required": ["code"]
           },
           "then": {
             "properties": {
-              "type": { "const": "https://github.com/gastownhall/bdp/problems/unavailable" },
-              "status": { "const": 503 },
-              "retry": { "const": "after-delay" }
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/unavailable"
+              },
+              "status": {
+                "const": 503
+              },
+              "retry": {
+                "const": "after-delay"
+              }
             }
           }
         }
@@ -227,6 +335,9 @@
       "properties": {
         "conformsTo": {
           "$ref": "#/$defs/typeIdArray"
+        },
+        "external": {
+          "enum": ["none", "opaque", "bead"]
         }
       },
       "additionalProperties": false
@@ -266,7 +377,9 @@
         {
           "if": {
             "properties": {
-              "describes": { "const": "link" }
+              "describes": {
+                "const": "link"
+              }
             },
             "required": ["describes"]
           },
@@ -291,7 +404,14 @@
               }
             },
             "not": {
-              "anyOf": [{ "required": ["source"] }, { "required": ["target"] }]
+              "anyOf": [
+                {
+                  "required": ["source"]
+                },
+                {
+                  "required": ["target"]
+                }
+              ]
             }
           }
         }
@@ -326,53 +446,16 @@
           }
         },
         "next": {
-          "oneOf": [{ "$ref": "#/$defs/absoluteHttpUrl" }, { "type": "null" }]
-        }
-      },
-      "additionalProperties": false
-    },
-    "endpoint": {
-      "type": "object",
-      "required": ["id", "type"],
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/absoluteUri"
-        },
-        "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
-        },
-        "revision": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "https://github.com/gastownhall/bdp/types/external-reference"
-              }
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
             },
-            "required": ["type"]
-          },
-          "then": {
-            "properties": {
-              "id": {
-                "$ref": "#/$defs/absoluteUri"
-              }
+            {
+              "type": "null"
             }
-          },
-          "else": {
-            "properties": {
-              "id": {
-                "$ref": "#/$defs/absoluteHttpUrl"
-              },
-              "revision": false
-            }
-          }
+          ]
         }
-      ],
+      },
       "additionalProperties": false
     },
     "properties": {
@@ -417,10 +500,10 @@
           "minLength": 1
         },
         "source": {
-          "$ref": "#/$defs/endpoint"
+          "$ref": "#/$defs/reference"
         },
         "target": {
-          "$ref": "#/$defs/endpoint"
+          "$ref": "#/$defs/reference"
         },
         "properties": {
           "$ref": "#/$defs/properties"
@@ -439,7 +522,14 @@
           }
         },
         "next": {
-          "oneOf": [{ "$ref": "#/$defs/absoluteHttpUrl" }, { "type": "null" }]
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -455,7 +545,14 @@
           }
         },
         "next": {
-          "oneOf": [{ "$ref": "#/$defs/absoluteHttpUrl" }, { "type": "null" }]
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -474,71 +571,117 @@
         "page": {
           "type": "object",
           "properties": {
-            "defaultItems": { "$ref": "#/$defs/positiveInteger" },
-            "maximumItems": { "$ref": "#/$defs/positiveInteger" }
+            "defaultItems": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "maximumItems": {
+              "$ref": "#/$defs/positiveInteger"
+            }
           },
           "additionalProperties": false
         },
         "request": {
           "type": "object",
           "properties": {
-            "targetBytes": { "$ref": "#/$defs/positiveInteger" },
-            "bodyBytes": { "$ref": "#/$defs/positiveInteger" }
+            "targetBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "bodyBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
           },
           "additionalProperties": false
         },
         "resource": {
           "type": "object",
           "properties": {
-            "representationBytes": { "$ref": "#/$defs/positiveInteger" },
-            "propertiesBytes": { "$ref": "#/$defs/positiveInteger" }
+            "representationBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "propertiesBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
           },
           "additionalProperties": false
         },
         "selector": {
           "type": "object",
           "properties": {
-            "bytes": { "$ref": "#/$defs/positiveInteger" },
-            "depth": { "$ref": "#/$defs/positiveInteger" },
-            "nodes": { "$ref": "#/$defs/positiveInteger" }
+            "bytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "depth": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "nodes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
           },
           "additionalProperties": false
         },
         "patch": {
           "type": "object",
           "properties": {
-            "operations": { "$ref": "#/$defs/positiveInteger" },
-            "pathBytes": { "$ref": "#/$defs/positiveInteger" },
-            "pathDepth": { "$ref": "#/$defs/positiveInteger" }
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathDepth": {
+              "$ref": "#/$defs/positiveInteger"
+            }
           },
           "additionalProperties": false
         },
         "sequence": {
           "type": "object",
           "properties": {
-            "operations": { "$ref": "#/$defs/positiveInteger" }
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            }
           },
           "additionalProperties": false
         },
         "transaction": {
           "type": "object",
           "properties": {
-            "operations": { "$ref": "#/$defs/positiveInteger" },
-            "examinedResources": { "$ref": "#/$defs/positiveInteger" },
-            "matchedResources": { "$ref": "#/$defs/positiveInteger" },
-            "mutatedResources": { "$ref": "#/$defs/positiveInteger" },
-            "inducedEvents": { "$ref": "#/$defs/positiveInteger" },
-            "duration": { "$ref": "#/$defs/iso8601Duration" }
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "examinedResources": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "matchedResources": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "mutatedResources": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "inducedEvents": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "duration": {
+              "$ref": "#/$defs/iso8601Duration"
+            }
           },
           "additionalProperties": false
         },
         "retention": {
           "type": "object",
           "properties": {
-            "idempotency": { "$ref": "#/$defs/iso8601Duration" },
-            "receipt": { "$ref": "#/$defs/iso8601Duration" },
-            "maximumSnapshotLifetime": { "$ref": "#/$defs/iso8601Duration" },
-            "replay": { "$ref": "#/$defs/iso8601Duration" }
+            "idempotency": {
+              "$ref": "#/$defs/iso8601Duration"
+            },
+            "receipt": {
+              "$ref": "#/$defs/iso8601Duration"
+            },
+            "maximumSnapshotLifetime": {
+              "$ref": "#/$defs/iso8601Duration"
+            },
+            "replay": {
+              "$ref": "#/$defs/iso8601Duration"
+            }
           },
           "additionalProperties": false
         }
@@ -591,6 +734,30 @@
           "items": {
             "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        {
+          "$ref": "#/$defs/pinnedReference"
+        }
+      ]
+    },
+    "pinnedReference": {
+      "type": "object",
+      "required": ["uri", "revision"],
+      "properties": {
+        "uri": {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { BDP_EXTERNAL_REFERENCE_TYPE, type BeadRecord, type LinkRecord } from "@bdp/protocol";
+import type { BeadRecord, LinkRecord } from "@bdp/protocol";
 import { BdpClient, type BdpTransport, type BdpTransportResult } from "@bdp/client";
 
 import { isReadinessProblem, readyBeadsFromClient, readyBeadsFromRecords } from "./index.js";
@@ -240,8 +240,8 @@ describe("bd readiness", () => {
       id: `${SCOPE}links/a-external`,
       type: BLOCKS,
       revision: "revision-a-external",
-      source: { id: blocked.id, type: blocked.type },
-      target: { id: "urn:external:blocked", type: BDP_EXTERNAL_REFERENCE_TYPE },
+      source: blocked.id,
+      target: "urn:external:blocked",
       properties: {},
     };
     const requests: { readonly kind: string; readonly id?: string; readonly bead?: string }[] = [];
@@ -552,8 +552,8 @@ function link(id: string, type: string, source: string, target: string): LinkRec
     id: `${SCOPE}links/${id}`,
     type: type === "blocks" ? BLOCKS : type,
     revision: `revision-${id}`,
-    source: { id: `${SCOPE}beads/${source}`, type: "https://work.example/types/task" },
-    target: { id: `${SCOPE}beads/${target}`, type: "https://work.example/types/task" },
+    source: `${SCOPE}beads/${source}`,
+    target: `${SCOPE}beads/${target}`,
     properties: {},
   };
 }
