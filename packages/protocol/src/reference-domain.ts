@@ -55,7 +55,8 @@ export const REFERENCE_TYPE_DESCRIPTORS: readonly TypeDescriptor[] = REFERENCE_T
                 : [],
           // Decision owns its citations: the owned-references realization
           // for the reference domain. Bounded so the plane is always
-          // servable inline; the label is a display hint, never wire.
+          // servable inline; the label is descriptor documentation and
+          // never appears in Resource records.
           ...(summary.id === "https://work.example/types/decision"
             ? {
                 ownsOutgoing: {
