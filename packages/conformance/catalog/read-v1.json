@@ -99,7 +99,7 @@
     },
     {
       "id": "read.resource.external-endpoint",
-      "title": "External Link endpoints remain opaque, typed, and citation-faithful",
+      "title": "External Link endpoints remain opaque and citation-faithful",
       "kind": "normative",
       "requiredProfile": "read",
       "requirements": [

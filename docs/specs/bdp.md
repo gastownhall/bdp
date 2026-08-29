@@ -255,9 +255,10 @@ single JSON `properties` document. Beads are what people and agents read,
 create, and update, and every change to a Bead's properties produces a new
 named version of it.
 
-A **Link** is a first-class directed relationship between two Beads — one
-Issue depends on another, a memory cites a source, a task is assigned to a
-person. Links are not
+A **Link** is a first-class directed relationship — one Issue depends on
+another, a memory cites a source, a task is assigned to a person. At least
+one of its two endpoints is a Bead in the Link's own Scope; the other may
+instead reference something outside it. Links are not
 embedded in either endpoint: a Link has its own identity, its own type, and
 its own `properties`, and creating or deleting one never changes the Beads
 it connects. Beads and Links together form a graph, and a bounded, owned
@@ -302,8 +303,8 @@ A URI-valued Bead or Link property is ordinary JSON data. BDP does not infer
 a Link merely because a property contains a URI.
 
 Each endpoint is either an **in-Scope endpoint** or an **out-of-Scope
-endpoint**. An in-Scope endpoint `id` may use a durable local Bead ID, the
-Bead's absolute canonical URL, or a transaction-local Bead reference
+endpoint**. An in-Scope endpoint reference may use a durable local Bead ID,
+the Bead's absolute canonical URL, or a transaction-local Bead reference
 introduced by an earlier creation operation. It MUST identify a live Bead in
 the Link's Scope. The authority emits its absolute canonical Bead URL.
 
@@ -2438,13 +2439,12 @@ never permitted. `properties` defaults to an empty object when omitted.
 
 `bead` and `link` contain a durable local ID, an absolute canonical Resource
 URL, or, in a batch only, an `@label` of the required Resource kind. `source`
-and `target` are `EndpointReference` objects. Their `id` accepts those same
-local Bead spellings or an absolute out-of-Scope URI, and their `type` is
-always an absolute URL. The authority performs reference resolution,
-canonicalization, label resolution, and Resource-kind validation. A durable
-relative endpoint `id` resolves against the canonical Scope URL, not against
-the request URL or the containing Link URL. It must name a live Bead whose
-declared Type equals the supplied `type`. An absolute endpoint `id` outside
+and `target` are endpoint references accepting those same local Bead
+spellings, an absolute out-of-Scope URI, or the external citation object.
+The authority performs reference resolution, canonicalization, label
+resolution, and Resource-kind validation. A durable relative endpoint
+reference resolves against the canonical Scope URL, not against the request
+URL or the containing Link URL, and must name a live Bead. An absolute endpoint reference outside
 the Scope is accepted as an opaque external reference, subject to the Link
 Type's external-endpoint policy. Such an endpoint is not kind-checked or
 dereferenced. Only an external reference may supply the optional citation
