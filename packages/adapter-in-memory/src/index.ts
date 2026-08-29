@@ -229,15 +229,15 @@ function snapshotPreparedReferenceFixture(
       const owned = ownedByBeadType.get(bead.type);
       if (owned === undefined) return Object.freeze({ ...bead });
       const references: Record<string, readonly Reference[]> = {};
-      for (const declaration of owned) {
+      for (const [ownedType, declaration] of Object.entries(owned)) {
         const targets = links
-          .filter((link) => link.type === declaration.type && referenceUri(link.source) === bead.id)
+          .filter((link) => link.type === ownedType && referenceUri(link.source) === bead.id)
           .map((link) => link.target);
         if (targets.length > declaration.max)
           throw new Error(
-            `owned references for ${bead.id} exceed the declared bound of ${declaration.type}`,
+            `owned references for ${bead.id} exceed the declared bound of ${ownedType}`,
           );
-        references[declaration.type] = Object.freeze(targets);
+        references[ownedType] = Object.freeze(targets);
       }
       return Object.freeze({ ...bead, references: Object.freeze(references) });
     }),

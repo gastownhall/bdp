@@ -323,22 +323,13 @@ describe("Type artifact parsing", () => {
       name: "Decision",
       describes: "bead",
       conformsTo: [],
-      ownsOutgoing: [{ type: "https://work.example/types/cites", label: "cites", max: 8 }],
+      ownsOutgoing: { "https://work.example/types/cites": { label: "cites", max: 8 } },
     };
     expect(parseTypeDescriptor(descriptor)).toEqual(descriptor);
     expect(() =>
       parseTypeDescriptor({
         ...descriptor,
-        ownsOutgoing: [
-          { type: "https://work.example/types/cites", max: 8 },
-          { type: "https://work.example/types/cites", label: "twice", max: 1 },
-        ],
-      }),
-    ).toThrow("more than once");
-    expect(() =>
-      parseTypeDescriptor({
-        ...descriptor,
-        ownsOutgoing: [{ type: "https://user:pw@work.example/types/cites", max: 8 }],
+        ownsOutgoing: { "https://user:pw@work.example/types/cites": { max: 8 } },
       }),
     ).toThrow();
     const record = {

@@ -150,10 +150,11 @@ interface TypeDescriptorMembers {
  * One owned outgoing Link Type: links of this type created from a Bead of
  * the declaring Type are part of the source's versioned state. `max` bounds
  * the owned set so the references plane can always be served inline;
- * `label` is a display/SDK projection and never appears on the wire.
+ * `label` is descriptor documentation for display and SDK projection and
+ * never appears in Resource records. Declarations are keyed by Link Type
+ * URL, so each pair is declared at most once by construction.
  */
 export interface OwnedReferenceDeclaration {
-  readonly type: AbsoluteHttpUrl;
   readonly label?: string;
   readonly max: number;
 }
@@ -162,7 +163,7 @@ export interface BeadTypeDescriptor extends TypeDescriptorMembers {
   readonly describes: "bead";
   readonly source?: never;
   readonly target?: never;
-  readonly ownsOutgoing?: readonly OwnedReferenceDeclaration[];
+  readonly ownsOutgoing?: Readonly<Record<string, OwnedReferenceDeclaration>>;
 }
 
 export interface LinkTypeDescriptor extends TypeDescriptorMembers {

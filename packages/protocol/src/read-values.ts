@@ -61,17 +61,9 @@ export function parseTypeDescriptor(value: unknown, path = "Type Descriptor"): T
   validateResourceTypeIds(type.conformsTo, `${path}.conformsTo`);
   if (type.source !== undefined) validateEndpointConstraint(type.source, `${path}.source`);
   if (type.target !== undefined) validateEndpointConstraint(type.target, `${path}.target`);
-  if (type.ownsOutgoing !== undefined) {
-    const owned = new Set<string>();
-    for (const [index, entry] of (type.ownsOutgoing as readonly { type: unknown }[]).entries()) {
-      const ownedType = parseResourceTypeId(entry.type, `${path}.ownsOutgoing[${index}].type`);
-      if (owned.has(ownedType))
-        throw new ProtocolArtifactValidationError(
-          `${path}.ownsOutgoing names ${ownedType} more than once`,
-        );
-      owned.add(ownedType);
-    }
-  }
+  if (type.ownsOutgoing !== undefined)
+    for (const key of Object.keys(type.ownsOutgoing as Readonly<Record<string, unknown>>))
+      parseResourceTypeId(key, `${path}.ownsOutgoing key`);
   return type as unknown as TypeDescriptor;
 }
 

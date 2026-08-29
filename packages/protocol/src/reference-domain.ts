@@ -58,9 +58,9 @@ export const REFERENCE_TYPE_DESCRIPTORS: readonly TypeDescriptor[] = REFERENCE_T
           // servable inline; the label is a display hint, never wire.
           ...(summary.id === "https://work.example/types/decision"
             ? {
-                ownsOutgoing: [
-                  { type: "https://work.example/types/cites", label: "cites", max: 8 },
-                ],
+                ownsOutgoing: {
+                  "https://work.example/types/cites": { label: "cites", max: 8 },
+                },
               }
             : {}),
         },

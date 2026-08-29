@@ -628,7 +628,7 @@ describe("reference fixture Scope port", () => {
         {
           ...decision,
           conformsTo: [],
-          ownsOutgoing: [{ type: cites.id, label: "cites", max: 2 }],
+          ownsOutgoing: { [cites.id]: { label: "cites", max: 2 } },
         },
         { ...cites, conformsTo: [], source: { conformsTo: [] }, target: { conformsTo: [] } },
       ],

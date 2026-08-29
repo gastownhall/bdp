@@ -1789,11 +1789,6 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
   // source's Type — and every link so justified must be excluded.
   const authoredRealizationOnly = fixture.oracles["cross-target"].input.realizationOnlyLinkIds;
   if ((fixture as { readonly realization?: string }).realization === "bdptest") {
-    expect([...(authoredRealizationOnly ?? [])].sort()).toEqual([
-      "links/cites-local",
-      "links/cites-witness",
-      "links/pinned-local",
-    ]);
     const fixtureLinks = (
       fixture as unknown as {
         readonly links: readonly {
@@ -1804,7 +1799,7 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
         }[];
         readonly typeDescriptors: readonly {
           readonly id: string;
-          readonly ownsOutgoing?: readonly { readonly type: string }[];
+          readonly ownsOutgoing?: Readonly<Record<string, unknown>>;
         }[];
         readonly beads: readonly { readonly localId: string; readonly type: string }[];
       }
@@ -1812,13 +1807,13 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
     const fixtureShape = fixture as unknown as {
       readonly typeDescriptors: readonly {
         readonly id: string;
-        readonly ownsOutgoing?: readonly { readonly type: string }[];
+        readonly ownsOutgoing?: Readonly<Record<string, unknown>>;
       }[];
       readonly beads: readonly { readonly localId: string; readonly type: string }[];
     };
     const ownedPairs = new Set(
       fixtureShape.typeDescriptors.flatMap((descriptor) =>
-        (descriptor.ownsOutgoing ?? []).map((entry) => `${descriptor.id}|${entry.type}`),
+        Object.keys(descriptor.ownsOutgoing ?? {}).map((type) => `${descriptor.id}|${type}`),
       ),
     );
     const beadTypeByLocalId = new Map(

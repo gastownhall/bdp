@@ -1003,13 +1003,12 @@
       "name": "Decision",
       "describes": "bead",
       "conformsTo": [],
-      "ownsOutgoing": [
-        {
-          "type": "https://work.example/types/cites",
+      "ownsOutgoing": {
+        "https://work.example/types/cites": {
           "label": "cites",
           "max": 8
         }
-      ]
+      }
     },
     {
       "id": "https://work.example/types/relationship",

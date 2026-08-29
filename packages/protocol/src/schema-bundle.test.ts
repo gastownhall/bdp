@@ -224,21 +224,21 @@ describe("BDP v0 schema bundle", () => {
     // references plane is keyed by Link Type URL with Reference arrays.
     expectValid("typeDescriptor", {
       ...beadTypeDescriptor(),
-      ownsOutgoing: [{ type: "https://work.example/types/cites", label: "cites", max: 8 }],
+      ownsOutgoing: { "https://work.example/types/cites": { label: "cites", max: 8 } },
     });
     expectValid("typeDescriptor", {
       ...beadTypeDescriptor(),
-      ownsOutgoing: [{ type: "https://work.example/types/cites", max: 1 }],
+      ownsOutgoing: { "https://work.example/types/cites": { max: 1 } },
     });
     expectInvalid("typeDescriptor", {
       ...beadTypeDescriptor(),
-      ownsOutgoing: [{ type: "https://work.example/types/cites" }],
+      ownsOutgoing: { "https://work.example/types/cites": {} },
     });
     expectInvalid("typeDescriptor", {
       ...linkTypeDescriptor(),
-      ownsOutgoing: [{ type: "https://work.example/types/cites", max: 1 }],
+      ownsOutgoing: { "https://work.example/types/cites": { max: 1 } },
     });
-    expectInvalid("typeDescriptor", { ...beadTypeDescriptor(), ownsOutgoing: [] });
+    expectInvalid("typeDescriptor", { ...beadTypeDescriptor(), ownsOutgoing: {} });
     expectValid("beadRecord", {
       ...beadRecord(),
       references: {
