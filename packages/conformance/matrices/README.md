@@ -199,7 +199,7 @@ baseline,
 observes that exact `external:beads:mol-run-assignee` identity, and confines the
 mutation to a dedicated workspace discarded with the matrix temporary root;
 the shared corpus is never mutated. Fixture-owned tuple oracles require the
-exact opaque external identity (with its citation where one is stored), the
+exact opaque external identity (with its pin where one is stored), the
 expected local orientation count, and at least one in-Scope Bead on every
 selected Link.
 

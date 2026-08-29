@@ -15,8 +15,8 @@ The single JSON Schema bundle containing BDP v0's normative JSON wire
 definitions.
 _Avoid_: schema fragments, implementation schema
 
-**External reference**:
-A Link endpoint URI outside its Scope, opaque to that Scope; it may be
-written as the citation object `{ uri, revision }` to pin the external
-state it was made against.
+**Reference / Pinned Reference**:
+How anything in BDP points at anything: a URI — or a Pinned Reference,
+`{ uri, revision }`, the URI plus the revision it was made against. Either
+reference class may be pinned; the URI alone is identity.
 _Avoid_: external Type, remote Bead Type

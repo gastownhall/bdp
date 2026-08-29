@@ -549,7 +549,7 @@ describe("reference fixture Scope port", () => {
     },
   );
 
-  it("round-trips the optional external revision citation from the object authoring form", async () => {
+  it("round-trips the optional pin from the object authoring form", async () => {
     const external = "urn:external:cited";
     const port = createPortableReferenceFixturePort(
       scope,
@@ -602,7 +602,7 @@ describe("reference fixture Scope port", () => {
     ).toThrow();
   });
 
-  it("rejects an empty revision citation", () => {
+  it("rejects an empty pin", () => {
     expect(() =>
       createPortableReferenceFixturePort(
         scope,

@@ -666,13 +666,10 @@ describe("BdpClient", () => {
         target: { uri: "https://BEADS.example:443/acme/beads/b", revision: "cited-1" },
       }),
     ],
-    ["citation object missing its revision", validLink({ target: { uri: "urn:target" } })],
+    ["pin missing its revision", validLink({ target: { uri: "urn:target" } })],
+    ["pin with an empty revision", validLink({ target: { uri: "urn:target", revision: "" } })],
     [
-      "citation object with an empty revision",
-      validLink({ target: { uri: "urn:target", revision: "" } }),
-    ],
-    [
-      "extra citation member",
+      "extra pin member",
       validLink({ target: { uri: "urn:target", revision: "cited-1", extra: true } }),
     ],
     [
