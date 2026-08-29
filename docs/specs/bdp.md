@@ -325,6 +325,13 @@ a Link between two opaque external URIs. A future cross-Scope indexing
 profile may define ownership, lifecycle, authorization, and duplicate
 handling for such Links without weakening the v0 rule.
 
+> **Simplification planned.** This reference form is being redesigned:
+> the External Reference sentinel and the discriminator retire in favor of
+> URI-native references, with one object form for citing versions of
+> external targets and per-endpoint external policy declared on the Link
+> Type. See [gastownhall/bdp#6](https://github.com/gastownhall/bdp/issues/6);
+> the form below is current normative text until that design lands.
+
 Every canonical endpoint reference has two required members and, for external
 references only, one optional member:
 
@@ -342,7 +349,7 @@ exactly those two members and MUST NOT carry `revision`. The authority MUST
 reject a mismatched pair. For an out-of-Scope endpoint, `id` is the opaque
 absolute URI and `type` is the External Reference sentinel. It MAY
 additionally carry the opaque `revision` citation defined under
-[Local Resource references](#local-resource-references). A sentinel paired
+[Batch-local Resource references](#batch-local-resource-references). A sentinel paired
 with an in-Scope ID, or any other Type paired with an out-of-Scope ID, is
 invalid. Endpoint equality, incident traversal, and multiplicity use `id`.
 `type` is validated metadata, and `revision` is preserved citation data —
@@ -676,7 +683,7 @@ patch must yield a JSON object, and the authority validates that complete
 result — not merely the changed members — against every effective Type
 contract. Advertised limits bound the patch operation count, the path size
 and depth, and the resulting representation size.
-### Local Resource references
+### Batch-local Resource references
 
 > **Profile distinction.**
 >
@@ -1740,7 +1747,7 @@ A Link record is:
 two members: the Bead's absolute canonical URL and exact declared Type. An
 out-of-Scope endpoint has its opaque absolute URI and the BDP v0 External
 Reference sentinel. It may additionally carry the optional opaque endpoint
-`revision` member defined under **Local Resource references**. `revision` is
+`revision` member defined under **Batch-local Resource references**. `revision` is
 protocol metadata rather than mutable Bead or Link state. `id`, `type`,
 `revision`, and, for Links, `source` and `target` are returned on every
 successful read. That does not mean they are accepted as update targets. An
@@ -2471,7 +2478,7 @@ declared Type equals the supplied `type`. An absolute endpoint `id` outside
 the Scope is accepted only with the BDP v0 External Reference sentinel. Such
 an endpoint remains opaque: it is not kind-checked or dereferenced. Only that
 sentinel form may supply the optional endpoint `revision` citation under
-[Local Resource references](#local-resource-references); an in-Scope endpoint
+[Batch-local Resource references](#batch-local-resource-references); an in-Scope endpoint
 reference carrying `revision` is rejected. Neither case mutates an endpoint
 Bead or changes its revision.
 
