@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { StringDecoder } from "node:string_decoder";
 import {
   type AbsoluteHttpUrl,
-  endpointUri,
+  referenceUri,
   type BeadCollectionRequest as BeadCollectionOperation,
   type BeadLinksRequest as BeadLinksOperation,
   type BeadPropertiesRequest as BeadPropertiesOperation,
@@ -445,11 +445,11 @@ export function createBdProcessScopePort(
               (operation.type === undefined || link.type === operation.type) &&
               (operation.conformsTo === undefined ||
                 typeConformance.includes(link.type, operation.conformsTo)) &&
-              (operation.source === undefined || endpointUri(link.source) === operation.source) &&
-              (operation.target === undefined || endpointUri(link.target) === operation.target) &&
+              (operation.source === undefined || referenceUri(link.source) === operation.source) &&
+              (operation.target === undefined || referenceUri(link.target) === operation.target) &&
               (operation.endpoint === undefined ||
-                endpointUri(link.source) === operation.endpoint ||
-                endpointUri(link.target) === operation.endpoint),
+                referenceUri(link.source) === operation.endpoint ||
+                referenceUri(link.target) === operation.endpoint),
           );
           return scopePortSuccess<LinkCollectionOperation>(page(filtered));
         }
@@ -500,11 +500,11 @@ export function createBdProcessScopePort(
           return scopePortProblem<BeadLinksOperation>(adapterNotFound());
         const filtered = allLinks.filter((link) =>
           operation.direction === "inbound"
-            ? endpointUri(link.target) === operation.bead
+            ? referenceUri(link.target) === operation.bead
             : operation.direction === "outbound"
-              ? endpointUri(link.source) === operation.bead
-              : endpointUri(link.source) === operation.bead ||
-                endpointUri(link.target) === operation.bead,
+              ? referenceUri(link.source) === operation.bead
+              : referenceUri(link.source) === operation.bead ||
+                referenceUri(link.target) === operation.bead,
         );
         return scopePortSuccess<BeadLinksOperation>(page(filtered));
       }

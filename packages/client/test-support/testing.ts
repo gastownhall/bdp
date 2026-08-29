@@ -1,5 +1,5 @@
 import type { AbsoluteHttpUrl, ReadDiscovery } from "@bdp/protocol";
-import { endpointRevision, endpointUri, parseCanonicalTypeId } from "@bdp/protocol";
+import { referenceRevision, referenceUri, parseCanonicalTypeId } from "@bdp/protocol";
 
 import {
   BdpClient,
@@ -119,10 +119,10 @@ async function observeExternalLinkEndpoints(
   });
   const normalizeType = (id: string): string =>
     id.startsWith(scope) ? id.slice(scope.length) : id;
-  // An external endpoint carrying the optional revision citation projects
-  // as [uri, revision] and a bare reference as [uri], so the oracle rows
-  // prove byte-identical echo where the realization stores a citation and
-  // exact omission where it does not.
+  // A pinned Reference projects as [uri, revision] and a bare one as [uri]
+  // — for in-Scope and external endpoints alike — so the oracle rows prove
+  // byte-identical pin echo where the realization stores one and exact
+  // omission where it does not.
   type EndpointRow = readonly [uri: string] | readonly [uri: string, revision: string];
   type LinkRow = readonly [id: string, type: string, source: EndpointRow, target: EndpointRow];
   try {
@@ -137,19 +137,21 @@ async function observeExternalLinkEndpoints(
       );
       if (isBdpClientProblem(result)) return { outcome: "problem", code: result.code };
       const normalize = (
-        endpoint: Parameters<typeof endpointUri>[0],
+        endpoint: Parameters<typeof referenceUri>[0],
         role: "source" | "target",
       ): EndpointRow => {
-        const uri = endpointUri(endpoint);
+        const uri = referenceUri(endpoint);
         if (uri.startsWith(scope)) {
           if (uri.startsWith(`${scope}beads/`)) {
             if (role === "source") localSource += 1;
             else localTarget += 1;
           }
-          return [uri.slice(scope.length)];
+          const localRevision = referenceRevision(endpoint);
+          const localUri = uri.slice(scope.length);
+          return localRevision === undefined ? [localUri] : [localUri, localRevision];
         }
         externalEndpoints += 1;
-        const revision = endpointRevision(endpoint);
+        const revision = referenceRevision(endpoint);
         return revision === undefined ? [uri] : [uri, revision];
       };
       rows.push([
@@ -321,15 +323,15 @@ async function observePublicLogicalProjection(
       ] as const;
     });
     const relationships = links.items.flatMap((link) => {
-      const source = titleById.get(endpointUri(link.source));
-      const target = titleById.get(endpointUri(link.target));
+      const source = titleById.get(referenceUri(link.source));
+      const target = titleById.get(referenceUri(link.target));
       const role = relationshipRoles.get(link.type);
       if (role === undefined)
         throw new Error("public-logical-projection Link Type had no fixture-owned logical role");
       if (source === undefined || target === undefined) {
         if (
-          (source === undefined && endpointUri(link.source).startsWith(scope)) ||
-          (target === undefined && endpointUri(link.target).startsWith(scope))
+          (source === undefined && referenceUri(link.source).startsWith(scope)) ||
+          (target === undefined && referenceUri(link.target).startsWith(scope))
         )
           throw new Error("public-logical-projection local Link endpoint was not in the bead page");
         return [];

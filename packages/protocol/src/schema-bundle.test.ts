@@ -48,18 +48,19 @@ describe("BDP v0 schema bundle", () => {
       "bdpVersion",
       "beadCollection",
       "beadRecord",
-      "endpoint",
       "endpointConstraint",
       "iso8601Duration",
       "linkCollection",
       "linkRecord",
       "maximumEndpointMultiplicityPolicy",
+      "pinnedReference",
       "positiveInteger",
       "properties",
       "protocolProfile",
       "readDiscovery",
       "readProblem",
       "readProblemCode",
+      "reference",
       "retryDisposition",
       "typeDescriptor",
       "typeIdArray",
@@ -210,23 +211,27 @@ describe("BDP v0 schema bundle", () => {
     // A reference is a URI string, or exactly { uri, revision } for an
     // external citation: the old object-with-type spelling, a citation
     // missing its revision, and an empty citation must all fail.
-    // Endpoint-constraint external policy: the three tokens are accepted,
+    // Reference-constraint external policy: the three tokens are accepted,
     // omission is accepted (meaning opaque), and unknown tokens fail.
     for (const external of ["none", "opaque", "bead"] as const)
       expectValid("endpointConstraint", { conformsTo: [], external });
     expectValid("endpointConstraint", { conformsTo: [] });
     expectInvalid("endpointConstraint", { conformsTo: [], external: "always" });
     expectInvalid("endpointConstraint", { conformsTo: [], external: true });
-    expectValid("endpoint", "https://beads.example/acme/beads/demo-a");
-    expectValid("endpoint", "urn:external:123");
-    expectValid("endpoint", { uri: "urn:external:123", revision: "cited-9f2c" });
-    expectInvalid("endpoint", {
+    expectValid("reference", "https://beads.example/acme/beads/demo-a");
+    expectValid("reference", "urn:external:123");
+    expectValid("reference", { uri: "urn:external:123", revision: "cited-9f2c" });
+    expectValid("reference", {
+      uri: "https://beads.example/acme/beads/demo-a",
+      revision: "pin-a-r1",
+    });
+    expectInvalid("reference", {
       id: "urn:external:123",
       type: "https://work.example/types/task",
     });
-    expectInvalid("endpoint", { uri: "urn:external:123" });
-    expectInvalid("endpoint", { uri: "urn:external:123", revision: "" });
-    expectInvalid("endpoint", {
+    expectInvalid("reference", { uri: "urn:external:123" });
+    expectInvalid("reference", { uri: "urn:external:123", revision: "" });
+    expectInvalid("reference", {
       uri: "urn:external:123",
       revision: "cited-9f2c",
       type: "https://work.example/types/task",

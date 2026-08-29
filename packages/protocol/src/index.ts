@@ -182,28 +182,29 @@ export {
 export { isJsonSchemaUri } from "./schema-formats.js";
 
 /**
- * A reference to a Link endpoint. A plain URI string covers every in-Scope
- * reference (in-Scope or external is derived by resolution against the
- * canonical Scope URL, never declared) and every unversioned external
- * reference. The object form exists for exactly one case: citing a version
- * of a target whose namespace this Scope does not own. The citation is
- * opaque, echoed byte-identically, and compared only for equality.
+ * A Reference is how anything in BDP points at anything: a URI — or a
+ * Pinned Reference, the URI plus the revision it was made against. The URI
+ * is always the complete identity (in-Scope or external is derived by
+ * resolution against the canonical Scope URL, never declared); the pin is
+ * recorded provenance, stored and echoed byte-identically and compared
+ * only for equality. Equality, incidence, multiplicity, and liveness use
+ * the URI alone.
  */
-export interface ExternalCitation {
+export interface PinnedReference {
   readonly uri: AbsoluteUri;
   readonly revision: string;
 }
 
-export type Endpoint = AbsoluteUri | ExternalCitation;
+export type Reference = AbsoluteUri | PinnedReference;
 
-/** The identity of a reference: the URI without any citation. */
-export function endpointUri(endpoint: Endpoint): AbsoluteUri {
-  return typeof endpoint === "string" ? endpoint : endpoint.uri;
+/** The identity of a Reference: its URI without any pin. */
+export function referenceUri(reference: Reference): AbsoluteUri {
+  return typeof reference === "string" ? reference : reference.uri;
 }
 
-/** The citation on a reference, when one is present. */
-export function endpointRevision(endpoint: Endpoint): string | undefined {
-  return typeof endpoint === "string" ? undefined : endpoint.revision;
+/** The pin on a Reference, when one is present. */
+export function referenceRevision(reference: Reference): string | undefined {
+  return typeof reference === "string" ? undefined : reference.revision;
 }
 
 export interface PropertiesRecord {
@@ -222,8 +223,8 @@ export interface LinkRecord {
   readonly id: AbsoluteHttpUrl;
   readonly type: AbsoluteHttpUrl;
   readonly revision: string;
-  readonly source: Endpoint;
-  readonly target: Endpoint;
+  readonly source: Reference;
+  readonly target: Reference;
   readonly properties: PropertiesRecord;
 }
 

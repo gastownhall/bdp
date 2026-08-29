@@ -758,7 +758,7 @@ function expectLogicalReadinessEquivalence(
     beads: reference.beads.length,
     links: referenceLocalLinks.length,
   });
-  expect(reference.expectations).toMatchObject({ beadCount: 9, linkCount: 11, typeCount: 12 });
+  expect(reference.expectations).toMatchObject({ beadCount: 9, linkCount: 12, typeCount: 12 });
   expect(bd.expectations).toMatchObject({ beadCount: 9, linkCount: 9, typeCount: 13 });
   expect(bd.oracles.collections["bead-titles"]).toHaveLength(bd.expectations.beadCount);
   expect(bd.oracles.collections["link-records"]).toHaveLength(bd.expectations.linkCount);

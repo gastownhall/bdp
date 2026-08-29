@@ -99,24 +99,24 @@
     },
     {
       "id": "read.resource.external-endpoint",
-      "title": "External Link endpoints remain opaque and citation-faithful",
+      "title": "Link endpoint References stay opaque and pin-faithful",
       "kind": "normative",
       "requiredProfile": "read",
       "requirements": [
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "An out-of-Scope endpoint is opaque; when it carries a citation, an authority MUST preserve and echo the citation byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it."
+          "selectedText": "Any Reference may carry a pin: an authority MUST preserve and echo the pin byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it in v0."
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Every Link endpoint MUST be a reference: a URI, or the external citation object with exactly `uri` and `revision`."
+          "selectedText": "Every Link endpoint MUST be a Reference: a URI, or a Pinned Reference with exactly `uri` and `revision`."
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "An in-Scope endpoint MUST identify a live Bead by its canonical URL and MUST NOT carry a citation."
+          "selectedText": "An in-Scope endpoint MUST identify a live Bead by its canonical URL."
         },
         {
           "source": "docs/design/requirements.md",

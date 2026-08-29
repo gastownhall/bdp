@@ -661,11 +661,7 @@ describe("BdpClient", () => {
   it.each([
     ["two external endpoints", validLink({ source: "urn:source", target: "urn:target" })],
     [
-      "revision citation on an in-Scope endpoint",
-      validLink({ target: { uri: `${BEADS}b`, revision: "cited-1" } }),
-    ],
-    [
-      "revision citation on a normalized in-Scope HTTP alias",
+      "pin on a noncanonical in-Scope HTTP alias",
       validLink({
         target: { uri: "https://BEADS.example:443/acme/beads/b", revision: "cited-1" },
       }),
@@ -712,6 +708,19 @@ describe("BdpClient", () => {
 
   it("accepts an opaque RFC URI that the WHATWG URL parser cannot represent as external", async () => {
     const link = validLink({ target: "https:/" });
+    const client = new BdpClient({
+      scope: SCOPE,
+      transport: new RecordingTransport({ items: [link], next: null }),
+    });
+
+    await expect(client.perform({ kind: "collection", collection: "links" })).resolves.toEqual({
+      items: [link],
+      next: null,
+    });
+  });
+
+  it("accepts a pinned in-Scope endpoint and preserves the pin byte-identically", async () => {
+    const link = validLink({ target: { uri: `${BEADS}b`, revision: "pin-b-r4 (as-written)" } });
     const client = new BdpClient({
       scope: SCOPE,
       transport: new RecordingTransport({ items: [link], next: null }),

@@ -1,5 +1,5 @@
 import {
-  endpointUri,
+  referenceUri,
   isReadProblem,
   readProblem,
   REFERENCE_BLOCKING_LINK_TYPE_ID,
@@ -61,10 +61,10 @@ export function readyBeadsFromRecords(
   for (const bead of beads) {
     const blockingLinks =
       bead.links?.items.filter(
-        (link) => link.type === options.blockingLinkType && endpointUri(link.source) === bead.id,
+        (link) => link.type === options.blockingLinkType && referenceUri(link.source) === bead.id,
       ) ?? [];
     const resolvedBlockers = blockingLinks
-      .map((link) => beadById.get(endpointUri(link.target)))
+      .map((link) => beadById.get(referenceUri(link.target)))
       .filter((candidate): candidate is BeadRecord => candidate !== undefined);
     if (resolvedBlockers.length === blockingLinks.length && isReadyBead(bead, resolvedBlockers)) {
       ready.push(Object.freeze({ bead, blockers: Object.freeze(resolvedBlockers) }));
@@ -132,7 +132,7 @@ export async function readyBeadsFromClient(
         // External targets stay opaque. They remain unresolved blockers in
         // readyBeadsFromRecords, but the domain must never dereference them as
         // Beads; in-Scope-ness is derived from the discovery beads root.
-        const targetUri = endpointUri(link.target);
+        const targetUri = referenceUri(link.target);
         if (
           link.type === options.blockingLinkType &&
           targetUri.startsWith(discovery.beads) &&

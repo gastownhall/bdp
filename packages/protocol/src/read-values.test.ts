@@ -13,21 +13,21 @@ import {
   parseTypeSummary,
   resolveCanonicalLocalResourceId,
   type AbsoluteHttpUrl,
-  type Endpoint,
+  type Reference,
   type ExternalEndpointPolicy,
   type TypeDescriptor,
 } from "./index.js";
 
 // Compile-time contract: a reference is a URI string, or the external
 // citation object with exactly uri and revision.
-const _plainReference: Endpoint = "https://scope.example/acme/beads/demo-a";
+const _plainReference: Reference = "https://scope.example/acme/beads/demo-a";
 const _externalPolicies: readonly ExternalEndpointPolicy[] = ["none", "opaque", "bead"];
 // @ts-expect-error — the policy union is exactly none | opaque | bead
 const _invalidPolicy: ExternalEndpointPolicy = "always";
 void _externalPolicies;
 void _invalidPolicy;
-const _externalCitation: Endpoint = { uri: "urn:external:cited", revision: "cited-1" };
-const _citationRejectsExtras: Endpoint = {
+const _externalCitation: Reference = { uri: "urn:external:cited", revision: "cited-1" };
+const _citationRejectsExtras: Reference = {
   uri: "urn:external:cited",
   revision: "cited-1",
   // @ts-expect-error — the citation object carries exactly uri and revision

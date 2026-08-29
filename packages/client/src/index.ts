@@ -16,7 +16,7 @@ import type {
   TypeInventoryRequest,
 } from "@bdp/protocol";
 import {
-  endpointUri,
+  referenceUri,
   ProtocolArtifactValidationError,
   parseBeadCollection,
   parseBeadRecord,
@@ -2240,8 +2240,8 @@ function validateIncidentLinkCollection(
 ): LinkCollection {
   const validated = validateLinkCollection(page, scope);
   for (const link of validated.items) {
-    const outbound = endpointUri(link.source) === bead;
-    const inbound = endpointUri(link.target) === bead;
+    const outbound = referenceUri(link.source) === bead;
+    const inbound = referenceUri(link.target) === bead;
     if (
       (direction === "inbound" && !inbound) ||
       (direction === "outbound" && !outbound) ||
@@ -2299,7 +2299,7 @@ function validateEndpoint(endpoint: LinkRecord["source"], scope: AbsoluteHttpUrl
   // In-Scope or external is derived, never declared: an endpoint URI that is
   // (an alias of) this Scope claims an in-Scope Bead and must be canonical;
   // every other URI is an opaque external reference.
-  const uri = endpointUri(endpoint);
+  const uri = referenceUri(endpoint);
   let claimsScope = false;
   try {
     const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(uri)?.[1]?.toLowerCase();
@@ -2310,8 +2310,6 @@ function validateEndpoint(endpoint: LinkRecord["source"], scope: AbsoluteHttpUrl
     // spellings are deliberately outside WHATWG URL representation.
   }
   if (!claimsScope) return false;
-  if (typeof endpoint !== "string")
-    throw new ReadResponseValidationError("in-Scope endpoint must not carry a revision citation");
   let canonicalEndpoint: AbsoluteHttpUrl;
   try {
     canonicalEndpoint = parseCanonicalHttpUrl(uri, "Link endpoint ID");

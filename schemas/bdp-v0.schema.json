@@ -458,27 +458,6 @@
       },
       "additionalProperties": false
     },
-    "endpoint": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/absoluteUri"
-        },
-        {
-          "type": "object",
-          "required": ["uri", "revision"],
-          "properties": {
-            "uri": {
-              "$ref": "#/$defs/absoluteUri"
-            },
-            "revision": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          "additionalProperties": false
-        }
-      ]
-    },
     "properties": {
       "type": "object",
       "additionalProperties": true
@@ -521,10 +500,10 @@
           "minLength": 1
         },
         "source": {
-          "$ref": "#/$defs/endpoint"
+          "$ref": "#/$defs/reference"
         },
         "target": {
-          "$ref": "#/$defs/endpoint"
+          "$ref": "#/$defs/reference"
         },
         "properties": {
           "$ref": "#/$defs/properties"
@@ -755,6 +734,30 @@
           "items": {
             "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        {
+          "$ref": "#/$defs/pinnedReference"
+        }
+      ]
+    },
+    "pinnedReference": {
+      "type": "object",
+      "required": ["uri", "revision"],
+      "properties": {
+        "uri": {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false

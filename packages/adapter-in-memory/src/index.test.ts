@@ -570,16 +570,23 @@ describe("reference fixture Scope port", () => {
     });
   });
 
-  it("rejects a revision citation on an in-Scope fixture endpoint", () => {
-    expect(() =>
-      createPortableReferenceFixturePort(
-        scope,
-        externalEndpointFixture("urn:external:bare", "target", {
-          uri: "beads/a",
-          revision: "cited-1",
-        }),
-      ),
-    ).toThrow("in-Scope endpoint must not carry a revision citation");
+  it("round-trips a pin on an in-Scope fixture endpoint", async () => {
+    const port = createPortableReferenceFixturePort(
+      scope,
+      externalEndpointFixture("urn:external:bare", "target", {
+        uri: "beads/a",
+        revision: "pinned-3",
+      }),
+    );
+    await expect(
+      port.perform({ kind: "collection", collection: "links" }, options),
+    ).resolves.toMatchObject({
+      kind: "success",
+      body: {
+        items: [{ source: { uri: `${scope}beads/a`, revision: "pinned-3" } }],
+        next: null,
+      },
+    });
   });
 
   it("rejects an endpoint object with members beyond id and revision", () => {

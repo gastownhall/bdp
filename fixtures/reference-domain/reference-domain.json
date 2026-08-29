@@ -132,6 +132,17 @@
       "source": "external:beads:mol-run-assignee",
       "target": "beads/demo-f",
       "properties": {}
+    },
+    {
+      "localId": "links/pinned-local",
+      "type": "https://work.example/types/blocks",
+      "revision": "1",
+      "source": "urn:external:pin-witness",
+      "target": {
+        "uri": "beads/demo-f",
+        "revision": "pin-a-r1 (as-written)"
+      },
+      "properties": {}
     }
   ],
   "typeDescriptors": [

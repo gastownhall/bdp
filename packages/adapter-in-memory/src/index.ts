@@ -1,13 +1,13 @@
 import {
   type AbsoluteHttpUrl,
-  endpointUri,
+  referenceUri,
   type BeadCollectionRequest as BeadCollectionOperation,
   type BeadLinksRequest as BeadLinksOperation,
   type BeadPropertiesRequest as BeadPropertiesOperation,
   type BeadRecord,
   type BeadResourceRequest as BeadResourceOperation,
   createTypeConformanceIndex,
-  type Endpoint,
+  type Reference,
   isJsonSchemaUri,
   type LinkCollectionRequest as LinkCollectionOperation,
   type LinkPropertiesRequest as LinkPropertiesOperation,
@@ -129,12 +129,12 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
                     (operation.conformsTo === undefined ||
                       typeConformance.includes(link.type, operation.conformsTo)) &&
                     (operation.source === undefined ||
-                      endpointUri(link.source) === operation.source) &&
+                      referenceUri(link.source) === operation.source) &&
                     (operation.target === undefined ||
-                      endpointUri(link.target) === operation.target) &&
+                      referenceUri(link.target) === operation.target) &&
                     (operation.endpoint === undefined ||
-                      endpointUri(link.source) === operation.endpoint ||
-                      endpointUri(link.target) === operation.endpoint),
+                      referenceUri(link.source) === operation.endpoint ||
+                      referenceUri(link.target) === operation.endpoint),
                 ),
               ),
               next: null,
@@ -181,11 +181,11 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
         const items = Object.freeze(
           links.filter((link) =>
             operation.direction === "inbound"
-              ? endpointUri(link.target) === operation.bead
+              ? referenceUri(link.target) === operation.bead
               : operation.direction === "outbound"
-                ? endpointUri(link.source) === operation.bead
-                : endpointUri(link.source) === operation.bead ||
-                  endpointUri(link.target) === operation.bead,
+                ? referenceUri(link.source) === operation.bead
+                : referenceUri(link.source) === operation.bead ||
+                  referenceUri(link.target) === operation.bead,
           ),
         );
         return scopePortSuccess<BeadLinksOperation>(Object.freeze({ items, next: null }));
@@ -196,7 +196,7 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
   return createInMemoryScopePort(perform);
 }
 
-function freezeEndpoint(endpoint: Endpoint): Endpoint {
+function freezeEndpoint(endpoint: Reference): Reference {
   return typeof endpoint === "string" ? endpoint : Object.freeze({ ...endpoint });
 }
 
@@ -300,6 +300,8 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   // realizes both the echoed-citation and the omitted-member spellings.
   const externalEndpointId = "external:beads:mol-run-assignee";
   const externalEndpointRevision = "  Cited-9F2c — α/β (draft) Å\t";
+  const pinWitnessId = "urn:external:pin-witness";
+  const pinnedLocalRevision = "pin-a-r1 (as-written)";
   const links: LinkRecord[] = [
     ["demo-b-a", "demo-b", "demo-a", "Blocks"],
     ["demo-a-c", "demo-a", "demo-c", "Blocks"],
@@ -312,6 +314,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
     ["demo-j-k", "demo-j", "demo-k", "Blocks"],
     ["external-target", "demo-f", externalEndpointId, "Blocks"],
     ["external-source", externalEndpointId, "demo-f", "Blocks"],
+    ["pinned-local", pinWitnessId, "demo-f", "Blocks"],
   ].map(([id, source, target, typeName]) => {
     const localId = String(id);
     const resolveEndpoint = (name: string) => {
@@ -319,9 +322,15 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
         return localId === "external-target"
           ? ({ uri: name, revision: externalEndpointRevision } as const)
           : name;
+      if (name === pinWitnessId) return name;
       const beadId = new URL(`beads/${name}`, scope).href;
       if (!beadById.has(beadId))
         throw new Error("reference Link endpoint does not name a reference Bead");
+      // The pinned-local Link's in-Scope target carries a pin: the domain
+      // realizes the in-Scope Pinned Reference spelling alongside the
+      // external one.
+      if (localId === "pinned-local")
+        return { uri: beadId, revision: pinnedLocalRevision } as const;
       return beadId;
     };
     const type = typeByName.get(String(typeName));
@@ -457,10 +466,10 @@ function readFixtureEndpoint(
   value: unknown,
   path: string,
   beadsByLocalId: ReadonlyMap<string, BeadRecord>,
-): { readonly endpoint: Endpoint; readonly local: boolean } {
-  // An external endpoint may be authored as { uri, revision } to carry the
-  // optional opaque citation; the object form is external-only, matching the
-  // wire contract's in-Scope prohibition.
+): { readonly endpoint: Reference; readonly local: boolean } {
+  // Any endpoint may be authored as { uri, revision } — a Pinned Reference
+  // recording the revision the link was made against. The URI alone is the
+  // identity; the pin is stored and echoed byte-identically.
   let citedRevision: string | undefined;
   let endpointValue = value;
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
@@ -472,9 +481,11 @@ function readFixtureEndpoint(
   const id = readNonemptyString(endpointValue, path);
   const localBead = beadsByLocalId.get(id);
   if (localBead !== undefined) {
-    if (citedRevision !== undefined)
-      throw new Error(`${path} in-Scope endpoint must not carry a revision citation`);
-    return { endpoint: localBead.id, local: true };
+    return {
+      endpoint:
+        citedRevision === undefined ? localBead.id : { uri: localBead.id, revision: citedRevision },
+      local: true,
+    };
   }
   if (isJsonSchemaUri(id)) {
     if (endpointAliasesScope(id, scope))
