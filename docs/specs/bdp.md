@@ -342,11 +342,14 @@ alias of) the canonical Scope URL claims an in-Scope Bead, and the
 authority MUST reject it unless it is the Bead's canonical spelling; every
 other URI is an opaque external reference. The pin is recorded provenance —
 the revision the Reference was made against — with one law for every
-Reference: the authority stores and echoes the pair byte-identically,
-compares `revision` only for equality, and applies no semantic validation
-to it in BDP v0. For an in-Scope pin the token is one of the authority's
-own revisions, and validating or resolving it arrives with historical
-resolution; for an external pin the token belongs to a namespace this
+Reference: the authority stores and echoes the `revision` token
+byte-identically, compares it only for equality, and applies no semantic
+validation to it in BDP v0. The `uri` follows the ordinary reference
+rules — an in-Scope spelling is canonicalized like any other reference; an
+external URI is preserved byte-identically like any other external
+reference. An in-Scope pin's token is opaque and unvalidated in v0;
+validating or resolving one against retained history arrives with
+historical resolution. An external pin's token belongs to a namespace this
 Scope does not own and is never validated or dereferenced.
 
 Reference equality, incident traversal, and multiplicity use the URI
@@ -590,7 +593,7 @@ A Selector compares stored values exactly. BDP does not reinterpret or
 normalize arbitrary JSONPath string literals as identifiers, so callers use
 the stored spelling in Selector expressions; the dedicated `source`,
 `target`, and `endpoint` collection filters compare by reference URI and are
-the citation-transparent way to select by endpoint.
+the pin-transparent way to select by endpoint.
 
 The same Selector semantics drive retrieval and set mutation:
 
@@ -793,8 +796,9 @@ in the same Mutation Transaction.
 If `id` is omitted, the authority allocates one. If `id` is supplied, its
 canonical Resource URL must never previously have been committed in the
 logical Scope. `source` and `target` may refer to Beads created earlier
-in the same Mutation Transaction. An out-of-Scope endpoint is simply an
-absolute URI outside the canonical Scope, or a Pinned Reference.
+in the same Mutation Transaction. Each is a Reference and either may be
+pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
+`uri` alone.
 
 ```text
 UpdateLinkProperties(
@@ -1720,18 +1724,16 @@ A Link record is:
 ```
 
 `id` and `type` are always absolute canonical URLs in responses. Link
-`source` and `target` are endpoint references. An in-Scope endpoint is the
-Bead's absolute canonical URL. An out-of-Scope endpoint is its opaque
-absolute URI, or a Pinned Reference as defined under
-**Batch-local Resource references** when a version of the external target is
-cited. `revision` is protocol metadata rather than mutable Bead or Link
+`source` and `target` are References as defined under
+[Beads and Links](#beads-and-links): an in-Scope endpoint's `uri` is the
+Bead's absolute canonical URL, an out-of-Scope endpoint's `uri` is its
+opaque absolute URI, and either may be a Pinned Reference. `revision` is protocol metadata rather than mutable Bead or Link
 state. `id`, `type`, `revision`, and, for Links, `source` and `target` are
 returned on every successful read. That does not mean they are accepted as
 update targets. An implementation may store local identifiers internally.
 That choice does not alter the response spelling.
 
-For example, an opaque external target citing a specific external state is
-represented as:
+For example, a pinned external endpoint is represented as:
 
 ```json
 {

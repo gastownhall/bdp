@@ -1324,7 +1324,7 @@ function evaluateAssertion(
             if (typeof value === "string") return "";
             const revision = (value as { readonly revision?: unknown }).revision;
             if (typeof revision !== "string")
-              throw new Error("endpoint citation revision was not a string");
+              throw new Error("endpoint pin revision was not a string");
             return revision;
           }
           return value;

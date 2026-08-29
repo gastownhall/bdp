@@ -515,7 +515,7 @@ describe("checked-in Read matrix artifacts", () => {
       ).toEqual(fixture.realization === "bdptest" ? [3, 3, 1, 2] : [1, 1, 1, 0]);
       // The reference realization proves both spellings of the optional
       // endpoint citation: one external endpoint echoes a stored revision and
-      // one omits the member. bd stores no citation, so bdpbd proves omission.
+      // one omits the member. bd stores no pin, so bdpbd proves omission.
       const externalArities = external.rows
         .map(([, , source, target]) =>
           source[0].startsWith("beads/") ? target.length : source.length,
@@ -1529,9 +1529,11 @@ describe("checked-in Read matrix artifacts", () => {
         (link) =>
           (type === undefined || link.type === type) &&
           (conformsTo === undefined || typeConformance.includes(link.type, conformsTo)) &&
-          (source === undefined || link.source === source) &&
-          (target === undefined || link.target === target) &&
-          (endpoint === undefined || link.source === endpoint || link.target === endpoint),
+          (source === undefined || refUri(link.source) === source) &&
+          (target === undefined || refUri(link.target) === target) &&
+          (endpoint === undefined ||
+            refUri(link.source) === endpoint ||
+            refUri(link.target) === endpoint),
       );
       expect([...resolveArrayExpected(expectedSet, fixture)].sort(), request.id).toEqual(
         matches.map(({ localId }) => localId).sort(),
@@ -1547,6 +1549,7 @@ describe("checked-in Read matrix artifacts", () => {
         "links-source-local",
         "links-target-absolute",
         "links-endpoint-or",
+        "links-endpoint-pinned-target",
         "links-type",
         "links-type-is-exact",
         "links-conforms-to-declared-type",

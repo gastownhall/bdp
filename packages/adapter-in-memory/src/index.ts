@@ -296,8 +296,8 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   // and changes no bead's readiness or dependency
   // counts: demo-f is already blocked by the local demo-f-e Link. The
   // external-target Link's external end additionally carries the optional
-  // endpoint revision citation; external-source's stays bare, so the domain
-  // realizes both the echoed-citation and the omitted-member spellings.
+  // endpoint pin; external-source's stays bare, so the domain realizes
+  // both the echoed-pin and the omitted-member spellings.
   const externalEndpointId = "external:beads:mol-run-assignee";
   const externalEndpointRevision = "  Cited-9F2c — α/β (draft) Å\t";
   const pinWitnessId = "urn:external:pin-witness";
@@ -470,12 +470,12 @@ function readFixtureEndpoint(
   // Any endpoint may be authored as { uri, revision } — a Pinned Reference
   // recording the revision the link was made against. The URI alone is the
   // identity; the pin is stored and echoed byte-identically.
-  let citedRevision: string | undefined;
+  let pinnedRevision: string | undefined;
   let endpointValue = value;
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     const record = readRecord(value, path);
     requireAllowedKeys(record, ["uri", "revision"], path);
-    citedRevision = readNonemptyString(record.revision, `${path}.revision`);
+    pinnedRevision = readNonemptyString(record.revision, `${path}.revision`);
     endpointValue = record.uri;
   }
   const id = readNonemptyString(endpointValue, path);
@@ -483,7 +483,9 @@ function readFixtureEndpoint(
   if (localBead !== undefined) {
     return {
       endpoint:
-        citedRevision === undefined ? localBead.id : { uri: localBead.id, revision: citedRevision },
+        pinnedRevision === undefined
+          ? localBead.id
+          : { uri: localBead.id, revision: pinnedRevision },
       local: true,
     };
   }
@@ -492,7 +494,7 @@ function readFixtureEndpoint(
       throw new Error("fixture in-Scope Link endpoint must name a fixture Bead");
     requireSafeCanonicalExternalEndpoint(id, path);
     return {
-      endpoint: citedRevision === undefined ? id : { uri: id, revision: citedRevision },
+      endpoint: pinnedRevision === undefined ? id : { uri: id, revision: pinnedRevision },
       local: false,
     };
   }

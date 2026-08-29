@@ -21,7 +21,8 @@
     "bead.demo-a": "beads/demo-a",
     "bead.demo-b": "beads/demo-b",
     "bead.demo-c": "beads/demo-c",
-    "link.demo-b-a": "links/demo-b-a"
+    "link.demo-b-a": "links/demo-b-a",
+    "bead.demo-f": "beads/demo-f"
   },
   "private": {
     "internalFaultSentinel": "bdp-private-internal-fault-reference-91c50f775b1b"
@@ -444,7 +445,14 @@
         "links/pinned-local"
       ],
       "links-conforms-to-cross-kind": [],
-      "links-predicates-and": ["links/demo-a-c"]
+      "links-predicates-and": ["links/demo-a-c"],
+      "links-endpoint-pinned-target": [
+        "links/demo-f-e",
+        "links/demo-e-f",
+        "links/external-target",
+        "links/external-source",
+        "links/pinned-local"
+      ]
     },
     "incident-links": {
       "demo-a-inbound": ["links/demo-b-a", "links/demo-i-a"],

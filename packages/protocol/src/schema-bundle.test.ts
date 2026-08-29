@@ -209,8 +209,8 @@ describe("BDP v0 schema bundle", () => {
       conformsTo: ["https://work.example/types/work-item", "https://work.example/types/work-item"],
     });
     // A reference is a URI string, or exactly { uri, revision } for an
-    // external citation: the old object-with-type spelling, a citation
-    // missing its revision, and an empty citation must all fail.
+    // Pinned Reference: the old object-with-type spelling, a pin missing
+    // its revision, and an empty pin must all fail.
     // Reference-constraint external policy: the three tokens are accepted,
     // omission is accepted (meaning opaque), and unknown tokens fail.
     for (const external of ["none", "opaque", "bead"] as const)

@@ -21,7 +21,8 @@
     "bead.demo-a": "beads/demo-a",
     "bead.demo-b": "beads/demo-b",
     "bead.demo-c": "beads/demo-c",
-    "link.demo-b-a": "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"
+    "link.demo-b-a": "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+    "bead.demo-f": "beads/demo-f"
   },
   "private": {
     "internalFaultSentinel": "bdp-private-internal-fault-bdpbd-e69028371d4a"
@@ -563,7 +564,11 @@
         "links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz"
       ],
       "links-conforms-to-cross-kind": [],
-      "links-predicates-and": ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"]
+      "links-predicates-and": ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"],
+      "links-endpoint-pinned-target": [
+        "links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz",
+        "links/b64_ZGVtby1l/b64_ZGVtby1m/b64_cmVsYXRlZA"
+      ]
     },
     "incident-links": {
       "demo-a-inbound": [

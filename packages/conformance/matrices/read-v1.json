@@ -1228,6 +1228,50 @@
           ]
         },
         {
+          "id": "links-endpoint-pinned-target",
+          "method": "GET",
+          "target": {
+            "binding": "links",
+            "query": {
+              "endpoint": {
+                "binding": "bead.demo-f",
+                "representation": "absolute-url"
+              }
+            }
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/linkCollection"
+            },
+            {
+              "id": "complete-page",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "endpoint-link-ids",
+              "kind": "json-array-set",
+              "pointer": "/items",
+              "itemPointer": "/id",
+              "fixturePointer": "/oracles/structural-predicates/links-endpoint-pinned-target",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
           "id": "links-type",
           "method": "GET",
           "target": {

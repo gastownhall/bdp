@@ -19,7 +19,7 @@ import {
 } from "./index.js";
 
 // Compile-time contract: a reference is a URI string, or the external
-// citation object with exactly uri and revision.
+// Pinned Reference with exactly uri and revision.
 const _plainReference: Reference = "https://scope.example/acme/beads/demo-a";
 const _externalPolicies: readonly ExternalEndpointPolicy[] = ["none", "opaque", "bead"];
 // @ts-expect-error — the policy union is exactly none | opaque | bead
@@ -27,19 +27,36 @@ const _invalidPolicy: ExternalEndpointPolicy = "always";
 void _externalPolicies;
 void _invalidPolicy;
 const _externalCitation: Reference = { uri: "urn:external:cited", revision: "cited-1" };
-const _citationRejectsExtras: Reference = {
+const _pinRejectsExtras: Reference = {
   uri: "urn:external:cited",
   revision: "cited-1",
-  // @ts-expect-error — the citation object carries exactly uri and revision
+  // @ts-expect-error — a Pinned Reference carries exactly uri and revision
   type: "https://work.example/types/task",
 };
 void _plainReference;
 void _externalCitation;
-void _citationRejectsExtras;
+void _pinRejectsExtras;
 
 const scope = "https://scope.example/acme/" as AbsoluteHttpUrl;
 
 describe("Read envelope parsing", () => {
+  it("freezes parsed pins so a mutated input cannot reach the snapshot", () => {
+    const source = { uri: "urn:external:pin-witness", revision: "pin-1" };
+    const record = {
+      id: `${scope}links/pinned`,
+      type: "https://work.example/types/blocks",
+      revision: "1",
+      source,
+      target: { uri: `${scope}beads/demo-a`, revision: "pin-a-r1" },
+      properties: {},
+    };
+    const parsed = parseLinkRecord(record);
+    source.revision = "tampered";
+    expect(parsed.source).toEqual({ uri: "urn:external:pin-witness", revision: "pin-1" });
+    expect(Object.isFrozen(parsed.source)).toBe(true);
+    expect(Object.isFrozen(parsed.target)).toBe(true);
+  });
+
   it("snapshots and closes Read discovery", () => {
     const source = {
       bdpVersion: "0",
