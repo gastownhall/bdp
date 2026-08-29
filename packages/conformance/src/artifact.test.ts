@@ -1783,6 +1783,68 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
   const roleByType = new Map(
     fixture.oracles["cross-target"].input.relationshipRoles.map(({ type, role }) => [type, role]),
   );
+  // The exclusion list is not self-certifying: it must name exactly the
+  // known witnesses, and every excluded link must be independently
+  // justified by the model — it carries a pin, or its type is owned by its
+  // source's Type — and every link so justified must be excluded.
+  const authoredRealizationOnly = fixture.oracles["cross-target"].input.realizationOnlyLinkIds;
+  if ((fixture as { readonly realization?: string }).realization === "bdptest") {
+    expect([...(authoredRealizationOnly ?? [])].sort()).toEqual([
+      "links/cites-local",
+      "links/cites-witness",
+      "links/pinned-local",
+    ]);
+    const fixtureLinks = (
+      fixture as unknown as {
+        readonly links: readonly {
+          readonly localId: string;
+          readonly type: string;
+          readonly source: unknown;
+          readonly target: unknown;
+        }[];
+        readonly typeDescriptors: readonly {
+          readonly id: string;
+          readonly ownsOutgoing?: readonly { readonly type: string }[];
+        }[];
+        readonly beads: readonly { readonly localId: string; readonly type: string }[];
+      }
+    ).links;
+    const fixtureShape = fixture as unknown as {
+      readonly typeDescriptors: readonly {
+        readonly id: string;
+        readonly ownsOutgoing?: readonly { readonly type: string }[];
+      }[];
+      readonly beads: readonly { readonly localId: string; readonly type: string }[];
+    };
+    const ownedPairs = new Set(
+      fixtureShape.typeDescriptors.flatMap((descriptor) =>
+        (descriptor.ownsOutgoing ?? []).map((entry) => `${descriptor.id}|${entry.type}`),
+      ),
+    );
+    const beadTypeByLocalId = new Map(
+      fixtureShape.beads.map(({ localId, type }) => [localId, type]),
+    );
+    const isPinned = (value: unknown): boolean =>
+      typeof value === "object" && value !== null && "revision" in value;
+    const justified = new Set(
+      fixtureLinks
+        .filter(({ type, source, target }) => {
+          const sourceType = typeof source === "string" ? beadTypeByLocalId.get(source) : undefined;
+          return (
+            isPinned(source) ||
+            isPinned(target) ||
+            (sourceType !== undefined && ownedPairs.has(`${sourceType}|${type}`))
+          );
+        })
+        .map(({ localId }) => localId),
+    );
+    // external-endpoint witnesses are excluded through their own input
+    // list; the realization-only list must cover exactly the remainder.
+    const externallyExcluded = new Set(fixture.oracles["external-endpoint"].input.linkIds);
+    expect([...justified].filter((id) => !externallyExcluded.has(id)).sort()).toEqual(
+      [...(authoredRealizationOnly ?? [])].filter((id) => !externallyExcluded.has(id)).sort(),
+    );
+  }
   const excludedLinkIds = new Set([
     ...fixture.oracles["external-endpoint"].input.linkIds,
     ...(fixture.oracles["cross-target"].input.realizationOnlyLinkIds ?? []),

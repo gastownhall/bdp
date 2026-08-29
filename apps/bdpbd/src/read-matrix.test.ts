@@ -78,6 +78,9 @@ interface FixtureOracles {
   };
   readonly "structural-predicates": Readonly<Record<string, readonly string[]>>;
   readonly "incident-links": Readonly<Record<string, readonly string[]>>;
+  readonly "cross-target": {
+    readonly input: { readonly realizationOnlyLinkIds?: readonly string[] };
+  };
 }
 
 interface BdFixture extends ConformanceFixture {

@@ -38,6 +38,20 @@ import {
 /** Identifies the bd adapter package without invoking bd during Gate 0. */
 export const packageName = "@bdp/adapter-bd";
 
+/**
+ * The bd realization declares no reference ownership: bd cannot version a
+ * bead by its outgoing links, so serving the shared domain's ownsOutgoing
+ * would advertise a plane this realization never populates. Honest absence:
+ * the served descriptors strip the declaration, and records carry no
+ * references member.
+ */
+export const BD_SERVED_TYPE_DESCRIPTORS: readonly TypeDescriptor[] = REFERENCE_TYPE_DESCRIPTORS.map(
+  (descriptor) =>
+    descriptor.describes === "bead" && descriptor.ownsOutgoing !== undefined
+      ? (({ ownsOutgoing: _ownsOutgoing, ...rest }) => rest)(descriptor)
+      : descriptor,
+);
+
 export interface BdWorkspaceScope {
   readonly scope: AbsoluteHttpUrl;
   readonly port: ScopePort;
@@ -110,20 +124,11 @@ export function createBdProcessScopePort(
   if (!typeIds.has("task")) throw new Error("reference domain does not define task");
   let beads: BeadRecord[] | undefined;
   let links: LinkRecord[] | undefined;
-  // The bd realization declares no reference ownership: bd cannot version a
-  // bead by its outgoing links, so serving the shared domain's ownsOutgoing
-  // would advertise a plane this realization never populates. Honest absence:
-  // strip the declaration; records carry no references member.
-  const BD_TYPE_DESCRIPTORS = REFERENCE_TYPE_DESCRIPTORS.map((descriptor) =>
-    descriptor.describes === "bead" && descriptor.ownsOutgoing !== undefined
-      ? (({ ownsOutgoing: _ownsOutgoing, ...rest }) => rest)(descriptor)
-      : descriptor,
-  );
   const referenceDescriptorsById = new Map(
-    BD_TYPE_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
+    BD_SERVED_TYPE_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
   );
   let observedTypes = REFERENCE_TYPE_SUMMARIES;
-  let observedDescriptors = BD_TYPE_DESCRIPTORS;
+  let observedDescriptors = BD_SERVED_TYPE_DESCRIPTORS;
   let typeConformance = createTypeConformanceIndex(observedDescriptors);
   let loading: InFlightLoad | undefined;
   let loadedAt = 0;

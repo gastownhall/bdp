@@ -611,6 +611,86 @@ describe("reference fixture Scope port", () => {
     ).toThrow("must be a non-empty string");
   });
 
+  it("serves the owned-references plane: declared-empty entries, ordering, bound, and properties-view exclusion", async () => {
+    const decision = {
+      id: "https://work.example/types/decision",
+      name: "Decision",
+      describes: "bead",
+    } as const;
+    const cites = {
+      id: "https://work.example/types/cites",
+      name: "Cites",
+      describes: "link",
+    } as const;
+    const base = {
+      types: [decision, cites],
+      typeDescriptors: [
+        {
+          ...decision,
+          conformsTo: [],
+          ownsOutgoing: [{ type: cites.id, label: "cites", max: 2 }],
+        },
+        { ...cites, conformsTo: [], source: { conformsTo: [] }, target: { conformsTo: [] } },
+      ],
+      beads: [
+        { localId: "beads/d", type: decision.id, revision: "1", properties: { title: "D" } },
+        { localId: "beads/e", type: decision.id, revision: "1", properties: { title: "E" } },
+      ],
+      links: [
+        {
+          localId: "links/one",
+          type: cites.id,
+          revision: "1",
+          source: "beads/d",
+          target: "beads/e",
+          properties: {},
+        },
+        {
+          localId: "links/two",
+          type: cites.id,
+          revision: "1",
+          source: "beads/d",
+          target: { uri: "urn:external:w", revision: "w-9" },
+          properties: {},
+        },
+      ],
+    };
+    const port = createPortableReferenceFixturePort(scope, base);
+    const beads = await port.perform({ kind: "collection", collection: "beads" }, options);
+    if (beads.kind !== "success") throw new Error("beads collection must succeed");
+    const [d, e] = beads.body.items as readonly {
+      readonly references?: Readonly<Record<string, readonly unknown[]>>;
+      readonly properties: unknown;
+    }[];
+    // Ordering follows authoring order; the pin survives; the second
+    // owning bead gets its declared entry even with zero owned links.
+    expect(d?.references).toEqual({
+      [cites.id]: [`${scope}beads/e`, { uri: "urn:external:w", revision: "w-9" }],
+    });
+    expect(e?.references).toEqual({ [cites.id]: [] });
+    // The properties view stays authored JSON alone.
+    await expect(
+      port.perform({ kind: "properties", resource: "bead", id: `${scope}beads/d` }, options),
+    ).resolves.toEqual({ kind: "success", body: { title: "D" } });
+    // The declared bound is enforced.
+    expect(() =>
+      createPortableReferenceFixturePort(scope, {
+        ...base,
+        links: [
+          ...base.links,
+          {
+            localId: "links/three",
+            type: cites.id,
+            revision: "1",
+            source: "beads/d",
+            target: "beads/e",
+            properties: {},
+          },
+        ],
+      }),
+    ).toThrow("exceed the declared bound");
+  });
+
   it("rejects fixture Links with two external endpoints", () => {
     const blocks = {
       id: "https://work.example/types/blocks",
