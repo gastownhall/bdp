@@ -53,6 +53,7 @@ describe("BDP v0 schema bundle", () => {
       "linkCollection",
       "linkRecord",
       "maximumEndpointMultiplicityPolicy",
+      "ownedReferenceDeclaration",
       "pinnedReference",
       "positiveInteger",
       "properties",
@@ -218,6 +219,39 @@ describe("BDP v0 schema bundle", () => {
     expectValid("endpointConstraint", { conformsTo: [] });
     expectInvalid("endpointConstraint", { conformsTo: [], external: "always" });
     expectInvalid("endpointConstraint", { conformsTo: [], external: true });
+    // Owned-reference declarations: bead descriptors may own, link
+    // descriptors may not, the bound is required, and the record's
+    // references plane is keyed by Link Type URL with Reference arrays.
+    expectValid("typeDescriptor", {
+      ...beadTypeDescriptor(),
+      ownsOutgoing: [{ type: "https://work.example/types/cites", label: "cites", max: 8 }],
+    });
+    expectValid("typeDescriptor", {
+      ...beadTypeDescriptor(),
+      ownsOutgoing: [{ type: "https://work.example/types/cites", max: 1 }],
+    });
+    expectInvalid("typeDescriptor", {
+      ...beadTypeDescriptor(),
+      ownsOutgoing: [{ type: "https://work.example/types/cites" }],
+    });
+    expectInvalid("typeDescriptor", {
+      ...linkTypeDescriptor(),
+      ownsOutgoing: [{ type: "https://work.example/types/cites", max: 1 }],
+    });
+    expectInvalid("typeDescriptor", { ...beadTypeDescriptor(), ownsOutgoing: [] });
+    expectValid("beadRecord", {
+      ...beadRecord(),
+      references: {
+        "https://work.example/types/cites": [
+          "https://beads.example/acme/beads/demo-f",
+          { uri: "urn:external:cites-witness", revision: "w-1" },
+        ],
+      },
+    });
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      references: { "not a uri": ["https://beads.example/acme/beads/demo-f"] },
+    });
     expectValid("reference", "https://beads.example/acme/beads/demo-a");
     expectValid("reference", "urn:external:123");
     expectValid("reference", { uri: "urn:external:123", revision: "cited-9f2c" });

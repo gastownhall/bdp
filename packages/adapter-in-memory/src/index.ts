@@ -203,13 +203,6 @@ function freezeEndpoint(endpoint: Reference): Reference {
 function snapshotPreparedReferenceFixture(
   prepared: PreparedReferenceFixture,
 ): PreparedReferenceFixture {
-  const beads = Object.freeze(
-    prepared.beads.map((bead) =>
-      Object.freeze({
-        ...bead,
-      }),
-    ),
-  );
   const links = Object.freeze(
     prepared.links.map((link) =>
       Object.freeze({
@@ -218,6 +211,36 @@ function snapshotPreparedReferenceFixture(
         target: freezeEndpoint(link.target),
       }),
     ),
+  );
+  // The owned-references plane: for each Bead whose declared Type owns
+  // outgoing Link Types, project the owned links' targets, in link order,
+  // one entry per declared owned type (empty when no owned links exist).
+  // The declared bound is enforced here so the plane is always servable
+  // inline.
+  const ownedByBeadType = new Map(
+    prepared.typeDescriptors.flatMap((descriptor) =>
+      descriptor.describes === "bead" && descriptor.ownsOutgoing !== undefined
+        ? [[descriptor.id, descriptor.ownsOutgoing] as const]
+        : [],
+    ),
+  );
+  const beads = Object.freeze(
+    prepared.beads.map((bead) => {
+      const owned = ownedByBeadType.get(bead.type);
+      if (owned === undefined) return Object.freeze({ ...bead });
+      const references: Record<string, readonly Reference[]> = {};
+      for (const declaration of owned) {
+        const targets = links
+          .filter((link) => link.type === declaration.type && referenceUri(link.source) === bead.id)
+          .map((link) => link.target);
+        if (targets.length > declaration.max)
+          throw new Error(
+            `owned references for ${bead.id} exceed the declared bound of ${declaration.type}`,
+          );
+        references[declaration.type] = Object.freeze(targets);
+      }
+      return Object.freeze({ ...bead, references: Object.freeze(references) });
+    }),
   );
   const types = Object.freeze([...prepared.types]);
   const typeDescriptors = Object.freeze([...prepared.typeDescriptors]);
@@ -301,6 +324,8 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   const externalEndpointId = "external:beads:mol-run-assignee";
   const externalEndpointRevision = "  Cited-9F2c — α/β (draft) Å\t";
   const pinWitnessId = "urn:external:pin-witness";
+  const citesWitnessId = "urn:external:cites-witness";
+  const citesWitnessRevision = "w-1";
   const pinnedLocalRevision = "pin-a-r1 (as-written)";
   const links: LinkRecord[] = [
     ["demo-b-a", "demo-b", "demo-a", "Blocks"],
@@ -315,6 +340,8 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
     ["external-target", "demo-f", externalEndpointId, "Blocks"],
     ["external-source", externalEndpointId, "demo-f", "Blocks"],
     ["pinned-local", pinWitnessId, "demo-f", "Blocks"],
+    ["cites-local", "demo-f", "demo-a", "Cites"],
+    ["cites-witness", "demo-f", citesWitnessId, "Cites"],
   ].map(([id, source, target, typeName]) => {
     const localId = String(id);
     const resolveEndpoint = (name: string) => {
@@ -323,6 +350,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
           ? ({ uri: name, revision: externalEndpointRevision } as const)
           : name;
       if (name === pinWitnessId) return name;
+      if (name === citesWitnessId) return { uri: name, revision: citesWitnessRevision } as const;
       const beadId = new URL(`beads/${name}`, scope).href;
       if (!beadById.has(beadId))
         throw new Error("reference Link endpoint does not name a reference Bead");

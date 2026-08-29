@@ -48,6 +48,13 @@ here rather than being invented by an implementation.
   compare it only for equality, and MUST NOT validate, dereference, or
   interpret it in v0. Reference equality uses the URI alone.
   At least one endpoint of every v0 Link MUST be an in-Scope Bead.
+- **PROTO-011**: A Bead Type MAY own outgoing Link Types, declared per
+  (Bead Type, Link Type) pair with a required bound. Changing an owned
+  Link versions the source Bead; an incoming Link never versions its
+  target. A Bead whose Type owns outgoing Link Types MUST carry its
+  `references` member — one entry per declared owned type, keyed by Link
+  Type URL — on every record read, and the member MUST be absent for
+  Beads whose Type owns nothing.
 - **PROTO-005**: A generic client MUST be able to parse and issue protocol
   requests without retrieving a Type Descriptor. Descriptor retrieval is for
   validation assistance and domain understanding, not basic wire parsing.

@@ -61,6 +61,11 @@
       "id": "https://work.example/types/relates",
       "name": "Relates",
       "describes": "link"
+    },
+    {
+      "id": "https://work.example/types/cites",
+      "name": "Cites",
+      "describes": "link"
     }
   ],
   "propertiesSchemas": {
@@ -109,6 +114,10 @@
       "additionalProperties": true
     },
     "https://work.example/types/relates": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "https://work.example/types/cites": {
       "type": "object",
       "additionalProperties": true
     }
@@ -192,7 +201,14 @@
       "id": "https://work.example/types/decision",
       "name": "Decision",
       "describes": "bead",
-      "conformsTo": []
+      "conformsTo": [],
+      "ownsOutgoing": [
+        {
+          "type": "https://work.example/types/cites",
+          "label": "cites",
+          "max": 8
+        }
+      ]
     },
     {
       "id": "https://work.example/types/relationship",
@@ -233,6 +249,18 @@
     {
       "id": "https://work.example/types/relates",
       "name": "Relates",
+      "describes": "link",
+      "conformsTo": [],
+      "source": {
+        "conformsTo": []
+      },
+      "target": {
+        "conformsTo": []
+      }
+    },
+    {
+      "id": "https://work.example/types/cites",
+      "name": "Cites",
       "describes": "link",
       "conformsTo": [],
       "source": {

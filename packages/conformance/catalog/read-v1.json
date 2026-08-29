@@ -122,6 +122,11 @@
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
           "selectedText": "At least one endpoint of every v0 Link MUST be an in-Scope Bead."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "A Bead whose Type owns outgoing Link Types MUST carry its `references` member — one entry per declared owned type, keyed by Link Type URL — on every record read, and the member MUST be absent for Beads whose Type owns nothing."
         }
       ]
     },

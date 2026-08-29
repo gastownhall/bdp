@@ -635,8 +635,14 @@ function expectLogicalReadinessEquivalence(
   const referenceTitleById = new Map(
     reference.beads.map(({ localId, properties }) => [localId, properties.title]),
   );
+  const realizationOnlyLinkIds = new Set(
+    reference.oracles["cross-target"].input.realizationOnlyLinkIds ?? [],
+  );
   const referenceLocalLinks = reference.links.filter(
-    ({ source, target }) => referenceTitleById.has(source) && referenceTitleById.has(target),
+    ({ localId, source, target }) =>
+      !realizationOnlyLinkIds.has(localId) &&
+      referenceTitleById.has(source) &&
+      referenceTitleById.has(target),
   );
   const bdTitleById = new Map(bd.bd.beads.map(({ id, title }) => [id, title]));
   const shortType = (id: string): string => id.slice(id.lastIndexOf("/") + 1);
@@ -676,7 +682,7 @@ function expectLogicalReadinessEquivalence(
   expect({
     bead: expectedBdRoles.filter((role) => role === "bead").length,
     link: expectedBdRoles.filter((role) => role === "link").length,
-  }).toEqual({ bead: 8, link: 5 });
+  }).toEqual({ bead: 8, link: 6 });
 
   const projectedBdRoles = new Map<string, "bead" | "link">();
   const addProjectedRole = (id: string, role: "bead" | "link"): void => {
@@ -758,8 +764,8 @@ function expectLogicalReadinessEquivalence(
     beads: reference.beads.length,
     links: referenceLocalLinks.length,
   });
-  expect(reference.expectations).toMatchObject({ beadCount: 9, linkCount: 12, typeCount: 12 });
-  expect(bd.expectations).toMatchObject({ beadCount: 9, linkCount: 9, typeCount: 13 });
+  expect(reference.expectations).toMatchObject({ beadCount: 9, linkCount: 14, typeCount: 13 });
+  expect(bd.expectations).toMatchObject({ beadCount: 9, linkCount: 9, typeCount: 14 });
   expect(bd.oracles.collections["bead-titles"]).toHaveLength(bd.expectations.beadCount);
   expect(bd.oracles.collections["link-records"]).toHaveLength(bd.expectations.linkCount);
   expect(bd.oracles.collections["type-ids"]).toHaveLength(bd.expectations.typeCount);
@@ -869,7 +875,11 @@ function expectBdOracleParity(
     properties: {},
   });
 
+  const realizationOnlyLinkIds = new Set(
+    reference.oracles["cross-target"].input.realizationOnlyLinkIds ?? [],
+  );
   const referenceLinkKey = (id: string): string | undefined => {
+    if (realizationOnlyLinkIds.has(id)) return undefined;
     const link = reference.links.find(({ localId }) => localId === id);
     if (link === undefined) return `missing:${id}`;
     if (!referenceTitleById.has(link.source) || !referenceTitleById.has(link.target))

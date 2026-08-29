@@ -87,7 +87,8 @@
             "type": "https://work.example/types/relates",
             "role": "relates"
           }
-        ]
+        ],
+        "realizationOnlyLinkIds": ["links/pinned-local", "links/cites-local", "links/cites-witness"]
       },
       "projection": {
         "beadStatuses": [
@@ -180,7 +181,12 @@
           "direction": "both",
           "limit": 1,
           "mutation": {
-            "candidateIds": ["links/demo-a-c", "links/demo-b-a", "links/demo-i-a"],
+            "candidateIds": [
+              "links/cites-local",
+              "links/demo-a-c",
+              "links/demo-b-a",
+              "links/demo-i-a"
+            ],
             "revision": "conformance-mutated-revision"
           },
           "clockAdvanceMs": 101,
@@ -188,6 +194,8 @@
           "epoch": "epoch-a"
         },
         "expectedCollectionIds": [
+          "links/cites-local",
+          "links/cites-witness",
           "links/demo-a-c",
           "links/demo-b-a",
           "links/demo-d-c",
@@ -201,10 +209,15 @@
           "links/external-target",
           "links/pinned-local"
         ],
-        "expectedIncidentLinkIds": ["links/demo-a-c", "links/demo-b-a", "links/demo-i-a"],
-        "expectedCollectionPageSizes": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        "expectedIncidentPageSizes": [1, 1, 1],
-        "publicRequests": 19
+        "expectedIncidentLinkIds": [
+          "links/cites-local",
+          "links/demo-a-c",
+          "links/demo-b-a",
+          "links/demo-i-a"
+        ],
+        "expectedCollectionPageSizes": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        "expectedIncidentPageSizes": [1, 1, 1, 1],
+        "publicRequests": 22
       }
     },
     "resources": {
@@ -373,6 +386,26 @@
           "beads/demo-f",
           "pin-a-r1 (as-written)",
           {}
+        ],
+        [
+          "links/cites-local",
+          "https://work.example/types/cites",
+          "1",
+          "beads/demo-f",
+          "",
+          "beads/demo-a",
+          "",
+          {}
+        ],
+        [
+          "links/cites-witness",
+          "https://work.example/types/cites",
+          "1",
+          "beads/demo-f",
+          "",
+          "urn:external:cites-witness",
+          "w-1",
+          {}
         ]
       ],
       "type-ids": [
@@ -387,7 +420,8 @@
         "https://work.example/types/relationship",
         "https://work.example/types/dependency",
         "https://work.example/types/blocks",
-        "https://work.example/types/relates"
+        "https://work.example/types/relates",
+        "https://work.example/types/cites"
       ]
     },
     "structural-predicates": {
@@ -403,7 +437,12 @@
         "links/demo-i-c",
         "links/demo-j-c"
       ],
-      "links-endpoint-or": ["links/demo-b-a", "links/demo-a-c", "links/demo-i-a"],
+      "links-endpoint-or": [
+        "links/demo-b-a",
+        "links/demo-a-c",
+        "links/demo-i-a",
+        "links/cites-local"
+      ],
       "links-type": [
         "links/demo-b-a",
         "links/demo-a-c",
@@ -451,16 +490,32 @@
         "links/demo-e-f",
         "links/external-target",
         "links/external-source",
-        "links/pinned-local"
+        "links/pinned-local",
+        "links/cites-local",
+        "links/cites-witness"
       ]
     },
     "incident-links": {
-      "demo-a-inbound": ["links/demo-b-a", "links/demo-i-a"],
+      "demo-a-inbound": ["links/demo-b-a", "links/demo-i-a", "links/cites-local"],
       "demo-a-outbound": ["links/demo-a-c"],
       "demo-b-outbound": ["links/demo-b-a"],
       "demo-b-inbound": [],
-      "demo-a-both": ["links/demo-b-a", "links/demo-a-c", "links/demo-i-a"],
-      "demo-a-default": ["links/demo-b-a", "links/demo-a-c", "links/demo-i-a"]
+      "demo-a-both": ["links/demo-b-a", "links/demo-a-c", "links/demo-i-a", "links/cites-local"],
+      "demo-a-default": ["links/demo-b-a", "links/demo-a-c", "links/demo-i-a", "links/cites-local"]
+    },
+    "owned-references": {
+      "input": {
+        "bead": "beads/demo-f"
+      },
+      "references": {
+        "https://work.example/types/cites": [
+          "https://scope.example/acme/beads/demo-a",
+          {
+            "uri": "urn:external:cites-witness",
+            "revision": "w-1"
+          }
+        ]
+      }
     }
   },
   "beads": [
@@ -812,6 +867,25 @@
         "revision": "pin-a-r1 (as-written)"
       },
       "properties": {}
+    },
+    {
+      "localId": "links/cites-local",
+      "type": "https://work.example/types/cites",
+      "revision": "1",
+      "source": "beads/demo-f",
+      "target": "beads/demo-a",
+      "properties": {}
+    },
+    {
+      "localId": "links/cites-witness",
+      "type": "https://work.example/types/cites",
+      "revision": "1",
+      "source": "beads/demo-f",
+      "target": {
+        "uri": "urn:external:cites-witness",
+        "revision": "w-1"
+      },
+      "properties": {}
     }
   ],
   "types": [
@@ -874,6 +948,11 @@
       "id": "https://work.example/types/relates",
       "name": "Relates",
       "describes": "link"
+    },
+    {
+      "id": "https://work.example/types/cites",
+      "name": "Cites",
+      "describes": "link"
     }
   ],
   "typeDescriptors": [
@@ -923,7 +1002,14 @@
       "id": "https://work.example/types/decision",
       "name": "Decision",
       "describes": "bead",
-      "conformsTo": []
+      "conformsTo": [],
+      "ownsOutgoing": [
+        {
+          "type": "https://work.example/types/cites",
+          "label": "cites",
+          "max": 8
+        }
+      ]
     },
     {
       "id": "https://work.example/types/relationship",
@@ -964,6 +1050,18 @@
     {
       "id": "https://work.example/types/relates",
       "name": "Relates",
+      "describes": "link",
+      "conformsTo": [],
+      "source": {
+        "conformsTo": []
+      },
+      "target": {
+        "conformsTo": []
+      }
+    },
+    {
+      "id": "https://work.example/types/cites",
+      "name": "Cites",
       "describes": "link",
       "conformsTo": [],
       "source": {
@@ -1056,7 +1154,7 @@
       }
     ],
     "beadCount": 9,
-    "linkCount": 12,
-    "typeCount": 12
+    "linkCount": 14,
+    "typeCount": 13
   }
 }

@@ -519,8 +519,9 @@ read, mutate, or traverse it.
 
 ### Revisions
 
-Every successful create, and every update that changes `properties`, produces
-a fresh opaque Resource revision. A client compares revisions only for
+Every successful create — and every update that changes `properties` or,
+for a Bead whose Type owns outgoing Link Types, its owned references —
+produces a fresh opaque Resource revision. A client compares revisions only for
 equality and must not derive meaning from their spelling. If applying an
 update produces a `properties` value that is equal, under the JSON
 value-comparison rules of RFC 6902 Section 4.6, to the value immediately
@@ -742,8 +743,10 @@ unrelated to the containing Link's own `revision` and to
 `expectedRevision` guards. It does not participate in Link identity or
 Reference comparison.
 
-Creating or deleting a Link does not mutate an in-Scope endpoint Bead, and it
-does not change that Bead's Resource revision.
+Creating or deleting a Link does not mutate an in-Scope endpoint Bead or
+change that Bead's Resource revision — with one declared exception: when
+the Link's type is owned by the source Bead's declared Type, the source's
+revision changes. The target's never does.
 
 ### Explicit Bead operations
 
@@ -1723,7 +1726,12 @@ A Link record is:
 }
 ```
 
-`id` and `type` are always absolute canonical URLs in responses. Link
+`id` and `type` are always absolute canonical URLs in responses. A Bead
+whose Type owns outgoing Link Types additionally carries its `references`
+member — one entry per declared owned Link Type, keyed by the Link Type
+URL, valued by the owned Links' target References with their pins — on
+every record read; the member is absent for Beads whose Type owns
+nothing. Link
 `source` and `target` are References as defined under
 [Beads and Links](#beads-and-links): an in-Scope endpoint's `uri` is the
 Bead's absolute canonical URL, an out-of-Scope endpoint's `uri` is its
@@ -1977,7 +1985,13 @@ The descriptor members have these meanings:
 - for a Link Type, `source.conformsTo` and `target.conformsTo` list Types that
   the corresponding in-Scope endpoint Bead must satisfy. Every listed Type is
   required, and an empty list accepts any in-Scope Bead at that endpoint. An
-  out-of-Scope endpoint is opaque and is not checked against these lists.
+  out-of-Scope endpoint is opaque and is not checked against these lists; and
+- for a Bead Type, `ownsOutgoing`, when present, lists the outgoing Link
+  Types the Type owns as `{ type, label?, max }` entries, under
+  [Owned references](#owned-references): `max` is the required bound on the
+  owned set, and `label` is a display projection that never appears in any
+  wire representation. A Link Type Descriptor must not carry
+  `ownsOutgoing`.
 
 Descriptor objects and endpoint-constraint objects are closed: no members are
 allowed except those defined above. Type-ID arrays contain unique Type URLs and

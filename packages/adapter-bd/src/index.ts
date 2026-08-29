@@ -110,11 +110,20 @@ export function createBdProcessScopePort(
   if (!typeIds.has("task")) throw new Error("reference domain does not define task");
   let beads: BeadRecord[] | undefined;
   let links: LinkRecord[] | undefined;
+  // The bd realization declares no reference ownership: bd cannot version a
+  // bead by its outgoing links, so serving the shared domain's ownsOutgoing
+  // would advertise a plane this realization never populates. Honest absence:
+  // strip the declaration; records carry no references member.
+  const BD_TYPE_DESCRIPTORS = REFERENCE_TYPE_DESCRIPTORS.map((descriptor) =>
+    descriptor.describes === "bead" && descriptor.ownsOutgoing !== undefined
+      ? (({ ownsOutgoing: _ownsOutgoing, ...rest }) => rest)(descriptor)
+      : descriptor,
+  );
   const referenceDescriptorsById = new Map(
-    REFERENCE_TYPE_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
+    BD_TYPE_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
   );
   let observedTypes = REFERENCE_TYPE_SUMMARIES;
-  let observedDescriptors = REFERENCE_TYPE_DESCRIPTORS;
+  let observedDescriptors = BD_TYPE_DESCRIPTORS;
   let typeConformance = createTypeConformanceIndex(observedDescriptors);
   let loading: InFlightLoad | undefined;
   let loadedAt = 0;

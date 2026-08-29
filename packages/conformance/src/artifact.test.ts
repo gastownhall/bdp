@@ -107,6 +107,7 @@ interface CrossTargetFixture {
           readonly type: string;
           readonly role: string;
         }[];
+        readonly realizationOnlyLinkIds?: readonly string[];
       };
       readonly projection: {
         readonly beadStatuses: readonly (readonly JsonValue[])[];
@@ -1782,12 +1783,15 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
   const roleByType = new Map(
     fixture.oracles["cross-target"].input.relationshipRoles.map(({ type, role }) => [type, role]),
   );
-  const externalEndpointLinkIds = new Set(fixture.oracles["external-endpoint"].input.linkIds);
+  const excludedLinkIds = new Set([
+    ...fixture.oracles["external-endpoint"].input.linkIds,
+    ...(fixture.oracles["cross-target"].input.realizationOnlyLinkIds ?? []),
+  ]);
   return {
     beadStatuses: sortRows(beads.map(({ title, status, priority }) => [title, status, priority])),
     relationships: sortRows(
       fixture.oracles.collections["link-records"]
-        .filter((record) => !externalEndpointLinkIds.has(requiredTupleString(record, 0, "Link ID")))
+        .filter((record) => !excludedLinkIds.has(requiredTupleString(record, 0, "Link ID")))
         .map((record) => {
           const type = requiredTupleString(record, 1, "Link Type");
           const source = requiredTupleString(record, 3, "Link source");

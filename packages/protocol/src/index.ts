@@ -146,10 +146,23 @@ interface TypeDescriptorMembers {
   readonly propertiesSchema?: AbsoluteHttpUrl;
 }
 
+/**
+ * One owned outgoing Link Type: links of this type created from a Bead of
+ * the declaring Type are part of the source's versioned state. `max` bounds
+ * the owned set so the references plane can always be served inline;
+ * `label` is a display/SDK projection and never appears on the wire.
+ */
+export interface OwnedReferenceDeclaration {
+  readonly type: AbsoluteHttpUrl;
+  readonly label?: string;
+  readonly max: number;
+}
+
 export interface BeadTypeDescriptor extends TypeDescriptorMembers {
   readonly describes: "bead";
   readonly source?: never;
   readonly target?: never;
+  readonly ownsOutgoing?: readonly OwnedReferenceDeclaration[];
 }
 
 export interface LinkTypeDescriptor extends TypeDescriptorMembers {
@@ -216,6 +229,13 @@ export interface BeadRecord {
   readonly type: AbsoluteHttpUrl;
   readonly revision: string;
   readonly properties: PropertiesRecord;
+  /**
+   * The owned-references plane: for each Link Type the Bead's declared Type
+   * owns, the target References of the owned links, pins included. Keyed by
+   * Link Type URL — never by label. Covered by `revision`; always served on
+   * the record read; absent when the Type owns nothing.
+   */
+  readonly references?: Readonly<Record<string, readonly Reference[]>>;
   readonly links?: LinkCollection;
 }
 
