@@ -289,7 +289,13 @@ function snapshotPreparedReferenceFixture(
   );
   const types = Object.freeze([...prepared.types]);
   const typeDescriptors = Object.freeze([...prepared.typeDescriptors]);
-  return Object.freeze({ beads, links, types, typeDescriptors });
+  return Object.freeze({
+    beads,
+    links,
+    types,
+    typeDescriptors,
+    ...(prepared.disclosures === undefined ? {} : { disclosures: prepared.disclosures }),
+  });
 }
 
 function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenceFixture {
@@ -429,11 +435,28 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       ),
     };
   });
+  // Disclosure subjects, kept in lockstep with the portable fixture's
+  // `disclosures` section: pruned answers with the pinned archive pointer,
+  // erased answers with nothing beyond its code.
+  const disclosures = new Map<string, ReadProblem>([
+    [
+      new URL("beads/pruned-relic", scope).href,
+      Object.freeze({
+        ...readProblem("resource-pruned"),
+        archivedAt: Object.freeze({
+          uri: "https://archive.example/acme/beads/pruned-relic",
+          revision: "arch-r4 (as-written)",
+        }) as unknown as Reference,
+      }),
+    ],
+    [new URL("beads/erased-relic", scope).href, readProblem("resource-erased")],
+  ]);
   return {
     beads,
     links,
     types,
     typeDescriptors,
+    disclosures,
   };
 }
 
