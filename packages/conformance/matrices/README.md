@@ -444,10 +444,10 @@ independently: any edit to either marker without a matching artifact fails
 the evidence gate closed. The cohort's required scenario IDs are derived from
 the bound catalog and its runs together cover both `bdptest` and `bdpbd`. A
 cohort is assembled from more than one run — a packaged run and a
-self-certified in-process run — so each run declares the rows it carries, and
-their union must be exactly the required set minus that target's derived
-not-applicable rows (the honest-absence rule below), with every carried row
-attributed to exactly one run. The cohort must bind the catalog, manifest, fixture,
+self-certified in-process run — so each run declares the rows it carries, and,
+for each target, their union must be exactly the required set minus that
+target's derived not-applicable rows (the honest-absence rule below), with
+every carried row attributed to exactly one run. The cohort must bind the catalog, manifest, fixture,
 canonical schema, validator, runner, harness, executor, installed payload,
 launched target process, fixture/workspace, and—for `bdpbd`—the actual `bd`
 executable. A missing, failing, or mismatched target closes the cohort for
@@ -491,8 +491,8 @@ The five decisions that previously blocked a non-null cohort were resolved
   below, derived and recomputed from committed bytes — anywhere else it
   closes the cohort. Per-target scores render split (`N pass / 0 other`),
   never as a bare ratio, so a non-pass state cannot hide inside one.
-- **Optional-capability variants.** The cohort covers exactly the reviewed
-  required rows and authors no absent-variant scenarios. The artifact carries an explicit
+- **Optional-capability variants.** The cohort accounts for every reviewed
+  required row and authors no absent-variant scenarios. The artifact carries an explicit
   `uncovered` list naming the absent-optional variant, so that gap is declared
   rather than left implicit.
 - **Evidence constant and closed-gate bootstrapping.** The constant is the cohort
@@ -516,8 +516,10 @@ The five decisions that previously blocked a non-null cohort were resolved
   names, body size and shape, and binding digests. It carries no header values,
   no body content, no body digests, and no target-derived instance paths.
 - **Admission bootstrapping.** Generation may be test-granted; closure may not.
-  See the decision above; the artifact records admission per row and
-  verification requires `packaged` for every row that is not self-certifiable.
+  See the decision above; the artifact records admission per carried row
+  (inapplicable rows live under `notApplicable` and carry none) and
+  verification requires `packaged` for every carried row that is not
+  self-certifiable.
 - **Row provenance and the self-certified set.** Decided 2026-08-17. Eight rows
   cannot be driven against a packaged target: they carry `lifecycle`-family
   actions that mutate target state mid-run, and the control headers
