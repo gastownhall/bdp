@@ -361,6 +361,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   const externalEndpointRevision = "  Cited-9F2c — α/β (draft) Å\t";
   const pinWitnessId = "urn:external:pin-witness";
   const citesWitnessId = "urn:external:cites-witness";
+  const collationWitnessId = "urn:external:collation-witness";
   const citesWitnessRevision = "w-1";
   const pinnedLocalRevision = "pin-a-r1 (as-written)";
   const links: LinkRecord[] = [
@@ -378,6 +379,10 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
     ["pinned-local", pinWitnessId, "demo-f", "Blocks"],
     ["cites-local", "demo-f", "demo-a", "Cites"],
     ["cites-witness", "demo-f", citesWitnessId, "Cites"],
+    // The collation witness: an uppercase localId that code-unit ordering
+    // places before every lowercase id, distinguishing the canonical-uri
+    // baseline from locale-style comparison.
+    ["ZZ-collation", collationWitnessId, "demo-f", "Blocks"],
   ].map(([id, source, target, typeName]) => {
     const localId = String(id);
     const resolveEndpoint = (name: string) => {
@@ -387,6 +392,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
           : name;
       if (name === pinWitnessId) return name;
       if (name === citesWitnessId) return { uri: name, revision: citesWitnessRevision } as const;
+      if (name === collationWitnessId) return name;
       const beadId = new URL(`beads/${name}`, scope).href;
       if (!beadById.has(beadId))
         throw new Error("reference Link endpoint does not name a reference Bead");

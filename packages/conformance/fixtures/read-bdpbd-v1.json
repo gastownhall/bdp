@@ -598,6 +598,67 @@
         "bead": "beads/demo-f"
       },
       "references": null
+    },
+    "ordering": {
+      "beads": [
+        ["beads/demo-a"],
+        ["beads/demo-b"],
+        ["beads/demo-c"],
+        ["beads/demo-d"],
+        ["beads/demo-e"],
+        ["beads/demo-f"],
+        ["beads/demo-i"],
+        ["beads/demo-j"],
+        ["beads/demo-k"]
+      ],
+      "links": [
+        ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1l/b64_ZGVtby1m/b64_cmVsYXRlZA"],
+        ["links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz"]
+      ],
+      "order": "canonical-uri",
+      "types": [
+        ["types/related"],
+        ["https://work.example/types/blocks"],
+        ["https://work.example/types/bug"],
+        ["https://work.example/types/chore"],
+        ["https://work.example/types/cites"],
+        ["https://work.example/types/decision"],
+        ["https://work.example/types/dependency"],
+        ["https://work.example/types/epic"],
+        ["https://work.example/types/feature"],
+        ["https://work.example/types/relates"],
+        ["https://work.example/types/relationship"],
+        ["https://work.example/types/task"],
+        ["https://work.example/types/tracked-item"],
+        ["https://work.example/types/work-item"]
+      ],
+      "links-type": [
+        ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz"]
+      ],
+      "demo-a-inbound": [
+        ["links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"]
+      ],
+      "demo-a-outbound": [["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"]],
+      "demo-a-both": [
+        ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"]
+      ]
     }
   },
   "expectations": {

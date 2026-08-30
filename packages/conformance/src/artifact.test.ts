@@ -515,7 +515,7 @@ describe("checked-in Read matrix artifacts", () => {
           external.localTarget,
         ],
         fixturePath,
-      ).toEqual(fixture.realization === "bdptest" ? [3, 3, 1, 2] : [1, 1, 1, 0]);
+      ).toEqual(fixture.realization === "bdptest" ? [4, 4, 1, 3] : [1, 1, 1, 0]);
       // The reference realization proves both spellings of the optional
       // endpoint pin: one external endpoint echoes a stored revision and
       // one omits the member. bd stores no pin, so bdpbd proves omission.
@@ -525,7 +525,7 @@ describe("checked-in Read matrix artifacts", () => {
         )
         .sort();
       expect(externalArities, fixturePath).toEqual(
-        fixture.realization === "bdptest" ? [1, 1, 2] : [1],
+        fixture.realization === "bdptest" ? [1, 1, 1, 2] : [1],
       );
 
       const restore = fixture.oracles["scope-restore"];
@@ -1698,7 +1698,7 @@ describe("checked-in Read matrix artifacts", () => {
     expect(arrayAssertions).not.toHaveLength(0);
     for (const { scenario, request, assertion } of arrayAssertions)
       expect(assertion.fixturePointer, `${scenario}:${request}:${assertion.id}`).toMatch(
-        /^\/oracles\/(?:collections|structural-predicates|incident-links|pagination)\//,
+        /^\/oracles\/(?:collections|structural-predicates|incident-links|pagination|ordering)\//,
       );
   });
 

@@ -731,7 +731,8 @@ describe("Read server contract", () => {
     {
       label: "Type inventory",
       operation: { kind: "collection", collection: "types", limit: 1 } as const,
-      items: ["task", "bug"].map((local) => ({
+      // Seeded pre-sorted: the authority serves canonical-uri order.
+      items: ["bug", "task"].map((local) => ({
         id: `https://work.example/types/${local}`,
         name: local,
         describes: "bead" as const,
@@ -975,6 +976,66 @@ describe("Read server contract", () => {
     ).rejects.toBeInstanceOf(ScopeServerOperationAbortedError);
     expect(requests).toEqual([]);
   });
+
+  it.each(["with", "without"] as const)(
+    "serves the canonical-uri order from a deliberately unsorted port %s read controls",
+    async (mode) => {
+      const unsorted = Object.freeze({
+        items: Object.freeze([
+          Object.freeze({
+            id: `${SCOPE}beads/b`,
+            type: "https://work.example/types/task",
+            revision: "1",
+            properties: {},
+          }),
+          Object.freeze({
+            id: `${SCOPE}beads/Z`,
+            type: "https://work.example/types/task",
+            revision: "1",
+            properties: {},
+          }),
+          Object.freeze({
+            id: `${SCOPE}beads/a`,
+            type: "https://work.example/types/task",
+            revision: "1",
+            properties: {},
+          }),
+        ]),
+        next: null,
+      });
+      const server = createReadServer({
+        scope: SCOPE,
+        target: "bdptest",
+        admittedProfile: admitReadServerProfile("read", "bdptest"),
+        port: { perform: async () => scopePortSuccess(unsorted) as never },
+        ...(mode === "with"
+          ? {
+              readControls: createPublicReadControls({
+                scope: SCOPE,
+                limits: {
+                  page: { defaultItems: 50, maximumItems: 200 },
+                  selector: { bytes: 16384, depth: 32, nodes: 256 },
+                  cursorTtlMilliseconds: 300000,
+                },
+              }),
+            }
+          : {}),
+      });
+      try {
+        const result = (await server.perform({ kind: "collection", collection: "beads" })) as {
+          readonly items: readonly { readonly id: string }[];
+        };
+        // Code-unit order: uppercase Z sorts before lowercase a and b.
+        expect(result.items.map(({ id }) => id)).toEqual([
+          `${SCOPE}beads/Z`,
+          `${SCOPE}beads/a`,
+          `${SCOPE}beads/b`,
+        ]);
+      } finally {
+        await server.close();
+      }
+    },
+  );
 
   it.each(["identity", "port"] as const)(
     "does not retain pagination state after aborting during late %s resolution",

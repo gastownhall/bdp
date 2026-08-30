@@ -184,6 +184,8 @@ export type ScenarioAssertion =
       readonly id: string;
       readonly kind: "json-array-tuples";
       readonly pointer: string;
+      /** Compare as an ordered sequence instead of the default multiset. */
+      readonly ordered?: true;
       readonly projections: readonly {
         readonly pointer: string;
         readonly normalize?:
@@ -199,6 +201,8 @@ export type ScenarioAssertion =
       readonly id: string;
       readonly kind: "json-array-tuples";
       readonly pointer: string;
+      /** Compare as an ordered sequence instead of the default multiset. */
+      readonly ordered?: true;
       readonly projections: readonly {
         readonly pointer: string;
         readonly normalize?:
@@ -355,6 +359,7 @@ const JSON_ARRAY_TUPLES_ASSERTION_KEYS = new Set([
   "id",
   "kind",
   "pointer",
+  "ordered",
   "projections",
   "equals",
   "fixturePointer",
@@ -1737,6 +1742,9 @@ function parseAssertions(
         };
     } else if (kind === "json-array-tuples") {
       reportUnknownKeys(candidate, JSON_ARRAY_TUPLES_ASSERTION_KEYS, assertionPath, issues);
+      const orderedValue = ownValue(candidate, "ordered");
+      if (orderedValue !== undefined && orderedValue !== true)
+        issues.push({ path: `${assertionPath}.ordered`, message: "must be true when present" });
       const pointer = readJsonPointer(
         ownValue(candidate, "pointer"),
         `${assertionPath}.pointer`,
@@ -1849,6 +1857,7 @@ function parseAssertions(
           id,
           kind,
           pointer,
+          ...(orderedValue === true ? { ordered: true as const } : {}),
           projections,
           ...(fixturePointer === undefined
             ? {

@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { StringDecoder } from "node:string_decoder";
 import {
+  compareCanonicalIds,
   type AbsoluteHttpUrl,
   referenceUri,
   type BeadCollectionRequest as BeadCollectionOperation,
@@ -648,8 +649,8 @@ function requireUniqueProjection(values: readonly string[], label: string): void
   if (new Set(values).size !== values.length) throw new Error(`bd projected duplicate ${label}`);
 }
 
-function compareResourceIds(a: { readonly id: string }, b: { readonly id: string }): number {
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+function compareResourceIds(left: { readonly id: string }, right: { readonly id: string }): number {
+  return compareCanonicalIds(left.id, right.id);
 }
 
 function projectBdReadyProperties(row: Readonly<Record<string, unknown>>): Record<string, unknown> {

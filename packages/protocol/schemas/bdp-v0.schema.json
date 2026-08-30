@@ -766,6 +766,9 @@
         "aliases": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
+        "order": {
+          "enum": ["canonical-uri"]
+        },
         "limits": {
           "$ref": "#/$defs/advertisedLimits"
         },

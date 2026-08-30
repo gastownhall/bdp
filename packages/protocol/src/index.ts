@@ -102,6 +102,8 @@ export interface ReadDiscovery {
    * Omitted by authorities without aliases (capability honesty).
    */
   readonly aliases?: AbsoluteHttpUrl;
+  /** The advertised collection order; omission means the canonical-uri baseline. */
+  readonly order?: "canonical-uri";
   readonly limits?: ReadAdvertisedLimits;
   readonly maximumEndpointMultiplicity?: readonly MaximumEndpointMultiplicityPolicy[];
 }
@@ -217,6 +219,15 @@ export interface PinnedReference {
 }
 
 export type Reference = AbsoluteUri | PinnedReference;
+
+/**
+ * The canonical-uri collection order comparator: ascending lexicographic
+ * comparison, by Unicode code unit, of absolute canonical ids. The single
+ * definition every layer sorts with.
+ */
+export function compareCanonicalIds(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
 
 /** The identity of a Reference: its URI without any pin. */
 export function referenceUri(reference: Reference): AbsoluteUri {

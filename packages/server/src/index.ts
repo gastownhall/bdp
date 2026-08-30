@@ -42,6 +42,7 @@ import {
   readProblem,
   readProblemDefinitionFor,
   assertCanonicalPathSegments,
+  compareCanonicalIds,
   resolveCanonicalLocalResourceId,
 } from "@bdp/protocol";
 import {
@@ -1704,7 +1705,16 @@ async function executeScopeRead<Operation extends ScopeReadOperation>(
   if (controls === undefined) {
     const result = await context.options.port.perform(operation, { signal: context.signal });
     assertReadNotAborted(context.signal);
-    return validateScopePortResult(operation, result, context.options.scope, validateBody);
+    const validated = validateScopePortResult(
+      operation,
+      result,
+      context.options.scope,
+      validateBody,
+    );
+    // The advertised canonical-uri order binds every collection response,
+    // with or without read controls: discovery always advertises it, so
+    // every path that can serve items must sort them.
+    return sortCollectionResult(operation, validated);
   }
 
   try {
@@ -1761,7 +1771,7 @@ async function executeScopeRead<Operation extends ScopeReadOperation>(
     const continuationUrl = continuationUrlFor(operation, context.options.scope);
     assertReadNotAborted(context.signal);
     return controls.pagination.firstPage({
-      items,
+      items: inCanonicalUriOrder(items as readonly { readonly id: string }[]) as typeof items,
       ...(operation.limit === undefined ? {} : { limit: operation.limit }),
       authorizationView: identity.authorizationView,
       scopeEpoch: identity.scopeEpoch,
@@ -1804,6 +1814,27 @@ type PageOperation =
   | LinkCollectionOperation
   | TypeInventoryOperation
   | BeadLinksOperation;
+
+/**
+ * The advertised `canonical-uri` collection order: ascending lexicographic
+ * comparison, by Unicode code unit, of each item's absolute canonical id.
+ * Applied by the authority before pagination so every page of one logical
+ * snapshot observes one total order.
+ */
+function inCanonicalUriOrder<Item extends { readonly id: string }>(
+  items: readonly Item[],
+): readonly Item[] {
+  return Object.freeze([...items].sort((left, right) => compareCanonicalIds(left.id, right.id)));
+}
+
+/** Applies the canonical-uri order to any successful collection-shaped result. */
+function sortCollectionResult(operation: ReadRequest, validated: unknown): unknown {
+  if (!isPageOperation(operation)) return validated;
+  if (isReadServerProblem(validated)) return validated;
+  const body = validated as { readonly items?: readonly { readonly id: string }[] };
+  if (!Array.isArray(body.items)) return validated;
+  return Object.freeze({ ...body, items: inCanonicalUriOrder(body.items) });
+}
 
 function isPageOperation(operation: ReadRequest): operation is PageOperation {
   return operation.kind === "collection" || operation.kind === "bead-links";
@@ -2463,6 +2494,7 @@ function discoveryFor(options: ServerOptions): ReadDiscovery {
     links: new URL("links/", options.scope).href,
     types: new URL("types/", options.scope).href,
     ...(options.aliases === undefined ? {} : { aliases: new URL("alias/", options.scope).href }),
+    order: "canonical-uri",
     ...(advertisedLimits === undefined
       ? {}
       : {

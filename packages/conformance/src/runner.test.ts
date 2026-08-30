@@ -1092,6 +1092,48 @@ describe("black-box conformance runner", () => {
     });
   });
 
+  it("compares ordered tuple sequences positionally while default mode stays a multiset", async () => {
+    const orderedAssertion = {
+      id: "sequence",
+      kind: "json-array-tuples",
+      pointer: "/items",
+      ordered: true,
+      projections: [{ pointer: "/id", normalize: "scope-relative-url" }],
+      equals: [["beads/a"], ["beads/b"]],
+    } as const;
+    const reversedItems = async () => ({
+      url: "https://scope.example/",
+      status: 200,
+      headers: { "content-type": "application/json" },
+      bodyText: JSON.stringify({
+        items: [{ id: "https://scope.example/beads/b" }, { id: "https://scope.example/beads/a" }],
+      }),
+    });
+    const orderedResult = await runConformanceMatrix({
+      ...inputs([orderedAssertion]),
+      scope: "https://scope.example/",
+      profile: "read",
+      seed: 0,
+      execute: reversedItems,
+      harness: harness(),
+    });
+    expect(orderedResult.scenarios[0]).toMatchObject({
+      state: "fail",
+      reason: "array tuples did not match the expected sequence",
+    });
+
+    const { ordered: _dropped, ...multisetAssertion } = orderedAssertion;
+    const multisetResult = await runConformanceMatrix({
+      ...inputs([multisetAssertion]),
+      scope: "https://scope.example/",
+      profile: "read",
+      seed: 0,
+      execute: reversedItems,
+      harness: harness(),
+    });
+    expect(multisetResult.scenarios[0]?.state).toBe("pass");
+  });
+
   it("distinguishes observable mismatches, setup failures, applicability, and cleanup failures", async () => {
     const failed = await runConformanceMatrix({
       ...inputs(),

@@ -24,6 +24,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-discovery-and-human-documentation",
           "selectedText": "`bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types` are required in every profile. `operations` is required in Read+Update and Transactional and prohibited in Read."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "The optional\n`order` member names the collection order under\n[Collection retrieval and selection](#collection-retrieval-and-selection);\nomission means the `canonical-uri` baseline."
         }
       ]
     },
@@ -218,6 +223,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#collection-retrieval-and-selection",
           "selectedText": "An ordinary `GET` of a discovered collection returns a paginated `items` array and a `next` URL."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "The baseline order every authority MUST support is\n`canonical-uri` — ascending lexicographic comparison, by Unicode code\nunit, of each item's absolute canonical `id`."
         }
       ]
     },
@@ -231,6 +241,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#collection-retrieval-and-selection",
           "selectedText": "The `beads/` and `links/` collections return complete Resource records; the `types/` collection returns Type summaries."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "The baseline order every authority MUST support is\n`canonical-uri` — ascending lexicographic comparison, by Unicode code\nunit, of each item's absolute canonical `id`."
         }
       ]
     },

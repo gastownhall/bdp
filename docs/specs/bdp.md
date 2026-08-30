@@ -1453,7 +1453,10 @@ optional `limits` and `maximumEndpointMultiplicity` members may appear in any
 profile when their contracts apply. The optional `aliases` member appears,
 in any profile, exactly when the authority serves alias resolution: an
 authority without aliases omits the member, and a client MUST NOT construct
-alias URLs for an authority that does not advertise it.
+alias URLs for an authority that does not advertise it. The optional
+`order` member names the collection order under
+[Collection retrieval and selection](#collection-retrieval-and-selection);
+omission means the `canonical-uri` baseline.
 
 | Member | Read | Read+Update | Transactional |
 | --- | --- | --- | --- |
@@ -1464,6 +1467,7 @@ alias URLs for an authority that does not advertise it.
 | `receipts`, `snapshot`, `changes`, `events` | prohibited | prohibited | required |
 | `limits`, `maximumEndpointMultiplicity` | optional | optional | optional |
 | `aliases` | optional | optional | optional |
+| `order` | optional | optional | optional |
 
 A minimum Read discovery representation is:
 
@@ -2852,7 +2856,21 @@ Link view is only a derived read.
 
 An ordinary `GET` of a discovered collection returns a paginated `items` array
 and a `next` URL. The `beads/` and `links/` collections return complete
-Resource records; the `types/` collection returns Type summaries. The
+Resource records; the `types/` collection returns Type summaries.
+
+Every collection response — filtered or not, including the Bead `links`
+view — is produced in one total order over the selected set, stable across
+the pages of one logical snapshot (the same snapshot the cursor rules
+bind). The order is an authority property named by the `order` discovery
+member, not per-request behavior: a caller cannot request a different
+order in BDP v0, and query-relevance ranking is consumer policy, never
+authority behavior. The baseline order every authority MUST support is
+`canonical-uri` — ascending lexicographic comparison, by Unicode code
+unit, of each item's absolute canonical `id`. It is total, cheap, and
+implementation-neutral. An authority advertising no `order` member serves
+the baseline; an authority MUST NOT serve any order it does not advertise.
+Two conformant authorities serving the same selected set under the same
+advertised order return the same item sequence. The
 collections accept these structural predicates:
 
 | Parameter | `beads/` | `links/` | `types/` | Meaning |
