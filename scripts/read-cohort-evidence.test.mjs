@@ -375,6 +375,7 @@ function genuineVerificationInput(artifact = minimalArtifact()) {
     artifactBytes,
     evidenceByTarget: { bdptest: constant, bdpbd: constant },
     requiredScenarioIds: REQUIRED_IDS,
+    derivedNotApplicableByTarget: {},
     derivedSelfCertifiable: ["read.scope.restore-identity"],
     expectedBdIdentity: { version: "1.0.5", schemaVersion: 1, observationsDigest: digest("ab") },
     gitFacts: {

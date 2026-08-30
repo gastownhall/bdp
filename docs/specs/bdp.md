@@ -547,13 +547,44 @@ equivalent non-reuse guarantee. A restore that cannot preserve that guarantee
 creates a different logical Scope and therefore uses a different canonical
 Scope URL.
 
+A Resource's canonical ID is established at creation and never changes. A
+creator MAY supply the local ID — one or more safe segments, so a memorable
+or hierarchical name is identity from birth — or omit it, in which case the
+authority allocates one. An authority-allocated local ID is a single opaque
+segment: hierarchy is a creator affordance, and an authority MUST NOT encode
+meaning into segments it mints. A supplied spelling that is not already
+canonical — a leading or trailing separator, an empty segment, or a
+noncanonical encoding — is rejected, never normalized: trimming would mint
+an identity the creator did not write.
+
 At a protocol boundary, BDP v0 assigns Beads and Links to exactly those two
 fixed top-level paths. The segments following `beads/` or `links/` are
 identity. They do not imply containment, collection membership, or a child
-Scope. No other Scope-relative path acquires Bead or Link semantics. Multiple
-roots of either kind, and a root that mixes Beads and Links, are deferred
-beyond v0. The protocol accepts documented local reference spellings as
-input, but it emits absolute canonical Resource URLs.
+Scope: `beads/foo/bar` implies nothing at `beads/foo`, and both may exist as
+unrelated Beads. No other Scope-relative path acquires Bead or Link
+semantics, except the alias root defined below. Multiple roots of either
+kind, and a root that mixes Beads and Links, are deferred beyond v0. The
+protocol accepts documented local reference spellings as input, but it
+emits absolute canonical Resource URLs.
+
+#### Aliases
+
+An **alias** is a repointable name for one in-Scope Bead, beneath the fixed
+`alias/` root: one or more safe segments under the same grammar as local
+IDs, so whether a URI names canonical identity or an alias is decidable
+from its spelling alone. An alias is not a Resource: it has no
+representation, no revision, and no collection membership. It targets a
+canonical Bead URL only — an alias MUST NOT target another alias, so
+resolution is always exactly one step. Unlike canonical segments, alias
+paths are repointable and, after deletion, reusable: an alias is a locator
+and carries no identity promise.
+
+A reference written using an alias is resolved to the canonical Bead URL
+when the authority admits the write; stored and served references are
+always canonical, so aliases never appear in Resource data. Alias creation,
+repointing, and deletion are mutation surface and are defined with the
+mutation profiles; serving alias resolution is Read surface, advertised
+through the `aliases` discovery member.
 
 Beads and Links are both **Resources**: each has identity, a representation,
 and uniform operations. Authorization is separate from identity and typing.
@@ -1419,7 +1450,10 @@ discovery document depends on the claimed profile. `bdpVersion`, `profile`,
 Read. The history, receipt, snapshot, changefeed, and Event members are
 required only in Transactional and prohibited in both lower profiles. The
 optional `limits` and `maximumEndpointMultiplicity` members may appear in any
-profile when their contracts apply.
+profile when their contracts apply. The optional `aliases` member appears,
+in any profile, exactly when the authority serves alias resolution: an
+authority without aliases omits the member, and a client MUST NOT construct
+alias URLs for an authority that does not advertise it.
 
 | Member | Read | Read+Update | Transactional |
 | --- | --- | --- | --- |
@@ -1429,6 +1463,7 @@ profile when their contracts apply.
 | `scopeEpoch`, `authorizationView`, `headPosition`, `minimumReplayPosition` | prohibited | prohibited | required |
 | `receipts`, `snapshot`, `changes`, `events` | prohibited | prohibited | required |
 | `limits`, `maximumEndpointMultiplicity` | optional | optional | optional |
+| `aliases` | optional | optional | optional |
 
 A minimum Read discovery representation is:
 
@@ -1508,7 +1543,8 @@ advertise an additional Bead or Link root, mix both Resource kinds beneath
 one root, or let the fixed roots of separately described Scopes overlap.
 For the canonical Scope URL `S`, `beads` MUST equal the URL produced by
 resolving `beads/` against `S`, `links` MUST equal `links/` resolved against
-`S`, and `types` MUST equal `types/` resolved against `S`.
+`S`, and `types` MUST equal `types/` resolved against `S`. When present,
+`aliases` MUST equal `alias/` resolved against `S`.
 
 A local Bead ID has the form `beads/{id-path}`, and a local Link ID has the
 form `links/{id-path}`. In both, `{id-path}` contains one or more nonempty
@@ -1907,6 +1943,25 @@ hierarchical Resource ID. BDP reserves `view`, `include`, and the parameters
 defined for each view or aggregate on Bead and Link URLs. An unsupported
 view, include, or parameter that is not defined for the selected request is
 an error, not an instruction to ignore that parameter.
+### Alias resolution
+
+When discovery advertises `aliases`, a `GET` or `HEAD` of an alias URL —
+`alias/{alias-path}` resolved against the canonical Scope URL — returns
+`307 Temporary Redirect` with `Location` set to the target's absolute
+canonical Bead URL and no body. Resolution is redirect-only: an authority
+MUST NOT serve a Resource representation at an alias URL, which would give
+one Resource a second address. `HEAD` makes resolution a body-less
+primitive. The status is temporary by design: aliases repoint.
+
+An unknown alias, an alias URL carrying a query or fragment, and any alias
+URL at an authority that does not advertise `aliases` return the same `404`
+`resource-not-found` used for unknown Resources, under the same
+authorization projection: aliases are not an enumeration oracle. Alias
+resolution never follows chains, because an alias targets only a canonical
+Bead URL. The redirect target is subject to ordinary Resource authorization
+when the client follows it; resolution itself asserts nothing about the
+target's readability.
+
 ### Reads after deletion
 
 After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a

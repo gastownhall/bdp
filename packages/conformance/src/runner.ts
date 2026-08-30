@@ -441,7 +441,6 @@ async function runScenario(
       prepareDeadline.clear();
     }
     validateFixturePreparation(preparation, options.artifactBundle.fixture, options.scope);
-    validateScenarioBindingFlow(scenario, preparation.bindings ?? {}, options.scope);
     const capabilities = new Set(preparation.capabilities);
     const missingSetup = scenario.setup.requires.filter(
       (capability) => !capabilities.has(capability),
@@ -449,6 +448,10 @@ async function runScenario(
     const missingApplicability = scenario.applicability.requires.filter(
       (capability) => !capabilities.has(capability),
     );
+    // An inapplicable scenario must not demand its bindings: the gate runs
+    // before binding-flow validation so honest absence is not a harness error.
+    if (missingSetup.length === 0 && missingApplicability.length === 0)
+      validateScenarioBindingFlow(scenario, preparation.bindings ?? {}, options.scope);
     if (missingSetup.length > 0) {
       runResult = result(
         metadata,
@@ -1122,6 +1125,22 @@ function evaluateAssertion(
         actual === assertion.equals,
         `header '${assertion.name}' did not equal the expected value`,
       );
+    if (assertion.equalsBinding !== undefined) {
+      const bound = (fixture.bindings as Readonly<Record<string, unknown>>)[
+        assertion.equalsBinding
+      ];
+      if (typeof bound !== "string")
+        throw new ConformanceRunnerError(
+          `header assertion '${assertion.id}' references unknown binding '${assertion.equalsBinding}'`,
+        );
+      const expected = isHttpUrl(bound) ? new URL(bound).href : new URL(bound, scope).href;
+      assertConfinedToScope(expected, scope, `header assertion '${assertion.id}' binding`);
+      return outcome(
+        assertion.id,
+        actual === expected,
+        `header '${assertion.name}' did not equal the bound canonical URL`,
+      );
+    }
     return outcome(
       assertion.id,
       actual?.includes(assertion.contains as string) === true,

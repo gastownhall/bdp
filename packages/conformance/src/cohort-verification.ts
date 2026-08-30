@@ -38,6 +38,14 @@ export interface ReadCohortVerificationInput {
   readonly evidenceByTarget: Readonly<Partial<Record<ReadCohortTarget, string | undefined>>>;
   /** The required scenario set, derived from the bound catalog by the caller. */
   readonly requiredScenarioIds: readonly string[];
+  /**
+   * Per target, the rows the bound manifest gates on capabilities that
+   * target's committed fixture does not declare — derived by the gate from
+   * committed bytes, never trusted from the artifact.
+   */
+  readonly derivedNotApplicableByTarget: Readonly<
+    Record<string, readonly { scenarioId: string; missingCapabilities: readonly string[] }[]>
+  >;
   /** The self-certifiable set derived independently from the bound manifest. */
   readonly derivedSelfCertifiable: readonly string[];
   /**
@@ -92,7 +100,15 @@ const ROOT_KEYS = new Set([
   "targets",
 ]);
 const UNCOVERED_KEYS = new Set(["scenarioId", "variant", "reason"]);
-const TARGET_KEYS = new Set(["target", "scores", "packagedRows", "selfCertifiedRows", "segments"]);
+const TARGET_KEYS = new Set([
+  "target",
+  "scores",
+  "packagedRows",
+  "selfCertifiedRows",
+  "notApplicable",
+  "segments",
+]);
+const NOT_APPLICABLE_KEYS = new Set(["scenarioId", "missingCapabilities"]);
 const SCORES_KEYS = new Set(["pass", "other"]);
 const SEGMENT_KEYS = new Set([
   "admission",
@@ -404,7 +420,44 @@ export function verifyReadCohortEvidence(input: ReadCohortVerificationInput): vo
       }
     }
 
+    // Honest absence: the artifact's recorded not-applicable rows must equal
+    // the set the gate derived from the committed manifest and this target's
+    // committed fixture — element for element — and no recorded-inapplicable
+    // row may also be claimed.
+    const derivedNotApplicable = input.derivedNotApplicableByTarget[targetName] ?? [];
+    const recordedNotApplicable = array(
+      entry.notApplicable ?? [],
+      `target '${targetName}' notApplicable`,
+    ).map((row) => closedRecord(row, NOT_APPLICABLE_KEYS, `target '${targetName}' notApplicable`));
+    if (recordedNotApplicable.length !== derivedNotApplicable.length) {
+      throw new ReadCohortVerificationError(
+        `target '${targetName}' notApplicable rows do not match the committed manifest and fixture`,
+      );
+    }
+    for (const [index, derived] of derivedNotApplicable.entries()) {
+      const recorded = recordedNotApplicable[index];
+      const recordedId = requireString(recorded?.scenarioId, "notApplicable scenarioId");
+      const recordedMissing = array(
+        recorded?.missingCapabilities,
+        "notApplicable missingCapabilities",
+      ).map((value) => requireString(value, "notApplicable capability"));
+      if (
+        recordedId !== derived.scenarioId ||
+        !sameSorted(recordedMissing, [...derived.missingCapabilities].sort())
+      ) {
+        throw new ReadCohortVerificationError(
+          `target '${targetName}' notApplicable rows do not match the committed manifest and fixture`,
+        );
+      }
+      if (claimed.has(recordedId)) {
+        throw new ReadCohortVerificationError(
+          `target '${targetName}' claims row '${recordedId}' despite a missing applicability capability`,
+        );
+      }
+    }
+    const notApplicableIds = new Set(derivedNotApplicable.map(({ scenarioId }) => scenarioId));
     for (const id of input.requiredScenarioIds) {
+      if (notApplicableIds.has(id)) continue;
       if (!claimed.has(id)) {
         throw new ReadCohortVerificationError(
           `target '${targetName}' is missing required row '${id}'; absent closes the cohort`,

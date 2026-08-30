@@ -100,6 +100,8 @@ export type ScenarioAssertion =
       readonly kind: "header";
       readonly name: string;
       readonly equals?: string;
+      /** Expected value resolved from a fixture binding as an absolute in-Scope URL. */
+      readonly equalsBinding?: string;
       readonly contains?: string;
       readonly absent?: boolean;
     }
@@ -298,7 +300,15 @@ const RESPONSE_URL_CAPTURE_KEYS = new Set(["kind"]);
 const HEADER_LINK_CAPTURE_KEYS = new Set(["kind", "rel"]);
 const JSON_POINTER_CAPTURE_KEYS = new Set(["kind", "pointer"]);
 const STATUS_ASSERTION_KEYS = new Set(["id", "kind", "equals", "oneOf"]);
-const HEADER_ASSERTION_KEYS = new Set(["id", "kind", "name", "equals", "contains", "absent"]);
+const HEADER_ASSERTION_KEYS = new Set([
+  "id",
+  "kind",
+  "name",
+  "equals",
+  "equalsBinding",
+  "contains",
+  "absent",
+]);
 const HEADER_TOKENS_ASSERTION_KEYS = new Set([
   "id",
   "kind",
@@ -1312,9 +1322,10 @@ function parseAssertions(
       reportUnknownKeys(candidate, HEADER_ASSERTION_KEYS, assertionPath, issues);
       const name = ownValue(candidate, "name");
       const equalsValue = ownValue(candidate, "equals");
+      const equalsBindingValue = ownValue(candidate, "equalsBinding");
       const containsValue = ownValue(candidate, "contains");
       const absentValue = ownValue(candidate, "absent");
-      const alternatives = [equalsValue, containsValue, absentValue].filter(
+      const alternatives = [equalsValue, equalsBindingValue, containsValue, absentValue].filter(
         (entry) => entry !== undefined,
       );
       if (typeof name !== "string" || !HEADER_PATTERN.test(name) || name !== name.toLowerCase())
@@ -1325,10 +1336,13 @@ function parseAssertions(
       if (alternatives.length !== 1)
         issues.push({
           path: assertionPath,
-          message: "header assertion must choose exactly one of equals, contains, or absent",
+          message:
+            "header assertion must choose exactly one of equals, equalsBinding, contains, or absent",
         });
       else if (equalsValue !== undefined && typeof equalsValue !== "string")
         issues.push({ path: `${assertionPath}.equals`, message: "must be a string" });
+      else if (equalsBindingValue !== undefined && typeof equalsBindingValue !== "string")
+        issues.push({ path: `${assertionPath}.equalsBinding`, message: "must be a string" });
       else if (containsValue !== undefined && typeof containsValue !== "string")
         issues.push({ path: `${assertionPath}.contains`, message: "must be a string" });
       else if (absentValue !== undefined && typeof absentValue !== "boolean")
@@ -1339,6 +1353,7 @@ function parseAssertions(
           kind,
           name,
           ...(equalsValue === undefined ? {} : { equals: equalsValue }),
+          ...(equalsBindingValue === undefined ? {} : { equalsBinding: equalsBindingValue }),
           ...(containsValue === undefined ? {} : { contains: containsValue }),
           ...(absentValue === undefined ? {} : { absent: absentValue }),
         };

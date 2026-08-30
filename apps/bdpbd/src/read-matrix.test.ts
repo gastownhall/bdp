@@ -523,6 +523,19 @@ setTimeout(() => process.exit(0), 1500);
         const resultsById = new Map(result.scenarios.map((scenario) => [scenario.id, scenario]));
         for (const plan of artifactBundle.manifest.scenarios) {
           const observed = resultsById.get(plan.id);
+          const declared = new Set(
+            (artifactBundle.fixture as { readonly capabilities?: readonly string[] })
+              .capabilities ?? [],
+          );
+          const inapplicable = (plan.applicability?.requires ?? []).filter(
+            (capability) => !declared.has(capability),
+          );
+          if (inapplicable.length > 0) {
+            expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
+              state: "not-applicable",
+            });
+            continue;
+          }
           expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
             state: "pass",
           });

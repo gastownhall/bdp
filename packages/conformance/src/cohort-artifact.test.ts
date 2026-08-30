@@ -128,6 +128,7 @@ const bdptestTarget: ReadCohortTargetInput = {
   run: run(),
   bindings,
   admission: "packaged",
+  capabilities: [],
   rows: ALL_ROWS,
 };
 
@@ -137,6 +138,7 @@ const bdpbdTarget: ReadCohortTargetInput = {
   bindings: { ...bindings, bdExecutable: BD_DIGEST },
   bdIdentity: { version: "1.0.5", schemaVersion: 1, observationsDigest: BD_OBSERVATIONS },
   admission: "packaged",
+  capabilities: [],
   rows: ALL_ROWS,
 };
 
@@ -172,6 +174,7 @@ function splitTarget(target: "bdptest" | "bdpbd"): [ReadCohortTargetInput, ReadC
           }
         : {}),
       admission: "packaged",
+      capabilities: [],
       rows: ["read.a"],
     },
     {
@@ -184,6 +187,7 @@ function splitTarget(target: "bdptest" | "bdpbd"): [ReadCohortTargetInput, ReadC
           }
         : {}),
       admission: "in-process",
+      capabilities: [],
       rows: ["read.b"],
     },
   ];
@@ -250,6 +254,7 @@ describe("read cohort artifact", () => {
           }
         : {}),
       admission: "in-process",
+      capabilities: [],
       rows: ALL_ROWS,
     });
     expect(() =>
@@ -367,6 +372,7 @@ describe("read cohort artifact", () => {
       }),
       bindings: { ...leanBindings, fixture: other },
       admission: "in-process",
+      capabilities: [],
       rows: ["read.b"],
     };
 

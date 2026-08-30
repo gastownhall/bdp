@@ -83,6 +83,42 @@ export function createReferenceFixturePort(scope: AbsoluteHttpUrl): ScopePort {
   return createPreparedReferenceFixturePort(createBuiltInReferenceFixture(scope));
 }
 
+/**
+ * The built-in reference domain's alias table: repointable names resolved
+ * by the shipping bdptest server with one 307. Kept in lockstep with the
+ * portable fixture's `aliases` section.
+ */
+export function referenceFixtureAliases(
+  scope: AbsoluteHttpUrl,
+): Readonly<Record<string, AbsoluteHttpUrl>> {
+  return Object.freeze({
+    decision: new URL("beads/demo-f", scope).href,
+    "releases/latest": new URL("beads/demo-a", scope).href,
+  });
+}
+
+/**
+ * Reads and validates the portable fixture's optional `aliases` section:
+ * relative alias path -> relative canonical Bead ID, returned as the
+ * absolute table the server consumes. Undefined when the fixture declares
+ * no aliases.
+ */
+export function portableReferenceFixtureAliases(
+  scope: AbsoluteHttpUrl,
+  fixture: unknown,
+): Readonly<Record<string, AbsoluteHttpUrl>> | undefined {
+  const record = readRecord(fixture, "fixture");
+  const aliases = record.aliases;
+  if (aliases === undefined) return undefined;
+  const entries = readRecord(aliases, "fixture.aliases");
+  const table: Record<string, AbsoluteHttpUrl> = {};
+  for (const [path, target] of Object.entries(entries)) {
+    const id = readNonemptyString(target, `fixture.aliases['${path}']`);
+    table[path] = new URL(id, scope).href;
+  }
+  return Object.freeze(table);
+}
+
 /** Constructs a target from the exact portable fixture bound into a conformance run. */
 export function createPortableReferenceFixturePort(
   scope: AbsoluteHttpUrl,

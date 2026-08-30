@@ -111,6 +111,13 @@ export interface ServerOptions {
   /** Binding Read bounds emitted by Scope discovery when supplied. */
   readonly advertisedLimits?: ServerAdvertisedReadLimits;
   readonly serviceDescription?: AbsoluteHttpUrl;
+  /**
+   * The alias table: repointable names beneath `alias/` (relative
+   * one-or-more-segment paths) mapped to canonical in-Scope Bead URLs.
+   * Resolution is redirect-only (307 + Location, no body); an authority
+   * without aliases omits this and the discovery member together.
+   */
+  readonly aliases?: Readonly<Record<string, AbsoluteHttpUrl>>;
   /** Grace period for admitted Read operations before close forwards cancellation. */
   readonly closeGraceMs?: number;
   /** Total close bound after which an unsettled Scope port is explicitly abandoned. */
@@ -269,6 +276,8 @@ export class ScopeServerOperationAbortedError extends ScopeServerLocalError {
 
 export interface ReadServer {
   readonly scope: AbsoluteHttpUrl;
+  /** Validated alias table (relative alias path -> canonical Bead URL); undefined when the authority serves no aliases. */
+  readonly aliases?: ReadonlyMap<string, AbsoluteHttpUrl>;
   perform<Request extends ReadRequest>(
     request: Request,
     options?: PerformOptions,
@@ -796,6 +805,14 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
           ? problemResponse(discovery)
           : jsonResponse(discovery);
       }
+      const aliasTarget = resolveAliasPath(url, server.scope, server.aliases);
+      if (aliasTarget !== undefined) {
+        if (isReadProblem(aliasTarget)) return problemResponse(aliasTarget);
+        return {
+          status: 307,
+          headers: new Headers({ location: aliasTarget, "content-length": "0" }),
+        };
+      }
       const parsed = requestFromUrl(url, server.scope);
       if (isReadProblem(parsed)) return problemResponse(parsed);
       const result = await server.perform(parsed, {
@@ -1152,6 +1169,7 @@ const SERVER_OPTION_FIELDS = [
   "readControls",
   "advertisedLimits",
   "serviceDescription",
+  "aliases",
   "closeGraceMs",
   "closeTimeoutMs",
 ] as const;
@@ -1178,6 +1196,13 @@ function snapshotServerOptions(value: ServerOptions): ServerOptions {
     port: snapshotScopePort(fields.port),
     ...(readControls === undefined ? {} : { readControls }),
     ...(advertisedLimits === undefined ? {} : { advertisedLimits }),
+    ...(fields.aliases === undefined
+      ? {}
+      : {
+          aliases: Object.freeze({
+            ...(fields.aliases as Readonly<Record<string, AbsoluteHttpUrl>>),
+          }),
+        }),
     ...(fields.serviceDescription === undefined
       ? {}
       : { serviceDescription: fields.serviceDescription as AbsoluteHttpUrl }),
@@ -1343,12 +1368,14 @@ export function createReadServer(options: ServerOptions): ReadServer {
   if (readControls !== undefined) boundServerReadPaginations.add(readControls.pagination);
   const admitted = new Set<Promise<unknown>>();
   const closing = new AbortController();
+  const aliasTable = validateAliasTable(options.aliases, options.scope);
   const discovery = Object.freeze(discoveryFor(options));
   let state: "open" | "closing" | "closed" = "open";
   let closePromise: Promise<void> | undefined;
 
   const server: ReadServer = {
     scope: options.scope,
+    ...(aliasTable === undefined ? {} : { aliases: aliasTable }),
 
     probe(): Promise<ScopeProbe> {
       if (state !== "open") return Promise.reject(new ScopeServerClosedError());
@@ -2347,6 +2374,63 @@ function hasOnlyVariantFields(
   );
 }
 
+/**
+ * Validates the alias table at composition time, fail-closed: every alias
+ * path is one-or-more canonical safe segments (the Resource-ID grammar),
+ * and every target is a canonical in-Scope Bead URL. Alias-to-alias is
+ * structurally impossible because targets must live beneath `beads/`.
+ */
+function validateAliasTable(
+  aliases: Readonly<Record<string, AbsoluteHttpUrl>> | undefined,
+  scope: AbsoluteHttpUrl,
+): ReadonlyMap<string, AbsoluteHttpUrl> | undefined {
+  if (aliases === undefined) return undefined;
+  const table = new Map<string, AbsoluteHttpUrl>();
+  for (const [path, target] of Object.entries(aliases)) {
+    const canonicalAliasUrl = new URL(`alias/${path}`, scope).href;
+    if (canonicalAliasUrl !== `${scope}alias/${path}`)
+      throw new TypeError(`alias path is not canonical: ${path}`);
+    validateServerLocalResourceUrlPath(canonicalAliasUrl, scope);
+    const canonicalTarget = resolveCanonicalLocalResourceId(
+      scope,
+      "bead",
+      target.startsWith(scope) ? target.slice(scope.length) : target,
+    );
+    if (canonicalTarget !== target)
+      throw new TypeError(`alias target is not a canonical in-Scope Bead URL: ${target}`);
+    table.set(path, target);
+  }
+  return table;
+}
+
+function validateServerLocalResourceUrlPath(url: string, scope: AbsoluteHttpUrl): void {
+  const relative = url.slice(scope.length);
+  const segments = relative.split("/");
+  if (segments.some((segment) => segment.length === 0))
+    throw new TypeError(`alias path has an empty segment: ${relative}`);
+}
+
+/**
+ * Alias resolution: returns undefined when the URL is not beneath the alias
+ * root, the canonical Location for a known alias, and the uniform 404
+ * problem for an unknown one. Redirect-only — the representation is never
+ * served at the alias URL.
+ */
+function resolveAliasPath(
+  url: URL,
+  scope: AbsoluteHttpUrl,
+  aliases: ReadonlyMap<string, AbsoluteHttpUrl> | undefined,
+): AbsoluteHttpUrl | ReadProblem | undefined {
+  const scopeUrl = new URL(scope);
+  if (url.origin !== scopeUrl.origin) return undefined;
+  const aliasRoot = `${scopeUrl.pathname}alias/`;
+  if (!url.pathname.startsWith(aliasRoot)) return undefined;
+  if (url.search !== "" || url.hash !== "") return notFound();
+  const path = url.pathname.slice(aliasRoot.length);
+  if (path.length === 0) return notFound();
+  return aliases?.get(path) ?? notFound();
+}
+
 function discoveryFor(options: ServerOptions): ReadDiscovery {
   const advertisedLimits = options.advertisedLimits;
   const discovery = {
@@ -2356,6 +2440,7 @@ function discoveryFor(options: ServerOptions): ReadDiscovery {
     beads: new URL("beads/", options.scope).href,
     links: new URL("links/", options.scope).href,
     types: new URL("types/", options.scope).href,
+    ...(options.aliases === undefined ? {} : { aliases: new URL("alias/", options.scope).href }),
     ...(advertisedLimits === undefined
       ? {}
       : {

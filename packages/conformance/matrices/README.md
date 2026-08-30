@@ -549,3 +549,19 @@ server unchallenged.
 Exact-head CI, whole-branch adversarial review, and tree-equality proof
 remain final gates; none has been satisfied merely by reaching the executable
 plan count.
+
+
+### Honest absence: capability-gated rows
+
+A catalog scenario whose manifest plan carries `applicability.requires` runs
+only against a target whose bound fixture declares every named capability. A
+target whose fixture does not is recorded in the cohort artifact's per-target
+`notApplicable` list — scenario id plus the missing capabilities — and
+contributes no row for that scenario. The list is derived, never supplied:
+the generator computes it from the bound manifest and each target's bound
+fixture, and the evidence gate recomputes it from the committed bytes and
+refuses an artifact whose recorded list differs, whose inapplicable row is
+also claimed, or whose scores count an inapplicable row as pass. Honest
+absence is not coverage: a capability-gated row proves nothing about the
+target that lacks the capability, and the artifact says so instead of
+hiding it.

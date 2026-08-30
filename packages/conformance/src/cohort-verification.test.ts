@@ -103,6 +103,7 @@ function inputFor(
     artifactBytes: bytes,
     evidenceByTarget: { bdptest: constant, bdpbd: constant },
     requiredScenarioIds: REQUIRED,
+    derivedNotApplicableByTarget: {},
     derivedSelfCertifiable: SELF_CERTIFIABLE,
     expectedBdIdentity: bdIdentity,
     runHeadIsAncestor: true,

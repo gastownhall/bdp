@@ -5505,6 +5505,125 @@
       "cleanup": {
         "resetFixture": true
       }
+    },
+    {
+      "id": "read.alias.resolution",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": ["alias-resolution-v1"]
+      },
+      "requests": [
+        {
+          "id": "alias-get",
+          "method": "GET",
+          "target": {
+            "binding": "alias.decision"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "redirect",
+              "kind": "status",
+              "equals": 307
+            },
+            {
+              "id": "location",
+              "kind": "header",
+              "name": "location",
+              "equalsBinding": "bead.demo-f"
+            },
+            {
+              "id": "no-body",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "alias-nested-get",
+          "method": "GET",
+          "target": {
+            "binding": "alias.releases-latest"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "redirect",
+              "kind": "status",
+              "equals": 307
+            },
+            {
+              "id": "location",
+              "kind": "header",
+              "name": "location",
+              "equalsBinding": "bead.demo-a"
+            },
+            {
+              "id": "no-body",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "alias-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "alias.decision"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "redirect",
+              "kind": "status",
+              "equals": 307
+            },
+            {
+              "id": "location",
+              "kind": "header",
+              "name": "location",
+              "equalsBinding": "bead.demo-f"
+            },
+            {
+              "id": "no-body",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "alias-unknown",
+          "method": "GET",
+          "target": {
+            "binding": "alias.unknown"
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "missing",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "problem-code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
     }
   ]
 }

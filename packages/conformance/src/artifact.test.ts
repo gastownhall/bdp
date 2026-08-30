@@ -238,10 +238,10 @@ describe("checked-in Read matrix artifacts", () => {
     const manifestIdList = manifest.scenarios.map(({ id }) => id);
     const catalogIds = new Set(catalogIdList);
     const manifestIds = new Set(manifestIdList);
-    expect(catalog.scenarios).toHaveLength(33);
-    expect(manifest.scenarios).toHaveLength(33);
-    expect(catalogIds.size).toBe(33);
-    expect(manifestIds.size).toBe(33);
+    expect(catalog.scenarios).toHaveLength(34);
+    expect(manifest.scenarios).toHaveLength(34);
+    expect(catalogIds.size).toBe(34);
+    expect(manifestIds.size).toBe(34);
     expect([...manifestIds].sort()).toEqual([...catalogIds].sort());
     expect(manifest.catalogId).toBe("read-v1");
     expect(manifest.scenarios.every(({ id }) => catalogIds.has(id))).toBe(true);
@@ -279,6 +279,7 @@ describe("checked-in Read matrix artifacts", () => {
       "read.cross.reference-equivalence",
       "read.scope.restore-identity",
       "read.resource.external-endpoint",
+      "read.alias.resolution",
     ]);
   });
 

@@ -1,4 +1,5 @@
 import {
+  type AbsoluteHttpUrl,
   type ReadBodyFor,
   type ReadProblem,
   type ReadRequest,
@@ -32,6 +33,74 @@ import {
 } from "./index.js";
 
 const SCOPE = "https://beads.example/acme/";
+
+describe("alias resolution", () => {
+  const scope = "https://scope.example/acme/" as AbsoluteHttpUrl;
+  const port: ScopePort = {
+    perform: () => Promise.reject(new Error("alias tests never reach the port")),
+  };
+  function aliasServer(aliases?: Readonly<Record<string, AbsoluteHttpUrl>>) {
+    return createReadServer({
+      scope,
+      target: "bdptest",
+      admittedProfile: admitReadServerProfile("read", "bdptest"),
+      port,
+      ...(aliases === undefined ? {} : { aliases }),
+    });
+  }
+  const table = Object.freeze({
+    decision: `${scope}beads/demo-f` as AbsoluteHttpUrl,
+    "releases/latest": `${scope}beads/demo-a` as AbsoluteHttpUrl,
+  });
+  const request = (url: string, method: "GET" | "HEAD" = "GET") => new Request(url, { method });
+
+  it("redirects GET and HEAD with one 307 to the canonical Bead URL, bodiless", async () => {
+    const handler = createHttpHandler(aliasServer(table));
+    for (const method of ["GET", "HEAD"] as const) {
+      const response = await handler(request(`${scope}alias/decision`, method));
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(`${scope}beads/demo-f`);
+      expect(response.body).toBeUndefined();
+    }
+    const nested = await handler(request(`${scope}alias/releases/latest`));
+    expect(nested.status).toBe(307);
+    expect(nested.headers.get("location")).toBe(`${scope}beads/demo-a`);
+  });
+
+  it("returns the uniform 404 for unknown aliases, query-bearing alias URLs, and alias-less authorities", async () => {
+    const handler = createHttpHandler(aliasServer(table));
+    for (const url of [
+      `${scope}alias/never-created`,
+      `${scope}alias/decision?x=1`,
+      `${scope}alias/`,
+    ]) {
+      const response = await handler(request(url));
+      expect(response.status, url).toBe(404);
+    }
+    const bare = createHttpHandler(aliasServer());
+    const response = await bare(request(`${scope}alias/decision`));
+    expect(response.status).toBe(404);
+  });
+
+  it("advertises the alias root exactly when an alias table is composed", async () => {
+    const discovery = await aliasServer(table).perform({
+      kind: "scope-discovery",
+      scope,
+    });
+    expect((discovery as { aliases?: string }).aliases).toBe(`${scope}alias/`);
+    const bare = await aliasServer().perform({ kind: "scope-discovery", scope });
+    expect((bare as { aliases?: string }).aliases).toBeUndefined();
+  });
+
+  it("refuses composition with a noncanonical alias path or a non-Bead target", () => {
+    expect(() => aliasServer({ "bad//path": `${scope}beads/demo-f` as AbsoluteHttpUrl })).toThrow();
+    expect(() => aliasServer({ ok: `${scope}links/demo-b-a` as AbsoluteHttpUrl })).toThrow();
+    expect(() => aliasServer({ ok: `${scope}alias/other` as AbsoluteHttpUrl })).toThrow();
+    expect(() =>
+      aliasServer({ ok: "https://elsewhere.example/beads/x" as AbsoluteHttpUrl }),
+    ).toThrow();
+  });
+});
 
 describe("Read server contract", () => {
   let withdrawBdptestEvidence: () => void;

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   createPortableReferenceFixturePort,
+  portableReferenceFixtureAliases,
   createReferenceFixturePort,
   type ScopePort,
   type ScopeReadOperation,
@@ -245,6 +246,19 @@ describe("bdptest reference target Read matrix", () => {
       const resultsById = new Map(result.scenarios.map((scenario) => [scenario.id, scenario]));
       for (const plan of artifactBundle.manifest.scenarios) {
         const observed = resultsById.get(plan.id);
+        const declared = new Set(
+          (artifactBundle.fixture as { readonly capabilities?: readonly string[] }).capabilities ??
+            [],
+        );
+        const inapplicable = (plan.applicability?.requires ?? []).filter(
+          (capability) => !declared.has(capability),
+        );
+        if (inapplicable.length > 0) {
+          expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
+            state: "not-applicable",
+          });
+          continue;
+        }
         expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
           state: "pass",
         });
@@ -292,6 +306,7 @@ async function startReferenceSession(
   releaseControlledSession: () => void = () => undefined,
 ) {
   const faultingResource = new URL(requireBinding(fixture, "bead.demo-a"), scope).href;
+  const fixtureAliases = portableReferenceFixtureAliases(scope, fixture);
   const faultPort = injectInternalFault
     ? createReadResourceFaultPortForTesting(port, {
         resource: "bead",
@@ -330,6 +345,7 @@ async function startReferenceSession(
       target: "bdptest",
       admittedProfile: admitReadServerProfile("read", "bdptest"),
       port: controlled?.port ?? sessionPort,
+      ...(fixtureAliases === undefined ? {} : { aliases: fixtureAliases }),
       advertisedLimits: advertisedLimitsFor(readControls),
       readControls,
     });
