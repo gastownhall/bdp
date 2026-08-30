@@ -62,6 +62,15 @@ here rather than being invented by an implementation.
   canonical Bead URL only, never another alias. An unknown alias returns
   the same `404` `resource-not-found` as an unknown Resource. An authority
   without aliases omits the `aliases` discovery member.
+- **PROTO-013**: The disclosure vocabulary is three sibling `410`
+  conditions — `event-history-expired`, `resource-pruned`, and
+  `resource-erased` — gated on the single retained-history authorization.
+  A `resource-pruned` problem MAY carry one `archivedAt` Reference,
+  echoed and never validated; a `resource-erased` problem MUST NOT carry
+  members beyond its code. Unauthorized callers MUST receive the uniform
+  `404` `resource-not-found`. Erasures MUST propagate through the
+  changefeed as erasure records carrying a `{scheme, value}` digest of
+  the erased version; retention removals MUST NOT propagate.
 - **PROTO-005**: A generic client MUST be able to parse and issue protocol
   requests without retrieving a Type Descriptor. Descriptor retrieval is for
   validation assistance and domain understanding, not basic wire parsing.

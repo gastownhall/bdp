@@ -166,6 +166,36 @@ describe("BDP v0 schema bundle", () => {
       });
       expect(Object.keys(branch).sort()).toEqual(["if", "then"]);
     }
+    // The disclosure extension branches ride after the uniform rows: the
+    // pruned pointer is permitted as a Reference, and erased problems can
+    // never carry it.
+    const extensionBranches = (def("readProblem").allOf as SchemaRecord[]).slice(
+      READ_PROBLEM_DEFINITIONS.length,
+    );
+    expect(extensionBranches).toEqual([
+      {
+        if: { properties: { code: { const: "resource-pruned" } }, required: ["code"] },
+        then: { properties: { archivedAt: { $ref: "#/$defs/reference" } } },
+      },
+      {
+        if: { properties: { code: { const: "resource-erased" } }, required: ["code"] },
+        then: { properties: { archivedAt: false } },
+      },
+    ]);
+    expectValid("readProblem", {
+      type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
+      code: "resource-pruned",
+      status: 410,
+      retry: "never",
+      archivedAt: { uri: "https://archive.example/acme/beads/x", revision: "arch-r9" },
+    });
+    expectInvalid("readProblem", {
+      type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
+      code: "resource-erased",
+      status: 410,
+      retry: "never",
+      archivedAt: "https://archive.example/acme/beads/x",
+    });
   });
 
   it("validates representative Read documents through Ajv 2020", () => {

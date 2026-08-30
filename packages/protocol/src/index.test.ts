@@ -91,6 +91,20 @@ describe("Read problem definitions", () => {
         retry: "after-state-change",
       },
       {
+        code: "resource-pruned",
+        family: "gone",
+        type: "https://github.com/gastownhall/bdp/problems/gone",
+        status: 410,
+        retry: "never",
+      },
+      {
+        code: "resource-erased",
+        family: "gone",
+        type: "https://github.com/gastownhall/bdp/problems/gone",
+        status: 410,
+        retry: "never",
+      },
+      {
         code: "foreign-view",
         family: "conflict",
         type: "https://github.com/gastownhall/bdp/problems/conflict",

@@ -510,6 +510,29 @@
           "selectedText": "An unknown alias returns\n  the same `404` `resource-not-found` as an unknown Resource. An authority\n  without aliases omits the `aliases` discovery member."
         }
       ]
+    },
+    {
+      "id": "read.disclosure.gone",
+      "title": "Authorized disclosure distinguishes pruned from erased",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "A\n`resource-pruned` problem MAY carry one `archivedAt` member — a Reference,\npossibly pinned, naming where the content went"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "A\n`resource-erased` problem carries nothing beyond its code: even a pointer\nwould disclose what erasure exists to remove."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "Unauthorized callers MUST receive the uniform\n  `404` `resource-not-found`."
+        }
+      ]
     }
   ]
 }

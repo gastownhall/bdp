@@ -30,6 +30,8 @@
         "unauthenticated",
         "forbidden",
         "resource-not-found",
+        "resource-pruned",
+        "resource-erased",
         "foreign-view",
         "cursor-expired",
         "request-too-large",
@@ -317,6 +319,84 @@
               "retry": {
                 "const": "after-delay"
               }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-pruned"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-erased"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-pruned"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "archivedAt": {
+                "$ref": "#/$defs/reference"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-erased"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "archivedAt": false
             }
           }
         }

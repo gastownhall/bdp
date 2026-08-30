@@ -67,6 +67,12 @@ interface PreparedReferenceFixture {
   readonly links: readonly LinkRecord[];
   readonly types: readonly TypeSummary[];
   readonly typeDescriptors: readonly TypeDescriptor[];
+  /**
+   * Authorization-gated disclosure subjects: addresses whose reads answer
+   * with a 410 disclosure instead of the uniform 404, realized under the
+   * fixture's declared history-authorized projection.
+   */
+  readonly disclosures?: ReadonlyMap<string, ReadProblem>;
 }
 
 let builtInTypeArtifacts:
@@ -129,6 +135,7 @@ export function createPortableReferenceFixturePort(
 
 function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture): ScopePort {
   const { beads, links, types, typeDescriptors } = snapshotPreparedReferenceFixture(prepared);
+  const disclosures = prepared.disclosures;
   const typeConformance = createTypeConformanceIndex(typeDescriptors);
   function perform<Operation extends ScopeReadOperation>(
     operation: Operation,
@@ -183,6 +190,8 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
       }
       case "resource": {
         if (operation.resource === "bead") {
+          const disclosed = disclosures?.get(operation.id);
+          if (disclosed !== undefined) return scopePortProblem<BeadResourceOperation>(disclosed);
           const item = beads.find((bead) => bead.id === operation.id);
           return item === undefined
             ? scopePortProblem<BeadResourceOperation>(notFound())
@@ -523,12 +532,52 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
     "fixture.links resolved id",
   );
 
+  const disclosures = readFixtureDisclosures(scope, fixture.disclosures);
   return {
     beads: beadsWithLocalIds.map(({ record }) => record),
     links,
     types,
     typeDescriptors,
+    ...(disclosures === undefined ? {} : { disclosures }),
   };
+}
+
+/**
+ * Reads the fixture's optional `disclosures` section: addresses whose reads
+ * answer with an authorization-gated 410 disclosure. The pruned entry may
+ * carry an archivedAt Reference (echoed byte-identically); erased entries
+ * carry nothing beyond their code, per the disclosure law.
+ */
+function readFixtureDisclosures(
+  scope: AbsoluteHttpUrl,
+  value: unknown,
+): ReadonlyMap<string, ReadProblem> | undefined {
+  if (value === undefined) return undefined;
+  const table = new Map<string, ReadProblem>();
+  for (const [index, entry] of readArray(value, "fixture.disclosures").entries()) {
+    const path = `fixture.disclosures[${index}]`;
+    const record = readRecord(entry, path);
+    requireAllowedKeys(record, ["localId", "code", "archivedAt"], path);
+    const { id } = readFixtureLocalId(scope, "bead", record.localId, `${path}.localId`);
+    const code = readNonemptyString(record.code, `${path}.code`);
+    if (code !== "resource-pruned" && code !== "resource-erased")
+      throw new Error(`${path}.code must be resource-pruned or resource-erased`);
+    if (code === "resource-erased" && record.archivedAt !== undefined)
+      throw new Error(`${path} erased disclosures carry nothing beyond their code`);
+    const problem = readProblem(code);
+    table.set(
+      id,
+      record.archivedAt === undefined
+        ? problem
+        : Object.freeze({
+            ...problem,
+            archivedAt: Object.freeze(
+              readRecord(record.archivedAt, `${path}.archivedAt`),
+            ) as unknown as Reference,
+          }),
+    );
+  }
+  return table;
 }
 
 function readFixtureEndpoint(

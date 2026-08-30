@@ -5198,6 +5198,8 @@
               "unauthenticated",
               "forbidden",
               "resource-not-found",
+              "resource-pruned",
+              "resource-erased",
               "foreign-view",
               "cursor-expired",
               "request-too-large",
@@ -5271,6 +5273,28 @@
                   404,
                   "after-state-change",
                   "https://github.com/gastownhall/bdp/problems/not-found",
+                  null,
+                  true,
+                  "application/problem+json",
+                  true
+                ],
+                [
+                  "resource-pruned",
+                  "gone",
+                  410,
+                  "never",
+                  "https://github.com/gastownhall/bdp/problems/gone",
+                  null,
+                  true,
+                  "application/problem+json",
+                  true
+                ],
+                [
+                  "resource-erased",
+                  "gone",
+                  410,
+                  "never",
+                  "https://github.com/gastownhall/bdp/problems/gone",
                   null,
                   true,
                   "application/problem+json",
@@ -5936,6 +5960,99 @@
               "kind": "response-metadata-equals",
               "request": "unknown-bead",
               "headers": ["content-type", "cache-control"]
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.disclosure.gone",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": ["disclosure-v1"]
+      },
+      "requests": [
+        {
+          "id": "pruned",
+          "method": "GET",
+          "target": {
+            "binding": "bead.pruned"
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "gone",
+              "kind": "status",
+              "equals": 410
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-pruned"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "archived-at-uri",
+              "kind": "json-pointer",
+              "pointer": "/archivedAt/uri",
+              "exists": true,
+              "equals": "https://archive.example/acme/beads/pruned-relic"
+            },
+            {
+              "id": "archived-at-pin",
+              "kind": "json-pointer",
+              "pointer": "/archivedAt/revision",
+              "exists": true,
+              "equals": "arch-r4 (as-written)"
+            }
+          ]
+        },
+        {
+          "id": "erased",
+          "method": "GET",
+          "target": {
+            "binding": "bead.erased"
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "gone",
+              "kind": "status",
+              "equals": 410
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-erased"
+            },
+            {
+              "id": "no-pointer",
+              "kind": "json-pointer",
+              "pointer": "/archivedAt",
+              "exists": false
             }
           ]
         }
