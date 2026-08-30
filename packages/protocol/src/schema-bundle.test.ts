@@ -175,10 +175,12 @@ describe("BDP v0 schema bundle", () => {
     expect(extensionBranches).toEqual([
       {
         if: { properties: { code: { const: "resource-pruned" } }, required: ["code"] },
+        // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
         then: { properties: { archivedAt: { $ref: "#/$defs/reference" } } },
       },
       {
         if: { properties: { code: { const: "resource-erased" } }, required: ["code"] },
+        // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
         then: { properties: { archivedAt: false } },
       },
     ]);
