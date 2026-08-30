@@ -220,6 +220,15 @@ export interface PinnedReference {
 
 export type Reference = AbsoluteUri | PinnedReference;
 
+/**
+ * The canonical-uri collection order comparator: ascending lexicographic
+ * comparison, by Unicode code unit, of absolute canonical ids. The single
+ * definition every layer sorts with.
+ */
+export function compareCanonicalIds(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 /** The identity of a Reference: its URI without any pin. */
 export function referenceUri(reference: Reference): AbsoluteUri {
   return typeof reference === "string" ? reference : reference.uri;

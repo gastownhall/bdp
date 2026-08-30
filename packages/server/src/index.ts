@@ -42,6 +42,7 @@ import {
   readProblem,
   readProblemDefinitionFor,
   assertCanonicalPathSegments,
+  compareCanonicalIds,
   resolveCanonicalLocalResourceId,
 } from "@bdp/protocol";
 import {
@@ -1823,9 +1824,7 @@ type PageOperation =
 function inCanonicalUriOrder<Item extends { readonly id: string }>(
   items: readonly Item[],
 ): readonly Item[] {
-  return Object.freeze(
-    [...items].sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)),
-  );
+  return Object.freeze([...items].sort((left, right) => compareCanonicalIds(left.id, right.id)));
 }
 
 /** Applies the canonical-uri order to any successful collection-shaped result. */
