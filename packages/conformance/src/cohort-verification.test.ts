@@ -179,9 +179,7 @@ describe("read cohort evidence verification", () => {
     const mutated = artifact();
     const firstTarget = (mutated.targets as { notApplicable: unknown }[])[0];
     if (firstTarget === undefined) throw new Error("target missing from double");
-    firstTarget.notApplicable = [
-      { scenarioId: "read.b", missingCapabilities: ["invented"] },
-    ];
+    firstTarget.notApplicable = [{ scenarioId: "read.b", missingCapabilities: ["invented"] }];
     expect(() => verifyReadCohortEvidence(inputFor(mutated))).toThrow(
       /do not match the committed manifest and fixture/,
     );
