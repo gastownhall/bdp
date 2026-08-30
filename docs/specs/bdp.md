@@ -3155,7 +3155,15 @@ discipline and a `value` carrying its bytes — so that version lineage
 remains verifiable across the hole while the content itself is
 unrecoverable. Erasure records induce no Event-Source Events: application
 observation of an erased version is the disclosure surface, not the Event
-stream, and an erasure-only group carries an empty `events` array. The
+stream, and an erasure-only group carries an empty `events` array.
+Erasure records are projected per Authorization View like everything else
+a group carries: a view receives the record only when the subject Resource
+was observable in that view. A replica confined to a view that never saw
+the Resource never held the version's bytes, has nothing to erase, and
+learns nothing — such a view sees only the identifier-free projection
+advance at that position, so the record cannot become the enumeration
+oracle that [Reads after deletion](#reads-after-deletion) closes. Within a
+view that receives the record, the obligation is unconditional. The
 correction case commits the erasure record and the successor's
 `StateChange` in one atomic group at one position. A replica applies an erasure when it
 processes the record; a replica that has not yet processed it is behind, in
