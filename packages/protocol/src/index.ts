@@ -102,6 +102,8 @@ export interface ReadDiscovery {
    * Omitted by authorities without aliases (capability honesty).
    */
   readonly aliases?: AbsoluteHttpUrl;
+  /** The advertised collection order; omission means the canonical-uri baseline. */
+  readonly order?: "canonical-uri";
   readonly limits?: ReadAdvertisedLimits;
   readonly maximumEndpointMultiplicity?: readonly MaximumEndpointMultiplicityPolicy[];
 }

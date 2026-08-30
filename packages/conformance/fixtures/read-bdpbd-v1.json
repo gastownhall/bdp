@@ -598,6 +598,31 @@
         "bead": "beads/demo-f"
       },
       "references": null
+    },
+    "ordering": {
+      "beads": [
+        ["beads/demo-a"],
+        ["beads/demo-b"],
+        ["beads/demo-c"],
+        ["beads/demo-d"],
+        ["beads/demo-e"],
+        ["beads/demo-f"],
+        ["beads/demo-i"],
+        ["beads/demo-j"],
+        ["beads/demo-k"]
+      ],
+      "links": [
+        ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1l/b64_ZGVtby1m/b64_cmVsYXRlZA"],
+        ["links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz"],
+        ["links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz"]
+      ],
+      "order": "canonical-uri"
     }
   },
   "expectations": {

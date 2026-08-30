@@ -1378,7 +1378,10 @@ function evaluateAssertion(
     }
     return outcome(
       assertion.id,
-      multisetEquals(actual, expected),
+      assertion.ordered === true
+        ? actual.length === expected.length &&
+            actual.every((tuple, index) => tupleEquals(tuple, expected[index] as JsonValue[]))
+        : multisetEquals(actual, expected),
       "array tuples did not match the expected multiset",
     );
   }
@@ -2376,6 +2379,13 @@ function scopeRelativeOrAbsoluteUri(value: unknown, scope: string): string {
   if (target.origin === root.origin && target.pathname.startsWith(root.pathname))
     return scopeRelativeUrl(value, scope);
   return value;
+}
+
+function tupleEquals(left: readonly unknown[], right: readonly unknown[] | undefined): boolean {
+  return (
+    right !== undefined &&
+    JSON.stringify(sortJsonValue(left)) === JSON.stringify(sortJsonValue(right))
+  );
 }
 
 function multisetEquals(left: readonly unknown[], right: readonly unknown[]): boolean {

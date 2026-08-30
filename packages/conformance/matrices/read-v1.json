@@ -126,6 +126,13 @@
               "kind": "json-pointer",
               "pointer": "/operations",
               "exists": false
+            },
+            {
+              "id": "advertised-order",
+              "kind": "json-pointer",
+              "pointer": "/order",
+              "exists": true,
+              "equals": "canonical-uri"
             }
           ]
         }
@@ -678,6 +685,19 @@
               "pointer": "/items",
               "itemPointer": "/properties/title",
               "fixturePointer": "/oracles/collections/bead-titles"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/beads"
             }
           ]
         }
@@ -814,6 +834,19 @@
                 }
               ],
               "fixturePointer": "/oracles/collections/link-records"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/links"
             }
           ]
         }

@@ -218,6 +218,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#collection-retrieval-and-selection",
           "selectedText": "An ordinary `GET` of a discovered collection returns a paginated `items` array and a `next` URL."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "The baseline order every authority MUST support is\n`canonical-uri` — ascending lexicographic comparison, by Unicode code\nunit, of each item's absolute canonical `id`."
         }
       ]
     },
@@ -231,6 +236,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#collection-retrieval-and-selection",
           "selectedText": "The `beads/` and `links/` collections return complete Resource records; the `types/` collection returns Type summaries."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#collection-retrieval-and-selection",
+          "selectedText": "The baseline order every authority MUST support is\n`canonical-uri` — ascending lexicographic comparison, by Unicode code\nunit, of each item's absolute canonical `id`."
         }
       ]
     },

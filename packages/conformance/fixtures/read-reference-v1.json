@@ -527,6 +527,36 @@
     },
     "alias": {
       "root": "alias/"
+    },
+    "ordering": {
+      "beads": [
+        ["beads/demo-a"],
+        ["beads/demo-b"],
+        ["beads/demo-c"],
+        ["beads/demo-d"],
+        ["beads/demo-e"],
+        ["beads/demo-f"],
+        ["beads/demo-i"],
+        ["beads/demo-j"],
+        ["beads/demo-k"]
+      ],
+      "links": [
+        ["links/cites-local"],
+        ["links/cites-witness"],
+        ["links/demo-a-c"],
+        ["links/demo-b-a"],
+        ["links/demo-d-c"],
+        ["links/demo-e-f"],
+        ["links/demo-f-e"],
+        ["links/demo-i-a"],
+        ["links/demo-i-c"],
+        ["links/demo-j-c"],
+        ["links/demo-j-k"],
+        ["links/external-source"],
+        ["links/external-target"],
+        ["links/pinned-local"]
+      ],
+      "order": "canonical-uri"
     }
   },
   "beads": [

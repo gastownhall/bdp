@@ -1698,7 +1698,7 @@ describe("checked-in Read matrix artifacts", () => {
     expect(arrayAssertions).not.toHaveLength(0);
     for (const { scenario, request, assertion } of arrayAssertions)
       expect(assertion.fixturePointer, `${scenario}:${request}:${assertion.id}`).toMatch(
-        /^\/oracles\/(?:collections|structural-predicates|incident-links|pagination)\//,
+        /^\/oracles\/(?:collections|structural-predicates|incident-links|pagination|ordering)\//,
       );
   });
 

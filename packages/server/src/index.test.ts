@@ -731,7 +731,8 @@ describe("Read server contract", () => {
     {
       label: "Type inventory",
       operation: { kind: "collection", collection: "types", limit: 1 } as const,
-      items: ["task", "bug"].map((local) => ({
+      // Seeded pre-sorted: the authority serves canonical-uri order.
+      items: ["bug", "task"].map((local) => ({
         id: `https://work.example/types/${local}`,
         name: local,
         describes: "bead" as const,

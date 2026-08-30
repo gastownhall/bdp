@@ -1761,7 +1761,7 @@ async function executeScopeRead<Operation extends ScopeReadOperation>(
     const continuationUrl = continuationUrlFor(operation, context.options.scope);
     assertReadNotAborted(context.signal);
     return controls.pagination.firstPage({
-      items,
+      items: inCanonicalUriOrder(items as readonly { readonly id: string }[]) as typeof items,
       ...(operation.limit === undefined ? {} : { limit: operation.limit }),
       authorizationView: identity.authorizationView,
       scopeEpoch: identity.scopeEpoch,
@@ -1804,6 +1804,20 @@ type PageOperation =
   | LinkCollectionOperation
   | TypeInventoryOperation
   | BeadLinksOperation;
+
+/**
+ * The advertised `canonical-uri` collection order: ascending lexicographic
+ * comparison, by Unicode code unit, of each item's absolute canonical id.
+ * Applied by the authority before pagination so every page of one logical
+ * snapshot observes one total order.
+ */
+function inCanonicalUriOrder<Item extends { readonly id: string }>(
+  items: readonly Item[],
+): readonly Item[] {
+  return Object.freeze(
+    [...items].sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)),
+  );
+}
 
 function isPageOperation(operation: ReadRequest): operation is PageOperation {
   return operation.kind === "collection" || operation.kind === "bead-links";
@@ -2463,6 +2477,7 @@ function discoveryFor(options: ServerOptions): ReadDiscovery {
     links: new URL("links/", options.scope).href,
     types: new URL("types/", options.scope).href,
     ...(options.aliases === undefined ? {} : { aliases: new URL("alias/", options.scope).href }),
+    order: "canonical-uri",
     ...(advertisedLimits === undefined
       ? {}
       : {
