@@ -19,7 +19,7 @@ export type ReadServerTarget = "bdptest" | "bdpbd";
  * is deliberately deep-imported by the smoke and E2E gate scripts; the record
  * itself stays private to prevent runtime callers from manufacturing evidence.
  */
-const READ_COHORT_EVIDENCE_CONSTANT = "f954a0bdcac8b76989dfc720d6ed64eb2e37c347";
+const READ_COHORT_EVIDENCE_CONSTANT = "90c7da7b85916cb215e4400d922fe23b072826aa";
 
 const READ_CONFORMANCE_EVIDENCE_BY_TARGET: Readonly<Record<ReadServerTarget, string | undefined>> =
   Object.freeze({
