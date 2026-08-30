@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import {
   createPortableReferenceFixturePort,
   portableReferenceFixtureAliases,
+  referenceFixtureAliases,
   createReferenceFixturePort,
   type ScopePort,
   type ScopeReadOperation,
@@ -163,6 +164,13 @@ async function expectReferenceFixtureParity(portablePort: ScopePort): Promise<vo
 }
 
 describe("bdptest reference target Read matrix", () => {
+  it("keeps the built-in alias table in lockstep with the committed portable fixture", () => {
+    const fixture = JSON.parse(
+      readText("packages/conformance/fixtures/read-reference-v1.json"),
+    ) as Record<string, unknown>;
+    expect(portableReferenceFixtureAliases(scope, fixture)).toEqual(referenceFixtureAliases(scope));
+  });
+
   it("passes every checked-in plan with Read admission evidence explicitly stubbed", async () => {
     const withdrawEvidence = establishReadConformanceEvidenceForTesting("bdptest");
     let scenarioTarget: ReturnType<typeof createRawHttpScenarioTarget> | undefined;

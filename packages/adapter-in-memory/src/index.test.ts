@@ -1,15 +1,9 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { ProtocolArtifactValidationError } from "@bdp/protocol";
 import { describe, expect, it } from "vitest";
 
 import {
   type AbsoluteHttpUrl,
   createPortableReferenceFixturePort,
-  portableReferenceFixtureAliases,
-  referenceFixtureAliases,
   createReferenceFixturePort,
 } from "./index.js";
 
@@ -574,21 +568,6 @@ describe("reference fixture Scope port", () => {
         next: null,
       },
     });
-  });
-
-  it("keeps the built-in alias table in lockstep with the committed portable fixture", () => {
-    const committed = JSON.parse(
-      readFileSync(
-        path.join(
-          path.dirname(fileURLToPath(import.meta.url)),
-          "../../conformance/fixtures/read-reference-v1.json",
-        ),
-        "utf8",
-      ),
-    ) as { readonly aliases?: Readonly<Record<string, string>> };
-    expect(portableReferenceFixtureAliases(scope, committed)).toEqual(
-      referenceFixtureAliases(scope),
-    );
   });
 
   it("round-trips a pin on an in-Scope fixture endpoint", async () => {

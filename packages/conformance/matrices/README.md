@@ -389,9 +389,9 @@ before the final path segment, or append strict ASCII/base64 suffix bytes; the
 fully materialized request target remains bounded to 8 KiB and is never copied
 into the conformance report.
 
-The 33/33 executable-plan score remains non-attesting and fail-closed. There are
-no missing Read plans, but executable coverage is not target-bound admission
-evidence.
+The full executable-plan score (every applicable plan passing per target)
+remains non-attesting and fail-closed. There are no missing Read plans, but
+executable coverage is not target-bound admission evidence.
 
 The reference fixture's Type IDs are deliberately hosted outside its Scope at
 `https://work.example/types/`. A Scope-local `types/{id}` request therefore
@@ -479,13 +479,17 @@ harness parity rather than conformance.
 The five decisions that previously blocked a non-null cohort were resolved
 2026-08-17 and now bind the implementation:
 
-- **Required set and admissible state.** The required set is the 33
-  catalog-derived scenario IDs, and `pass` is the only admissible state. `fail`,
-  `harness-error`, `not-applicable`, `unsupported-profile`, and absent each close
-  the cohort for both targets. Per-target scores render as `33 pass / 0 other`,
-  never as a bare `33/33`, so a non-pass state cannot hide inside a ratio.
-- **Optional-capability variants.** The cohort covers exactly the 33 reviewed
-  rows and authors no absent-variant scenarios. The artifact carries an explicit
+- **Required set and admissible state.** The required set is the
+  catalog-derived scenario ID list (35 at this writing), and `pass` is the
+  only admissible state for an applicable row. `fail`, `harness-error`,
+  `unsupported-profile`, and absent each close the cohort for both targets.
+  A `not-applicable` outcome is admissible in exactly one form: a
+  capability-gated row recorded per target under the honest-absence rule
+  below, derived and recomputed from committed bytes — anywhere else it
+  closes the cohort. Per-target scores render split (`N pass / 0 other`),
+  never as a bare ratio, so a non-pass state cannot hide inside one.
+- **Optional-capability variants.** The cohort covers exactly the reviewed
+  required rows and authors no absent-variant scenarios. The artifact carries an explicit
   `uncovered` list naming the absent-optional variant, so that gap is declared
   rather than left implicit.
 - **Evidence constant and closed-gate bootstrapping.** The constant is the cohort
