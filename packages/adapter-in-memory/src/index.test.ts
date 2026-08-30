@@ -786,6 +786,40 @@ describe("reference fixture Scope port", () => {
     await expect(
       port.perform({ kind: "resource", resource: "link", id: `${scope}links/gone-edge` }, options),
     ).resolves.toMatchObject({ kind: "problem", problem: { code: "resource-erased" } });
+    // A cross-kind request never leaks the disclosure: the wrong plane at
+    // the same address answers the uniform not-found.
+    const notFound = { code: "resource-not-found", status: 404 };
+    await expect(
+      port.perform({ kind: "resource", resource: "bead", id: `${scope}links/gone-edge` }, options),
+    ).resolves.toMatchObject({ kind: "problem", problem: notFound });
+    await expect(
+      port.perform({ kind: "resource", resource: "link", id: `${scope}beads/gone` }, options),
+    ).resolves.toMatchObject({ kind: "problem", problem: notFound });
+    await expect(
+      port.perform(
+        { kind: "properties", resource: "bead", id: `${scope}links/gone-edge` },
+        options,
+      ),
+    ).resolves.toMatchObject({ kind: "problem", problem: notFound });
+    await expect(
+      port.perform({ kind: "properties", resource: "link", id: `${scope}beads/gone` }, options),
+    ).resolves.toMatchObject({ kind: "problem", problem: notFound });
+    await expect(
+      port.perform(
+        { kind: "bead-links", bead: `${scope}links/gone-edge`, direction: "both" },
+        options,
+      ),
+    ).resolves.toMatchObject({ kind: "problem", problem: notFound });
+    // The correct plane still discloses, properties included.
+    await expect(
+      port.perform(
+        { kind: "properties", resource: "link", id: `${scope}links/gone-edge` },
+        options,
+      ),
+    ).resolves.toMatchObject({
+      kind: "problem",
+      problem: { code: "resource-erased", status: 410 },
+    });
   });
 
   it("rejects fixture Links with two external endpoints", () => {

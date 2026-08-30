@@ -484,7 +484,7 @@ The five decisions that previously blocked a non-null cohort were resolved
 2026-08-17 and now bind the implementation:
 
 - **Required set and admissible state.** The required set is the
-  catalog-derived scenario ID list (35 at this writing), and `pass` is the
+  catalog-derived scenario ID list, and `pass` is the
   only admissible state for an applicable row. `fail`, `harness-error`,
   `unsupported-profile`, and absent each close the cohort for both targets.
   A `not-applicable` outcome is admissible in exactly one form: a
@@ -521,9 +521,9 @@ The five decisions that previously blocked a non-null cohort were resolved
   (inapplicable rows live under `notApplicable` and carry none) and
   verification requires `packaged` for every carried row that is not
   self-certifiable.
-- **Row provenance and the self-certified set.** Decided 2026-08-17. Eight rows
-  cannot be driven against a packaged target: they carry `lifecycle`-family
-  actions that mutate target state mid-run, and the control headers
+- **Row provenance and the self-certified set.** Decided 2026-08-17. The rows
+  carrying `lifecycle`-family actions cannot be driven against a packaged
+  target: they mutate target state mid-run, and the control headers
   `x-bdp-conformance-view`/`x-bdp-conformance-epoch` are defined in
   `packages/conformance/test-support` and honored by nothing in the server
   package or either composition root. Rather than ship a conformance control
@@ -540,7 +540,7 @@ The five decisions that previously blocked a non-null cohort were resolved
   self-certified rows are not independently verified. They exercise the same
   server package through a different composition, so they are evidence about the
   implementation but not about the packaged boundary. If BDP is ever used to
-  certify third-party servers, these eight rows are self-attested and must be
+  certify third-party servers, these lifecycle rows are self-attested and must be
   presented as such rather than as black-box conformance.
 
 The verification rules above are enforced by `pnpm evidence:verify`
