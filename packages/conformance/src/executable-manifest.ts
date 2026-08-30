@@ -300,6 +300,7 @@ const RESPONSE_URL_CAPTURE_KEYS = new Set(["kind"]);
 const HEADER_LINK_CAPTURE_KEYS = new Set(["kind", "rel"]);
 const JSON_POINTER_CAPTURE_KEYS = new Set(["kind", "pointer"]);
 const STATUS_ASSERTION_KEYS = new Set(["id", "kind", "equals", "oneOf"]);
+const BINDING_REFERENCE_PATTERN = /^[a-z][a-z0-9.-]{0,127}$/;
 const HEADER_ASSERTION_KEYS = new Set([
   "id",
   "kind",
@@ -1341,8 +1342,15 @@ function parseAssertions(
         });
       else if (equalsValue !== undefined && typeof equalsValue !== "string")
         issues.push({ path: `${assertionPath}.equals`, message: "must be a string" });
-      else if (equalsBindingValue !== undefined && typeof equalsBindingValue !== "string")
-        issues.push({ path: `${assertionPath}.equalsBinding`, message: "must be a string" });
+      else if (
+        equalsBindingValue !== undefined &&
+        (typeof equalsBindingValue !== "string" ||
+          !BINDING_REFERENCE_PATTERN.test(equalsBindingValue))
+      )
+        issues.push({
+          path: `${assertionPath}.equalsBinding`,
+          message: "must be a binding identifier",
+        });
       else if (containsValue !== undefined && typeof containsValue !== "string")
         issues.push({ path: `${assertionPath}.contains`, message: "must be a string" });
       else if (absentValue !== undefined && typeof absentValue !== "boolean")

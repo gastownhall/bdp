@@ -524,6 +524,9 @@
           }
         ]
       }
+    },
+    "alias": {
+      "root": "alias/"
     }
   },
   "beads": [

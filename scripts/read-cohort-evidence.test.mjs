@@ -334,6 +334,7 @@ function minimalArtifact() {
       scores: { pass: 2, other: 0 },
       packagedRows: 1,
       selfCertifiedRows: 1,
+      notApplicable: [],
       segments: [
         segmentFor(
           "packaged",
@@ -375,7 +376,7 @@ function genuineVerificationInput(artifact = minimalArtifact()) {
     artifactBytes,
     evidenceByTarget: { bdptest: constant, bdpbd: constant },
     requiredScenarioIds: REQUIRED_IDS,
-    derivedNotApplicableByTarget: {},
+    derivedNotApplicableByTarget: { bdptest: [], bdpbd: [] },
     derivedSelfCertifiable: ["read.scope.restore-identity"],
     expectedBdIdentity: { version: "1.0.5", schemaVersion: 1, observationsDigest: digest("ab") },
     gitFacts: {

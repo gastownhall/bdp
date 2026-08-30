@@ -75,6 +75,7 @@ export function parseReadDiscovery(value: unknown, path = "Read discovery"): Rea
   parseCanonicalTypeId(discovery.beads, `${path}.beads`);
   parseCanonicalTypeId(discovery.links, `${path}.links`);
   parseCanonicalTypeId(discovery.types, `${path}.types`);
+  if (discovery.aliases !== undefined) parseCanonicalTypeId(discovery.aliases, `${path}.aliases`);
   if (Array.isArray(discovery.maximumEndpointMultiplicity)) {
     for (const [index, policy] of discovery.maximumEndpointMultiplicity.entries())
       parseResourceTypeId(
@@ -323,6 +324,26 @@ function validateFromSchema(validator: ValidateFunction, value: unknown, path: s
   throw new ProtocolArtifactValidationError(
     `${location} ${failure?.message ?? "does not match the normative BDP schema"}`,
   );
+}
+
+/**
+ * Validates one canonical path (one or more safe segments joined by `/`)
+ * under the exact Resource-ID segment grammar: nonempty, no `.`/`..`, no
+ * embedded separators or controls after one-time UTF-8 decoding, and
+ * canonically encoded. The alias root shares this grammar with `beads/`
+ * and `links/`.
+ */
+export function assertCanonicalPathSegments(path: string, label: string): void {
+  const segments = path.split("/");
+  if (segments.length === 0)
+    throw new ProtocolArtifactValidationError(`${label} must contain at least one segment`);
+  for (const segment of segments) {
+    try {
+      validateCanonicalIdSegment(segment);
+    } catch (cause) {
+      throw new ProtocolArtifactValidationError(`${label} has a noncanonical segment`, { cause });
+    }
+  }
 }
 
 function validateCanonicalIdSegment(segment: string): void {

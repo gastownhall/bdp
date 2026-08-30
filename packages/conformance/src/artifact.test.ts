@@ -238,10 +238,10 @@ describe("checked-in Read matrix artifacts", () => {
     const manifestIdList = manifest.scenarios.map(({ id }) => id);
     const catalogIds = new Set(catalogIdList);
     const manifestIds = new Set(manifestIdList);
-    expect(catalog.scenarios).toHaveLength(34);
-    expect(manifest.scenarios).toHaveLength(34);
-    expect(catalogIds.size).toBe(34);
-    expect(manifestIds.size).toBe(34);
+    expect(catalog.scenarios).toHaveLength(35);
+    expect(manifest.scenarios).toHaveLength(35);
+    expect(catalogIds.size).toBe(35);
+    expect(manifestIds.size).toBe(35);
     expect([...manifestIds].sort()).toEqual([...catalogIds].sort());
     expect(manifest.catalogId).toBe("read-v1");
     expect(manifest.scenarios.every(({ id }) => catalogIds.has(id))).toBe(true);
@@ -280,6 +280,7 @@ describe("checked-in Read matrix artifacts", () => {
       "read.scope.restore-identity",
       "read.resource.external-endpoint",
       "read.alias.resolution",
+      "read.alias.absent",
     ]);
   });
 
@@ -1350,8 +1351,20 @@ describe("checked-in Read matrix artifacts", () => {
   it("keeps request binding flow and executable fixture assertions connected", () => {
     const manifest = loadManifest();
     const fixture = loadFixture();
+    const declaredCapabilities = new Set(
+      (fixture as { readonly capabilities?: readonly string[] }).capabilities ?? [],
+    );
     for (const scenario of manifest.scenarios) {
       expect(scenario.setup.fixture).toBe(fixture.id);
+      // A scenario gated on capabilities this fixture does not declare never
+      // runs against it, so its bindings live in the applicable target's
+      // fixture instead — the same rule the runner and the cohort enforce.
+      if (
+        (scenario.applicability?.requires ?? []).some(
+          (capability) => !declaredCapabilities.has(capability),
+        )
+      )
+        continue;
       const established = new Set(["scope", ...Object.keys(fixture.bindings)]);
       for (const request of scenarioRequests(scenario)) {
         expect(established.has(request.target.binding), request.id).toBe(true);

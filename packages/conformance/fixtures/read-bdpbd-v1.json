@@ -15,14 +15,17 @@
     "reference-read-v1",
     "reference-read-v1-single-page",
     "cors-disabled",
-    "unexpected-internal-fault"
+    "unexpected-internal-fault",
+    "alias-absent-v1"
   ],
   "bindings": {
     "bead.demo-a": "beads/demo-a",
     "bead.demo-b": "beads/demo-b",
     "bead.demo-c": "beads/demo-c",
     "link.demo-b-a": "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
-    "bead.demo-f": "beads/demo-f"
+    "bead.demo-f": "beads/demo-f",
+    "alias.unknown": "alias/never-created",
+    "bead.absent": "beads/never-created"
   },
   "private": {
     "internalFaultSentinel": "bdp-private-internal-fault-bdpbd-e69028371d4a"

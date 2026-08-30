@@ -424,9 +424,19 @@ export function verifyReadCohortEvidence(input: ReadCohortVerificationInput): vo
     // the set the gate derived from the committed manifest and this target's
     // committed fixture — element for element — and no recorded-inapplicable
     // row may also be claimed.
-    const derivedNotApplicable = input.derivedNotApplicableByTarget[targetName] ?? [];
+    const derivedNotApplicable = input.derivedNotApplicableByTarget[targetName];
+    if (derivedNotApplicable === undefined) {
+      throw new ReadCohortVerificationError(
+        `verification input carries no derived not-applicable set for target '${targetName}'; the gate must derive one for every target`,
+      );
+    }
+    if (!Object.hasOwn(entry, "notApplicable")) {
+      throw new ReadCohortVerificationError(
+        `target '${targetName}' does not record its notApplicable rows; an absent list would fail open`,
+      );
+    }
     const recordedNotApplicable = array(
-      entry.notApplicable ?? [],
+      entry.notApplicable,
       `target '${targetName}' notApplicable`,
     ).map((row) => closedRecord(row, NOT_APPLICABLE_KEYS, `target '${targetName}' notApplicable`));
     if (recordedNotApplicable.length !== derivedNotApplicable.length) {

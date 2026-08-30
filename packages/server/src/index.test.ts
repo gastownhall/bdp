@@ -92,6 +92,28 @@ describe("alias resolution", () => {
     expect((bare as { aliases?: string }).aliases).toBeUndefined();
   });
 
+  it("rejects every noncanonical alias-path encoding the ID grammar forbids", () => {
+    for (const path of ["a%2Fb", "%61", "%e2%82%ac", "%FF", "a/./b", "a/../b"]) {
+      expect(
+        () => aliasServer({ [path]: `${scope}beads/demo-f` as AbsoluteHttpUrl }),
+        path,
+      ).toThrow();
+    }
+  });
+
+  it("refuses a serviceDescription beneath the alias root", () => {
+    expect(() =>
+      createReadServer({
+        scope,
+        target: "bdptest",
+        admittedProfile: admitReadServerProfile("read", "bdptest"),
+        port,
+        aliases: table,
+        serviceDescription: `${scope}alias/decision` as AbsoluteHttpUrl,
+      }),
+    ).toThrow("serviceDescription must not live beneath the alias root");
+  });
+
   it("refuses composition with a noncanonical alias path or a non-Bead target", () => {
     expect(() => aliasServer({ "bad//path": `${scope}beads/demo-f` as AbsoluteHttpUrl })).toThrow();
     expect(() => aliasServer({ ok: `${scope}links/demo-b-a` as AbsoluteHttpUrl })).toThrow();

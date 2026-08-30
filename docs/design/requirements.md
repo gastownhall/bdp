@@ -55,7 +55,7 @@ here rather than being invented by an implementation.
   `references` member — one entry per declared owned type, keyed by Link
   Type URL — on every record read, and the member MUST be absent for
   Beads whose Type owns nothing.
-- **PROTO-011**: An alias is a repointable locator beneath the fixed
+- **PROTO-012**: An alias is a repointable locator beneath the fixed
   `alias/` root and is not a Resource. Alias resolution MUST be
   redirect-only: `GET` and `HEAD` return `307` with `Location` set to the
   target's absolute canonical Bead URL and no body. An alias MUST target a

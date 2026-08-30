@@ -196,6 +196,7 @@ export {
   parseTypeInventory,
   parseTypeSummary,
   ProtocolArtifactValidationError,
+  assertCanonicalPathSegments,
   resolveCanonicalLocalResourceId,
 } from "./read-values.js";
 

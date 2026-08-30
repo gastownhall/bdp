@@ -626,7 +626,7 @@ describe("packaged Read cohort generation", () => {
           bindings: inProcessBindings,
           ...(plan.target === "bdpbd" ? { bdIdentity } : {}),
           admission: "in-process",
-          rows: selfCertifiedRows,
+          rows: selfCertifiedRows.filter((id) => !targetExcluded.has(id)),
           capabilities: fixtureCapabilities(bundle),
         });
       }

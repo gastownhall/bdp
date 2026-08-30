@@ -448,9 +448,10 @@ async function runScenario(
     const missingApplicability = scenario.applicability.requires.filter(
       (capability) => !capabilities.has(capability),
     );
-    // An inapplicable scenario must not demand its bindings: the gate runs
-    // before binding-flow validation so honest absence is not a harness error.
-    if (missingSetup.length === 0 && missingApplicability.length === 0)
+    // An inapplicable scenario must not demand its bindings; every applicable
+    // scenario — including one that will fail on a missing setup capability —
+    // keeps full binding-flow validation.
+    if (missingApplicability.length === 0)
       validateScenarioBindingFlow(scenario, preparation.bindings ?? {}, options.scope);
     if (missingSetup.length > 0) {
       runResult = result(
@@ -2085,6 +2086,16 @@ function validateScenarioBindingFlow(
       )
         throw new ConformanceRunnerError(
           `request '${request.id}' query references unknown binding '${queryValue.binding}'`,
+        );
+    }
+    for (const assertion of request.assertions) {
+      const bindingRef =
+        "equalsBinding" in assertion && typeof assertion.equalsBinding === "string"
+          ? assertion.equalsBinding
+          : undefined;
+      if (bindingRef !== undefined && !established.has(bindingRef))
+        throw new ConformanceRunnerError(
+          `request '${request.id}' assertion '${assertion.id}' references unknown binding '${bindingRef}'`,
         );
     }
     for (const capture of request.captures) {

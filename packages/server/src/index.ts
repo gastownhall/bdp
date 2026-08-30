@@ -41,6 +41,7 @@ import {
   parseTypeInventory,
   readProblem,
   readProblemDefinitionFor,
+  assertCanonicalPathSegments,
   resolveCanonicalLocalResourceId,
 } from "@bdp/protocol";
 import {
@@ -788,6 +789,26 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
       const scopeUrl = new URL(server.scope);
       if (url.origin !== scopeUrl.origin) return problemResponse(notFound());
       const probe = await server.probe({ signal: request.signal, httpRequest: request });
+      const aliasTarget = resolveAliasPath(url, server.scope, server.aliases);
+      if (aliasTarget !== undefined) {
+        // Alias resolution runs inside the same authorization projection as
+        // any read at this Scope: the identity gate applies before the table
+        // is consulted, so alias existence discloses nothing an
+        // unauthenticated or unauthorized caller could not learn from a
+        // Resource URL. Alias routing also precedes every
+        // representation-bearing route: nothing is ever served at an alias
+        // URL.
+        const gate = await server.perform(
+          { kind: "scope-discovery", scope: server.scope },
+          { signal: request.signal, httpRequest: request },
+        );
+        if (isReadServerProblem(gate)) return problemResponse(gate);
+        if (isReadProblem(aliasTarget)) return problemResponse(aliasTarget);
+        return {
+          status: 307,
+          headers: new Headers({ location: aliasTarget, "content-length": "0" }),
+        };
+      }
       if (url.pathname === scopeUrl.pathname) {
         return {
           status: 204,
@@ -804,14 +825,6 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
         return isReadServerProblem(discovery)
           ? problemResponse(discovery)
           : jsonResponse(discovery);
-      }
-      const aliasTarget = resolveAliasPath(url, server.scope, server.aliases);
-      if (aliasTarget !== undefined) {
-        if (isReadProblem(aliasTarget)) return problemResponse(aliasTarget);
-        return {
-          status: 307,
-          headers: new Headers({ location: aliasTarget, "content-length": "0" }),
-        };
       }
       const parsed = requestFromUrl(url, server.scope);
       if (isReadProblem(parsed)) return problemResponse(parsed);
@@ -1368,7 +1381,7 @@ export function createReadServer(options: ServerOptions): ReadServer {
   if (readControls !== undefined) boundServerReadPaginations.add(readControls.pagination);
   const admitted = new Set<Promise<unknown>>();
   const closing = new AbortController();
-  const aliasTable = validateAliasTable(options.aliases, options.scope);
+  const aliasTable = validateAliasTable(options.aliases, options.scope, options.serviceDescription);
   const discovery = Object.freeze(discoveryFor(options));
   let state: "open" | "closing" | "closed" = "open";
   let closePromise: Promise<void> | undefined;
@@ -2383,14 +2396,22 @@ function hasOnlyVariantFields(
 function validateAliasTable(
   aliases: Readonly<Record<string, AbsoluteHttpUrl>> | undefined,
   scope: AbsoluteHttpUrl,
+  serviceDescription: AbsoluteHttpUrl | undefined,
 ): ReadonlyMap<string, AbsoluteHttpUrl> | undefined {
   if (aliases === undefined) return undefined;
+  if (serviceDescription?.startsWith(`${scope}alias/`) === true)
+    throw new TypeError(
+      "serviceDescription must not live beneath the alias root; aliases are redirect-only",
+    );
   const table = new Map<string, AbsoluteHttpUrl>();
   for (const [path, target] of Object.entries(aliases)) {
-    const canonicalAliasUrl = new URL(`alias/${path}`, scope).href;
-    if (canonicalAliasUrl !== `${scope}alias/${path}`)
-      throw new TypeError(`alias path is not canonical: ${path}`);
-    validateServerLocalResourceUrlPath(canonicalAliasUrl, scope);
+    // The exact Resource-ID segment grammar, shared with beads/ and links/:
+    // canonical encodings only, one valid spelling per name.
+    try {
+      assertCanonicalPathSegments(path, "alias path");
+    } catch (error) {
+      throw new TypeError(`alias path is not canonical: ${path}`, { cause: error });
+    }
     const canonicalTarget = resolveCanonicalLocalResourceId(
       scope,
       "bead",
@@ -2401,13 +2422,6 @@ function validateAliasTable(
     table.set(path, target);
   }
   return table;
-}
-
-function validateServerLocalResourceUrlPath(url: string, scope: AbsoluteHttpUrl): void {
-  const relative = url.slice(scope.length);
-  const segments = relative.split("/");
-  if (segments.some((segment) => segment.length === 0))
-    throw new TypeError(`alias path has an empty segment: ${relative}`);
 }
 
 /**
