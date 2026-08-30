@@ -1382,7 +1382,9 @@ function evaluateAssertion(
         ? actual.length === expected.length &&
             actual.every((tuple, index) => tupleEquals(tuple, expected[index] as JsonValue[]))
         : multisetEquals(actual, expected),
-      "array tuples did not match the expected multiset",
+      assertion.ordered === true
+        ? "array tuples did not match the expected sequence"
+        : "array tuples did not match the expected multiset",
     );
   }
   if (body.kind !== "json") return outcome(assertion.id, false, observedBodyIssue(body));

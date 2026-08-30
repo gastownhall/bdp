@@ -1704,7 +1704,16 @@ async function executeScopeRead<Operation extends ScopeReadOperation>(
   if (controls === undefined) {
     const result = await context.options.port.perform(operation, { signal: context.signal });
     assertReadNotAborted(context.signal);
-    return validateScopePortResult(operation, result, context.options.scope, validateBody);
+    const validated = validateScopePortResult(
+      operation,
+      result,
+      context.options.scope,
+      validateBody,
+    );
+    // The advertised canonical-uri order binds every collection response,
+    // with or without read controls: discovery always advertises it, so
+    // every path that can serve items must sort them.
+    return sortCollectionResult(operation, validated);
   }
 
   try {
@@ -1817,6 +1826,15 @@ function inCanonicalUriOrder<Item extends { readonly id: string }>(
   return Object.freeze(
     [...items].sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)),
   );
+}
+
+/** Applies the canonical-uri order to any successful collection-shaped result. */
+function sortCollectionResult(operation: ReadRequest, validated: unknown): unknown {
+  if (!isPageOperation(operation)) return validated;
+  if (isReadServerProblem(validated)) return validated;
+  const body = validated as { readonly items?: readonly { readonly id: string }[] };
+  if (!Array.isArray(body.items)) return validated;
+  return Object.freeze({ ...body, items: inCanonicalUriOrder(body.items) });
 }
 
 function isPageOperation(operation: ReadRequest): operation is PageOperation {

@@ -132,7 +132,7 @@
               "kind": "json-pointer",
               "pointer": "/order",
               "exists": true,
-              "equals": "canonical-uri"
+              "fixturePointer": "/oracles/ordering/order"
             }
           ]
         }
@@ -1342,6 +1342,19 @@
               "itemPointer": "/id",
               "fixturePointer": "/oracles/structural-predicates/links-type",
               "normalize": "scope-relative-url"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/links-type"
             }
           ]
         },
@@ -2155,6 +2168,19 @@
               "itemPointer": "/id",
               "fixturePointer": "/oracles/collections/type-ids",
               "normalize": "scope-relative-or-absolute-uri"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-or-absolute-uri"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/types"
             }
           ]
         }
@@ -2466,6 +2492,19 @@
               "itemPointer": "/id",
               "fixturePointer": "/oracles/incident-links/demo-a-inbound",
               "normalize": "scope-relative-url"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/demo-a-inbound"
             }
           ]
         },
@@ -2508,6 +2547,19 @@
               "itemPointer": "/id",
               "fixturePointer": "/oracles/incident-links/demo-a-outbound",
               "normalize": "scope-relative-url"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/demo-a-outbound"
             }
           ]
         },
@@ -2634,6 +2686,19 @@
               "itemPointer": "/id",
               "fixturePointer": "/oracles/incident-links/demo-a-both",
               "normalize": "scope-relative-url"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/demo-a-both"
             }
           ]
         },
@@ -2675,6 +2740,19 @@
               "itemPointer": "/id",
               "fixturePointer": "/oracles/incident-links/demo-a-default",
               "normalize": "scope-relative-url"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/demo-a-both"
             }
           ]
         }

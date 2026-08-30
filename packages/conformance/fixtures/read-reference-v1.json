@@ -38,7 +38,12 @@
   "oracles": {
     "external-endpoint": {
       "input": {
-        "linkIds": ["links/external-target", "links/external-source", "links/pinned-local"]
+        "linkIds": [
+          "links/external-target",
+          "links/external-source",
+          "links/pinned-local",
+          "links/ZZ-collation"
+        ]
       },
       "rows": [
         [
@@ -58,11 +63,17 @@
           "https://work.example/types/blocks",
           ["urn:external:pin-witness"],
           ["beads/demo-f", "pin-a-r1 (as-written)"]
+        ],
+        [
+          "links/ZZ-collation",
+          "https://work.example/types/blocks",
+          ["urn:external:collation-witness"],
+          ["beads/demo-f"]
         ]
       ],
-      "externalEndpoints": 3,
+      "externalEndpoints": 4,
       "localSource": 1,
-      "localTarget": 2
+      "localTarget": 3
     },
     "scope-restore": {
       "input": {
@@ -202,6 +213,7 @@
           "epoch": "epoch-a"
         },
         "expectedCollectionIds": [
+          "links/ZZ-collation",
           "links/cites-local",
           "links/cites-witness",
           "links/demo-a-c",
@@ -223,9 +235,9 @@
           "links/demo-b-a",
           "links/demo-i-a"
         ],
-        "expectedCollectionPageSizes": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        "expectedCollectionPageSizes": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         "expectedIncidentPageSizes": [1, 1, 1, 1],
-        "publicRequests": 22
+        "publicRequests": 23
       }
     },
     "resources": {
@@ -414,6 +426,16 @@
           "urn:external:cites-witness",
           "w-1",
           {}
+        ],
+        [
+          "links/ZZ-collation",
+          "https://work.example/types/blocks",
+          "1",
+          "urn:external:collation-witness",
+          "",
+          "beads/demo-f",
+          "",
+          {}
         ]
       ],
       "type-ids": [
@@ -462,7 +484,8 @@
         "links/demo-j-k",
         "links/external-target",
         "links/external-source",
-        "links/pinned-local"
+        "links/pinned-local",
+        "links/ZZ-collation"
       ],
       "links-type-is-exact": [],
       "links-conforms-to-declared-type": [
@@ -476,7 +499,8 @@
         "links/demo-j-k",
         "links/external-target",
         "links/external-source",
-        "links/pinned-local"
+        "links/pinned-local",
+        "links/ZZ-collation"
       ],
       "links-conforms-to": [
         "links/demo-b-a",
@@ -489,7 +513,8 @@
         "links/demo-j-k",
         "links/external-target",
         "links/external-source",
-        "links/pinned-local"
+        "links/pinned-local",
+        "links/ZZ-collation"
       ],
       "links-conforms-to-cross-kind": [],
       "links-predicates-and": ["links/demo-a-c"],
@@ -500,7 +525,8 @@
         "links/external-source",
         "links/pinned-local",
         "links/cites-local",
-        "links/cites-witness"
+        "links/cites-witness",
+        "links/ZZ-collation"
       ]
     },
     "incident-links": {
@@ -541,6 +567,7 @@
         ["beads/demo-k"]
       ],
       "links": [
+        ["links/ZZ-collation"],
         ["links/cites-local"],
         ["links/cites-witness"],
         ["links/demo-a-c"],
@@ -556,7 +583,44 @@
         ["links/external-target"],
         ["links/pinned-local"]
       ],
-      "order": "canonical-uri"
+      "order": "canonical-uri",
+      "types": [
+        ["https://work.example/types/blocks"],
+        ["https://work.example/types/bug"],
+        ["https://work.example/types/chore"],
+        ["https://work.example/types/cites"],
+        ["https://work.example/types/decision"],
+        ["https://work.example/types/dependency"],
+        ["https://work.example/types/epic"],
+        ["https://work.example/types/feature"],
+        ["https://work.example/types/relates"],
+        ["https://work.example/types/relationship"],
+        ["https://work.example/types/task"],
+        ["https://work.example/types/tracked-item"],
+        ["https://work.example/types/work-item"]
+      ],
+      "links-type": [
+        ["links/ZZ-collation"],
+        ["links/demo-a-c"],
+        ["links/demo-b-a"],
+        ["links/demo-d-c"],
+        ["links/demo-f-e"],
+        ["links/demo-i-a"],
+        ["links/demo-i-c"],
+        ["links/demo-j-c"],
+        ["links/demo-j-k"],
+        ["links/external-source"],
+        ["links/external-target"],
+        ["links/pinned-local"]
+      ],
+      "demo-a-inbound": [["links/cites-local"], ["links/demo-b-a"], ["links/demo-i-a"]],
+      "demo-a-outbound": [["links/demo-a-c"]],
+      "demo-a-both": [
+        ["links/cites-local"],
+        ["links/demo-a-c"],
+        ["links/demo-b-a"],
+        ["links/demo-i-a"]
+      ]
     }
   },
   "beads": [
@@ -927,6 +991,14 @@
         "revision": "w-1"
       },
       "properties": {}
+    },
+    {
+      "localId": "links/ZZ-collation",
+      "type": "https://work.example/types/blocks",
+      "revision": "1",
+      "source": "urn:external:collation-witness",
+      "target": "beads/demo-f",
+      "properties": {}
     }
   ],
   "types": [
@@ -1194,7 +1266,7 @@
       }
     ],
     "beadCount": 9,
-    "linkCount": 14,
+    "linkCount": 15,
     "typeCount": 13
   }
 }
