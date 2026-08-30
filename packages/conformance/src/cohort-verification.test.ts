@@ -71,6 +71,7 @@ function target(name: "bdptest" | "bdpbd") {
     target: name,
     scores: { pass: 2, other: 0 },
     packagedRows: 1,
+    notApplicable: [],
     selfCertifiedRows: 1,
     segments: [
       segment("packaged", [row("read.a", "packaged")], bd),
@@ -103,6 +104,7 @@ function inputFor(
     artifactBytes: bytes,
     evidenceByTarget: { bdptest: constant, bdpbd: constant },
     requiredScenarioIds: REQUIRED,
+    derivedNotApplicableByTarget: { bdptest: [], bdpbd: [] },
     derivedSelfCertifiable: SELF_CERTIFIABLE,
     expectedBdIdentity: bdIdentity,
     runHeadIsAncestor: true,
@@ -153,6 +155,42 @@ describe("read cohort evidence verification", () => {
 
   // Deleting a failing row is the cheapest forgery; relabeling its admission is
   // the next cheapest. Both are refused from the committed bytes.
+  it("refuses a forged pass-claim on a row derived not applicable, and every fail-open shape", () => {
+    // A target that claims a row its fixture cannot realize is a forgery,
+    // even when the forged artifact records the not-applicable row honestly.
+    const forgedArtifact = artifact();
+    const forgedTarget = (
+      forgedArtifact.targets as { target: string; notApplicable: unknown }[]
+    ).find((entry) => entry.target === "bdpbd");
+    if (forgedTarget === undefined) throw new Error("bdpbd target missing from double");
+    forgedTarget.notApplicable = [
+      { scenarioId: "read.b", missingCapabilities: ["alias-resolution-v1"] },
+    ];
+    const claimed = inputFor(forgedArtifact, {
+      derivedNotApplicableByTarget: {
+        bdptest: [],
+        bdpbd: [{ scenarioId: "read.b", missingCapabilities: ["alias-resolution-v1"] }],
+      },
+    });
+    expect(() => verifyReadCohortEvidence(claimed)).toThrow(
+      /despite a missing applicability capability/,
+    );
+    // A recorded list that disagrees with the derivation is a forgery.
+    const mutated = artifact();
+    const firstTarget = (mutated.targets as { notApplicable: unknown }[])[0];
+    if (firstTarget === undefined) throw new Error("target missing from double");
+    firstTarget.notApplicable = [{ scenarioId: "read.b", missingCapabilities: ["invented"] }];
+    expect(() => verifyReadCohortEvidence(inputFor(mutated))).toThrow(
+      /do not match the committed manifest and fixture/,
+    );
+    // A missing derivation for either target fails closed.
+    expect(() =>
+      verifyReadCohortEvidence(
+        inputFor(artifact(), { derivedNotApplicableByTarget: { bdptest: [] } }),
+      ),
+    ).toThrow(/no derived not-applicable set for target 'bdpbd'/);
+  });
+
   it("refuses a target missing a required row", () => {
     const forged = withTarget("bdptest", (entry) => {
       entry.segments = [segment("packaged", [row("read.a", "packaged")], false)];

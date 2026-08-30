@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   createPortableReferenceFixturePort,
+  portableReferenceFixtureAliases,
+  referenceFixtureAliases,
   createReferenceFixturePort,
   type ScopePort,
   type ScopeReadOperation,
@@ -162,6 +164,13 @@ async function expectReferenceFixtureParity(portablePort: ScopePort): Promise<vo
 }
 
 describe("bdptest reference target Read matrix", () => {
+  it("keeps the built-in alias table in lockstep with the committed portable fixture", () => {
+    const fixture = JSON.parse(
+      readText("packages/conformance/fixtures/read-reference-v1.json"),
+    ) as Record<string, unknown>;
+    expect(portableReferenceFixtureAliases(scope, fixture)).toEqual(referenceFixtureAliases(scope));
+  });
+
   it("passes every checked-in plan with Read admission evidence explicitly stubbed", async () => {
     const withdrawEvidence = establishReadConformanceEvidenceForTesting("bdptest");
     let scenarioTarget: ReturnType<typeof createRawHttpScenarioTarget> | undefined;
@@ -245,6 +254,19 @@ describe("bdptest reference target Read matrix", () => {
       const resultsById = new Map(result.scenarios.map((scenario) => [scenario.id, scenario]));
       for (const plan of artifactBundle.manifest.scenarios) {
         const observed = resultsById.get(plan.id);
+        const declared = new Set(
+          (artifactBundle.fixture as { readonly capabilities?: readonly string[] }).capabilities ??
+            [],
+        );
+        const inapplicable = (plan.applicability?.requires ?? []).filter(
+          (capability) => !declared.has(capability),
+        );
+        if (inapplicable.length > 0) {
+          expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
+            state: "not-applicable",
+          });
+          continue;
+        }
         expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
           state: "pass",
         });
@@ -292,6 +314,7 @@ async function startReferenceSession(
   releaseControlledSession: () => void = () => undefined,
 ) {
   const faultingResource = new URL(requireBinding(fixture, "bead.demo-a"), scope).href;
+  const fixtureAliases = portableReferenceFixtureAliases(scope, fixture);
   const faultPort = injectInternalFault
     ? createReadResourceFaultPortForTesting(port, {
         resource: "bead",
@@ -330,6 +353,7 @@ async function startReferenceSession(
       target: "bdptest",
       admittedProfile: admitReadServerProfile("read", "bdptest"),
       port: controlled?.port ?? sessionPort,
+      ...(fixtureAliases === undefined ? {} : { aliases: fixtureAliases }),
       advertisedLimits: advertisedLimitsFor(readControls),
       readControls,
     });

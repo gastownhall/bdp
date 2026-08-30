@@ -1,14 +1,15 @@
 # Executable conformance matrices
 
 `read-v1.json` is the complete but non-attesting Read execution manifest. It
-links all 33 metadata-catalog scenarios to executable plans. Plan completeness
+links all 35 metadata-catalog scenarios to executable plans. Plan completeness
 alone cannot enable a conformance claim: the app matrices use test-only
 admission grants and controlled capabilities, and every runner report keeps
 `claimEligible` hard-coded to `false`. The conformance claim lives elsewhere —
 in the committed two-target cohort artifact described at the end of this
-document, which records 25 rows proved against the launched packaged payloads
-and 8 self-certified in-process rows, and whose content digest is the recorded
-per-target evidence constant.
+document, which records, per target, 26 rows proved against the launched
+packaged payloads, 8 self-certified in-process rows, and 1 honestly
+not-applicable capability-gated row, and whose content digest is the
+recorded per-target evidence constant.
 
 The checked-in runner still fails closed when a plan's required capability is
 absent, an observation is incomplete, or target provenance cannot be proved.
@@ -388,9 +389,9 @@ before the final path segment, or append strict ASCII/base64 suffix bytes; the
 fully materialized request target remains bounded to 8 KiB and is never copied
 into the conformance report.
 
-The 33/33 executable-plan score remains non-attesting and fail-closed. There are
-no missing Read plans, but executable coverage is not target-bound admission
-evidence.
+The full executable-plan score (every applicable plan passing per target)
+remains non-attesting and fail-closed. There are no missing Read plans, but
+executable coverage is not target-bound admission evidence.
 
 The reference fixture's Type IDs are deliberately hosted outside its Scope at
 `https://work.example/types/`. A Scope-local `types/{id}` request therefore
@@ -443,9 +444,10 @@ independently: any edit to either marker without a matching artifact fails
 the evidence gate closed. The cohort's required scenario IDs are derived from
 the bound catalog and its runs together cover both `bdptest` and `bdpbd`. A
 cohort is assembled from more than one run — a packaged run and a
-self-certified in-process run — so each run declares the rows it carries, and
-their union must be exactly the required set with every row attributed to
-exactly one run. The cohort must bind the catalog, manifest, fixture,
+self-certified in-process run — so each run declares the rows it carries, and,
+for each target, their union must be exactly the required set minus that
+target's derived not-applicable rows (the honest-absence rule below), with
+every carried row attributed to exactly one run. The cohort must bind the catalog, manifest, fixture,
 canonical schema, validator, runner, harness, executor, installed payload,
 launched target process, fixture/workspace, and—for `bdpbd`—the actual `bd`
 executable. A missing, failing, or mismatched target closes the cohort for
@@ -461,8 +463,10 @@ evidence, so the first run cannot be packaged-admitted. Ruled 2026-08-17:
 
 - The bootstrap cohort may be generated against a test-granted target. It is a
   scaffold, and it is committed only to unlock admission for the packaged run.
-- Every artifact records the admission of **every row**, and a row that is not
-  self-certifiable must be `packaged`. That single rule refuses the bootstrap
+- Every artifact records the admission of **every carried row** (an
+  honestly inapplicable row is recorded under `notApplicable` instead and
+  carries no admission), and a carried row that is not self-certifiable
+  must be `packaged`. That single rule refuses the bootstrap
   artifact automatically — its packaged-required rows are in-process — so no
   separate prohibition is needed, and cherry-picking the bootstrap commit still
   fails closed.
@@ -478,13 +482,17 @@ harness parity rather than conformance.
 The five decisions that previously blocked a non-null cohort were resolved
 2026-08-17 and now bind the implementation:
 
-- **Required set and admissible state.** The required set is the 33
-  catalog-derived scenario IDs, and `pass` is the only admissible state. `fail`,
-  `harness-error`, `not-applicable`, `unsupported-profile`, and absent each close
-  the cohort for both targets. Per-target scores render as `33 pass / 0 other`,
-  never as a bare `33/33`, so a non-pass state cannot hide inside a ratio.
-- **Optional-capability variants.** The cohort covers exactly the 33 reviewed
-  rows and authors no absent-variant scenarios. The artifact carries an explicit
+- **Required set and admissible state.** The required set is the
+  catalog-derived scenario ID list (35 at this writing), and `pass` is the
+  only admissible state for an applicable row. `fail`, `harness-error`,
+  `unsupported-profile`, and absent each close the cohort for both targets.
+  A `not-applicable` outcome is admissible in exactly one form: a
+  capability-gated row recorded per target under the honest-absence rule
+  below, derived and recomputed from committed bytes — anywhere else it
+  closes the cohort. Per-target scores render split (`N pass / 0 other`),
+  never as a bare ratio, so a non-pass state cannot hide inside one.
+- **Optional-capability variants.** The cohort accounts for every reviewed
+  required row and authors no absent-variant scenarios. The artifact carries an explicit
   `uncovered` list naming the absent-optional variant, so that gap is declared
   rather than left implicit.
 - **Evidence constant and closed-gate bootstrapping.** The constant is the cohort
@@ -508,16 +516,19 @@ The five decisions that previously blocked a non-null cohort were resolved
   names, body size and shape, and binding digests. It carries no header values,
   no body content, no body digests, and no target-derived instance paths.
 - **Admission bootstrapping.** Generation may be test-granted; closure may not.
-  See the decision above; the artifact records admission per row and
-  verification requires `packaged` for every row that is not self-certifiable.
+  See the decision above; the artifact records admission per carried row
+  (inapplicable rows live under `notApplicable` and carry none) and
+  verification requires `packaged` for every carried row that is not
+  self-certifiable.
 - **Row provenance and the self-certified set.** Decided 2026-08-17. Eight rows
   cannot be driven against a packaged target: they carry `lifecycle`-family
   actions that mutate target state mid-run, and the control headers
   `x-bdp-conformance-view`/`x-bdp-conformance-epoch` are defined in
   `packages/conformance/test-support` and honored by nothing in the server
   package or either composition root. Rather than ship a conformance control
-  surface, provenance is recorded **per row**: 25 rows packaged, 8 self-certified
-  in-process, declared explicitly in the artifact.
+  surface, provenance is recorded **per row** — packaged, self-certified in-process,
+  or honestly not-applicable — declared explicitly in the artifact (at this
+  writing, per target: 26 packaged, 8 self-certified, 1 not-applicable).
 
   The self-certifiable set is **derived from the bound manifest** — precisely the
   rows carrying a `lifecycle`-family action — never a hand-maintained list. A
@@ -549,3 +560,19 @@ server unchallenged.
 Exact-head CI, whole-branch adversarial review, and tree-equality proof
 remain final gates; none has been satisfied merely by reaching the executable
 plan count.
+
+
+### Honest absence: capability-gated rows
+
+A catalog scenario whose manifest plan carries `applicability.requires` runs
+only against a target whose bound fixture declares every named capability. A
+target whose fixture does not is recorded in the cohort artifact's per-target
+`notApplicable` list — scenario id plus the missing capabilities — and
+contributes no row for that scenario. The list is derived, never supplied:
+the generator computes it from the bound manifest and each target's bound
+fixture, and the evidence gate recomputes it from the committed bytes and
+refuses an artifact whose recorded list differs, whose inapplicable row is
+also claimed, or whose scores count an inapplicable row as pass. Honest
+absence is not coverage: a capability-gated row proves nothing about the
+target that lacks the capability, and the artifact says so instead of
+hiding it.

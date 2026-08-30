@@ -161,6 +161,12 @@ export interface ReadCohortSegment {
   readonly scenarios: readonly ReadCohortScenario[];
 }
 
+export interface ReadCohortNotApplicableRow {
+  readonly scenarioId: string;
+  /** The manifest applicability capabilities this target's fixture does not declare. */
+  readonly missingCapabilities: readonly string[];
+}
+
 export interface ReadCohortTargetEntry {
   readonly target: ReadCohortTarget;
   /** D1: rendered as `N pass / M other`, never as a bare ratio. */
@@ -168,6 +174,13 @@ export interface ReadCohortTargetEntry {
   /** Also rendered split, so a reader never has to infer how much was packaged. */
   readonly packagedRows: number;
   readonly selfCertifiedRows: number;
+  /**
+   * Rows honestly inapplicable to this target: the bound manifest gates them
+   * on capabilities the target's bound fixture does not declare. Derived,
+   * never supplied, and recomputable by the verifier from committed bytes.
+   * Never counted as pass.
+   */
+  readonly notApplicable: readonly ReadCohortNotApplicableRow[];
   readonly segments: readonly ReadCohortSegment[];
 }
 
@@ -198,8 +211,10 @@ export interface ReadCohortTargetInput {
   readonly bindings: ReadCohortBindings;
   readonly bdIdentity?: BdIdentityPin;
   readonly admission: ReadCohortAdmission;
-  /** The rows this run contributes. Their union per target must be the whole set. */
+  /** The rows this run contributes. Their union per target must be the whole applicable set. */
   readonly rows: readonly string[];
+  /** The bound fixture's declared capabilities, for the not-applicable derivation. */
+  readonly capabilities: readonly string[];
 }
 
 export interface ReadCohortArtifactInput {
@@ -240,7 +255,32 @@ export function createReadCohortArtifact(input: ReadCohortArtifactInput): ReadCo
     if (inputs.length === 0) {
       throw new ReadCohortArtifactError(`cohort is missing required target '${target}'`);
     }
-    return projectTargetSegments(target, inputs, requiredScenarioIds, selfCertifiable);
+    const [firstInput, ...restInputs] = inputs;
+    if (firstInput === undefined) {
+      throw new ReadCohortArtifactError(`cohort is missing required target '${target}'`);
+    }
+    for (const entry of restInputs) {
+      if (
+        entry.capabilities.length !== firstInput.capabilities.length ||
+        entry.capabilities.some((value, index) => value !== firstInput.capabilities[index])
+      ) {
+        throw new ReadCohortArtifactError(
+          `target '${target}' runs disagree on the bound fixture's capabilities`,
+        );
+      }
+    }
+    const notApplicable = deriveReadCohortNotApplicableRows(
+      input.manifest,
+      requiredScenarioIds,
+      firstInput.capabilities,
+    );
+    return projectTargetSegments(
+      target,
+      inputs,
+      requiredScenarioIds,
+      selfCertifiable,
+      notApplicable,
+    );
   });
 
   // One cohort, one experiment: every segment must agree on the catalog and
@@ -327,8 +367,10 @@ function projectTargetSegments(
   inputs: readonly ReadCohortTargetInput[],
   requiredScenarioIds: readonly string[],
   selfCertifiable: readonly string[],
+  notApplicable: readonly ReadCohortNotApplicableRow[],
 ): ReadCohortTargetEntry {
   const selfSet = new Set(selfCertifiable);
+  const notApplicableIds = new Set(notApplicable.map(({ scenarioId }) => scenarioId));
   const claimed = new Map<string, ReadCohortAdmission>();
   const segments = [...inputs]
     .sort((left, right) => compareCodeUnits(left.admission, right.admission))
@@ -345,6 +387,14 @@ function projectTargetSegments(
     });
 
   for (const id of requiredScenarioIds) {
+    if (notApplicableIds.has(id)) {
+      if (claimed.has(id)) {
+        throw new ReadCohortArtifactError(
+          `target '${target}' claims row '${id}' despite a missing applicability capability`,
+        );
+      }
+      continue;
+    }
     if (!claimed.has(id)) {
       throw new ReadCohortArtifactError(
         `target '${target}' is missing required scenario '${id}'; absent closes the cohort`,
@@ -365,8 +415,36 @@ function projectTargetSegments(
     scores: Object.freeze({ pass: rows.length, other: 0 }),
     packagedRows: rows.filter((admission) => admission === "packaged").length,
     selfCertifiedRows: rows.filter((admission) => admission === "in-process").length,
+    notApplicable: Object.freeze(notApplicable.map((row) => Object.freeze(row))),
     segments: Object.freeze(segments),
   }) as ReadCohortTargetEntry;
+}
+
+/**
+ * The not-applicable set for one target: required rows whose manifest
+ * applicability gate names a capability the target's bound fixture does not
+ * declare. Derived, never supplied; the verifier recomputes it from the
+ * committed catalog, manifest, and fixture bytes.
+ */
+export function deriveReadCohortNotApplicableRows(
+  manifest: ExecutableScenarioManifest,
+  requiredScenarioIds: readonly string[],
+  capabilities: readonly string[],
+): readonly ReadCohortNotApplicableRow[] {
+  const declared = new Set(capabilities);
+  const rows: ReadCohortNotApplicableRow[] = [];
+  for (const id of requiredScenarioIds) {
+    const scenario = manifest.scenarios.find((entry) => entry.id === id);
+    if (scenario === undefined) continue;
+    const missing = (scenario.applicability?.requires ?? []).filter(
+      (capability) => !declared.has(capability),
+    );
+    if (missing.length > 0)
+      rows.push(
+        Object.freeze({ scenarioId: id, missingCapabilities: Object.freeze([...missing].sort()) }),
+      );
+  }
+  return Object.freeze(rows);
 }
 
 /**

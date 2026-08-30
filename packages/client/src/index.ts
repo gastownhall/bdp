@@ -2351,7 +2351,8 @@ function sameScope(discovery: ReadDiscovery, scope: AbsoluteHttpUrl): boolean {
     return (
       discovery.beads === new URL("beads/", expected).href &&
       discovery.links === new URL("links/", expected).href &&
-      discovery.types === new URL("types/", expected).href
+      discovery.types === new URL("types/", expected).href &&
+      (discovery.aliases === undefined || discovery.aliases === new URL("alias/", expected).href)
     );
   } catch {
     return false;

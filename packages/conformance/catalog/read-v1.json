@@ -454,6 +454,47 @@
           "selectedText": "Tests exercise public HTTP behavior and consume the normative schema bundle; they do not inspect an implementation's storage or internal server interfaces."
         }
       ]
+    },
+    {
+      "id": "read.alias.resolution",
+      "title": "Alias URLs resolve with one redirect and disclose nothing",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-resolution",
+          "selectedText": "a `GET` or `HEAD` of an alias URL —\n`alias/{alias-path}` resolved against the canonical Scope URL — returns\n`307 Temporary Redirect` with `Location` set to the target's absolute\ncanonical Bead URL and no body."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-resolution",
+          "selectedText": "An unknown alias, an alias URL carrying a query or fragment, and any alias\nURL at an authority that does not advertise `aliases` return the same `404`\n`resource-not-found` used for unknown Resources"
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "Alias resolution MUST be\n  redirect-only: `GET` and `HEAD` return `307` with `Location` set to the\n  target's absolute canonical Bead URL and no body."
+        }
+      ]
+    },
+    {
+      "id": "read.alias.absent",
+      "title": "An alias-less authority discloses nothing at alias URLs",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-resolution",
+          "selectedText": "An unknown alias, an alias URL carrying a query or fragment, and any alias\nURL at an authority that does not advertise `aliases` return the same `404`\n`resource-not-found` used for unknown Resources"
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "An unknown alias returns\n  the same `404` `resource-not-found` as an unknown Resource. An authority\n  without aliases omits the `aliases` discovery member."
+        }
+      ]
     }
   ]
 }

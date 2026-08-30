@@ -18,6 +18,7 @@ import {
   createJsonSchemaValidator,
   createRawHttpScenarioTarget,
   createReadCohortArtifact,
+  deriveReadCohortNotApplicableRows,
   deriveReadCohortRequiredScenarioIds,
   deriveReadCohortSelfCertifiableIds,
   type ExecutableScenario,
@@ -527,12 +528,22 @@ describe("packaged Read cohort generation", () => {
           },
         },
       ];
+      const fixtureCapabilities = (bundle: { readonly fixture: unknown }): readonly string[] =>
+        (bundle.fixture as { readonly capabilities?: readonly string[] }).capabilities ?? [];
+      const notApplicableFor = (bundle: ConformanceArtifactBundle) =>
+        deriveReadCohortNotApplicableRows(
+          bundle.manifest,
+          requiredRows,
+          fixtureCapabilities(bundle),
+        );
       const packagedRuns: Record<string, Awaited<ReturnType<typeof runPackagedTarget>>> = {};
       for (const plan of plans) {
+        const bundle = plan.target === "bdptest" ? referenceBundle : bdBundle;
+        const excluded = new Set(notApplicableFor(bundle).map(({ scenarioId }) => scenarioId));
         packagedRuns[plan.target] = await runPackagedTarget(
           plan,
-          plan.target === "bdptest" ? referenceBundle : bdBundle,
-          packagedRows,
+          bundle,
+          packagedRows.filter((id) => !excluded.has(id)),
         );
       }
 
@@ -588,13 +599,17 @@ describe("packaged Read cohort generation", () => {
             plan.target === "bdptest" ? measured.fixtureDigest : canonicalJsonDigest(bdFixture.bd),
           ...(plan.target === "bdpbd" ? { bdExecutable: bdExecutableDigest } : {}),
         };
+        const targetExcluded = new Set(
+          notApplicableFor(bundle).map(({ scenarioId }) => scenarioId),
+        );
         targets.push({
           target: plan.target,
           run,
           bindings: packagedBindings,
           ...(plan.target === "bdpbd" ? { bdIdentity } : {}),
           admission: "packaged",
-          rows: packagedRows,
+          rows: packagedRows.filter((id) => !targetExcluded.has(id)),
+          capabilities: fixtureCapabilities(bundle),
         });
         const inProcess = inProcessRuns[plan.target];
         const inProcessBindings: ReadCohortBindings = {
@@ -611,7 +626,8 @@ describe("packaged Read cohort generation", () => {
           bindings: inProcessBindings,
           ...(plan.target === "bdpbd" ? { bdIdentity } : {}),
           admission: "in-process",
-          rows: selfCertifiedRows,
+          rows: selfCertifiedRows.filter((id) => !targetExcluded.has(id)),
+          capabilities: fixtureCapabilities(bundle),
         });
       }
 

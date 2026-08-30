@@ -129,7 +129,17 @@ function validateFixtureOraclePointers(
   manifest: ExecutableScenarioManifest,
   fixture: ConformanceFixture,
 ): void {
+  const declaredCapabilities = new Set(fixture.capabilities);
   for (const scenario of manifest.scenarios) {
+    // A scenario gated on capabilities this fixture does not declare never
+    // runs against it; its oracle pointers bind in the applicable target's
+    // fixture instead.
+    if (
+      (scenario.applicability?.requires ?? []).some(
+        (capability) => !declaredCapabilities.has(capability),
+      )
+    )
+      continue;
     for (const action of scenario.actions ?? scenario.requests) {
       if ("inputFixturePointer" in action && action.inputFixturePointer !== undefined) {
         const input = jsonPointer(fixture, action.inputFixturePointer);

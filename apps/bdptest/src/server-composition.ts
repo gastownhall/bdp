@@ -1,4 +1,4 @@
-import { createReferenceFixturePort } from "@bdp/adapter-in-memory";
+import { createReferenceFixturePort, referenceFixtureAliases } from "@bdp/adapter-in-memory";
 import type { ServerReadLimitsConfig } from "@bdp/config";
 import {
   admitReadServerProfile,
@@ -29,6 +29,7 @@ export function createConfiguredBdptestReadServer(config: BdptestServerConfig): 
       createReferenceFixturePort(config.scope.url),
       config.server.internalFaultResource,
     ),
+    aliases: referenceFixtureAliases(config.scope.url),
     advertisedLimits: config.server.limits,
     readControls: createPublicReadControls({
       scope: config.scope.url,

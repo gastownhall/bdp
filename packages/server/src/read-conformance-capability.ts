@@ -3,9 +3,10 @@ export type ReadServerTarget = "bdptest" | "bdpbd";
 /**
  * The Read cohort evidence constant: the content digest (SHA-256 truncated to
  * its first 40 hex characters) of the committed two-target cohort artifact at
- * docs/design/evidence/read-cohort/read-v1.json. The artifact records 25
- * packaged rows proved against the launched payloads and 8 self-certified
- * in-process rows, per the ruled provenance split.
+ * docs/design/evidence/read-cohort/read-v1.json. The artifact records, per
+ * target, 26 packaged rows proved against the launched payloads, 8
+ * self-certified in-process rows, and 1 honestly not-applicable
+ * capability-gated row, per the ruled provenance split.
  *
  * `pnpm evidence:verify` is the gate: it re-derives the self-certifiable set
  * from the bound manifest, checks canonical artifact bytes against this value
@@ -18,7 +19,7 @@ export type ReadServerTarget = "bdptest" | "bdpbd";
  * is deliberately deep-imported by the smoke and E2E gate scripts; the record
  * itself stays private to prevent runtime callers from manufacturing evidence.
  */
-const READ_COHORT_EVIDENCE_CONSTANT = "acc07b9770caffe4b1d0aa80436a41e2fdde1d68";
+const READ_COHORT_EVIDENCE_CONSTANT = "b1f2002ac9a4bbfda0e74a46ce6867c8fcfcd26a";
 
 const READ_CONFORMANCE_EVIDENCE_BY_TARGET: Readonly<Record<ReadServerTarget, string | undefined>> =
   Object.freeze({

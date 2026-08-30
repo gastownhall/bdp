@@ -166,6 +166,7 @@ export function assembleVerificationInput({
   artifactBytes,
   evidenceByTarget,
   requiredScenarioIds,
+  derivedNotApplicableByTarget,
   derivedSelfCertifiable,
   expectedBdIdentity,
   gitFacts,
@@ -174,6 +175,7 @@ export function assembleVerificationInput({
     artifactBytes,
     evidenceByTarget,
     requiredScenarioIds,
+    derivedNotApplicableByTarget,
     derivedSelfCertifiable,
     expectedBdIdentity,
     runHeadIsAncestor: gitFacts.runHeadIsAncestor,
@@ -263,6 +265,25 @@ export async function main() {
       manifest,
       requiredScenarioIds,
     );
+    // Honest absence, recomputed: for each target, rows gated on capabilities
+    // that target's committed fixture does not declare. Derived from bytes,
+    // never trusted from the artifact.
+    const fixtureCapabilitiesFor = (fixturePath) => {
+      const parsed = JSON.parse(readFileSync(path.join(root, fixturePath), "utf8"));
+      return Array.isArray(parsed.capabilities) ? parsed.capabilities : [];
+    };
+    const derivedNotApplicableByTarget = {
+      bdptest: conformance.deriveReadCohortNotApplicableRows(
+        manifest,
+        requiredScenarioIds,
+        fixtureCapabilitiesFor("packages/conformance/fixtures/read-reference-v1.json"),
+      ),
+      bdpbd: conformance.deriveReadCohortNotApplicableRows(
+        manifest,
+        requiredScenarioIds,
+        fixtureCapabilitiesFor("packages/conformance/fixtures/read-bdpbd-v1.json"),
+      ),
+    };
     // D4: recompute the bd identity pin from the committed baseline
     // observations (pure bytes, no bd on PATH needed); the verifier requires
     // every bdpbd segment to record exactly this identity.
@@ -283,6 +304,7 @@ export async function main() {
       artifactBytes,
       evidenceByTarget,
       requiredScenarioIds,
+      derivedNotApplicableByTarget,
       derivedSelfCertifiable,
       expectedBdIdentity,
       gitFacts,

@@ -96,6 +96,12 @@ export interface ReadDiscovery {
   readonly beads: AbsoluteHttpUrl;
   readonly links: AbsoluteHttpUrl;
   readonly types: AbsoluteHttpUrl;
+  /**
+   * The alias root, when this authority serves aliases: repointable names
+   * beneath `alias/` that resolve to canonical Bead URLs with one 307.
+   * Omitted by authorities without aliases (capability honesty).
+   */
+  readonly aliases?: AbsoluteHttpUrl;
   readonly limits?: ReadAdvertisedLimits;
   readonly maximumEndpointMultiplicity?: readonly MaximumEndpointMultiplicityPolicy[];
 }
@@ -190,6 +196,7 @@ export {
   parseTypeInventory,
   parseTypeSummary,
   ProtocolArtifactValidationError,
+  assertCanonicalPathSegments,
   resolveCanonicalLocalResourceId,
 } from "./read-values.js";
 

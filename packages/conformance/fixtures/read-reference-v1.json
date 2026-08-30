@@ -15,14 +15,22 @@
     "reference-read-v1",
     "reference-read-v1-single-page",
     "cors-disabled",
-    "unexpected-internal-fault"
+    "unexpected-internal-fault",
+    "alias-resolution-v1"
   ],
   "bindings": {
     "bead.demo-a": "beads/demo-a",
     "bead.demo-b": "beads/demo-b",
     "bead.demo-c": "beads/demo-c",
     "link.demo-b-a": "links/demo-b-a",
-    "bead.demo-f": "beads/demo-f"
+    "bead.demo-f": "beads/demo-f",
+    "alias.decision": "alias/decision",
+    "alias.releases-latest": "alias/releases/latest",
+    "alias.unknown": "alias/never-created"
+  },
+  "aliases": {
+    "decision": "beads/demo-f",
+    "releases/latest": "beads/demo-a"
   },
   "private": {
     "internalFaultSentinel": "bdp-private-internal-fault-reference-91c50f775b1b"
@@ -516,6 +524,9 @@
           }
         ]
       }
+    },
+    "alias": {
+      "root": "alias/"
     }
   },
   "beads": [

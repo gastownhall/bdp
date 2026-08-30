@@ -41,6 +41,7 @@ import {
   parseTypeInventory,
   readProblem,
   readProblemDefinitionFor,
+  assertCanonicalPathSegments,
   resolveCanonicalLocalResourceId,
 } from "@bdp/protocol";
 import {
@@ -111,6 +112,13 @@ export interface ServerOptions {
   /** Binding Read bounds emitted by Scope discovery when supplied. */
   readonly advertisedLimits?: ServerAdvertisedReadLimits;
   readonly serviceDescription?: AbsoluteHttpUrl;
+  /**
+   * The alias table: repointable names beneath `alias/` (relative
+   * one-or-more-segment paths) mapped to canonical in-Scope Bead URLs.
+   * Resolution is redirect-only (307 + Location, no body); an authority
+   * without aliases omits this and the discovery member together.
+   */
+  readonly aliases?: Readonly<Record<string, AbsoluteHttpUrl>>;
   /** Grace period for admitted Read operations before close forwards cancellation. */
   readonly closeGraceMs?: number;
   /** Total close bound after which an unsettled Scope port is explicitly abandoned. */
@@ -269,6 +277,8 @@ export class ScopeServerOperationAbortedError extends ScopeServerLocalError {
 
 export interface ReadServer {
   readonly scope: AbsoluteHttpUrl;
+  /** Validated alias table (relative alias path -> canonical Bead URL); undefined when the authority serves no aliases. */
+  readonly aliases?: ReadonlyMap<string, AbsoluteHttpUrl>;
   perform<Request extends ReadRequest>(
     request: Request,
     options?: PerformOptions,
@@ -779,6 +789,28 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
       const scopeUrl = new URL(server.scope);
       if (url.origin !== scopeUrl.origin) return problemResponse(notFound());
       const probe = await server.probe({ signal: request.signal, httpRequest: request });
+      const aliasPath = classifyAliasPath(url, server.scope);
+      if (aliasPath !== undefined) {
+        // Alias resolution runs inside the same authorization projection as
+        // any read at this Scope, and strictly in this order: classify the
+        // URL (no table access), apply the identity gate, and only then
+        // consult the table — so neither the response nor its timing can
+        // disclose alias existence to a caller the projection refuses.
+        // Alias routing also precedes every representation-bearing route:
+        // nothing is ever served at an alias URL.
+        const gate = await server.perform(
+          { kind: "scope-discovery", scope: server.scope },
+          { signal: request.signal, httpRequest: request },
+        );
+        if (isReadServerProblem(gate)) return problemResponse(gate);
+        if (isReadProblem(aliasPath)) return problemResponse(aliasPath);
+        const aliasTarget = server.aliases?.get(aliasPath) ?? notFound();
+        if (isReadProblem(aliasTarget)) return problemResponse(aliasTarget);
+        return {
+          status: 307,
+          headers: new Headers({ location: aliasTarget, "content-length": "0" }),
+        };
+      }
       if (url.pathname === scopeUrl.pathname) {
         return {
           status: 204,
@@ -1152,6 +1184,7 @@ const SERVER_OPTION_FIELDS = [
   "readControls",
   "advertisedLimits",
   "serviceDescription",
+  "aliases",
   "closeGraceMs",
   "closeTimeoutMs",
 ] as const;
@@ -1178,6 +1211,13 @@ function snapshotServerOptions(value: ServerOptions): ServerOptions {
     port: snapshotScopePort(fields.port),
     ...(readControls === undefined ? {} : { readControls }),
     ...(advertisedLimits === undefined ? {} : { advertisedLimits }),
+    ...(fields.aliases === undefined
+      ? {}
+      : {
+          aliases: Object.freeze({
+            ...(fields.aliases as Readonly<Record<string, AbsoluteHttpUrl>>),
+          }),
+        }),
     ...(fields.serviceDescription === undefined
       ? {}
       : { serviceDescription: fields.serviceDescription as AbsoluteHttpUrl }),
@@ -1343,12 +1383,14 @@ export function createReadServer(options: ServerOptions): ReadServer {
   if (readControls !== undefined) boundServerReadPaginations.add(readControls.pagination);
   const admitted = new Set<Promise<unknown>>();
   const closing = new AbortController();
+  const aliasTable = validateAliasTable(options.aliases, options.scope, options.serviceDescription);
   const discovery = Object.freeze(discoveryFor(options));
   let state: "open" | "closing" | "closed" = "open";
   let closePromise: Promise<void> | undefined;
 
   const server: ReadServer = {
     scope: options.scope,
+    ...(aliasTable === undefined ? {} : { aliases: aliasTable }),
 
     probe(): Promise<ScopeProbe> {
       if (state !== "open") return Promise.reject(new ScopeServerClosedError());
@@ -2347,6 +2389,70 @@ function hasOnlyVariantFields(
   );
 }
 
+/**
+ * Validates the alias table at composition time, fail-closed: every alias
+ * path is one-or-more canonical safe segments (the Resource-ID grammar),
+ * and every target is a canonical in-Scope Bead URL. Alias-to-alias is
+ * structurally impossible because targets must live beneath `beads/`.
+ */
+function validateAliasTable(
+  aliases: Readonly<Record<string, AbsoluteHttpUrl>> | undefined,
+  scope: AbsoluteHttpUrl,
+  serviceDescription: AbsoluteHttpUrl | undefined,
+): ReadonlyMap<string, AbsoluteHttpUrl> | undefined {
+  // Unconditional: the alias root serves representations for no
+  // composition, alias table or not.
+  if (serviceDescription?.startsWith(`${scope}alias/`) === true)
+    throw new TypeError(
+      "serviceDescription must not live beneath the alias root; aliases are redirect-only",
+    );
+  if (aliases === undefined) return undefined;
+  const table = new Map<string, AbsoluteHttpUrl>();
+  for (const [path, target] of Object.entries(aliases)) {
+    // The exact Resource-ID segment grammar, shared with beads/ and links/:
+    // canonical encodings only, one valid spelling per name.
+    try {
+      assertCanonicalPathSegments(path, "alias path");
+    } catch (error) {
+      throw new TypeError(`alias path is not canonical: ${path}`, { cause: error });
+    }
+    const canonicalTarget = resolveCanonicalLocalResourceId(
+      scope,
+      "bead",
+      target.startsWith(scope) ? target.slice(scope.length) : target,
+    );
+    if (canonicalTarget !== target)
+      throw new TypeError(`alias target is not a canonical in-Scope Bead URL: ${target}`);
+    table.set(path, target);
+  }
+  return table;
+}
+
+/**
+ * Alias URL classification — deliberately table-free, so it can run before
+ * the identity gate. Returns undefined when the URL is not beneath the
+ * alias root, the alias path when it is well-formed, and the uniform 404
+ * problem for malformed alias URLs (query, fragment, empty, or a path the
+ * Resource-ID grammar refuses). Raw-target canonicality (dot segments,
+ * alternate encodings the WHATWG parser normalizes away) is the transport
+ * bridge's duty, exactly as for Resource URLs.
+ */
+function classifyAliasPath(url: URL, scope: AbsoluteHttpUrl): string | ReadProblem | undefined {
+  const scopeUrl = new URL(scope);
+  if (url.origin !== scopeUrl.origin) return undefined;
+  const aliasRoot = `${scopeUrl.pathname}alias/`;
+  if (!url.pathname.startsWith(aliasRoot)) return undefined;
+  if (url.search !== "" || url.hash !== "") return notFound();
+  const path = url.pathname.slice(aliasRoot.length);
+  if (path.length === 0) return notFound();
+  try {
+    assertCanonicalPathSegments(path, "alias path");
+  } catch {
+    return notFound();
+  }
+  return path;
+}
+
 function discoveryFor(options: ServerOptions): ReadDiscovery {
   const advertisedLimits = options.advertisedLimits;
   const discovery = {
@@ -2356,6 +2462,7 @@ function discoveryFor(options: ServerOptions): ReadDiscovery {
     beads: new URL("beads/", options.scope).href,
     links: new URL("links/", options.scope).href,
     types: new URL("types/", options.scope).href,
+    ...(options.aliases === undefined ? {} : { aliases: new URL("alias/", options.scope).href }),
     ...(advertisedLimits === undefined
       ? {}
       : {
