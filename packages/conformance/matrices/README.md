@@ -445,8 +445,9 @@ the evidence gate closed. The cohort's required scenario IDs are derived from
 the bound catalog and its runs together cover both `bdptest` and `bdpbd`. A
 cohort is assembled from more than one run — a packaged run and a
 self-certified in-process run — so each run declares the rows it carries, and
-their union must be exactly the required set with every row attributed to
-exactly one run. The cohort must bind the catalog, manifest, fixture,
+their union must be exactly the required set minus that target's derived
+not-applicable rows (the honest-absence rule below), with every carried row
+attributed to exactly one run. The cohort must bind the catalog, manifest, fixture,
 canonical schema, validator, runner, harness, executor, installed payload,
 launched target process, fixture/workspace, and—for `bdpbd`—the actual `bd`
 executable. A missing, failing, or mismatched target closes the cohort for
@@ -462,8 +463,10 @@ evidence, so the first run cannot be packaged-admitted. Ruled 2026-08-17:
 
 - The bootstrap cohort may be generated against a test-granted target. It is a
   scaffold, and it is committed only to unlock admission for the packaged run.
-- Every artifact records the admission of **every row**, and a row that is not
-  self-certifiable must be `packaged`. That single rule refuses the bootstrap
+- Every artifact records the admission of **every carried row** (an
+  honestly inapplicable row is recorded under `notApplicable` instead and
+  carries no admission), and a carried row that is not self-certifiable
+  must be `packaged`. That single rule refuses the bootstrap
   artifact automatically — its packaged-required rows are in-process — so no
   separate prohibition is needed, and cherry-picking the bootstrap commit still
   fails closed.
@@ -521,8 +524,9 @@ The five decisions that previously blocked a non-null cohort were resolved
   `x-bdp-conformance-view`/`x-bdp-conformance-epoch` are defined in
   `packages/conformance/test-support` and honored by nothing in the server
   package or either composition root. Rather than ship a conformance control
-  surface, provenance is recorded **per row**: 25 rows packaged, 8 self-certified
-  in-process, declared explicitly in the artifact.
+  surface, provenance is recorded **per row** — packaged, self-certified in-process,
+  or honestly not-applicable — declared explicitly in the artifact (at this
+  writing, per target: 26 packaged, 8 self-certified, 1 not-applicable).
 
   The self-certifiable set is **derived from the bound manifest** — precisely the
   rows carrying a `lifecycle`-family action — never a hand-maintained list. A
