@@ -1,15 +1,16 @@
 # Executable conformance matrices
 
 `read-v1.json` is the complete but non-attesting Read execution manifest. It
-links all 35 metadata-catalog scenarios to executable plans. Plan completeness
+links every metadata-catalog scenario to an executable plan. Plan completeness
 alone cannot enable a conformance claim: the app matrices use test-only
 admission grants and controlled capabilities, and every runner report keeps
 `claimEligible` hard-coded to `false`. The conformance claim lives elsewhere —
 in the committed two-target cohort artifact described at the end of this
-document, which records, per target, 26 rows proved against the launched
-packaged payloads, 8 self-certified in-process rows, and 1 honestly
+document, which records, per target, the rows proved against the launched
+packaged payloads, the self-certified in-process rows, and each honestly
 not-applicable capability-gated row, and whose content digest is the
-recorded per-target evidence constant.
+recorded per-target evidence constant; the sealed artifact carries the
+authoritative counts.
 
 The checked-in runner still fails closed when a plan's required capability is
 absent, an observation is incomplete, or target provenance cannot be proved.
@@ -527,8 +528,8 @@ The five decisions that previously blocked a non-null cohort were resolved
   `packages/conformance/test-support` and honored by nothing in the server
   package or either composition root. Rather than ship a conformance control
   surface, provenance is recorded **per row** — packaged, self-certified in-process,
-  or honestly not-applicable — declared explicitly in the artifact (at this
-  writing, per target: 26 packaged, 8 self-certified, 1 not-applicable).
+  or honestly not-applicable — declared explicitly in the artifact, which
+  carries the authoritative per-target counts.
 
   The self-certifiable set is **derived from the bound manifest** — precisely the
   rows carrying a `lifecycle`-family action — never a hand-maintained list. A

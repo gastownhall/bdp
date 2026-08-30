@@ -62,6 +62,17 @@ export function createInMemoryScopePort(handler: InMemoryReadHandler): ScopePort
   return { perform: handler };
 }
 
+/**
+ * A disclosure subject: an address whose reads answer with an
+ * authorization-gated 410 instead of the uniform 404. The kind pins the
+ * subject to one Resource plane; a request for the other kind at the same
+ * address falls through to the uniform not-found.
+ */
+export interface FixtureDisclosure {
+  readonly kind: "bead" | "link";
+  readonly problem: ReadProblem;
+}
+
 interface PreparedReferenceFixture {
   readonly beads: readonly BeadRecord[];
   readonly links: readonly LinkRecord[];
@@ -72,7 +83,7 @@ interface PreparedReferenceFixture {
    * with a 410 disclosure instead of the uniform 404, realized under the
    * fixture's declared history-authorized projection.
    */
-  readonly disclosures?: ReadonlyMap<string, ReadProblem>;
+  readonly disclosures?: ReadonlyMap<string, FixtureDisclosure>;
 }
 
 let builtInTypeArtifacts:
@@ -191,7 +202,8 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
       case "resource": {
         if (operation.resource === "bead") {
           const disclosed = disclosures?.get(operation.id);
-          if (disclosed !== undefined) return scopePortProblem<BeadResourceOperation>(disclosed);
+          if (disclosed?.kind === "bead")
+            return scopePortProblem<BeadResourceOperation>(disclosed.problem);
           const item = beads.find((bead) => bead.id === operation.id);
           return item === undefined
             ? scopePortProblem<BeadResourceOperation>(notFound())
@@ -199,7 +211,8 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
         }
         if (operation.resource === "link") {
           const disclosed = disclosures?.get(operation.id);
-          if (disclosed !== undefined) return scopePortProblem<LinkResourceOperation>(disclosed);
+          if (disclosed?.kind === "link")
+            return scopePortProblem<LinkResourceOperation>(disclosed.problem);
           const item = links.find((link) => link.id === operation.id);
           return item === undefined
             ? scopePortProblem<LinkResourceOperation>(notFound())
@@ -212,7 +225,8 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
       }
       case "properties": {
         const disclosed = disclosures?.get(operation.id);
-        if (disclosed !== undefined) return scopePortProblem<BeadPropertiesOperation>(disclosed);
+        if (disclosed?.kind === operation.resource)
+          return scopePortProblem<BeadPropertiesOperation>(disclosed.problem);
         if (operation.resource === "bead") {
           const record = beads.find((bead) => bead.id === operation.id);
           return record === undefined
@@ -226,7 +240,8 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
       }
       case "bead-links": {
         const disclosed = disclosures?.get(operation.bead);
-        if (disclosed !== undefined) return scopePortProblem<BeadLinksOperation>(disclosed);
+        if (disclosed?.kind === "bead")
+          return scopePortProblem<BeadLinksOperation>(disclosed.problem);
         if (!beads.some((bead) => bead.id === operation.bead))
           return scopePortProblem<BeadLinksOperation>(notFound());
         const items = Object.freeze(
@@ -444,18 +459,24 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   // Disclosure subjects, kept in lockstep with the portable fixture's
   // `disclosures` section: pruned answers with the pinned archive pointer,
   // erased answers with nothing beyond its code.
-  const disclosures = new Map<string, ReadProblem>([
+  const disclosures = new Map<string, FixtureDisclosure>([
     [
       new URL("beads/pruned-relic", scope).href,
       Object.freeze({
-        ...readProblem("resource-pruned"),
-        archivedAt: Object.freeze({
-          uri: "https://archive.example/acme/beads/pruned-relic",
-          revision: "arch-r4 (as-written)",
-        }) as unknown as Reference,
+        kind: "bead" as const,
+        problem: Object.freeze({
+          ...readProblem("resource-pruned"),
+          archivedAt: Object.freeze({
+            uri: "https://archive.example/acme/beads/pruned-relic",
+            revision: "arch-r4 (as-written)",
+          }) as unknown as Reference,
+        }),
       }),
     ],
-    [new URL("beads/erased-relic", scope).href, readProblem("resource-erased")],
+    [
+      new URL("beads/erased-relic", scope).href,
+      Object.freeze({ kind: "bead" as const, problem: readProblem("resource-erased") }),
+    ],
   ]);
   return {
     beads,
@@ -585,9 +606,9 @@ function readFixtureDisclosures(
   scope: AbsoluteHttpUrl,
   value: unknown,
   liveIds: ReadonlySet<string>,
-): ReadonlyMap<string, ReadProblem> | undefined {
+): ReadonlyMap<string, FixtureDisclosure> | undefined {
   if (value === undefined) return undefined;
-  const table = new Map<string, ReadProblem>();
+  const table = new Map<string, FixtureDisclosure>();
   for (const [index, entry] of readArray(value, "fixture.disclosures").entries()) {
     const path = `fixture.disclosures[${index}]`;
     const record = readRecord(entry, path);
@@ -606,12 +627,16 @@ function readFixtureDisclosures(
     const problem = readProblem(code);
     table.set(
       id,
-      record.archivedAt === undefined
-        ? problem
-        : Object.freeze({
-            ...problem,
-            archivedAt: readFixtureArchivedAt(record.archivedAt, `${path}.archivedAt`),
-          }),
+      Object.freeze({
+        kind,
+        problem:
+          record.archivedAt === undefined
+            ? problem
+            : Object.freeze({
+                ...problem,
+                archivedAt: readFixtureArchivedAt(record.archivedAt, `${path}.archivedAt`),
+              }),
+      }),
     );
   }
   return table;

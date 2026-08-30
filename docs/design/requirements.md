@@ -67,7 +67,8 @@ here rather than being invented by an implementation.
   `resource-erased` — gated on the single retained-history authorization.
   A `resource-pruned` problem MAY carry one `archivedAt` Reference,
   echoed and never validated; a `resource-erased` problem MUST NOT carry
-  members beyond its code. Unauthorized callers MUST receive the uniform
+  condition-specific extension members beyond its ordinary problem
+  members. Unauthorized callers MUST receive the uniform
   `404` `resource-not-found`. Erasures MUST propagate through the
   changefeed as erasure records carrying a `{scheme, value}` digest of
   the erased version; retention removals MUST NOT propagate.

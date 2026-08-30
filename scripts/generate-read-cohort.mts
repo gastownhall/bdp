@@ -46,8 +46,8 @@ import {
  *
  * This is production evidence tooling, not a test: it launches the BUILT
  * packaged payloads (`apps/<app>/dist/main.js`) over real HTTP — admitted by
- * the shipping evidence record, never by a test grant — and drives the 25
- * packaged-provenance rows against each target. The 8 self-certified rows come
+ * the shipping evidence record, never by a test grant — and drives the
+ * packaged-provenance rows against each target. The self-certified rows come
  * from the reviewed in-process matrix suites themselves, re-run with their
  * emit hook so the in-process segments are exactly the runs the matrices
  * assert on. The assembled cohort artifact is written to its one committed

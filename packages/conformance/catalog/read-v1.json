@@ -526,6 +526,19 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#reads-after-deletion",
           "selectedText": "A\n`resource-erased` problem carries no condition-specific extension members\nbeyond its ordinary problem members: even a pointer would disclose what\nerasure exists to remove."
+        }
+      ]
+    },
+    {
+      "id": "read.disclosure.gate",
+      "title": "Disclosure is authorization-gated, never an enumeration oracle",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "To every other caller all\nthree conditions remain the uniform `404`; the disclosure vocabulary is\nnever an enumeration oracle."
         },
         {
           "source": "docs/design/requirements.md",

@@ -115,7 +115,7 @@ export function createControlledReadSessionForTesting(options: {
   let token = 0;
   let advertisedLimitFixtureRequested = false;
   let mutation: { readonly id: string; readonly revision: string } | undefined;
-  let authorizationExcludedId: string | undefined;
+  const authorizationExcludedIds = new Set<string>();
   const deletedIds = new Set<string>();
   let reads = 0;
   let collectionReads = 0;
@@ -135,7 +135,7 @@ export function createControlledReadSessionForTesting(options: {
             : undefined;
       if (
         directId !== undefined &&
-        (directId === authorizationExcludedId || deletedIds.has(directId))
+        (authorizationExcludedIds.has(directId) || deletedIds.has(directId))
       )
         return { kind: "problem", problem: exactReadProblem("resource-not-found") };
       const result = await options.source.perform(operation, performOptions);
@@ -182,7 +182,7 @@ export function createControlledReadSessionForTesting(options: {
       }
       items = items.filter((item) => {
         if (!isPlainRecord(item) || typeof item.id !== "string") return true;
-        const excluded = item.id === authorizationExcludedId || deletedIds.has(item.id);
+        const excluded = authorizationExcludedIds.has(item.id) || deletedIds.has(item.id);
         if (excluded) modified = true;
         return !excluded;
       });
@@ -279,7 +279,7 @@ export function createControlledReadSessionForTesting(options: {
     excludeResourceFromAuthorizationView(id: string) {
       if (typeof id !== "string" || id.length === 0)
         throw new Error("controlled authorization exclusion is invalid");
-      authorizationExcludedId = new URL(id, options.scope).href;
+      authorizationExcludedIds.add(new URL(id, options.scope).href);
     },
     deleteResource(id: string) {
       if (typeof id !== "string" || id.length === 0)
