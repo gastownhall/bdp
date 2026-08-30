@@ -5717,6 +5717,56 @@
       },
       "requests": [
         {
+          "id": "scope",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "prerequisiteScenario": "read.discovery.scope-service-desc",
+          "headers": {},
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "oneOf": [200, 204]
+            }
+          ]
+        },
+        {
+          "id": "discovery-omits-aliases",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "prerequisiteScenario": "read.discovery.document",
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "aliases-absent",
+              "kind": "json-pointer",
+              "pointer": "/aliases",
+              "exists": false
+            }
+          ]
+        },
+        {
           "id": "unknown-bead",
           "method": "GET",
           "target": {

@@ -789,20 +789,22 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
       const scopeUrl = new URL(server.scope);
       if (url.origin !== scopeUrl.origin) return problemResponse(notFound());
       const probe = await server.probe({ signal: request.signal, httpRequest: request });
-      const aliasTarget = resolveAliasPath(url, server.scope, server.aliases);
-      if (aliasTarget !== undefined) {
+      const aliasPath = classifyAliasPath(url, server.scope);
+      if (aliasPath !== undefined) {
         // Alias resolution runs inside the same authorization projection as
-        // any read at this Scope: the identity gate applies before the table
-        // is consulted, so alias existence discloses nothing an
-        // unauthenticated or unauthorized caller could not learn from a
-        // Resource URL. Alias routing also precedes every
-        // representation-bearing route: nothing is ever served at an alias
-        // URL.
+        // any read at this Scope, and strictly in this order: classify the
+        // URL (no table access), apply the identity gate, and only then
+        // consult the table — so neither the response nor its timing can
+        // disclose alias existence to a caller the projection refuses.
+        // Alias routing also precedes every representation-bearing route:
+        // nothing is ever served at an alias URL.
         const gate = await server.perform(
           { kind: "scope-discovery", scope: server.scope },
           { signal: request.signal, httpRequest: request },
         );
         if (isReadServerProblem(gate)) return problemResponse(gate);
+        if (isReadProblem(aliasPath)) return problemResponse(aliasPath);
+        const aliasTarget = server.aliases?.get(aliasPath) ?? notFound();
         if (isReadProblem(aliasTarget)) return problemResponse(aliasTarget);
         return {
           status: 307,
@@ -2398,11 +2400,13 @@ function validateAliasTable(
   scope: AbsoluteHttpUrl,
   serviceDescription: AbsoluteHttpUrl | undefined,
 ): ReadonlyMap<string, AbsoluteHttpUrl> | undefined {
-  if (aliases === undefined) return undefined;
+  // Unconditional: the alias root serves representations for no
+  // composition, alias table or not.
   if (serviceDescription?.startsWith(`${scope}alias/`) === true)
     throw new TypeError(
       "serviceDescription must not live beneath the alias root; aliases are redirect-only",
     );
+  if (aliases === undefined) return undefined;
   const table = new Map<string, AbsoluteHttpUrl>();
   for (const [path, target] of Object.entries(aliases)) {
     // The exact Resource-ID segment grammar, shared with beads/ and links/:
@@ -2425,16 +2429,15 @@ function validateAliasTable(
 }
 
 /**
- * Alias resolution: returns undefined when the URL is not beneath the alias
- * root, the canonical Location for a known alias, and the uniform 404
- * problem for an unknown one. Redirect-only — the representation is never
- * served at the alias URL.
+ * Alias URL classification — deliberately table-free, so it can run before
+ * the identity gate. Returns undefined when the URL is not beneath the
+ * alias root, the alias path when it is well-formed, and the uniform 404
+ * problem for malformed alias URLs (query, fragment, empty, or a path the
+ * Resource-ID grammar refuses). Raw-target canonicality (dot segments,
+ * alternate encodings the WHATWG parser normalizes away) is the transport
+ * bridge's duty, exactly as for Resource URLs.
  */
-function resolveAliasPath(
-  url: URL,
-  scope: AbsoluteHttpUrl,
-  aliases: ReadonlyMap<string, AbsoluteHttpUrl> | undefined,
-): AbsoluteHttpUrl | ReadProblem | undefined {
+function classifyAliasPath(url: URL, scope: AbsoluteHttpUrl): string | ReadProblem | undefined {
   const scopeUrl = new URL(scope);
   if (url.origin !== scopeUrl.origin) return undefined;
   const aliasRoot = `${scopeUrl.pathname}alias/`;
@@ -2442,7 +2445,12 @@ function resolveAliasPath(
   if (url.search !== "" || url.hash !== "") return notFound();
   const path = url.pathname.slice(aliasRoot.length);
   if (path.length === 0) return notFound();
-  return aliases?.get(path) ?? notFound();
+  try {
+    assertCanonicalPathSegments(path, "alias path");
+  } catch {
+    return notFound();
+  }
+  return path;
 }
 
 function discoveryFor(options: ServerOptions): ReadDiscovery {
