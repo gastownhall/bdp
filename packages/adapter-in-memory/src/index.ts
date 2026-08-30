@@ -198,6 +198,8 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
             : scopePortSuccess<BeadResourceOperation>(item);
         }
         if (operation.resource === "link") {
+          const disclosed = disclosures?.get(operation.id);
+          if (disclosed !== undefined) return scopePortProblem<LinkResourceOperation>(disclosed);
           const item = links.find((link) => link.id === operation.id);
           return item === undefined
             ? scopePortProblem<LinkResourceOperation>(notFound())
@@ -209,6 +211,8 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
           : scopePortSuccess<TypeResourceOperation>(item);
       }
       case "properties": {
+        const disclosed = disclosures?.get(operation.id);
+        if (disclosed !== undefined) return scopePortProblem<BeadPropertiesOperation>(disclosed);
         if (operation.resource === "bead") {
           const record = beads.find((bead) => bead.id === operation.id);
           return record === undefined
@@ -221,6 +225,8 @@ function createPreparedReferenceFixturePort(prepared: PreparedReferenceFixture):
           : scopePortSuccess<LinkPropertiesOperation>(record.properties);
       }
       case "bead-links": {
+        const disclosed = disclosures?.get(operation.bead);
+        if (disclosed !== undefined) return scopePortProblem<BeadLinksOperation>(disclosed);
         if (!beads.some((bead) => bead.id === operation.bead))
           return scopePortProblem<BeadLinksOperation>(notFound());
         const items = Object.freeze(
@@ -555,7 +561,11 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
     "fixture.links resolved id",
   );
 
-  const disclosures = readFixtureDisclosures(scope, fixture.disclosures);
+  const disclosures = readFixtureDisclosures(
+    scope,
+    fixture.disclosures,
+    new Set([...beadsWithLocalIds.map(({ record }) => record.id), ...links.map(({ id }) => id)]),
+  );
   return {
     beads: beadsWithLocalIds.map(({ record }) => record),
     links,
@@ -574,6 +584,7 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
 function readFixtureDisclosures(
   scope: AbsoluteHttpUrl,
   value: unknown,
+  liveIds: ReadonlySet<string>,
 ): ReadonlyMap<string, ReadProblem> | undefined {
   if (value === undefined) return undefined;
   const table = new Map<string, ReadProblem>();
@@ -581,12 +592,17 @@ function readFixtureDisclosures(
     const path = `fixture.disclosures[${index}]`;
     const record = readRecord(entry, path);
     requireAllowedKeys(record, ["localId", "code", "archivedAt"], path);
-    const { id } = readFixtureLocalId(scope, "bead", record.localId, `${path}.localId`);
+    const localId = readNonemptyString(record.localId, `${path}.localId`);
+    const kind = localId.startsWith("links/") ? ("link" as const) : ("bead" as const);
+    const { id } = readFixtureLocalId(scope, kind, localId, `${path}.localId`);
+    if (table.has(id)) throw new Error(`${path} duplicates a disclosure subject`);
+    if (liveIds.has(id))
+      throw new Error(`${path} discloses a live Resource; a subject is gone or live, never both`);
     const code = readNonemptyString(record.code, `${path}.code`);
     if (code !== "resource-pruned" && code !== "resource-erased")
       throw new Error(`${path}.code must be resource-pruned or resource-erased`);
     if (code === "resource-erased" && record.archivedAt !== undefined)
-      throw new Error(`${path} erased disclosures carry nothing beyond their code`);
+      throw new Error(`${path} erased disclosures carry no condition-specific members`);
     const problem = readProblem(code);
     table.set(
       id,
@@ -594,13 +610,30 @@ function readFixtureDisclosures(
         ? problem
         : Object.freeze({
             ...problem,
-            archivedAt: Object.freeze(
-              readRecord(record.archivedAt, `${path}.archivedAt`),
-            ) as unknown as Reference,
+            archivedAt: readFixtureArchivedAt(record.archivedAt, `${path}.archivedAt`),
           }),
     );
   }
   return table;
+}
+
+/**
+ * Parses the archivedAt pointer as a structural Reference: an absolute URI
+ * string, or exactly { uri, revision } with nonempty members. Bytes are
+ * preserved; no semantic pin validation or dereference, per the law.
+ */
+function readFixtureArchivedAt(value: unknown, path: string): Reference {
+  if (typeof value === "string") {
+    const uri = readNonemptyString(value, path);
+    if (!isJsonSchemaUri(uri)) throw new Error(`${path} must be an absolute URI`);
+    return uri;
+  }
+  const record = readRecord(value, path);
+  requireAllowedKeys(record, ["uri", "revision"], path);
+  const uri = readNonemptyString(record.uri, `${path}.uri`);
+  if (!isJsonSchemaUri(uri)) throw new Error(`${path}.uri must be an absolute URI`);
+  const revision = readNonemptyString(record.revision, `${path}.revision`);
+  return Object.freeze({ uri, revision });
 }
 
 function readFixtureEndpoint(

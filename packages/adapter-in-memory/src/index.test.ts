@@ -691,6 +691,103 @@ describe("reference fixture Scope port", () => {
     ).toThrow("exceed the declared bound");
   });
 
+  it("hardens the disclosure loader: shapes, duplicates, and live overlap all refuse", () => {
+    const base = {
+      types: [{ id: "https://work.example/types/task", name: "Task", describes: "bead" }],
+      typeDescriptors: [
+        { id: "https://work.example/types/task", name: "Task", describes: "bead", conformsTo: [] },
+      ],
+      beads: [
+        {
+          localId: "beads/live",
+          type: "https://work.example/types/task",
+          revision: "1",
+          properties: {},
+        },
+      ],
+      links: [],
+    };
+    const withDisclosures = (disclosures: unknown) => () =>
+      createPortableReferenceFixturePort(scope, { ...base, disclosures });
+    // String-form archivedAt is a valid Reference; junk shapes are not.
+    expect(
+      withDisclosures([
+        { localId: "beads/gone", code: "resource-pruned", archivedAt: "urn:archive:relic" },
+      ]),
+    ).not.toThrow();
+    expect(
+      withDisclosures([{ localId: "beads/gone", code: "resource-pruned", archivedAt: {} }]),
+    ).toThrow();
+    expect(
+      withDisclosures([
+        { localId: "beads/gone", code: "resource-pruned", archivedAt: { banana: 42 } },
+      ]),
+    ).toThrow();
+    // Duplicates and live overlap refuse.
+    expect(
+      withDisclosures([
+        { localId: "beads/gone", code: "resource-erased" },
+        { localId: "beads/gone", code: "resource-pruned" },
+      ]),
+    ).toThrow("duplicates");
+    expect(withDisclosures([{ localId: "beads/live", code: "resource-erased" }])).toThrow(
+      "gone or live",
+    );
+    // Unknown codes and erased-with-pointer refuse.
+    expect(withDisclosures([{ localId: "beads/gone", code: "cursor-expired" }])).toThrow();
+    expect(
+      withDisclosures([
+        { localId: "beads/gone", code: "resource-erased", archivedAt: "urn:archive:x" },
+      ]),
+    ).toThrow("condition-specific");
+  });
+
+  it("discloses across record, properties, bead-links, and Link subjects", async () => {
+    const port = createPortableReferenceFixturePort(scope, {
+      types: [
+        { id: "https://work.example/types/task", name: "Task", describes: "bead" },
+        { id: "https://work.example/types/blocks", name: "Blocks", describes: "link" },
+      ],
+      typeDescriptors: [
+        { id: "https://work.example/types/task", name: "Task", describes: "bead", conformsTo: [] },
+        {
+          id: "https://work.example/types/blocks",
+          name: "Blocks",
+          describes: "link",
+          conformsTo: [],
+          source: { conformsTo: [] },
+          target: { conformsTo: [] },
+        },
+      ],
+      beads: [],
+      links: [],
+      disclosures: [
+        {
+          localId: "beads/gone",
+          code: "resource-pruned",
+          archivedAt: { uri: "urn:archive:gone", revision: "arch-1" },
+        },
+        { localId: "links/gone-edge", code: "resource-erased" },
+      ],
+    });
+    const pruned = { code: "resource-pruned", status: 410 };
+    await expect(
+      port.perform({ kind: "resource", resource: "bead", id: `${scope}beads/gone` }, options),
+    ).resolves.toMatchObject({
+      kind: "problem",
+      problem: { ...pruned, archivedAt: { uri: "urn:archive:gone", revision: "arch-1" } },
+    });
+    await expect(
+      port.perform({ kind: "properties", resource: "bead", id: `${scope}beads/gone` }, options),
+    ).resolves.toMatchObject({ kind: "problem", problem: pruned });
+    await expect(
+      port.perform({ kind: "bead-links", bead: `${scope}beads/gone`, direction: "both" }, options),
+    ).resolves.toMatchObject({ kind: "problem", problem: pruned });
+    await expect(
+      port.perform({ kind: "resource", resource: "link", id: `${scope}links/gone-edge` }, options),
+    ).resolves.toMatchObject({ kind: "problem", problem: { code: "resource-erased" } });
+  });
+
   it("rejects fixture Links with two external endpoints", () => {
     const blocks = {
       id: "https://work.example/types/blocks",

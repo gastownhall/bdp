@@ -525,7 +525,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#reads-after-deletion",
-          "selectedText": "A\n`resource-erased` problem carries nothing beyond its code: even a pointer\nwould disclose what erasure exists to remove."
+          "selectedText": "A\n`resource-erased` problem carries no condition-specific extension members\nbeyond its ordinary problem members: even a pointer would disclose what\nerasure exists to remove."
         },
         {
           "source": "docs/design/requirements.md",

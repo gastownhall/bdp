@@ -1313,8 +1313,18 @@ ChangeGroup {
   projectionAdvance: Boolean
   transaction?: TransactionId
   changes: StateChange*
+  erasures: ErasureRecord*
   eventCount: Integer
   events: Event*
+}
+
+ErasureRecord {
+  subject: URI        // the canonical Resource URL
+  revision            // the erased version's opaque revision token
+  digest {
+    scheme            // identifier naming the digest discipline
+    value             // the digest bytes, taken before erasure
+  }
 }
 ```
 
@@ -1984,16 +1994,19 @@ whether the Resource once existed.
 
 To a caller authorized for the subject's retained history — the same single
 authorization that gates `410` disclosure everywhere — an authority MAY
-instead disclose why a valid-shaped address has nothing behind it, using
-exactly three sibling `410` conditions: `event-history-expired` (history
-aged out of the retention window), `resource-pruned` (removed by deliberate
-lifecycle policy), and `resource-erased` (content that must not exist). A
+instead disclose why a valid-shaped address has nothing behind it. Two
+sibling `410` conditions are Read-profile codes in the closed problem
+table: `resource-pruned` (removed by deliberate lifecycle policy) and
+`resource-erased` (content that must not exist); their Transactional
+sibling `event-history-expired` (history aged out of the retention window)
+remains an Event-Source condition, not a Read-table code. A
 `resource-pruned` problem MAY carry one `archivedAt` member — a Reference,
 possibly pinned, naming where the content went — recorded and echoed like
 any Reference and never validated or dereferenced by the serving authority;
 its presence within an authorized disclosure is authority policy. A
-`resource-erased` problem carries nothing beyond its code: even a pointer
-would disclose what erasure exists to remove. To every other caller all
+`resource-erased` problem carries no condition-specific extension members
+beyond its ordinary problem members: even a pointer would disclose what
+erasure exists to remove. To every other caller all
 three conditions remain the uniform `404`; the disclosure vocabulary is
 never an enumeration oracle. The non-reuse rule remains internal: a
 filesystem-backed implementation may retain only a compact allocation marker
@@ -3134,12 +3147,17 @@ version whose content must not exist — is the opposite: it MUST be applied
 by every store, cache, and replica holding the version, and the changefeed
 is the vehicle that carries the obligation.
 
-An erasure occupies its own Scope position as an **erasure record**
-containing the subject's canonical Resource URL, the erased `revision`, and
-a digest of the erased version record taken before erasure — an object with
-a `scheme` naming the digest discipline and a `value` carrying its bytes —
-so that version lineage remains verifiable across the hole while the
-content itself is unrecoverable. A replica applies an erasure when it
+An erasure occupies its own Scope position, carried by the Change Group's
+`erasures` member as an **erasure record**: the subject's canonical
+Resource URL, the erased `revision`, and a digest of the erased version
+record taken before erasure — an object with a `scheme` naming the digest
+discipline and a `value` carrying its bytes — so that version lineage
+remains verifiable across the hole while the content itself is
+unrecoverable. Erasure records induce no Event-Source Events: application
+observation of an erased version is the disclosure surface, not the Event
+stream, and an erasure-only group carries an empty `events` array. The
+correction case commits the erasure record and the successor's
+`StateChange` in one atomic group at one position. A replica applies an erasure when it
 processes the record; a replica that has not yet processed it is behind, in
 exactly the strict-read sense, and subject to the same
 route-wait-or-fail-explicitly rule as any stale read. Versions are

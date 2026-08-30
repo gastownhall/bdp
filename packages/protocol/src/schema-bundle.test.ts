@@ -179,7 +179,7 @@ describe("BDP v0 schema bundle", () => {
         then: { properties: { archivedAt: { $ref: "#/$defs/reference" } } },
       },
       {
-        if: { properties: { code: { const: "resource-erased" } }, required: ["code"] },
+        if: { not: { properties: { code: { const: "resource-pruned" } }, required: ["code"] } },
         // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
         then: { properties: { archivedAt: false } },
       },
@@ -196,6 +196,15 @@ describe("BDP v0 schema bundle", () => {
       code: "resource-erased",
       status: 410,
       retry: "never",
+      archivedAt: "https://archive.example/acme/beads/x",
+    });
+    // archivedAt is pruned-only: every other code refuses it, so the
+    // pointer can never leak through a non-disclosure problem.
+    expectInvalid("readProblem", {
+      type: `${BDP_PROBLEM_FAMILY_PREFIX}not-found`,
+      code: "resource-not-found",
+      status: 404,
+      retry: "after-state-change",
       archivedAt: "https://archive.example/acme/beads/x",
     });
   });
