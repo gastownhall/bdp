@@ -554,20 +554,6 @@
       "demo-a-both": ["links/demo-b-a", "links/demo-a-c", "links/demo-i-a", "links/cites-local"],
       "demo-a-default": ["links/demo-b-a", "links/demo-a-c", "links/demo-i-a", "links/cites-local"]
     },
-    "owned-references": {
-      "input": {
-        "bead": "beads/demo-f"
-      },
-      "references": {
-        "https://work.example/types/cites": [
-          "https://scope.example/acme/beads/demo-a",
-          {
-            "uri": "urn:external:cites-witness",
-            "revision": "w-1"
-          }
-        ]
-      }
-    },
     "alias": {
       "root": "alias/"
     },
@@ -638,6 +624,34 @@
         ["links/demo-b-a"],
         ["links/demo-i-a"]
       ]
+    },
+    "owned-links": {
+      "input": {
+        "bead": "beads/demo-f"
+      },
+      "ownedLinks": {
+        "https://work.example/types/cites": [
+          {
+            "id": "https://scope.example/acme/links/cites-local",
+            "type": "https://work.example/types/cites",
+            "revision": "1",
+            "source": "https://scope.example/acme/beads/demo-f",
+            "target": "https://scope.example/acme/beads/demo-a",
+            "properties": {}
+          },
+          {
+            "id": "https://scope.example/acme/links/cites-witness",
+            "type": "https://work.example/types/cites",
+            "revision": "1",
+            "source": "https://scope.example/acme/beads/demo-f",
+            "target": {
+              "uri": "urn:external:cites-witness",
+              "revision": "w-1"
+            },
+            "properties": {}
+          }
+        ]
+      }
     }
   },
   "beads": [

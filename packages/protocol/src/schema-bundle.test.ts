@@ -280,18 +280,29 @@ describe("BDP v0 schema bundle", () => {
       ownsOutgoing: { "https://work.example/types/cites": { max: 1 } },
     });
     expectInvalid("typeDescriptor", { ...beadTypeDescriptor(), ownsOutgoing: {} });
+    const ownedLink = {
+      id: "https://beads.example/acme/links/cites-1",
+      type: "https://work.example/types/cites",
+      revision: "1",
+      source: "https://beads.example/acme/beads/demo-f",
+      target: { uri: "urn:external:cites-witness", revision: "w-1" },
+      properties: {},
+    };
     expectValid("beadRecord", {
       ...beadRecord(),
-      references: {
-        "https://work.example/types/cites": [
-          "https://beads.example/acme/beads/demo-f",
-          { uri: "urn:external:cites-witness", revision: "w-1" },
-        ],
+      ownedLinks: { "https://work.example/types/cites": [ownedLink] },
+    });
+    // Bare target References are no longer admissible entries: the plane
+    // carries the owned Links' complete records.
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      ownedLinks: {
+        "https://work.example/types/cites": ["https://beads.example/acme/beads/demo-f"],
       },
     });
     expectInvalid("beadRecord", {
       ...beadRecord(),
-      references: { "not a uri": ["https://beads.example/acme/beads/demo-f"] },
+      ownedLinks: { "not a uri": [ownedLink] },
     });
     expectValid("reference", "https://beads.example/acme/beads/demo-a");
     expectValid("reference", "urn:external:123");

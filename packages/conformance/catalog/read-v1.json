@@ -131,7 +131,7 @@
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "A Bead whose Type owns outgoing Link Types MUST carry its `references` member — one entry per declared owned type, keyed by Link Type URL — on every record read, and the member MUST be absent for Beads whose Type owns nothing."
+          "selectedText": "A Bead whose\n  Type owns outgoing Link Types MUST carry its `ownedLinks` member — one\n  entry per declared owned type, keyed by Link Type URL, valued by the\n  owned Links' complete records in ascending code-unit order of their\n  canonical `id`s — on every record read, and the member MUST be absent\n  for Beads whose Type owns nothing."
         }
       ]
     },

@@ -99,9 +99,14 @@ export function parseBeadRecord(value: unknown, path = "Bead record"): BeadRecor
   validateFromSchema(getProtocolValueValidators().beadRecord, record, path);
   parseCanonicalTypeId(record.id, `${path}.id`);
   parseResourceTypeId(record.type, `${path}.type`);
-  if (record.references !== undefined)
-    for (const key of Object.keys(record.references as Readonly<Record<string, unknown>>))
-      parseResourceTypeId(key, `${path}.references key`);
+  if (record.ownedLinks !== undefined)
+    for (const [key, owned] of Object.entries(
+      record.ownedLinks as Readonly<Record<string, readonly unknown[]>>,
+    )) {
+      parseResourceTypeId(key, `${path}.ownedLinks key`);
+      for (const [index, item] of owned.entries())
+        parseLinkRecord(item, `${path}.ownedLinks[${JSON.stringify(key)}][${index}]`);
+    }
   const links =
     record.links === undefined ? undefined : parseLinkCollection(record.links, `${path}.links`);
   return Object.freeze({

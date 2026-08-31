@@ -1,5 +1,6 @@
 import {
   type AbsoluteHttpUrl,
+  compareCanonicalIds,
   referenceUri,
   type BeadCollectionRequest as BeadCollectionOperation,
   type BeadLinksRequest as BeadLinksOperation,
@@ -278,7 +279,7 @@ function snapshotPreparedReferenceFixture(
       }),
     ),
   );
-  // The owned-references plane: for each Bead whose declared Type owns
+  // The owned-Links plane: for each Bead whose declared Type owns
   // outgoing Link Types, project the owned links' targets, in link order,
   // one entry per declared owned type (empty when no owned links exist).
   // The declared bound is enforced here so the plane is always servable
@@ -294,18 +295,17 @@ function snapshotPreparedReferenceFixture(
     prepared.beads.map((bead) => {
       const owned = ownedByBeadType.get(bead.type);
       if (owned === undefined) return Object.freeze({ ...bead });
-      const references: Record<string, readonly Reference[]> = {};
+      const ownedLinks: Record<string, readonly LinkRecord[]> = {};
       for (const [ownedType, declaration] of Object.entries(owned)) {
-        const targets = links
+        const records = links
           .filter((link) => link.type === ownedType && referenceUri(link.source) === bead.id)
-          .map((link) => link.target);
-        if (targets.length > declaration.max)
-          throw new Error(
-            `owned references for ${bead.id} exceed the declared bound of ${ownedType}`,
-          );
-        references[ownedType] = Object.freeze(targets);
+          .slice()
+          .sort((left, right) => compareCanonicalIds(left.id, right.id));
+        if (records.length > declaration.max)
+          throw new Error(`owned Links for ${bead.id} exceed the declared bound of ${ownedType}`);
+        ownedLinks[ownedType] = Object.freeze(records);
       }
-      return Object.freeze({ ...bead, references: Object.freeze(references) });
+      return Object.freeze({ ...bead, ownedLinks: Object.freeze(ownedLinks) });
     }),
   );
   const types = Object.freeze([...prepared.types]);

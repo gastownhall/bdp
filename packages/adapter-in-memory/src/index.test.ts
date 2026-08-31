@@ -611,7 +611,7 @@ describe("reference fixture Scope port", () => {
     ).toThrow("must be a non-empty string");
   });
 
-  it("serves the owned-references plane: declared-empty entries, ordering, bound, and properties-view exclusion", async () => {
+  it("serves the owned-Links plane: declared-empty entries, ordering, bound, and properties-view exclusion", async () => {
     const decision = {
       id: "https://work.example/types/decision",
       name: "Decision",
@@ -659,15 +659,33 @@ describe("reference fixture Scope port", () => {
     const beads = await port.perform({ kind: "collection", collection: "beads" }, options);
     if (beads.kind !== "success") throw new Error("beads collection must succeed");
     const [d, e] = beads.body.items as readonly {
-      readonly references?: Readonly<Record<string, readonly unknown[]>>;
+      readonly ownedLinks?: Readonly<Record<string, readonly unknown[]>>;
       readonly properties: unknown;
     }[];
-    // Ordering follows authoring order; the pin survives; the second
-    // owning bead gets its declared entry even with zero owned links.
-    expect(d?.references).toEqual({
-      [cites.id]: [`${scope}beads/e`, { uri: "urn:external:w", revision: "w-9" }],
+    // Complete owned Link records in ascending code-unit id order; the pin
+    // survives; the second owning bead gets its declared entry even with
+    // zero owned Links.
+    expect(d?.ownedLinks).toEqual({
+      [cites.id]: [
+        {
+          id: `${scope}links/one`,
+          type: cites.id,
+          revision: "1",
+          source: `${scope}beads/d`,
+          target: `${scope}beads/e`,
+          properties: {},
+        },
+        {
+          id: `${scope}links/two`,
+          type: cites.id,
+          revision: "1",
+          source: `${scope}beads/d`,
+          target: { uri: "urn:external:w", revision: "w-9" },
+          properties: {},
+        },
+      ],
     });
-    expect(e?.references).toEqual({ [cites.id]: [] });
+    expect(e?.ownedLinks).toEqual({ [cites.id]: [] });
     // The properties view stays authored JSON alone.
     await expect(
       port.perform({ kind: "properties", resource: "bead", id: `${scope}beads/d` }, options),

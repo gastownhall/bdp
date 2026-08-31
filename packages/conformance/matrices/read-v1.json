@@ -5614,10 +5614,10 @@
           ]
         },
         {
-          "id": "owned-references",
+          "id": "owned-links",
           "family": "client",
-          "operation": "owned-references",
-          "inputFixturePointer": "/oracles/owned-references/input",
+          "operation": "owned-links",
+          "inputFixturePointer": "/oracles/owned-links/input",
           "captures": [],
           "assertions": [
             {
@@ -5630,9 +5630,9 @@
             {
               "id": "plane",
               "kind": "json-pointer",
-              "pointer": "/references",
+              "pointer": "/ownedLinks",
               "exists": true,
-              "fixturePointer": "/oracles/owned-references/references"
+              "fixturePointer": "/oracles/owned-links/ownedLinks"
             }
           ]
         }
