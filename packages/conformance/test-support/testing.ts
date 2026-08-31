@@ -241,6 +241,14 @@ export function createControlledReadActionExecutor(
           schemaValidator,
         );
         break;
+      case "disclosure-authorization-gate":
+        observed = await observeDisclosureAuthorizationGate(
+          execution,
+          fetchImplementation,
+          session,
+          schemaValidator,
+        );
+        break;
       case "scope-restore-identity":
         observed = await observeScopeRestoreIdentity(
           execution,
@@ -545,6 +553,92 @@ async function observeNondisclosureIdentities(
     },
     hiddenAbsentFromCollection: hiddenCollection.items.length === 0,
     deletedAbsentFromCollection: deletedCollection.items.length === 0,
+  };
+}
+
+async function observeDisclosureAuthorizationGate(
+  execution: ScenarioActionExecution,
+  fetchImplementation: typeof fetch,
+  session: ControlledReadActionSession,
+  schemaValidator: SchemaValidator,
+) {
+  const input = actionInput(execution.input, "disclosure gate input");
+  const pruned = requiredString(input, "prunedId");
+  const erased = requiredString(input, "erasedId");
+  const unknown = requiredString(input, "unknownId");
+  const view = requiredString(input, "view");
+  const epoch = requiredString(input, "epoch");
+  const prunedUrl = new URL(pruned, execution.scope).href;
+  const erasedUrl = new URL(erased, execution.scope).href;
+  const unknownUrl = new URL(unknown, execution.scope).href;
+  // The retained-history projection sees the 410 vocabulary at both subjects.
+  const authorizedPruned = await requestProblem(
+    fetchImplementation,
+    prunedUrl,
+    view,
+    epoch,
+    execution.signal,
+    schemaValidator,
+  );
+  const authorizedErased = await requestProblem(
+    fetchImplementation,
+    erasedUrl,
+    view,
+    epoch,
+    execution.signal,
+    schemaValidator,
+  );
+  if (authorizedPruned.status !== 410 || authorizedErased.status !== 410)
+    throw new Error("disclosure gate subjects must disclose 410 before the projection changes");
+  // Excluding the subjects models a caller without the retained-history
+  // authorization: every address, gone or never-existing, answers alike.
+  session.excludeResourceFromAuthorizationView(prunedUrl);
+  session.excludeResourceFromAuthorizationView(erasedUrl);
+  const observations: Record<string, unknown> = {};
+  const rawProblemBodies: Uint8Array[] = [];
+  for (const [name, id] of [
+    ["pruned", prunedUrl],
+    ["erased", erasedUrl],
+    ["unknown", unknownUrl],
+  ] as const) {
+    const observation = await observeNondisclosedResource(
+      fetchImplementation,
+      id,
+      view,
+      epoch,
+      execution.signal,
+      schemaValidator,
+    );
+    observations[name] = observation.semantic;
+    rawProblemBodies.push(...observation.rawProblemBodies);
+  }
+  const representativeBody = rawProblemBodies[0];
+  if (representativeBody === undefined)
+    throw new Error("disclosure gate probes did not capture any public Problem body bytes");
+  const bodyDigests = rawProblemBodies.map(sha256Hex);
+  return {
+    outcome: "success",
+    authorizedPruned: {
+      status: authorizedPruned.status,
+      code: authorizedPruned.code,
+      retry: authorizedPruned.retry,
+    },
+    authorizedErased: {
+      status: authorizedErased.status,
+      code: authorizedErased.code,
+      retry: authorizedErased.retry,
+    },
+    pruned: observations.pruned,
+    erased: observations.erased,
+    unknown: observations.unknown,
+    rawBodyEvidence: {
+      probeCount: rawProblemBodies.length,
+      byteIdentical: rawProblemBodies.every((body) => bytesEqual(body, representativeBody)),
+      digestAlgorithm: "sha-256",
+      distinctDigests: new Set(bodyDigests).size,
+      representativeDigest: bodyDigests[0],
+      representativeByteLength: representativeBody.byteLength,
+    },
   };
 }
 

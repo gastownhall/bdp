@@ -1313,8 +1313,18 @@ ChangeGroup {
   projectionAdvance: Boolean
   transaction?: TransactionId
   changes: StateChange*
+  erasures: ErasureRecord*
   eventCount: Integer
   events: Event*
+}
+
+ErasureRecord {
+  subject: URI        // the canonical Resource URL
+  revision            // the erased version's opaque revision token
+  digest {
+    scheme            // identifier naming the digest discipline
+    value             // the digest bytes, taken before erasure
+  }
 }
 ```
 
@@ -1679,6 +1689,8 @@ profile uses this closed table:
 | `unauthenticated` | `authentication` | 401 | `after-state-change` |
 | `forbidden` | `authorization` | 403 | `after-state-change` |
 | `resource-not-found` | `not-found` | 404 | `after-state-change` |
+| `resource-pruned` | `gone` | 410 | `never` |
+| `resource-erased` | `gone` | 410 | `never` |
 | `foreign-view` | `conflict` | 409 | `after-state-change` |
 | `cursor-expired` | `gone` | 410 | `after-state-change` |
 | `request-too-large` | `size` | 413 | `never` |
@@ -1693,6 +1705,13 @@ suffix. In addition to the RFC 9457 members, every BDP problem contains
 `after-state-change`, or `after-delay`. `after-state-change` requires the
 caller to refresh state or construct a new request. `after-delay` responses
 SHOULD carry `Retry-After` when the authority can state a useful delay.
+`resource-pruned` and `resource-erased` are the authorization-gated
+disclosure conditions defined under
+[Reads after deletion](#reads-after-deletion): they are served only to
+callers authorized for the subject's retained history, and a
+`resource-pruned` problem MAY carry the `archivedAt` Reference defined
+there. Unauthorized callers receive the uniform `404`
+`resource-not-found` for the same address.
 Mutation-only dispositions and problem codes are defined with their profiles
 rather than in the Read table.
 
@@ -1971,7 +1990,25 @@ target's readability.
 After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a
 Bead, `view=links` return the same `404` `resource-not-found` problem used for
 an unknown or non-visible identity. BDP does not require an authority to reveal
-whether the Resource once existed. The non-reuse rule remains internal: a
+whether the Resource once existed.
+
+To a caller authorized for the subject's retained history — the same single
+authorization that gates `410` disclosure everywhere — an authority MAY
+instead disclose why a valid-shaped address has nothing behind it. Two
+sibling `410` conditions are Read-profile codes in the closed problem
+table: `resource-pruned` (removed by deliberate lifecycle policy) and
+`resource-erased` (content that must not exist); their Transactional
+sibling `event-history-expired` (history aged out of the retention window)
+remains an Event-Source condition, not a Read-table code. A
+`resource-pruned` problem MAY carry one `archivedAt` member — a Reference,
+possibly pinned, naming where the content went — recorded and echoed like
+any Reference and never validated or dereferenced by the serving authority;
+its presence within an authorized disclosure is authority policy. A
+`resource-erased` problem carries no condition-specific extension members
+beyond its ordinary problem members: even a pointer would disclose what
+erasure exists to remove. To every other caller all
+three conditions remain the uniform `404`; the disclosure vocabulary is
+never an enumeration oracle. The non-reuse rule remains internal: a
 filesystem-backed implementation may retain only a compact allocation marker
 or tombstone and need not serve it as a Resource representation.
 
@@ -3099,6 +3136,45 @@ exclusive `after` cursor to the Scope changefeed. The authority retains every
 group after `scopePosition` through `expiresAt`. Collection cursors remain
 query snapshots. They do not substitute for this complete projected Scope
 snapshot.
+
+### Version erasure
+
+Retention removals and erasures replicate oppositely, by nature. A store
+aging history out of its advertised retention window is a per-store fact: a
+replica with a longer window legitimately keeps what the authority dropped,
+and retention removals therefore do not propagate. An **erasure** — a
+version whose content must not exist — is the opposite: it MUST be applied
+by every store, cache, and replica holding the version, and the changefeed
+is the vehicle that carries the obligation.
+
+An erasure occupies its own Scope position, carried by the Change Group's
+`erasures` member as an **erasure record**: the subject's canonical
+Resource URL, the erased `revision`, and a digest of the erased version
+record taken before erasure — an object with a `scheme` naming the digest
+discipline and a `value` carrying its bytes — so that version lineage
+remains verifiable across the hole while the content itself is
+unrecoverable. Erasure records induce no Event-Source Events: application
+observation of an erased version is the disclosure surface, not the Event
+stream, and an erasure-only group carries an empty `events` array.
+Erasure records are projected per Authorization View like everything else
+a group carries: a view receives the record only when the subject Resource
+was observable in that view. A replica confined to a view that never saw
+the Resource never held the version's bytes, has nothing to erase, and
+learns nothing — such a view sees only the identifier-free projection
+advance at that position, so the record cannot become the enumeration
+oracle that [Reads after deletion](#reads-after-deletion) closes. Within a
+view that receives the record, the obligation is unconditional. The
+correction case commits the erasure record and the successor's
+`StateChange` in one atomic group at one position. A replica applies an erasure when it
+processes the record; a replica that has not yet processed it is behind, in
+exactly the strict-read sense, and subject to the same
+route-wait-or-fail-explicitly rule as any stale read. Versions are
+immutable, so there is no partial in-place erasure: correcting content
+means erasing the offending version and committing its corrected successor,
+atomically in one change group when both are needed. Reads of an erased
+version answer with the `resource-erased` disclosure under
+[Reads after deletion](#reads-after-deletion). An erasure does not rotate
+the Scope epoch: every other token remains exactly as valid as it was.
 
 ### Scope changefeed
 

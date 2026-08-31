@@ -272,7 +272,7 @@ Read server translates that wire-neutral union through `ScopePort`; and both
 the deterministic fixture port and the process-backed `bd` port implement it.
 Package tests exercise operation dispatch, Problem translation, cancellation,
 close/drain behavior, and bounded process execution. The non-attesting matrix
-can run all 33 Read scenarios against the reference target and a controlled
+can run the full Read scenario catalog against the reference target and a controlled
 real-`bd` lane.
 
 The target-specific topology is explicit. The reference external-endpoint branch

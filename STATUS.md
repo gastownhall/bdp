@@ -5,7 +5,7 @@ status section, until the draft is adopted it is not a conformance target.
 
 | Surface | Specified | Validated |
 | --- | --- | --- |
-| Read profile | yes | sealed two-target evidence cohort (per target: 26 packaged + 8 self-certified rows, plus 1 honestly not-applicable capability-gated row), verified in CI |
+| Read profile | yes | sealed two-target evidence cohort — packaged, self-certified in-process, and honestly not-applicable capability-gated rows recorded per target in the artifact, which carries the authoritative counts — verified in CI |
 | Read+Update profile | draft — sequence/idempotency envelope schemas and problem rows still pending | not yet realized |
 | Transactional profile (batch, receipts, Events, snapshots, changefeed) | draft — several normative schema and problem artifacts still pending | not yet realized |
 

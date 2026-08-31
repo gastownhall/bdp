@@ -409,6 +409,8 @@ export type ReadProblemCode =
   | "unauthenticated"
   | "forbidden"
   | "resource-not-found"
+  | "resource-pruned"
+  | "resource-erased"
   | "foreign-view"
   | "cursor-expired"
   | "request-too-large"
@@ -443,6 +445,12 @@ const READ_PROBLEM_ROWS: {
   unauthenticated: { family: "authentication", status: 401, retry: "after-state-change" },
   forbidden: { family: "authorization", status: 403, retry: "after-state-change" },
   "resource-not-found": { family: "not-found", status: 404, retry: "after-state-change" },
+  // Authorization-gated disclosure (issue #9): served only to callers
+  // authorized for the subject's retained history; everyone else keeps the
+  // uniform resource-not-found. resource-pruned MAY carry an archivedAt
+  // Reference; resource-erased never carries anything beyond its code.
+  "resource-pruned": { family: "gone", status: 410, retry: "never" },
+  "resource-erased": { family: "gone", status: 410, retry: "never" },
   "foreign-view": { family: "conflict", status: 409, retry: "after-state-change" },
   "cursor-expired": { family: "gone", status: 410, retry: "after-state-change" },
   "request-too-large": { family: "size", status: 413, retry: "never" },

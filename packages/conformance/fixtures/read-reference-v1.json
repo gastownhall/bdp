@@ -16,7 +16,8 @@
     "reference-read-v1-single-page",
     "cors-disabled",
     "unexpected-internal-fault",
-    "alias-resolution-v1"
+    "alias-resolution-v1",
+    "disclosure-v1"
   ],
   "bindings": {
     "bead.demo-a": "beads/demo-a",
@@ -26,12 +27,28 @@
     "bead.demo-f": "beads/demo-f",
     "alias.decision": "alias/decision",
     "alias.releases-latest": "alias/releases/latest",
-    "alias.unknown": "alias/never-created"
+    "alias.unknown": "alias/never-created",
+    "bead.pruned": "beads/pruned-relic",
+    "bead.erased": "beads/erased-relic"
   },
   "aliases": {
     "decision": "beads/demo-f",
     "releases/latest": "beads/demo-a"
   },
+  "disclosures": [
+    {
+      "localId": "beads/pruned-relic",
+      "code": "resource-pruned",
+      "archivedAt": {
+        "uri": "https://archive.example/acme/beads/pruned-relic",
+        "revision": "arch-r4 (as-written)"
+      }
+    },
+    {
+      "localId": "beads/erased-relic",
+      "code": "resource-erased"
+    }
+  ],
   "private": {
     "internalFaultSentinel": "bdp-private-internal-fault-reference-91c50f775b1b"
   },

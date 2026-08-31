@@ -1,15 +1,16 @@
 # Executable conformance matrices
 
 `read-v1.json` is the complete but non-attesting Read execution manifest. It
-links all 35 metadata-catalog scenarios to executable plans. Plan completeness
+links every metadata-catalog scenario to an executable plan. Plan completeness
 alone cannot enable a conformance claim: the app matrices use test-only
 admission grants and controlled capabilities, and every runner report keeps
 `claimEligible` hard-coded to `false`. The conformance claim lives elsewhere —
 in the committed two-target cohort artifact described at the end of this
-document, which records, per target, 26 rows proved against the launched
-packaged payloads, 8 self-certified in-process rows, and 1 honestly
+document, which records, per target, the rows proved against the launched
+packaged payloads, the self-certified in-process rows, and each honestly
 not-applicable capability-gated row, and whose content digest is the
-recorded per-target evidence constant.
+recorded per-target evidence constant; the sealed artifact carries the
+authoritative counts.
 
 The checked-in runner still fails closed when a plan's required capability is
 absent, an observation is incomplete, or target provenance cannot be proved.
@@ -483,7 +484,7 @@ The five decisions that previously blocked a non-null cohort were resolved
 2026-08-17 and now bind the implementation:
 
 - **Required set and admissible state.** The required set is the
-  catalog-derived scenario ID list (35 at this writing), and `pass` is the
+  catalog-derived scenario ID list, and `pass` is the
   only admissible state for an applicable row. `fail`, `harness-error`,
   `unsupported-profile`, and absent each close the cohort for both targets.
   A `not-applicable` outcome is admissible in exactly one form: a
@@ -520,15 +521,15 @@ The five decisions that previously blocked a non-null cohort were resolved
   (inapplicable rows live under `notApplicable` and carry none) and
   verification requires `packaged` for every carried row that is not
   self-certifiable.
-- **Row provenance and the self-certified set.** Decided 2026-08-17. Eight rows
-  cannot be driven against a packaged target: they carry `lifecycle`-family
-  actions that mutate target state mid-run, and the control headers
+- **Row provenance and the self-certified set.** Decided 2026-08-17. The rows
+  carrying `lifecycle`-family actions cannot be driven against a packaged
+  target: they mutate target state mid-run, and the control headers
   `x-bdp-conformance-view`/`x-bdp-conformance-epoch` are defined in
   `packages/conformance/test-support` and honored by nothing in the server
   package or either composition root. Rather than ship a conformance control
   surface, provenance is recorded **per row** — packaged, self-certified in-process,
-  or honestly not-applicable — declared explicitly in the artifact (at this
-  writing, per target: 26 packaged, 8 self-certified, 1 not-applicable).
+  or honestly not-applicable — declared explicitly in the artifact, which
+  carries the authoritative per-target counts.
 
   The self-certifiable set is **derived from the bound manifest** — precisely the
   rows carrying a `lifecycle`-family action — never a hand-maintained list. A
@@ -539,7 +540,7 @@ The five decisions that previously blocked a non-null cohort were resolved
   self-certified rows are not independently verified. They exercise the same
   server package through a different composition, so they are evidence about the
   implementation but not about the packaged boundary. If BDP is ever used to
-  certify third-party servers, these eight rows are self-attested and must be
+  certify third-party servers, these lifecycle rows are self-attested and must be
   presented as such rather than as black-box conformance.
 
 The verification rules above are enforced by `pnpm evidence:verify`

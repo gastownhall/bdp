@@ -238,10 +238,10 @@ describe("checked-in Read matrix artifacts", () => {
     const manifestIdList = manifest.scenarios.map(({ id }) => id);
     const catalogIds = new Set(catalogIdList);
     const manifestIds = new Set(manifestIdList);
-    expect(catalog.scenarios).toHaveLength(35);
-    expect(manifest.scenarios).toHaveLength(35);
-    expect(catalogIds.size).toBe(35);
-    expect(manifestIds.size).toBe(35);
+    expect(catalog.scenarios).toHaveLength(37);
+    expect(manifest.scenarios).toHaveLength(37);
+    expect(catalogIds.size).toBe(37);
+    expect(manifestIds.size).toBe(37);
     expect([...manifestIds].sort()).toEqual([...catalogIds].sort());
     expect(manifest.catalogId).toBe("read-v1");
     expect(manifest.scenarios.every(({ id }) => catalogIds.has(id))).toBe(true);
@@ -281,6 +281,8 @@ describe("checked-in Read matrix artifacts", () => {
       "read.resource.external-endpoint",
       "read.alias.resolution",
       "read.alias.absent",
+      "read.disclosure.gone",
+      "read.disclosure.gate",
     ]);
   });
 
@@ -405,7 +407,7 @@ describe("checked-in Read matrix artifacts", () => {
       manifest.scenarios.find(({ id }) => id === "read.http.problem-table"),
       "problem-table-serialization",
     );
-    expect(READ_PROBLEM_DEFINITIONS).toHaveLength(11);
+    expect(READ_PROBLEM_DEFINITIONS).toHaveLength(13);
     expect(problemAction.input).toEqual({
       codes: READ_PROBLEM_DEFINITIONS.map(({ code }) => code),
     });

@@ -5198,6 +5198,8 @@
               "unauthenticated",
               "forbidden",
               "resource-not-found",
+              "resource-pruned",
+              "resource-erased",
               "foreign-view",
               "cursor-expired",
               "request-too-large",
@@ -5271,6 +5273,28 @@
                   404,
                   "after-state-change",
                   "https://github.com/gastownhall/bdp/problems/not-found",
+                  null,
+                  true,
+                  "application/problem+json",
+                  true
+                ],
+                [
+                  "resource-pruned",
+                  "gone",
+                  410,
+                  "never",
+                  "https://github.com/gastownhall/bdp/problems/gone",
+                  null,
+                  true,
+                  "application/problem+json",
+                  true
+                ],
+                [
+                  "resource-erased",
+                  "gone",
+                  410,
+                  "never",
+                  "https://github.com/gastownhall/bdp/problems/gone",
                   null,
                   true,
                   "application/problem+json",
@@ -5936,6 +5960,289 @@
               "kind": "response-metadata-equals",
               "request": "unknown-bead",
               "headers": ["content-type", "cache-control"]
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.disclosure.gone",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": ["disclosure-v1"]
+      },
+      "requests": [
+        {
+          "id": "pruned",
+          "method": "GET",
+          "target": {
+            "binding": "bead.pruned"
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "gone",
+              "kind": "status",
+              "equals": 410
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-pruned"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "archived-at-uri",
+              "kind": "json-pointer",
+              "pointer": "/archivedAt/uri",
+              "exists": true,
+              "equals": "https://archive.example/acme/beads/pruned-relic"
+            },
+            {
+              "id": "archived-at-pin",
+              "kind": "json-pointer",
+              "pointer": "/archivedAt/revision",
+              "exists": true,
+              "equals": "arch-r4 (as-written)"
+            }
+          ]
+        },
+        {
+          "id": "erased",
+          "method": "GET",
+          "target": {
+            "binding": "bead.erased"
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "gone",
+              "kind": "status",
+              "equals": 410
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-erased"
+            },
+            {
+              "id": "no-pointer",
+              "kind": "json-pointer",
+              "pointer": "/archivedAt",
+              "exists": false
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.disclosure.gate",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http", "controlled-read-pagination-v1"]
+      },
+      "applicability": {
+        "requires": ["disclosure-v1"]
+      },
+      "actions": [
+        {
+          "id": "authorized-then-gated",
+          "family": "lifecycle",
+          "operation": "disclosure-authorization-gate",
+          "input": {
+            "prunedId": "beads/pruned-relic",
+            "erasedId": "beads/erased-relic",
+            "unknownId": "beads/never-existed",
+            "view": "disclosure-gate-view",
+            "epoch": "disclosure-gate-epoch"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "success",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "success"
+            },
+            {
+              "id": "authorized-pruned-410",
+              "kind": "json-pointer",
+              "pointer": "/authorizedPruned",
+              "exists": true,
+              "equals": {
+                "status": 410,
+                "code": "resource-pruned",
+                "retry": "never"
+              }
+            },
+            {
+              "id": "authorized-erased-410",
+              "kind": "json-pointer",
+              "pointer": "/authorizedErased",
+              "exists": true,
+              "equals": {
+                "status": 410,
+                "code": "resource-erased",
+                "retry": "never"
+              }
+            },
+            {
+              "id": "gated-pruned-three-view-404",
+              "kind": "json-pointer",
+              "pointer": "/pruned",
+              "exists": true,
+              "equals": {
+                "probeCount": 3,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "links",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "gated-erased-three-view-404",
+              "kind": "json-pointer",
+              "pointer": "/erased",
+              "exists": true,
+              "equals": {
+                "probeCount": 3,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "links",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "unknown-three-view-404",
+              "kind": "json-pointer",
+              "pointer": "/unknown",
+              "exists": true,
+              "equals": {
+                "probeCount": 3,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "links",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "all-gated-bodies-byte-identical",
+              "kind": "json-pointer",
+              "pointer": "/rawBodyEvidence/byteIdentical",
+              "exists": true,
+              "equals": true
             }
           ]
         }
