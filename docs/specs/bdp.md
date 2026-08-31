@@ -387,6 +387,17 @@ reverse projections such as cited-by remain computed views. An owned Link
 remains a first-class Link: its own `properties` are the Link's state
 under the Link's own revision, not the source's.
 
+To say it as plainly as possible: there is no reference entity in the
+model, and no second graph. An owned reference **is** an owned Link — a
+first-class Link whose Link Type the source's Bead Type declares in
+`ownsOutgoing` — and a Scope's Links are the only edges there are. Owned
+Links appear on the links collection and in incident-Link views exactly
+like every other Link. The `references` member defined below is derived
+data: a bounded projection of the owned Links' targets and pins that
+travels with the record so the Bead's revision visibly covers its
+citation structure. It is never writable directly and is never a rival
+edge set — change the Links, and the projection follows.
+
 A Bead whose Type owns outgoing Link Types carries a **references**
 member in its record: one entry per declared owned Link Type, keyed by
 the Link Type URL, whose value is the array of the owned Links' target
