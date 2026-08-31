@@ -396,7 +396,9 @@ like every other Link. The `references` member defined below is derived
 data: a bounded projection of the owned Links' targets and pins that
 travels with the record so the Bead's revision visibly covers its
 citation structure. It is never writable directly and is never a rival
-edge set — change the Links, and the projection follows.
+edge set — create, delete, repoint, or re-pin the owned Links, and the
+projection follows; a property update on an owned Link touches only that
+Link's own revision and moves nothing here.
 
 A Bead whose Type owns outgoing Link Types carries a **references**
 member in its record: one entry per declared owned Link Type, keyed by
