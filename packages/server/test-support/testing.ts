@@ -160,6 +160,10 @@ export function createControlledReadSessionForTesting(options: {
   async function runExclusionExpansion(
     performOptions: Parameters<ScopePort["perform"]>[1],
   ): Promise<void> {
+    // Re-checked here, not only at perform entry: a generation bumped while
+    // an expansion is in flight would otherwise start fresh source reads
+    // after the read guard activated.
+    if (readsForbidden) throw new Error("pagination continuation reread the source adapter");
     const [linksResult, beadsResult] = await Promise.all([
       options.source.perform({ kind: "collection", collection: "links" }, performOptions),
       options.source.perform({ kind: "collection", collection: "beads" }, performOptions),
