@@ -260,9 +260,10 @@ describe("BDP v0 schema bundle", () => {
     expectValid("endpointConstraint", { conformsTo: [] });
     expectInvalid("endpointConstraint", { conformsTo: [], external: "always" });
     expectInvalid("endpointConstraint", { conformsTo: [], external: true });
-    // Owned-reference declarations: bead descriptors may own, link
+    // Owned-Link declarations: bead descriptors may own, link
     // descriptors may not, the bound is required, and the record's
-    // references plane is keyed by Link Type URL with Reference arrays.
+    // ownedLinks plane is keyed by Link Type URL with arrays of the owned
+    // Links' complete records.
     expectValid("typeDescriptor", {
       ...beadTypeDescriptor(),
       ownsOutgoing: { "https://work.example/types/cites": { label: "cites", max: 8 } },

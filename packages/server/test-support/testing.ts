@@ -118,6 +118,7 @@ export function createControlledReadSessionForTesting(options: {
   const authorizationExcludedIds = new Set<string>();
   let exclusionGeneration = 0;
   let expandedGeneration = 0;
+  let expansionInFlight: Promise<void> | undefined;
   const uriOf = (value: unknown): string | undefined =>
     typeof value === "string"
       ? value
@@ -132,16 +133,39 @@ export function createControlledReadSessionForTesting(options: {
   async function expandExclusionClosure(
     performOptions: Parameters<ScopePort["perform"]>[1],
   ): Promise<void> {
-    if (expandedGeneration === exclusionGeneration || authorizationExcludedIds.size === 0) {
+    if (authorizationExcludedIds.size === 0) {
       expandedGeneration = exclusionGeneration;
       return;
     }
-    expandedGeneration = exclusionGeneration;
+    // Single-flight: concurrent requests await the same expansion, and the
+    // generation is published only after the fixpoint completes, so a
+    // request can never race past a half-expanded exclusion set. A failed
+    // expansion publishes nothing — it rejects every awaiter (fail closed)
+    // and the next request retries it.
+    while (expandedGeneration !== exclusionGeneration) {
+      if (expansionInFlight === undefined) {
+        const generation = exclusionGeneration;
+        expansionInFlight = runExclusionExpansion(performOptions)
+          .then(() => {
+            expandedGeneration = generation;
+          })
+          .finally(() => {
+            expansionInFlight = undefined;
+          });
+      }
+      await expansionInFlight;
+    }
+  }
+
+  async function runExclusionExpansion(
+    performOptions: Parameters<ScopePort["perform"]>[1],
+  ): Promise<void> {
     const [linksResult, beadsResult] = await Promise.all([
       options.source.perform({ kind: "collection", collection: "links" }, performOptions),
       options.source.perform({ kind: "collection", collection: "beads" }, performOptions),
     ]);
-    if (linksResult.kind !== "success" || beadsResult.kind !== "success") return;
+    if (linksResult.kind !== "success" || beadsResult.kind !== "success")
+      throw new Error("authorization-closure expansion could not read the source collections");
     const linkItems = (linksResult.body as { readonly items: readonly unknown[] }).items;
     const beadItems = (beadsResult.body as { readonly items: readonly unknown[] }).items;
     let changed = true;

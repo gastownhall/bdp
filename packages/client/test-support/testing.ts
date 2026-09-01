@@ -330,7 +330,7 @@ async function observePublicLogicalProjection(
     throw new Error("public-logical-projection requires a public target Fetch implementation");
   const scope = execution.scope as AbsoluteHttpUrl;
   const relationshipRoles = parseRelationshipRoles(execution.input, scope);
-  // Realization-only Links (owned-reference and pin realizations) are not
+  // Realization-only Links (owned-Link and pin realizations) are not
   // part of the shared logical topology the two targets must agree on.
   const realizationOnly = new Set(
     Array.isArray((execution.input as { realizationOnlyLinkIds?: unknown }).realizationOnlyLinkIds)

@@ -1238,7 +1238,7 @@ profile cannot be implemented for owning Types.
 the delta from absence to the initial state. For a Link, it also contains the
 Link's source and target endpoint references. `UpdatedData` contains the
 committed Property Change — or, once its pending delta member exists, the
-owned-reference change — rather than a resulting state snapshot.
+owned-Link change — rather than a resulting state snapshot.
 `DeletedData.revision` is the Resource's final live revision. Deleted Events
 do not retain the Resource's properties.
 
