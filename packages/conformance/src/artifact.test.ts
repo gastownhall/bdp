@@ -238,10 +238,10 @@ describe("checked-in Read matrix artifacts", () => {
     const manifestIdList = manifest.scenarios.map(({ id }) => id);
     const catalogIds = new Set(catalogIdList);
     const manifestIds = new Set(manifestIdList);
-    expect(catalog.scenarios).toHaveLength(37);
-    expect(manifest.scenarios).toHaveLength(37);
-    expect(catalogIds.size).toBe(37);
-    expect(manifestIds.size).toBe(37);
+    expect(catalog.scenarios).toHaveLength(38);
+    expect(manifest.scenarios).toHaveLength(38);
+    expect(catalogIds.size).toBe(38);
+    expect(manifestIds.size).toBe(38);
     expect([...manifestIds].sort()).toEqual([...catalogIds].sort());
     expect(manifest.catalogId).toBe("read-v1");
     expect(manifest.scenarios.every(({ id }) => catalogIds.has(id))).toBe(true);
@@ -283,6 +283,7 @@ describe("checked-in Read matrix artifacts", () => {
       "read.alias.absent",
       "read.disclosure.gone",
       "read.disclosure.gate",
+      "read.owned.closure",
     ]);
   });
 

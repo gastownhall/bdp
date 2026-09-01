@@ -280,10 +280,10 @@ function snapshotPreparedReferenceFixture(
     ),
   );
   // The owned-Links plane: for each Bead whose declared Type owns
-  // outgoing Link Types, project the owned links' targets, in link order,
-  // one entry per declared owned type (empty when no owned links exist).
-  // The declared bound is enforced here so the plane is always servable
-  // inline.
+  // outgoing Link Types, inline the owned Links' complete records in
+  // ascending code-unit id order, one entry per declared owned type
+  // (empty when no owned Links exist). The declared bound is enforced
+  // here so the plane is always servable inline.
   const ownedByBeadType = new Map(
     prepared.typeDescriptors.flatMap((descriptor) =>
       descriptor.describes === "bead" && descriptor.ownsOutgoing !== undefined

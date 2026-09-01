@@ -546,6 +546,24 @@
           "selectedText": "Unauthorized callers MUST receive the uniform\n  `404` `resource-not-found`."
         }
       ]
+    },
+    {
+      "id": "read.owned.closure",
+      "title": "Views are closed over owned Links",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Because the member is covered, it is never authorization-filtered. An\nAuthorization View that projects a Bead projects its owned Links and\ntheir in-Scope target Beads: a view is closed over owned Links, and\nhiding a Bead from a view therefore requires hiding every Bead that owns\na Link to it."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "An Authorization View that projects\n  a Bead projects its owned Links and their in-Scope targets."
+        }
+      ]
     }
   ]
 }

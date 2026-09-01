@@ -17,7 +17,8 @@
     "cors-disabled",
     "unexpected-internal-fault",
     "alias-resolution-v1",
-    "disclosure-v1"
+    "disclosure-v1",
+    "owned-links-v1"
   ],
   "bindings": {
     "bead.demo-a": "beads/demo-a",

@@ -260,10 +260,11 @@ A **Link** is a first-class directed relationship — one Issue depends on
 another, a memory cites a source, a task is assigned to a person. At least
 one of its two endpoints is a Bead in the Link's own Scope; the other may
 instead reference something outside it. Links are not
-embedded in either endpoint: a Link has its own identity, its own type, and
-its own `properties`, and creating or deleting one never changes the Beads
-it connects — except that a source whose Type owns the Link's type is
-versioned by it, under [Owned Links](#owned-links). Beads and Links together form a graph, and a bounded, owned
+authored inside either endpoint: a Link has its own identity, its own
+type, and its own `properties`, and creating or deleting one never changes
+the Beads it connects — except that a source whose Type owns the Link's
+type is versioned by every owned-Link mutation and inlines the owned
+Links' records as derived data, under [Owned Links](#owned-links). Beads and Links together form a graph, and a bounded, owned
 graph is called a **Scope** (defined under
 [Scopes and identity](#scopes-and-identity) below).
 
@@ -930,7 +931,12 @@ DeleteLink(
 > complete-transaction rollback, and ordered transaction results apply only to
 > the Transactional profile. Read+Update validates each singleton or sequence
 > member independently and returns its inline postimage, deleted identity, or
-> problem.
+> problem. A mutation of an owned Link is a mutation of two Resources: the
+> inline postimage (or deleted identity) remains the Link's, and the same
+> response member additionally reports the source Bead's resulting
+> `revision` — its full postimage is available at its own URL. The envelope
+> member carrying that secondary revision is defined with the write
+> profiles.
 
 When each operation is reached, the authority validates its resulting staged
 state before evaluating the next operation. It checks:
@@ -1222,8 +1228,8 @@ DeletedData {
 }
 ```
 
-An owned-reference change produces an `updated` Event on the source Bead
-with its fresh revision. The delta member carrying the owned-reference
+An owned-Link change produces an `updated` Event on the source Bead
+with its fresh revision. The delta member carrying the owned-Link
 change is not yet part of this draft; until it exists, the Transactional
 profile cannot be implemented for owning Types.
 
@@ -3410,7 +3416,7 @@ contains deltas rather than Resource snapshots:
   stored pin preserved byte-identically.
 - `updated` carries `previousRevision`, `revision`, and `change`. `change`
   uses the same committed Property Change representation accepted by
-  singleton DML; for an owned-reference change on the source Bead, the
+  singleton DML; for an owned-Link change on the source Bead, the
   delta member is pending as recorded in the model section, and the wire
   form arrives with it.
 - `deleted` carries only `revision`, meaning the final live Resource

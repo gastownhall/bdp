@@ -116,6 +116,73 @@ export function createControlledReadSessionForTesting(options: {
   let advertisedLimitFixtureRequested = false;
   let mutation: { readonly id: string; readonly revision: string } | undefined;
   const authorizationExcludedIds = new Set<string>();
+  let exclusionGeneration = 0;
+  let expandedGeneration = 0;
+  const uriOf = (value: unknown): string | undefined =>
+    typeof value === "string"
+      ? value
+      : isPlainRecord(value) && typeof value.uri === "string"
+        ? value.uri
+        : undefined;
+  // Owned-closure law: an Authorization View that projects a Bead projects
+  // its owned Links and their in-Scope targets. Excluding a Resource
+  // therefore expands to a fixpoint — Links lose visibility with either
+  // endpoint, and a Bead that OWNS a Link to a hidden target (or whose
+  // owned Link is hidden directly) is hidden with it.
+  async function expandExclusionClosure(
+    performOptions: Parameters<ScopePort["perform"]>[1],
+  ): Promise<void> {
+    if (expandedGeneration === exclusionGeneration || authorizationExcludedIds.size === 0) {
+      expandedGeneration = exclusionGeneration;
+      return;
+    }
+    expandedGeneration = exclusionGeneration;
+    const [linksResult, beadsResult] = await Promise.all([
+      options.source.perform({ kind: "collection", collection: "links" }, performOptions),
+      options.source.perform({ kind: "collection", collection: "beads" }, performOptions),
+    ]);
+    if (linksResult.kind !== "success" || beadsResult.kind !== "success") return;
+    const linkItems = (linksResult.body as { readonly items: readonly unknown[] }).items;
+    const beadItems = (beadsResult.body as { readonly items: readonly unknown[] }).items;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const item of linkItems) {
+        if (!isPlainRecord(item) || typeof item.id !== "string") continue;
+        if (authorizationExcludedIds.has(item.id)) continue;
+        const source = uriOf(item.source);
+        const target = uriOf(item.target);
+        if (
+          (source !== undefined && authorizationExcludedIds.has(source)) ||
+          (target !== undefined && authorizationExcludedIds.has(target))
+        ) {
+          authorizationExcludedIds.add(item.id);
+          changed = true;
+        }
+      }
+      for (const item of beadItems) {
+        if (!isPlainRecord(item) || typeof item.id !== "string") continue;
+        if (authorizationExcludedIds.has(item.id)) continue;
+        if (!isPlainRecord(item.ownedLinks)) continue;
+        for (const entry of Object.values(item.ownedLinks)) {
+          if (!Array.isArray(entry)) continue;
+          const hiddenOwned = entry.some((owned) => {
+            if (!isPlainRecord(owned)) return false;
+            const target = uriOf(owned.target);
+            return (
+              (typeof owned.id === "string" && authorizationExcludedIds.has(owned.id)) ||
+              (target !== undefined && authorizationExcludedIds.has(target))
+            );
+          });
+          if (hiddenOwned) {
+            authorizationExcludedIds.add(item.id);
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+  }
   const deletedIds = new Set<string>();
   let reads = 0;
   let collectionReads = 0;
@@ -127,6 +194,7 @@ export function createControlledReadSessionForTesting(options: {
       if (operation.kind === "collection") collectionReads += 1;
       if (operation.kind === "bead-links") incidentLinkReads += 1;
       if (readsForbidden) throw new Error("pagination continuation reread the source adapter");
+      await expandExclusionClosure(performOptions);
       const directId =
         operation.kind === "resource" || operation.kind === "properties"
           ? operation.id
@@ -280,6 +348,7 @@ export function createControlledReadSessionForTesting(options: {
       if (typeof id !== "string" || id.length === 0)
         throw new Error("controlled authorization exclusion is invalid");
       authorizationExcludedIds.add(new URL(id, options.scope).href);
+      exclusionGeneration += 1;
     },
     deleteResource(id: string) {
       if (typeof id !== "string" || id.length === 0)

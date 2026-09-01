@@ -360,6 +360,43 @@ describe("Type artifact parsing", () => {
         ownedLinks: { "https://work.example/types/cites": [{ ...ownedLink, id: "not-a-url" }] },
       }),
     ).toThrow();
+    // Contextual laws: type equals the entry key, source equals the
+    // containing Bead, ids ascend in code-unit order.
+    expect(() =>
+      parseBeadRecord({
+        ...record,
+        ownedLinks: {
+          "https://work.example/types/cites": [
+            { ...ownedLink, type: "https://work.example/types/blocks" },
+          ],
+        },
+      }),
+    ).toThrow("entry's Link Type key");
+    expect(() =>
+      parseBeadRecord({
+        ...record,
+        ownedLinks: {
+          "https://work.example/types/cites": [{ ...ownedLink, source: `${scope}beads/other` }],
+        },
+      }),
+    ).toThrow("containing Bead");
+    expect(() =>
+      parseBeadRecord({
+        ...record,
+        ownedLinks: {
+          "https://work.example/types/cites": [
+            { ...ownedLink, id: `${scope}links/z-cite` },
+            { ...ownedLink, id: `${scope}links/a-cite` },
+          ],
+        },
+      }),
+    ).toThrow("ascend in code-unit order");
+    expect(() =>
+      parseBeadRecord({
+        ...record,
+        ownedLinks: { "https://work.example/types/cites": [ownedLink, ownedLink] },
+      }),
+    ).toThrow("ascend in code-unit order");
   });
 
   it("round-trips endpoint-constraint external policies and rejects unknown tokens", () => {

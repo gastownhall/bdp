@@ -86,7 +86,7 @@ export function createBdpClientScenarioActionExecutor(
       case "external-link-endpoints":
         return observeExternalLinkEndpoints(execution, fetchImplementation);
       case "owned-links":
-        return observeOwnedReferences(execution, fetchImplementation);
+        return observeOwnedLinks(execution, fetchImplementation);
       default:
         throw new Error("unsupported client scenario operation");
     }
@@ -180,7 +180,7 @@ async function observeExternalLinkEndpoints(
   }
 }
 
-async function observeOwnedReferences(
+async function observeOwnedLinks(
   execution: BdpClientScenarioActionExecution,
   fetchImplementation: typeof fetch | undefined,
 ) {

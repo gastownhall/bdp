@@ -461,7 +461,7 @@
             "$ref": "#/$defs/absoluteHttpUrl"
           },
           "additionalProperties": {
-            "$ref": "#/$defs/ownedReferenceDeclaration"
+            "$ref": "#/$defs/ownedLinkDeclaration"
           }
         }
       },
@@ -887,7 +887,7 @@
       },
       "additionalProperties": false
     },
-    "ownedReferenceDeclaration": {
+    "ownedLinkDeclaration": {
       "type": "object",
       "required": ["max"],
       "properties": {

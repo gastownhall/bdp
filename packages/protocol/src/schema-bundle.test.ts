@@ -53,7 +53,7 @@ describe("BDP v0 schema bundle", () => {
       "linkCollection",
       "linkRecord",
       "maximumEndpointMultiplicityPolicy",
-      "ownedReferenceDeclaration",
+      "ownedLinkDeclaration",
       "pinnedReference",
       "positiveInteger",
       "properties",
