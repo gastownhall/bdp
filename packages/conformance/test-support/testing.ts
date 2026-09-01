@@ -241,6 +241,14 @@ export function createControlledReadActionExecutor(
           schemaValidator,
         );
         break;
+      case "owned-closure":
+        observed = await observeOwnedClosure(
+          execution,
+          fetchImplementation,
+          session,
+          schemaValidator,
+        );
+        break;
       case "disclosure-authorization-gate":
         observed = await observeDisclosureAuthorizationGate(
           execution,
@@ -639,6 +647,189 @@ async function observeDisclosureAuthorizationGate(
       representativeDigest: bodyDigests[0],
       representativeByteLength: representativeBody.byteLength,
     },
+  };
+}
+
+/**
+ * Proves the owned-closure law end to end: before the projection changes,
+ * the source Bead is live and inlines the owned Link; excluding the owned
+ * Link's TARGET then hides the target, the owned Link, and the owning
+ * source — all answering the uniform not-found, byte-identical to a
+ * never-existing address — while an unrelated Bead stays live and the
+ * collections stop enumerating every hidden identity.
+ */
+async function observeOwnedClosure(
+  execution: ScenarioActionExecution,
+  fetchImplementation: typeof fetch,
+  session: ControlledReadActionSession,
+  schemaValidator: SchemaValidator,
+) {
+  const input = actionInput(execution.input, "owned-closure input");
+  const source = requiredString(input, "source");
+  const target = requiredString(input, "target");
+  const link = requiredString(input, "link");
+  const control = requiredString(input, "control");
+  const unknown = requiredString(input, "unknown");
+  const unknownLink = requiredString(input, "unknownLink");
+  const view = requiredString(input, "view");
+  const epoch = requiredString(input, "epoch");
+  const sourceUrl = new URL(source, execution.scope).href;
+  const targetUrl = new URL(target, execution.scope).href;
+  const linkUrl = new URL(link, execution.scope).href;
+  const controlUrl = new URL(control, execution.scope).href;
+  const unknownUrl = new URL(unknown, execution.scope).href;
+  const unknownLinkUrl = new URL(unknownLink, execution.scope).href;
+  const beforeResponse = await fetchImplementation(
+    sourceUrl,
+    requestInit(view, epoch, execution.signal),
+  );
+  const sourceLiveBefore = beforeResponse.status === 200;
+  const beforeBody = sourceLiveBefore ? await readJsonRecord(beforeResponse) : undefined;
+  if (!sourceLiveBefore) await discardBody(beforeResponse);
+  const ownedLinksServedBefore =
+    beforeBody !== undefined &&
+    isPlainRecord(beforeBody.ownedLinks) &&
+    Object.values(beforeBody.ownedLinks).some(
+      (entry) =>
+        Array.isArray(entry) && entry.some((owned) => isPlainRecord(owned) && owned.id === linkUrl),
+    );
+  const beforeTarget = await requestResource(
+    fetchImplementation,
+    targetUrl,
+    view,
+    epoch,
+    execution.signal,
+  );
+  if (!sourceLiveBefore || beforeTarget.status !== 200)
+    throw new Error("owned-closure fixture identities must be live before the exclusion");
+  session.excludeResourceFromAuthorizationView(targetUrl);
+  const observations: Record<string, unknown> = {};
+  const rawProblemBodies: Uint8Array[] = [];
+  for (const [name, id] of [
+    ["target", targetUrl],
+    ["source", sourceUrl],
+    ["unknown", unknownUrl],
+  ] as const) {
+    const observation = await observeNondisclosedResource(
+      fetchImplementation,
+      id,
+      view,
+      epoch,
+      execution.signal,
+      schemaValidator,
+    );
+    observations[name] = observation.semantic;
+    rawProblemBodies.push(...observation.rawProblemBodies);
+  }
+  // A Link URL has no `links` view — the plane refuses `?view=links` with
+  // the same structural problem for known and unknown Links alike — so a
+  // Link's nondisclosure surface is its resource and properties variants.
+  for (const [name, id] of [
+    ["link", linkUrl],
+    ["unknownLink", unknownLinkUrl],
+  ] as const) {
+    const variants = [
+      ["resource", id],
+      ["properties", `${id}?view=properties`],
+    ] as const;
+    const probes = [];
+    for (const [variant, probeTarget] of variants) {
+      const observedProblem = await requestProblemWithBytes(
+        fetchImplementation,
+        probeTarget,
+        view,
+        epoch,
+        execution.signal,
+        schemaValidator,
+      );
+      rawProblemBodies.push(observedProblem.bodyBytes);
+      const problem = observedProblem.problem;
+      probes.push({
+        variant,
+        status: problem.status,
+        code: problem.code,
+        type: problem.type,
+        retry: problem.retry,
+        mediaType: problem.mediaType,
+        schemaValid: problem.schemaValid,
+        cachePrivateNoStore: problem.cachePrivateNoStore,
+      });
+    }
+    observations[name] = { probeCount: probes.length, probes };
+  }
+  const afterControl = await requestResource(
+    fetchImplementation,
+    controlUrl,
+    view,
+    epoch,
+    execution.signal,
+  );
+  const emptyEnvelope = () => ({
+    schemaValidator,
+    pages: 0,
+    schemaValid: true,
+    mediaTypeValid: true,
+    privateNoStore: true,
+  });
+  const sourceCollection = await requestPage(
+    fetchImplementation,
+    collectionUrl(execution.scope, "beads", {
+      selector: `$[?@.id == ${JSON.stringify(sourceUrl)}]`,
+      limit: 4,
+    }),
+    view,
+    epoch,
+    execution.signal,
+    emptyEnvelope(),
+  );
+  const targetCollection = await requestPage(
+    fetchImplementation,
+    collectionUrl(execution.scope, "beads", {
+      selector: `$[?@.id == ${JSON.stringify(targetUrl)}]`,
+      limit: 4,
+    }),
+    view,
+    epoch,
+    execution.signal,
+    emptyEnvelope(),
+  );
+  const linkCollection = await requestPage(
+    fetchImplementation,
+    collectionUrl(execution.scope, "links", {
+      selector: `$[?@.id == ${JSON.stringify(linkUrl)}]`,
+      limit: 4,
+    }),
+    view,
+    epoch,
+    execution.signal,
+    emptyEnvelope(),
+  );
+  const representativeBody = rawProblemBodies[0];
+  if (representativeBody === undefined)
+    throw new Error("owned-closure probes did not capture any public Problem body bytes");
+  const bodyDigests = rawProblemBodies.map(sha256Hex);
+  return {
+    outcome: "success",
+    sourceLiveBefore,
+    targetLiveBefore: beforeTarget.status === 200,
+    ownedLinksServedBefore,
+    target: observations.target,
+    source: observations.source,
+    link: observations.link,
+    unknown: observations.unknown,
+    unknownLink: observations.unknownLink,
+    rawBodyEvidence: {
+      probeCount: rawProblemBodies.length,
+      byteIdentical: rawProblemBodies.every((body) => bytesEqual(body, representativeBody)),
+      digestAlgorithm: "sha-256",
+      distinctDigests: new Set(bodyDigests).size,
+      representativeDigest: bodyDigests[0],
+      representativeByteLength: representativeBody.byteLength,
+    },
+    controlLiveAfter: afterControl.status === 200,
+    sourceAbsentFromCollection: sourceCollection.items.length === 0,
+    targetAbsentFromCollection: targetCollection.items.length === 0,
+    linkAbsentFromCollection: linkCollection.items.length === 0,
   };
 }
 

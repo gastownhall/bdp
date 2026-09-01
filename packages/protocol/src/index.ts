@@ -156,13 +156,15 @@ interface TypeDescriptorMembers {
 
 /**
  * One owned outgoing Link Type: links of this type created from a Bead of
- * the declaring Type are part of the source's versioned state. `max` bounds
- * the owned set so the references plane can always be served inline;
+ * the declaring Type are part of the source's versioned state — target,
+ * pin, and properties, so every owned-Link mutation versions the source.
+ * `max` bounds the owned set so the ownedLinks plane can always be served
+ * inline;
  * `label` is descriptor documentation for display and SDK projection and
  * never appears in Resource records. Declarations are keyed by Link Type
  * URL, so each pair is declared at most once by construction.
  */
-export interface OwnedReferenceDeclaration {
+export interface OwnedLinkDeclaration {
   readonly label?: string;
   readonly max: number;
 }
@@ -171,7 +173,7 @@ export interface BeadTypeDescriptor extends TypeDescriptorMembers {
   readonly describes: "bead";
   readonly source?: never;
   readonly target?: never;
-  readonly ownsOutgoing?: Readonly<Record<string, OwnedReferenceDeclaration>>;
+  readonly ownsOutgoing?: Readonly<Record<string, OwnedLinkDeclaration>>;
 }
 
 export interface LinkTypeDescriptor extends TypeDescriptorMembers {
@@ -249,12 +251,13 @@ export interface BeadRecord {
   readonly revision: string;
   readonly properties: PropertiesRecord;
   /**
-   * The owned-references plane: for each Link Type the Bead's declared Type
-   * owns, the target References of the owned links, pins included. Keyed by
-   * Link Type URL — never by label. Covered by `revision`; always served on
-   * the record read; absent when the Type owns nothing.
+   * The owned-Links plane: for each Link Type the Bead's declared Type
+   * owns, the owned Links' complete records in ascending code-unit order
+   * of their canonical ids. Keyed by Link Type URL — never by label.
+   * Covered by `revision`, properties included; always served on the
+   * record read; absent when the Type owns nothing.
    */
-  readonly references?: Readonly<Record<string, readonly Reference[]>>;
+  readonly ownedLinks?: Readonly<Record<string, readonly LinkRecord[]>>;
   readonly links?: LinkCollection;
 }
 

@@ -131,7 +131,7 @@
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "A Bead whose Type owns outgoing Link Types MUST carry its `references` member — one entry per declared owned type, keyed by Link Type URL — on every record read, and the member MUST be absent for Beads whose Type owns nothing."
+          "selectedText": "A Bead whose\n  Type owns outgoing Link Types MUST carry its `ownedLinks` member — one\n  entry per declared owned type, keyed by Link Type URL, valued by the\n  owned Links' complete records in ascending code-unit order of their\n  canonical `id`s — on every record read, and the member MUST be absent\n  for Beads whose Type owns nothing."
         }
       ]
     },
@@ -544,6 +544,24 @@
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
           "selectedText": "Unauthorized callers MUST receive the uniform\n  `404` `resource-not-found`."
+        }
+      ]
+    },
+    {
+      "id": "read.owned.closure",
+      "title": "Views are closed over owned Links",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Because the member is covered, it is never authorization-filtered. An\nAuthorization View that projects a Bead projects its owned Links and\ntheir in-Scope target Beads: a view is closed over owned Links, and\nhiding a Bead from a view therefore requires hiding every Bead that owns\na Link to it."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "An Authorization View that projects\n  a Bead projects its owned Links and their in-Scope targets."
         }
       ]
     }

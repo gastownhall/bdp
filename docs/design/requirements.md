@@ -49,12 +49,15 @@ here rather than being invented by an implementation.
   interpret it in v0. Reference equality uses the URI alone.
   At least one endpoint of every v0 Link MUST be an in-Scope Bead.
 - **PROTO-011**: A Bead Type MAY own outgoing Link Types, declared per
-  (Bead Type, Link Type) pair with a required bound. Changing an owned
-  Link versions the source Bead; an incoming Link never versions its
-  target. A Bead whose Type owns outgoing Link Types MUST carry its
-  `references` member — one entry per declared owned type, keyed by Link
-  Type URL — on every record read, and the member MUST be absent for
-  Beads whose Type owns nothing.
+  (Bead Type, Link Type) pair with a required bound. Every mutation of an
+  owned Link — creation, deletion, or property update — versions the
+  source Bead; an incoming Link never versions its target. A Bead whose
+  Type owns outgoing Link Types MUST carry its `ownedLinks` member — one
+  entry per declared owned type, keyed by Link Type URL, valued by the
+  owned Links' complete records in ascending code-unit order of their
+  canonical `id`s — on every record read, and the member MUST be absent
+  for Beads whose Type owns nothing. An Authorization View that projects
+  a Bead projects its owned Links and their in-Scope targets.
 - **PROTO-012**: An alias is a repointable locator beneath the fixed
   `alias/` root and is not a Resource. Alias resolution MUST be
   redirect-only: `GET` and `HEAD` return `307` with `Location` set to the

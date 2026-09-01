@@ -68,6 +68,122 @@ async function controlledBeadItems(session: ReturnType<typeof controlledSession>
   return result.body.items;
 }
 
+describe("controlled authorization-closure expansion", () => {
+  const owner = (id: string, ownedLinkId: string, targetId: string) => ({
+    id: new URL(id, scope).href,
+    type: "https://work.example/types/decision",
+    revision: "1",
+    properties: {},
+    ownedLinks: {
+      "https://work.example/types/cites": [
+        {
+          id: new URL(ownedLinkId, scope).href,
+          type: "https://work.example/types/cites",
+          revision: "1",
+          source: new URL(id, scope).href,
+          target: new URL(targetId, scope).href,
+          properties: {},
+        },
+      ],
+    },
+  });
+  const graphSource = (gate?: { release: Promise<void>; failuresLeft: { count: number } }) => {
+    const beads = [owner("beads/citer", "links/cite", "beads/cited"), bead("beads/cited", "1")];
+    const links = [
+      {
+        id: new URL("links/cite", scope).href,
+        type: "https://work.example/types/cites",
+        revision: "1",
+        source: new URL("beads/citer", scope).href,
+        target: new URL("beads/cited", scope).href,
+        properties: {},
+      },
+    ];
+    const source: ScopePort = {
+      perform: async (operation) => {
+        if (operation.kind === "collection") {
+          if (gate !== undefined) {
+            await gate.release;
+            if (gate.failuresLeft.count > 0) {
+              gate.failuresLeft.count -= 1;
+              throw new Error("transient source outage");
+            }
+          }
+          return scopePortSuccess({
+            items: operation.collection === "links" ? links : beads,
+            next: null,
+          } as never);
+        }
+        if (operation.kind === "resource") {
+          const item = [...beads, ...links].find(
+            (candidate) => candidate.id === (operation as { id: string }).id,
+          );
+          return item === undefined
+            ? ({
+                kind: "problem",
+                problem: { code: "resource-not-found", status: 404 },
+              } as never)
+            : (scopePortSuccess(item as never) as never);
+        }
+        return scopePortSuccess({ items: [], next: null } as never);
+      },
+    };
+    return source;
+  };
+
+  it("holds concurrent requests until the fixpoint completes: neither sees the owner", async () => {
+    let open = () => {};
+    const release = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const gate = { release, failuresLeft: { count: 0 } };
+    const session = createControlledReadSessionForTesting({
+      scope,
+      source: graphSource(gate),
+      viewHeader: "x-view",
+      epochHeader: "x-epoch",
+      unauthenticatedChallenge: 'Bearer realm="bdp-conformance"',
+      limits,
+    });
+    session.excludeResourceFromAuthorizationView("beads/cited");
+    const read = () =>
+      session.port.perform(
+        { kind: "resource", resource: "bead", id: new URL("beads/citer", scope).href },
+        { signal: new AbortController().signal },
+      );
+    const first = read();
+    const second = read();
+    open();
+    const results = await Promise.all([first, second]);
+    for (const result of results) {
+      expect(result.kind).toBe("problem");
+      expect((result as { problem: { code: string } }).problem.code).toBe("resource-not-found");
+    }
+  });
+
+  it("fails closed on a transient expansion failure and retries it on the next request", async () => {
+    const gate = { release: Promise.resolve(), failuresLeft: { count: 1 } };
+    const session = createControlledReadSessionForTesting({
+      scope,
+      source: graphSource(gate),
+      viewHeader: "x-view",
+      epochHeader: "x-epoch",
+      unauthenticatedChallenge: 'Bearer realm="bdp-conformance"',
+      limits,
+    });
+    session.excludeResourceFromAuthorizationView("beads/cited");
+    const read = () =>
+      session.port.perform(
+        { kind: "resource", resource: "bead", id: new URL("beads/citer", scope).href },
+        { signal: new AbortController().signal },
+      );
+    await expect(read()).rejects.toThrow("transient source outage");
+    const retried = await read();
+    expect(retried.kind).toBe("problem");
+    expect((retried as { problem: { code: string } }).problem.code).toBe("resource-not-found");
+  });
+});
+
 describe("test-only Read conformance evidence", () => {
   it("configures a deterministic authentication challenge for controlled 401 responses", () => {
     expect(controlledSession([]).readControls.unauthenticatedChallenge).toBe(

@@ -593,12 +593,6 @@
         "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"
       ]
     },
-    "owned-references": {
-      "input": {
-        "bead": "beads/demo-f"
-      },
-      "references": null
-    },
     "ordering": {
       "beads": [
         ["beads/demo-a"],
@@ -659,6 +653,12 @@
         ["links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"],
         ["links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz"]
       ]
+    },
+    "owned-links": {
+      "input": {
+        "bead": "beads/demo-f"
+      },
+      "ownedLinks": null
     }
   },
   "expectations": {

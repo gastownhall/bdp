@@ -85,8 +85,8 @@ export function createBdpClientScenarioActionExecutor(
         );
       case "external-link-endpoints":
         return observeExternalLinkEndpoints(execution, fetchImplementation);
-      case "owned-references":
-        return observeOwnedReferences(execution, fetchImplementation);
+      case "owned-links":
+        return observeOwnedLinks(execution, fetchImplementation);
       default:
         throw new Error("unsupported client scenario operation");
     }
@@ -180,12 +180,12 @@ async function observeExternalLinkEndpoints(
   }
 }
 
-async function observeOwnedReferences(
+async function observeOwnedLinks(
   execution: BdpClientScenarioActionExecution,
   fetchImplementation: typeof fetch | undefined,
 ) {
   if (fetchImplementation === undefined)
-    throw new Error("owned-references requires a routed public Fetch implementation");
+    throw new Error("owned-links requires a routed public Fetch implementation");
   if (
     !isPlainRecord(execution.input) ||
     Reflect.ownKeys(execution.input).length !== 1 ||
@@ -193,10 +193,10 @@ async function observeOwnedReferences(
     execution.input.bead.length === 0 ||
     execution.input.bead.length > 2_048
   )
-    throw new Error("owned-references input must name one bead");
+    throw new Error("owned-links input must name one bead");
   const scope = execution.scope as AbsoluteHttpUrl;
   const id = new URL(execution.input.bead, scope).href;
-  if (!id.startsWith(scope)) throw new Error("owned-references bead escaped the Scope");
+  if (!id.startsWith(scope)) throw new Error("owned-links bead escaped the Scope");
   const client = new BdpClient({
     scope,
     transport: createFetchTransport(fetchImplementation, TARGET_DIAGNOSTIC_TRANSPORT_LIMITS),
@@ -207,9 +207,9 @@ async function observeOwnedReferences(
       { signal: execution.signal },
     );
     if (isBdpClientProblem(result)) return { outcome: "problem", code: result.code };
-    // The owned-references plane as served, or null where the realization's
+    // The owned-Links plane as served, or null where the realization's
     // Type declares no ownership — the honest-absence half of the proof.
-    return { outcome: "success", references: result.references ?? null };
+    return { outcome: "success", ownedLinks: result.ownedLinks ?? null };
   } finally {
     await client.close();
   }
@@ -330,7 +330,7 @@ async function observePublicLogicalProjection(
     throw new Error("public-logical-projection requires a public target Fetch implementation");
   const scope = execution.scope as AbsoluteHttpUrl;
   const relationshipRoles = parseRelationshipRoles(execution.input, scope);
-  // Realization-only Links (owned-reference and pin realizations) are not
+  // Realization-only Links (owned-Link and pin realizations) are not
   // part of the shared logical topology the two targets must agree on.
   const realizationOnly = new Set(
     Array.isArray((execution.input as { realizationOnlyLinkIds?: unknown }).realizationOnlyLinkIds)

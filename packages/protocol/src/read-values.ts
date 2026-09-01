@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020, type JSONSchemaType, type ValidateFunction } from "ajv/dist/2020.js";
 
 import { isJsonSchemaUri } from "./schema-formats.js";
+import { compareCanonicalIds, referenceUri } from "./index.js";
 import type {
   AbsoluteHttpUrl,
   BeadCollection,
@@ -99,9 +100,24 @@ export function parseBeadRecord(value: unknown, path = "Bead record"): BeadRecor
   validateFromSchema(getProtocolValueValidators().beadRecord, record, path);
   parseCanonicalTypeId(record.id, `${path}.id`);
   parseResourceTypeId(record.type, `${path}.type`);
-  if (record.references !== undefined)
-    for (const key of Object.keys(record.references as Readonly<Record<string, unknown>>))
-      parseResourceTypeId(key, `${path}.references key`);
+  if (record.ownedLinks !== undefined)
+    for (const [key, owned] of Object.entries(
+      record.ownedLinks as Readonly<Record<string, readonly unknown[]>>,
+    )) {
+      parseResourceTypeId(key, `${path}.ownedLinks key`);
+      let previousId: string | undefined;
+      for (const [index, item] of owned.entries()) {
+        const itemPath = `${path}.ownedLinks[${JSON.stringify(key)}][${index}]`;
+        const owned_ = parseLinkRecord(item, itemPath);
+        if (owned_.type !== key)
+          throw new Error(`${itemPath}.type must equal its entry's Link Type key`);
+        if (referenceUri(owned_.source) !== record.id)
+          throw new Error(`${itemPath}.source must be the containing Bead`);
+        if (previousId !== undefined && compareCanonicalIds(previousId, owned_.id) >= 0)
+          throw new Error(`${itemPath}.id must ascend in code-unit order within its entry`);
+        previousId = owned_.id;
+      }
+    }
   const links =
     record.links === undefined ? undefined : parseLinkCollection(record.links, `${path}.links`);
   return Object.freeze({

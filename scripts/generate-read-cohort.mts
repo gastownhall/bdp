@@ -557,9 +557,28 @@ describe("packaged Read cohort generation", () => {
         executor: executorDigest(),
       };
       const packagedHarnessDigest = sha256(readRepoBytes(BINDING_SOURCES.packagedHarness));
+      // The in-process rows execute through the shared test-support layers,
+      // so the harness digest binds those transitive sources too: a change
+      // to the controlled projector or the lifecycle/client executors closes
+      // the cohort exactly like a change to the matrix entry file.
+      const inProcessSupportBytes = Buffer.concat([
+        readRepoBytes("packages/server/test-support/testing.ts"),
+        readRepoBytes("packages/conformance/test-support/testing.ts"),
+        readRepoBytes("packages/client/test-support/testing.ts"),
+      ]);
       const matrixHarnessDigest = {
-        bdptest: sha256(readRepoBytes("apps/bdptest/src/read-matrix.test.ts")),
-        bdpbd: sha256(readRepoBytes("apps/bdpbd/src/read-matrix.test.ts")),
+        bdptest: sha256(
+          Buffer.concat([
+            readRepoBytes("apps/bdptest/src/read-matrix.test.ts"),
+            inProcessSupportBytes,
+          ]),
+        ),
+        bdpbd: sha256(
+          Buffer.concat([
+            readRepoBytes("apps/bdpbd/src/read-matrix.test.ts"),
+            inProcessSupportBytes,
+          ]),
+        ),
       };
       const bdExecutableDigest = sha256(readFileSync(bdExecutable));
       const targets: ReadCohortTargetInput[] = [];

@@ -53,7 +53,7 @@ export const REFERENCE_TYPE_DESCRIPTORS: readonly TypeDescriptor[] = REFERENCE_T
                   summary.id !== "https://work.example/types/decision"
                 ? ["https://work.example/types/work-item"]
                 : [],
-          // Decision owns its citations: the owned-references realization
+          // Decision owns its citations: the owned-Links realization
           // for the reference domain. Bounded so the plane is always
           // servable inline; the label is descriptor documentation and
           // never appears in Resource records.

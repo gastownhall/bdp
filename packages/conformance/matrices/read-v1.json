@@ -5614,10 +5614,10 @@
           ]
         },
         {
-          "id": "owned-references",
+          "id": "owned-links",
           "family": "client",
-          "operation": "owned-references",
-          "inputFixturePointer": "/oracles/owned-references/input",
+          "operation": "owned-links",
+          "inputFixturePointer": "/oracles/owned-links/input",
           "captures": [],
           "assertions": [
             {
@@ -5630,9 +5630,9 @@
             {
               "id": "plane",
               "kind": "json-pointer",
-              "pointer": "/references",
+              "pointer": "/ownedLinks",
               "exists": true,
-              "fixturePointer": "/oracles/owned-references/references"
+              "fixturePointer": "/oracles/owned-links/ownedLinks"
             }
           ]
         }
@@ -6241,6 +6241,288 @@
               "id": "all-gated-bodies-byte-identical",
               "kind": "json-pointer",
               "pointer": "/rawBodyEvidence/byteIdentical",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.owned.closure",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http", "controlled-read-pagination-v1"]
+      },
+      "applicability": {
+        "requires": ["owned-links-v1"]
+      },
+      "actions": [
+        {
+          "id": "owned-closure",
+          "family": "lifecycle",
+          "operation": "owned-closure",
+          "input": {
+            "source": "beads/demo-f",
+            "target": "beads/demo-a",
+            "link": "links/cites-local",
+            "control": "beads/demo-c",
+            "unknown": "beads/never-existed-closure",
+            "view": "owned-closure-view",
+            "epoch": "owned-closure-epoch",
+            "unknownLink": "links/never-existed-closure"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "success",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "success"
+            },
+            {
+              "id": "source-live-before",
+              "kind": "json-pointer",
+              "pointer": "/sourceLiveBefore",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "target-live-before",
+              "kind": "json-pointer",
+              "pointer": "/targetLiveBefore",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "owned-links-served-before",
+              "kind": "json-pointer",
+              "pointer": "/ownedLinksServedBefore",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "hidden-target-three-view",
+              "kind": "json-pointer",
+              "pointer": "/target",
+              "exists": true,
+              "equals": {
+                "probeCount": 3,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "links",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "hidden-source-three-view",
+              "kind": "json-pointer",
+              "pointer": "/source",
+              "exists": true,
+              "equals": {
+                "probeCount": 3,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "links",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "hidden-link-two-view",
+              "kind": "json-pointer",
+              "pointer": "/link",
+              "exists": true,
+              "equals": {
+                "probeCount": 2,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "unknown-three-view",
+              "kind": "json-pointer",
+              "pointer": "/unknown",
+              "exists": true,
+              "equals": {
+                "probeCount": 3,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "links",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "unknown-link-two-view",
+              "kind": "json-pointer",
+              "pointer": "/unknownLink",
+              "exists": true,
+              "equals": {
+                "probeCount": 2,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "all-nondisclosure-bodies-byte-identical",
+              "kind": "json-pointer",
+              "pointer": "/rawBodyEvidence/byteIdentical",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "control-live-after",
+              "kind": "json-pointer",
+              "pointer": "/controlLiveAfter",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "source-absent-from-collection",
+              "kind": "json-pointer",
+              "pointer": "/sourceAbsentFromCollection",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "target-absent-from-collection",
+              "kind": "json-pointer",
+              "pointer": "/targetAbsentFromCollection",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "link-absent-from-collection",
+              "kind": "json-pointer",
+              "pointer": "/linkAbsentFromCollection",
               "exists": true,
               "equals": true
             }

@@ -44,7 +44,7 @@ export const packageName = "@bdp/adapter-bd";
  * bead by its outgoing links, so serving the shared domain's ownsOutgoing
  * would advertise a plane this realization never populates. Honest absence:
  * the served descriptors strip the declaration, and records carry no
- * references member.
+ * ownedLinks member.
  */
 export const BD_SERVED_TYPE_DESCRIPTORS: readonly TypeDescriptor[] = REFERENCE_TYPE_DESCRIPTORS.map(
   (descriptor) =>
