@@ -290,6 +290,27 @@ describe("BDP v0 schema bundle", () => {
       target: { uri: "urn:external:cites-witness", revision: "w-1" },
       properties: {},
     };
+    // Carried attribution: exactly { principal, status }, nonempty principal,
+    // closed two-value status; optional on both record kinds.
+    for (const status of ["claimed", "unknown"]) {
+      expectValid("beadRecord", { ...beadRecord(), attribution: { principal: "agent:x", status } });
+      expectValid("linkRecord", { ...ownedLink, attribution: { principal: "human:y", status } });
+    }
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      attribution: { principal: "", status: "claimed" },
+    });
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      attribution: { principal: "agent:x", status: "verified" },
+    });
+    expectInvalid("beadRecord", { ...beadRecord(), attribution: { principal: "agent:x" } });
+    expectInvalid("beadRecord", { ...beadRecord(), attribution: { status: "claimed" } });
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      attribution: { principal: "agent:x", status: "claimed", extra: true },
+    });
+    expectInvalid("beadRecord", { ...beadRecord(), attribution: "agent:x" });
     expectValid("beadRecord", {
       ...beadRecord(),
       ownedLinks: { "https://work.example/types/cites": [ownedLink] },

@@ -77,12 +77,14 @@ here rather than being invented by an implementation.
   the erased version; retention removals MUST NOT propagate.
 - **PROTO-014**: Bead and Link records MAY carry a common `attribution`
   member — `{ principal, status }` with `status` one of `claimed`,
-  `verified`, `unknown` — that is carried per version and never attested:
-  the protocol transports it, attests nothing, and a generic client MUST
-  NOT treat it as an authority claim. It is outside `properties`, absent
-  from the properties view, immutable for its version, and excluded from
-  the semantic no-op comparison. Domain Types MUST NOT need to declare
-  attribution as a property. A future attested form is a distinct member.
+  `unknown` — that is carried per version and never attested: the
+  protocol transports it, attests nothing, and a generic client MUST NOT
+  treat it as an authority claim; no status asserts authentication. It is
+  supplied with the creating or updating operation, outside `properties`,
+  absent from the properties view, immutable for its version, and
+  excluded from the semantic no-op comparison. Domain Types MUST NOT need
+  to declare attribution as a property. A future attested form is a
+  distinct member.
 - **PROTO-005**: A generic client MUST be able to parse and issue protocol
   requests without retrieving a Type Descriptor. Descriptor retrieval is for
   validation assistance and domain understanding, not basic wire parsing.

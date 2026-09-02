@@ -16,7 +16,8 @@
     "reference-read-v1-single-page",
     "cors-disabled",
     "unexpected-internal-fault",
-    "alias-absent-v1"
+    "alias-absent-v1",
+    "attribution-v1"
   ],
   "bindings": {
     "bead.demo-a": "beads/demo-a",
@@ -663,7 +664,7 @@
     "attribution": {
       "bead": {
         "principal": "bdp-conformance",
-        "status": "claimed"
+        "status": "unknown"
       }
     }
   },

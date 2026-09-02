@@ -574,17 +574,17 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "It is **data, not evidence**: the\nprotocol transports it and attests nothing, and a generic client MUST NOT\ntreat any value of it as an authority claim about who acted."
+          "selectedText": "Every Bead and Link record MAY carry an **`attribution`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "Attribution is **per version**: it is supplied with a\nwrite, immutable for the version it accompanies, and a later version may\ncarry different attribution. It is outside `properties`, never part of\nthe `properties` view"
+          "selectedText": "It is outside `properties`, never part of\nthe `properties` view"
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `verified`, `unknown` — that is carried per version and never attested"
+          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `unknown` — that is carried per version and never attested"
         }
       ]
     },
@@ -597,12 +597,17 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "Attribution is **per version**: it is supplied with a\nwrite, immutable for the version it accompanies, and a later version may\ncarry different attribution. It is outside `properties`, never part of\nthe `properties` view"
+          "selectedText": "Every Bead and Link record MAY carry an **`attribution`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#carried-attribution",
+          "selectedText": "It is outside `properties`, never part of\nthe `properties` view"
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `verified`, `unknown` — that is carried per version and never attested"
+          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `unknown` — that is carried per version and never attested"
         }
       ]
     }

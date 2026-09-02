@@ -917,7 +917,7 @@
         },
         "status": {
           "type": "string",
-          "enum": ["claimed", "verified", "unknown"]
+          "enum": ["claimed", "unknown"]
         }
       },
       "additionalProperties": false

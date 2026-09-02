@@ -19,7 +19,8 @@
     "alias-resolution-v1",
     "disclosure-v1",
     "owned-links-v1",
-    "attribution-links-v1"
+    "attribution-links-v1",
+    "attribution-v1"
   ],
   "bindings": {
     "bead.demo-a": "beads/demo-a",
@@ -663,7 +664,7 @@
       },
       "link": {
         "principal": "svc:reference-realization",
-        "status": "verified"
+        "status": "unknown"
       }
     }
   },
@@ -989,7 +990,7 @@
       "revision": "1",
       "attribution": {
         "principal": "svc:reference-realization",
-        "status": "verified"
+        "status": "unknown"
       },
       "source": "beads/demo-j",
       "target": "beads/demo-k",

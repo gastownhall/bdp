@@ -6541,7 +6541,7 @@
         "requires": ["public-http"]
       },
       "applicability": {
-        "requires": []
+        "requires": ["attribution-v1"]
       },
       "requests": [
         {

@@ -453,10 +453,11 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       id: new URL(`links/${localId}`, scope).href,
       type,
       revision: "1",
-      // demo-j-k carries realization-verified attribution (lockstep with the
-      // portable fixture); no other reference Link records any.
+      // demo-j-k carries `unknown`-status attribution (lockstep with the
+      // portable fixture), exercising the second status; no other reference
+      // Link records any.
       ...(localId === "demo-j-k"
-        ? { attribution: { principal: "svc:reference-realization", status: "verified" as const } }
+        ? { attribution: { principal: "svc:reference-realization", status: "unknown" as const } }
         : {}),
       source: resolveEndpoint(String(source)),
       target: resolveEndpoint(String(target)),
