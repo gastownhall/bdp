@@ -753,9 +753,11 @@ never carries — that vocabulary belongs to the future attested member.
 Attribution is **per version**: it is supplied with a write (the
 `attribution` input on the creating and updating operations), immutable
 for the version it accompanies, and a later version may carry different
-attribution. An operation that mints two versions — an owned-Link
-mutation versions both the Link and its source — records its one
-attribution on both. It is outside `properties`, never part of
+attribution. An operation that mints more than one version records its
+one attribution on every version it mints: creating or updating an owned
+Link versions both the Link and its source, and both carry it; deleting an
+owned Link mints no Link version (deletion never does) and versions only
+the source, which carries it. It is outside `properties`, never part of
 the `properties` view, and takes no part in the semantic no-op
 comparison: a write whose `properties` are a no-op mints no revision and
 records no attribution. The member is absent when no attribution was
@@ -1124,7 +1126,8 @@ UpdateWhere(
   collection,
   selector,
   change,
-  cardinality?
+  cardinality?,
+  attribution?
 ) -> UpdatedResources
 ```
 
@@ -1132,13 +1135,20 @@ UpdateWhere(
 DeleteWhere(
   collection,
   selector,
-  cardinality?
+  cardinality?,
+  attribution?
 ) -> DeletedResourceIdentities
 ```
 
 Selection and mutation occur atomically at one serialization point. The
 Selector is evaluated when its operation is reached, so it observes the
-effects of preceding operations in the same Mutation Transaction.
+effects of preceding operations in the same Mutation Transaction. An
+`attribution` supplied to a set mutation fans out exactly as the
+corresponding singleton operations would record it: on every version
+`UpdateWhere` mints (each selected Resource's new version, and the source
+Bead's fresh version for each selected owned Link), and, for
+`DeleteWhere`, on the fresh source versions of any owned Links it deletes
+— deletion mints no version for the deleted Resources themselves.
 
 An optional cardinality record constrains the number of selected Resources:
 
@@ -2702,7 +2712,8 @@ of the eight generic operation records:
         "collection": { "enum": ["beads", "links"] },
         "selector": { "$ref": "#/$defs/selector" },
         "change": { "$ref": "#/$defs/change" },
-        "cardinality": { "$ref": "#/$defs/cardinality" }
+        "cardinality": { "$ref": "#/$defs/cardinality" },
+        "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     },
@@ -2713,7 +2724,8 @@ of the eight generic operation records:
         "operation": { "const": "deleteWhere" },
         "collection": { "enum": ["beads", "links"] },
         "selector": { "$ref": "#/$defs/selector" },
-        "cardinality": { "$ref": "#/$defs/cardinality" }
+        "cardinality": { "$ref": "#/$defs/cardinality" },
+        "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     }
