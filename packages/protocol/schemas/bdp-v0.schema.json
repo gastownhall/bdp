@@ -583,6 +583,9 @@
           "type": "string",
           "minLength": 1
         },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        },
         "properties": {
           "$ref": "#/$defs/properties"
         },
@@ -617,6 +620,9 @@
         "revision": {
           "type": "string",
           "minLength": 1
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
         },
         "source": {
           "$ref": "#/$defs/reference"
@@ -897,6 +903,21 @@
         },
         "max": {
           "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "attribution": {
+      "type": "object",
+      "required": ["principal", "status"],
+      "properties": {
+        "principal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": ["claimed", "unknown"]
         }
       },
       "additionalProperties": false

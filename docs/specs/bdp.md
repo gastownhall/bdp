@@ -275,6 +275,7 @@ Bead {
   id: BeadId
   type: BeadTypeId
   properties: JsonObject
+  attribution?  // carried per version; data, not evidence
   ownedLinks?   // owned-Links plane; owning Types only
 }
 ```
@@ -289,6 +290,7 @@ Link {
   source: Reference
   target: Reference
   properties: JsonObject
+  attribution?  // carried per version; data, not evidence
 }
 ```
 
@@ -715,11 +717,56 @@ BDP v0 does not expose an authority-attested actor in Resources, mutation
 results, receipts, Events, or change groups. The authenticated principal is
 an input to authorization, not protocol data. An implementation may retain
 private audit records, and a domain Type may define ordinary actor-related
-properties. But neither is a generic BDP attribution guarantee.
+properties. But neither is a generic BDP attribution guarantee — and
+neither is the carried `attribution` member defined next.
 Standardizing principal identity, delegation, impersonation, privacy, and
 attestation is deferred. Scope epoch, Authorization View, and position
 fields are projection and ordering fences. None of them identifies or
 attests the principal.
+
+### Carried attribution
+
+Every Bead and Link record MAY carry an **`attribution`** member: a
+common, generic member in a common place, so that no Type has to declare
+attribution as a domain property. It is **data, not evidence**: the
+protocol transports it and attests nothing, and a generic client MUST NOT
+treat any value of it as an authority claim about who acted. A future
+authority-attested form, if one arrives, is a distinct member with a
+distinct name; `attribution` never becomes it.
+
+```text
+Attribution {
+  principal   // nonempty opaque string naming who the version is attributed to
+  status      // "claimed" | "unknown"
+}
+```
+
+`status` records the realization's basis for the value, not a BDP
+guarantee, and v0 defines exactly two: `claimed` — the principal was
+supplied by the writer of that version, as written; `unknown` — the
+principal is carried from data whose relationship to this version the
+realization cannot establish (an imported record; a creator recorded
+where the writer of the current version was not). There is deliberately
+no status that asserts authentication: a value meaning "the authority
+verified this principal" would be an authority claim, which this member
+never carries — that vocabulary belongs to the future attested member.
+Attribution is **per version**: it is supplied with a write (the
+`attribution` input on every version-minting operation — creating,
+updating, set mutation, and an owned-Link deletion that mints the source's
+fresh version), immutable for the version it accompanies, and a later
+version may carry different attribution. An operation that mints more than
+one version records its one attribution on every version it mints:
+creating or updating an owned
+Link versions both the Link and its source, and both carry it; deleting an
+owned Link mints no Link version (deletion never does) and versions only
+the source, which carries it. It is outside `properties`, never part of
+the `properties` view, and takes no part in the semantic no-op
+comparison: a write whose `properties` are a no-op mints no revision and
+records no attribution. The member is absent when no attribution was
+recorded. Principal identifiers SHOULD be namespaced opaque strings — for
+example `agent:…`, `human:…`, `svc:…` — so agents, humans, and service
+accounts coexist without a global identity system; BDP mandates no
+namespace and compares principals only for byte equality.
 
 ### Authorization views
 
@@ -857,7 +904,8 @@ revision changes. The target's never does.
 [label:] CreateBead(
   id?,
   type,
-  properties = {}
+  properties = {},
+  attribution?
 ) -> BeadState
 ```
 
@@ -869,7 +917,8 @@ Resource in the logical Scope. Deletion does not make it available again.
 UpdateBeadProperties(
   bead,
   change,
-  expectedRevision?
+  expectedRevision?,
+  attribution?
 ) -> BeadState
 ```
 
@@ -895,7 +944,8 @@ in the same Mutation Transaction.
   type,
   source,
   target,
-  properties = {}
+  properties = {},
+  attribution?
 ) -> LinkState
 ```
 
@@ -910,14 +960,16 @@ pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
 UpdateLinkProperties(
   link,
   change,
-  expectedRevision?
+  expectedRevision?,
+  attribution?
 ) -> LinkState
 ```
 
 ```text
 DeleteLink(
   link,
-  expectedRevision?
+  expectedRevision?,
+  attribution?   // recorded on the owning source's fresh version, if any
 ) -> DeletionResult
 ```
 
@@ -1076,7 +1128,8 @@ UpdateWhere(
   collection,
   selector,
   change,
-  cardinality?
+  cardinality?,
+  attribution?
 ) -> UpdatedResources
 ```
 
@@ -1084,13 +1137,20 @@ UpdateWhere(
 DeleteWhere(
   collection,
   selector,
-  cardinality?
+  cardinality?,
+  attribution?
 ) -> DeletedResourceIdentities
 ```
 
 Selection and mutation occur atomically at one serialization point. The
 Selector is evaluated when its operation is reached, so it observes the
-effects of preceding operations in the same Mutation Transaction.
+effects of preceding operations in the same Mutation Transaction. An
+`attribution` supplied to a set mutation fans out exactly as the
+corresponding singleton operations would record it: on every version
+`UpdateWhere` mints (each selected Resource's new version, and the source
+Bead's fresh version for each selected owned Link), and, for
+`DeleteWhere`, on the fresh source versions of any owned Links it deletes
+— deletion mints no version for the deleted Resources themselves.
 
 An optional cardinality record constrains the number of selected Resources:
 
@@ -1212,6 +1272,7 @@ The lifecycle Event deltas are:
 CreatedData {
   revision: Revision
   properties: JsonObject
+  attribution?: Attribution   // the created version's carried attribution
   source?: Reference
   target?: Reference
 }
@@ -1220,6 +1281,7 @@ UpdatedData {
   previousRevision: Revision
   revision: Revision
   change: PropertyChange
+  attribution?: Attribution   // the new version's carried attribution
 }
 
 
@@ -1852,6 +1914,7 @@ A Bead record is:
   "id": "https://beads.example/acme/beads/task-42",
   "type": "https://work.example/types/task",
   "revision": "opaque-task-revision",
+  "attribution": { "principal": "agent:planner", "status": "claimed" },
   "properties": {
     "title": "Specify BDP mutation",
     "status": "open"
@@ -1885,7 +1948,9 @@ nothing. Link
 [Beads and Links](#beads-and-links): an in-Scope endpoint's `uri` is the
 Bead's absolute canonical URL, an out-of-Scope endpoint's `uri` is its
 opaque absolute URI, and either may be a Pinned Reference. `revision` is protocol metadata rather than mutable Bead or Link
-state. `id`, `type`, `revision`, and, for Links, `source` and `target` are
+state, and so is `attribution`: when present it is the per-version carried
+attribution defined under [Carried attribution](#carried-attribution),
+beside `revision` and outside `properties`. `id`, `type`, `revision`, and, for Links, `source` and `target` are
 returned on every successful read. That does not mean they are accepted as
 update targets. An implementation may store local identifiers internally.
 That choice does not alter the response spelling.
@@ -2508,6 +2573,15 @@ of the eight generic operation records:
       },
       "additionalProperties": false
     },
+    "attribution": {
+      "type": "object",
+      "required": ["principal", "status"],
+      "properties": {
+        "principal": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["claimed", "unknown"] }
+      },
+      "additionalProperties": false
+    },
     "typeId": {
       "type": "string",
       "format": "uri"
@@ -2567,7 +2641,8 @@ of the eight generic operation records:
         "name": { "$ref": "#/$defs/name" },
         "id": { "$ref": "#/$defs/resourceReference" },
         "type": { "$ref": "#/$defs/typeId" },
-        "properties": { "$ref": "#/$defs/properties" }
+        "properties": { "$ref": "#/$defs/properties" },
+        "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     },
@@ -2578,7 +2653,8 @@ of the eight generic operation records:
         "operation": { "const": "updateBeadProperties" },
         "bead": { "$ref": "#/$defs/resourceReference" },
         "change": { "$ref": "#/$defs/change" },
-        "expectedRevision": { "$ref": "#/$defs/expectedRevision" }
+        "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
+        "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     },
@@ -2602,7 +2678,8 @@ of the eight generic operation records:
         "type": { "$ref": "#/$defs/typeId" },
         "source": { "$ref": "#/$defs/reference" },
         "target": { "$ref": "#/$defs/reference" },
-        "properties": { "$ref": "#/$defs/properties" }
+        "properties": { "$ref": "#/$defs/properties" },
+        "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     },
@@ -2613,7 +2690,8 @@ of the eight generic operation records:
         "operation": { "const": "updateLinkProperties" },
         "link": { "$ref": "#/$defs/resourceReference" },
         "change": { "$ref": "#/$defs/change" },
-        "expectedRevision": { "$ref": "#/$defs/expectedRevision" }
+        "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
+        "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     },
@@ -2623,7 +2701,8 @@ of the eight generic operation records:
       "properties": {
         "operation": { "const": "deleteLink" },
         "link": { "$ref": "#/$defs/resourceReference" },
-        "expectedRevision": { "$ref": "#/$defs/expectedRevision" }
+        "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
+        "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     },
@@ -2635,7 +2714,8 @@ of the eight generic operation records:
         "collection": { "enum": ["beads", "links"] },
         "selector": { "$ref": "#/$defs/selector" },
         "change": { "$ref": "#/$defs/change" },
-        "cardinality": { "$ref": "#/$defs/cardinality" }
+        "cardinality": { "$ref": "#/$defs/cardinality" },
+        "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     },
@@ -2646,7 +2726,8 @@ of the eight generic operation records:
         "operation": { "const": "deleteWhere" },
         "collection": { "enum": ["beads", "links"] },
         "selector": { "$ref": "#/$defs/selector" },
-        "cardinality": { "$ref": "#/$defs/cardinality" }
+        "cardinality": { "$ref": "#/$defs/cardinality" },
+        "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     }
@@ -3411,10 +3492,12 @@ affected Resource `subject` and `subjectType`, an opaque `transaction`
 identifier, an RFC 3339 `time`, and a Type-specific `data` object. Event data
 contains deltas rather than Resource snapshots:
 
-- `created` carries `revision` and the complete initial `properties`. For a
+- `created` carries `revision`, the complete initial `properties`, and the
+  created version's `attribution` when one was recorded. For a
   Link it also carries the `source` and `target` endpoint references, with a
   stored pin preserved byte-identically.
-- `updated` carries `previousRevision`, `revision`, and `change`. `change`
+- `updated` carries `previousRevision`, `revision`, `change`, and the new
+  version's `attribution` when one was recorded. `change`
   uses the same committed Property Change representation accepted by
   singleton DML; for an owned-Link change on the source Bead, the
   delta member is pending as recorded in the model section, and the wire
@@ -3581,6 +3664,9 @@ protocol-identifier prefix, with the release-stability rule stated above.
 10. **Resolved 2026-08-08:** authority-attested actor attribution is excluded
     from BDP v0. Authentication remains an authorization input. Private audit
     records and domain actor properties are not generic BDP guarantees.
+    **Amended 2026-09-02:** a common carried-but-asserted `attribution`
+    member exists ([Carried attribution](#carried-attribution)); it is
+    data, not evidence, and any future attested form is a distinct member.
 11. **Resolved 2026-08-08:** BDP defines no universal root Bead or Link Type.
     `describes` supplies Resource category, and `conformsTo` contains only
     domain-defined Type relationships.
