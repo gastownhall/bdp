@@ -754,8 +754,9 @@ Attribution is **per version**: it is supplied with a write (the
 `attribution` input on every version-minting operation — creating,
 updating, set mutation, and an owned-Link deletion that mints the source's
 fresh version), immutable for the version it accompanies, and a later
-version may carry different attribution. An operation that mints more than one version records its
-one attribution on every version it mints: creating or updating an owned
+version may carry different attribution. An operation that mints more than
+one version records its one attribution on every version it mints:
+creating or updating an owned
 Link versions both the Link and its source, and both carry it; deleting an
 owned Link mints no Link version (deletion never does) and versions only
 the source, which carries it. It is outside `properties`, never part of

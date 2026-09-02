@@ -80,10 +80,10 @@ here rather than being invented by an implementation.
   `unknown` — that is carried per version and never attested: the
   protocol transports it, attests nothing, and a generic client MUST NOT
   treat it as an authority claim; no status asserts authentication. It is
-  supplied with the operation that mints the version — creating, updating,
-  or an owned-Link deletion that mints the source's fresh version — outside
-  `properties`,
-  absent from the properties view, immutable for its version, and
+  supplied with every version-minting operation — creating, updating, set
+  mutation, or an owned-Link deletion that mints the source's fresh
+  version — outside `properties`, absent from the properties view,
+  immutable for its version, and
   excluded from the semantic no-op comparison. Domain Types MUST NOT need
   to declare attribution as a property. A future attested form is a
   distinct member.
