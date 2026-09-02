@@ -751,9 +751,10 @@ no status that asserts authentication: a value meaning "the authority
 verified this principal" would be an authority claim, which this member
 never carries — that vocabulary belongs to the future attested member.
 Attribution is **per version**: it is supplied with a write (the
-`attribution` input on the creating and updating operations), immutable
-for the version it accompanies, and a later version may carry different
-attribution. An operation that mints more than one version records its
+`attribution` input on every version-minting operation — creating,
+updating, set mutation, and an owned-Link deletion that mints the source's
+fresh version), immutable for the version it accompanies, and a later
+version may carry different attribution. An operation that mints more than one version records its
 one attribution on every version it mints: creating or updating an owned
 Link versions both the Link and its source, and both carry it; deleting an
 owned Link mints no Link version (deletion never does) and versions only
