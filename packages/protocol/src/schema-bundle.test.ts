@@ -45,6 +45,7 @@ describe("BDP v0 schema bundle", () => {
       "absoluteHttpUrl",
       "absoluteUri",
       "advertisedLimits",
+      "attribution",
       "bdpVersion",
       "beadCollection",
       "beadRecord",

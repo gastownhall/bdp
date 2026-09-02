@@ -1,5 +1,8 @@
 import {
   type AbsoluteHttpUrl,
+  ATTRIBUTION_STATUSES,
+  type Attribution,
+  type AttributionStatus,
   compareCanonicalIds,
   referenceUri,
   type BeadCollectionRequest as BeadCollectionOperation,
@@ -356,6 +359,11 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       id: new URL(`beads/${localId}`, scope).href,
       type,
       revision: "1",
+      // Carried attribution, in lockstep with the portable fixture: demo-a
+      // claims a fixture author; everything else records none.
+      ...(localId === "demo-a"
+        ? { attribution: { principal: "agent:fixture-author", status: "claimed" as const } }
+        : {}),
       properties: parsePropertiesRecord({
         id: localId,
         title,
@@ -445,6 +453,11 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       id: new URL(`links/${localId}`, scope).href,
       type,
       revision: "1",
+      // demo-j-k carries realization-verified attribution (lockstep with the
+      // portable fixture); no other reference Link records any.
+      ...(localId === "demo-j-k"
+        ? { attribution: { principal: "svc:reference-realization", status: "verified" as const } }
+        : {}),
       source: resolveEndpoint(String(source)),
       target: resolveEndpoint(String(target)),
       properties: parsePropertiesRecord(
@@ -525,14 +538,16 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
   const beadsWithLocalIds = readArray(fixture.beads, "fixture.beads").map((entry, index) => {
     const path = `fixture.beads[${index}]`;
     const bead = readRecord(entry, path);
-    requireAllowedKeys(bead, ["localId", "type", "revision", "properties"], path);
+    requireAllowedKeys(bead, ["localId", "type", "revision", "attribution", "properties"], path);
     const { localId, id } = readFixtureLocalId(scope, "bead", bead.localId, `${path}.localId`);
+    const attribution = readFixtureAttribution(bead.attribution, `${path}.attribution`);
     return {
       localId,
       record: {
         id,
         type: parseCanonicalTypeId(bead.type, `${path}.type`),
         revision: readNonemptyString(bead.revision, `${path}.revision`),
+        ...(attribution === undefined ? {} : { attribution }),
         properties: readProperties(bead.properties, `${path}.properties`),
       } satisfies BeadRecord,
     };
@@ -557,9 +572,10 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
     const link = readRecord(entry, path);
     requireAllowedKeys(
       link,
-      ["localId", "type", "revision", "source", "target", "properties"],
+      ["localId", "type", "revision", "attribution", "source", "target", "properties"],
       path,
     );
+    const attribution = readFixtureAttribution(link.attribution, `${path}.attribution`);
     const source = readFixtureEndpoint(scope, link.source, `${path}.source`, beadsByLocalId);
     const target = readFixtureEndpoint(scope, link.target, `${path}.target`, beadsByLocalId);
     if (!source.local && !target.local)
@@ -572,6 +588,7 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
       id,
       type,
       revision: readNonemptyString(link.revision, `${path}.revision`),
+      ...(attribution === undefined ? {} : { attribution }),
       source: source.endpoint,
       target: target.endpoint,
       properties: readProperties(link.properties, `${path}.properties`),
@@ -594,6 +611,22 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
     typeDescriptors,
     ...(disclosures === undefined ? {} : { disclosures }),
   };
+}
+
+/**
+ * Parses an optional carried-attribution member: exactly { principal, status }
+ * with a nonempty principal and a status from the closed vocabulary. Bytes are
+ * preserved; the realization asserts, the protocol attests nothing.
+ */
+function readFixtureAttribution(value: unknown, path: string): Attribution | undefined {
+  if (value === undefined) return undefined;
+  const record = readRecord(value, path);
+  requireAllowedKeys(record, ["principal", "status"], path);
+  const principal = readNonemptyString(record.principal, `${path}.principal`);
+  const status = readNonemptyString(record.status, `${path}.status`);
+  if (!(ATTRIBUTION_STATUSES as readonly string[]).includes(status))
+    throw new Error(`${path}.status must be one of ${ATTRIBUTION_STATUSES.join(", ")}`);
+  return Object.freeze({ principal, status: status as AttributionStatus });
 }
 
 /**

@@ -564,6 +564,47 @@
           "selectedText": "An Authorization View that projects\n  a Bead projects its owned Links and their in-Scope targets."
         }
       ]
+    },
+    {
+      "id": "read.attribution.carried",
+      "title": "Records carry attribution as data, not evidence",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#carried-attribution",
+          "selectedText": "It is **data, not evidence**: the\nprotocol transports it and attests nothing, and a generic client MUST NOT\ntreat any value of it as an authority claim about who acted."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#carried-attribution",
+          "selectedText": "Attribution is **per version**: it is supplied with a\nwrite, immutable for the version it accompanies, and a later version may\ncarry different attribution. It is outside `properties`, never part of\nthe `properties` view"
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `verified`, `unknown` — that is carried per version and never attested"
+        }
+      ]
+    },
+    {
+      "id": "read.attribution.link",
+      "title": "Link records carry attribution beside revision",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#carried-attribution",
+          "selectedText": "Attribution is **per version**: it is supplied with a\nwrite, immutable for the version it accompanies, and a later version may\ncarry different attribution. It is outside `properties`, never part of\nthe `properties` view"
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `verified`, `unknown` — that is carried per version and never attested"
+        }
+      ]
     }
   ]
 }

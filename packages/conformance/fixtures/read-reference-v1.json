@@ -18,7 +18,8 @@
     "unexpected-internal-fault",
     "alias-resolution-v1",
     "disclosure-v1",
-    "owned-links-v1"
+    "owned-links-v1",
+    "attribution-links-v1"
   ],
   "bindings": {
     "bead.demo-a": "beads/demo-a",
@@ -30,7 +31,8 @@
     "alias.releases-latest": "alias/releases/latest",
     "alias.unknown": "alias/never-created",
     "bead.pruned": "beads/pruned-relic",
-    "bead.erased": "beads/erased-relic"
+    "bead.erased": "beads/erased-relic",
+    "link.demo-j-k": "links/demo-j-k"
   },
   "aliases": {
     "decision": "beads/demo-f",
@@ -653,6 +655,16 @@
           }
         ]
       }
+    },
+    "attribution": {
+      "bead": {
+        "principal": "agent:fixture-author",
+        "status": "claimed"
+      },
+      "link": {
+        "principal": "svc:reference-realization",
+        "status": "verified"
+      }
     }
   },
   "beads": [
@@ -660,6 +672,10 @@
       "localId": "beads/demo-a",
       "type": "https://work.example/types/task",
       "revision": "1",
+      "attribution": {
+        "principal": "agent:fixture-author",
+        "status": "claimed"
+      },
       "properties": {
         "id": "demo-a",
         "title": "A",
@@ -971,6 +987,10 @@
       "localId": "links/demo-j-k",
       "type": "https://work.example/types/blocks",
       "revision": "1",
+      "attribution": {
+        "principal": "svc:reference-realization",
+        "status": "verified"
+      },
       "source": "beads/demo-j",
       "target": "beads/demo-k",
       "properties": {}

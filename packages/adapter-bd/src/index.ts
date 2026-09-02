@@ -267,9 +267,16 @@ export function createBdProcessScopePort(
           throw new Error("bd projected one Type identity into both Resource categories");
         if (existingType === undefined)
           extraTypes.set(beadType, { id: beadType, name: issueType, describes: "bead" });
+        // bd's created_by is the realization's carried attribution for the
+        // Bead: writer-supplied, so `claimed`; the protocol attests nothing.
+        // It also stays in properties, because it is native bd data.
+        const createdBy = row.created_by;
         const bead = {
           id: beadId(nativeId),
           type: beadType,
+          ...(typeof createdBy === "string" && createdBy.length > 0
+            ? { attribution: { principal: createdBy, status: "claimed" as const } }
+            : {}),
           properties: projectBdReadyProperties(row),
         } as const;
         return { ...bead, revision: projectedResourceRevision(bead) } satisfies BeadRecord;

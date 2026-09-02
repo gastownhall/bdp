@@ -275,6 +275,7 @@ Bead {
   id: BeadId
   type: BeadTypeId
   properties: JsonObject
+  attribution?  // carried per version; data, not evidence
   ownedLinks?   // owned-Links plane; owning Types only
 }
 ```
@@ -289,6 +290,7 @@ Link {
   source: Reference
   target: Reference
   properties: JsonObject
+  attribution?  // carried per version; data, not evidence
 }
 ```
 
@@ -715,11 +717,44 @@ BDP v0 does not expose an authority-attested actor in Resources, mutation
 results, receipts, Events, or change groups. The authenticated principal is
 an input to authorization, not protocol data. An implementation may retain
 private audit records, and a domain Type may define ordinary actor-related
-properties. But neither is a generic BDP attribution guarantee.
+properties. But neither is a generic BDP attribution guarantee — and
+neither is the carried `attribution` member defined next.
 Standardizing principal identity, delegation, impersonation, privacy, and
 attestation is deferred. Scope epoch, Authorization View, and position
 fields are projection and ordering fences. None of them identifies or
 attests the principal.
+
+### Carried attribution
+
+Every Bead and Link record MAY carry an **`attribution`** member: a
+common, generic member in a common place, so that no Type has to declare
+attribution as a domain property. It is **data, not evidence**: the
+protocol transports it and attests nothing, and a generic client MUST NOT
+treat any value of it as an authority claim about who acted. A future
+authority-attested form, if one arrives, is a distinct member with a
+distinct name; `attribution` never becomes it.
+
+```text
+Attribution {
+  principal   // nonempty opaque string naming who the version is attributed to
+  status      // "claimed" | "verified" | "unknown"
+}
+```
+
+`status` records the realization's basis for the value, not a BDP
+guarantee: `claimed` — supplied by the writer of that version; `verified`
+— populated by the realization from the principal it authenticated at
+commit; `unknown` — carried from data whose provenance the realization
+cannot classify. Attribution is **per version**: it is supplied with a
+write, immutable for the version it accompanies, and a later version may
+carry different attribution. It is outside `properties`, never part of
+the `properties` view, and takes no part in the semantic no-op
+comparison: a write whose `properties` are a no-op mints no revision and
+records no attribution. The member is absent when no attribution was
+recorded. Principal identifiers SHOULD be namespaced opaque strings — for
+example `agent:…`, `human:…`, `svc:…` — so agents, humans, and service
+accounts coexist without a global identity system; BDP mandates no
+namespace and compares principals only for byte equality.
 
 ### Authorization views
 
@@ -1212,6 +1247,7 @@ The lifecycle Event deltas are:
 CreatedData {
   revision: Revision
   properties: JsonObject
+  attribution?: Attribution   // the created version's carried attribution
   source?: Reference
   target?: Reference
 }
@@ -1220,6 +1256,7 @@ UpdatedData {
   previousRevision: Revision
   revision: Revision
   change: PropertyChange
+  attribution?: Attribution   // the new version's carried attribution
 }
 
 
@@ -1852,6 +1889,7 @@ A Bead record is:
   "id": "https://beads.example/acme/beads/task-42",
   "type": "https://work.example/types/task",
   "revision": "opaque-task-revision",
+  "attribution": { "principal": "agent:planner", "status": "claimed" },
   "properties": {
     "title": "Specify BDP mutation",
     "status": "open"
@@ -1885,7 +1923,9 @@ nothing. Link
 [Beads and Links](#beads-and-links): an in-Scope endpoint's `uri` is the
 Bead's absolute canonical URL, an out-of-Scope endpoint's `uri` is its
 opaque absolute URI, and either may be a Pinned Reference. `revision` is protocol metadata rather than mutable Bead or Link
-state. `id`, `type`, `revision`, and, for Links, `source` and `target` are
+state, and so is `attribution`: when present it is the per-version carried
+attribution defined under [Carried attribution](#carried-attribution),
+beside `revision` and outside `properties`. `id`, `type`, `revision`, and, for Links, `source` and `target` are
 returned on every successful read. That does not mean they are accepted as
 update targets. An implementation may store local identifiers internally.
 That choice does not alter the response spelling.

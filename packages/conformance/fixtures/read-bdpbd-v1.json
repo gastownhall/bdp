@@ -659,6 +659,12 @@
         "bead": "beads/demo-f"
       },
       "ownedLinks": null
+    },
+    "attribution": {
+      "bead": {
+        "principal": "bdp-conformance",
+        "status": "claimed"
+      }
     }
   },
   "expectations": {

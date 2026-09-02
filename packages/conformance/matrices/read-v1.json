@@ -6532,6 +6532,100 @@
       "cleanup": {
         "resetFixture": true
       }
+    },
+    {
+      "id": "read.attribution.carried",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "requests": [
+        {
+          "id": "bead",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a"
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "ok",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "carried",
+              "kind": "json-pointer",
+              "pointer": "/attribution",
+              "exists": true,
+              "fixturePointer": "/oracles/attribution/bead"
+            },
+            {
+              "id": "not-a-property",
+              "kind": "json-pointer",
+              "pointer": "/properties/attribution",
+              "exists": false
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.attribution.link",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": ["attribution-links-v1"]
+      },
+      "requests": [
+        {
+          "id": "link",
+          "method": "GET",
+          "target": {
+            "binding": "link.demo-j-k"
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "ok",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "carried",
+              "kind": "json-pointer",
+              "pointer": "/attribution",
+              "exists": true,
+              "fixturePointer": "/oracles/attribution/link"
+            },
+            {
+              "id": "not-a-property",
+              "kind": "json-pointer",
+              "pointer": "/properties/attribution",
+              "exists": false
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
     }
   ]
 }
