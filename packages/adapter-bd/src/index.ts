@@ -267,9 +267,23 @@ export function createBdProcessScopePort(
           throw new Error("bd projected one Type identity into both Resource categories");
         if (existingType === undefined)
           extraTypes.set(beadType, { id: beadType, name: issueType, describes: "bead" });
+        // bd records who CREATED the bead, not who wrote its current version,
+        // so created_by cannot honestly be `claimed` for a projected record
+        // that may have been updated since: it is carried as `unknown` — a
+        // principal whose relationship to this version the realization
+        // cannot establish. The principal is bd's native actor string,
+        // deliberately not re-namespaced: bd's actor vocabulary is already
+        // its own identity namespace, and inventing a prefix would mint an
+        // identity the realization does not have. created_by also stays in
+        // properties, because it is native bd data. The protocol attests
+        // nothing either way.
+        const createdBy = row.created_by;
         const bead = {
           id: beadId(nativeId),
           type: beadType,
+          ...(typeof createdBy === "string" && createdBy.length > 0
+            ? { attribution: { principal: createdBy, status: "unknown" as const } }
+            : {}),
           properties: projectBdReadyProperties(row),
         } as const;
         return { ...bead, revision: projectedResourceRevision(bead) } satisfies BeadRecord;

@@ -393,6 +393,41 @@ describe("bd process Scope port", () => {
     });
   });
 
+  it("carries created_by as unknown-status attribution, omits it when absent, and hashes it", async () => {
+    const { port } = await createPort("normal");
+    const attributed = await port.perform(
+      { kind: "resource", resource: "bead", id: beadUrl("a") },
+      options,
+    );
+    expect(attributed).toMatchObject({
+      kind: "success",
+      body: {
+        // The creator is not necessarily the writer of the current version,
+        // so it is carried as `unknown`, never `claimed`; and it stays in
+        // properties as native bd data.
+        attribution: { principal: "bdp-conformance", status: "unknown" },
+        properties: { created_by: "bdp-conformance" },
+      },
+    });
+    const { port: bare } = await createPort("no-created-by");
+    const unattributed = await bare.perform(
+      { kind: "resource", resource: "bead", id: beadUrl("a") },
+      options,
+    );
+    expect(unattributed.kind).toBe("success");
+    const body = (
+      unattributed as {
+        body: { attribution?: unknown; properties: Record<string, unknown>; revision: string };
+      }
+    ).body;
+    expect(body.attribution).toBeUndefined();
+    expect(body.properties.created_by).toBeUndefined();
+    // The revision binds every byte of the projected record, attribution
+    // included: the two projections differ, so their revisions differ.
+    const attributedRevision = (attributed as { body: { revision: string } }).body.revision;
+    expect(body.revision).not.toBe(attributedRevision);
+  });
+
   it("sorts projected Beads and Links by canonical ID", async () => {
     const { port } = await createPort("unordered");
     const beadResult = await port.perform({ kind: "collection", collection: "beads" }, options);
@@ -794,7 +829,8 @@ async function createPort(
     | "split-utf8"
     | "late-success"
     | "grandchild-stdio"
-    | "output-overflow" = "normal",
+    | "output-overflow"
+    | "no-created-by" = "normal",
   environment?: Readonly<Record<string, string>>,
   processOptions: Pick<BdProcessOptions, "timeoutMs" | "maxOutputBytes" | "snapshotTtlMs"> = {},
 ) {
@@ -813,7 +849,7 @@ async function createPort(
       priority: 2,
       issue_type: mode === "custom-type" || mode === "type-collision" ? "custom" : "task",
       created_at: "2026-08-08T23:33:31Z",
-      created_by: "bdp-conformance",
+      ...(mode === "no-created-by" ? {} : { created_by: "bdp-conformance" }),
       updated_at: "2026-08-08T23:33:35Z",
       dependency_count: 1,
       dependent_count: 0,

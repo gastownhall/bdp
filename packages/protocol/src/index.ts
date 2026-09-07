@@ -245,10 +245,28 @@ export interface PropertiesRecord {
   readonly [key: string]: unknown;
 }
 
+/** The realization's basis for a carried attribution value — never a BDP guarantee. */
+export const ATTRIBUTION_STATUSES = Object.freeze(["claimed", "unknown"] as const);
+export type AttributionStatus = (typeof ATTRIBUTION_STATUSES)[number];
+
+/**
+ * Carried attribution: data, not evidence. Transported per version beside
+ * `revision`, outside `properties`; attested by nothing. A generic client
+ * never treats it as an authority claim. v0 has exactly two statuses —
+ * `claimed` (supplied by that version's writer) and `unknown` (carried from
+ * data whose relationship to this version the realization cannot
+ * establish); no status asserts authentication.
+ */
+export interface Attribution {
+  readonly principal: string;
+  readonly status: AttributionStatus;
+}
+
 export interface BeadRecord {
   readonly id: AbsoluteHttpUrl;
   readonly type: AbsoluteHttpUrl;
   readonly revision: string;
+  readonly attribution?: Attribution;
   readonly properties: PropertiesRecord;
   /**
    * The owned-Links plane: for each Link Type the Bead's declared Type
@@ -265,6 +283,7 @@ export interface LinkRecord {
   readonly id: AbsoluteHttpUrl;
   readonly type: AbsoluteHttpUrl;
   readonly revision: string;
+  readonly attribution?: Attribution;
   readonly source: Reference;
   readonly target: Reference;
   readonly properties: PropertiesRecord;
