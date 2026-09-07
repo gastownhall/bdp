@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "read-update-sequence-positive",
-  "description": "One admitted sequence in which every member succeeds: a named decision creation, an owned cites Link bound through @adr that versions its source, a guarded properties update, and an unowned Link deletion. Illustrative wire example; not evidence.",
+  "description": "One admitted sequence in which every member succeeds: a named decision creation, an owned cites Link bound through @adr that versions its source and reports it as source plus sourceRevision, a guarded properties update, and an unowned Link deletion. Illustrative wire example; not evidence.",
   "scope": "https://beads.example/acme/",
   "exchanges": [
     {
@@ -98,6 +98,7 @@
                 },
                 "properties": {}
               },
+              "source": "https://beads.example/acme/beads/adr-104",
               "sourceRevision": "adr-104-r2"
             },
             {

@@ -13,10 +13,23 @@ profile is implementable on paper and the artifacts can be reviewed as a
 whole. None is ruled. The operator rules on them one at a time; a ruling
 that departs from the recommendation is applied by editing the quoted
 specification sentence, the corresponding bundle definition, the fixtures,
-and the catalog row together, and the lockstep tests
+and the catalog row together. The lockstep tests
 (`packages/protocol/src/read-update-wire.test.ts`,
-`packages/conformance/src/read-update-catalog.test.ts`) fail until all
-four agree.
+`packages/conformance/src/read-update-catalog.test.ts`) check selected
+structural, table, citation, and example consistency — the problem rows
+mirror the bundle's branches, every catalog citation still appears in its
+anchored section, the catalog mirrors the specification's row table in
+order, the fixtures validate and align member by member, retained
+dispositions are byte-identical wherever they are replayed, and the wire
+shapes the council found admitted are now rejected. They inspect none of
+the semantics D1–D31 describe: a ruling can change a decision's meaning
+without failing a test, and a green run establishes only that the four
+artifact families still agree on what they say.
+
+Decisions D1–D20 were drafted with the artifacts; D21–D31, and the
+revisions marked *Revised (council 9)* below, fold the review council's
+findings recorded under [Council 9 fold](#council-9-fold). D26–D31 fold
+the Claude report, which arrived after the first pass.
 
 Nothing in this packet is a conformance claim. The Read+Update profile has
 no manifest, fixture realization, runner, or evidence; `claimEligible`
@@ -51,12 +64,20 @@ the field as a quoted Structured Field string.
 
 **Recommendation.** Option 1.
 
+**Clarified (council 9).** A repeated `Idempotency-Key` field is rejected,
+not resolved: the authority does not choose an occurrence. Reusing the
+Event-ID character grammar imports no Event semantics.
+
 **Depends on this decision.** Under *Idempotency keys*: "An idempotency key
 is a case-sensitive ASCII token matching `[A-Za-z0-9_-]{1,256}` — the
 character profile under Event-ID and checkpoint character profile — written
 identically as a sequence member's `idempotencyKey` and as the value of a
 singleton request's `Idempotency-Key` field, without quoting, padding, or
-whitespace." Bundle: `idempotencyKey`.
+whitespace." and "as is a singleton request that omits the field or
+carries it more than once: the authority rejects a repeated
+`Idempotency-Key` field rather than choosing an occurrence." Bundle:
+`idempotencyKey`. Fixture `singletons.json`, exchanges
+`repeated-idempotency-key-field` and `malformed-idempotency-key`.
 
 ## D2 — Idempotency namespace
 
@@ -82,11 +103,22 @@ share a space.
 
 **Recommendation.** Option 1.
 
+**Clarified (council 9).** The authenticated principal is the identity
+authentication established for the request, as the authority identifies
+it across restart and failover; it is never the carried
+`attribution.principal`, which is data and takes no part in the namespace.
+Sharing the namespace across carriers and preserving it across
+Authorization View changes stand; disclosure of a retained result is
+re-authorized on every replay under D21.
+
 **Depends on this decision.** Under *Idempotency keys*: "A key identifies
 one semantic mutation within one **idempotency namespace**: the pair of the
 canonical Scope URL and the authenticated principal, an anonymous principal
-counting as one principal." and "The namespace is shared by every mutation
-carrier in the profile".
+counting as one principal.", "it is not the carried `attribution.principal`,
+which is data under Carried attribution and takes no part in the
+namespace", and "The namespace is shared by every mutation carrier in the
+profile". Fixture `idempotency-recovery.json`, exchanges
+`principal-isolation` and `cross-carrier-key-equivalence`.
 
 ## D3 — Semantic identity of a member
 
@@ -112,10 +144,38 @@ batch bodies but say nothing about `name`, `@name`, or the singleton target.
 
 **Recommendation.** Option 1.
 
+**Revised (council 9).** The unresolved-spelling fallback is struck: it
+made a concurrent retry's dependent member retain an identity computed
+over `@x` while the original's was computed over the resolved URL, so the
+two conflicted (Codex H2, Gemini C1). A `@name` reference now resolves to
+the identity its creating member bound, taken from that member's fresh,
+retained, or expired disposition (D24) and never from the spelling; a
+transient creator yields no identity, and the dependent member is
+answered transiently before any comparison (D15). A reference that
+resolves to no identity because its creator allocated none — forward,
+unknown, or permanently failed — normalizes to one distinguished unbound
+marker, so renaming a label never changes an identity; under D27 only the
+permanently failed creator reaches comparison at all, since forward,
+unknown, and wrong-kind references are rejected before execution. The
+normalized records compare under the JSON value-equality rules of RFC 6902
+Section 4.6 (Claude L2). Opaque external
+URIs and Pinned References compare byte-exactly as written;
+`expectedRevision` and `attribution` are members of the record and
+therefore of its identity. The alternative — normalizing an unresolvable
+reference to the creating member's key — would put a client-minted token
+into identity, which the exclusion of `idempotencyKey` deliberately avoids.
+
 **Depends on this decision.** Under *Idempotency keys*: "The **semantic
 identity** of a member is its operation kind — from `operation`, or from
 the singleton target — plus its normalized operation record." through "BDP
-does not require a public request-hash algorithm."
+does not require a public request-hash algorithm.", including "resolves
+each `@name` reference to the identity its creating member bound — taken
+from that member's fresh, retained, or expired disposition, never from the
+spelling", "is normalized to one distinguished unbound marker rather than
+to its spelling", and "Opaque external URIs and Pinned References are
+compared byte-exactly as written; `expectedRevision` and `attribution` are
+members of the record and therefore of its identity." Fixture
+`semantic-identity.json`.
 
 ## D4 — Which dispositions are retained
 
@@ -146,10 +206,32 @@ own disposition.
 after a grant, the principal presents a new key. This mirrors the model's
 rule that an Authorization View change does not create a new namespace.
 
+**Revised (council 9).** Two exceptions are made explicit. A dependent
+member whose creator's disposition in the same request was transient is
+itself transient and retains nothing (D15), so a transient predecessor can
+never become a permanent `binding-unavailable`. A replay-time disclosure
+refusal (D21) is not a disposition: it neither replaces the original
+outcome nor is retained. The retained `forbidden` above is the one an
+operation earned when it was reached; the replay `forbidden` is answered
+from the present view and leaves the retained disposition intact. Two
+further points from the Claude report: a retained `binding-unavailable`
+forces a re-key of every dependent once its creator is corrected, since
+the dependent's identity changes from the unbound marker to a real
+identity (Claude M1) — the specification now says so plainly ("a client
+that corrects a creator presents new keys for its dependents as well")
+rather than un-retaining `binding-unavailable`, which would make it the
+one `never` disposition a retry re-evaluates; and a retained failure
+outlives the retention interval differently from a success (D28).
+
 **Depends on this decision.** Under *Duplicate keys and retained
 dispositions*: "When a member reaches its terminal outcome, the authority
 retains that disposition under the member's key unless the disposition is
-transient." through "creates no disposition."
+transient." through "creates no disposition.", including "A member whose
+`@name` reference names a creating member of the same request whose
+disposition was transient is transient by the same rule". Fixture
+`sequence-dependent-bindings.json`, exchanges
+`creator-fails-permanently-dependent-is-binding-unavailable` and
+`retained-failures-answer-a-retry-unchanged`.
 
 ## D5 — Concurrent duplicate: refuse or join
 
@@ -169,18 +251,32 @@ hand it a pending receipt. Read+Update has no receipt to hand out.
    returns it. One round trip for the client, but the authority holds the
    duplicate's connection for an unbounded interval, and for a sequence the
    wait recurs member by member against another request's progress.
-3. Implementation choice between 1 and 2. Untestable: conformance cannot
-   distinguish a slow join from a refusal that was never sent.
+3. Implementation choice between 1 and 2. Hard to test rather than
+   untestable: a conformance row would have to bound how long a join may
+   take before it counts as a refusal that was never sent, and two
+   conforming authorities would answer the same probe differently.
 
 **Recommendation.** Option 1, a deliberate divergence from the Transactional
 join because the join's payoff there is the pending receipt.
+
+**Clarified (council 9).** A retry after the delay is not guaranteed the
+retained disposition: it may still find the key in flight, meet a
+transient disposition of its own, or, after a long delay, find the
+disposition expired (D25). The refusal is safe only once dependent-member
+poisoning is fixed (D15): a refused creator makes its dependents in the
+same request transient, not permanently failed.
 
 **Depends on this decision.** Under *Duplicate keys and retained
 dispositions*, item 3: "the key is in flight — the member that first
 presented it has not reached a terminal outcome: the member fails with
 `idempotency-in-progress`, the authority executes nothing and retains
 nothing for the presenting member, and a retry after the delay receives the
-retained disposition". Problem row `idempotency-in-progress`.
+retained disposition once the first presentation has reached a retained
+outcome — a delayed retry may instead find the key still in flight, meet a
+transient disposition of its own, or, after a long delay, find the
+disposition expired". Problem row `idempotency-in-progress`. Fixture
+`sequence-idempotent-retry.json`, exchange
+`concurrent-retry-meets-the-creator-in-flight`.
 
 ## D6 — Retention window, tombstones, and expiry
 
@@ -217,12 +313,28 @@ re-executing.
 `idempotency-expired`: the same request under the same key can never
 succeed; a new intent is a new key.
 
+**Revised (council 9).** The safety direction stands; the contract is
+completed by four decisions the council found missing: the client's
+recovery window is observable only when `retention.idempotency` is
+advertised (D25); retention is crash-safe as part of one durable unit and
+survives restart and failover, and a restore that loses it is a different
+Scope (D22); the tombstone carries binding metadata — the allocated
+identity and its kind — so an expired creator still binds its dependents
+(D24); and the cumulative storage of Scope-lifetime tombstones was
+unbounded and growable by any principal, which D28 bounds to committed
+effects: only dispositions that committed state keep a Scope-lifetime
+tombstone, and a failure is forgotten after its interval. The distinction between an expired key with the same identity
+(`410`) and with a different one (`409`) is kept and now illustrated.
+
 **Depends on this decision.** The whole *Outcome retention* subsection,
 from "Retention is finite." through "creates a different logical Scope under
 the rule in that section." Also under *Advertised limits*:
 "`retention.idempotency` is the minimum interval for which an authority
 retains an idempotency-key disposition after its terminal outcome".
-Problem row `idempotency-expired`.
+Problem row `idempotency-expired`. Fixture
+`sequence-idempotency-dispositions.json`, exchanges
+`expired-key-never-executes-again` and
+`expired-key-with-different-semantics-is-still-a-conflict`.
 
 ## D7 — `idempotency-conflict` status and family
 
@@ -332,12 +444,31 @@ that secondary revision is defined with the write profiles."
 
 **Recommendation.** Option 1.
 
-**Depends on this decision.** Under *Mutation results*: "When the mutated
-Link's type is owned by its source Bead's declared Type, the result
-additionally carries `sourceRevision`, the source Bead's resulting
-revision, on creation, update, and deletion alike" and "`sourceRevision` is
-absent from every other result." Under *Validation and results*: "The
-envelope member carrying that secondary revision is `sourceRevision`".
+**Revised (council 9).** The deletion case broke option 1's rationale: a
+deleted Link returns no record, so nothing in the response named the
+Resource whose revision `sourceRevision` reported (Codex M9). Owned-Link
+results now carry `source`, the source Bead's absolute canonical URL,
+beside `sourceRevision` on creation, update, and deletion alike; each is
+present exactly when the other is, and the bundle rejects either on a
+Bead postimage. On a semantic no-op update `sourceRevision` is the
+source's unchanged revision. This is a shared result-shape rule: the
+Transactional packet's T22 fixes `sourceRevision` for receipt entries and
+must carry `source` the same way, so the pair is to be ruled once for
+both profiles (cross-packet note X4). T22's deleted-identity shape,
+`{ resourceKind, resource: { id, type, revision } }`, still differs from
+D9's bare `deleted` URL; that divergence is tracked as cross-packet X1
+and is not resolved here.
+
+**Depends on this decision.** Under *Mutation results*: "the result
+additionally carries `source`, the source Bead's absolute canonical URL,
+and `sourceRevision`, the source Bead's resulting revision, on creation,
+update, and deletion alike" and "`source` and `sourceRevision` are absent
+from every other result, and each is present exactly when the other is."
+Under *Validation and results*: "The envelope member carrying that
+secondary revision is `sourceRevision`". Bundle: `mutationResultMembers`
+(`source`, `dependentRequired`, the Bead-postimage branch). Fixture
+`singletons.json`, exchanges `create-link-owned-versions-the-source`
+through `delete-link-owned-versions-the-source`.
 
 ## D11 — Outcome vocabulary and the semantic no-op
 
@@ -355,7 +486,10 @@ which leaves open how the result reports it.
    produce, but a fourth outcome every client must handle for a condition
    the Transactional receipt does not distinguish per operation either.
 
-**Recommendation.** Option 1.
+**Recommendation.** Option 1. The Claude report notes the trade-off the
+operator should rule with in view: `unchanged` would make the no-op rows
+testable without a prior read of the revision, whereas `updated` needs the
+row to compare against the guard or an earlier read.
 
 **Depends on this decision.** Under *Mutation results*: "A semantic no-op
 update, defined under Revisions, succeeds with outcome `updated` and the
@@ -383,7 +517,9 @@ body shape, or place for `sourceRevision`.
    do not need because `outcome` already says it.
 
 **Recommendation.** Option 1; option 3 is the natural amendment if the
-operator prefers HTTP idiom over uniformity.
+operator prefers HTTP idiom over uniformity. The specification now states
+the absence of `ETag` and `Location` on a singleton success explicitly
+(Claude L2).
 
 **Depends on this decision.** Under *Operation Directory and singleton
 targets*: "A successful singleton returns `200 OK` whose body is the
@@ -429,6 +565,23 @@ dispositions. `type-not-installed` was already named by the draft.
 operator's eye: `identity-taken` and `incident-links-exist` in particular
 are plain rather than formal, and `aggregate-constraint-violation` is
 generic on purpose so that later aggregate policies need no new row.
+
+**Boundaries completed (council 9).** The taxonomy is unchanged; the
+classifications the council found implicit are now explicit: a binding
+whose creator ended transiently is `idempotency-in-progress`, not
+`binding-unavailable` (D15); a replay whose retained record the present
+view does not project is `forbidden` (D21); a durable reference whose
+spelling is not a canonical reference of the required kind, or that names
+a Resource of another kind, is `resource-not-found` — the subject does
+not exist as the required kind, under the same non-disclosure rule; a
+patch `path` that is not a JSON Pointer and a `@name` in a singleton are
+carrier syntax, `malformed-request` before execution; and an owned set
+that would exceed the owning Type's declared `max` is `validation-failed`
+with a diagnostic naming the owning Bead Type and its `ownsOutgoing`
+entry, because the source's resulting state violates its declared Type.
+The operator may prefer `aggregate-constraint-violation` for the owned-set
+case; the packet chose the Type-contract reading because `max` is declared
+by the Type Descriptor, not by Scope policy.
 
 **Depends on this decision.** The eleven-row table and the "The Read+Update
 rows mean:" list under *Problem details*; bundle `readUpdateProblemCode`
@@ -481,10 +634,37 @@ failure needs a code.
 
 **Recommendation.** Option 1.
 
+**Revised (council 9).** `400`/`never` fits a permanently failed binding —
+and, under D27, only that: forward, unknown, and wrong-kind references are
+carrier syntax rejected before execution. A binding missing because
+its creator is in flight elsewhere, or ended `rate-limited` or
+`temporarily-unavailable` in this request, is not a client error: the
+dependent member now fails transiently with `idempotency-in-progress`, the
+authority consults no key state for it, executes nothing, retains nothing,
+and releases its claim, so a retry after the delay executes the
+creator and then the dependent, and a concurrent retry can never poison
+the dependent member of the request that first presented the keys.
+Unrelated later members still run. The alternatives were Gemini's — halt
+the whole request at the first `idempotency-in-progress` and fail every
+remaining member transiently, which is simpler but abandons "later
+independent work can run" — and mirroring the creator's own transient code
+on the dependent, which reports a `rate-limited` dependent that was never
+rate-limited; one code for "your binding's creator has not resolved, retry
+after the delay" was preferred.
+
 **Depends on this decision.** The row "| `binding-unavailable` | `request`
-| 400 | `never` |" and, under *Sequence request envelope*: "a reference to
-a forward, unknown, failed, or wrong-kind binding fails that member with
-`binding-unavailable` rather than rejecting the request."
+| 400 | `never` |" and, under *Sequence request envelope*: "A reference to
+a creating member whose retained disposition is a failure fails that
+member with `binding-unavailable`, a retained failure; a reference to a
+creating member whose disposition in this request was transient —
+`idempotency-in-progress`, `rate-limited`, or `temporarily-unavailable` —
+is transient too: the member fails with `idempotency-in-progress`, the
+authority consults no key state for it, executes nothing, retains nothing,
+and releases its claim on the member's key". Problem-row meaning of
+`binding-unavailable`. Fixtures `sequence-dependent-bindings.json` and
+`sequence-idempotent-retry.json`; catalog rows
+`read-update.sequence.transient-predecessor` and
+`read-update.idempotency.concurrent-dependent-retry`.
 
 ## D16 — Validation diagnostics and their limits
 
@@ -510,13 +690,42 @@ such group and no diagnostic shape existed anywhere.
    schema-dialect-specific, and not what endpoint or patch failures
    produce.
 
-**Recommendation.** Option 1.
+**Recommendation.** Option 1 as originally drafted was rejected by the
+council: making the list and both identifying fields optional weakened the
+existing normative sentence that a validation failure "returns a bounded
+diagnostic list identifying the failing effective Type and schema
+location" (Codex M5).
 
-**Depends on this decision.** Under *Problem details*: "The problem MAY
-carry `diagnostics`: a bounded array of `{ type?, schemaLocation?,
-instanceLocation?, message }` entries" and "No other code carries
-`diagnostics`." Under *Advertised limits*: the `validation.diagnostics` /
-`validation.diagnosticBytes` bullet. Bundle: `validationDiagnostic`, the
+**Revised (council 9).** The small shape and the `validation` limits group
+are kept; the mandatory content is restored. `validation-failed` MUST carry
+a nonempty `diagnostics` array. For an effective Type-contract failure
+every entry names the effective Type in `type` and the failed keyword in
+`schemaLocation` — the absolute keyword location, the contract schema's
+`$id` plus a JSON Pointer fragment, as JSON Schema output defines it —
+and, when the failure lies within `properties`, `instanceLocation`, a JSON
+Pointer within `properties`; an owned-set overflow names the owning Bead
+Type and its descriptor's `ownsOutgoing` entry. For the causes without a
+Type-schema location — a missing patch target, a non-object result, an
+endpoint constraint, an external-endpoint policy — `type` and
+`schemaLocation` are absent, `message` names the cause, and
+`instanceLocation` locates it when it lies within `properties`; the two
+identifying fields are present together or not at all. When the complete
+set exceeds a bound, the authority keeps at least one entry in evaluation
+order, sets `diagnosticsTruncated` to `true`, and MUST have advertised
+that bound; an authority that advertises neither bound returns the
+complete list. Silent truncation is what *Advertised limits* forbids
+generally, so the marker was preferred over an unannounced cut.
+
+**Depends on this decision.** Under *Problem details*: "The problem MUST
+carry `diagnostics`: a nonempty, bounded array of `{ type?,
+schemaLocation?, instanceLocation?, message }` entries." through "No other
+code carries `diagnostics` or `diagnosticsTruncated`." Under *Link endpoint
+constraints*: "An authority that bounds the list advertises
+`validation.diagnostics` and `validation.diagnosticBytes`." Under
+*Advertised limits*: the `validation.diagnostics` /
+`validation.diagnosticBytes` bullet. Bundle: `validationDiagnostic`
+(`dependentRequired`), `validationDiagnostics`, `readUpdateProblem`
+(`diagnosticsTruncated`, the required-diagnostics branch), the
 `advertisedLimits.validation` group.
 
 ## D17 — Carrier discipline: keys, names, and the stray field
@@ -542,6 +751,10 @@ request, a singleton without one, and duplicate or invalid `name` values.
    it.
 
 **Recommendation.** Option 1.
+
+**Extended (council 9).** D27 applies this decision's own rationale to
+static `@name` errors: a forward, unknown, or wrong-kind reference is
+decidable from the request text and is a carrier rejection, as in a batch.
 
 **Depends on this decision.** Under *Read+Update sequence target*: "a
 sequence request that carries the field is rejected before execution with
@@ -570,10 +783,23 @@ stop at the next member boundary.
 
 **Recommendation.** Option 1.
 
+**Qualified (council 9).** Client disconnection is not an authority
+failure: an authority crash, restart, or failover mid-sequence is D23's
+case, not this one. Only retainable dispositions are retained after a
+disconnect, consistent with D4. And "every other failure is a member
+problem" respects the existing body-less `500` rule: an unexpected internal
+fault mid-sequence is the body-less `500`, members with a durable
+disposition stay retained, the faulting member's claim is cleared, and the
+client resubmits exactly as after a crash.
+
 **Depends on this decision.** Under *Sequence request envelope*: "Once the
 authority has admitted a sequence — validated its carrier and
 operation-record syntax and started its first member — client
-disconnection does not decide any member's outcome."
+disconnection does not decide any member's outcome." and "Client
+disconnection is not an authority failure". Under *Sequence response
+envelope*: "an unexpected internal fault is the body-less `500` under
+Problem details even mid-sequence." Catalog rows
+`read-update.sequence.disconnect` and `read-update.sequence.internal-fault`.
 
 ## D19 — Methods and `Allow` values for the mutation surface
 
@@ -593,10 +819,18 @@ their additional methods and `Allow` values."
 
 **Recommendation.** Option 1.
 
+**Clarified (council 9).** The CORS-enabled `OPTIONS` exception is stated
+explicitly: when cross-origin access is enabled, `OPTIONS` is answered
+according to the CORS rules rather than with `405`, and it joins `Allow`;
+merely listing it in `Allow` is not the preflight behavior.
+
 **Depends on this decision.** Under *Operation Directory and singleton
 targets*: "A mutation target responds `405 Method Not Allowed` with
 `Allow: POST` to every other method, and the Operation Directory responds
-`405` with `Allow: GET, HEAD` to every method but those two".
+`405` with `Allow: GET, HEAD` to every method but those two" and "when
+cross-origin access is enabled, `OPTIONS` is answered according to the
+CORS rules rather than with `405` and joins `Allow`; listing it in `Allow`
+is not the preflight behavior."
 
 ## D20 — Discovery and directory definitions
 
@@ -618,10 +852,449 @@ JSON existed only in prose.
 
 **Recommendation.** Option 1.
 
+**Tightened (council 9).** Closure prohibited Transactional members at the
+top level only: `limits` referenced the unrestricted shared definition, so
+a Read+Update discovery document carrying `limits.transaction.operations`
+and `limits.retention.receipt` validated (Codex M7). `readUpdateDiscovery`
+now references `readUpdateAdvertisedLimits`, which composes the shared
+`advertisedLimits` primitives and rejects the `transaction` group and the
+Transactional `retention.receipt` and `retention.replay` members, while
+keeping `retention.idempotency` and the pagination
+`retention.maximumSnapshotLifetime` that Read's snapshot-preserving
+cursors already use. `readDiscovery` is untouched: it is sealed Read
+surface, and the same tightening there is a separate proposal.
+
 **Depends on this decision.** Under *Operation Directory and singleton
 targets*: "The bundle defines the Read+Update discovery document as
 `readUpdateDiscovery` and the directory response above as
-`readUpdateOperationDirectory`."
+`readUpdateOperationDirectory`." Under *Advertised limits*: "the
+Read+Update discovery document's `limits` is `readUpdateAdvertisedLimits`".
+Bundle: `readUpdateAdvertisedLimits`. Catalog row
+`read-update.discovery.limits`.
+
+## D21 — Replay re-authorization
+
+**Context.** The draft returned a retained postimage unconditionally. A
+principal could create or update a Resource, lose access to it, replay its
+key, and receive the old record — owned Links and their targets included —
+which contradicts *Authorization views*: every representation for a
+request observes its authorized projection (Codex H1).
+
+**Options.**
+
+1. Keep the key, its semantic identity, and its terminal outcome retained
+   and principal-bound; re-authorize *disclosure* of a retained `created`
+   or `updated` record against the present request's Authorization View on
+   every replay; when the view no longer projects the record, answer the
+   member with `forbidden` carrying nothing retained. That response is not
+   a disposition: it replaces neither the outcome nor the identity, permits
+   no execution, and a later replay under a view that projects the record
+   receives the original disposition. Retained problems and `deleted`
+   identities disclose no record and are returned as retained. Mirrors the
+   Transactional rule that detailed receipt results are re-authorized when
+   later read.
+2. Answer with the uniform `resource-not-found`. The Read non-disclosure
+   code, but a creation member has no subject to be "not found", and the
+   code's meaning — the subject does not exist or is not visible —
+   misdescribes a retained allocation the principal itself made. The
+   enumeration-oracle argument for `404` does not apply: the namespace is
+   principal-bound, so no other principal can present the key.
+3. Return the retained disposition regardless. The draft; violates the
+   projection rule.
+4. Execute again under the present view. Violates exactly-once.
+
+**Recommendation.** Option 1. Note what it cannot hide: a replay that is
+refused differs from an unknown key that executes, so a principal always
+learns that *some* disposition exists under its own key. That is
+inherent in any option except re-execution, and the key is the
+principal's own.
+
+**Depends on this decision.** Under *Duplicate keys and retained
+dispositions*: "Returning a retained result discloses a Resource record, so
+it observes the present request's Authorization View like every other
+representation" through "Retained problems and `deleted` identities
+disclose no record and are returned as retained." Under *Authorization
+views*: "a retained Read+Update disposition is re-authorized for
+disclosure when it is replayed". Under *Idempotency keys*: "though its
+disclosure is re-authorized on every replay". Under *Problem details*: "as
+does the replay of a retained result whose record the present
+Authorization View does not project". Fixture
+`idempotency-recovery.json`, exchanges
+`replay-after-view-change-is-re-authorized` and
+`replay-after-visibility-is-restored-returns-the-retained-disposition`.
+Catalog row `read-update.idempotency.authorization-view`.
+
+## D22 — Durable boundary and in-flight recovery
+
+**Context.** "Executes and its disposition is retained" never required the
+mutation and its disposition to become durable together. A crash between
+them could leave an allocated Resource committed behind an unknown key, or
+an in-flight key answering `idempotency-in-progress` forever; the logical
+single-writer rule said nothing about recovering that state on restart or
+failover, two mutation routes could each think a key unknown, and
+preserving tombstones alone does not preserve an unexpired result's
+promised retention interval (Codex H3).
+
+**Options.**
+
+1. One atomic durable unit — the mutation, its semantic identity, the
+   identities it allocated, and its terminal disposition — so a key is
+   either unknown with nothing committed or retained with its committed
+   outcome. Claims are made at admission for a sequence (D26) and before
+   execution for a singleton. A claim abandoned by a crash (no durable
+   disposition) is *cleared* on restart or failover, so a retry executes
+   the member once;
+   the authority never completes an abandoned member on its own. Every
+   mutation route — each singleton target, the sequence target, every
+   mutating replica — consults one authoritative key state. Recovery state
+   is every unexpired retained disposition, every tombstone, and the
+   resolution of every claim; restart and failover preserve it, and a
+   restore that cannot is a different logical Scope at a different
+   canonical Scope URL under the existing identity rule.
+2. *Resume* abandoned claims: the authority persists the admitted member
+   and completes it during recovery. Saves the client a retry, but requires
+   durable request bodies before execution and a recovery executor, and
+   the client cannot tell a resumed execution from a cleared one until it
+   retries anyway.
+3. Tombstones only as recovery state. Simpler restore, but an unexpired
+   disposition lost on restore answers `idempotency-expired` inside the
+   advertised minimum, which breaks D25's only observable promise.
+
+**Recommendation.** Option 1, clearing rather than resuming. The clear is
+the choice a client can already handle: it retries and either recovers the
+disposition or executes once.
+
+**Depends on this decision.** Under *Durability and recovery*, the first
+three paragraphs: "A member's mutation, its semantic identity, the
+identities it allocated, and its terminal disposition become durable
+together" through "a client MUST NOT treat a restored Scope as a
+transparent continuation of the old key namespace." Fixture
+`idempotency-recovery.json`, exchanges
+`retained-across-restart-and-failover`,
+`abandoned-in-flight-claim-is-cleared-on-restart`, and
+`restore-losing-recovery-state-is-a-different-scope`. Catalog rows
+`read-update.idempotency.durable-boundary` and
+`read-update.idempotency.restore`.
+
+## D23 — Authority crash mid-sequence: resume or resubmit
+
+**Context.** D18 covers client disconnection only. An authority that
+crashes after some members committed and before others started needs a
+rule for the unstarted ones (Codex H3, D18 assessment).
+
+**Options.**
+
+1. *Resubmit*: committed members stay retained, the member in flight is an
+   abandoned claim recovered under D22, and unstarted members are never
+   executed by recovery — the authority does not resume a sequence. The
+   client resubmits; retained dispositions answer the committed members
+   and the rest execute in order. No durable request queue, no execution
+   the client did not just ask for, and the client's existing retry path
+   is the recovery path.
+2. *Resume*: the authority persists the admitted sequence and runs the
+   unstarted members after recovery. Symmetric with D18's "admission
+   decides", but it turns admission into durable intent the client can no
+   longer withdraw, and a client that disconnected *and* saw the authority
+   fail cannot know whether its members are still coming.
+
+**Recommendation.** Option 1. D18 stays as it is: disconnection decides
+nothing because the *authority* is still running the members; a crash
+means it is not.
+
+**Depends on this decision.** Under *Durability and recovery*, the last
+paragraph: "An authority crash is not a client disconnection." through
+"the remaining members execute in order." Under *Sequence request
+envelope*: "Client disconnection is not an authority failure". Fixture
+`idempotency-recovery.json`, exchange
+`crash-mid-sequence-resubmission-completes-the-sequence`. Catalog row
+`read-update.idempotency.crash-mid-sequence`.
+
+## D24 — Binding metadata in tombstones
+
+**Context.** A fingerprint-only tombstone cannot reconstruct the identity
+an expired creation allocated. On retry the creator answers
+`idempotency-expired`, and its dependent's `@name` could then compare an
+unresolved spelling against a previously resolved identity, so an
+unchanged request received `idempotency-conflict` even though the
+dependent's own result was still retained (Codex H4).
+
+**Options.**
+
+1. Retain, in the tombstone of a creation that allocated an identity, that
+   identity and its Resource kind — binding metadata — so that a later
+   `@name` reference resolves through an expired creator exactly as through
+   a retained one, and the dependent's semantic identity uses the resolved
+   binding (D3). Two small members per creation tombstone; no new
+   disposition; the dependent behaves identically whether its creator is
+   fresh, retained, or expired.
+2. Define a dependency-expiry disposition: a dependent whose creator
+   expired fails with a new code. Honest, but it classifies missing
+   recovery metadata as a client-visible failure of a request the client
+   did not change, and it adds a row.
+3. Treat the case as `idempotency-conflict`. The draft's accidental
+   behavior; punishes an unchanged retry.
+
+**Recommendation.** Option 1.
+
+**Depends on this decision.** Under *Outcome retention*: "and, for a
+creation that allocated an identity, that identity and its Resource kind,
+through which a later `@name` reference still resolves". Under *Sequence
+request envelope*: "or an `idempotency-expired` disposition, whose
+tombstone keeps the identity the creation allocated and its Resource
+kind". Under *Idempotency keys*: "taken from that member's fresh,
+retained, or expired disposition, never from the spelling". Fixture
+`sequence-dependent-bindings.json`, exchange
+`expired-creator-still-binds-its-dependent`. Catalog row
+`read-update.sequence.expired-creator-binding`.
+
+## D25 — The recovery window
+
+**Context.** The draft made a client "MUST retry within" an interval the
+authority need not advertise or return, which a client cannot satisfy
+predictably; and the expiry row's title said a key presented "after
+retention" fails although the text lets an authority retain longer
+(Codex M6).
+
+**Options.**
+
+1. The client MUST applies only when `retention.idempotency` is
+   advertised. When it is not, the specification says plainly that no
+   client-known recovery window exists: the authority still retains for a
+   finite interval of its choosing, a late retry may be answered by the
+   retained disposition or by `idempotency-expired`, and a client that
+   needs a recoverable window uses an authority that advertises one.
+   Conformance tests expiry after *controlled eviction* of the disposition,
+   not merely after the advertised minimum elapses, and keeps the
+   `410`-same-identity / `409`-different-identity distinction.
+2. Require Read+Update authorities to advertise `retention.idempotency`.
+   Observable everywhere, but it makes `limits` mandatory for one profile
+   when *Advertised limits* deliberately keeps it optional for small
+   implementations.
+3. Return the deadline on every mutation response. Observable per
+   response, but a new response member on every success for a value most
+   clients never read.
+
+**Recommendation.** Option 1.
+
+**Depends on this decision.** Under *Outcome retention*: "When the limit is
+advertised, a client that needs a lost response MUST retry within it. When
+it is not, no client-known recovery window exists" through "uses an
+authority that advertises one." Catalog rows
+`read-update.idempotency.retention-minimum` and
+`read-update.idempotency.expired`; fixture
+`sequence-idempotency-dispositions.json`, exchange
+`expired-key-never-executes-again`, whose condition narrates controlled
+eviction.
+
+## D26 — Key reservation at admission
+
+**Context.** A key became in flight only when its member started. A
+byte-identical resubmission of an admitted sequence could therefore run its
+*later* members before the original reached them: the retry's first
+member met the in-flight key, but its second member's key was still
+unknown and executed out of order — poisoning `@name` dependents under the
+old D3 rule, and, even after D15's fix, reordering members that depend on
+each other through state rather than through `@name` (a `createLink` to
+`X` followed by `deleteBead X` yields different outcomes in the two orders,
+and both would be retained). Dependency normalization does not see that
+case (Claude H1).
+
+**Options.**
+
+1. Claim every member's unknown key at admission, in declaration order,
+   before the first member starts; a claimed key is in flight until its
+   member reaches a terminal outcome. A concurrent resubmission is then
+   transient in every member the original will run, so it can neither
+   execute ahead of the original's earlier members nor retain a
+   disposition the original would contradict. Members whose keys could not
+   be claimed — retained, expired, or in flight elsewhere — are answered in
+   their turn, as of that turn. Composes with D15 (same-request transient
+   creators) and with D22 (a claim abandoned by a crash is cleared, so the
+   claims of unstarted members vanish with the crash and D23's resubmission
+   executes them).
+2. Keep per-member claiming and accept that a concurrent resubmission may
+   reorder state-dependent members. Simpler, but it makes "members run
+   strictly in declaration order" false across a retry, which is the case
+   retries exist for.
+
+**Recommendation.** Option 1.
+
+**Depends on this decision.** Under *Read+Update sequence target*: "claims
+every member's key in declaration order under Duplicate keys and retained
+dispositions". Under *Duplicate keys and retained dispositions*: "A key is
+**claimed** before it executes" through "retain a disposition the original
+would contradict." and item 3, "claimed by a request whose member has not
+reached a terminal outcome". Under *Durability and recovery*: "A sequence
+claims every member's unknown key at admission and a singleton claims its
+key before executing". Fixture `sequence-idempotent-retry.json`, exchange
+`concurrent-retry-meets-the-creator-in-flight`. Catalog row
+`read-update.idempotency.key-reservation`.
+
+## D27 — Static reference errors are carrier rejections
+
+**Context.** D15 made forward, unknown, and wrong-kind `@name` references
+member failures while D17 rejected repeated keys and names before
+execution, and D17's own rationale — nothing partial commits for a request
+the client wrote wrong — applies to a forward reference exactly as to a
+repeated name; the batch text already rejects all four for the whole
+request (Claude M2).
+
+**Options.**
+
+1. A `@name` reference that is forward, unknown, or of the wrong Resource
+   kind is carrier syntax, decidable from the request text: the sequence is
+   rejected before execution with `malformed-request`, as a batch rejects
+   it. `binding-unavailable` narrows to the one case that is not static — a
+   creating member whose retained disposition is a failure. Parity with
+   batch, consistency with D17, and fewer retained `binding-unavailable`
+   failures for D4's re-key rule to bite on.
+2. Keep them as member failures so that later independent members still
+   run. Keeps more of a buggy request executing; but a client that writes a
+   forward reference does not understand the carrier, and "later work
+   still runs" was never the reason to execute half of a request the
+   authority could have refused whole.
+
+**Recommendation.** Option 1.
+
+**Depends on this decision.** Under *Read+Update sequence target*: "A
+reference that is forward, unknown, or of the wrong Resource kind is
+decidable from the request text and is rejected before execution, as in a
+batch." Under *Sequence request envelope*: "A `@name` reference that is
+forward, unknown, or of the wrong Resource kind is carrier syntax,
+decidable from the request text: the sequence is rejected before execution
+with `malformed-request`, exactly as a batch rejects it." Problem-row
+meaning of `binding-unavailable`. Fixtures `carrier-rejections.json`
+(exchanges `unknown-binding`, `forward-binding`, `wrong-kind-binding`) and
+`sequence-partial-failure.json` (the unknown `@adr` member replaced by a
+Read-coded `resource-not-found` member). Catalog rows
+`read-update.sequence.local-bindings` and
+`read-update.sequence.carrier-rejection`.
+
+## D28 — Tombstones only for committed effects
+
+**Context.** D6 kept a Scope-lifetime tombstone for *every* retained
+disposition, so any authenticated principal could grow permanent storage
+with requests that commit nothing — a principal whose every request is
+`forbidden` still minted tombstones (Claude M3, Codex M6).
+
+**Options.**
+
+1. After the retention interval, a disposition that committed state —
+   `created`, `updated` including a semantic no-op, or `deleted` — keeps
+   its compact tombstone for the Scope's lifetime, exactly as before; a
+   retained failure committed nothing, so after the interval the authority
+   MAY forget it entirely, and a later presentation of its key is unknown
+   and executes — a first execution, under whatever guards the request
+   carries. Tombstone storage is bounded by committed effects, which
+   identity tombstones already bound. Exactly-once is a promise about
+   effects, and a failed member had none.
+2. Keep tombstones for every disposition. Deterministic answers forever,
+   at the cost of unbounded, principal-growable storage.
+3. Forget failures immediately. Loses D4's determinism within the window
+   for no storage gain worth having.
+
+**Recommendation.** Option 1. What changes for a client: within the
+interval a failed key answers the same way every time; after it, a retry
+of a failed member may execute and succeed, which is the friendly outcome
+for `forbidden` after a grant. A client that needs the window observable
+uses an authority that advertises `retention.idempotency` (D25).
+
+**Depends on this decision.** Under *Outcome retention*: "For a
+disposition that committed state — `created`, `updated` including a
+semantic no-op, or `deleted` — it MUST then retain a compact tombstone"
+through "and no principal can grow it with requests that commit nothing."
+and "A retained failure committed nothing: after the interval the
+authority MAY forget it entirely, and a later presentation of its key is
+unknown and executes". Under *Duplicate keys and retained dispositions*:
+"for as long as it is retained; what outlives the retention interval
+differs". Fixture `sequence-idempotency-dispositions.json`, exchange
+`expired-failure-executes-as-new`. Catalog row
+`read-update.idempotency.expired-failure`.
+
+## D29 — The sealed Read cohort binds a stale schema digest
+
+**Context.** This is an evidence-discipline finding, not a wire decision,
+and it is the operator's to act on. The Read cohort artifact binds the
+bundle at `0b7d86e7` (digest `552329e6…`). The draft's first commit added
+the `validation` group to `advertisedLimits`, a definition reachable from
+`readDiscovery`, so Read discovery now accepts a `limits.validation` group
+it rejected when sealed; this fold adds nothing to `advertisedLimits` but
+adds six more definitions to the bundle, which now digests `0dd903d4…`.
+`pnpm evidence:verify` is green because the gate checks the `schema`
+binding's presence and shape and never recomputes it against the current
+bundle (Claude H3).
+
+**Options.**
+
+1. Re-seal the Read cohort at the merge head with `pnpm evidence:generate`,
+   which this fold may not run.
+2. Add a gate rule that recomputes `bindings.schema` and refuses any
+   bundle change reachable from a Read definition, under which this branch
+   must re-seal because `advertisedLimits` is reachable from
+   `readDiscovery`.
+3. Accept and document: the sealed cohort proved the Read surface against
+   the bundle as it was, and the reachable change is additive
+   (`readDiscovery` accepts one more optional group).
+
+**Recommendation.** Option 2 for the repository, applied by the operator
+outside this fold; this fold applies option 3's documentation only, in
+STATUS.md and here, and makes no claim that the Read cohort covers the
+current bundle.
+
+**Depends on this decision.** STATUS.md's evidence-discipline paragraph.
+Nothing in the specification.
+
+## D30 — A member-level delay hint
+
+**Context.** `after-delay` problems "SHOULD carry `Retry-After`", but a
+member problem lives inside a `200 OK` envelope, where `Retry-After` has no
+carrier and no standard meaning (Claude M5).
+
+**Options.**
+
+1. An optional `retryAfter` member — a non-negative integer of
+   delay-seconds — on a member problem whose `retry` is `after-delay`;
+   rejected by the bundle on any other problem. The member-level
+   counterpart of `Retry-After`; the header's SHOULD applies to direct
+   problems; a member problem without it gives no hint and the client
+   backs off on its own.
+2. State that member-level `after-delay` carries no hint. Honest and
+   smaller, but it leaves the client guessing exactly where the authority
+   knows the answer — how long the in-flight member will take.
+
+**Recommendation.** Option 1.
+
+**Depends on this decision.** Under *Sequence response envelope*: "A member
+problem whose `retry` is `after-delay` MAY carry `retryAfter`, a
+non-negative integer of delay-seconds" through "the client backs off on its
+own." Bundle: `readUpdateProblem.retryAfter` and its `after-delay` branch.
+Fixtures `sequence-idempotent-retry.json` and
+`sequence-idempotency-dispositions.json` (in-progress members carrying
+`retryAfter`). Catalog row `read-update.sequence.retry-after-hint`.
+
+## D31 — Alias mutation is deferred beyond Read+Update
+
+**Context.** *Aliases* said alias creation, repointing, and deletion "are
+defined with the mutation profiles", but the Read+Update Operation
+Directory is exactly the six singleton targets plus `sequence`, so the
+promise dangled for this profile (Claude M8).
+
+**Options.**
+
+1. Defer: alias mutation is beyond Read+Update; a Read+Update Scope serves
+   alias resolution over aliases established administratively, and alias
+   mutation targets are defined with the Transactional profile or the
+   administrator specification. Keeps the seven-entry directory the draft
+   fixed and the Read-surface resolution rule unchanged.
+2. Add alias targets to Read+Update now. Extends the directory, the
+   bundle, the rows, and the fixtures for a surface no profile has designed.
+
+**Recommendation.** Option 1.
+
+**Depends on this decision.** Under *Aliases*: "Alias creation, repointing,
+and deletion are mutation surface deferred beyond the Read+Update profile"
+through "defined with the Transactional profile or the administrator
+specification." Catalog row `read-update.discovery.no-alias-mutation`.
 
 ---
 
@@ -638,10 +1311,13 @@ Not decisions, but things the operator may want to know:
   unassigned.
 - **Batch vs. sequence binding failures.** The batch text rejects forward,
   unknown, duplicate, and wrong-kind names for the whole request; the
-  sequence text makes forward, unknown, failed, and wrong-kind references
-  member failures. The draft now splits them for sequences: duplicate or
-  invalid names are carrier rejections (D17); reference failures are member
-  failures (D15).
+  sequence text made forward, unknown, failed, and wrong-kind references
+  member failures. After council 9 the two agree on everything static:
+  duplicate, invalid, forward, unknown, and wrong-kind names are carrier
+  rejections in both (D17, D27); the only sequence-specific member failure
+  is a reference to a creating member that failed — impossible in a batch,
+  which rolls back — and a reference to a transient creator is a transient
+  member failure (D15, revised).
 - **`retention.idempotency` had no semantics.** It was listed as a limit
   without any section defining what it bounds; D6 defines it.
 - **Divergence from Transactional on duplicates.** Transactional joins
@@ -652,3 +1328,60 @@ Not decisions, but things the operator may want to know:
 - **`readProblem` untouched.** The Read Problem definition and its
   lockstep test are unchanged; `readUpdateProblem` routes Read codes
   through it by reference so the closed Read table cannot drift.
+
+---
+
+## Council 9 fold
+
+Council 9 (Codex, Gemini, Claude) reviewed `0b7d86e7..df718aa`. The Codex
+and Gemini findings were folded first from the fold brief; the Claude
+report arrived during the fold and was folded in a second pass. Each finding
+below records what was done and where, or why it was not folded. Every
+judgment the fold required is a numbered decision above, applied
+provisionally as its recommendation, not a ruling.
+
+| Finding | Disposition |
+| --- | --- |
+| Gemini C1 / Codex H2 — a concurrent retry poisons the original's dependent member | Folded: dependency normalization (D15 revised, D3 revised, D4 exceptions, D5 clarified); spec text under *Sequence request envelope*, *Idempotency keys*, *Duplicate keys and retained dispositions*; fixtures `sequence-idempotent-retry.json` (concurrent retry) and `sequence-dependent-bindings.json`; rows `read-update.sequence.transient-predecessor`, `read-update.idempotency.concurrent-dependent-retry`. Codex's shape (only dependents go transient; unrelated members run) was chosen over Gemini's halt-the-request fallback, recorded as D15's alternative. |
+| Codex H1 — retained results bypass current authorization | Folded: D21; spec under *Duplicate keys and retained dispositions*, *Authorization views*, *Idempotency keys*, *Problem details*; fixture `idempotency-recovery.json`; row `read-update.idempotency.authorization-view`. |
+| Codex H3 — no crash boundary for durable deduplication | Folded: D22 (durable unit, cleared claims, one key state, restore ⇒ different Scope) and D23 (resubmit after an authority crash); new subsection *Durability and recovery*; fixture `idempotency-recovery.json`; rows `read-update.idempotency.durable-boundary`, `read-update.idempotency.crash-mid-sequence`, `read-update.idempotency.restore`. |
+| Codex H4 — fingerprint-only tombstones cannot recover dependency identity | Folded: D24 (binding metadata in the tombstone); spec under *Outcome retention*, *Sequence request envelope*, *Idempotency keys*; fixture `sequence-dependent-bindings.json`; row `read-update.sequence.expired-creator-binding`. |
+| Codex M5 — D16 weakened the mandatory diagnostics contract | Folded: D16 rejected as written and revised; `diagnostics` mandatory on `validation-failed`, `type` + `schemaLocation` together for Type-contract failures, location formats, `diagnosticsTruncated`, advertised-bound rule; bundle `validationDiagnostic`, `validationDiagnostics`, `readUpdateProblem`; row `read-update.validation.diagnostics`. |
+| Codex M6 — unknowable recovery deadline; expiry row title; unbounded tombstones | Folded: D25; D6 revised to acknowledge Scope-lifetime tombstone storage; row `read-update.idempotency.expired` retitled and `read-update.idempotency.retention-minimum` added; fixture condition narrates controlled eviction and the `410`/`409` distinction. |
+| Codex M7 — nested Transactional limits leak through discovery | Folded: `readUpdateAdvertisedLimits` (D20 tightened); spec under *Advertised limits*; row `read-update.discovery.limits`; negative checks in `read-update-wire.test.ts`. `readDiscovery` left untouched as sealed Read surface. |
+| Codex M8 — forbidden wire shapes pass the schema | Folded: `durableResourceReference` / `localBindingReference` / `durableInputReference` (singletons reject `@name`, pinned forms included; a supplied `id` is always durable), `jsonPointer` for patch paths, `source`/`sourceRevision` rejected on Bead postimages; contextual checks documented under *Normative schema bundle* and tested as result/request correspondence; row `read-update.sequence.contextual-validation`; singleton `@name` row `read-update.singleton.no-local-bindings`. |
+| Codex M9 — owned-Link deletion returns a revision without its subject | Folded: D10 revised; `source` beside `sourceRevision` on every owned-Link result, `dependentRequired` in the bundle; every owned-Link fixture updated; cross-packet note X4 (rule once with T22). |
+| Codex M10 — catalog rows contradict the model | Folded: `read-update.singleton.update-link-properties` restricted to unowned Links; `read-update.singleton.owned-link-source-revision` rewritten around effectful mutations and "versions no endpoint"; `read-update.singleton.attribution` rewritten (no-op keeps prior revision and attribution); new `read-update.singleton.owned-link-no-op`; fixture `singletons.json` exchange `update-link-properties-owned-semantic-no-op`. |
+| Gemini H2 / Codex M11 — missing rows and fixtures; fixture checks assume `results`; attribution helper wrong for no-ops | Folded: 19 rows added (48 total) for disconnect, restore, authorization change, principal isolation, cross-carrier equivalence, crash/failover, transient predecessors, semantic equivalence and difference, retained failures, expired creator, carrier rejections, owned-Link no-ops, diagnostics, discovery limits, contextual validation, internal fault; four fixtures added (`carrier-rejections`, `idempotency-recovery`, `semantic-identity`, `sequence-dependent-bindings`); the wire test branches direct rejections from admitted sequences, checks singleton results with the same helper, treats a result that keeps its guarded revision as a no-op and stops expecting the input attribution on it, and verifies retained dispositions across fixtures. Every fixture condition is a narrated assumption, labeled as such. |
+| Codex L12 — "executable catalog"; tests overstated | Folded: "metadata catalog" in the specification; the tests are described as structure, table, citation, and example checks in the specification, in this packet's introduction, and in both test files' comments. |
+| Codex assessment: D1 repeated header; D2 principal ≠ `attribution.principal`; D5 delayed retry; D18 crash ≠ disconnect and body-less `500`; D19 CORS `OPTIONS` | Folded as the *Clarified* / *Qualified* notes on D1, D2, D5, D18, D19, with spec sentences and fixtures where they apply. |
+| Codex assessment: D13 boundaries | Folded as *Boundaries completed* on D13, including the owned-set `max` classification proposed as `validation-failed`. |
+| Gemini F3 — no executable manifest or runner for Read+Update | Not folded: expected and out of scope for a wire draft; the profile's implementation wave, manifest, and runner support begin only after the rulings, and no manifest may bind these rows before then. |
+| Gemini F4 — boundary verified, no Transactional leakage | No action: praise, and now also enforced for nested limits by Codex M7's fold. |
+| Cross-packet X2 (`retention.idempotency` is Read+Update-only on Transactional discovery) and X1 (deleted-identity shape) | Not folded: raised by the Transactional packet's council, not this one; both are recorded for a single ruling across packets and left unchanged here. |
+| Claude H1 — a byte-identical retry of a disconnected sequence executes members out of order | Folded: D26 (keys claimed at admission in declaration order); spec under *Read+Update sequence target*, *Duplicate keys and retained dispositions*, *Durability and recovery*; row `read-update.idempotency.key-reservation`; concurrent-retry fixture condition rewritten. |
+| Claude H2 — disposition durability bound to commit; in-flight release on restart; one authority owns the namespace | Already folded as D22 from Codex H3; the replica sentence is D22's "every replica that accepts mutations consults one authoritative key state". |
+| Claude H3 — the bundle changed under the sealed Read cohort; the gate does not recompute the digest | Folded as D29: documented here and in STATUS.md as an operator decision (re-seal or add a recomputing gate rule); `evidence:generate` was not run and no Read evidence was touched. |
+| Claude M1 — retained `binding-unavailable` forces re-keying dependents after a creator is corrected | Folded into D4: the specification now says a client that corrects a creator presents new keys for its dependents; un-retaining `binding-unavailable` is recorded as the alternative. D27 and D28 shrink the case. |
+| Claude M2 — D15 contradicts D17; static `@name` errors should be carrier rejections | Folded: D27; `binding-unavailable` narrows to a failed creator; fixtures `carrier-rejections.json` (three new exchanges) and `sequence-partial-failure.json` (member 4 replaced by a Read-coded `resource-not-found` member). |
+| Claude M3 — Scope-lifetime tombstones for every disposition are unbounded and principal-growable | Folded: D28 (tombstones only for committed effects; failures forgotten after the interval); fixture `expired-failure-executes-as-new`; row `read-update.idempotency.expired-failure`. |
+| Claude M4 — restore honesty; no restore signal in Read+Update | Folded into D22's text and one added sentence under *Outcome retention*: Read+Update exposes no epoch and offers no restore signal beyond `resource-not-found`, `revision-mismatch`, and `idempotency-expired`. |
+| Claude M5 — member-level `after-delay` has no `Retry-After` carrier | Folded: D30 (`retryAfter`); bundle, spec, fixtures, row `read-update.sequence.retry-after-hint`. |
+| Claude M6 — catalog incomplete against Q13's categories | Folded: rows added for key reservation, unauthenticated, hidden subject, incident-Link non-disclosure, expected-revision race, transient-not-retained, forbidden-retained, expired failure, retry hint, request-too-large, CORS `Idempotency-Key`, no alias mutation, and singleton result headers; expired-different-identity and local-name rows already existed after the first pass. |
+| Claude M7 — fixtures contradict the reference domain; missing exchanges | Folded: the aggregate-constraint example now uses the domain's `blocks` Link under a `maximumEndpointMultiplicity` policy on `dependency` declared in `discovery.json`; exchanges added for a singleton idempotent retry (after the Resource's deletion), a Read-coded member problem inside the envelope, carrier rejections, and a transient member disposition. |
+| Claude M8 — alias mutation is a dangling promise for Read+Update | Folded: D31 (deferred beyond Read+Update); row `read-update.discovery.no-alias-mutation`. |
+| Claude L1 — `identity-taken` is an existence oracle for supplied ids | Folded: acknowledged in the problem-row meaning as the one inherent exception to the no-enumeration-oracle posture; row `read-update.validation.identity-taken` reworded. |
+| Claude L2 — spec gaps (no-op sentence, `ETag`/`Location`, repeated field, `@name` in a singleton, non-canonical spellings, RFC 6902 §4.6 equality, anonymous namespace, credential rotation) | Folded: every item now has a specification sentence (D10, D12, D1, D13, D3, D2). |
+| Claude L3 — schema nits | Folded where they were loopholes (Codex M8); the duplicated `archivedAt: false` branch is kept because the `readProblem` routing applies only to Read codes and the prohibition must also hold for Read+Update codes. |
+| Claude L4 — catalog nits (anchors to child headings; attribution and interleaving wording) | Folded: every citation is anchored to the deepest heading that contains it; `read-update.sequence.interleaving` reworded as suggested. |
+| Claude L5 — Transactional `sequence` response shape; profile qualification; Q13 ledger | Q13 now notes the drafted unclaimed rows. The Transactional `sequence` response shape belongs to the Transactional packet and is not folded here. |
+| Claude L6 — export Read+Update problem definitions and the outcome enum from `packages/protocol` | Not folded: exporting unruled draft rows from the protocol package would put them on the library surface before the rulings; the tests' local tables are deliberate until the implementation wave. |
+| Claude D-verdicts (D11 `unchanged` trade-off; D16 absolute keyword location) | Folded as a note on D11 and in D16's location format. |
+
+Validation at the fold: the lockstep tests, strict Ajv compilation of every
+bundle definition, validation of every fixture body, and the repository's
+typecheck, lint, format, boundary, and evidence gates were run and are
+reported with the fold. None of it is conformance evidence; `claimEligible`
+remains `false`, no manifest binds a Read+Update row, and the sealed Read
+cohort is untouched.
+

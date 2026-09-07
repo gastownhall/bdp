@@ -16,7 +16,10 @@ import {
  * so that the profile's obligations are reviewable now, but no executable
  * manifest names this catalog, no fixture realizes it, and no runner can
  * report a row from it — so nothing can claim it. That absence is asserted
- * here so it cannot erode silently.
+ * here so it cannot erode silently. What is checked is structure and
+ * citation consistency — the rows parse, every excerpt still appears in
+ * its anchored section, and the rows mirror the specification's table in
+ * order — never the behavior a row describes.
  */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const readText = (relativePath: string): string =>

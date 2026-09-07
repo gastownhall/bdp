@@ -943,8 +943,23 @@
       "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
     },
     "resourceReference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        {
+          "$ref": "#/$defs/localBindingReference"
+        }
+      ]
+    },
+    "durableResourceReference": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "^[^@]"
+    },
+    "localBindingReference": {
+      "type": "string",
+      "pattern": "^@[A-Za-z][A-Za-z0-9_-]*$"
     },
     "inputPinnedReference": {
       "type": "object",
@@ -970,9 +985,37 @@
         }
       ]
     },
+    "durableInputPinnedReference": {
+      "type": "object",
+      "required": ["uri", "revision"],
+      "properties": {
+        "uri": {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "durableInputReference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        {
+          "$ref": "#/$defs/durableInputPinnedReference"
+        }
+      ]
+    },
     "expectedRevision": {
       "type": "string",
       "minLength": 1
+    },
+    "jsonPointer": {
+      "type": "string",
+      "pattern": "^(/([^/~]|~[01])*)*$"
     },
     "propertyChange": {
       "type": "array",
@@ -987,7 +1030,7 @@
                 "enum": ["add", "replace"]
               },
               "path": {
-                "type": "string"
+                "$ref": "#/$defs/jsonPointer"
               },
               "value": true
             },
@@ -1001,7 +1044,7 @@
                 "const": "remove"
               },
               "path": {
-                "type": "string"
+                "$ref": "#/$defs/jsonPointer"
               }
             },
             "additionalProperties": false
@@ -1014,7 +1057,7 @@
       "required": ["type"],
       "properties": {
         "id": {
-          "$ref": "#/$defs/resourceReference"
+          "$ref": "#/$defs/durableResourceReference"
         },
         "type": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -1062,7 +1105,7 @@
       "required": ["type", "source", "target"],
       "properties": {
         "id": {
-          "$ref": "#/$defs/resourceReference"
+          "$ref": "#/$defs/durableResourceReference"
         },
         "type": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -1130,6 +1173,11 @@
           "$ref": "#/$defs/updateBeadPropertiesMembers"
         }
       ],
+      "properties": {
+        "bead": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
       "unevaluatedProperties": false
     },
     "deleteBeadRequest": {
@@ -1139,6 +1187,11 @@
           "$ref": "#/$defs/deleteBeadMembers"
         }
       ],
+      "properties": {
+        "bead": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
       "unevaluatedProperties": false
     },
     "createLinkRequest": {
@@ -1148,6 +1201,14 @@
           "$ref": "#/$defs/createLinkMembers"
         }
       ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/durableInputReference"
+        },
+        "target": {
+          "$ref": "#/$defs/durableInputReference"
+        }
+      },
       "unevaluatedProperties": false
     },
     "updateLinkPropertiesRequest": {
@@ -1157,6 +1218,11 @@
           "$ref": "#/$defs/updateLinkPropertiesMembers"
         }
       ],
+      "properties": {
+        "link": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
       "unevaluatedProperties": false
     },
     "deleteLinkRequest": {
@@ -1166,6 +1232,11 @@
           "$ref": "#/$defs/deleteLinkMembers"
         }
       ],
+      "properties": {
+        "link": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
       "unevaluatedProperties": false
     },
     "sequenceCreateBead": {
@@ -1342,6 +1413,9 @@
         "deleted": {
           "$ref": "#/$defs/absoluteHttpUrl"
         },
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
         "sourceRevision": {
           "type": "string",
           "minLength": 1
@@ -1382,8 +1456,28 @@
               "deleted": false
             }
           }
+        },
+        {
+          "if": {
+            "required": ["resource"],
+            "properties": {
+              "resource": {
+                "$ref": "#/$defs/beadRecord"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source": false,
+              "sourceRevision": false
+            }
+          }
         }
-      ]
+      ],
+      "dependentRequired": {
+        "source": ["sourceRevision"],
+        "sourceRevision": ["source"]
+      }
     },
     "mutationResult": {
       "title": "BDP Read+Update mutation result",
@@ -1461,7 +1555,18 @@
           "minLength": 1
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "dependentRequired": {
+        "type": ["schemaLocation"],
+        "schemaLocation": ["type"]
+      }
+    },
+    "validationDiagnostics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/validationDiagnostic"
+      }
     },
     "readUpdateProblem": {
       "title": "BDP Read+Update Problem Details",
@@ -1490,11 +1595,15 @@
         "retry": {
           "$ref": "#/$defs/retryDisposition"
         },
+        "retryAfter": {
+          "type": "integer",
+          "minimum": 0
+        },
         "diagnostics": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/validationDiagnostic"
-          }
+          "$ref": "#/$defs/validationDiagnostics"
+        },
+        "diagnosticsTruncated": {
+          "type": "boolean"
         }
       },
       "allOf": [
@@ -1766,6 +1875,24 @@
         },
         {
           "if": {
+            "properties": {
+              "code": {
+                "const": "validation-failed"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "required": ["diagnostics"],
+            "properties": {
+              "diagnostics": {
+                "$ref": "#/$defs/validationDiagnostics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
             "not": {
               "properties": {
                 "code": {
@@ -1777,7 +1904,8 @@
           },
           "then": {
             "properties": {
-              "diagnostics": false
+              "diagnostics": false,
+              "diagnosticsTruncated": false
             }
           }
         },
@@ -1795,6 +1923,21 @@
           "then": {
             "properties": {
               "archivedAt": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "retry": {
+                "const": "after-delay"
+              }
+            },
+            "required": ["retry"]
+          },
+          "else": {
+            "properties": {
+              "retryAfter": false
             }
           }
         }
@@ -1844,6 +1987,24 @@
       },
       "additionalProperties": false
     },
+    "readUpdateAdvertisedLimits": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/advertisedLimits"
+        }
+      ],
+      "properties": {
+        "transaction": false,
+        "retention": {
+          "type": "object",
+          "properties": {
+            "receipt": false,
+            "replay": false
+          }
+        }
+      }
+    },
     "readUpdateDiscovery": {
       "type": "object",
       "required": ["bdpVersion", "profile", "scope", "beads", "links", "types", "operations"],
@@ -1876,7 +2037,7 @@
           "enum": ["canonical-uri"]
         },
         "limits": {
-          "$ref": "#/$defs/advertisedLimits"
+          "$ref": "#/$defs/readUpdateAdvertisedLimits"
         },
         "maximumEndpointMultiplicity": {
           "type": "array",

@@ -1,0 +1,460 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-idempotency-recovery",
+  "description": "Replay authorization, principal isolation, cross-carrier key equivalence, and recovery: a retained disposition survives restart and failover, an abandoned in-flight claim is cleared so the retry executes once, an authority crash mid-sequence leaves unstarted members for the client's resubmission, and a restore that loses recovery state is a different logical Scope at a different canonical Scope URL. Runs after read-update-sequence-idempotent-retry: w1-note-create is retained. Every condition is narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "replay-after-view-change-is-re-authorized",
+      "condition": "The principal's Authorization View changed after the original: beads/decision-108 is no longer visible to it. The key, its semantic identity, and its disposition stay retained; disclosure is re-authorized against the present view and refused. This response is not retained, replaces nothing, and permits no execution.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/authorization",
+              "code": "forbidden",
+              "status": 403,
+              "retry": "after-state-change",
+              "operationIndex": 0,
+              "operationName": "note",
+              "detail": "the disposition retained under w1-note-create is not disclosable in this Authorization View; nothing was executed"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "replay-after-visibility-is-restored-returns-the-retained-disposition",
+      "condition": "After a grant restores visibility: the original disposition answers unchanged. The View change never re-namespaced or cleared the key.",
+      "retained": [
+        { "from": "read-update-sequence-idempotent-retry/original", "index": 0, "at": 0 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "principal-isolation",
+      "condition": "The same key and record presented by a different authenticated principal in the same Scope. The namespace is the pair (canonical Scope URL, authenticated principal), so the key is unknown here and the member executes, allocating its own identity. The carried attribution.principal is data and plays no part in the namespace.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-114",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-114-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "cross-carrier-key-equivalence",
+      "condition": "The original sequence member resubmitted through the singleton carrier under the same key: one namespace, one semantic identity (name is excluded), so the retained disposition answers as a direct response.",
+      "retained": [{ "from": "read-update-sequence-idempotent-retry/original", "index": 0 }],
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-note-create"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "type": "https://work.example/types/decision",
+          "properties": {
+            "title": "Record the retention ruling",
+            "status": "proposed"
+          },
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/beads/decision-108",
+            "type": "https://work.example/types/decision",
+            "revision": "decision-108-r1",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "properties": {
+              "title": "Record the retention ruling",
+              "status": "proposed"
+            },
+            "ownedLinks": {
+              "https://work.example/types/cites": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "retained-across-restart-and-failover",
+      "condition": "The authority restarted, then failed over to a replica, preserving its recovery state. Every mutation route consults the same authoritative key state, so the retained disposition answers unchanged and nothing executes twice.",
+      "retained": [
+        { "from": "read-update-sequence-idempotent-retry/original", "index": 0, "at": 0 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "abandoned-in-flight-claim-is-cleared-on-restart",
+      "condition": "w1-relates-12-delete was in flight when the authority crashed, before the deletion became durable. The mutation, its identity, and its disposition are one durable unit, so nothing committed; recovery cleared the abandoned claim, and this retry executes the member exactly once instead of meeting idempotency-in-progress forever.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-relates-12-delete",
+              "operation": "deleteLink",
+              "link": "links/relates-12",
+              "expectedRevision": "relates-12-r1"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": "https://beads.example/acme/links/relates-12"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "crash-mid-sequence-resubmission-completes-the-sequence",
+      "condition": "The authority crashed after member 0 became durable and before member 1 started. Recovery does not resume the sequence: unstarted members are never executed on the authority's own initiative. The client resubmits: member 0 answers from its retained disposition and member 1 executes now, binding @plan through the retained create.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-plan-create",
+              "operation": "createBead",
+              "name": "plan",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Plan the recovery fixtures",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-plan-blocks",
+              "operation": "createLink",
+              "type": "https://work.example/types/blocks",
+              "source": "@plan",
+              "target": "beads/task-42",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "plan",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-115",
+                "type": "https://work.example/types/task",
+                "revision": "task-115-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Plan the recovery fixtures",
+                  "status": "open"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/blocks-116",
+                "type": "https://work.example/types/blocks",
+                "revision": "blocks-116-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/task-115",
+                "target": "https://beads.example/acme/beads/task-42",
+                "properties": {}
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "restore-losing-recovery-state-is-a-different-scope",
+      "scope": "https://beads.example/acme-restored/",
+      "condition": "The Scope was restored from a backup that lost tombstones and unexpired dispositions. The data is served as a different logical Scope at a different canonical Scope URL; w1-note-create is unknown in that Scope's namespace and executes as new. A client must not treat the restored Scope as a transparent continuation of the old key namespace.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme-restored/beads/decision-1",
+                "type": "https://work.example/types/decision",
+                "revision": "restored-decision-1-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

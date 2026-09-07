@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "read-update-discovery",
-  "description": "A Read+Update discovery document — the Read members plus the Operation Directory URL and the optional limits the profile binds — and the directory it identifies: exactly the six singleton targets plus sequence. Illustrative wire example; not evidence.",
+  "description": "A Read+Update discovery document — the Read members plus the Operation Directory URL the optional limits the profile binds, and one maximum-endpoint-multiplicity policy on the reference domain's dependency Link Type — and the directory it identifies: exactly the six singleton targets plus sequence. Illustrative wire example; not evidence.",
   "scope": "https://beads.example/acme/",
   "exchanges": [
     {
@@ -30,7 +30,14 @@
             "sequence": { "operations": 32 },
             "validation": { "diagnostics": 16, "diagnosticBytes": 8192 },
             "retention": { "idempotency": "P7D" }
-          }
+          },
+          "maximumEndpointMultiplicity": [
+            {
+              "linkConformsTo": "https://work.example/types/dependency",
+              "endpoint": "source",
+              "max": 1
+            }
+          ]
         }
       }
     },

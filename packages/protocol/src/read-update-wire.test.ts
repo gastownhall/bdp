@@ -11,10 +11,14 @@ import { isJsonSchemaUri } from "./schema-formats.js";
 /**
  * The drafted Read+Update wire artifacts, held in lockstep from three sides:
  * the specification's Problem-details table, the bundle's definitions, and
- * the checked-in `fixtures/read-update` exchanges. None of this is
- * conformance evidence — the fixtures are illustrative wire examples — but
- * a drift between prose, schema, and example fails here rather than in an
- * implementation wave.
+ * the checked-in `fixtures/read-update` exchanges. This checks structural,
+ * table, and example consistency — the rows mirror the bundle's branches,
+ * the fixtures validate, results align with their members, retained
+ * dispositions are byte-identical wherever they are replayed, and the
+ * shapes the council found the schema admitting are now rejected. It
+ * establishes none of the behavior the decisions describe: fixture
+ * conditions are narrated assumptions, not observations, and none of this
+ * is conformance evidence.
  */
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const schema = JSON.parse(
@@ -50,10 +54,21 @@ const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
 ajv.addSchema(schema);
 
+/** One retained disposition: entry `index` of exchange `from`, expected at `at` (or as the whole body). */
+interface RetainedEntry {
+  /** An exchange id in this fixture, or `<fixture id>/<exchange id>` in another. */
+  readonly from: string;
+  readonly index: number;
+  readonly at?: number;
+}
+
 interface FixtureExchange {
   readonly id: string;
-  readonly retainedFrom?: string;
-  readonly retainedOffset?: number;
+  /** A narrated precondition — an assumption the example rests on, never an observation. */
+  readonly condition?: string;
+  /** A canonical Scope URL other than the fixture's, for a restored-Scope example. */
+  readonly scope?: string;
+  readonly retained?: readonly RetainedEntry[];
   readonly request: {
     readonly method: string;
     readonly target: string;
@@ -144,9 +159,13 @@ describe("Read+Update problem rows", () => {
 });
 
 describe("Read+Update wire fixtures", () => {
-  it("cover discovery, every singleton target, and the four sequence cases", () => {
+  it("cover discovery, every singleton target, the sequence cases, and the recovery cases", () => {
     expect(fixtures.map(({ id }) => id)).toEqual([
+      "read-update-carrier-rejections",
       "read-update-discovery",
+      "read-update-idempotency-recovery",
+      "read-update-semantic-identity",
+      "read-update-sequence-dependent-bindings",
       "read-update-sequence-idempotency-dispositions",
       "read-update-sequence-idempotent-retry",
       "read-update-sequence-partial-failure",
@@ -188,7 +207,7 @@ describe("Read+Update wire fixtures", () => {
           const { request, response } = exchange;
           if (request.method !== "POST") continue;
           expect(response.headers["cache-control"], exchange.id).toBe("private, no-store");
-          if (response.schema === "#/$defs/readUpdateProblem") {
+          if (isDirectProblem(exchange)) {
             expect(response.headers["content-type"], exchange.id).toBe("application/problem+json");
             expect(response.body.status, exchange.id).toBe(response.status);
             expectProblemRow(response.body, exchange.id);
@@ -196,30 +215,53 @@ describe("Read+Update wire fixtures", () => {
             expect(response.status, exchange.id).toBe(200);
             expect(response.headers["content-type"], exchange.id).toBe("application/json");
           }
+          const key = request.headers["idempotency-key"];
           if (request.target === "operations/sequence") {
-            expect(request.headers["idempotency-key"], exchange.id).toBeUndefined();
+            // A stray field is itself a carrier rejection; an admitted sequence never carries one.
+            if (response.body.code !== "malformed-request")
+              expect(key, exchange.id).toBeUndefined();
           } else if (response.body.code !== "malformed-request") {
-            expect(request.headers["idempotency-key"], exchange.id).toMatch(IDEMPOTENCY_KEY);
+            expect(key, exchange.id).toMatch(IDEMPOTENCY_KEY);
+          }
+        }
+      });
+
+      it("branches direct carrier rejections from admitted sequences", () => {
+        for (const exchange of fixture.exchanges) {
+          if (exchange.request.target !== "operations/sequence") continue;
+          if (isDirectProblem(exchange)) {
+            // Rejected before execution: a direct problem, no results, nothing claimed.
+            expect(exchange.response.status, exchange.id).not.toBe(200);
+            expect(exchange.response.body.results, exchange.id).toBeUndefined();
+            expect(["malformed-request", "limit-exceeded"], exchange.id).toContain(
+              exchange.response.body.code,
+            );
+          } else {
+            expect(exchange.response.schema, exchange.id).toBe("#/$defs/sequenceResponse");
           }
         }
       });
 
       it("keeps sequence members and results aligned member by member", () => {
         for (const exchange of fixture.exchanges) {
-          if (exchange.request.target !== "operations/sequence") continue;
+          if (exchange.request.target !== "operations/sequence" || isDirectProblem(exchange))
+            continue;
           const operations = exchange.request.body?.operations as readonly JsonRecord[];
           const results = exchange.response.body.results as readonly JsonRecord[];
           expect(results.length, exchange.id).toBe(operations.length);
           const keys = operations.map((member) => member.idempotencyKey as string);
           expect(new Set(keys).size, exchange.id).toBe(keys.length);
           for (const key of keys) expect(key, exchange.id).toMatch(IDEMPOTENCY_KEY);
+          const scope = exchange.scope ?? fixture.scope;
           for (const [index, entry] of results.entries()) {
             const member = operations[index] as JsonRecord;
             const label = `${exchange.id}[${index}]`;
             expect(entry.operationIndex, label).toBe(index);
             expect(entry.operationName, label).toEqual(member.name);
-            if ("outcome" in entry) expectResultShape(entry, member, label);
-            else {
+            if ("outcome" in entry) {
+              expectResultShape(entry, member, label);
+              expectResultCorrespondence(entry, member, results.slice(0, index), scope, label);
+            } else {
               expect(entry.outcome, label).toBeUndefined();
               expectProblemRow(entry, label);
             }
@@ -227,26 +269,222 @@ describe("Read+Update wire fixtures", () => {
         }
       });
 
+      it("shapes every singleton result like the corresponding sequence member's", () => {
+        for (const exchange of fixture.exchanges) {
+          const operation = SINGLETON_OPERATIONS.get(exchange.request.target);
+          if (operation === undefined || isDirectProblem(exchange)) continue;
+          const member = { ...exchange.request.body, operation } as JsonRecord;
+          expectResultShape(exchange.response.body, member, exchange.id);
+          expectResultCorrespondence(
+            exchange.response.body,
+            member,
+            [],
+            fixture.scope,
+            exchange.id,
+          );
+        }
+      });
+
       it("returns retained dispositions unchanged, repositioned by the present member", () => {
         for (const exchange of fixture.exchanges) {
-          if (exchange.retainedFrom === undefined) continue;
-          const original = fixture.exchanges.find(({ id }) => id === exchange.retainedFrom);
-          if (original === undefined) throw new Error(`unknown exchange ${exchange.retainedFrom}`);
-          const offset = exchange.retainedOffset ?? 0;
-          const originalResults = original.response.body.results as readonly JsonRecord[];
-          const retriedResults = exchange.response.body.results as readonly JsonRecord[];
-          for (const [index, originalEntry] of originalResults.entries()) {
-            const retried = retriedResults[index + offset];
-            expect(disposition(retried), `${exchange.id}[${index + offset}]`).toEqual(
-              disposition(originalEntry),
-            );
-            expect(retried?.operationIndex).toBe(index + offset);
+          for (const retained of exchange.retained ?? []) {
+            const label = `${exchange.id} <- ${retained.from}[${retained.index}]`;
+            const original = resolveExchange(fixture, retained.from);
+            const originalEntry = retainedEntry(original, retained.index);
+            if (originalEntry === undefined) throw new Error(`${label}: no such entry`);
+            if (retained.at === undefined) {
+              expect(exchange.response.body, label).toEqual(disposition(originalEntry));
+            } else {
+              const retried = (exchange.response.body.results as readonly JsonRecord[])[
+                retained.at
+              ];
+              expect(disposition(retried), label).toEqual(disposition(originalEntry));
+              expect(retried?.operationIndex, label).toBe(retained.at);
+            }
           }
         }
       });
     });
   }
 });
+
+describe("shapes the bundle now rejects", () => {
+  const scope = "https://beads.example/acme/";
+  const bead = {
+    id: `${scope}beads/1`,
+    type: "https://t.example/t",
+    revision: "r1",
+    properties: {},
+  };
+  const discovery = {
+    bdpVersion: "0",
+    profile: "read-update",
+    scope,
+    beads: `${scope}beads/`,
+    links: `${scope}links/`,
+    types: `${scope}types/`,
+    operations: `${scope}operations/`,
+  };
+  const validationFailed = {
+    type: `${BDP_PROBLEM_FAMILY_PREFIX}validation`,
+    code: "validation-failed",
+    status: 422,
+    retry: "never",
+  };
+  const rejected: readonly (readonly [string, string, unknown])[] = [
+    ["deleteBeadRequest", "a singleton @name binding", { bead: "@x" }],
+    [
+      "createLinkRequest",
+      "a singleton pinned @name endpoint",
+      { type: "https://t.example/t", source: { uri: "@x", revision: "r" }, target: "beads/2" },
+    ],
+    ["createBeadRequest", "a supplied @name id", { id: "@x", type: "https://t.example/t" }],
+    [
+      "updateBeadPropertiesRequest",
+      "a patch path that is not a JSON Pointer",
+      { bead: "beads/1", change: [{ op: "remove", path: "not-a-pointer" }] },
+    ],
+    [
+      "updateBeadPropertiesRequest",
+      "a patch path with an invalid escape",
+      { bead: "beads/1", change: [{ op: "remove", path: "/~2" }] },
+    ],
+    [
+      "mutationResult",
+      "a Bead postimage carrying sourceRevision",
+      { outcome: "created", resource: bead, source: `${scope}beads/1`, sourceRevision: "r9" },
+    ],
+    [
+      "mutationResult",
+      "sourceRevision without source",
+      { outcome: "deleted", deleted: `${scope}links/1`, sourceRevision: "r9" },
+    ],
+    [
+      "readUpdateDiscovery",
+      "a transaction limits group",
+      { ...discovery, limits: { transaction: { operations: 1 } } },
+    ],
+    [
+      "readUpdateDiscovery",
+      "a receipt retention limit",
+      { ...discovery, limits: { retention: { receipt: "P1D" } } },
+    ],
+    [
+      "readUpdateDiscovery",
+      "a replay retention limit",
+      { ...discovery, limits: { retention: { replay: "P1D" } } },
+    ],
+    ["readUpdateProblem", "validation-failed without diagnostics", validationFailed],
+    [
+      "readUpdateProblem",
+      "validation-failed with empty diagnostics",
+      { ...validationFailed, diagnostics: [] },
+    ],
+    [
+      "validationDiagnostic",
+      "a Type without its schema location",
+      { message: "m", type: "https://t.example/t" },
+    ],
+    [
+      "readUpdateProblem",
+      "retryAfter on a problem that is not after-delay",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}conflict`,
+        code: "revision-mismatch",
+        status: 409,
+        retry: "after-state-change",
+        retryAfter: 1,
+      },
+    ],
+  ];
+  for (const [definition, label, value] of rejected) {
+    it(`rejects ${label}`, () => {
+      expect(compiledDefinition(`#/$defs/${definition}`)(value)).toBe(false);
+    });
+  }
+  it("still admits sequence-member bindings, escaped pointers, and owned-Link results", () => {
+    expectValid(
+      "#/$defs/sequenceRequest",
+      {
+        operations: [
+          {
+            operation: "createLink",
+            idempotencyKey: "k",
+            type: "https://t.example/t",
+            source: { uri: "@x", revision: "r" },
+            target: "beads/2",
+          },
+        ],
+      },
+      "sequence pinned @name",
+    );
+    expectValid(
+      "#/$defs/updateBeadPropertiesRequest",
+      { bead: "beads/1", change: [{ op: "remove", path: "/a~1b/~0c" }] },
+      "escaped pointer",
+    );
+    expectValid(
+      "#/$defs/readUpdateDiscovery",
+      {
+        ...discovery,
+        limits: { retention: { idempotency: "P7D", maximumSnapshotLifetime: "PT300S" } },
+      },
+      "Read+Update retention limits",
+    );
+    expectValid(
+      "#/$defs/sequenceMemberProblem",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}conflict`,
+        code: "idempotency-in-progress",
+        status: 409,
+        retry: "after-delay",
+        retryAfter: 2,
+        operationIndex: 0,
+      },
+      "member-level retryAfter",
+    );
+  });
+});
+
+const SINGLETON_OPERATIONS: ReadonlyMap<string, string> = new Map([
+  ["operations/create-bead", "createBead"],
+  ["operations/update-bead-properties", "updateBeadProperties"],
+  ["operations/delete-bead", "deleteBead"],
+  ["operations/create-link", "createLink"],
+  ["operations/update-link-properties", "updateLinkProperties"],
+  ["operations/delete-link", "deleteLink"],
+]);
+
+function isDirectProblem(exchange: FixtureExchange): boolean {
+  return exchange.response.schema === "#/$defs/readUpdateProblem";
+}
+
+/** `from` names an exchange in this fixture or `<fixture id>/<exchange id>` in another. */
+function resolveExchange(fixture: ReadUpdateFixture, from: string): FixtureExchange {
+  const slash = from.indexOf("/");
+  const source = slash < 0 ? fixture : fixtures.find(({ id }) => id === from.slice(0, slash));
+  const exchangeId = slash < 0 ? from : from.slice(slash + 1);
+  const exchange = source?.exchanges.find(({ id }) => id === exchangeId);
+  if (exchange === undefined) throw new Error(`unknown exchange ${from}`);
+  return exchange;
+}
+
+/** Entry `index` of a sequence response, or a singleton body itself as entry 0. */
+function retainedEntry(exchange: FixtureExchange, index: number): JsonRecord | undefined {
+  const results = exchange.response.body.results as readonly JsonRecord[] | undefined;
+  if (results !== undefined) return results[index];
+  return index === 0 ? exchange.response.body : undefined;
+}
+
+/** A semantic no-op: the update's result keeps the revision its guard named. */
+function isSemanticNoOp(entry: JsonRecord, member: JsonRecord): boolean {
+  const resource = entry.resource as JsonRecord | undefined;
+  return (
+    entry.outcome === "updated" &&
+    member.expectedRevision !== undefined &&
+    resource?.revision === member.expectedRevision
+  );
+}
 
 function expectResultShape(entry: JsonRecord, member: JsonRecord, label: string): void {
   const operation = member.operation as string;
@@ -260,15 +498,64 @@ function expectResultShape(entry: JsonRecord, member: JsonRecord, label: string)
     const resource = entry.resource as JsonRecord;
     expect(entry.deleted, label).toBeUndefined();
     if (member.type !== undefined) expect(resource.type, label).toBe(member.type);
-    if (member.attribution !== undefined)
+    if (isSemanticNoOp(entry, member)) {
+      // A no-op mints no version and records no attribution: the retained
+      // version keeps whatever attribution it already carried, so the input
+      // attribution is not expected on the postimage.
+      expect(resource.revision, label).toBe(member.expectedRevision);
+    } else if (member.attribution !== undefined) {
       expect(resource.attribution, label).toEqual(member.attribution);
+    }
   }
   if (!LINK_OPERATIONS.has(operation)) {
+    expect(entry.source, label).toBeUndefined();
     expect(entry.sourceRevision, label).toBeUndefined();
   } else if (member.type === OWNED_LINK_TYPE) {
+    expect(typeof entry.source, label).toBe("string");
     expect(typeof entry.sourceRevision, label).toBe("string");
+    const resource = entry.resource as JsonRecord | undefined;
+    if (resource !== undefined) expect(entry.source, label).toBe(resource.source);
   } else if (member.type !== undefined) {
+    expect(entry.source, label).toBeUndefined();
     expect(entry.sourceRevision, label).toBeUndefined();
+  }
+}
+
+/**
+ * Result/request correspondence the schema cannot express: a durable in-Scope
+ * endpoint spelling resolves against the Scope, and a `@name` endpoint resolves
+ * to the identity the named earlier member created.
+ */
+function expectResultCorrespondence(
+  entry: JsonRecord,
+  member: JsonRecord,
+  earlier: readonly JsonRecord[],
+  scope: string,
+  label: string,
+): void {
+  const resource = entry.resource as JsonRecord | undefined;
+  if (resource === undefined || member.operation !== "createLink") return;
+  for (const endpoint of ["source", "target"] as const) {
+    const spelled = member[endpoint];
+    const written = typeof spelled === "string" ? spelled : (spelled as JsonRecord).uri;
+    if (typeof written !== "string") throw new Error(`${label}: unreadable ${endpoint}`);
+    const resolved = resource[endpoint];
+    const resolvedUri = typeof resolved === "string" ? resolved : (resolved as JsonRecord).uri;
+    if (written.startsWith("@")) {
+      const creator = earlier.find((candidate) => candidate.operationName === written.slice(1));
+      const created = creator?.resource as JsonRecord | undefined;
+      if (created !== undefined) {
+        expect(created.id, `${label}: ${written}`).toBe(resolvedUri);
+      } else {
+        // The only creator without a result that still binds: an expired
+        // creation, whose tombstone keeps the identity it allocated (D24).
+        expect(creator?.code, `${label}: ${written} has no binding`).toBe("idempotency-expired");
+      }
+    } else if (written.startsWith("beads/") || written.startsWith("links/")) {
+      expect(resolvedUri, `${label}: ${endpoint}`).toBe(`${scope}${written}`);
+    } else {
+      expect(resolvedUri, `${label}: ${endpoint}`).toBe(written);
+    }
   }
 }
 

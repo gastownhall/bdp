@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "read-update-sequence-partial-failure",
-  "description": "One admitted sequence with three failed members. Every failure is a member problem inside the 200 OK envelope; the members before and after each failure run and stay committed. Runs after read-update-sequence-positive: task-42 is at task-42-r2. Illustrative wire example; not evidence.",
+  "description": "One admitted sequence with three failed members, one of them a Read-coded problem for a subject that does not exist or is not visible. Every failure is a member problem inside the 200 OK envelope; the members before and after each failure run and stay committed. Runs after read-update-sequence-positive: task-42 is at task-42-r2. Illustrative wire example; not evidence.",
   "scope": "https://beads.example/acme/",
   "exchanges": [
     {
@@ -50,12 +50,10 @@
               "bead": "beads/task-42"
             },
             {
-              "idempotencyKey": "w1-orphan-cite",
-              "operation": "createLink",
-              "type": "https://work.example/types/cites",
-              "source": "@adr",
-              "target": "https://github.example/issues/124",
-              "properties": {},
+              "idempotencyKey": "w1-task-999-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-999",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
               "attribution": { "principal": "agent:planner", "status": "claimed" }
             },
             {
@@ -122,12 +120,12 @@
               "detail": "a live Link is incident upon beads/task-42"
             },
             {
-              "type": "https://github.com/gastownhall/bdp/problems/request",
-              "code": "binding-unavailable",
-              "status": 400,
-              "retry": "never",
+              "type": "https://github.com/gastownhall/bdp/problems/not-found",
+              "code": "resource-not-found",
+              "status": 404,
+              "retry": "after-state-change",
               "operationIndex": 4,
-              "detail": "@adr is not bound in this sequence"
+              "detail": "beads/task-999 does not exist or is not visible in this Authorization View"
             },
             {
               "operationIndex": 5,
@@ -146,6 +144,7 @@
                   "note": "superseded by adr-104"
                 }
               },
+              "source": "https://beads.example/acme/beads/decision-7",
               "sourceRevision": "decision-7-r4"
             }
           ]
