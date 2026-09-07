@@ -31,6 +31,16 @@ waves are internal sequencing labels, not protocol concepts.
   recommendation, and the specification sentence that depends on it — and
   the review-council findings folded into them, for the operator to rule on
   one at a time.
+- [W1 Transactional packet](./w1-transactional-packet.md) proposes, for the
+  Transactional profile, the normative text, schema definitions, fixtures,
+  and unclaimed conformance rows the draft still lacks — the owned-Link
+  delta, batch envelopes, Mutation Receipts and the Transactional problem
+  table, transaction-level idempotency and `sequence` on a Transactional
+  Scope, and version erasure on the changefeed — as numbered provisional
+  decisions (T1–T48 and the cross-packet X1–X4), with review council 10
+  folded and every shared name reconciled against the Read+Update wire. It
+  is packet-only: nothing in it changes the specification, the bundle, the
+  fixtures, or the catalogs until the operator rules and it is applied.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.
