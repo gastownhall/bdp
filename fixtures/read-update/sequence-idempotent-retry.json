@@ -1,0 +1,273 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-sequence-idempotent-retry",
+  "description": "A sequence whose response was lost, retried twice: once byte-identically and once with a new member in front. Every retained disposition is returned without re-execution — the allocated identities and revisions never change — positioned by the present member's operationIndex and operationName. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "original",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@note",
+              "target": "https://github.example/issues/130",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-109",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-109-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-108",
+                "target": "https://github.example/issues/130",
+                "properties": {}
+              },
+              "sourceRevision": "decision-108-r2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "identical-retry",
+      "retainedFrom": "original",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@note",
+              "target": "https://github.example/issues/130",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-109",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-109-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-108",
+                "target": "https://github.example/issues/130",
+                "properties": {}
+              },
+              "sourceRevision": "decision-108-r2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "repositioned-retry",
+      "retainedFrom": "original",
+      "retainedOffset": 1,
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-task-7-priority",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-7",
+              "change": [{ "op": "add", "path": "/priority", "value": 2 }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@note",
+              "target": "https://github.example/issues/130",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-7",
+                "type": "https://work.example/types/task",
+                "revision": "task-7-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Review the retention ruling",
+                  "status": "open",
+                  "priority": 2
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-109",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-109-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-108",
+                "target": "https://github.example/issues/130",
+                "properties": {}
+              },
+              "sourceRevision": "decision-108-r2"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-sequence-partial-failure",
+  "description": "One admitted sequence with three failed members. Every failure is a member problem inside the 200 OK envelope; the members before and after each failure run and stay committed. Runs after read-update-sequence-positive: task-42 is at task-42-r2. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "failures-do-not-stop-independent-members",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-spike-create",
+              "operation": "createBead",
+              "name": "spike",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Spike: outcome retention",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-task-42-reopen",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r1",
+              "change": [{ "op": "replace", "path": "/status", "value": "open" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-spike-blocks",
+              "operation": "createLink",
+              "type": "https://work.example/types/blocks",
+              "source": "@spike",
+              "target": "beads/task-42",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-task-42-delete",
+              "operation": "deleteBead",
+              "bead": "beads/task-42"
+            },
+            {
+              "idempotencyKey": "w1-orphan-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@adr",
+              "target": "https://github.example/issues/124",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-cites-7-1-note",
+              "operation": "updateLinkProperties",
+              "link": "links/cites-7-1",
+              "change": [{ "op": "replace", "path": "/note", "value": "superseded by adr-104" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "spike",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-106",
+                "type": "https://work.example/types/task",
+                "revision": "task-106-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Spike: outcome retention",
+                  "status": "open"
+                }
+              }
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "revision-mismatch",
+              "status": 409,
+              "retry": "after-state-change",
+              "operationIndex": 1,
+              "detail": "beads/task-42 is not at revision task-42-r1"
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/blocks-107",
+                "type": "https://work.example/types/blocks",
+                "revision": "blocks-107-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/task-106",
+                "target": "https://beads.example/acme/beads/task-42",
+                "properties": {}
+              }
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "incident-links-exist",
+              "status": 409,
+              "retry": "after-state-change",
+              "operationIndex": 3,
+              "detail": "a live Link is incident upon beads/task-42"
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/request",
+              "code": "binding-unavailable",
+              "status": 400,
+              "retry": "never",
+              "operationIndex": 4,
+              "detail": "@adr is not bound in this sequence"
+            },
+            {
+              "operationIndex": 5,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-7-1",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-7-1-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-7",
+                "target": {
+                  "uri": "https://github.example/issues/88",
+                  "revision": "a1b2c3"
+                },
+                "properties": {
+                  "note": "superseded by adr-104"
+                }
+              },
+              "sourceRevision": "decision-7-r4"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

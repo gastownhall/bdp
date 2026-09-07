@@ -1,0 +1,127 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-sequence-positive",
+  "description": "One admitted sequence in which every member succeeds: a named decision creation, an owned cites Link bound through @adr that versions its source, a guarded properties update, and an unowned Link deletion. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "all-members-succeed",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-adr-create",
+              "operation": "createBead",
+              "name": "adr",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Adopt sequence envelopes",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-adr-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@adr",
+              "target": {
+                "uri": "https://github.example/issues/123",
+                "revision": "8f0e2b"
+              },
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-task-42-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r1",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-relates-9-delete",
+              "operation": "deleteLink",
+              "link": "links/relates-9",
+              "expectedRevision": "relates-9-r1"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "adr",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/adr-104",
+                "type": "https://work.example/types/decision",
+                "revision": "adr-104-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Adopt sequence envelopes",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-105",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-105-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/adr-104",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              },
+              "sourceRevision": "adr-104-r2"
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-42",
+                "type": "https://work.example/types/task",
+                "revision": "task-42-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Specify BDP mutation",
+                  "status": "closed"
+                }
+              }
+            },
+            {
+              "operationIndex": 3,
+              "outcome": "deleted",
+              "deleted": "https://beads.example/acme/links/relates-9"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

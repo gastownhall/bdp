@@ -40,7 +40,7 @@ describe("BDP v0 schema bundle", () => {
     expect(packagedSchemaText).toBe(schemaText);
   });
 
-  it("contains the initial discovery and Read definitions", () => {
+  it("contains the discovery, Read, and drafted Read+Update definitions", () => {
     expect(Object.keys(defs()).sort()).toEqual([
       "absoluteHttpUrl",
       "absoluteUri",
@@ -49,25 +49,63 @@ describe("BDP v0 schema bundle", () => {
       "bdpVersion",
       "beadCollection",
       "beadRecord",
+      "createBeadMembers",
+      "createBeadRequest",
+      "createLinkMembers",
+      "createLinkRequest",
+      "deleteBeadMembers",
+      "deleteBeadRequest",
+      "deleteLinkMembers",
+      "deleteLinkRequest",
       "endpointConstraint",
+      "expectedRevision",
+      "idempotencyKey",
+      "inputPinnedReference",
+      "inputReference",
       "iso8601Duration",
       "linkCollection",
       "linkRecord",
+      "localName",
       "maximumEndpointMultiplicityPolicy",
+      "mutationOutcome",
+      "mutationResult",
+      "mutationResultMembers",
       "ownedLinkDeclaration",
       "pinnedReference",
       "positiveInteger",
       "properties",
+      "propertyChange",
       "protocolProfile",
       "readDiscovery",
       "readProblem",
       "readProblemCode",
+      "readUpdateDiscovery",
+      "readUpdateOperationDirectory",
+      "readUpdateProblem",
+      "readUpdateProblemCode",
       "reference",
+      "resourceReference",
       "retryDisposition",
+      "sequenceCreateBead",
+      "sequenceCreateLink",
+      "sequenceDeleteBead",
+      "sequenceDeleteLink",
+      "sequenceMember",
+      "sequenceMemberProblem",
+      "sequenceMemberResult",
+      "sequenceRequest",
+      "sequenceResponse",
+      "sequenceUpdateBeadProperties",
+      "sequenceUpdateLinkProperties",
       "typeDescriptor",
       "typeIdArray",
       "typeSummary",
       "typesInventory",
+      "updateBeadPropertiesMembers",
+      "updateBeadPropertiesRequest",
+      "updateLinkPropertiesMembers",
+      "updateLinkPropertiesRequest",
+      "validationDiagnostic",
     ]);
   });
 
@@ -98,8 +136,13 @@ describe("BDP v0 schema bundle", () => {
     expect(nullableOneOfRefs("linkCollection", "next")).toContain("#/$defs/absoluteHttpUrl");
   });
 
-  it("defines the current discovery schema as Read-only until later profiles land", () => {
+  it("pins each discovery definition to its own profile", () => {
     expect(propertiesOf("readDiscovery").profile).toEqual({ const: "read" });
+    expect(propertiesOf("readUpdateDiscovery").profile).toEqual({ const: "read-update" });
+    expect(def("readUpdateDiscovery").required).toEqual([
+      ...(def("readDiscovery").required as readonly string[]),
+      "operations",
+    ]);
     expect(def("protocolProfile")).toEqual({ enum: PROTOCOL_PROFILES });
   });
 

@@ -1,0 +1,60 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-discovery",
+  "description": "A Read+Update discovery document — the Read members plus the Operation Directory URL and the optional limits the profile binds — and the directory it identifies: exactly the six singleton targets plus sequence. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "discovery-document",
+      "request": {
+        "method": "GET",
+        "target": "bdp.json",
+        "headers": { "accept": "application/json" }
+      },
+      "response": {
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "schema": "#/$defs/readUpdateDiscovery",
+        "body": {
+          "bdpVersion": "0",
+          "profile": "read-update",
+          "scope": "https://beads.example/acme/",
+          "beads": "https://beads.example/acme/beads/",
+          "links": "https://beads.example/acme/links/",
+          "types": "https://beads.example/acme/types/",
+          "operations": "https://beads.example/acme/operations/",
+          "limits": {
+            "page": { "defaultItems": 50, "maximumItems": 200 },
+            "request": { "targetBytes": 2048, "bodyBytes": 65536 },
+            "patch": { "operations": 64, "pathBytes": 512, "pathDepth": 16 },
+            "sequence": { "operations": 32 },
+            "validation": { "diagnostics": 16, "diagnosticBytes": 8192 },
+            "retention": { "idempotency": "P7D" }
+          }
+        }
+      }
+    },
+    {
+      "id": "operation-directory",
+      "request": {
+        "method": "GET",
+        "target": "operations/",
+        "headers": { "accept": "application/json" }
+      },
+      "response": {
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "schema": "#/$defs/readUpdateOperationDirectory",
+        "body": {
+          "createBead": "create-bead",
+          "updateBeadProperties": "update-bead-properties",
+          "deleteBead": "delete-bead",
+          "createLink": "create-link",
+          "updateLinkProperties": "update-link-properties",
+          "deleteLink": "delete-link",
+          "sequence": "sequence"
+        }
+      }
+    }
+  ]
+}
