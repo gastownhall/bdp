@@ -6,7 +6,7 @@ status section, until the draft is adopted it is not a conformance target.
 | Surface | Specified | Validated |
 | --- | --- | --- |
 | Read profile | yes | sealed two-target evidence cohort — packaged, self-certified in-process, and honestly not-applicable capability-gated rows recorded per target in the artifact, which carries the authoritative counts — verified in CI |
-| Read+Update profile | draft — sequence/idempotency envelope schemas and problem rows still pending | not yet realized |
+| Read+Update profile | draft — sequence request/response envelopes, mutation results, singleton request records, idempotency-key syntax and qualification, duplicate handling, outcome retention, and eleven problem rows drafted in the specification and schema bundle with illustrative fixtures and unclaimed catalog rows; pending review of the provisional decisions in `docs/design/w1-read-update-decisions.md` | not yet realized — no manifest, fixture realization, runner, or evidence exists for any Read+Update row |
 | Transactional profile (batch, receipts, Events, snapshots, changefeed) | draft — several normative schema and problem artifacts still pending | not yet realized |
 
 Evidence discipline: conformance claims live only in the committed cohort

@@ -24,6 +24,11 @@ waves are internal sequencing labels, not protocol concepts.
   items 4 and 5 must close, the parallel item-9 work that proceeds today,
   and the testable contract-suite and Wave 2 freeze evidence milestones the
   eventual port must meet.
+- [W1 Read+Update wire decisions](./w1-read-update-decisions.md) records the
+  numbered provisional decisions behind the drafted Read+Update sequence
+  envelopes, idempotency contract, and problem rows — each with its context,
+  options, tradeoffs, recommendation, and the specification sentence that
+  depends on it — for the operator to rule on one at a time.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.
