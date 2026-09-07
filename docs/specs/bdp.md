@@ -987,8 +987,8 @@ DeleteLink(
 > inline postimage (or deleted identity) remains the Link's, and the same
 > response member additionally reports the source Bead's resulting
 > `revision` — its full postimage is available at its own URL. The envelope
-> member carrying that secondary revision is defined with the write
-> profiles.
+> member carrying that secondary revision is `sourceRevision`, defined under
+> [Mutation results](#mutation-results).
 
 When each operation is reached, the authority validates its resulting staged
 state before evaluating the next operation. It checks:
@@ -1718,6 +1718,10 @@ value is a binding positive integer or ISO 8601 duration:
 - `patch.operations`, `patch.pathBytes`, and `patch.pathDepth` bound one
   property patch;
 - `sequence.operations` bounds members in one Read+Update sequence;
+- `validation.diagnostics` counts entries in, and `validation.diagnosticBytes`
+  counts UTF-8 bytes of, the serialized `diagnostics` list a
+  `validation-failed` problem may carry under
+  [Problem details](#problem-details);
 - `transaction.operations`, `transaction.examinedResources`,
   `transaction.matchedResources`, `transaction.mutatedResources`, and
   `transaction.inducedEvents` are counts, while `transaction.duration` is an
@@ -1729,6 +1733,9 @@ value is a binding positive integer or ISO 8601 duration:
 Fields and groups not advertised carry no implicit numeric value. A client
 may use advertised values for request planning. Conformance tests may probe
 them and require the server to enforce the advertised boundary consistently.
+`retention.idempotency` is the minimum interval for which an authority
+retains an idempotency-key disposition after its terminal outcome; the
+Read+Update profile binds it under [Outcome retention](#outcome-retention).
 
 For example:
 
@@ -1767,7 +1774,11 @@ version.
 
 The discovery and Read definitions in the bundle are complete. Each later
 profile's definitions must exist before that profile can be implemented. The
-bundle is finished only when it covers the complete BDP v0 surface.
+Read+Update definitions — discovery, Operation Directory, singleton
+requests, sequence request and response, mutation results, and problems —
+are drafted in the bundle pending the review recorded under
+[Open protocol questions](#open-protocol-questions). The bundle is finished
+only when it covers the complete BDP v0 surface.
 
 ### Problem details
 
@@ -1811,6 +1822,70 @@ there. Unauthorized callers receive the uniform `404`
 Mutation-only dispositions and problem codes are defined with their profiles
 rather than in the Read table.
 
+The Read+Update profile inherits the complete Read table unchanged and adds
+the rows below. Its direct problems and its sequence-member problems draw
+from that union; the family model, the required members, and the three
+retry dispositions are the Read profile's:
+
+| Code | Family suffix | HTTP status | Retry |
+| --- | --- | --- | --- |
+| `unsupported-media-type` | `request` | 415 | `never` |
+| `binding-unavailable` | `request` | 400 | `never` |
+| `validation-failed` | `validation` | 422 | `never` |
+| `type-not-installed` | `validation` | 422 | `after-state-change` |
+| `identity-taken` | `conflict` | 409 | `never` |
+| `revision-mismatch` | `conflict` | 409 | `after-state-change` |
+| `incident-links-exist` | `conflict` | 409 | `after-state-change` |
+| `aggregate-constraint-violation` | `conflict` | 409 | `after-state-change` |
+| `idempotency-conflict` | `conflict` | 409 | `never` |
+| `idempotency-in-progress` | `conflict` | 409 | `after-delay` |
+| `idempotency-expired` | `gone` | 410 | `never` |
+
+The Read+Update rows mean:
+
+- `unsupported-media-type`: a mutation-target request whose body media type
+  is not `application/json`; media-type parameters are ignored.
+- `binding-unavailable`: a sequence member referenced a sequence-local
+  `@name` that is forward, unknown, of the wrong Resource kind, or bound to a
+  creation that failed, under
+  [Read+Update sequence target](#readupdate-sequence-target).
+- `validation-failed`: the mutation is well-formed but its result is not
+  admissible — the resulting `properties` violates an effective Type
+  contract or is not a JSON object, a `replace` or `remove` names a missing
+  target, an in-Scope endpoint fails an effective endpoint constraint or
+  describes the wrong Resource category, or an out-of-Scope endpoint violates
+  the Link Type's external-endpoint policy. The problem MAY carry
+  `diagnostics`: a bounded array of `{ type?, schemaLocation?,
+  instanceLocation?, message }` entries naming the failing effective Type,
+  the schema keyword location, and the JSON Pointer within `properties`,
+  bounded by `validation.diagnostics` and `validation.diagnosticBytes` when
+  advertised. No other code carries `diagnostics`.
+- `type-not-installed`: the declared Type's contract closure is not
+  installed, under
+  [Descriptor resolution and installation](#descriptor-resolution-and-installation).
+- `identity-taken`: a supplied `id` whose canonical Resource URL was ever
+  committed in the logical Scope, including a deleted one.
+- `revision-mismatch`: the member's `expectedRevision` is not the Resource's
+  current revision.
+- `incident-links-exist`: a Bead deletion reached while a live Link is
+  incident upon the Bead. A non-disclosing authority withholds the hidden
+  Links that caused it.
+- `aggregate-constraint-violation`: the mutation would violate a Scope
+  aggregate policy — in BDP v0, a maximum endpoint multiplicity.
+- `idempotency-conflict`, `idempotency-in-progress`, and
+  `idempotency-expired`: the idempotency-key dispositions defined under
+  [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions)
+  and [Outcome retention](#outcome-retention).
+
+A member's subject Resource or in-Scope endpoint Bead that does not exist
+or is not visible in the request's Authorization View fails with the Read
+profile's `resource-not-found`, under the same non-disclosure rule; a member
+the principal may not perform fails with `forbidden`; a member that exceeds
+a `patch` or `resource` limit fails with `limit-exceeded`. The Read+Update
+profile adds `415` and `422` to the permitted `status` values. The bundle
+defines `readUpdateProblemCode`, `readUpdateProblem`, and
+`validationDiagnostic`.
+
 A direct problem uses its code's HTTP status. Its RFC 9457 `status` member is
 optional, but when present it MUST match the HTTP status. RFC 9457 extension
 members are allowed. A syntactically admitted sequence still returns
@@ -1835,9 +1910,11 @@ MUST NOT include a BDP Problem body. These are HTTP-native rejections rather
 than members of the Read problem-code table.
 Implementations advertising later cumulative profiles MUST retain `GET` and
 `HEAD` support. Those profiles define their additional methods and `Allow`
-values. This draft does not yet assign BDP problem codes for unacceptable
-response media types or unsupported request media types. The Read table above
-deliberately omits them. An implementation MUST respond to an unexpected
+values. This draft does not yet assign a BDP problem code for unacceptable
+response media types, and the Read table above deliberately omits both that
+condition and unsupported request media types; the Read+Update rows above
+assign the latter, for mutation targets only, as `unsupported-media-type`.
+An implementation MUST respond to an unexpected
 internal server fault with a body-less `500 Internal Server Error`, MUST NOT
 include a BDP Problem body, and MUST keep internal fault details off the
 wire. A future revision may assign a BDP Problem mapping for those faults.
@@ -2437,13 +2514,293 @@ Mutation Receipts. Retrying a member with the same idempotency key and
 semantic operation returns its retained disposition. Using that key for
 different semantics is an idempotency conflict.
 
-The sequence carrier itself does not use an `Idempotency-Key` HTTP field; its
-member keys are authoritative. Several pieces are not yet part of this draft:
-the normative request and response envelope definitions, key syntax and
-qualification, duplicate-join behavior, and the finite outcome-retention
-rules (rules for how long outcomes are retained). Until they exist, the
-Read+Update profile cannot be implemented. This semantic decision does not
-authorize an implementation to invent those wire details.
+The sequence carrier itself does not use an `Idempotency-Key` HTTP field;
+its member keys are authoritative, and a sequence request that carries the
+field is rejected before execution with `malformed-request`. The envelopes,
+key rules, duplicate handling, and retention rules in the subsections below
+complete the carrier. They are drafted for review: the provisional
+judgments they embody are recorded, with their alternatives, in
+`docs/design/w1-read-update-decisions.md`, and the Read+Update
+implementation wave begins only after those rulings land. Nothing here
+authorizes an implementation to invent different wire details.
+
+#### Sequence request envelope
+
+A client submits a sequence to the Scope's discovered `sequence` operation
+target:
+
+```http
+POST /acme/operations/sequence HTTP/1.1
+Host: beads.example
+Content-Type: application/json
+Accept: application/json
+```
+
+The body is one object whose only member, `operations`, is an ordered,
+nonempty array of members. Each member is one of the six single-Resource
+operation records defined under
+[Operation record schema](#operation-record-schema) — carrying its
+`operation` discriminator and, on a creation record, its optional `name` —
+plus one required `idempotencyKey`:
+
+```json
+{
+  "operations": [
+    {
+      "idempotencyKey": "w1-adr-create",
+      "operation": "createBead",
+      "name": "adr",
+      "type": "https://work.example/types/decision",
+      "properties": {
+        "title": "Adopt sequence envelopes",
+        "status": "proposed"
+      },
+      "attribution": { "principal": "agent:planner", "status": "claimed" }
+    },
+    {
+      "idempotencyKey": "w1-adr-cite",
+      "operation": "createLink",
+      "type": "https://work.example/types/cites",
+      "source": "@adr",
+      "target": {
+        "uri": "https://github.example/issues/123",
+        "revision": "8f0e2b"
+      },
+      "properties": {},
+      "attribution": { "principal": "agent:planner", "status": "claimed" }
+    },
+    {
+      "idempotencyKey": "w1-task-42-close",
+      "operation": "updateBeadProperties",
+      "bead": "beads/task-42",
+      "expectedRevision": "opaque-task-revision",
+      "change": [
+        {
+          "op": "replace",
+          "path": "/status",
+          "value": "closed"
+        }
+      ],
+      "attribution": { "principal": "agent:planner", "status": "claimed" }
+    }
+  ]
+}
+```
+
+The envelope is closed. `operations` is bounded by `sequence.operations`
+when that limit is advertised; a longer sequence is rejected before
+execution with `limit-exceeded`. Two members of one sequence MUST NOT carry
+the same `idempotencyKey`; a sequence that repeats a key is rejected before
+execution with `malformed-request`, as is one whose `name` values repeat or
+whose key or name violates its syntax. `name`, `@name` references, durable
+reference spellings, and Pinned References follow the rules under
+[Operation record schema](#operation-record-schema), with two differences
+that follow from separate commitment: a binding exists only after its
+creating member commits, and a reference to a forward, unknown, failed, or
+wrong-kind binding fails that member with `binding-unavailable` rather than
+rejecting the request. The bundle defines the envelope as `sequenceRequest`
+and its members as `sequenceCreateBead`, `sequenceUpdateBeadProperties`,
+`sequenceDeleteBead`, `sequenceCreateLink`, `sequenceUpdateLinkProperties`,
+and `sequenceDeleteLink`.
+
+Once the authority has admitted a sequence — validated its carrier and
+operation-record syntax and started its first member — client
+disconnection does not decide any member's outcome. The authority runs the
+remaining members to their terminal dispositions and retains those
+dispositions under their keys, so a retry recovers a lost response member
+by member.
+
+#### Mutation results
+
+Every successful Read+Update mutation, whether submitted to a singleton
+target or as a sequence member, produces one **mutation result**:
+
+```text
+MutationResult {
+  outcome: created | updated | deleted
+  resource?         // created, updated: the complete Resource postimage
+  deleted?          // deleted: the canonical Resource URL
+  sourceRevision?   // owned-Link mutations: the source Bead's resulting revision
+}
+```
+
+`created` and `updated` carry `resource`, the complete Resource record as a
+`GET` of its URL would now return it: `id`, `type`, `revision`, the
+version's `attribution` when one was recorded, `properties`, and, for a
+Bead whose Type owns outgoing Link Types, `ownedLinks`. A semantic no-op
+update, defined under [Revisions](#revisions), succeeds with outcome
+`updated` and the retained revision. `deleted` carries `deleted`, the
+absolute canonical URL of the removed Resource, and no record: deletion
+mints no version. When the mutated Link's type is owned by its source
+Bead's declared Type, the result additionally carries `sourceRevision`, the
+source Bead's resulting revision, on creation, update, and deletion alike;
+the source's full postimage is available at its own URL. `sourceRevision`
+is absent from every other result. A result is closed. The bundle defines
+`mutationResult`; a singleton target returns it as the body of a `200 OK`
+response, under
+[Operation Directory and singleton targets](#operation-directory-and-singleton-targets).
+
+#### Sequence response envelope
+
+A syntactically admitted sequence returns `200 OK` with one object whose
+only member, `results`, holds one entry per member in declaration order.
+An entry is either the member's mutation result or its problem:
+
+```json
+{
+  "results": [
+    {
+      "operationIndex": 0,
+      "operationName": "adr",
+      "outcome": "created",
+      "resource": {
+        "id": "https://beads.example/acme/beads/adr-104",
+        "type": "https://work.example/types/decision",
+        "revision": "opaque-adr-revision-1",
+        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "properties": {
+          "title": "Adopt sequence envelopes",
+          "status": "proposed"
+        },
+        "ownedLinks": {
+          "https://work.example/types/cites": []
+        }
+      }
+    },
+    {
+      "operationIndex": 1,
+      "outcome": "created",
+      "resource": {
+        "id": "https://beads.example/acme/links/cites-105",
+        "type": "https://work.example/types/cites",
+        "revision": "opaque-cites-revision-1",
+        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "source": "https://beads.example/acme/beads/adr-104",
+        "target": {
+          "uri": "https://github.example/issues/123",
+          "revision": "8f0e2b"
+        },
+        "properties": {}
+      },
+      "sourceRevision": "opaque-adr-revision-2"
+    },
+    {
+      "type": "https://github.com/gastownhall/bdp/problems/conflict",
+      "code": "revision-mismatch",
+      "status": 409,
+      "retry": "after-state-change",
+      "operationIndex": 2,
+      "detail": "beads/task-42 is at a different revision"
+    }
+  ]
+}
+```
+
+Every entry carries `operationIndex`, the member's zero-based position in
+the request's `operations` array, and carries `operationName` exactly when
+the member declared `name`. A result entry is the member's mutation result
+plus those two members, and it is closed. A problem entry is the Read+Update
+Problem Details shape under [Problem details](#problem-details) — `type`,
+`code`, `retry`, its required would-be `status`, the other RFC 9457
+members, and extension members — plus `operationIndex` and
+`operationName`; it never carries `outcome`. `results` has exactly as many
+entries as `operations`. The bundle defines `sequenceResponse`,
+`sequenceMemberResult`, and `sequenceMemberProblem`.
+
+Failures of the carrier itself — an unauthenticated principal, a body media
+type other than `application/json`, malformed or oversized JSON, a member
+count above `sequence.operations`, a repeated or invalid key or name, an
+invalid operation record, a stray `Idempotency-Key` field, a rate limit, or
+an unavailable authority — are direct problem responses and execute
+nothing. Every other failure is a member problem inside a `200 OK`
+envelope.
+
+#### Idempotency keys
+
+An idempotency key is a case-sensitive ASCII token matching
+`[A-Za-z0-9_-]{1,256}` — the character profile under
+[Event-ID and checkpoint character profile](#event-id-and-checkpoint-character-profile)
+— written identically as a sequence member's `idempotencyKey` and as the
+value of a singleton request's `Idempotency-Key` field, without quoting,
+padding, or whitespace. A key outside the profile is rejected before
+execution with `malformed-request`, as is a singleton request that omits
+the field. The client mints keys; the authority never allocates,
+normalizes, or case-folds them, and compares them byte-exactly.
+
+A key identifies one semantic mutation within one **idempotency
+namespace**: the pair of the canonical Scope URL and the authenticated
+principal, an anonymous principal counting as one principal. Keys presented
+by other principals, in other Scopes, or to other authorities are
+unrelated. Authorization View changes do not create a new namespace: the
+principal-bound disposition remains retained and cannot execute again. The
+namespace is shared by every mutation carrier in the profile: a sequence
+member and a singleton request that present the same key in the same
+namespace present the same key.
+
+The **semantic identity** of a member is its operation kind — from
+`operation`, or from the singleton target — plus its normalized operation
+record. Before comparison the authority resolves and canonicalizes durable
+references, resolves each `@name` reference to the durable identity it
+bound, expands protocol defaults such as an omitted `properties`, preserves
+the order of `change` and every other array, ignores JSON object member
+order, and excludes `idempotencyKey` and `name`. A member whose `@name`
+reference is unavailable is compared with the unresolved spelling. The
+authority may store the normalized record or an internal fingerprint; BDP
+does not require a public request-hash algorithm.
+
+#### Duplicate keys and retained dispositions
+
+A member's **disposition** is its mutation result or its problem, excluding
+`operationIndex` and `operationName`. When a member reaches its terminal
+outcome, the authority retains that disposition under the member's key
+unless the disposition is transient. A disposition whose `retry` is
+`after-delay` — `rate-limited`, `temporarily-unavailable`, and
+`idempotency-in-progress` — is transient and is never retained: the member
+was not executed, and a later member presenting the same key executes it.
+Every other disposition, success or failure, is retained, and a retained
+failure answers a retry exactly as a retained success does. A client that
+has refreshed its state constructs a new request under a new key. A
+request rejected before admission — an unauthenticated principal, a
+carrier-level rejection — creates no disposition.
+
+Presenting a key produces one of four outcomes, decided in the member's
+turn:
+
+1. the key is retained with the same semantic identity: the authority does
+   not execute the member and returns the retained disposition, positioned
+   with the present member's `operationIndex` and `operationName`;
+2. the key is retained with a different semantic identity: the member fails
+   with `idempotency-conflict`, nothing executes, and the retained
+   disposition is unchanged;
+3. the key is in flight — the member that first presented it has not
+   reached a terminal outcome: the member fails with
+   `idempotency-in-progress`, the authority executes nothing and retains
+   nothing for the presenting member, and a retry after the delay receives
+   the retained disposition; or
+4. the key is unknown: the member executes and its disposition is retained.
+
+A retained disposition is returned without re-executing anything. A
+retained `created` result therefore always carries the same
+authority-allocated identity, and a retained `resource` record is the
+postimage at the time of the mutation, not a fresh read.
+
+#### Outcome retention
+
+Retention is finite. An authority retains each retained disposition for at
+least `retention.idempotency` after the member's terminal outcome when it
+advertises that limit, and for a finite interval of its own choosing when it
+does not; a client that needs a lost response MUST retry within that
+interval. After the interval the authority MAY discard the disposition, but
+it MUST retain a compact tombstone — the key and the semantic identity's
+fingerprint — for the lifetime of the logical Scope, exactly as it retains
+the identity non-reuse guarantee under
+[Scopes and identity](#scopes-and-identity). Presenting an expired key
+with the same semantic identity fails with `idempotency-expired`; the
+authority never executes the member again and never reports the discarded
+outcome. Presenting an expired key with a different semantic identity
+remains `idempotency-conflict`. A restore that cannot preserve the
+tombstones creates a different logical Scope under the rule in that
+section.
 
 ### Batch operation target
 
@@ -3175,6 +3532,28 @@ Read+Update does not include the set-oriented `update-where` or `delete-where`
 targets, which require selection and mutation at one serialization point. It
 also does not include `batch`.
 
+Concretely, each Read+Update singleton target accepts `POST` with an
+`application/json` body containing its operation record with `operation`
+and `name` removed — the bundle defines `createBeadRequest`,
+`updateBeadPropertiesRequest`, `deleteBeadRequest`, `createLinkRequest`,
+`updateLinkPropertiesRequest`, and `deleteLinkRequest` — and one required
+`Idempotency-Key` field carrying a key under
+[Idempotency keys](#idempotency-keys). A singleton never accepts `@name`.
+A successful singleton returns `200 OK` whose body is the mutation result
+defined under [Mutation results](#mutation-results); a failed singleton
+returns the direct problem at its code's HTTP status; a singleton whose
+key is retained, in flight, conflicting, or expired answers exactly as the
+corresponding sequence member would, as a direct response. Singleton and
+sequence forms share one idempotency namespace, one semantic-identity
+rule, and one retention rule. Mutation responses carry
+`Cache-Control: private, no-store`. A mutation target responds
+`405 Method Not Allowed` with `Allow: POST` to every other method, and the
+Operation Directory responds `405` with `Allow: GET, HEAD` to every method
+but those two; both follow the Read profile's `405` rule — no BDP Problem
+body, plus `OPTIONS` in `Allow` when cross-origin access is enabled. The
+bundle defines the Read+Update discovery document as `readUpdateDiscovery`
+and the directory response above as `readUpdateOperationDirectory`.
+
 BDP v0 does not additionally define `POST` on collections or `PUT`, `PATCH`,
 or `DELETE` on individual Resource URLs. BDP v0 also does not add a POST-based
 read selector fallback. Services enforce bounded GET request-target and
@@ -3587,6 +3966,49 @@ The decision and coverage categories are normative. The matrix, fixtures, and
 expected results must exist in the repository for an implementation to claim
 complete acceptance evidence.
 
+#### Read+Update conformance rows
+
+The Read+Update rows below were drafted with the profile's wire artifacts.
+Each names one obligation and binds the normative text that states it;
+none carries an executable plan, a fixture, or evidence. The executable
+catalog file `packages/conformance/catalog/read-update-v1.json` carries the
+same rows and no manifest binds it, so no runner report can claim them.
+They become claimable only under the evidence law in
+`packages/conformance/matrices/README.md`, and the Read+Update profile is
+not realized until every row is proved.
+
+| Row | Obligation |
+| --- | --- |
+| `read-update.discovery.document` | Read+Update discovery carries `operations` and no Transactional member |
+| `read-update.discovery.operation-directory` | The directory lists exactly the six singleton targets plus `sequence` |
+| `read-update.singleton.create-bead` | `create-bead` returns the created postimage; omitted `id` is allocated, supplied `id` is honored |
+| `read-update.singleton.update-bead-properties` | `update-bead-properties` applies the patch, returns the postimage and fresh revision, and retains the revision on a semantic no-op |
+| `read-update.singleton.delete-bead` | `delete-bead` returns the deleted identity, the identity then reads as `404`, and a live incident Link fails it with `incident-links-exist` |
+| `read-update.singleton.create-link` | `create-link` resolves endpoint spellings to canonical URLs and echoes a pin byte-identically |
+| `read-update.singleton.update-link-properties` | `update-link-properties` returns the Link postimage and moves only the Link's own revision |
+| `read-update.singleton.delete-link` | `delete-link` returns the deleted identity and the Link then reads as `404` |
+| `read-update.singleton.owned-link-source-revision` | An owned-Link creation, update, or deletion carries `sourceRevision` and versions the source; an unowned one carries none and versions nothing |
+| `read-update.singleton.attribution` | The `attribution` input is recorded on every minted version and absent from a semantic no-op |
+| `read-update.singleton.expected-revision` | A matching `expectedRevision` applies; a stale one fails with `revision-mismatch` and changes nothing |
+| `read-update.singleton.idempotency-key-required` | A missing or malformed `Idempotency-Key` is rejected with `malformed-request` before execution |
+| `read-update.singleton.idempotent-retry` | The same key with the same semantic identity returns the retained disposition, including the same allocated identity, without re-execution |
+| `read-update.singleton.idempotency-conflict` | The same key with a different semantic identity fails with `idempotency-conflict` and leaves the retained disposition unchanged |
+| `read-update.singleton.unsupported-media-type` | A non-JSON request body is rejected with `unsupported-media-type` |
+| `read-update.singleton.method-405` | Mutation targets answer other methods with a bodyless `405` and `Allow: POST` |
+| `read-update.sequence.order-and-partial-commit` | Members run strictly in order; a failed member leaves earlier successes committed and later independent members run |
+| `read-update.sequence.local-bindings` | A `@name` binding is usable after its creating member commits; forward, unknown, failed, and wrong-kind references fail only their member with `binding-unavailable` |
+| `read-update.sequence.member-problem-shape` | A member problem carries its would-be `status`, `operationIndex`, and `operationName` when declared, inside a `200 OK` envelope |
+| `read-update.sequence.carrier-rejection` | An oversized member count, repeated key, or stray `Idempotency-Key` field is rejected before execution |
+| `read-update.sequence.idempotent-retry` | A retried sequence returns every retained disposition at the present member's position without re-execution |
+| `read-update.sequence.interleaving` | An unrelated mutation committed between two members is observed by the later member |
+| `read-update.idempotency.in-progress` | A concurrent duplicate fails with `idempotency-in-progress`, executes nothing, and a later retry receives the retained disposition |
+| `read-update.idempotency.expired` | A key presented after retention fails with `idempotency-expired` and never re-executes |
+| `read-update.problem.table` | Every Read+Update code serializes with its exact family, status, retry disposition, Problem media type, and `private, no-store` protection |
+| `read-update.validation.type-contract` | An inadmissible result fails with `validation-failed`, and an uninstalled Type fails with `type-not-installed`, changing nothing |
+| `read-update.validation.identity-taken` | A supplied `id` that was ever committed, including a deleted one, fails with `identity-taken` |
+| `read-update.validation.aggregate-constraint` | A mutation that would cross an advertised maximum endpoint multiplicity fails with `aggregate-constraint-violation` |
+| `read-update.http.cache-no-store` | Every mutation response carries `Cache-Control: private, no-store` |
+
 ### Open protocol questions
 
 This ledger records the protocol questions raised against the draft and their
@@ -3614,9 +4036,16 @@ protocol-identifier prefix, with the release-stability rule stated above.
    Each member has its own idempotency key and inline result. Revisions are
    opaque, `expectedRevision` is optional, and the profile has neither durable
    Mutation Receipts nor BDP Events. Transactional `batch` remains the
-   distinct atomic carrier. The sequence envelopes and complete per-member
-   idempotency contract must be authored and reviewed before the Read+Update
-   implementation wave.
+   distinct atomic carrier. **Wire artifacts drafted 2026-09-07, review
+   pending:** the sequence request and response envelopes, mutation
+   results, the `sourceRevision` member, key syntax and qualification,
+   semantic identity, duplicate handling, and finite outcome retention are
+   now drafted under [Read+Update sequence target](#readupdate-sequence-target)
+   and [Operation Directory and singleton targets](#operation-directory-and-singleton-targets),
+   with schema definitions, fixtures, and unclaimed conformance rows. The
+   provisional judgments they rest on are recorded as numbered decisions in
+   `docs/design/w1-read-update-decisions.md`; what remains is their review
+   and ruling, after which the Read+Update implementation wave may begin.
 3. **Resolved 2026-08-08:** the required machine-discovery mechanism is the
    Scope response's registered `service-desc` Link field. A `200` Scope body
    may contain HTML, Markdown, or another human representation and may link to
@@ -3634,8 +4063,14 @@ protocol-identifier prefix, with the release-stability rule stated above.
    public envelope and shared definition. Conformance and generated types
    consume that same offline artifact. The bundle now contains discovery and
    Read definitions, including paginated `types/` and closed Type Descriptor
-   shapes. Later-profile definitions gate their corresponding waves. This
-   question closes when the complete reviewed bundle exists.
+   shapes. **Read+Update definitions drafted 2026-09-07, review pending:**
+   the bundle carries the Read+Update discovery and Operation Directory
+   shapes, the six singleton request records, the sequence request and
+   response envelopes with their member records, results, and problems, the
+   mutation result, the idempotency-key type, and the Read+Update Problem
+   Details shape. Transactional definitions remain pending. Later-profile
+   definitions gate their corresponding waves. This question closes when the
+   complete reviewed bundle exists.
 6. **Read table recorded 2026-08-12; later-profile rows pending:** BDP uses a
    small set of RFC 9457 problem families plus a normative `code`, fixed
    status, and `retry` disposition. The Read profile table is closed. Direct
@@ -3643,8 +4078,17 @@ protocol-identifier prefix, with the release-stability rule stated above.
    Extension members are allowed. Unsupported and repeated collection query
    parameters use `invalid-parameter`, family `request`, status `400`, and
    retry `never`. Sequence-member problems add required member `status`,
-   index, and optional name. This question closes when every normative
-   failure is present in the reviewed code table and schema bundle.
+   index, and optional name. **Read+Update rows drafted 2026-09-07, review
+   pending:** eleven rows — `unsupported-media-type`, `binding-unavailable`,
+   `validation-failed`, `type-not-installed`, `identity-taken`,
+   `revision-mismatch`, `incident-links-exist`,
+   `aggregate-constraint-violation`, `idempotency-conflict`,
+   `idempotency-in-progress`, and `idempotency-expired` — join the table
+   under [Problem details](#problem-details) with a new `validation` family
+   and the `415` and `422` statuses, mirrored in the bundle's
+   `readUpdateProblem`. Transactional rows remain pending. This question
+   closes when every normative failure is present in the reviewed code
+   table and schema bundle.
 7. **Resolved 2026-08-08:** only Transactional exposes Scope epoch,
    Authorization View, visible position, and minimum-position HTTP fields.
    Read and Read+Update use Resource `ETag`s and snapshot-preserving cursors
