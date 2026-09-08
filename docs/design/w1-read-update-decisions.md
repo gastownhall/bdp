@@ -692,6 +692,8 @@ and releases its claim on the member's key". Problem-row meaning of
 
 ## D16 — Validation diagnostics and their limits
 
+**Status: RULED A 2026-09-08** (Q25: mandatory nonempty diagnostics with Type and absolute schema location for Type-contract failures; truncation only against an advertised bound).
+
 **Context.** Under *Link endpoint constraints* the draft says a validation
 failure "returns a bounded diagnostic list identifying the failing
 effective Type and schema location" and that "Discovery advertises the
@@ -976,6 +978,8 @@ Catalog row `read-update.idempotency.authorization-view`.
 
 ## D22 — Durable boundary and in-flight recovery
 
+**Status: RULED A 2026-09-08** (Q22: mutation, semantic identity, allocated identities, and terminal disposition are one atomic durable unit; abandoned claims cleared on restart; one authoritative key state; restore losing recovery state is a different Scope URL).
+
 **Context.** "Executes and its disposition is retained" never required the
 mutation and its disposition to become durable together. A crash between
 them could leave an allocated Resource committed behind an unknown key, or
@@ -1028,6 +1032,8 @@ transparent continuation of the old key namespace." Fixture
 
 ## D23 — Authority crash mid-sequence: resume or resubmit
 
+**Status: RULED A 2026-09-08** (Q22: resubmit, not resume, after an authority crash mid-sequence).
+
 **Context.** D18 covers client disconnection only. An authority that
 crashes after some members committed and before others started needs a
 rule for the unstarted ones (Codex H3, D18 assessment).
@@ -1060,6 +1066,8 @@ envelope*: "Client disconnection is not an authority failure". Fixture
 `read-update.idempotency.crash-mid-sequence`.
 
 ## D24 — Binding metadata in tombstones
+
+**Status: RULED A 2026-09-08** (Q24: tombstones keep allocated identity and kind so expired creators still bind dependents).
 
 **Context.** A fingerprint-only tombstone cannot reconstruct the identity
 an expired creation allocated. On retry the creator answers
@@ -1099,6 +1107,8 @@ retained, or expired disposition, never from the spelling". Fixture
 
 ## D25 — The recovery window
 
+**Status: RULED A 2026-09-08** (Q24: the client MUST applies only when `retention.idempotency` is advertised; otherwise no client-known recovery window).
+
 **Context.** The draft made a client "MUST retry within" an interval the
 authority need not advertise or return, which a client cannot satisfy
 predictably; and the expiry row's title said a key presented "after
@@ -1137,6 +1147,8 @@ authority that advertises one." Catalog rows
 eviction.
 
 ## D26 — Key reservation at admission
+
+**Status: RULED A 2026-09-08** (Q23: every member's key is reserved at admission in declaration order; a reservation that does not survive restart is released).
 
 **Context.** A key became in flight only when its member started. A
 byte-identical resubmission of an admitted sequence could therefore run its
@@ -1181,6 +1193,8 @@ key before executing". Fixture `sequence-idempotent-retry.json`, exchange
 `read-update.idempotency.key-reservation`.
 
 ## D27 — Static reference errors are carrier rejections
+
+**Status: RULED A 2026-09-08** (Q23: forward, unknown, and wrong-kind `@name` references are carrier rejections; `binding-unavailable` only for a creation that failed).
 
 **Context.** D15 made forward, unknown, and wrong-kind `@name` references
 member failures while D17 rejected repeated keys and names before
