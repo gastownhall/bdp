@@ -1381,6 +1381,39 @@
     "mutationOutcome": {
       "enum": ["created", "updated", "deleted"]
     },
+    "resourceKind": {
+      "enum": ["bead", "link"]
+    },
+    "resourceIdentity": {
+      "type": "object",
+      "required": ["id", "type", "revision"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "deletedIdentity": {
+      "type": "object",
+      "required": ["resourceKind", "resource"],
+      "properties": {
+        "resourceKind": {
+          "$ref": "#/$defs/resourceKind"
+        },
+        "resource": {
+          "$ref": "#/$defs/resourceIdentity"
+        }
+      },
+      "additionalProperties": false
+    },
     "mutationResultMembers": {
       "type": "object",
       "required": ["outcome"],
@@ -1399,7 +1432,7 @@
           ]
         },
         "deleted": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/deletedIdentity"
         },
         "source": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -1423,7 +1456,7 @@
             "required": ["deleted"],
             "properties": {
               "deleted": {
-                "$ref": "#/$defs/absoluteHttpUrl"
+                "$ref": "#/$defs/deletedIdentity"
               },
               "resource": false
             }

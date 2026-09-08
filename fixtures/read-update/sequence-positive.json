@@ -118,7 +118,14 @@
             {
               "operationIndex": 3,
               "outcome": "deleted",
-              "deleted": "https://beads.example/acme/links/relates-9"
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/acme/links/relates-9",
+                  "type": "https://work.example/types/relates",
+                  "revision": "relates-9-r1"
+                }
+              }
             }
           ]
         }

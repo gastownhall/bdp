@@ -108,7 +108,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-results",
-          "selectedText": "`deleted` carries `deleted`, the absolute canonical URL of the removed Resource, and no record: deletion mints no version."
+          "selectedText": "`deleted` carries `deleted`, the identity record of the removed Resource, and no Resource record: `resourceKind`, `bead` or `link`, and `resource`, holding the absolute canonical `id`, the immutable `type`, and `revision`, the Resource's final live revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "Deletion mints no version: the identity's `revision` is the revision the Resource had when it was deleted, never a newly minted one"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -185,7 +190,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-results",
-          "selectedText": "`deleted` carries `deleted`, the absolute canonical URL of the removed Resource, and no record: deletion mints no version."
+          "selectedText": "`deleted` carries `deleted`, the identity record of the removed Resource, and no Resource record: `resourceKind`, `bead` or `link`, and `resource`, holding the absolute canonical `id`, the immutable `type`, and `revision`, the Resource's final live revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "Deletion mints no version: the identity's `revision` is the revision the Resource had when it was deleted, never a newly minted one"
         },
         {
           "source": "docs/specs/bdp.md",

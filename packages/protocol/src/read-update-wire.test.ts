@@ -340,6 +340,36 @@ describe("Read+Update advertised limits", () => {
   });
 });
 
+describe("the deleted identity record", () => {
+  it("is the tombstone identity: a Resource kind plus id, type, and final live revision", () => {
+    expect(propertiesOf("mutationResultMembers").deleted).toEqual({
+      $ref: "#/$defs/deletedIdentity",
+    });
+    expect(def("deletedIdentity")).toEqual({
+      type: "object",
+      required: ["resourceKind", "resource"],
+      properties: {
+        resourceKind: { $ref: "#/$defs/resourceKind" },
+        resource: { $ref: "#/$defs/resourceIdentity" },
+      },
+      additionalProperties: false,
+    });
+    expect(def("resourceKind")).toEqual({ enum: ["bead", "link"] });
+    const identity = def("resourceIdentity");
+    expect(identity.required).toEqual(["id", "type", "revision"]);
+    expect(identity.additionalProperties).toBe(false);
+    // The identity's member types are the Bead and Link records' own.
+    for (const field of ["id", "type", "revision"]) {
+      expect(propertiesOf("resourceIdentity")[field], field).toEqual(
+        propertiesOf("beadRecord")[field],
+      );
+      expect(propertiesOf("resourceIdentity")[field], field).toEqual(
+        propertiesOf("linkRecord")[field],
+      );
+    }
+  });
+});
+
 describe("shapes the bundle now rejects", () => {
   const scope = "https://beads.example/acme/";
   const bead = {
@@ -347,6 +377,10 @@ describe("shapes the bundle now rejects", () => {
     type: "https://t.example/t",
     revision: "r1",
     properties: {},
+  };
+  const deletedLink = {
+    resourceKind: "link",
+    resource: { id: `${scope}links/1`, type: "https://t.example/t", revision: "r1" },
   };
   const discovery = {
     bdpVersion: "0",
@@ -397,7 +431,33 @@ describe("shapes the bundle now rejects", () => {
     [
       "mutationResult",
       "sourceRevision without source",
-      { outcome: "deleted", deleted: `${scope}links/1`, sourceRevision: "r9" },
+      { outcome: "deleted", deleted: deletedLink, sourceRevision: "r9" },
+    ],
+    [
+      "mutationResult",
+      "a deleted identity spelled as a URL string",
+      { outcome: "deleted", deleted: `${scope}links/1` },
+    ],
+    [
+      "mutationResult",
+      "a deleted identity without its final live revision",
+      {
+        outcome: "deleted",
+        deleted: {
+          resourceKind: "link",
+          resource: { id: `${scope}links/1`, type: "https://t.example/t" },
+        },
+      },
+    ],
+    [
+      "mutationResult",
+      "a deleted identity beside a postimage",
+      { outcome: "deleted", deleted: deletedLink, resource: bead },
+    ],
+    [
+      "mutationResult",
+      "a postimage outcome carrying a deleted identity",
+      { outcome: "updated", resource: bead, deleted: deletedLink },
     ],
     [
       "readUpdateDiscovery",
@@ -498,6 +558,11 @@ describe("shapes the bundle now rejects", () => {
       },
       "member-level retryAfter",
     );
+    expectValid(
+      "#/$defs/mutationResult",
+      { outcome: "deleted", deleted: deletedLink, source: `${scope}beads/1`, sourceRevision: "r9" },
+      "owned-Link deletion carrying its identity record",
+    );
   });
 });
 
@@ -546,8 +611,18 @@ function expectResultShape(entry: JsonRecord, member: JsonRecord, label: string)
   const outcome = entry.outcome as string;
   if (operation.startsWith("delete")) {
     expect(outcome, label).toBe("deleted");
-    expect(typeof entry.deleted, label).toBe("string");
     expect(entry.resource, label).toBeUndefined();
+    const deleted = entry.deleted as JsonRecord;
+    expect(deleted.resourceKind, label).toBe(operation === "deleteBead" ? "bead" : "link");
+    const identity = deleted.resource as JsonRecord;
+    for (const field of ["id", "type", "revision"]) {
+      expect(typeof identity[field], `${label}: deleted.resource.${field}`).toBe("string");
+    }
+    // Deletion mints no version: the final live revision is the one the
+    // member guarded, so a guarded deletion's identity carries it back.
+    if (member.expectedRevision !== undefined) {
+      expect(identity.revision, label).toBe(member.expectedRevision);
+    }
   } else {
     expect(outcome, label).toBe(operation.startsWith("create") ? "created" : "updated");
     const resource = entry.resource as JsonRecord;
@@ -578,8 +653,9 @@ function expectResultShape(entry: JsonRecord, member: JsonRecord, label: string)
 
 /**
  * Result/request correspondence the schema cannot express: a durable in-Scope
- * endpoint spelling resolves against the Scope, and a `@name` endpoint resolves
- * to the identity the named earlier member created.
+ * spelling resolves against the Scope, and a `@name` reference resolves to the
+ * identity the named earlier member created — for a created Link's endpoints
+ * and for the identity a deletion reports.
  */
 function expectResultCorrespondence(
   entry: JsonRecord,
@@ -588,29 +664,46 @@ function expectResultCorrespondence(
   scope: string,
   label: string,
 ): void {
+  const operation = member.operation as string;
+  if (operation === "deleteBead" || operation === "deleteLink") {
+    const identity = (entry.deleted as JsonRecord).resource as JsonRecord;
+    const spelled = member[operation === "deleteBead" ? "bead" : "link"];
+    expectResolvedReference(spelled, identity.id, earlier, scope, `${label}: deleted`);
+    return;
+  }
   const resource = entry.resource as JsonRecord | undefined;
-  if (resource === undefined || member.operation !== "createLink") return;
+  if (resource === undefined || operation !== "createLink") return;
   for (const endpoint of ["source", "target"] as const) {
-    const spelled = member[endpoint];
-    const written = typeof spelled === "string" ? spelled : (spelled as JsonRecord).uri;
-    if (typeof written !== "string") throw new Error(`${label}: unreadable ${endpoint}`);
     const resolved = resource[endpoint];
     const resolvedUri = typeof resolved === "string" ? resolved : (resolved as JsonRecord).uri;
-    if (written.startsWith("@")) {
-      const creator = earlier.find((candidate) => candidate.operationName === written.slice(1));
-      const created = creator?.resource as JsonRecord | undefined;
-      if (created !== undefined) {
-        expect(created.id, `${label}: ${written}`).toBe(resolvedUri);
-      } else {
-        // The only creator without a result that still binds: an expired
-        // creation, whose tombstone keeps the identity it allocated (D24).
-        expect(creator?.code, `${label}: ${written} has no binding`).toBe("idempotency-expired");
-      }
-    } else if (written.startsWith("beads/") || written.startsWith("links/")) {
-      expect(resolvedUri, `${label}: ${endpoint}`).toBe(`${scope}${written}`);
+    expectResolvedReference(member[endpoint], resolvedUri, earlier, scope, `${label}: ${endpoint}`);
+  }
+}
+
+/** A written reference — `@name`, Scope-relative, or absolute — names `resolvedUri`. */
+function expectResolvedReference(
+  spelled: unknown,
+  resolvedUri: unknown,
+  earlier: readonly JsonRecord[],
+  scope: string,
+  label: string,
+): void {
+  const written = typeof spelled === "string" ? spelled : (spelled as JsonRecord).uri;
+  if (typeof written !== "string") throw new Error(`${label}: unreadable reference`);
+  if (written.startsWith("@")) {
+    const creator = earlier.find((candidate) => candidate.operationName === written.slice(1));
+    const created = creator?.resource as JsonRecord | undefined;
+    if (created !== undefined) {
+      expect(created.id, `${label}: ${written}`).toBe(resolvedUri);
     } else {
-      expect(resolvedUri, `${label}: ${endpoint}`).toBe(written);
+      // The only creator without a result that still binds: an expired
+      // creation, whose tombstone keeps the identity it allocated (D24).
+      expect(creator?.code, `${label}: ${written} has no binding`).toBe("idempotency-expired");
     }
+  } else if (written.startsWith("beads/") || written.startsWith("links/")) {
+    expect(resolvedUri, label).toBe(`${scope}${written}`);
+  } else {
+    expect(resolvedUri, label).toBe(written);
   }
 }
 

@@ -2714,7 +2714,7 @@ target or as a sequence member, produces one **mutation result**:
 MutationResult {
   outcome: created | updated | deleted
   resource?         // created, updated: the complete Resource postimage
-  deleted?          // deleted: the canonical Resource URL
+  deleted?          // deleted: { resourceKind, resource: { id, type, revision } }
   source?           // owned-Link mutations: the source Bead's canonical URL
   sourceRevision?   // owned-Link mutations: the source Bead's resulting revision
 }
@@ -2726,13 +2726,21 @@ version's `attribution` when one was recorded, `properties`, and, for a
 Bead whose Type owns outgoing Link Types, `ownedLinks`. A semantic no-op
 update, defined under [Revisions](#revisions), succeeds with outcome
 `updated` and the retained revision. `deleted` carries `deleted`, the
-absolute canonical URL of the removed Resource, and no record: deletion
-mints no version. When the mutated Link's type is owned by its source
+identity record of the removed Resource, and no Resource record:
+`resourceKind`, `bead` or `link`, and `resource`, holding the absolute
+canonical `id`, the immutable `type`, and `revision`, the Resource's final
+live revision. Deletion mints no version: the identity's `revision` is the
+revision the Resource had when it was deleted, never a newly minted one,
+and it is the value a [Scope changefeed](#scope-changefeed) tombstone and
+`DeletedData.revision` report for the same deletion. The bundle defines
+the identity record as `deletedIdentity`, over `resourceKind` and
+`resourceIdentity`. When the mutated Link's type is owned by its source
 Bead's declared Type, the result additionally carries `source`, the source
 Bead's absolute canonical URL, and `sourceRevision`, the source Bead's
 resulting revision, on creation, update, and deletion alike; a deletion
-returns no Link record, so `source` is the only member that names the
-Resource whose revision it reports. On a semantic no-op update
+returns the Link's identity and no Link record, so `source` is the only
+member that names the source Bead whose revision `sourceRevision` reports.
+On a semantic no-op update
 `sourceRevision` is the source's unchanged current revision. The source's
 full postimage is available at its own URL. `source` and `sourceRevision`
 are absent from every other result, and each is present exactly when the
@@ -4349,7 +4357,12 @@ protocol-identifier prefix, with the release-stability rule stated above.
    group is Read+Update surface carried by `readUpdateAdvertisedLimits`
    alone, now a closed definition of its own; `advertisedLimits` and every
    other Read definition are byte-identical to the bundle the Read evidence
-   cohort binds at `0b7d86e7`. Transactional definitions remain pending.
+   cohort binds at `0b7d86e7`. **Ruled 2026-09-08 (cross-packet X1, option
+   B):** a `deleted` result carries the identity record `deletedIdentity` —
+   `resourceKind` and `resource: { id, type, revision }`, `revision` the
+   final live revision — in place of a URL string, the shape both write
+   profiles share; `resourceKind` and `resourceIdentity` are defined with
+   it. Transactional definitions remain pending.
    Later-profile definitions gate their corresponding waves. This question
    closes when the complete reviewed bundle exists.
 6. **Read table recorded 2026-08-12; later-profile rows pending:** BDP uses a

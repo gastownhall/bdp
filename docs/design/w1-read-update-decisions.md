@@ -10,8 +10,10 @@ Read+Update problem rows — in `docs/specs/bdp.md`,
 
 Each decision is applied in the draft as its recommendation so that the
 profile is implementable on paper and the artifacts can be reviewed as a
-whole. D29 is ruled (option C, 2026-09-08) and its corrective is applied;
-the rest are provisional. The operator rules on them one at a time; a
+whole. D29 is ruled (option C, 2026-09-08) and its corrective is applied,
+and D9 is superseded by the cross-packet ruling X1 (option B, 2026-09-08)
+applied as D32; the rest are provisional. The operator rules on them one
+at a time; a
 ruling that departs from the recommendation is applied by editing the quoted
 specification sentence, the corresponding bundle definition, the fixtures,
 and the catalog row together. The lockstep tests
@@ -23,14 +25,15 @@ anchored section, the catalog mirrors the specification's row table in
 order, the fixtures validate and align member by member, retained
 dispositions are byte-identical wherever they are replayed, and the wire
 shapes the council found admitted are now rejected. They inspect none of
-the semantics D1–D31 describe: a ruling can change a decision's meaning
+the semantics D1–D32 describe: a ruling can change a decision's meaning
 without failing a test, and a green run establishes only that the four
 artifact families still agree on what they say.
 
 Decisions D1–D20 were drafted with the artifacts; D21–D31, and the
 revisions marked *Revised (council 9)* below, fold the review council's
 findings recorded under [Council 9 fold](#council-9-fold). D26–D31 fold
-the Claude report, which arrived after the first pass.
+the Claude report, which arrived after the first pass. D32 applies the
+cross-packet ruling X1 (option B, 2026-09-08), which supersedes D9.
 
 Nothing in this packet is a conformance claim. The Read+Update profile has
 no manifest, fixture realization, runner, or evidence; `claimEligible`
@@ -404,6 +407,18 @@ declared `name`." and "it never carries `outcome`." Bundle:
 
 ## D9 — Spelling of the deleted identity
 
+**Superseded by X1 (RULED B, 2026-09-08).** The operator ruled the
+cross-packet decision X1 as option B: the deleted identity is a record in
+both write profiles — `{ resourceKind, resource: { id, type, revision } }`,
+`revision` the Resource's final live revision, the one it had when it was
+deleted and not a newly minted one, matching the Transactional changefeed
+tombstone and `DeletedData.revision`. Option 1 below, the bare canonical
+URL, no longer applies. The member that carries the record is decided as
+[D32](#d32--the-member-that-carries-the-deleted-identity-record), and the
+specification sentence, bundle definition, fixtures, catalog rows, and
+lockstep test that depended on this decision now follow D32. The original
+text is kept for the record.
+
 **Context.** "Deletes return the canonical deleted identity." No member was
 named.
 
@@ -456,9 +471,11 @@ source's unchanged revision. This is a shared result-shape rule: the
 Transactional packet's T22 fixes `sourceRevision` for receipt entries and
 must carry `source` the same way, so the pair is to be ruled once for
 both profiles (cross-packet note X4). T22's deleted-identity shape,
-`{ resourceKind, resource: { id, type, revision } }`, still differs from
-D9's bare `deleted` URL; that divergence is tracked as cross-packet X1
-and is not resolved here.
+`{ resourceKind, resource: { id, type, revision } }`, differed from D9's
+bare `deleted` URL; that divergence was tracked as cross-packet X1 and
+ruled B on 2026-09-08 — the record in both profiles — applied here as
+D32, so a deleted owned Link now reports its own identity in `deleted`
+beside `source` and `sourceRevision`.
 
 **Depends on this decision.** Under *Mutation results*: "the result
 additionally carries `source`, the source Bead's absolute canonical URL,
@@ -1345,6 +1362,68 @@ and deletion are mutation surface deferred beyond the Read+Update profile"
 through "defined with the Transactional profile or the administrator
 specification." Catalog row `read-update.discovery.no-alias-mutation`.
 
+## D32 — The member that carries the deleted identity record
+
+**Context.** Cross-packet X1 was ruled B on 2026-09-08: a `deleted`
+outcome carries the identity record
+`{ resourceKind, resource: { id, type, revision } }` in both write
+profiles, `revision` the Resource's final live revision — the revision it
+had when it was deleted, not a newly minted one, because deletion mints
+nothing — matching the Transactional changefeed tombstone and
+`DeletedData.revision`. D9's bare URL is superseded. The ruling fixes the
+record; it leaves open which result member carries it and how the bundle
+spells it.
+
+**Options.**
+
+1. `deleted` remains the member name and becomes the record; `resource`
+   stays the complete postimage of `created` and `updated`, and the two
+   members remain mutually exclusive per outcome exactly as the bundle
+   already held `resource` and `deleted` apart. The bundle spells the
+   record as `deletedIdentity` — `resourceKind` (`bead` or `link`) and
+   `resource` as `resourceIdentity`, the closed `{ id, type, revision }`
+   whose member types are the Bead and Link records' own — reusing the
+   Transactional packet's `resourceKind` and `resourceIdentity` names and
+   shapes so the two profiles paste together. A client reads
+   `deleted.resource.id` where it read `deleted`; every other member is
+   untouched, and a deleted owned Link still carries `source` and
+   `sourceRevision` beside its identity.
+2. Carry the record's members at the top level of the result:
+   `resourceKind` beside a `resource` that is an identity on `deleted` and
+   a postimage otherwise. Literal to the ruling's spelling and one level
+   flatter, but it makes `resource` polymorphic — the shape D9 rejected as
+   its option 2 — and a result copied out of its envelope no longer says
+   by its member names whether `resource` is a record or an identity.
+3. Spell the identity flat under `deleted` as `{ id, type, revision }`
+   without `resourceKind`, the Transactional packet's draft bundle text.
+   Shorter, but not the ruled record: the ruling names `resourceKind`,
+   which is what the changefeed tombstone carries and what the
+   idempotency tombstone retains for an allocated identity.
+
+**Recommendation.** Option 1, applied.
+
+**Depends on this decision.** Under *Mutation results*: the `deleted?`
+line of the sketch; "`deleted` carries `deleted`, the identity record of
+the removed Resource, and no Resource record: `resourceKind`, `bead` or
+`link`, and `resource`, holding the absolute canonical `id`, the immutable
+`type`, and `revision`, the Resource's final live revision." through "The
+bundle defines the identity record as `deletedIdentity`, over
+`resourceKind` and `resourceIdentity`."; and the owned-Link sentence "a
+deletion returns the Link's identity and no Link record, so `source` is
+the only member that names the source Bead whose revision
+`sourceRevision` reports." Bundle: `resourceKind`, `resourceIdentity`,
+`deletedIdentity`, and `mutationResultMembers.deleted` in both its
+`properties` and its `deleted`-outcome branch. Fixtures: every `deleted`
+outcome — `singletons.json` (`delete-bead`,
+`delete-link-owned-versions-the-source`), `sequence-positive.json`,
+`idempotency-recovery.json`, `sequence-idempotency-dispositions.json` —
+each carrying the revision the member guarded as the final live revision.
+Catalog rows `read-update.singleton.delete-bead` and
+`read-update.singleton.delete-link`. The wire test's result-shape check,
+its deleted-identity correspondence, its definition check, and the
+rejected shapes (a URL string, an identity without its revision, an
+identity beside a postimage, a postimage outcome carrying an identity).
+
 ---
 
 ## Observations recorded while drafting
@@ -1408,7 +1487,7 @@ provisionally as its recommendation, not a ruling.
 | Codex assessment: D13 boundaries | Folded as *Boundaries completed* on D13, including the owned-set `max` classification proposed as `validation-failed`. |
 | Gemini F3 — no executable manifest or runner for Read+Update | Not folded: expected and out of scope for a wire draft; the profile's implementation wave, manifest, and runner support begin only after the rulings, and no manifest may bind these rows before then. |
 | Gemini F4 — boundary verified, no Transactional leakage | No action: praise, and now also enforced for nested limits by Codex M7's fold. |
-| Cross-packet X2 (`retention.idempotency` is Read+Update-only on Transactional discovery) and X1 (deleted-identity shape) | Not folded: raised by the Transactional packet's council, not this one; both are recorded for a single ruling across packets and left unchanged here. |
+| Cross-packet X2 (`retention.idempotency` is Read+Update-only on Transactional discovery) and X1 (deleted-identity shape) | Not folded at the fold: raised by the Transactional packet's council, not this one; both were recorded for a single ruling across packets. X1 was ruled B on 2026-09-08 and is applied as D32 (D9 superseded); X2 remains pending. |
 | Claude H1 — a byte-identical retry of a disconnected sequence executes members out of order | Folded: D26 (keys claimed at admission in declaration order); spec under *Read+Update sequence target*, *Duplicate keys and retained dispositions*, *Durability and recovery*; row `read-update.idempotency.key-reservation`; concurrent-retry fixture condition rewritten. |
 | Claude H2 — disposition durability bound to commit; in-flight release on restart; one authority owns the namespace | Already folded as D22 from Codex H3; the replica sentence is D22's "every replica that accepts mutations consults one authoritative key state". |
 | Claude H3 — the bundle changed under the sealed Read cohort; the gate does not recompute the digest | Folded as D29: documented here and in STATUS.md as an operator decision (re-seal or add a recomputing gate rule); `evidence:generate` was not run and no Read evidence was touched. Ruled C on 2026-09-08; see the corrective below. |
@@ -1459,4 +1538,21 @@ typecheck, lint, format, boundary, and evidence gates were run and are
 reported with the fold. None of it is conformance evidence; `claimEligible`
 remains `false`, no manifest binds a Read+Update row, and the sealed Read
 cohort is untouched.
+
+### Cross-packet ruling X1 applied (RULED B, 2026-09-08)
+
+The operator ruled X1 as option B: the deleted identity is a record in
+both write profiles, `{ resourceKind, resource: { id, type, revision } }`,
+`revision` the final live revision — the one the Resource had when it was
+deleted, since deletion mints nothing. D9 is superseded and D32 records
+the member that carries the record. Adjusted in lockstep: the *Mutation
+results* sketch and prose, the bundle (`resourceKind`, `resourceIdentity`,
+`deletedIdentity`; `mutationResultMembers.deleted` in both branches), the
+five `deleted` outcomes across four fixtures, the two deletion rows, the
+wire test and the bundle's definition list, the Open-protocol-questions
+bundle entry, STATUS.md, the design index, and this packet. Nothing
+reachable from a Read definition changed: the projection check found
+every one of the 26 sealed definitions byte-identical to `0b7d86e7`. The
+Transactional packet applies the same ruling on its own branch; nothing
+here is a conformance claim.
 

@@ -213,7 +213,14 @@
             {
               "operationIndex": 0,
               "outcome": "deleted",
-              "deleted": "https://beads.example/acme/links/blocks-107"
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/acme/links/blocks-107",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-107-r1"
+                }
+              }
             }
           ]
         }
