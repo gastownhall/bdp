@@ -328,7 +328,12 @@ describe("Transactional wire fixtures", () => {
           const receipt = exchange.response.body;
           expectReceiptRepresentation(receipt, exchange, fixture.scope);
           const operations = requestOperations(exchange);
-          if (operations === undefined) continue;
+          if (
+            operations === undefined ||
+            receipt.status !== "completed" ||
+            receipt.detail !== "available"
+          )
+            continue;
           const entries = receiptEntries(fixture, exchange);
           expectEntriesCorrespond(
             entries,
@@ -1145,7 +1150,10 @@ function receiptEntries(
     ...((exchange.response.body.results as readonly JsonRecord[] | undefined) ?? []),
   ];
   let next = exchange.response.body.next;
+  const visited = new Set<string>();
   while (typeof next === "string") {
+    expect(visited.has(next), `${exchange.id}: repeated page URL`).toBe(false);
+    visited.add(next);
     expect(next.startsWith(fixture.scope), exchange.id).toBe(true);
     const target = next.slice(fixture.scope.length);
     const page = fixture.exchanges.find(
@@ -1153,7 +1161,8 @@ function receiptEntries(
         candidate.request.target === target &&
         candidate.response.schema === "#/$defs/mutationReceiptPage",
     );
-    if (page === undefined) break;
+    if (page === undefined) throw new Error(`${exchange.id}: missing receipt page ${target}`);
+    expect(page.response.body.receipt, exchange.id).toBe(exchange.response.body.id);
     entries.push(...(page.response.body.results as readonly JsonRecord[]));
     next = page.response.body.next;
   }
@@ -1266,6 +1275,30 @@ function expectEntriesCorrespond(
   priorResources: readonly JsonRecord[] = [],
   scope = SCOPE,
 ): void {
+  // This helper receives the whole page chain of a completed, available
+  // receipt. Check every requested operation, not just entries that survived.
+  for (const [index, operation] of operations.entries()) {
+    const results = entries.filter((entry) => entry.operationIndex === index);
+    const operationLabel = `${label}: operation ${index}`;
+    if ((operation.operation as string).endsWith("Where")) {
+      const matched = results.filter((entry) => entry.outcome === "matched");
+      expect(matched.length, operationLabel).toBe(1);
+      expect(results[0], operationLabel).toBe(matched[0]);
+      expect(results.length, operationLabel).toBe(1 + (matched[0]?.count as number));
+      const identities = results.slice(1).flatMap((entry) => {
+        // Withheld entries disclose no identity; count them, but do not
+        // invent a uniqueness oracle for undisclosed Resource identities.
+        if (entry.outcome === "withheld") return [];
+        const identity =
+          entry.resource ?? entry.erased ?? (entry.deleted as JsonRecord | undefined)?.resource;
+        return [(identity as JsonRecord).id];
+      });
+      expect(new Set(identities).size, operationLabel).toBe(identities.length);
+    } else {
+      expect(results.length, operationLabel).toBe(1);
+      expect(results[0]?.outcome, operationLabel).not.toBe("matched");
+    }
+  }
   let lastIndex = -1;
   for (const [position, entry] of entries.entries()) {
     const index = entry.operationIndex as number;
@@ -1288,6 +1321,20 @@ function expectEntriesCorrespond(
     if (entry.outcome === "withheld") continue;
     if (entry.outcome === "erased") {
       expect(kind, entryLabel).not.toMatch(/^delete/);
+      const identity = entry.erased as JsonRecord;
+      const isBead =
+        kind === "createBead" ||
+        kind === "updateBeadProperties" ||
+        (kind === "updateWhere" && operation.collection === "beads");
+      // Kind comes from the originating operation; ownership comes from
+      // this fixture domain's declared Type, never from a new wire member.
+      if (!isBead && identity.type === OWNED_LINK_TYPE) {
+        expect(typeof entry.source, entryLabel).toBe("string");
+        expect(typeof entry.sourceRevision, entryLabel).toBe("string");
+      } else {
+        expect(entry.source, entryLabel).toBeUndefined();
+        expect(entry.sourceRevision, entryLabel).toBeUndefined();
+      }
       continue;
     }
     if (kind.startsWith("delete")) {
@@ -1705,5 +1752,185 @@ describe("Transactional correction regression probes", () => {
     }));
     group.eventCount = 4;
     expect(() => expectChangeGroup(group, "intermediate attribution")).not.toThrow();
+  });
+
+  it("rejects missing or duplicate singleton outcomes across the complete receipt page chain", () => {
+    for (const fixtureId of ["transactional-batch", "transactional-receipt-pagination"]) {
+      const fixture = fixtures.find(
+        (candidate) => candidate.id === fixtureId,
+      ) as TransactionalFixture;
+      const exchange = fixture.exchanges.find(
+        (candidate) =>
+          candidate.id === "batch-2-original" || candidate.id === "pagination-batch-original",
+      ) as FixtureExchange;
+      const entries = receiptEntries(fixture, exchange);
+      const operations = requestOperations(exchange) as readonly JsonRecord[];
+      expect(() =>
+        expectEntriesCorrespond(entries, operations, "complete batch", [], fixture.scope),
+      ).not.toThrow();
+      const deletedBead = entries.find((entry) => entry.operationIndex === 1) as JsonRecord;
+      for (const corrupt of [
+        entries.filter((entry) => entry.operationIndex !== 1),
+        [
+          ...entries.filter((entry) => (entry.operationIndex as number) < 2),
+          deletedBead,
+          ...entries.filter((entry) => entry.operationIndex === 2),
+        ],
+      ]) {
+        for (const entry of corrupt)
+          expectValid("#/$defs/receiptResult", entry, "shape-valid incomplete receipt");
+        expect(() =>
+          expectEntriesCorrespond(
+            corrupt,
+            operations,
+            "missing or duplicate outcome",
+            [],
+            fixture.scope,
+          ),
+        ).toThrow();
+      }
+    }
+    const fixture = fixtures.find((candidate) =>
+      candidate.exchanges.some(
+        (exchange) => exchange.id === "no-op-preserves-existing-attribution",
+      ),
+    ) as TransactionalFixture;
+    const exchange = fixture.exchanges.find(
+      (candidate) => candidate.id === "no-op-preserves-existing-attribution",
+    ) as FixtureExchange;
+    expect(() =>
+      expectEntriesCorrespond(
+        [],
+        requestOperations(exchange) as readonly JsonRecord[],
+        "missing no-op result",
+        exchange.priorResources,
+      ),
+    ).toThrow();
+  });
+
+  it("rejects a missing or duplicate set matched entry and duplicate Resource outcomes", () => {
+    const fixture = fixtures.find(
+      (candidate) => candidate.id === "transactional-receipt-pagination",
+    ) as TransactionalFixture;
+    const exchange = fixture.exchanges.find(
+      (candidate) => candidate.id === "pagination-batch-original",
+    ) as FixtureExchange;
+    const entries = receiptEntries(fixture, exchange);
+    const operations = requestOperations(exchange) as readonly JsonRecord[];
+    const matched = entries[0] as JsonRecord;
+    const firstDeleted = entries[1] as JsonRecord;
+    const tail = entries.filter((entry) => entry.operationIndex !== 0);
+    for (const corrupt of [
+      entries.slice(1),
+      [{ ...matched, count: 3 }, matched, ...entries.slice(1)],
+      [matched, firstDeleted, firstDeleted, ...tail],
+      [{ ...matched, count: 3 }, firstDeleted, firstDeleted, entries[2] as JsonRecord, ...tail],
+      entries.filter((_, index) => index !== 2),
+    ]) {
+      for (const entry of corrupt)
+        expectValid("#/$defs/receiptResult", entry, "shape-valid set mismatch");
+      expect(() =>
+        expectEntriesCorrespond(corrupt, operations, "bad set result", [], fixture.scope),
+      ).toThrow();
+    }
+    const zeroMatch = [{ operationIndex: 0, outcome: "matched", count: 0 }];
+    expect(() =>
+      expectEntriesCorrespond(
+        zeroMatch,
+        [operations[0] as JsonRecord],
+        "valid zero match",
+        [],
+        fixture.scope,
+      ),
+    ).not.toThrow();
+  });
+
+  it("uses the original request to check erased identity ownership context", () => {
+    const original = fixtures
+      .find((fixture) => fixture.id === "transactional-batch")
+      ?.exchanges.find((exchange) => exchange.id === "batch-1-original") as FixtureExchange;
+    const projected = fixtures
+      .find((fixture) => fixture.id === "transactional-receipts")
+      ?.exchanges.find((exchange) => exchange.id === "receipt-7-after-erasure") as FixtureExchange;
+    const operations = requestOperations(original) as readonly JsonRecord[];
+    const entries = projected.response.body.results as readonly JsonRecord[];
+    expect(() =>
+      expectEntriesCorrespond(entries, operations, "retained erasure projection"),
+    ).not.toThrow();
+    const corrupt = structuredClone(entries) as JsonRecord[];
+    const erasedBead = corrupt.find((entry) => entry.outcome === "erased") as JsonRecord;
+    erasedBead.source = `${SCOPE}beads/dec-9`;
+    erasedBead.sourceRevision = "dec-9-r2";
+    // The bare lineage shape deliberately has no Resource kind; the
+    // contextual check supplies information unavailable to this schema.
+    expectValid("#/$defs/receiptResult", erasedBead, "structurally valid, wrong context");
+    expect(() => expectEntriesCorrespond(corrupt, operations, "erased Bead with source")).toThrow();
+    const erasedOwned = structuredClone(entries) as JsonRecord[];
+    const linkEntry = erasedOwned[1] as JsonRecord;
+    const link = linkEntry.resource as JsonRecord;
+    linkEntry.outcome = "erased";
+    linkEntry.erased = { id: link.id, type: link.type, revision: link.revision };
+    delete linkEntry.resource;
+    expectValid("#/$defs/receiptResult", linkEntry, "erased owned Link");
+    expect(() =>
+      expectEntriesCorrespond(erasedOwned, operations, "erased owned Link"),
+    ).not.toThrow();
+    delete linkEntry.source;
+    delete linkEntry.sourceRevision;
+    expectValid("#/$defs/receiptResult", linkEntry, "missing contextual owned-source pair");
+    expect(() =>
+      expectEntriesCorrespond(erasedOwned, operations, "erased owned Link missing source"),
+    ).toThrow();
+  });
+
+  it("records a forgotten-key execution's own current fence instead of the original failed receipt's", () => {
+    const original = fixtures
+      .find((fixture) => fixture.id === "transactional-batch")
+      ?.exchanges.find(
+        (exchange) => exchange.id === "batch-1-new-key-fails-whole",
+      ) as FixtureExchange;
+    const fresh = fixtures
+      .find((fixture) => fixture.id === "transactional-receipts")
+      ?.exchanges.find(
+        (exchange) => exchange.id === "forgotten-key-executes-as-new",
+      ) as FixtureExchange;
+    // The condition names this fresh execution's observed head and states
+    // no intervening commit before delivery. Tokens are opaque, not sortable.
+    const check = (candidate: FixtureExchange): void => {
+      expect(candidate.request, "same request after forgetting").toEqual(original.request);
+      expect(candidate.response.body.status).toBe("failed");
+      expect(candidate.response.body.id).not.toBe(original.response.body.id);
+      expect(candidate.response.body.transaction).not.toBe(original.response.body.transaction);
+      expect(candidate.response.body.effectPosition).toBeUndefined();
+      expect(candidate.response.body.requiredPosition).toBe("pos-48");
+      expect(candidate.response.headers["bdp-scope-position"]).toBe("pos-48");
+    };
+    expect(original.response.body.requiredPosition).toBe("pos-43");
+    expect(() => check(fresh)).not.toThrow();
+    const corrupt = structuredClone(fresh);
+    corrupt.response.body.requiredPosition = original.response.body.requiredPosition;
+    expectValid("#/$defs/mutationReceipt", corrupt.response.body, "old fence in new receipt");
+    expect(() => check(corrupt)).toThrow();
+  });
+
+  it("rejects an incomplete or cyclic receipt page chain", () => {
+    const fixture = fixtures.find(
+      (candidate) => candidate.id === "transactional-receipt-pagination",
+    ) as TransactionalFixture;
+    for (const next of [
+      `${fixture.scope}receipts/missing-page`,
+      `${fixture.scope}receipts/rcpt-9?page=2`,
+    ]) {
+      const corrupt = structuredClone(fixture);
+      const page = corrupt.exchanges.find(
+        (exchange) => exchange.response.schema === "#/$defs/mutationReceiptPage",
+      ) as FixtureExchange;
+      page.response.body.next = next;
+      expectValid("#/$defs/mutationReceiptPage", page.response.body, "shape-valid broken chain");
+      const receipt = corrupt.exchanges.find(
+        (exchange) => exchange.id === "pagination-batch-original",
+      ) as FixtureExchange;
+      expect(() => receiptEntries(corrupt, receipt)).toThrow();
+    }
   });
 });

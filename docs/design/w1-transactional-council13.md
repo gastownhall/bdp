@@ -178,3 +178,36 @@ unchanged. Existing Read evidence verification still reports 74 target-row
 instances at constant 5141c855420f6c7c032e513e5d072cd446275587. Those historical
 Read observations establish no Transactional runtime result. The resulting
 commit still needs independent council review; this record claims no clearance.
+
+
+## Frozen-head final review: Codex and Gemini adjudication
+
+Both reviews targeted `245c03e6f7730dd0780a35b336fb844a8c37ed06` against main.
+Codex reported **0 Critical, 0 High, 0 Medium, 2 Low** new findings. Gemini
+reported **0 Critical, 1 High, 1 Medium, 1 Low**; direct frozen-tree and staged
+snapshot verification rejects its High and Low claims and retains its Medium
+as the already documented contextual schema limitation. These dispositions do
+not stand in for Claude's pending result or a council on a later correction
+head. Preparation of the changes below used a separate detached worktree so
+the reviewed head remained frozen.
+
+| Finding | Verified disposition |
+| --- | --- |
+| Codex Low 1: receipt checks accept missing operation outcomes | Reproduced with failing corruption probes against the original helper. The complete page chain of a completed, available receipt must now account for every requested operation: exactly one singleton outcome, or exactly one leading matched entry plus its counted set outcomes. Disclosed set Resource identities are unique within the operation; withheld identities are not invented. Missing and cyclic pages are rejected. Probes remove a singleton/no-op result, remove or duplicate matched entries, remove or duplicate set Resource outcomes, and corrupt page continuations; a zero-match set remains valid. Pending, failed, expired and wholly withheld receipts do not pretend to carry a complete result list. |
+| Codex Low 2: a fresh failed execution reuses the discarded receipt's fence | The rcpt-11 condition now explicitly places fresh execution at current head pos-48, after the earlier erasures and receipt forgetting, with no intervening commit before response. Its requiredPosition is pos-48; the old rcpt-8 remains at its original pos-43. The regression checks the fresh execution against that independent narrated observation and rejects a shape-valid copy of the original fence. No comparison or ordering of opaque token spellings is inferred. |
+| Gemini High 1: missing aliases, expanded limits, binding code and diagnostic guards | Rejected. In the reviewed schema, alias targets are required at lines 3021–3022 and defined at 3047–3051; the expanded limits definition starts at 4292, includes validation at 4370 and transaction at 4382, and closes at 4422; binding-unavailable appears at 3640; diagnostic guards appear at 3718–3719, 3743–3744 and 3879–3880. Reconstructing the 4595-line staged schema after line-prefix removal and at-sign decoding produces byte-for-byte git-show output for the frozen head; both mirrors match. The snapshot was current. |
+| Gemini Medium 2: erased Bead can structurally carry owned-source fields | The structural latitude is real and belongs to the existing contextual-validation boundary, not a missing wire discriminator. Normative schema bundle leaves Resource kind/ownership/result correspondence to contextual checks; Mutation Receipt responses restrict the pair to owned-Link operations. Provisional T50 deliberately retains the bare lineage marker. Added a contextual probe pairing the actual retained erasure receipt with its original batch request: a schema-valid erased Bead with source fields fails, while an erased owned Link requires its pair. No wire member or schema prohibition was invented. |
+| Gemini Low 3: stray period before semicolon | Rejected. Frozen specification line 4749 already says council 12); the two set, without a period. The reconstructed staged specification matches the frozen file byte-for-byte, and neither contains the alleged punctuation. |
+
+The schema and normative prose are unchanged by this fold. The corpus remains
+11 files, 63 parsed Transactional exchange bodies, four group examples and
+eight vectors; 138 definitions and the 26 Read/83 inherited definition slices
+are unaffected. T49/T62/T63/T64 remain OPEN and T50–T61 remain provisional.
+No runtime, conformance, readiness or merge clearance is claimed.
+
+The low-finding correction passed 135 focused tests and all 1,551 tests in
+48 files under Node 24.16.0 (34.76 seconds), including packaged executable
+checks after a fresh build. Typecheck, full lint and format, and whitespace
+checks pass. Strict Ajv compiles 138 definitions and validates all 256 bodies
+with no failure. No schema or catalog bytes changed from the preceding
+verified correction. The final committed correction still needs review.

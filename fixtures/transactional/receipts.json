@@ -418,7 +418,7 @@
     },
     {
       "id": "forgotten-key-executes-as-new",
-      "condition": "The forgotten failed receipt's key is unknown, so this presentation executes as a new mutation under a new transaction identity and a new receipt URL — and fails the same way, since dec-9 is still committed. Nothing was replayed.",
+      "condition": "The forgotten failed receipt's key is unknown, so this presentation executes as a new mutation under a new transaction identity and a new receipt URL — and fails the same way, since dec-9 is still committed. Nothing was replayed. The earlier failed execution occurred at pos-43. This fresh execution occurs with current head pos-48, after the later erasure groups and after the failed receipt was forgotten; no other transaction commits before this response is served. Its requiredPosition is therefore pos-48, the new execution's fence, not the discarded receipt's pos-43. These are opaque tokens whose ordering is supplied by this narrated history, not by their spelling.",
       "request": {
         "method": "POST",
         "target": "operations/batch",
@@ -491,7 +491,7 @@
           "scopeEpoch": "epoch-1",
           "authorizationView": "view-a",
           "transaction": "txn-0a1f",
-          "requiredPosition": "pos-43",
+          "requiredPosition": "pos-48",
           "problem": {
             "type": "https://github.com/gastownhall/bdp/problems/conflict",
             "title": "Supplied identity was previously committed",

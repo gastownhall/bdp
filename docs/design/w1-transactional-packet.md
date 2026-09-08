@@ -7500,3 +7500,16 @@ decoded member names. This is a recorded downstream obligation, not a new row,
 new catalog ruling, or an inferred change to the sealed Read catalog. T56's
 ratification and integration must settle its lower-profile catalog coverage;
 the all-profile normative law is not narrowed to hide the gap.
+
+
+**T50 contextual validation note (2026-09-08, final council 13 review).**
+The provisionally selected bare `erased` lineage marker contains no Resource
+kind. A standalone schema therefore cannot infer whether its `source` and
+`sourceRevision` pair is applicable. The existing receipt law still permits
+that pair only for an operation on an owned Link, and the normative schema
+boundary already leaves Resource kind and ownership contextual. A fixture
+probe now checks the actual retained erasure response against its originating
+batch and the reference domain's ownership declaration, rejecting the pair
+for an erased Bead and requiring it for an erased owned Link. This does not
+add a discriminator, alter the erasure shape, or ratify T50. Future receipt
+realization must enforce the same context.
