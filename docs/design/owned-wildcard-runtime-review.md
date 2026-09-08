@@ -40,3 +40,29 @@ unclaimed; the HTTP tests here are not executable catalog plans.
 
 Council review pending on the resulting commit. Existing #22 remains a
 separate specification draft; this branch prepares follow-on implementation.
+
+
+## First council and client correction
+
+At b02d2410f721a2a65245410d1e5703bcd85e9b45, the native Codex seat
+reported 0 Critical, 0 High, 1 Medium and 0 Low. Gemini returned no findings.
+Claude's review is still in progress against that frozen head; the driver
+prepared this correction in a separate worktree. No full-panel clearance
+is claimed here.
+
+The Medium is a confirmed client failure boundary defect: a schema-valid
+explicit ownership maximum above the wildcard maximum threw plain Error,
+which the client intentionally does not translate into a protocol problem.
+The parser now throws ProtocolArtifactValidationError like its other
+validation checks. A client test receiving this descriptor failed before
+the fix with the raw rejection; after the fix it receives the normal
+temporarily-unavailable invalid-response problem. A subsequent valid
+descriptor succeeds through the same client. No client catch-all was added.
+
+The correction passed 273 client/parser/HTTP tests, typecheck, repository lint,
+format, build and all 1,292 tests in 47 files under Node 24.16.0 (35.19 seconds).
+An extra Biome check invocation also requested organizing pre-existing imports;
+that assist is outside the repository's lint/format gates and was not applied.
+The new test's formatting was corrected before the passing format gate.
+Schema and evidence bytes remain unchanged. This commit requires independent
+review; final results will be recorded by the driver at the reviewed head.

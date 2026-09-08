@@ -1212,6 +1212,35 @@ describe("BdpClient", () => {
     );
   });
 
+  it("returns a structured failure for an explicit ownership bound above the wildcard", async () => {
+    const id = `${SCOPE}descriptors/task`;
+    const transport = new RecordingTransport({
+      ...validTypeDescriptor(id),
+      ownsOutgoing: {
+        "*": { max: 1 },
+        [`${SCOPE}types/cites`]: { max: 2 },
+      },
+    });
+    const client = new BdpClient({ scope: SCOPE, transport });
+
+    await expect(client.perform({ kind: "resource", resource: "type", id })).resolves.toMatchObject(
+      {
+        code: "temporarily-unavailable",
+        detail: "the server returned a structurally invalid Read response",
+      },
+    );
+    transport.result = {
+      ...validTypeDescriptor(id),
+      ownsOutgoing: {
+        "*": { max: 2 },
+        [`${SCOPE}types/cites`]: { max: 2 },
+      },
+    };
+    await expect(client.perform({ kind: "resource", resource: "type", id })).resolves.toEqual(
+      transport.result,
+    );
+  });
+
   it("keeps a Problem-shaped successful properties object as properties", async () => {
     const properties = {
       type: "https://github.com/gastownhall/bdp/problems/gone",

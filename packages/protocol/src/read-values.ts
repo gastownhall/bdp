@@ -69,7 +69,7 @@ export function parseTypeDescriptor(value: unknown, path = "Type Descriptor"): T
       if (key === "*") continue;
       parseResourceTypeId(key, `${path}.ownsOutgoing key`);
       if (owned["*"] !== undefined && declaration.max > owned["*"].max)
-        throw new Error(
+        throw new ProtocolArtifactValidationError(
           `${path}.ownsOutgoing[${JSON.stringify(key)}].max exceeds the wildcard max`,
         );
     }
