@@ -31,7 +31,7 @@ waves are internal sequencing labels, not protocol concepts.
   recommendation, and the specification sentence that depends on it — and
   the findings of review councils 9 and 12 folded into them. D1–D32 are
   ruled or ratified (2026-09-08; D29 ruled C, cross-packet X1 ruled B, and
-  D31 ruled B, all applied); D33–D37, D39, and D40 ruled or ratified 2026-09-08; D38 is the only open decision, applied provisionally as option (b).
+  D31 ruled B, all applied); D33–D40 ruled or ratified 2026-09-08; no decision is open.
 - [W1 Transactional packet](./w1-transactional-packet.md) records, for the
   Transactional profile, the normative text, schema definitions, fixtures,
   and unclaimed conformance rows the draft lacked — the owned-Link delta,

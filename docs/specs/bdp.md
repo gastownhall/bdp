@@ -5691,7 +5691,7 @@ protocol-identifier prefix, with the release-stability rule stated above.
    `alias-path-taken` (D39), alias operations are authorized as mutations
    of the Beads they touch (D40), the admission claim step is one
    linearizable step (D26 clarified), and the D35 and D36 boundaries are
-   restated; what remains is the ruling of D38, after which the
+   restated; every decision is ruled (D38 last, 2026-09-08), so the
    Read+Update implementation wave may begin.
 3. **Resolved 2026-08-08:** the required machine-discovery mechanism is the
    Scope response's registered `service-desc` Link field. A `200` Scope body
