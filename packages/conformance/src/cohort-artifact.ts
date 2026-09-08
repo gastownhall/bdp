@@ -85,10 +85,11 @@ export interface ReadCohortBindings {
    */
   readonly schema: string;
   /**
-   * D29 = C: SHA-256 of the Read-reachable projection of that bundle — the
-   * `$defs` reachable by `$ref` from the Read envelope roots, under RFC 8785.
-   * This is the binding the verifier recomputes from the committed bundle;
-   * drift here means a Read-facing definition changed and a re-seal is due.
+   * D29 = C, projection rule RP1: SHA-256 of the Read schema projection of
+   * that bundle — the sealed definition set, by name, in sealed order, as the
+   * RFC 8785 text of its `[name, definition]` pairs. This is the binding the
+   * verifier recomputes from the committed bundle; drift here means the text
+   * of a sealed definition changed and a re-seal is due.
    */
   readonly schemaReadProjection: string;
   readonly validator: string;

@@ -25,10 +25,11 @@ waves are internal sequencing labels, not protocol concepts.
   and the testable contract-suite and Wave 2 freeze evidence milestones the
   eventual port must meet.
 - [Read schema projection gate](./read-projection-gate.md) records the
-  2026-09-08 ruling (D29 = C) that the sealed Read cohort binds the digest
-  of the Read-reachable projection of the schema bundle, the projection
-  rule and derived roots, the re-seal trigger, and the one-time
-  binding-format migration of the sealed artifact.
+  2026-09-08 rulings that the sealed Read cohort binds the digest of a
+  projection of the schema bundle (D29 = C) and that the projection is the
+  sealed definition set by name, not the Read-reachable closure (RP1); the
+  projection rule, the derived roots as coverage check, the re-seal trigger,
+  and the binding-format migrations of the sealed artifact.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

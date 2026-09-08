@@ -13,6 +13,7 @@ import {
   type ExecutableScenarioManifest,
   loadExecutableScenarioManifestJson,
   projectReadSchemaBundle,
+  READ_SCHEMA_SEALED_DEFINITIONS,
   ReadSchemaProjectionError,
   serializeReadCohortArtifact,
 } from "./index.js";
@@ -21,6 +22,15 @@ const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const SCHEMA = "https://json-schema.org/draft/2020-12/schema";
 const ID = "https://schemas.example/test-bundle.json";
 const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+/**
+ * RP1: the digest of the committed bundle's sealed definition set — the value
+ * every sealed segment binds as `schemaReadProjection`. It moves only when the
+ * text of one of the 26 sealed definitions, or the sealed list itself, changes;
+ * a failure here is the re-seal trigger, seen before the gate sees it.
+ */
+const COMMITTED_READ_SCHEMA_PROJECTION =
+  "801728f8de54fb27367123e4dc7db865401596ad936e3f52b0b7e29e1808f14e";
 
 type Json = Record<string, unknown>;
 
@@ -78,11 +88,37 @@ function bundle(): Json {
       m: { type: "string" },
       n: { type: "string" },
       o: { type: "string" },
-      laterProfileOnly: { type: "object", properties: { seq: { $ref: "#/$defs/a" } } },
+      // Sealed, but nothing in Read references it: the `protocolProfile` shape.
       unreachable: { type: "string" },
+      // Added to the bundle after the seal, by a later profile; reaches a sealed definition.
+      laterProfileOnly: { type: "object", properties: { seq: { $ref: "#/$defs/a" } } },
     },
   };
 }
+
+/**
+ * The synthetic seal, in the bundle's declaration order: everything Read
+ * reaches plus `unreachable`, and not `laterProfileOnly`.
+ */
+const SEALED = [
+  "envelope",
+  "a",
+  "b",
+  "c",
+  "d",
+  "e",
+  "f",
+  "g",
+  "h",
+  "i",
+  "j",
+  "k",
+  "l",
+  "m",
+  "n",
+  "o",
+  "unreachable",
+];
 
 const REACHABLE = [
   "a",
@@ -107,8 +143,12 @@ function defs(value: Json): Json {
   return value.$defs as Json;
 }
 
-function digestOf(value: Json, roots: readonly string[] = ["envelope"]): string {
-  return projectReadSchemaBundle(value, roots).digest;
+function digestOf(
+  value: Json,
+  roots: readonly string[] = ["envelope"],
+  sealed: readonly string[] = SEALED,
+): string {
+  return projectReadSchemaBundle(value, roots, sealed).digest;
 }
 
 /** Rebuild a value with every object's members in reverse order. */
@@ -171,44 +211,78 @@ function manifestWith(schemaRefs: {
   } as unknown as ExecutableScenarioManifest;
 }
 
+function committedBundle(): Json {
+  return JSON.parse(
+    readFileSync(path.join(workspaceRoot, "schemas", "bdp-v0.schema.json"), "utf8"),
+  ) as Json;
+}
+
+function committedRoots(): readonly string[] {
+  const manifestPath = "packages/conformance/matrices/read-v1.json";
+  const manifest = loadExecutableScenarioManifestJson(
+    readFileSync(path.join(workspaceRoot, manifestPath), "utf8"),
+    manifestPath,
+  );
+  return deriveReadSchemaProjectionRoots(manifest);
+}
+
 describe("Read schema projection", () => {
-  it("reaches definitions through every applicator and ignores instance data", () => {
-    const projection = projectReadSchemaBundle(bundle(), ["envelope"]);
+  it("digests the sealed definitions by name, in sealed order, and nothing else", () => {
+    const projection = projectReadSchemaBundle(bundle(), ["envelope"], SEALED);
+    expect(projection.definitions).toEqual(SEALED);
     expect(projection.roots).toEqual(["envelope"]);
-    expect(projection.definitions).toEqual(REACHABLE);
+    // The coverage walk reaches through every applicator and treats instance
+    // data as opaque: the `$ref`-shaped values under `examples`, `default`,
+    // `const`, and `enum` would otherwise be dangling references.
+    expect(projection.reachable).toEqual(REACHABLE);
     expect(projection.digest).toMatch(SHA256_HEX);
     expect(projection.digest).toBe(createHash("sha256").update(projection.bytes).digest("hex"));
-    // The sub-bundle carries the headers and exactly the reachable definitions.
-    const projected = JSON.parse(new TextDecoder().decode(projection.bytes)) as Json;
-    expect(Object.keys(projected).sort()).toEqual(["$defs", "$id", "$schema"]);
-    expect(projected.$id).toBe(ID);
-    expect(projected.$schema).toBe(SCHEMA);
-    expect(Object.keys(defs(projected)).sort()).toEqual(REACHABLE);
+    // The bytes are the `[name, definition]` pairs in sealed order — no bundle
+    // header, no metadata, no unsealed definition.
+    const projected = JSON.parse(new TextDecoder().decode(projection.bytes)) as [string, Json][];
+    expect(Array.isArray(projected)).toBe(true);
+    expect(projected.map(([name]) => name)).toEqual(SEALED);
+    expect(projected[0]?.[1]).toEqual(defs(bundle()).envelope);
+    expect(projected.at(-1)?.[1]).toEqual({ type: "string" });
   });
 
-  it("leaves the digest unchanged for definitions only a later profile reaches, bundle prose, and member order", () => {
+  it("leaves the digest unchanged by anything outside the sealed definitions' text", () => {
     const baseline = digestOf(bundle());
 
+    // Top-level bundle metadata is outside the digest, whatever it is called.
+    const metadata = bundle();
+    metadata.$schema = "https://json-schema.org/draft/2019-09/schema";
+    metadata.$id = "https://schemas.example/other-bundle.json";
+    metadata.title = "renamed bundle";
+    metadata.description = "rewritten prose";
+    metadata["x-vendor"] = { note: "added after the seal" };
+    expect(digestOf(metadata)).toBe(baseline);
+    const headerless = bundle();
+    delete headerless.$schema;
+    delete headerless.$id;
+    delete headerless.title;
+    delete headerless.description;
+    expect(digestOf(headerless)).toBe(baseline);
+
+    // Definitions the seal does not name: added, changed, or reaching sealed ones.
     const laterProfile = bundle();
     defs(laterProfile).readUpdateSequence = {
       type: "object",
       properties: { operations: { type: "array", items: { $ref: "#/$defs/envelope" } } },
     };
+    ((defs(laterProfile).laterProfileOnly as Json).properties as Json).added = { type: "string" };
     expect(digestOf(laterProfile)).toBe(baseline);
 
-    const prose = bundle();
-    prose.title = "renamed bundle";
-    prose.description = "rewritten prose";
-    expect(digestOf(prose)).toBe(baseline);
-
+    // Member order and definition order.
     expect(digestOf(reversedMembers(bundle()) as Json)).toBe(baseline);
 
-    const unreachableChanged = bundle();
-    (defs(unreachableChanged).unreachable as Json).type = "integer";
-    expect(digestOf(unreachableChanged)).toBe(baseline);
+    // Reachability: a sealed definition that becomes a Read root — newly
+    // reachable — changes nothing, and neither does a root that stops being one.
+    expect(digestOf(bundle(), ["envelope", "unreachable"])).toBe(baseline);
+    expect(digestOf(bundle(), ["a", "envelope"])).toBe(baseline);
   });
 
-  it("moves the digest when a reachable definition changes or a definition becomes reachable", () => {
+  it("moves the digest when any sealed definition's text changes, reachable or not, or the sealed list changes", () => {
     const baseline = digestOf(bundle());
 
     const leafChanged = bundle();
@@ -219,55 +293,85 @@ describe("Read schema projection", () => {
     ((defs(rootChanged).envelope as Json).properties as Json).added = { type: "string" };
     expect(digestOf(rootChanged)).not.toBe(baseline);
 
-    const newlyReachable = bundle();
-    ((defs(newlyReachable).envelope as Json).properties as Json).viaNew = {
-      $ref: "#/$defs/unreachable",
-    };
-    expect(digestOf(newlyReachable)).not.toBe(baseline);
+    // The finding behind RP1: sealed, referenced by nothing in Read, and still
+    // inside the digest.
+    const unreachableChanged = bundle();
+    (defs(unreachableChanged).unreachable as Json).type = "integer";
+    expect(digestOf(unreachableChanged)).not.toBe(baseline);
 
-    expect(digestOf(bundle(), ["envelope", "unreachable"])).not.toBe(baseline);
+    const proseChanged = bundle();
+    (defs(proseChanged).a as Json).description = "a definition's own prose is inside it";
+    expect(digestOf(proseChanged)).not.toBe(baseline);
 
-    const headerChanged = bundle();
-    headerChanged.$id = "https://schemas.example/other-bundle.json";
-    expect(digestOf(headerChanged)).not.toBe(baseline);
+    // The list is part of the seal: a name dropped or the order changed moves it.
+    expect(digestOf(bundle(), ["envelope"], SEALED.slice(0, -1))).not.toBe(baseline);
+    expect(digestOf(bundle(), ["envelope"], [...SEALED].reverse())).not.toBe(baseline);
   });
 
-  it("fails closed on references it cannot follow, missing roots, and empty roots", () => {
+  it("fails closed: a sealed name the bundle lacks, a Read reach outside the seal, references it cannot follow, and empty sets", () => {
+    const missing = bundle();
+    delete defs(missing).unreachable;
+    expect(() => projectReadSchemaBundle(missing, ["envelope"], SEALED)).toThrow(
+      /sealed definition 'unreachable' is missing from the bundle/,
+    );
+
+    // The seal must cover the Read surface: a root outside it, or a sealed
+    // definition referencing outside it, is an error rather than a digest that
+    // silently ignores the definition.
+    expect(() =>
+      projectReadSchemaBundle(bundle(), ["envelope", "laterProfileOnly"], SEALED),
+    ).toThrow(
+      /Read reaches \$defs\/laterProfileOnly \(a Read envelope root\), which the sealed definition set does not include/,
+    );
+    const widened = bundle();
+    ((defs(widened).envelope as Json).properties as Json).viaNew = {
+      $ref: "#/$defs/laterProfileOnly",
+    };
+    expect(() => projectReadSchemaBundle(widened, ["envelope"], SEALED)).toThrow(
+      /Read reaches \$defs\/laterProfileOnly \(referenced from \$defs\/envelope\), which the sealed definition set does not include/,
+    );
+
     const dangling = bundle();
     (defs(dangling).a as Json).$ref = "#/$defs/missing";
-    expect(() => projectReadSchemaBundle(dangling, ["envelope"])).toThrow(
+    expect(() => projectReadSchemaBundle(dangling, ["envelope"], SEALED)).toThrow(
       /references '#\/\$defs\/missing', which the bundle does not define/,
     );
 
     const nonLocal = bundle();
     (defs(nonLocal).a as Json).$ref = "https://elsewhere.example/schema.json#/$defs/a";
-    expect(() => projectReadSchemaBundle(nonLocal, ["envelope"])).toThrow(
+    expect(() => projectReadSchemaBundle(nonLocal, ["envelope"], SEALED)).toThrow(
       /not a bundle-local '#\/\$defs\/<name>' reference/,
     );
 
     const anchored = bundle();
     (defs(anchored).a as Json).$ref = "#anchor";
-    expect(() => projectReadSchemaBundle(anchored, ["envelope"])).toThrow(
+    expect(() => projectReadSchemaBundle(anchored, ["envelope"], SEALED)).toThrow(
       ReadSchemaProjectionError,
     );
 
     const dynamic = bundle();
     (defs(dynamic).a as Json).$dynamicRef = "#meta";
-    expect(() => projectReadSchemaBundle(dynamic, ["envelope"])).toThrow(
+    expect(() => projectReadSchemaBundle(dynamic, ["envelope"], SEALED)).toThrow(
       /\$dynamicRef is a reference form the Read projection does not follow/,
     );
 
-    expect(() => projectReadSchemaBundle(bundle(), ["envelope", "absent"])).toThrow(
+    expect(() => projectReadSchemaBundle(bundle(), ["envelope", "absent"], SEALED)).toThrow(
       /root 'absent' is not a definition of the bundle/,
     );
-    expect(() => projectReadSchemaBundle(bundle(), [])).toThrow(/at least one envelope root/);
-
-    const headerless = bundle();
-    delete headerless.$id;
-    expect(() => projectReadSchemaBundle(headerless, ["envelope"])).toThrow(
-      /schema bundle \$id must be a non-empty string/,
+    expect(() => projectReadSchemaBundle(bundle(), [], SEALED)).toThrow(
+      /at least one envelope root/,
     );
-    expect(() => projectReadSchemaBundle("not a bundle", ["envelope"])).toThrow(
+    expect(() => projectReadSchemaBundle(bundle(), ["envelope"], [])).toThrow(
+      /sealed definition set is empty/,
+    );
+    expect(() => projectReadSchemaBundle(bundle(), ["envelope"], [...SEALED, "a"])).toThrow(
+      /sealed definition 'a' is listed more than once/,
+    );
+
+    expect(() => projectReadSchemaBundle({ $defs: [] }, ["envelope"], SEALED)).toThrow(
+      /schema bundle \$defs must be a record/,
+    );
+    expect(() => projectReadSchemaBundle("not a bundle", ["envelope"], SEALED)).toThrow(
       /schema bundle must be a record/,
     );
   });
@@ -300,16 +404,9 @@ describe("Read schema projection", () => {
     );
   });
 
-  it("projects the committed bundle from the committed manifest's derived roots", () => {
-    const manifestPath = "packages/conformance/matrices/read-v1.json";
-    const manifest = loadExecutableScenarioManifestJson(
-      readFileSync(path.join(workspaceRoot, manifestPath), "utf8"),
-      manifestPath,
-    );
-    const committed = JSON.parse(
-      readFileSync(path.join(workspaceRoot, "schemas", "bdp-v0.schema.json"), "utf8"),
-    ) as Json;
-    const roots = deriveReadSchemaProjectionRoots(manifest);
+  it("projects the committed bundle: the 26 sealed definitions, the derived roots, and the pinned digest", () => {
+    const committed = committedBundle();
+    const roots = committedRoots();
     expect(roots).toEqual([
       "beadCollection",
       "beadRecord",
@@ -323,16 +420,56 @@ describe("Read schema projection", () => {
       "typesInventory",
     ]);
 
-    const projection = projectReadSchemaBundle(committed, roots);
-    expect(projection.digest).toMatch(SHA256_HEX);
-    expect(projection.definitions).toEqual(expect.arrayContaining([...roots]));
-    // Nothing in Read references the profile token enum: discovery pins the
-    // constant `read`. It is the one definition outside the projection, and a
-    // later profile adding a token there does not force a Read re-seal.
-    const outside = Object.keys(defs(committed)).filter(
-      (name) => !projection.definitions.includes(name),
+    // The sealed list: 26 distinct names, every one a definition of the
+    // committed bundle, digested in this order.
+    expect(READ_SCHEMA_SEALED_DEFINITIONS).toHaveLength(26);
+    expect(new Set(READ_SCHEMA_SEALED_DEFINITIONS).size).toBe(26);
+    expect(Object.keys(defs(committed))).toEqual(
+      expect.arrayContaining([...READ_SCHEMA_SEALED_DEFINITIONS]),
     );
-    expect(outside).toEqual(["protocolProfile"]);
+
+    const projection = projectReadSchemaBundle(committed, roots);
+    expect(projection.definitions).toEqual(READ_SCHEMA_SEALED_DEFINITIONS);
+    expect(projection.digest).toBe(COMMITTED_READ_SCHEMA_PROJECTION);
+
+    // The finding behind RP1: Read reaches 25 of the 26 sealed definitions.
+    // Nothing references the profile token enum — discovery pins the constant
+    // `read` — yet it is sealed, so a token added there moves the digest.
+    expect(projection.reachable).toHaveLength(25);
+    expect(projection.reachable).toEqual(expect.arrayContaining([...roots]));
+    expect(
+      READ_SCHEMA_SEALED_DEFINITIONS.filter((name) => !projection.reachable.includes(name)),
+    ).toEqual(["protocolProfile"]);
+  });
+
+  it("over the committed bundle, only a sealed definition's text moves the pinned digest", () => {
+    const roots = committedRoots();
+    const digest = (value: Json): string => projectReadSchemaBundle(value, roots).digest;
+
+    const tokenAdded = committedBundle();
+    (defs(tokenAdded).protocolProfile as { enum: string[] }).enum.push("read-update-v2");
+    expect(digest(tokenAdded)).not.toBe(COMMITTED_READ_SCHEMA_PROJECTION);
+
+    const metadata = committedBundle();
+    metadata.$schema = "https://json-schema.org/draft/2019-09/schema";
+    metadata.$id = "https://schemas.example/moved.json";
+    metadata.title = "renamed";
+    metadata.description = "Rewritten since the seal.";
+    metadata["x-note"] = "outside $defs";
+    expect(digest(metadata)).toBe(COMMITTED_READ_SCHEMA_PROJECTION);
+
+    const laterProfile = committedBundle();
+    defs(laterProfile).updateSequence = {
+      type: "object",
+      properties: { operations: { type: "array", items: { $ref: "#/$defs/beadRecord" } } },
+    };
+    expect(digest(laterProfile)).toBe(COMMITTED_READ_SCHEMA_PROJECTION);
+
+    const removed = committedBundle();
+    delete defs(removed).protocolProfile;
+    expect(() => digest(removed)).toThrow(
+      /sealed definition 'protocolProfile' is missing from the bundle/,
+    );
   });
 });
 

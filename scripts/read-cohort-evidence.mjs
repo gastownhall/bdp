@@ -289,11 +289,14 @@ export async function main() {
         fixtureCapabilitiesFor("packages/conformance/fixtures/read-bdpbd-v1.json"),
       ),
     };
-    // D29 = C: recompute the Read-reachable projection of the committed schema
-    // bundle. The roots are derived from the committed manifest and the
-    // protocol parse table; every segment must bind exactly this digest, and
-    // drift closes the cohort until it is re-sealed. The whole-bundle digest
-    // each segment also records is provenance only and is not recomputed.
+    // D29 = C / RP1: recompute the Read schema projection of the committed
+    // bundle — the sealed definition set, by name (READ_SCHEMA_SEALED_DEFINITIONS
+    // in @bdp/conformance), in sealed order. The Read roots, derived from the
+    // committed manifest and the protocol parse table, select nothing: the
+    // projection checks that every definition Read reaches is sealed and fails
+    // otherwise. Every segment must bind exactly this digest, and drift closes
+    // the cohort until it is re-sealed. The whole-bundle digest each segment
+    // also records is provenance only and is not recomputed.
     let schemaBundle;
     try {
       schemaBundle = JSON.parse(
@@ -345,6 +348,7 @@ export async function main() {
       evidenceCommit: gitFacts.evidenceCommit,
       schemaReadProjection: schemaReadProjection.digest,
       schemaReadProjectionDefinitions: schemaReadProjection.definitions.length,
+      schemaReadProjectionReachable: schemaReadProjection.reachable.length,
       rows: (artifact.targets ?? []).reduce(
         (total, target) =>
           total +

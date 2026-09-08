@@ -313,8 +313,9 @@ function loadBundle(fixtureRelativePath: string): ConformanceArtifactBundle {
 /**
  * Binding digest conventions. Each names the exact committed byte source that
  * played the role, so a reviewer can re-derive every value from the run head.
- * The verifier recomputes only `schemaReadProjection` (D29 = C, computed below
- * from the bundle at `schema` with roots derived from the bound manifest);
+ * The verifier recomputes only `schemaReadProjection` (D29 = C / RP1, computed
+ * below from the bundle at `schema` over the sealed definition set by name,
+ * with the Read roots derived from the bound manifest as the coverage check);
  * the rest, including the whole-bundle `schema` digest, are recorded
  * provenance checked for format alone.
  */

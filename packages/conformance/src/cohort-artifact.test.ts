@@ -392,9 +392,9 @@ describe("read cohort artifact", () => {
     );
   });
 
-  // D29 = C: the Read-reachable schema projection is a binding every run must
-  // carry; the verifier recomputes it, so an artifact without it cannot be
-  // proved against the tree at all.
+  // D29 = C: the Read schema projection (RP1: the sealed definition set) is a
+  // binding every run must carry; the verifier recomputes it, so an artifact
+  // without it cannot be proved against the tree at all.
   it("requires every run to bind the Read schema projection", () => {
     const pruned = { ...bindings };
     delete (pruned as Record<string, unknown>).schemaReadProjection;

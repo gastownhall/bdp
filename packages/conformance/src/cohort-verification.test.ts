@@ -230,13 +230,14 @@ describe("read cohort evidence verification", () => {
     );
   });
 
-  // D29 = C: the Read-reachable projection is recomputed from the committed
-  // bundle. A segment binding any other value is evidence about a different
-  // Read surface, however well-formed the recorded digest is.
-  it("refuses Read-reachable schema drift: every segment must bind the recomputed projection", () => {
+  // D29 = C / RP1: the Read schema projection — the sealed definition set — is
+  // recomputed from the committed bundle. A segment binding any other value is
+  // evidence about a different Read surface, however well-formed the recorded
+  // digest is.
+  it("refuses Read schema projection drift: every segment must bind the recomputed projection", () => {
     expect(() =>
       verifyReadCohortEvidence(inputFor(artifact(), { derivedSchemaReadProjection: digest("13") })),
-    ).toThrow(/Read-reachable schema drift: re-seal required/);
+    ).toThrow(/Read schema projection drift: re-seal required/);
   });
 
   it("refuses a segment that does not bind the Read schema projection", () => {

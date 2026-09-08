@@ -279,12 +279,14 @@ describe("verification wiring", () => {
 });
 
 /**
- * D29 = C, proved both ways over the committed bytes: the gate refuses a
- * Read-reachable schema change and tolerates a definition only a later
- * profile reaches. The inputs are the real catalog, manifest, fixtures,
- * bundle, and sealed artifact; only the git facts are stubbed, and the
- * constant is recomputed from the artifact so the test isolates the
- * projection rule from the constant check the gate makes separately.
+ * D29 = C / RP1, proved both ways over the committed bytes: the gate refuses a
+ * change to a sealed definition — reachable from Read or not — and tolerates
+ * everything outside the sealed definitions' text: top-level bundle metadata
+ * and definitions the seal does not name. The inputs are the real catalog,
+ * manifest, fixtures, bundle, and sealed artifact; only the git facts are
+ * stubbed, and the constant is recomputed from the artifact so the test
+ * isolates the projection rule from the constant check the gate makes
+ * separately.
  */
 describe("Read schema projection drift over the committed cohort", () => {
   const root = fileURLToPath(new URL("..", import.meta.url));
@@ -339,7 +341,7 @@ describe("Read schema projection drift over the committed cohort", () => {
   );
 
   it.skipIf(!committed)(
-    "refuses a Read-reachable change: a new advertisedLimits member forces a re-seal",
+    "refuses a change to a sealed definition: a new advertisedLimits member forces a re-seal",
     () => {
       const bundle = committedBundle();
       bundle.$defs.advertisedLimits.properties.snapshot = {
@@ -348,24 +350,62 @@ describe("Read schema projection drift over the committed cohort", () => {
         additionalProperties: false,
       };
       expect(() => verifyReadCohortEvidence(committedInput(bundle))).toThrow(
-        /Read-reachable schema drift: re-seal required/,
+        /Read schema projection drift: re-seal required/,
       );
     },
   );
 
-  it.skipIf(!committed)("tolerates a definition only a later profile reaches", () => {
+  // The finding behind RP1: nothing in Read references the profile token enum
+  // (discovery pins the constant `read`), so the reachable closure left it out
+  // and a token added there shipped on evidence sealed against the old enum.
+  // The seal names it, so it moves the digest like any sealed definition.
+  it.skipIf(!committed)(
+    "refuses a change to a sealed definition nothing in Read references: a protocolProfile token forces a re-seal",
+    () => {
+      const bundle = committedBundle();
+      bundle.$defs.protocolProfile.enum.push("read-update-v2");
+      expect(() => verifyReadCohortEvidence(committedInput(bundle))).toThrow(
+        /Read schema projection drift: re-seal required/,
+      );
+    },
+  );
+
+  it.skipIf(!committed)(
+    "tolerates top-level bundle metadata drift: description, title, $id, and $schema are outside the digest",
+    () => {
+      const bundle = committedBundle();
+      bundle.description = `${bundle.description} Rewritten since the seal.`;
+      bundle.title = "renamed bundle";
+      bundle.$id = "https://schemas.example/moved.json";
+      bundle.$schema = "https://json-schema.org/draft/2019-09/schema";
+      expect(() => verifyReadCohortEvidence(committedInput(bundle))).not.toThrow();
+    },
+  );
+
+  it.skipIf(!committed)("refuses a bundle that no longer carries a sealed definition", () => {
     const bundle = committedBundle();
-    bundle.$defs.updateSequence = {
-      type: "object",
-      required: ["operations"],
-      properties: {
-        operations: { type: "array", items: { $ref: "#/$defs/beadRecord" } },
-        attribution: { $ref: "#/$defs/attribution" },
-      },
-      additionalProperties: false,
-    };
-    expect(() => verifyReadCohortEvidence(committedInput(bundle))).not.toThrow();
+    delete bundle.$defs.protocolProfile;
+    expect(() => committedInput(bundle)).toThrow(
+      /sealed definition 'protocolProfile' is missing from the bundle/,
+    );
   });
+
+  it.skipIf(!committed)(
+    "tolerates a definition the seal does not name, added by a later profile",
+    () => {
+      const bundle = committedBundle();
+      bundle.$defs.updateSequence = {
+        type: "object",
+        required: ["operations"],
+        properties: {
+          operations: { type: "array", items: { $ref: "#/$defs/beadRecord" } },
+          attribution: { $ref: "#/$defs/attribution" },
+        },
+        additionalProperties: false,
+      };
+      expect(() => verifyReadCohortEvidence(committedInput(bundle))).not.toThrow();
+    },
+  );
 });
 
 function fakeGit({

@@ -49,11 +49,13 @@ export interface ReadCohortVerificationInput {
   /** The self-certifiable set derived independently from the bound manifest. */
   readonly derivedSelfCertifiable: readonly string[];
   /**
-   * D29 = C: the digest of the Read-reachable projection of the schema
-   * bundle, recomputed by the gate from the committed bundle with roots
-   * derived from the bound manifest and the protocol parse table. Every
-   * segment must bind exactly this value; drift means a Read-facing
-   * definition changed since the seal, and the cohort closes until re-sealed.
+   * D29 = C, projection rule RP1: the digest of the Read schema projection —
+   * the sealed definition set, by name, in sealed order — recomputed by the
+   * gate from the committed bundle after checking that every definition Read
+   * reaches (roots derived from the bound manifest and the protocol parse
+   * table) is sealed. Every segment must bind exactly this value; drift means
+   * the text of a sealed definition changed since the seal, and the cohort
+   * closes until re-sealed.
    */
   readonly derivedSchemaReadProjection: string;
   /**
@@ -301,14 +303,15 @@ export function verifyReadCohortEvidence(input: ReadCohortVerificationInput): vo
           );
         }
       }
-      // D29 = C: the seal binds the Read-reachable projection of the schema
-      // bundle, and the gate recomputes it from the committed tree. `schema`
-      // (the whole-bundle digest) stays recorded provenance checked for format
-      // only, because a later profile's definitions legitimately move it; the
-      // projection is what a Read-facing change cannot move without a re-seal.
+      // D29 = C / RP1: the seal binds the Read schema projection — the sealed
+      // definition set, by name — and the gate recomputes it from the committed
+      // tree. `schema` (the whole-bundle digest) stays recorded provenance
+      // checked for format only, because a later profile's definitions and the
+      // bundle's top-level metadata legitimately move it; the projection is what
+      // a change to a sealed definition cannot move without a re-seal.
       if (bindings.schemaReadProjection !== input.derivedSchemaReadProjection) {
         throw new ReadCohortVerificationError(
-          `Read-reachable schema drift: re-seal required (target '${targetName}' ${admission} run binds Read schema projection ${String(bindings.schemaReadProjection)}; the committed bundle projects ${input.derivedSchemaReadProjection})`,
+          `Read schema projection drift: re-seal required (target '${targetName}' ${admission} run binds Read schema projection ${String(bindings.schemaReadProjection)}; the committed bundle's sealed definitions project ${input.derivedSchemaReadProjection})`,
         );
       }
       // A packaged run must name the payload, process and workspace behind it;
