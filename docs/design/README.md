@@ -30,7 +30,7 @@ waves are internal sequencing labels, not protocol concepts.
   and problem rows — each with its context, options, tradeoffs,
   recommendation, and the specification sentence that depends on it — and
   the review-council findings folded into them, for the operator to rule on
-  one at a time.
+  one at a time (D29 ruled C on 2026-09-08 and applied).
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

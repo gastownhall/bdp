@@ -1728,8 +1728,9 @@ value is a binding positive integer or ISO 8601 duration:
 - `validation.diagnostics` counts entries in, and `validation.diagnosticBytes`
   counts UTF-8 bytes of, the serialized `diagnostics` list a
   `validation-failed` problem carries under
-  [Problem details](#problem-details); an authority that omits diagnostics
-  beyond a bound MUST advertise that bound;
+  [Problem details](#problem-details); the group is Read+Update surface,
+  advertised only by a Read+Update discovery document, and an authority
+  that omits diagnostics beyond a bound MUST advertise that bound;
 - `transaction.operations`, `transaction.examinedResources`,
   `transaction.matchedResources`, `transaction.mutatedResources`, and
   `transaction.inducedEvents` are counts, while `transaction.duration` is an
@@ -1745,11 +1746,14 @@ them and require the server to enforce the advertised boundary consistently.
 retains an idempotency-key disposition after its terminal outcome; the
 Read+Update profile binds it under [Outcome retention](#outcome-retention).
 The bundle's profile discovery definitions admit only the groups a profile
-exposes: the Read+Update discovery document's `limits` is
-`readUpdateAdvertisedLimits`, which shares every limit primitive with
-`advertisedLimits` but rejects the `transaction` group and the
-Transactional `retention.receipt` and `retention.replay` members, while
-keeping `retention.idempotency` and the pagination
+exposes: the Read discovery document's `limits` is `advertisedLimits`,
+which admits no `validation` group; the Read+Update discovery document's
+`limits` is `readUpdateAdvertisedLimits`, a closed definition of its own
+that shares every limit primitive with `advertisedLimits`, restates the
+`page`, `request`, `resource`, `selector`, `patch`, and `sequence` groups
+unchanged, carries the `validation` group, and rejects the `transaction`
+group and the Transactional `retention.receipt` and `retention.replay`
+members, while keeping `retention.idempotency` and the pagination
 `retention.maximumSnapshotLifetime`.
 
 For example:
@@ -2511,7 +2515,8 @@ invalid is not installed, and a mutation naming it fails as
 diagnostic list identifying the failing effective Type and schema location —
 the `diagnostics` member of `validation-failed` under
 [Problem details](#problem-details). An authority that bounds the list
-advertises `validation.diagnostics` and `validation.diagnosticBytes`. An uninhabitable
+advertises `validation.diagnostics` and `validation.diagnosticBytes` in its
+Read+Update discovery document's `limits`. An uninhabitable
 installed contract may therefore remain describable while every attempted
 Resource value fails validation. Union endpoint constraints, minimum
 multiplicity, and tuple-uniqueness rules are not part of BDP v0.
@@ -4340,9 +4345,13 @@ protocol-identifier prefix, with the release-stability rule stated above.
    JSON Pointers, `source` accompanies `sourceRevision` on owned-Link results
    and both are rejected on Bead postimages, Type-contract diagnostics are
    mandatory, and `readUpdateAdvertisedLimits` rejects Transactional limit
-   groups. Transactional definitions remain pending. Later-profile
-   definitions gate their corresponding waves. This question closes when the
-   complete reviewed bundle exists.
+   groups. **Corrected 2026-09-08 (D29 ruled C):** the `validation` limits
+   group is Read+Update surface carried by `readUpdateAdvertisedLimits`
+   alone, now a closed definition of its own; `advertisedLimits` and every
+   other Read definition are byte-identical to the bundle the Read evidence
+   cohort binds at `0b7d86e7`. Transactional definitions remain pending.
+   Later-profile definitions gate their corresponding waves. This question
+   closes when the complete reviewed bundle exists.
 6. **Read table recorded 2026-08-12; later-profile rows pending:** BDP uses a
    small set of RFC 9457 problem families plus a normative `code`, fixed
    status, and `retry` disposition. The Read profile table is closed. Direct

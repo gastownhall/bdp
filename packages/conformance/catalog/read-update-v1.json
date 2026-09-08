@@ -23,7 +23,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#advertised-limits",
-          "selectedText": "the Read+Update discovery document's `limits` is `readUpdateAdvertisedLimits`, which shares every limit primitive with `advertisedLimits` but rejects the `transaction` group and the Transactional `retention.receipt` and `retention.replay` members"
+          "selectedText": "the Read+Update discovery document's `limits` is `readUpdateAdvertisedLimits`, a closed definition of its own that shares every limit primitive with `advertisedLimits`, restates the `page`, `request`, `resource`, `selector`, `patch`, and `sequence` groups unchanged, carries the `validation` group, and rejects the `transaction` group and the Transactional `retention.receipt` and `retention.replay` members"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#advertised-limits",
+          "selectedText": "the Read discovery document's `limits` is `advertisedLimits`, which admits no `validation` group"
         },
         {
           "source": "docs/specs/bdp.md",

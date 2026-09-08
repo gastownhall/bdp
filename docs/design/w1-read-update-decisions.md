@@ -10,8 +10,9 @@ Read+Update problem rows — in `docs/specs/bdp.md`,
 
 Each decision is applied in the draft as its recommendation so that the
 profile is implementable on paper and the artifacts can be reviewed as a
-whole. None is ruled. The operator rules on them one at a time; a ruling
-that departs from the recommendation is applied by editing the quoted
+whole. D29 is ruled (option C, 2026-09-08) and its corrective is applied;
+the rest are provisional. The operator rules on them one at a time; a
+ruling that departs from the recommendation is applied by editing the quoted
 specification sentence, the corresponding bundle definition, the fixtures,
 and the catalog row together. The lockstep tests
 (`packages/protocol/src/read-update-wire.test.ts`,
@@ -721,12 +722,22 @@ carry `diagnostics`: a nonempty, bounded array of `{ type?,
 schemaLocation?, instanceLocation?, message }` entries." through "No other
 code carries `diagnostics` or `diagnosticsTruncated`." Under *Link endpoint
 constraints*: "An authority that bounds the list advertises
-`validation.diagnostics` and `validation.diagnosticBytes`." Under
-*Advertised limits*: the `validation.diagnostics` /
-`validation.diagnosticBytes` bullet. Bundle: `validationDiagnostic`
-(`dependentRequired`), `validationDiagnostics`, `readUpdateProblem`
-(`diagnosticsTruncated`, the required-diagnostics branch), the
-`advertisedLimits.validation` group.
+`validation.diagnostics` and `validation.diagnosticBytes` in its
+Read+Update discovery document's `limits`." Under *Advertised limits*: the
+`validation.diagnostics` / `validation.diagnosticBytes` bullet. Bundle:
+`validationDiagnostic` (`dependentRequired`), `validationDiagnostics`,
+`readUpdateProblem` (`diagnosticsTruncated`, the required-diagnostics
+branch), the `readUpdateAdvertisedLimits.validation` group.
+
+**Corrected (D29 ruled C, 2026-09-08).** The `validation` limits group is
+Read+Update surface. The draft had placed it in the shared
+`advertisedLimits`, which `readDiscovery` references, so the Read
+projection of the bundle had changed under the seal; the group now lives
+only in `readUpdateAdvertisedLimits`, and `advertisedLimits` is
+byte-identical to the bundle at `0b7d86e7`. The bullet under *Advertised
+limits* says the group is Read+Update surface, and the *Link endpoint
+constraints* sentence names the Read+Update discovery document as where
+the bounds are advertised.
 
 ## D17 — Carrier discipline: keys, names, and the stray field
 
@@ -864,12 +875,26 @@ keeping `retention.idempotency` and the pagination
 cursors already use. `readDiscovery` is untouched: it is sealed Read
 surface, and the same tightening there is a separate proposal.
 
+**Corrected (D29 ruled C, 2026-09-08).** `readUpdateAdvertisedLimits` no
+longer composes `advertisedLimits` by reference. The shared definition is
+closed, so once the `validation` group was withdrawn from it under D29 no
+composition could admit the group; the Read+Update definition is now a
+closed definition of its own — the `page`, `request`, `resource`,
+`selector`, `patch`, and `sequence` groups restated unchanged and held
+equal to `advertisedLimits` by the lockstep test, the `validation` group,
+and a `retention` group of `idempotency` and `maximumSnapshotLifetime`
+only — sharing the `positiveInteger` and `iso8601Duration` primitives.
+The rejections Codex M7 asked for are unchanged: `transaction`,
+`retention.receipt`, `retention.replay`, and any unknown group fail
+closure.
+
 **Depends on this decision.** Under *Operation Directory and singleton
 targets*: "The bundle defines the Read+Update discovery document as
 `readUpdateDiscovery` and the directory response above as
 `readUpdateOperationDirectory`." Under *Advertised limits*: "the
-Read+Update discovery document's `limits` is `readUpdateAdvertisedLimits`".
-Bundle: `readUpdateAdvertisedLimits`. Catalog row
+Read+Update discovery document's `limits` is `readUpdateAdvertisedLimits`,
+a closed definition of its own that shares every limit primitive with
+`advertisedLimits`". Bundle: `readUpdateAdvertisedLimits`. Catalog row
 `read-update.discovery.limits`.
 
 ## D21 — Replay re-authorization
@@ -1213,13 +1238,26 @@ differs". Fixture `sequence-idempotency-dispositions.json`, exchange
 
 ## D29 — The sealed Read cohort binds a stale schema digest
 
+**Status: RULED C (2026-09-08).** The sealed Read cohort binds the digest
+of the Read-reachable projection of the bundle, and a separate PR adds
+that gate; the consequence for this branch is that the `validation`
+limits group is withdrawn from the shared `advertisedLimits`, which
+`readDiscovery` references, into `readUpdateAdvertisedLimits`, so that
+every definition reachable from the Read definitions is byte-identical to
+the bundle at `0b7d86e7` and the Read projection at this head is exactly
+what the seal attests.
+
 **Context.** This is an evidence-discipline finding, not a wire decision,
 and it is the operator's to act on. The Read cohort artifact binds the
 bundle at `0b7d86e7` (digest `552329e6…`). The draft's first commit added
 the `validation` group to `advertisedLimits`, a definition reachable from
 `readDiscovery`, so Read discovery now accepts a `limits.validation` group
 it rejected when sealed; this fold adds nothing to `advertisedLimits` but
-adds six more definitions to the bundle, which now digests `0dd903d4…`.
+adds six more definitions to the bundle. (The whole-bundle digest the fold
+recorded here, `0dd903d4…`, matches no committed bundle; the fold commit's
+bundle digests `febd266e…`, and after the corrective below it digests
+`14d3c207…` — a figure the ruling makes immaterial, since the seal
+attests the Read-reachable projection, not the whole bundle.)
 `pnpm evidence:verify` is green because the gate checks the `schema`
 binding's presence and shape and never recomputes it against the current
 bundle (Claude H3).
@@ -1241,8 +1279,19 @@ outside this fold; this fold applies option 3's documentation only, in
 STATUS.md and here, and makes no claim that the Read cohort covers the
 current bundle.
 
-**Depends on this decision.** STATUS.md's evidence-discipline paragraph.
-Nothing in the specification.
+**Ruled C (2026-09-08).** Option 2's gate, defined over the Read-reachable
+projection of the bundle rather than the whole bundle, is a separate PR.
+For this branch the ruling means the corrective recorded under
+[Council 9 fold](#council-9-fold): `advertisedLimits` is restored to its
+bytes at `0b7d86e7`, `readUpdateAdvertisedLimits` carries the
+`validation` group (D16 and D20 corrected), and the Read projection at
+this head is unchanged, so no re-seal is required and none is claimed.
+
+**Depends on this decision.** STATUS.md's evidence-discipline paragraph;
+after the ruling, also the bundle's `advertisedLimits` and
+`readUpdateAdvertisedLimits`, the *Advertised limits* definition sentence
+and the `validation` bullet, the *Link endpoint constraints* advertising
+sentence, and catalog row `read-update.discovery.limits`.
 
 ## D30 — A member-level delay hint
 
@@ -1304,7 +1353,8 @@ Not decisions, but things the operator may want to know:
 
 - **Diagnostic limits had no home.** *Link endpoint constraints* promised
   advertised diagnostic count and byte limits that the *Advertised limits*
-  section never listed. D16 adds them.
+  section never listed. D16 adds them; after D29's ruling they are
+  advertised only by `readUpdateAdvertisedLimits`.
 - **Media-type codes.** The Problem-details paragraph said the draft assigns
   no code for unsupported request media types; D14 assigns one for mutation
   targets, and the sentence now says so. The `406` condition stays
@@ -1361,7 +1411,7 @@ provisionally as its recommendation, not a ruling.
 | Cross-packet X2 (`retention.idempotency` is Read+Update-only on Transactional discovery) and X1 (deleted-identity shape) | Not folded: raised by the Transactional packet's council, not this one; both are recorded for a single ruling across packets and left unchanged here. |
 | Claude H1 — a byte-identical retry of a disconnected sequence executes members out of order | Folded: D26 (keys claimed at admission in declaration order); spec under *Read+Update sequence target*, *Duplicate keys and retained dispositions*, *Durability and recovery*; row `read-update.idempotency.key-reservation`; concurrent-retry fixture condition rewritten. |
 | Claude H2 — disposition durability bound to commit; in-flight release on restart; one authority owns the namespace | Already folded as D22 from Codex H3; the replica sentence is D22's "every replica that accepts mutations consults one authoritative key state". |
-| Claude H3 — the bundle changed under the sealed Read cohort; the gate does not recompute the digest | Folded as D29: documented here and in STATUS.md as an operator decision (re-seal or add a recomputing gate rule); `evidence:generate` was not run and no Read evidence was touched. |
+| Claude H3 — the bundle changed under the sealed Read cohort; the gate does not recompute the digest | Folded as D29: documented here and in STATUS.md as an operator decision (re-seal or add a recomputing gate rule); `evidence:generate` was not run and no Read evidence was touched. Ruled C on 2026-09-08; see the corrective below. |
 | Claude M1 — retained `binding-unavailable` forces re-keying dependents after a creator is corrected | Folded into D4: the specification now says a client that corrects a creator presents new keys for its dependents; un-retaining `binding-unavailable` is recorded as the alternative. D27 and D28 shrink the case. |
 | Claude M2 — D15 contradicts D17; static `@name` errors should be carrier rejections | Folded: D27; `binding-unavailable` narrows to a failed creator; fixtures `carrier-rejections.json` (three new exchanges) and `sequence-partial-failure.json` (member 4 replaced by a Read-coded `resource-not-found` member). |
 | Claude M3 — Scope-lifetime tombstones for every disposition are unbounded and principal-growable | Folded: D28 (tombstones only for committed effects; failures forgotten after the interval); fixture `expired-failure-executes-as-new`; row `read-update.idempotency.expired-failure`. |
@@ -1377,6 +1427,31 @@ provisionally as its recommendation, not a ruling.
 | Claude L5 — Transactional `sequence` response shape; profile qualification; Q13 ledger | Q13 now notes the drafted unclaimed rows. The Transactional `sequence` response shape belongs to the Transactional packet and is not folded here. |
 | Claude L6 — export Read+Update problem definitions and the outcome enum from `packages/protocol` | Not folded: exporting unruled draft rows from the protocol package would put them on the library surface before the rulings; the tests' local tables are deliberate until the implementation wave. |
 | Claude D-verdicts (D11 `unchanged` trade-off; D16 absolute keyword location) | Folded as a note on D11 and in D16's location format. |
+
+### Corrective after the fold (D29 ruled C, 2026-09-08)
+
+The operator ruled D29 as option C: the sealed Read cohort binds the
+digest of the Read-reachable projection of the bundle, and the gate that
+recomputes it is a separate PR. The fold had left the `validation` limits
+group inside the shared `advertisedLimits`, which `readDiscovery`
+references, so the Read projection at the fold's head was not what the
+seal attests. The corrective withdraws the group into
+`readUpdateAdvertisedLimits`, now a closed definition of its own (D16 and
+D20 corrected), restores `advertisedLimits` to its bytes at `0b7d86e7`,
+and touches nothing else reachable from a Read definition. Adjusted in
+lockstep: the *Advertised limits* definition sentence and `validation`
+bullet, the *Link endpoint constraints* advertising sentence, the
+Open-protocol-questions bundle entry, catalog row
+`read-update.discovery.limits`, the wire test (a Read discovery document
+carrying `limits.validation` is rejected, a Read+Update one is admitted,
+the shared groups are held equal to `advertisedLimits`), STATUS.md, and
+this packet. A projection check over every definition reachable from
+`readDiscovery`, `beadRecord`, `linkRecord`, `typeDescriptor`, the
+collections, `reference`, `attribution`, `properties`, `readProblem`, and
+`advertisedLimits` — and every one of the 26 definitions the sealed
+bundle holds — found each byte-identical to `0b7d86e7`. No sealed
+artifact was touched, no Read evidence was regenerated, and nothing here
+is a conformance claim.
 
 Validation at the fold: the lockstep tests, strict Ajv compilation of every
 bundle definition, validation of every fixture body, and the repository's

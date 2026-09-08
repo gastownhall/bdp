@@ -308,6 +308,38 @@ describe("Read+Update wire fixtures", () => {
   }
 });
 
+describe("Read+Update advertised limits", () => {
+  const SHARED_GROUPS = ["page", "request", "resource", "selector", "patch", "sequence"];
+
+  it("keeps the validation group out of the shared Read limits definition", () => {
+    expect(Object.keys(propertiesOf("advertisedLimits"))).not.toContain("validation");
+  });
+
+  it("restates the shared groups unchanged, carries validation, and closes retention", () => {
+    const readUpdate = def("readUpdateAdvertisedLimits");
+    const groups = propertiesOf("readUpdateAdvertisedLimits");
+    const shared = propertiesOf("advertisedLimits");
+    expect(readUpdate.allOf).toBeUndefined();
+    expect(readUpdate.additionalProperties).toBe(false);
+    expect(Object.keys(groups)).toEqual([...SHARED_GROUPS, "validation", "retention"]);
+    for (const group of SHARED_GROUPS) expect(groups[group], group).toEqual(shared[group]);
+    expect(groups.validation).toEqual({
+      type: "object",
+      properties: {
+        diagnostics: { $ref: "#/$defs/positiveInteger" },
+        diagnosticBytes: { $ref: "#/$defs/positiveInteger" },
+      },
+      additionalProperties: false,
+    });
+    const retention = requiredRecord(groups.retention, "retention");
+    expect(Object.keys(requiredRecord(retention.properties, "retention.properties"))).toEqual([
+      "idempotency",
+      "maximumSnapshotLifetime",
+    ]);
+    expect(retention.additionalProperties).toBe(false);
+  });
+});
+
 describe("shapes the bundle now rejects", () => {
   const scope = "https://beads.example/acme/";
   const bead = {
@@ -324,6 +356,14 @@ describe("shapes the bundle now rejects", () => {
     links: `${scope}links/`,
     types: `${scope}types/`,
     operations: `${scope}operations/`,
+  };
+  const readDiscovery = {
+    bdpVersion: "0",
+    profile: "read",
+    scope,
+    beads: `${scope}beads/`,
+    links: `${scope}links/`,
+    types: `${scope}types/`,
   };
   const validationFailed = {
     type: `${BDP_PROBLEM_FAMILY_PREFIX}validation`,
@@ -373,6 +413,16 @@ describe("shapes the bundle now rejects", () => {
       "readUpdateDiscovery",
       "a replay retention limit",
       { ...discovery, limits: { retention: { replay: "P1D" } } },
+    ],
+    [
+      "readDiscovery",
+      "a validation limits group on Read discovery",
+      { ...readDiscovery, limits: { validation: { diagnostics: 16 } } },
+    ],
+    [
+      "readUpdateDiscovery",
+      "an unknown limits group",
+      { ...discovery, limits: { history: { events: 1 } } },
     ],
     ["readUpdateProblem", "validation-failed without diagnostics", validationFailed],
     [
@@ -430,6 +480,11 @@ describe("shapes the bundle now rejects", () => {
         limits: { retention: { idempotency: "P7D", maximumSnapshotLifetime: "PT300S" } },
       },
       "Read+Update retention limits",
+    );
+    expectValid(
+      "#/$defs/readUpdateDiscovery",
+      { ...discovery, limits: { validation: { diagnostics: 16, diagnosticBytes: 8192 } } },
+      "Read+Update validation limits",
     );
     expectValid(
       "#/$defs/sequenceMemberProblem",
