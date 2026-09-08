@@ -1,0 +1,270 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-direct-problems",
+  "description": "The direct problems the mutation surface returns without creating a receipt or binding a key: a key reused with different semantics, a transient abort after admission that retracted the pending receipt, a body-level idempotencyKey, a forward label, and a missing Idempotency-Key field. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "idempotency-conflict",
+      "condition": "client-key-0001 is bound to the batch fixture's first request. No receipt is created and the earlier receipt is untouched.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0001"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "createBead",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Not the same request"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "title": "Idempotency key is bound to a different request",
+          "status": 409,
+          "code": "idempotency-conflict",
+          "retry": "never",
+          "instance": "https://beads.example/acme/receipts/rcpt-7"
+        }
+      }
+    },
+    {
+      "id": "transient-abort-after-admission",
+      "condition": "Admitted, then aborted by a serialization conflict the authority does not retry: the pending receipt was retracted and the key unbound in one durable step, its URL now answers 404, and a retry under the same key executes anew.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0005"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "deleteWhere",
+              "collection": "links",
+              "selector": "$[?@.source == \"https://beads.example/acme/beads/task-42\" || @.target == \"https://beads.example/acme/beads/task-42\"]",
+              "cardinality": {
+                "max": 1000
+              },
+              "attribution": {
+                "principal": "human:donna",
+                "status": "claimed"
+              }
+            },
+            {
+              "operation": "deleteBead",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r9"
+            },
+            {
+              "operation": "createLink",
+              "type": "https://work.example/types/relates",
+              "source": "beads/task-43",
+              "target": {
+                "uri": "https://github.example/issues/123",
+                "revision": "8f0e2b"
+              },
+              "properties": {}
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 503,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store",
+          "retry-after": "2"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/unavailable",
+          "title": "Transaction aborted before commit",
+          "status": 503,
+          "code": "temporarily-unavailable",
+          "retry": "after-delay",
+          "retryAfter": 2
+        }
+      }
+    },
+    {
+      "id": "body-level-idempotency-key",
+      "condition": "The HTTP field is the only key: the body-level member is outside batchRequest, so the request is carrier syntax rejected before key state is consulted.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0008"
+        },
+        "body": {
+          "idempotencyKey": "client-key-0008",
+          "operations": [
+            {
+              "operation": "createBead",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Not admitted"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "title": "Request body is not a batch request",
+          "status": 400,
+          "code": "malformed-request",
+          "retry": "never",
+          "pointer": "/idempotencyKey"
+        }
+      }
+    },
+    {
+      "id": "forward-label",
+      "condition": "Schema-valid but decidable from the request text: a forward reference is rejected before admission, and no key is bound.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0009"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@decision",
+              "target": "beads/task-42",
+              "properties": {}
+            },
+            {
+              "name": "decision",
+              "operation": "createBead",
+              "type": "https://work.example/types/decision"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "title": "Label referenced before its creating operation",
+          "status": 400,
+          "code": "malformed-request",
+          "retry": "never",
+          "pointer": "/operations/0/source"
+        }
+      }
+    },
+    {
+      "id": "missing-idempotency-key",
+      "condition": "A batch request without exactly one Idempotency-Key field is malformed.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "name": "decision",
+              "operation": "createBead",
+              "id": "beads/dec-9",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Adopt owned Links",
+                "status": "proposed"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "name": "cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@decision",
+              "target": "beads/task-42",
+              "properties": {
+                "role": "evidence"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r7",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "cited"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "title": "Idempotency-Key field is required",
+          "status": 400,
+          "code": "malformed-request",
+          "retry": "never"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-discovery",
+  "description": "The Transactional discovery document — the Read+Update members, the required aliases root, the history members, the receipts root, the snapshot, changefeed, and Event Source URLs, and limits that carry the validation and transaction groups and the receipt and replay retention but never retention.idempotency — and the twelve-entry Operation Directory it identifies. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "discovery-document",
+      "request": {
+        "method": "GET",
+        "target": "bdp.json",
+        "headers": {
+          "accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-42"
+        },
+        "schema": "#/$defs/transactionalDiscovery",
+        "body": {
+          "bdpVersion": "0",
+          "profile": "transactional",
+          "scope": "https://beads.example/acme/",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "headPosition": "pos-42",
+          "minimumReplayPosition": "pos-17",
+          "beads": "https://beads.example/acme/beads/",
+          "links": "https://beads.example/acme/links/",
+          "types": "https://beads.example/acme/types/",
+          "operations": "https://beads.example/acme/operations/",
+          "aliases": "https://beads.example/acme/alias/",
+          "receipts": "https://beads.example/acme/receipts/",
+          "snapshot": "https://beads.example/acme/snapshot",
+          "changes": "https://beads.example/acme/changes/",
+          "events": "https://beads.example/acme/events/",
+          "limits": {
+            "page": {
+              "defaultItems": 50,
+              "maximumItems": 200
+            },
+            "request": {
+              "targetBytes": 2048,
+              "bodyBytes": 65536
+            },
+            "validation": {
+              "diagnostics": 16,
+              "diagnosticBytes": 8192
+            },
+            "transaction": {
+              "operations": 200,
+              "inducedEvents": 10000,
+              "duration": "PT30S"
+            },
+            "retention": {
+              "receipt": "P7D",
+              "maximumSnapshotLifetime": "PT300S",
+              "replay": "P30D"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "operation-directory",
+      "condition": "The alias targets are listed because the profile inherits them; their Transactional contract is decision T49 in the packet, open.",
+      "request": {
+        "method": "GET",
+        "target": "operations/",
+        "headers": {
+          "accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-42"
+        },
+        "schema": "#/$defs/transactionalOperationDirectory",
+        "body": {
+          "createBead": "create-bead",
+          "updateBeadProperties": "update-bead-properties",
+          "deleteBead": "delete-bead",
+          "createLink": "create-link",
+          "updateLinkProperties": "update-link-properties",
+          "deleteLink": "delete-link",
+          "putAlias": "put-alias",
+          "deleteAlias": "delete-alias",
+          "sequence": "sequence",
+          "updateWhere": "update-where",
+          "deleteWhere": "delete-where",
+          "batch": "batch"
+        }
+      }
+    }
+  ]
+}

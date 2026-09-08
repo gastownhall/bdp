@@ -1,0 +1,614 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-batch",
+  "description": "One timeline through the Transactional profile: a three-operation batch — a creator-supplied Decision identity, an owned cites Link from it through the @decision label, and a guarded Task update — commits at pos-43 and returns its receipt synchronously; an identical duplicate that did not wait receives the pending receipt with 202; an identical retry receives the same receipt; the same batch resubmitted under a new key fails whole with identity-taken inside a failed receipt; the incident-Link cleanup composed with a Bead deletion commits at pos-46, after the two erasures of the changefeed fixture, and its set deletion's entries do not fit in one page. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "batch-1-original",
+      "condition": "The Task is at task-42-r7 and dec-9 has never been committed. The transaction reaches its terminal disposition within the synchronous wait bound, so the original submission receives the terminal receipt. The Decision's entry shows its state immediately after its own operation — revision dec-9-r1, empty owned set — while the Link's entry carries source and sourceRevision dec-9-r2, the source's revision after the owned Link was created.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0001"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "name": "decision",
+              "operation": "createBead",
+              "id": "beads/dec-9",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Adopt owned Links",
+                "status": "proposed"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "name": "cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@decision",
+              "target": "beads/task-42",
+              "properties": {
+                "role": "evidence"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r7",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "cited"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-43"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-7",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0001",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-0a1b",
+          "requiredPosition": "pos-43",
+          "effectPosition": "pos-43",
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "decision",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/dec-9",
+                "type": "https://work.example/types/decision",
+                "revision": "dec-9-r1",
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
+                "properties": {
+                  "title": "Adopt owned Links",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "operationName": "cite",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/9c1e",
+                "type": "https://work.example/types/cites",
+                "revision": "9c1e-r1",
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
+                "source": "https://beads.example/acme/beads/dec-9",
+                "target": "https://beads.example/acme/beads/task-42",
+                "properties": {
+                  "role": "evidence"
+                }
+              },
+              "source": "https://beads.example/acme/beads/dec-9",
+              "sourceRevision": "dec-9-r2"
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-42",
+                "type": "https://work.example/types/task",
+                "revision": "task-42-r8",
+                "properties": {
+                  "title": "Specify BDP mutation",
+                  "status": "cited"
+                }
+              }
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-14T18:04:12Z"
+        }
+      }
+    },
+    {
+      "id": "batch-1-duplicate-pending",
+      "condition": "An identical concurrent duplicate, answered before the transaction is terminal: it joins the one execution and is handed the pending receipt. The response fields carry the head the authority observed, not the position the transaction will take.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0001"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "name": "decision",
+              "operation": "createBead",
+              "id": "beads/dec-9",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Adopt owned Links",
+                "status": "proposed"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "name": "cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@decision",
+              "target": "beads/task-42",
+              "properties": {
+                "role": "evidence"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r7",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "cited"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 202,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-42",
+          "retry-after": "1",
+          "location": "https://beads.example/acme/receipts/rcpt-7"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-7",
+          "status": "pending",
+          "idempotencyKey": "client-key-0001",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-0a1b"
+        }
+      }
+    },
+    {
+      "id": "batch-1-identical-retry",
+      "condition": "After the original's response was lost. The key is bound to the same normalized request, so the retained receipt answers before limits and rate limits are evaluated, and nothing executes again.",
+      "sameReceiptAs": "batch-1-original",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0001"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "name": "decision",
+              "operation": "createBead",
+              "id": "beads/dec-9",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Adopt owned Links",
+                "status": "proposed"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "name": "cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@decision",
+              "target": "beads/task-42",
+              "properties": {
+                "role": "evidence"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r7",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "cited"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-43"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-7",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0001",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-0a1b",
+          "requiredPosition": "pos-43",
+          "effectPosition": "pos-43",
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "decision",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/dec-9",
+                "type": "https://work.example/types/decision",
+                "revision": "dec-9-r1",
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
+                "properties": {
+                  "title": "Adopt owned Links",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "operationName": "cite",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/9c1e",
+                "type": "https://work.example/types/cites",
+                "revision": "9c1e-r1",
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
+                "source": "https://beads.example/acme/beads/dec-9",
+                "target": "https://beads.example/acme/beads/task-42",
+                "properties": {
+                  "role": "evidence"
+                }
+              },
+              "source": "https://beads.example/acme/beads/dec-9",
+              "sourceRevision": "dec-9-r2"
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-42",
+                "type": "https://work.example/types/task",
+                "revision": "task-42-r8",
+                "properties": {
+                  "title": "Specify BDP mutation",
+                  "status": "cited"
+                }
+              }
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-14T18:04:12Z"
+        }
+      }
+    },
+    {
+      "id": "batch-1-new-key-fails-whole",
+      "condition": "The same batch under a new key after the Decision identity was committed. Nothing is committed; the receipt's problem carries the would-be 409, the failing index and name, and a pointer into the request body, and the HTTP status is 200 because the receipt itself was produced.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0002"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "name": "decision",
+              "operation": "createBead",
+              "id": "beads/dec-9",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Adopt owned Links",
+                "status": "proposed"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "name": "cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@decision",
+              "target": "beads/task-42",
+              "properties": {
+                "role": "evidence"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r7",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "cited"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-43"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-8",
+          "status": "failed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0002",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-0a1c",
+          "requiredPosition": "pos-43",
+          "problem": {
+            "type": "https://github.com/gastownhall/bdp/problems/conflict",
+            "title": "Supplied identity was previously committed",
+            "status": 409,
+            "detail": "beads/dec-9 has been committed in this Scope and is never reassigned.",
+            "code": "identity-taken",
+            "retry": "never",
+            "operationIndex": 0,
+            "operationName": "decision",
+            "pointer": "/operations/0/id"
+          },
+          "expiresAt": "2026-09-14T18:05:30Z"
+        }
+      }
+    },
+    {
+      "id": "batch-2-original",
+      "condition": "Submitted after the erasures at pos-44 and pos-45, so the Task is at task-42-r9 when the deletion is reached. The set deletion matched two Links in canonical-uri order — 9c1e, the owned cites Link, whose entry names its source and the source's fresh revision, then blocks-3 — and the page bound cut the entries after the first.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0003"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "deleteWhere",
+              "collection": "links",
+              "selector": "$[?@.source == \"https://beads.example/acme/beads/task-42\" || @.target == \"https://beads.example/acme/beads/task-42\"]",
+              "cardinality": {
+                "max": 1000
+              },
+              "attribution": {
+                "principal": "human:donna",
+                "status": "claimed"
+              }
+            },
+            {
+              "operation": "deleteBead",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r9"
+            },
+            {
+              "operation": "createLink",
+              "type": "https://work.example/types/relates",
+              "source": "beads/task-43",
+              "target": {
+                "uri": "https://github.example/issues/123",
+                "revision": "8f0e2b"
+              },
+              "properties": {}
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-46"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-9",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0003",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-0a1d",
+          "requiredPosition": "pos-46",
+          "effectPosition": "pos-46",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "matched",
+              "count": 2
+            },
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/acme/links/9c1e",
+                  "type": "https://work.example/types/cites",
+                  "revision": "9c1e-r1"
+                }
+              },
+              "source": "https://beads.example/acme/beads/dec-9",
+              "sourceRevision": "dec-9-r3"
+            }
+          ],
+          "next": "https://beads.example/acme/receipts/rcpt-9?page=2",
+          "expiresAt": "2026-09-14T18:09:40Z"
+        }
+      }
+    },
+    {
+      "id": "receipt-9-page-2",
+      "condition": "The second and last page: the remaining set-deletion entry, the Bead deletion's identity record, and the created Link with its pinned external endpoint echoed byte-identically.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-46"
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "body": {
+          "receipt": "https://beads.example/acme/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/acme/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/acme/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/acme/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            }
+          ],
+          "next": null
+        }
+      }
+    }
+  ]
+}

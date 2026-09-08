@@ -1,0 +1,1364 @@
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
+import { describe, expect, it } from "vitest";
+
+import { BDP_PROBLEM_FAMILY_PREFIX, BDP_V0_SCHEMA_ID, READ_PROBLEM_DEFINITIONS } from "./index.js";
+import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
+
+/**
+ * The drafted Transactional wire artifacts, held in lockstep from three
+ * sides: the specification's Problem-details table, the bundle's
+ * definitions, and the checked-in `fixtures/transactional` exchanges. This
+ * checks structural, table, and example consistency — the three
+ * Transactional rows mirror the bundle's branches and the direct and
+ * receipt contexts are closed, the fixtures validate, receipt entries
+ * align with the operations that produced them, change groups and
+ * snapshots keep the invariants the text states, the recorded digest
+ * vectors reproduce from their recorded serializations, and the shapes the
+ * packet's negative fixtures name are rejected. It establishes none of the
+ * behavior the decisions describe: fixture conditions are narrated
+ * assumptions, not observations, and none of this is conformance evidence.
+ */
+const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const schema = JSON.parse(
+  readFileSync(path.join(workspaceRoot, "schemas", "bdp-v0.schema.json"), "utf8"),
+) as SchemaRecord;
+const specification = readFileSync(path.join(workspaceRoot, "docs", "specs", "bdp.md"), "utf8");
+const fixturesDirectory = path.join(workspaceRoot, "fixtures", "transactional");
+
+type SchemaRecord = Record<string, unknown>;
+type JsonRecord = Record<string, unknown>;
+
+/** The rows this draft adds; the specification table and the bundle must both agree. */
+const TRANSACTIONAL_PROBLEM_ROWS: readonly (readonly [string, string, number, string])[] = [
+  ["cardinality-violated", "conflict", 409, "after-state-change"],
+  ["event-history-expired", "gone", 410, "never"],
+  ["catch-up-timeout", "unavailable", 503, "after-delay"],
+];
+/** The Read+Update rows precede these in the table; the Read+Update lockstep test owns them. */
+const READ_UPDATE_ROW_COUNT = 12;
+
+const WIRE_TOKEN = /^[A-Za-z0-9_-]{1,256}$/;
+const HEX_DIGEST = /^[0-9a-f]{64}$/;
+const SCOPE = "https://beads.example/acme/";
+/** The reference domain's only owned Link Type: `decision` owns `cites`. */
+const OWNED_LINK_TYPE = "https://work.example/types/cites";
+
+const ajv = new Ajv2020({ allErrors: true, strict: true });
+ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
+ajv.addSchema(schema);
+
+interface FixtureExchange {
+  readonly id: string;
+  /** A narrated precondition — an assumption the example rests on, never an observation. */
+  readonly condition?: string;
+  /** An exchange in this fixture whose response body this one repeats byte for byte. */
+  readonly sameReceiptAs?: string;
+  readonly request: {
+    readonly method: string;
+    readonly target: string;
+    readonly headers: Readonly<Record<string, string>>;
+    readonly schema?: string;
+    readonly body?: JsonRecord;
+  };
+  readonly response: {
+    readonly status: number;
+    readonly headers: Readonly<Record<string, string>>;
+    readonly schema: string;
+    readonly body: JsonRecord;
+  };
+}
+
+interface TransactionalFixture {
+  readonly fixtureVersion: number;
+  readonly id: string;
+  readonly description: string;
+  readonly scope: string;
+  readonly exchanges: readonly FixtureExchange[];
+}
+
+interface DigestVector {
+  readonly label: string;
+  readonly record: JsonRecord;
+  readonly jcs: string;
+  readonly sha256: string;
+}
+
+interface DigestVectorsFixture {
+  readonly fixtureVersion: number;
+  readonly id: string;
+  readonly description: string;
+  readonly vectors: readonly DigestVector[];
+}
+
+const fixtureFiles = readdirSync(fixturesDirectory)
+  .filter((entry) => entry.endsWith(".json"))
+  .sort()
+  .map(
+    (entry) => JSON.parse(readFileSync(path.join(fixturesDirectory, entry), "utf8")) as JsonRecord,
+  );
+const fixtures = fixtureFiles.filter((candidate): candidate is JsonRecord & TransactionalFixture =>
+  Array.isArray(candidate.exchanges),
+);
+const digestVectors = fixtureFiles.find(
+  (candidate) => candidate.id === "transactional-erasure-digest-vectors",
+) as DigestVectorsFixture | undefined;
+
+describe("Transactional problem rows", () => {
+  const tableRows = problemTableRows(markdownSection(specification, "Problem details"));
+  const inheritedRowCount = READ_PROBLEM_DEFINITIONS.length + READ_UPDATE_ROW_COUNT;
+
+  it("adds exactly the three drafted rows after the Read and Read+Update rows", () => {
+    expect(tableRows.length).toBe(inheritedRowCount + TRANSACTIONAL_PROBLEM_ROWS.length);
+    expect(tableRows.slice(inheritedRowCount)).toEqual(TRANSACTIONAL_PROBLEM_ROWS);
+  });
+
+  it("mirrors the rows in the bundle's Transactional problem branches", () => {
+    expect(def("transactionalOnlyProblemCode")).toEqual({
+      enum: TRANSACTIONAL_PROBLEM_ROWS.map(([code]) => code),
+    });
+    expect(def("transactionalProblemCode")).toEqual({
+      anyOf: [
+        { $ref: "#/$defs/readUpdateProblemCode" },
+        { $ref: "#/$defs/transactionalOnlyProblemCode" },
+      ],
+    });
+    const direct = def("transactionalProblem").allOf as SchemaRecord[];
+    const receipt = def("receiptProblem").allOf as SchemaRecord[];
+    for (const branches of [direct, receipt]) {
+      // Every shared code routes through the Read+Update definition by
+      // reference, so the inherited rows are stated once.
+      expect(branches[0]).toEqual({
+        if: { properties: { code: { $ref: "#/$defs/readUpdateProblemCode" } }, required: ["code"] },
+        // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
+        then: { $ref: "#/$defs/readUpdateProblem" },
+      });
+    }
+    const rowBranch = (code: string, family: string, status: number, retry: string) => ({
+      if: { properties: { code: { const: code } }, required: ["code"] },
+      // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
+      then: {
+        properties: {
+          type: { const: `${BDP_PROBLEM_FAMILY_PREFIX}${family}` },
+          status: { const: status },
+          retry: { const: retry },
+        },
+      },
+    });
+    expect(direct[1]).toEqual(rowBranch("event-history-expired", "gone", 410, "never"));
+    expect(direct[2]).toEqual(rowBranch("catch-up-timeout", "unavailable", 503, "after-delay"));
+    expect(receipt[1]).toEqual(
+      rowBranch("cardinality-violated", "conflict", 409, "after-state-change"),
+    );
+    expect((propertiesOf("transactionalProblem").status as SchemaRecord).enum).toEqual(
+      (propertiesOf("readUpdateProblem").status as SchemaRecord).enum,
+    );
+  });
+
+  it("closes the direct and receipt contexts to their codes", () => {
+    const readUpdateCodes = new Set(def("readUpdateProblemCode").enum as string[]);
+    const transactionalOnly = new Set(TRANSACTIONAL_PROBLEM_ROWS.map(([code]) => code));
+    const direct = def("directProblemCode").enum as string[];
+    const receipt = def("receiptProblemCode").enum as string[];
+    for (const code of [...direct, ...receipt]) {
+      expect(readUpdateCodes.has(code) || transactionalOnly.has(code), code).toBe(true);
+    }
+    for (const definition of READ_PROBLEM_DEFINITIONS) expect(direct).toContain(definition.code);
+    expect(direct).toEqual(
+      expect.arrayContaining([
+        "unsupported-media-type",
+        "idempotency-conflict",
+        "event-history-expired",
+        "catch-up-timeout",
+      ]),
+    );
+    // The receipt context reuses exactly three Read codes and the Read+Update
+    // rows a failed transaction can carry; the transient and key-disposition
+    // codes never enter a receipt, and the receipt codes are never direct.
+    expect(direct.filter((code) => receipt.includes(code)).sort()).toEqual([
+      "forbidden",
+      "limit-exceeded",
+      "resource-not-found",
+    ]);
+    for (const code of ["temporarily-unavailable", "idempotency-conflict", "rate-limited"]) {
+      expect(receipt, code).not.toContain(code);
+    }
+    for (const code of ["idempotency-in-progress", "idempotency-expired", "binding-unavailable"]) {
+      expect(direct, code).not.toContain(code);
+    }
+    expect(receipt).toEqual(
+      expect.arrayContaining([
+        "validation-failed",
+        "type-not-installed",
+        "identity-taken",
+        "alias-path-taken",
+        "revision-mismatch",
+        "incident-links-exist",
+        "aggregate-constraint-violation",
+        "cardinality-violated",
+        "binding-unavailable",
+      ]),
+    );
+    expect(receipt).not.toContain("event-history-expired");
+    expect(receipt).not.toContain("catch-up-timeout");
+    expect(def("receiptProblem").required).toEqual(["type", "code", "status", "retry"]);
+  });
+});
+
+describe("Transactional wire fixtures", () => {
+  it("cover discovery, batch, receipts, the set targets, direct problems, sequence, Events, the changefeed, and snapshots", () => {
+    expect(fixtures.map(({ id }) => id)).toEqual([
+      "transactional-batch",
+      "transactional-changefeed",
+      "transactional-direct-problems",
+      "transactional-discovery",
+      "transactional-events",
+      "transactional-receipts",
+      "transactional-sequence",
+      "transactional-set-singletons",
+      "transactional-snapshots",
+    ]);
+    const targets = new Set(
+      fixtures.flatMap(({ exchanges }) => exchanges.map(({ request }) => request.target)),
+    );
+    expect([...targets].sort()).toEqual([
+      "bdp.json",
+      "beads/dec-11?view=events&after=ckpt-52_0",
+      "beads/dec-9?view=events",
+      "beads/dec-9?view=events&after=ckpt-43_4",
+      "changes/?after=ckpt-42",
+      "changes/?after=ckpt-43",
+      "changes/?after=ckpt-44",
+      "changes/?after=ckpt-46",
+      "operations/",
+      "operations/batch",
+      "operations/delete-where",
+      "operations/sequence",
+      "operations/update-bead-properties",
+      "operations/update-where",
+      "receipts/",
+      "receipts/rcpt-0",
+      "receipts/rcpt-7",
+      "receipts/rcpt-8",
+      "receipts/rcpt-9?page=2",
+      "snapshot",
+    ]);
+  });
+
+  for (const fixture of fixtures) {
+    describe(fixture.id, () => {
+      it("is a version-1 fixture whose exchanges validate against the bundle", () => {
+        expect(fixture.fixtureVersion).toBe(1);
+        expect(fixture.scope).toBe(SCOPE);
+        expect(fixture.description).toContain("not evidence");
+        expect(new Set(fixture.exchanges.map(({ id }) => id)).size).toBe(fixture.exchanges.length);
+        for (const exchange of fixture.exchanges) {
+          if (exchange.request.schema !== undefined)
+            expectValid(exchange.request.schema, exchange.request.body, exchange.id);
+          expectValid(exchange.response.schema, exchange.response.body, exchange.id);
+        }
+      });
+
+      it("pairs every response with its status, media type, cache policy, and response fields", () => {
+        for (const exchange of fixture.exchanges) {
+          const { request, response } = exchange;
+          expect(response.headers["cache-control"], exchange.id).toBe("private, no-store");
+          if (isDirectProblem(exchange)) {
+            expect(response.headers["content-type"], exchange.id).toBe("application/problem+json");
+            expect(response.body.status, exchange.id).toBe(response.status);
+            expectProblemRow(response.body, exchange.id);
+            if (response.body.retry === "after-delay")
+              expect(response.headers["retry-after"], exchange.id).toBeDefined();
+          } else {
+            expect([200, 202], exchange.id).toContain(response.status);
+            expect(response.headers["content-type"], exchange.id).toBe("application/json");
+            // The three fields are the serving request's own observation.
+            for (const field of [
+              "bdp-scope-epoch",
+              "bdp-authorization-view",
+              "bdp-scope-position",
+            ]) {
+              expect(response.headers[field], `${exchange.id}: ${field}`).toMatch(WIRE_TOKEN);
+            }
+          }
+          if (request.method !== "POST") continue;
+          const key = request.headers["idempotency-key"];
+          if (request.target === "operations/sequence") {
+            expect(key, exchange.id).toBeUndefined();
+          } else if (response.body.code !== "malformed-request") {
+            expect(key, exchange.id).toMatch(WIRE_TOKEN);
+          }
+        }
+      });
+
+      it("keeps every Mutation Receipt aligned with the request that produced it", () => {
+        for (const exchange of fixture.exchanges) {
+          if (exchange.response.schema !== "#/$defs/mutationReceipt") continue;
+          const receipt = exchange.response.body;
+          expectReceiptRepresentation(receipt, exchange);
+          const operations = requestOperations(exchange);
+          if (operations === undefined) continue;
+          const entries = receiptEntries(fixture, exchange);
+          expectEntriesCorrespond(entries, operations, exchange.id);
+        }
+      });
+
+      it("repeats a retained receipt byte for byte when an identical retry is answered", () => {
+        for (const exchange of fixture.exchanges) {
+          if (exchange.sameReceiptAs === undefined) continue;
+          const original = fixture.exchanges.find(({ id }) => id === exchange.sameReceiptAs);
+          if (original === undefined) throw new Error(`${exchange.id}: unknown original`);
+          expect(exchange.response.body, exchange.id).toEqual(original.response.body);
+          expect(exchange.request.body, exchange.id).toEqual(original.request.body);
+          expect(exchange.request.headers["idempotency-key"], exchange.id).toBe(
+            original.request.headers["idempotency-key"],
+          );
+        }
+      });
+
+      it("keeps change groups, Event pages, and snapshots to their stated invariants", () => {
+        for (const exchange of fixture.exchanges) {
+          const body = exchange.response.body;
+          if (exchange.response.schema === "#/$defs/changefeedPage") {
+            for (const group of body.groups as readonly JsonRecord[])
+              expectChangeGroup(group, exchange.id);
+          } else if (exchange.response.schema === "#/$defs/eventPage") {
+            const events = body.events as readonly JsonRecord[];
+            for (const event of events) expect(event.source, exchange.id).toBe(body.source);
+            expectOrdinalsIncrease(events, exchange.id);
+          } else if (exchange.response.schema === "#/$defs/snapshotManifest") {
+            expectClosedSnapshot(body, exchange.id);
+          }
+        }
+      });
+    });
+  }
+});
+
+describe("erasure digest vectors", () => {
+  const vectors = digestVectors?.vectors ?? [];
+
+  it("record the served records the fixtures carry, with their serialization and digest", () => {
+    expect(digestVectors?.fixtureVersion).toBe(1);
+    expect(digestVectors?.description).toContain("not evidence");
+    expect(vectors.map(({ label }) => label)).toEqual([
+      "task-42-r7",
+      "task-42-r8",
+      "9c1e-r1",
+      "2d4f-r1",
+      "dec-9-r2",
+      "vec-1-r1",
+      "vec-2-r1",
+    ]);
+  });
+
+  for (const vector of vectors) {
+    it(`reproduces the ${vector.label} digest from its recorded RFC 8785 serialization`, () => {
+      // No RFC 8785 serializer is in the repository (recorded as a known gap):
+      // the canonicalization is the packet's, and what is checked is that
+      // the serialization is the record and that SHA-256 over it is the
+      // recorded digest.
+      expect(JSON.parse(vector.jcs)).toEqual(vector.record);
+      expect(createHash("sha256").update(vector.jcs, "utf8").digest("hex")).toBe(vector.sha256);
+      expect(vector.sha256).toMatch(HEX_DIGEST);
+      // Member names are in UTF-16 code-unit order at every level.
+      expectSortedMembers(JSON.parse(vector.jcs), vector.label);
+    });
+  }
+
+  it("agree with the records and erasure digests the fixtures serve", () => {
+    const served = new Map<string, JsonRecord>();
+    const erased = new Map<string, string>();
+    for (const fixture of fixtures) {
+      for (const { response } of fixture.exchanges) {
+        for (const record of servedRecords(response.body)) {
+          served.set(`${record.id}@${record.revision}`, record);
+        }
+        for (const record of erasureRecords(response.body)) {
+          erased.set(
+            `${record.subject}@${record.revision}`,
+            (record.digest as JsonRecord).value as string,
+          );
+        }
+      }
+    }
+    expect(served.size).toBeGreaterThan(0);
+    for (const vector of vectors) {
+      const key = `${vector.record.id}@${vector.record.revision}`;
+      const record = served.get(key);
+      if (record !== undefined) expect(record, vector.label).toEqual(vector.record);
+      const digest = erased.get(key);
+      if (digest !== undefined) expect(digest, vector.label).toBe(vector.sha256);
+    }
+    expect(erased.get(`${SCOPE}beads/task-42@task-42-r7`)).toBe(vectors[0]?.sha256);
+    expect(erased.get(`${SCOPE}beads/task-42@task-42-r8`)).toBe(vectors[1]?.sha256);
+  });
+});
+
+describe("Transactional discovery and limits", () => {
+  const SHARED_GROUPS = ["page", "request", "resource", "selector", "patch", "sequence"];
+
+  it("requires the alias root and pins the profile", () => {
+    expect(propertiesOf("transactionalDiscovery").profile).toEqual({ const: "transactional" });
+    const required = def("transactionalDiscovery").required as readonly string[];
+    for (const member of [
+      ...(def("readUpdateDiscovery").required as readonly string[]),
+      "scopeEpoch",
+      "authorizationView",
+      "headPosition",
+      "minimumReplayPosition",
+      "receipts",
+      "snapshot",
+      "changes",
+      "events",
+    ]) {
+      expect(required, member).toContain(member);
+    }
+    expect(propertiesOf("transactionalDiscovery").limits).toEqual({
+      $ref: "#/$defs/transactionalAdvertisedLimits",
+    });
+  });
+
+  it("restates the shared groups, carries validation and transaction, and closes retention without idempotency", () => {
+    const groups = propertiesOf("transactionalAdvertisedLimits");
+    const shared = propertiesOf("advertisedLimits");
+    expect(def("transactionalAdvertisedLimits").additionalProperties).toBe(false);
+    expect(Object.keys(groups)).toEqual([
+      ...SHARED_GROUPS,
+      "validation",
+      "transaction",
+      "retention",
+    ]);
+    for (const group of [...SHARED_GROUPS, "transaction"])
+      expect(groups[group], group).toEqual(shared[group]);
+    expect(groups.validation).toEqual(propertiesOf("readUpdateAdvertisedLimits").validation);
+    const retention = requiredRecord(groups.retention, "retention");
+    expect(Object.keys(requiredRecord(retention.properties, "retention.properties"))).toEqual([
+      "receipt",
+      "maximumSnapshotLifetime",
+      "replay",
+    ]);
+    expect(retention.additionalProperties).toBe(false);
+  });
+
+  it("pins all twelve Operation Directory targets", () => {
+    const entries = [
+      ["createBead", "create-bead"],
+      ["updateBeadProperties", "update-bead-properties"],
+      ["deleteBead", "delete-bead"],
+      ["createLink", "create-link"],
+      ["updateLinkProperties", "update-link-properties"],
+      ["deleteLink", "delete-link"],
+      ["putAlias", "put-alias"],
+      ["deleteAlias", "delete-alias"],
+      ["sequence", "sequence"],
+      ["updateWhere", "update-where"],
+      ["deleteWhere", "delete-where"],
+      ["batch", "batch"],
+    ];
+    const directory = def("transactionalOperationDirectory");
+    expect(directory.required).toEqual(entries.map(([key]) => key));
+    expect(directory.additionalProperties).toBe(false);
+    expect(propertiesOf("transactionalOperationDirectory")).toEqual(
+      Object.fromEntries(entries.map(([key, target]) => [key, { const: target }])),
+    );
+  });
+
+  it("composes the eight operation records from the Read+Update member mixins", () => {
+    const union = (def("batchOperation").oneOf as SchemaRecord[]).map(
+      (branch) => branch.$ref as string,
+    );
+    expect(union).toEqual([
+      "#/$defs/createBeadOperation",
+      "#/$defs/updateBeadPropertiesOperation",
+      "#/$defs/deleteBeadOperation",
+      "#/$defs/createLinkOperation",
+      "#/$defs/updateLinkPropertiesOperation",
+      "#/$defs/deleteLinkOperation",
+      "#/$defs/updateWhereOperation",
+      "#/$defs/deleteWhereOperation",
+    ]);
+    for (const ref of union) {
+      const name = ref.slice("#/$defs/".length);
+      const record = def(name);
+      expect(record.allOf, name).toEqual([
+        { $ref: `#/$defs/${name.replace(/Operation$/, "Members")}` },
+      ]);
+      expect(record.unevaluatedProperties, name).toBe(false);
+      expect(record.required, name).toEqual(["operation"]);
+    }
+    expect(propertiesOf("createBeadOperation").name).toEqual({ $ref: "#/$defs/localName" });
+    expect(propertiesOf("updateBeadPropertiesOperation").name).toBeUndefined();
+    // The receipt entry's deleted identity is the Read+Update record (X1).
+    expect(propertiesOf("receiptResult").deleted).toEqual({ $ref: "#/$defs/deletedIdentity" });
+    expect(propertiesOf("receiptResult").erased).toEqual({ $ref: "#/$defs/resourceIdentity" });
+  });
+});
+
+describe("shapes the bundle now rejects", () => {
+  const scope = SCOPE;
+  const receiptBase = {
+    id: `${scope}receipts/rcpt-7`,
+    idempotencyKey: "client-key-0001",
+    scopeEpoch: "epoch-1",
+    authorizationView: "view-a",
+    transaction: "txn-0a1b",
+    requiredPosition: "pos-43",
+  };
+  const failedProblem = {
+    type: `${BDP_PROBLEM_FAMILY_PREFIX}conflict`,
+    code: "revision-mismatch",
+    status: 409,
+    retry: "after-state-change",
+    operationIndex: 2,
+  };
+  const eventBase = {
+    id: "ckpt-43_9",
+    ordinal: 9,
+    type: "updated",
+    source: `${scope}events/`,
+    subject: `${scope}beads/dec-9`,
+    subjectType: "https://work.example/types/decision",
+    transaction: "txn-0a1b",
+    time: "2026-09-07T18:04:12Z",
+  };
+  const deletedLinkIdentity = {
+    id: `${scope}links/9c1e`,
+    type: OWNED_LINK_TYPE,
+    revision: "9c1e-r1",
+  };
+  const linkRecord = {
+    ...deletedLinkIdentity,
+    source: `${scope}beads/dec-11`,
+    target: `${scope}beads/task-42`,
+    properties: { role: "primary" },
+  };
+  const discovery = {
+    bdpVersion: "0",
+    profile: "transactional",
+    scope,
+    scopeEpoch: "epoch-1",
+    authorizationView: "view-a",
+    headPosition: "pos-42",
+    minimumReplayPosition: "pos-17",
+    beads: `${scope}beads/`,
+    links: `${scope}links/`,
+    types: `${scope}types/`,
+    operations: `${scope}operations/`,
+    aliases: `${scope}alias/`,
+    receipts: `${scope}receipts/`,
+    snapshot: `${scope}snapshot`,
+    changes: `${scope}changes/`,
+    events: `${scope}events/`,
+  };
+  const advance = {
+    scopeEpoch: "epoch-1",
+    authorizationView: "view-b",
+    checkpoint: "ckpt-44",
+    position: "pos-44",
+    previousPosition: "pos-43",
+    projectionAdvance: true,
+    eventCount: 0,
+    changes: [],
+    erasures: [],
+    events: [],
+  };
+  const rejected: readonly (readonly [string, string, unknown])[] = [
+    [
+      "event",
+      "an updated delta carrying both a Property Change and an owned-Link change",
+      {
+        ...eventBase,
+        data: {
+          previousRevision: "dec-9-r1",
+          revision: "dec-9-r2",
+          change: [{ op: "replace", path: "/status", value: "accepted" }],
+          ownedLink: { operation: "deleted", link: deletedLinkIdentity },
+        },
+      },
+    ],
+    [
+      "event",
+      "an updated owned-Link transition carrying the Link's record instead of its delta",
+      {
+        ...eventBase,
+        data: {
+          previousRevision: "dec-11-r4",
+          revision: "dec-11-r5",
+          ownedLink: { operation: "updated", link: linkRecord },
+        },
+      },
+    ],
+    [
+      "event",
+      "an Event whose time is not a calendar instant",
+      {
+        ...eventBase,
+        type: "deleted",
+        time: "2026-99-99T99:99:99+99:99",
+        data: { revision: "task-42-r9" },
+      },
+    ],
+    [
+      "event",
+      "an Event whose time names a day that does not exist",
+      { ...eventBase, type: "deleted", time: "2026-02-30T00:00:00Z", data: { revision: "r" } },
+    ],
+    [
+      "batchRequest",
+      "a body-level idempotencyKey",
+      {
+        idempotencyKey: "client-key-0001",
+        operations: [
+          { operation: "createBead", type: "https://work.example/types/task", properties: {} },
+        ],
+      },
+    ],
+    [
+      "batchRequest",
+      "a per-operation idempotencyKey",
+      {
+        operations: [
+          {
+            operation: "createBead",
+            idempotencyKey: "member-key-1",
+            type: "https://work.example/types/task",
+          },
+        ],
+      },
+    ],
+    [
+      "batchRequest",
+      "a supplied id spelled with a leading @",
+      {
+        operations: [{ operation: "createBead", id: "@not-a-label", type: "https://t.example/t" }],
+      },
+    ],
+    ["batchRequest", "an empty operation list", { operations: [] }],
+    [
+      "updateWhereRequest",
+      "a set-operation singleton body carrying the batch discriminator",
+      {
+        operation: "updateWhere",
+        collection: "beads",
+        selector: '$[?@.properties.status == "ready"]',
+        change: [{ op: "replace", path: "/status", value: "claimed" }],
+      },
+    ],
+    [
+      "mutationReceipt",
+      "a completed receipt with available detail but no results",
+      {
+        ...receiptBase,
+        status: "completed",
+        detail: "available",
+        next: null,
+        expiresAt: "2026-09-14T18:04:12Z",
+      },
+    ],
+    [
+      "mutationReceipt",
+      "an expired completed receipt without allocated",
+      { ...receiptBase, status: "completed", detail: "expired", effectPosition: "pos-43" },
+    ],
+    [
+      "mutationReceipt",
+      "a failed receipt with expired detail (T47: failed receipts are forgotten, never expired)",
+      { ...receiptBase, status: "failed", detail: "expired" },
+    ],
+    [
+      "mutationReceipt",
+      "a failed receipt with withheld detail",
+      { ...receiptBase, status: "failed", detail: "withheld" },
+    ],
+    [
+      "mutationReceipt",
+      "a failed receipt carrying an effectPosition",
+      {
+        ...receiptBase,
+        status: "failed",
+        detail: "available",
+        effectPosition: "pos-43",
+        problem: failedProblem,
+        expiresAt: "2026-09-14T18:04:12Z",
+      },
+    ],
+    [
+      "mutationReceipt",
+      "a pending receipt carrying detail",
+      { ...receiptBase, status: "pending", detail: "available" },
+    ],
+    [
+      "receiptProblem",
+      "a receipt problem without the failure's would-be status",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}conflict`,
+        code: "revision-mismatch",
+        retry: "after-state-change",
+        operationIndex: 2,
+      },
+    ],
+    [
+      "receiptProblem",
+      "a receipt problem carrying a direct-only code",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}conflict`,
+        code: "idempotency-conflict",
+        status: 409,
+        retry: "never",
+        operationIndex: 0,
+      },
+    ],
+    [
+      "transactionalProblem",
+      "a direct problem carrying a receipt-only code",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}conflict`,
+        code: "revision-mismatch",
+        status: 409,
+        retry: "after-state-change",
+      },
+    ],
+    [
+      "receiptProblem",
+      "a validation-failed receipt problem without diagnostics",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}validation`,
+        code: "validation-failed",
+        status: 422,
+        retry: "never",
+        operationIndex: 2,
+      },
+    ],
+    [
+      "receiptProblem",
+      "an operation-level receipt problem without operationIndex",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}conflict`,
+        code: "revision-mismatch",
+        status: 409,
+        retry: "after-state-change",
+      },
+    ],
+    [
+      "receiptProblem",
+      "a limit on a problem that is not limit-exceeded",
+      { ...failedProblem, limit: "transaction.duration" },
+    ],
+    [
+      "transactionalProblem",
+      "a resource-erased problem carrying a pointer",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
+        code: "resource-erased",
+        status: 410,
+        retry: "never",
+        pointer: "/properties/title",
+      },
+    ],
+    [
+      "transactionalProblem",
+      "retryAfter on a problem that is not after-delay",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}conflict`,
+        code: "idempotency-conflict",
+        status: 409,
+        retry: "never",
+        retryAfter: 1,
+      },
+    ],
+    [
+      "receiptResult",
+      "a deleted entry carrying sourceRevision without source",
+      {
+        operationIndex: 0,
+        outcome: "deleted",
+        deleted: { resourceKind: "link", resource: deletedLinkIdentity },
+        sourceRevision: "dec-9-r3",
+      },
+    ],
+    [
+      "receiptResult",
+      "a deleted Bead entry carrying the owned-source pair",
+      {
+        operationIndex: 1,
+        outcome: "deleted",
+        deleted: {
+          resourceKind: "bead",
+          resource: { id: `${scope}beads/task-42`, type: "https://t.example/t", revision: "r9" },
+        },
+        source: `${scope}beads/dec-9`,
+        sourceRevision: "dec-9-r3",
+      },
+    ],
+    [
+      "receiptResult",
+      "a deleted identity spelled as the bare lineage marker",
+      { operationIndex: 0, outcome: "deleted", deleted: deletedLinkIdentity },
+    ],
+    [
+      "receiptResult",
+      "a matched entry carrying an operationName",
+      { operationIndex: 0, operationName: "x", outcome: "matched", count: 2 },
+    ],
+    [
+      "receiptResult",
+      "a withheld entry carrying a record",
+      { operationIndex: 0, outcome: "withheld", resource: { ...linkRecord } },
+    ],
+    [
+      "receiptResult",
+      "a Bead postimage carrying the owned-source pair",
+      {
+        operationIndex: 0,
+        outcome: "created",
+        resource: {
+          id: `${scope}beads/dec-9`,
+          type: "https://work.example/types/decision",
+          revision: "r1",
+          properties: {},
+        },
+        source: `${scope}beads/dec-9`,
+        sourceRevision: "r2",
+      },
+    ],
+    [
+      "allocatedIdentity",
+      "an allocated identity both withheld and identified",
+      {
+        operationIndex: 0,
+        id: `${scope}beads/dec-9`,
+        type: "https://work.example/types/decision",
+        withheld: true,
+      },
+    ],
+    [
+      "changeGroup",
+      "a projection advance that names a transaction",
+      { ...advance, transaction: "adm-e1" },
+    ],
+    [
+      "changeGroup",
+      "a visible group that carries nothing",
+      { ...advance, authorizationView: "view-a", projectionAdvance: false, transaction: "adm-e1" },
+    ],
+    [
+      "changeGroup",
+      "a visible group without a transaction",
+      { ...advance, projectionAdvance: false, erasures: [erasureRecord()] },
+    ],
+    [
+      "transactionalDiscovery",
+      "a Transactional discovery document advertising retention.idempotency",
+      { ...discovery, limits: { retention: { idempotency: "P1D", receipt: "P7D" } } },
+    ],
+    [
+      "transactionalDiscovery",
+      "a Transactional discovery document without aliases",
+      Object.fromEntries(Object.entries(discovery).filter(([key]) => key !== "aliases")),
+    ],
+    [
+      "transactionalDiscovery",
+      "a Transactional discovery document without its history members",
+      Object.fromEntries(Object.entries(discovery).filter(([key]) => key !== "headPosition")),
+    ],
+    [
+      "erasureRecord",
+      "a digest whose hexadecimal is not lowercase",
+      {
+        ...erasureRecord(),
+        digest: {
+          scheme: "sha-256-jcs",
+          value: "5C9DB2F807BBED90617EC1A01F3C4C86E44967C703BF6E480CA97C2CE4FAE832",
+        },
+      },
+    ],
+    [
+      "erasureRecord",
+      "an unregistered digest scheme",
+      { ...erasureRecord(), digest: { scheme: "sha-512", value: "0".repeat(64) } },
+    ],
+    [
+      "snapshotManifest",
+      "a manifest without its ledger",
+      {
+        id: `${scope}snapshot?snapshot=snapshot-42`,
+        scope,
+        scopeEpoch: "epoch-1",
+        authorizationView: "view-a",
+        scopePosition: "pos-42",
+        checkpoint: "ckpt-42",
+        expiresAt: "2026-09-07T19:22:00Z",
+        beads: { items: [], next: null },
+        links: { items: [], next: null },
+      },
+    ],
+    [
+      "transactionalOperationDirectory",
+      "a directory without the alias targets",
+      {
+        createBead: "create-bead",
+        updateBeadProperties: "update-bead-properties",
+        deleteBead: "delete-bead",
+        createLink: "create-link",
+        updateLinkProperties: "update-link-properties",
+        deleteLink: "delete-link",
+        sequence: "sequence",
+        updateWhere: "update-where",
+        deleteWhere: "delete-where",
+        batch: "batch",
+      },
+    ],
+  ];
+  for (const [definition, label, value] of rejected) {
+    it(`rejects ${label}`, () => {
+      expect(compiledDefinition(`#/$defs/${definition}`)(value)).toBe(false);
+    });
+  }
+
+  it("still admits the lowercase RFC 3339 forms a client accepts, pinned labels, and the five receipt representations", () => {
+    expectValid(
+      "#/$defs/event",
+      {
+        ...eventBase,
+        type: "deleted",
+        time: "2026-09-07t18:04:12.5+02:00",
+        data: { revision: "r" },
+      },
+      "lowercase t with a fraction and an offset",
+    );
+    expectValid(
+      "#/$defs/batchRequest",
+      {
+        operations: [
+          { name: "d", operation: "createBead", type: "https://work.example/types/decision" },
+          {
+            operation: "createLink",
+            type: OWNED_LINK_TYPE,
+            source: { uri: "@d", revision: "pin" },
+            target: "beads/task-42",
+          },
+        ],
+      },
+      "a pinned @label endpoint",
+    );
+    expectValid(
+      "#/$defs/mutationReceipt",
+      { ...receiptBase, status: "completed", detail: "withheld", effectPosition: "pos-43" },
+      "a wholly withheld completed receipt",
+    );
+    expectValid(
+      "#/$defs/mutationReceipt",
+      {
+        ...receiptBase,
+        status: "completed",
+        detail: "expired",
+        allocated: [{ operationIndex: 0, withheld: true }],
+      },
+      "an expired receipt whose allocated identity is withheld",
+    );
+    expectValid(
+      "#/$defs/receiptProblem",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}size`,
+        code: "limit-exceeded",
+        status: 413,
+        retry: "never",
+        limit: "transaction.inducedEvents",
+      },
+      "a transaction-level limit without an operationIndex",
+    );
+    expectValid(
+      "#/$defs/receiptProblem",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}request`,
+        code: "binding-unavailable",
+        status: 400,
+        retry: "never",
+        operationIndex: 1,
+      },
+      "a sequence member's binding-unavailable receipt problem",
+    );
+    expectValid(
+      "#/$defs/receiptProblem",
+      {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}conflict`,
+        code: "alias-path-taken",
+        status: 409,
+        retry: "after-state-change",
+        operationIndex: 0,
+        pointer: "/operations/0/id",
+      },
+      "a Bead creation on a live alias path inside a receipt",
+    );
+  });
+
+  function erasureRecord(): JsonRecord {
+    return {
+      subject: `${scope}beads/task-42`,
+      revision: "task-42-r7",
+      digest: {
+        scheme: "sha-256-jcs",
+        value: "5c9db2f807bbed90617ec1a01f3c4c86e44967c703bf6e480ca97c2ce4fae832",
+      },
+    };
+  }
+});
+
+const SINGLETON_OPERATIONS: ReadonlyMap<string, string> = new Map([
+  ["operations/create-bead", "createBead"],
+  ["operations/update-bead-properties", "updateBeadProperties"],
+  ["operations/delete-bead", "deleteBead"],
+  ["operations/create-link", "createLink"],
+  ["operations/update-link-properties", "updateLinkProperties"],
+  ["operations/delete-link", "deleteLink"],
+  ["operations/update-where", "updateWhere"],
+  ["operations/delete-where", "deleteWhere"],
+]);
+
+function isDirectProblem(exchange: FixtureExchange): boolean {
+  return exchange.response.schema === "#/$defs/transactionalProblem";
+}
+
+/** The operation records a receipt's entries answer: a batch's list, or the singleton body as one record. */
+function requestOperations(exchange: FixtureExchange): readonly JsonRecord[] | undefined {
+  const { request } = exchange;
+  if (request.method !== "POST" || request.body === undefined) return undefined;
+  if (request.target === "operations/batch")
+    return request.body.operations as readonly JsonRecord[];
+  const operation = SINGLETON_OPERATIONS.get(request.target);
+  if (operation === undefined) return undefined;
+  return [{ ...request.body, operation }];
+}
+
+/** The receipt's inline entries followed by every page the fixture continues into. */
+function receiptEntries(
+  fixture: TransactionalFixture,
+  exchange: FixtureExchange,
+): readonly JsonRecord[] {
+  const entries = [
+    ...((exchange.response.body.results as readonly JsonRecord[] | undefined) ?? []),
+  ];
+  let next = exchange.response.body.next;
+  while (typeof next === "string") {
+    const target = next.slice(SCOPE.length);
+    const page = fixture.exchanges.find(
+      (candidate) =>
+        candidate.request.target === target &&
+        candidate.response.schema === "#/$defs/mutationReceiptPage",
+    );
+    if (page === undefined) break;
+    entries.push(...(page.response.body.results as readonly JsonRecord[]));
+    next = page.response.body.next;
+  }
+  return entries;
+}
+
+function expectReceiptRepresentation(receipt: JsonRecord, exchange: FixtureExchange): void {
+  const label = exchange.id;
+  expect(typeof receipt.id, label).toBe("string");
+  expect((receipt.id as string).startsWith(`${SCOPE}receipts/`), label).toBe(true);
+  if (exchange.request.method === "POST")
+    expect(receipt.idempotencyKey, label).toBe(exchange.request.headers["idempotency-key"]);
+  if (receipt.status === "pending") {
+    expect(exchange.response.status, label).toBe(202);
+    expect(exchange.response.headers["retry-after"], label).toBeDefined();
+    expect(receipt.detail, label).toBeUndefined();
+    return;
+  }
+  expect(exchange.response.status, label).toBe(200);
+  if (receipt.status === "failed") {
+    expect(receipt.detail, label).toBe("available");
+    expect(receipt.effectPosition, label).toBeUndefined();
+    expect(typeof receipt.expiresAt, label).toBe("string");
+    const problem = receipt.problem as JsonRecord;
+    expectProblemRow(problem, `${label}: problem`);
+    expect(def("receiptProblemCode").enum as string[], label).toContain(problem.code);
+    return;
+  }
+  expect(receipt.status, label).toBe("completed");
+  if (receipt.detail === "expired") {
+    expect(receipt.results, label).toBeUndefined();
+    expect(Array.isArray(receipt.allocated), label).toBe(true);
+  } else if (receipt.detail === "withheld") {
+    expect(receipt.results, label).toBeUndefined();
+    expect(receipt.allocated, label).toBeUndefined();
+  } else {
+    expect(receipt.detail, label).toBe("available");
+    expect(Array.isArray(receipt.results), label).toBe(true);
+    expect(typeof receipt.expiresAt, label).toBe("string");
+  }
+}
+
+/**
+ * Entry/operation correspondence the schema cannot express: every entry names
+ * an operation of the request, entries appear in operation order, a set
+ * operation's `matched` count is the number of per-Resource entries that
+ * follow it, and an entry's outcome, record type, deleted kind, and
+ * owned-source pair follow from the operation that produced it.
+ */
+function expectEntriesCorrespond(
+  entries: readonly JsonRecord[],
+  operations: readonly JsonRecord[],
+  label: string,
+): void {
+  let lastIndex = -1;
+  for (const [position, entry] of entries.entries()) {
+    const index = entry.operationIndex as number;
+    const entryLabel = `${label}[${position}]`;
+    expect(index, entryLabel).toBeGreaterThanOrEqual(lastIndex);
+    expect(index, entryLabel).toBeLessThan(operations.length);
+    lastIndex = index;
+    const operation = operations[index] as JsonRecord;
+    const kind = operation.operation as string;
+    if (entry.outcome === "matched") {
+      expect(kind, entryLabel).toMatch(/Where$/);
+      const following = entries
+        .slice(position + 1)
+        .filter((candidate) => candidate.operationIndex === index);
+      expect(following.length, entryLabel).toBe(entry.count);
+      expect(entry.operationName, entryLabel).toBeUndefined();
+      continue;
+    }
+    expect(entry.operationName, entryLabel).toEqual(operation.name);
+    if (entry.outcome === "withheld") continue;
+    if (entry.outcome === "erased") {
+      expect(kind, entryLabel).not.toMatch(/^delete/);
+      continue;
+    }
+    if (kind.startsWith("delete")) {
+      expect(entry.outcome, entryLabel).toBe("deleted");
+      const deleted = entry.deleted as JsonRecord;
+      const expectedKind =
+        kind === "deleteBead" || (kind === "deleteWhere" && operation.collection === "beads")
+          ? "bead"
+          : "link";
+      expect(deleted.resourceKind, entryLabel).toBe(expectedKind);
+      const identity = deleted.resource as JsonRecord;
+      if (operation.expectedRevision !== undefined)
+        expect(identity.revision, entryLabel).toBe(operation.expectedRevision);
+      if (identity.type === OWNED_LINK_TYPE) {
+        expect(typeof entry.source, entryLabel).toBe("string");
+        expect(typeof entry.sourceRevision, entryLabel).toBe("string");
+      } else {
+        expect(entry.source, entryLabel).toBeUndefined();
+      }
+      continue;
+    }
+    expect(entry.outcome, entryLabel).toBe(kind.startsWith("create") ? "created" : "updated");
+    const resource = entry.resource as JsonRecord;
+    if (operation.type !== undefined) expect(resource.type, entryLabel).toBe(operation.type);
+    if (
+      entry.outcome === "updated" &&
+      operation.expectedRevision !== undefined &&
+      resource.revision === operation.expectedRevision
+    ) {
+      // A semantic no-op: the retained version keeps its own attribution.
+      expect(resource.attribution, entryLabel).toEqual(
+        operation.attribution === undefined ? resource.attribution : undefined,
+      );
+    } else if (operation.attribution !== undefined) {
+      expect(resource.attribution, entryLabel).toEqual(operation.attribution);
+    }
+    if (resource.type === OWNED_LINK_TYPE) {
+      expect(entry.source, entryLabel).toBe(resource.source);
+      expect(typeof entry.sourceRevision, entryLabel).toBe("string");
+    } else {
+      expect(entry.source, entryLabel).toBeUndefined();
+      expect(entry.sourceRevision, entryLabel).toBeUndefined();
+    }
+  }
+}
+
+function expectChangeGroup(group: JsonRecord, label: string): void {
+  const events = group.events as readonly JsonRecord[];
+  const changes = group.changes as readonly JsonRecord[];
+  const erasures = group.erasures as readonly JsonRecord[];
+  expect(group.eventCount, label).toBe(events.length);
+  expectOrdinalsIncrease(events, label);
+  for (const record of erasures) {
+    expect((record.digest as JsonRecord).value, label).toMatch(HEX_DIGEST);
+  }
+  if (group.projectionAdvance === true) {
+    expect(group.transaction, label).toBeUndefined();
+    expect([events.length, changes.length, erasures.length], label).toEqual([0, 0, 0]);
+    return;
+  }
+  expect(typeof group.transaction, label).toBe("string");
+  expect(events.length + changes.length + erasures.length, label).toBeGreaterThan(0);
+  for (const event of events) {
+    expect(event.transaction, label).toBe(group.transaction);
+    expect(isJsonSchemaDateTime(event.time as string), label).toBe(true);
+  }
+  // An owning source's postimage and its owned Links' postimages describe
+  // one graph: the inline record and the first-class record agree.
+  const linkUpserts = new Map<string, JsonRecord>();
+  for (const change of changes) {
+    if (change.operation === "upsert" && change.resourceKind === "link")
+      linkUpserts.set((change.resource as JsonRecord).id as string, change.resource as JsonRecord);
+  }
+  for (const change of changes) {
+    if (change.operation !== "upsert" || change.resourceKind !== "bead") continue;
+    const owned = (change.resource as JsonRecord).ownedLinks as
+      | Readonly<Record<string, readonly JsonRecord[]>>
+      | undefined;
+    for (const [type, links] of Object.entries(owned ?? {})) {
+      for (const link of links) {
+        expect(link.type, label).toBe(type);
+        expect(link.source, label).toBe((change.resource as JsonRecord).id);
+        const firstClass = linkUpserts.get(link.id as string);
+        if (firstClass !== undefined) expect(link, `${label}: ${link.id}`).toEqual(firstClass);
+      }
+    }
+  }
+}
+
+function expectOrdinalsIncrease(events: readonly JsonRecord[], label: string): void {
+  let last = -1;
+  for (const event of events) {
+    expect(event.ordinal as number, label).toBeGreaterThan(last);
+    last = event.ordinal as number;
+  }
+}
+
+/** A snapshot is a closed projection: in-Scope endpoints present, inline owned Links agreeing. */
+function expectClosedSnapshot(manifest: JsonRecord, label: string): void {
+  const beads = (manifest.beads as JsonRecord).items as readonly JsonRecord[];
+  const links = (manifest.links as JsonRecord).items as readonly JsonRecord[];
+  const beadIds = new Set(beads.map((bead) => bead.id as string));
+  const linkById = new Map(links.map((link) => [link.id as string, link] as const));
+  for (const link of links) {
+    for (const endpoint of ["source", "target"] as const) {
+      const reference = link[endpoint];
+      const uri = typeof reference === "string" ? reference : (reference as JsonRecord).uri;
+      if (typeof uri === "string" && uri.startsWith(`${SCOPE}beads/`))
+        expect(beadIds.has(uri), `${label}: ${link.id} ${endpoint}`).toBe(true);
+    }
+  }
+  for (const bead of beads) {
+    const owned = bead.ownedLinks as Readonly<Record<string, readonly JsonRecord[]>> | undefined;
+    for (const inline of Object.values(owned ?? {}).flat()) {
+      const firstClass = linkById.get(inline.id as string);
+      expect(firstClass, `${label}: ${inline.id} missing from the links stream`).toBeDefined();
+      expect(inline, `${label}: ${inline.id}`).toEqual(firstClass);
+    }
+  }
+  for (const record of manifest.erasures as readonly JsonRecord[])
+    expect((record.digest as JsonRecord).value, label).toMatch(HEX_DIGEST);
+}
+
+/** Every complete Resource record a response body serves, wherever it appears. */
+function servedRecords(body: JsonRecord): readonly JsonRecord[] {
+  const found: JsonRecord[] = [];
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (typeof value !== "object" || value === null) return;
+    const record = value as JsonRecord;
+    if (
+      typeof record.id === "string" &&
+      typeof record.type === "string" &&
+      typeof record.revision === "string" &&
+      typeof record.properties === "object"
+    ) {
+      found.push(record);
+    }
+    for (const member of Object.values(record)) visit(member);
+  };
+  visit(body);
+  return found;
+}
+
+function erasureRecords(body: JsonRecord): readonly JsonRecord[] {
+  const found: JsonRecord[] = [];
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (typeof value !== "object" || value === null) return;
+    const record = value as JsonRecord;
+    if (typeof record.subject === "string" && typeof record.digest === "object") found.push(record);
+    for (const member of Object.values(record)) visit(member);
+  };
+  visit(body);
+  return found;
+}
+
+/** Object member names in UTF-16 code-unit order, recursively — what RFC 8785 requires. */
+function expectSortedMembers(value: unknown, label: string): void {
+  if (Array.isArray(value)) {
+    for (const item of value) expectSortedMembers(item, label);
+    return;
+  }
+  if (typeof value !== "object" || value === null) return;
+  const keys = Object.keys(value);
+  const sorted = [...keys].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
+  expect(keys, label).toEqual(sorted);
+  for (const member of Object.values(value)) expectSortedMembers(member, label);
+}
+
+function expectProblemRow(problem: JsonRecord, label: string): void {
+  const code = problem.code as string;
+  const readRow = READ_PROBLEM_DEFINITIONS.find((definition) => definition.code === code);
+  const readUpdateRows = problemTableRows(markdownSection(specification, "Problem details")).slice(
+    READ_PROBLEM_DEFINITIONS.length,
+  );
+  const row =
+    readRow === undefined
+      ? readUpdateRows.find(([candidate]) => candidate === code)
+      : ([readRow.code, readRow.family, readRow.status, readRow.retry] as const);
+  if (row === undefined) throw new Error(`${label}: unknown problem code ${code}`);
+  expect(problem.type, label).toBe(`${BDP_PROBLEM_FAMILY_PREFIX}${row[1]}`);
+  expect(problem.status, label).toBe(row[2]);
+  expect(problem.retry, label).toBe(row[3]);
+}
+
+function expectValid(schemaRef: string, value: unknown, label: string): void {
+  const validate = compiledDefinition(schemaRef);
+  expect(validate(value), `${label}: ${JSON.stringify(validate.errors, null, 2)}`).toBe(true);
+}
+
+function compiledDefinition(schemaRef: string): ValidateFunction {
+  const validate = ajv.getSchema(`${BDP_V0_SCHEMA_ID}${schemaRef}`);
+  if (validate === undefined) throw new Error(`schema definition not found: ${schemaRef}`);
+  return validate;
+}
+
+function def(name: string): SchemaRecord {
+  return requiredRecord(requiredRecord(schema.$defs, "$defs")[name], `$defs.${name}`);
+}
+
+function propertiesOf(name: string): SchemaRecord {
+  return requiredRecord(def(name).properties, `$defs.${name}.properties`);
+}
+
+function requiredRecord(value: unknown, pathLabel: string): SchemaRecord {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    throw new Error(`${pathLabel} must be a record`);
+  return value as SchemaRecord;
+}
+
+/** The Markdown from a `###` heading to the next heading of level three or higher. */
+function markdownSection(markdown: string, heading: string): string {
+  const start = markdown.indexOf(`\n### ${heading}\n`);
+  if (start < 0) throw new Error(`missing specification section: ${heading}`);
+  const rest = markdown.slice(start + 1);
+  const bodyStart = rest.indexOf("\n") + 1;
+  const end = rest.slice(bodyStart).search(/^#{1,3} /m);
+  return end < 0 ? rest : rest.slice(0, bodyStart + end);
+}
+
+/** Every `| \`code\` | \`family\` | status | \`retry\` |` row, in document order. */
+function problemTableRows(section: string): readonly (readonly [string, string, number, string])[] {
+  return [
+    ...section.matchAll(/^\| `([a-z-]+)` \| `([a-z-]+)` \| (\d{3}) \| `([a-z-]+)` \|$/gm),
+  ].map((match) => [match[1] ?? "", match[2] ?? "", Number(match[3]), match[4] ?? ""] as const);
+}
