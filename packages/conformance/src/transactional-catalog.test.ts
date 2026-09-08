@@ -176,10 +176,10 @@ describe("draft Transactional catalog", () => {
     const end = section.slice(bodyStart).search(/^#{1,4} /m);
     const rows = [
       ...(end < 0 ? section : section.slice(0, bodyStart + end)).matchAll(
-        /^\| `([a-z0-9.-]+)` \| /gm,
+        /^\| `([a-z0-9.-]+)` \| (.*) \|$/gm,
       ),
-    ].map((match) => match[1]);
-    expect(rows).toEqual(ids);
+    ].map((match) => ({ id: match[1], title: match[2] }));
+    expect(rows).toEqual(catalog.scenarios.map(({ id, title }) => ({ id, title })));
     // The retirements are stated in the same subsection, one bullet each.
     for (const [retiring, retired] of Object.entries(RETIREMENTS)) {
       expect(section).toContain(`- \`${retiring}\` retires \`${retired[0]}\``);

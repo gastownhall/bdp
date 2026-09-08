@@ -1,0 +1,310 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-receipt-pagination",
+  "description": "Illustrative Mutation Receipt pagination in a separate canonical Scope with an independent initial history and an advertised three-entry bound; narrated assumptions, not evidence.",
+  "scope": "https://beads.example/receipt-pagination/",
+  "exchanges": [
+    {
+      "id": "pagination-discovery",
+      "request": {
+        "method": "GET",
+        "target": "bdp.json",
+        "headers": {
+          "accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-pagination",
+          "bdp-authorization-view": "view-pagination",
+          "bdp-scope-position": "pagination-initial"
+        },
+        "schema": "#/$defs/transactionalDiscovery",
+        "body": {
+          "bdpVersion": "0",
+          "profile": "transactional",
+          "scope": "https://beads.example/receipt-pagination/",
+          "scopeEpoch": "epoch-pagination",
+          "authorizationView": "view-pagination",
+          "headPosition": "pagination-initial",
+          "minimumReplayPosition": "pagination-retained-start",
+          "beads": "https://beads.example/receipt-pagination/beads/",
+          "links": "https://beads.example/receipt-pagination/links/",
+          "types": "https://beads.example/receipt-pagination/types/",
+          "operations": "https://beads.example/receipt-pagination/operations/",
+          "aliases": "https://beads.example/receipt-pagination/alias/",
+          "receipts": "https://beads.example/receipt-pagination/receipts/",
+          "snapshot": "https://beads.example/receipt-pagination/snapshot",
+          "changes": "https://beads.example/receipt-pagination/changes/",
+          "events": "https://beads.example/receipt-pagination/events/",
+          "limits": {
+            "page": {
+              "defaultItems": 3,
+              "maximumItems": 3
+            },
+            "request": {
+              "targetBytes": 2048,
+              "bodyBytes": 65536
+            },
+            "validation": {
+              "diagnostics": 16,
+              "diagnosticBytes": 8192
+            },
+            "transaction": {
+              "operations": 200,
+              "inducedEvents": 10000,
+              "duration": "PT30S"
+            },
+            "retention": {
+              "receipt": "P7D",
+              "maximumSnapshotLifetime": "PT300S",
+              "replay": "P30D"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "pagination-batch-original",
+      "condition": "Independent initial history in the receipt-pagination Scope. Initially task-42 at task-42-r9, task-43, and dec-9 at dec-9-r2 are live; 9c1e-r1 is the owned cites Link from dec-9 to task-42, and blocks-3-r1 is the only other Link incident to task-42. There are no other incident Links. The set deletion yields a matched entry followed by two deleted entries in canonical-uri order, the Bead deletion yields one entry, and Link creation yields one entry. These five entries exceed the advertised maximum of three. The receipt carries a two-entry prefix and its last page carries the remaining three; neither exceeds the bound. Positions in this independent Scope are not comparable with the acme timeline.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0003"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "deleteWhere",
+              "collection": "links",
+              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/beads/task-42\" || @.target == \"https://beads.example/receipt-pagination/beads/task-42\"]",
+              "cardinality": {
+                "max": 1000
+              },
+              "attribution": {
+                "principal": "human:donna",
+                "status": "claimed"
+              }
+            },
+            {
+              "operation": "deleteBead",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r9"
+            },
+            {
+              "operation": "createLink",
+              "type": "https://work.example/types/relates",
+              "source": "beads/task-43",
+              "target": {
+                "uri": "https://github.example/issues/123",
+                "revision": "8f0e2b"
+              },
+              "properties": {}
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-pagination",
+          "bdp-authorization-view": "view-pagination",
+          "bdp-scope-position": "pagination-commit"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0003",
+          "scopeEpoch": "epoch-pagination",
+          "authorizationView": "view-pagination",
+          "transaction": "txn-pagination",
+          "requiredPosition": "pagination-commit",
+          "effectPosition": "pagination-commit",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "matched",
+              "count": 2
+            },
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/9c1e",
+                  "type": "https://work.example/types/cites",
+                  "revision": "9c1e-r1"
+                }
+              },
+              "source": "https://beads.example/receipt-pagination/beads/dec-9",
+              "sourceRevision": "dec-9-r3"
+            }
+          ],
+          "next": "https://beads.example/receipt-pagination/receipts/rcpt-9?page=2",
+          "expiresAt": "2026-09-14T18:09:40Z"
+        }
+      }
+    },
+    {
+      "id": "receipt-9-page-2",
+      "condition": "The last page carries the remaining set-deletion entry, the Bead deletion identity, and the created Link with its pinned external endpoint echoed byte-identically. All three fit the advertised maximum of three, so next is null.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-pagination",
+          "bdp-authorization-view": "view-pagination",
+          "bdp-scope-position": "pagination-commit"
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            }
+          ],
+          "next": null
+        }
+      }
+    },
+    {
+      "id": "receipt-9-page-after-expiry",
+      "condition": "After rcpt-9's detail expired, decided after authentication and the receipt's non-disclosure rule: a caller who may not see the receipt would have learned nothing from this page.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/gone",
+          "title": "Receipt page expired",
+          "status": 410,
+          "code": "cursor-expired",
+          "retry": "after-state-change"
+        }
+      }
+    },
+    {
+      "id": "receipts-rcpt-9-page=2-minimum-foreign-view",
+      "condition": "The receipt belongs to this principal in the current epoch and is visible; its detail is retained. The minimum-position request context is incompatible, so consistency fails only after receipt nondisclosure passes.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "accept": "application/json",
+          "bdp-minimum-scope-position": "pagination-initial",
+          "bdp-scope-epoch": "epoch-pagination",
+          "bdp-authorization-view": "view-pagination-old"
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "foreign-view",
+          "status": 409,
+          "retry": "after-state-change"
+        }
+      }
+    },
+    {
+      "id": "receipts-rcpt-9-page=2-minimum-cursor-expired",
+      "condition": "The receipt belongs to this principal in the current epoch and is visible; its detail is retained. The minimum-position request context is incompatible, so consistency fails only after receipt nondisclosure passes.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "accept": "application/json",
+          "bdp-minimum-scope-position": "pagination-initial",
+          "bdp-scope-epoch": "epoch-pagination-old",
+          "bdp-authorization-view": "view-pagination"
+        }
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/gone",
+          "code": "cursor-expired",
+          "status": 410,
+          "retry": "after-state-change"
+        }
+      }
+    }
+  ]
+}

@@ -3715,6 +3715,8 @@
           },
           "then": {
             "properties": {
+              "diagnostics": false,
+              "diagnosticsTruncated": false,
               "type": {
                 "const": "https://github.com/gastownhall/bdp/problems/gone"
               },
@@ -3738,6 +3740,8 @@
           },
           "then": {
             "properties": {
+              "diagnostics": false,
+              "diagnosticsTruncated": false,
               "type": {
                 "const": "https://github.com/gastownhall/bdp/problems/unavailable"
               },
@@ -3872,6 +3876,8 @@
           },
           "then": {
             "properties": {
+              "diagnostics": false,
+              "diagnosticsTruncated": false,
               "type": {
                 "const": "https://github.com/gastownhall/bdp/problems/conflict"
               },

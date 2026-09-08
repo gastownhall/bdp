@@ -455,7 +455,7 @@
     },
     {
       "id": "batch-2-original",
-      "condition": "Submitted after the erasures at pos-44 and pos-45, so the Task is at task-42-r9 when the deletion is reached. The set deletion matched two Links in canonical-uri order — 9c1e, the owned cites Link, whose entry names its source and the source's fresh revision, then blocks-3 — and the page bound cut the entries after the first.",
+      "condition": "Submitted after the erasures at pos-44 and pos-45, so the Task is at task-42-r9 when the deletion is reached. The set deletion matched two Links in canonical-uri order — 9c1e, the owned cites Link, whose entry names its source and the source's fresh revision, then blocks-3. The matched entry, both deleted-Link entries, Bead deletion, and Link creation total five entries. All fit the Scope's advertised maximumItems of 200, so the receipt contains every entry and next is null.",
       "request": {
         "method": "POST",
         "target": "operations/batch",
@@ -536,36 +536,7 @@
               },
               "source": "https://beads.example/acme/beads/dec-9",
               "sourceRevision": "dec-9-r3"
-            }
-          ],
-          "next": "https://beads.example/acme/receipts/rcpt-9?page=2",
-          "expiresAt": "2026-09-14T18:09:40Z"
-        }
-      }
-    },
-    {
-      "id": "receipt-9-page-2",
-      "condition": "The second and last page: the remaining set-deletion entry, the Bead deletion's identity record, and the created Link with its pinned external endpoint echoed byte-identically.",
-      "request": {
-        "method": "GET",
-        "target": "receipts/rcpt-9?page=2",
-        "headers": {
-          "accept": "application/json"
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-          "content-type": "application/json",
-          "cache-control": "private, no-store",
-          "bdp-scope-epoch": "epoch-1",
-          "bdp-authorization-view": "view-a",
-          "bdp-scope-position": "pos-46"
-        },
-        "schema": "#/$defs/mutationReceiptPage",
-        "body": {
-          "receipt": "https://beads.example/acme/receipts/rcpt-9",
-          "results": [
+            },
             {
               "operationIndex": 0,
               "outcome": "deleted",
@@ -606,7 +577,8 @@
               }
             }
           ],
-          "next": null
+          "next": null,
+          "expiresAt": "2026-09-14T18:09:40Z"
         }
       }
     }

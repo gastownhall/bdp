@@ -1314,7 +1314,7 @@
     },
     {
       "id": "transactional.erasure.live-successor",
-      "title": "A live-version erasure with a successor carries the content-free root-replace delta, and the successor differs from the erased version",
+      "title": "A live-version erasure commits its successor in the same group; a property correction carries the content-free root-replace delta, an owned-Link-induced source successor carries only `ownedLink`, and the successor differs in the durable state that determines its revision",
       "kind": "normative",
       "requiredProfile": "transactional",
       "requirements": [
@@ -1327,6 +1327,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#version-erasure",
           "selectedText": "The successor MUST differ in the durable state that determines its"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "For the owning Bead's successor induced by an owned Link's correction or deletion, its `updated` fact instead carries only `ownedLink`, never both delta forms."
         }
       ]
     },

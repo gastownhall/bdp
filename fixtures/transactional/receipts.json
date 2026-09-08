@@ -391,32 +391,6 @@
       }
     },
     {
-      "id": "receipt-9-page-after-expiry",
-      "condition": "After rcpt-9's detail expired, decided after authentication and the receipt's non-disclosure rule: a caller who may not see the receipt would have learned nothing from this page.",
-      "request": {
-        "method": "GET",
-        "target": "receipts/rcpt-9?page=2",
-        "headers": {
-          "accept": "application/json"
-        }
-      },
-      "response": {
-        "status": 410,
-        "headers": {
-          "content-type": "application/problem+json",
-          "cache-control": "private, no-store"
-        },
-        "schema": "#/$defs/transactionalProblem",
-        "body": {
-          "type": "https://github.com/gastownhall/bdp/problems/gone",
-          "title": "Receipt page expired",
-          "status": 410,
-          "code": "cursor-expired",
-          "retry": "after-state-change"
-        }
-      }
-    },
-    {
       "id": "receipt-8-forgotten",
       "condition": "The failed receipt of the batch fixture's new-key resubmission, read after the authority forgot it: it was retained for at least retention.receipt after it became terminal, committed nothing, and now answers the uniform 404 exactly as a retracted receipt does.",
       "request": {
@@ -599,62 +573,6 @@
       "request": {
         "method": "GET",
         "target": "receipts/rcpt-7",
-        "headers": {
-          "accept": "application/json",
-          "bdp-minimum-scope-position": "pos-42",
-          "bdp-scope-epoch": "epoch-old",
-          "bdp-authorization-view": "view-a"
-        }
-      },
-      "response": {
-        "status": 410,
-        "headers": {
-          "content-type": "application/problem+json",
-          "cache-control": "private, no-store"
-        },
-        "schema": "#/$defs/transactionalProblem",
-        "body": {
-          "type": "https://github.com/gastownhall/bdp/problems/gone",
-          "code": "cursor-expired",
-          "status": 410,
-          "retry": "after-state-change"
-        }
-      }
-    },
-    {
-      "id": "receipts-rcpt-9-page=2-minimum-foreign-view",
-      "condition": "The receipt belongs to this principal in the current epoch and is visible; its detail is retained. The minimum-position request context is incompatible, so consistency fails only after receipt nondisclosure passes.",
-      "request": {
-        "method": "GET",
-        "target": "receipts/rcpt-9?page=2",
-        "headers": {
-          "accept": "application/json",
-          "bdp-minimum-scope-position": "pos-42",
-          "bdp-scope-epoch": "epoch-1",
-          "bdp-authorization-view": "view-old"
-        }
-      },
-      "response": {
-        "status": 409,
-        "headers": {
-          "content-type": "application/problem+json",
-          "cache-control": "private, no-store"
-        },
-        "schema": "#/$defs/transactionalProblem",
-        "body": {
-          "type": "https://github.com/gastownhall/bdp/problems/conflict",
-          "code": "foreign-view",
-          "status": 409,
-          "retry": "after-state-change"
-        }
-      }
-    },
-    {
-      "id": "receipts-rcpt-9-page=2-minimum-cursor-expired",
-      "condition": "The receipt belongs to this principal in the current epoch and is visible; its detail is retained. The minimum-position request context is incompatible, so consistency fails only after receipt nondisclosure passes.",
-      "request": {
-        "method": "GET",
-        "target": "receipts/rcpt-9?page=2",
         "headers": {
           "accept": "application/json",
           "bdp-minimum-scope-position": "pos-42",

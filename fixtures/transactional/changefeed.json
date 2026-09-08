@@ -521,14 +521,14 @@
     },
     {
       "id": "isolated-live-owned-link-erasure",
-      "condition": "Isolated scenario outside the pos42–47 timeline. The before Link/source records are the9c1e-r1 and dec-9-r2 digest vectors. Erase the live Link version and every containing source version, commit corrected Link and source postimages atomically. Source properties are unchanged; its new owned set mints the revision. Its Event uses ownedLink only, whose nested change is the safe root replacement. This is a committed-group example, not finite replay across the erasure fence.",
+      "condition": "Independent hypothetical initial history, not a later phase of the acme pos-42–pos-47 timeline or a restore of that history. This example uses distinct scopeEpoch and authorizationView values; its opaque position/checkpoint tokens are not comparable with that timeline. Initially dec-9, task-42, and Link 9c1e are live, and the before Link/source records are the 9c1e-r1 and dec-9-r2 digest vectors. No prior deletion of these identities is assumed. Erase the live Link version and every containing source version, and commit corrected Link and source postimages atomically. Source properties are unchanged; its new owned set mints the revision. Its Event uses ownedLink only, whose nested change is the safe root replacement. The successor versions explicitly record their displayed attribution. This is a committed-group example, not finite replay across the erasure fence.",
       "schema": "#/$defs/changeGroup",
       "body": {
-        "scopeEpoch": "epoch-1",
-        "authorizationView": "view-a",
-        "checkpoint": "ckpt-60",
-        "position": "pos-60",
-        "previousPosition": "pos-59",
+        "scopeEpoch": "epoch-owned-hypothesis",
+        "authorizationView": "view-owned-hypothesis",
+        "checkpoint": "owned-correction-checkpoint",
+        "position": "owned-correction-commit",
+        "previousPosition": "owned-initial-state",
         "projectionAdvance": false,
         "transaction": "adm-owned-isolated",
         "eventCount": 2,
@@ -607,7 +607,7 @@
         ],
         "events": [
           {
-            "id": "ckpt-60_0",
+            "id": "owned-correction-event-0",
             "ordinal": 0,
             "type": "updated",
             "source": "https://beads.example/acme/events/",
@@ -626,11 +626,15 @@
                     "role": "sanitized"
                   }
                 }
-              ]
+              ],
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           },
           {
-            "id": "ckpt-60_1",
+            "id": "owned-correction-event-1",
             "ordinal": 1,
             "type": "updated",
             "source": "https://beads.example/acme/events/",
@@ -656,8 +660,16 @@
                         "role": "sanitized"
                       }
                     }
-                  ]
+                  ],
+                  "attribution": {
+                    "principal": "agent:planner",
+                    "status": "claimed"
+                  }
                 }
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
               }
             }
           }

@@ -5658,7 +5658,7 @@ open); no row below claims or retires an alias obligation.
 | `transactional.erasure.record-digest` | Erasure records propagate with a verifiable sha-256-jcs digest |
 | `transactional.erasure.digest-domain` | BDP JSON follows the number model, so every record has one canonical serialization, and digest computation never gates erasure |
 | `transactional.erasure.historical-version` | Erasing a historical version commits no state change and induces no Event |
-| `transactional.erasure.live-successor` | A live-version erasure with a successor carries the content-free root-replace delta, and the successor differs from the erased version |
+| `transactional.erasure.live-successor` | A live-version erasure commits its successor in the same group; a property correction carries the content-free root-replace delta, an owned-Link-induced source successor carries only `ownedLink`, and the successor differs in the durable state that determines its revision |
 | `transactional.erasure.live-tombstone` | A live-version erasure with a tombstone is an administrative deletion under deletion safety, inducing the ordinary facts |
 | `transactional.erasure.owned-link-cascade` | Erasing an owned Link's version erases every source version that inlined it, one record each |
 | `transactional.erasure.event-withholding` | Event Sources withhold every Event whose data carries erased content, leaving ordinal gaps |

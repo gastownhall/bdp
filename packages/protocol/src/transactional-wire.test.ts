@@ -45,6 +45,7 @@ const READ_UPDATE_ROW_COUNT = 12;
 const WIRE_TOKEN = /^[A-Za-z0-9_-]{1,256}$/;
 const HEX_DIGEST = /^[0-9a-f]{64}$/;
 const SCOPE = "https://beads.example/acme/";
+const PAGINATION_SCOPE = "https://beads.example/receipt-pagination/";
 /** The reference domain's only owned Link Type: `decision` owns `cites`. */
 const OWNED_LINK_TYPE = "https://work.example/types/cites";
 
@@ -152,6 +153,8 @@ describe("Transactional problem rows", () => {
       // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
       then: {
         properties: {
+          diagnostics: false,
+          diagnosticsTruncated: false,
           type: { const: `${BDP_PROBLEM_FAMILY_PREFIX}${family}` },
           status: { const: status },
           retry: { const: retry },
@@ -226,6 +229,7 @@ describe("Transactional wire fixtures", () => {
       "transactional-direct-problems",
       "transactional-discovery",
       "transactional-events",
+      "transactional-receipt-pagination",
       "transactional-receipts",
       "transactional-sequence",
       "transactional-set-singletons",
@@ -258,11 +262,25 @@ describe("Transactional wire fixtures", () => {
     ]);
   });
 
+  it("keeps every available receipt and page within its own Scope's advertised bound", () => {
+    for (const fixture of fixtures) {
+      const discovery = fixtures
+        .filter((candidate) => candidate.scope === fixture.scope)
+        .flatMap((candidate) => candidate.exchanges)
+        .find((exchange) => exchange.response.schema === "#/$defs/transactionalDiscovery");
+      if (discovery === undefined) throw new Error(`${fixture.id}: missing Scope discovery`);
+      const pageLimits = (discovery.response.body.limits as JsonRecord).page as JsonRecord;
+      expectReceiptPagination(fixture, pageLimits.maximumItems as number);
+    }
+  });
+
   for (const fixture of fixtures) {
     describe(fixture.id, () => {
       it("is a version-1 fixture whose exchanges validate against the bundle", () => {
         expect(fixture.fixtureVersion).toBe(1);
-        expect(fixture.scope).toBe(SCOPE);
+        expect(fixture.scope).toBe(
+          fixture.id === "transactional-receipt-pagination" ? PAGINATION_SCOPE : SCOPE,
+        );
         expect(fixture.description).toContain("not evidence");
         expect(new Set(fixture.exchanges.map(({ id }) => id)).size).toBe(fixture.exchanges.length);
         for (const exchange of fixture.exchanges) {
@@ -308,11 +326,17 @@ describe("Transactional wire fixtures", () => {
         for (const exchange of fixture.exchanges) {
           if (exchange.response.schema !== "#/$defs/mutationReceipt") continue;
           const receipt = exchange.response.body;
-          expectReceiptRepresentation(receipt, exchange);
+          expectReceiptRepresentation(receipt, exchange, fixture.scope);
           const operations = requestOperations(exchange);
           if (operations === undefined) continue;
           const entries = receiptEntries(fixture, exchange);
-          expectEntriesCorrespond(entries, operations, exchange.id, exchange.priorResources);
+          expectEntriesCorrespond(
+            entries,
+            operations,
+            exchange.id,
+            exchange.priorResources,
+            fixture.scope,
+          );
         }
       });
 
@@ -348,7 +372,7 @@ describe("Transactional wire fixtures", () => {
             for (const event of events) expect(event.source, exchange.id).toBe(body.source);
             expectOrdinalsIncrease(events, exchange.id);
           } else if (exchange.response.schema === "#/$defs/snapshotManifest") {
-            expectClosedSnapshot(body, exchange.id);
+            expectClosedSnapshot(body, exchange.id, fixture.scope);
           }
         }
       });
@@ -1122,7 +1146,8 @@ function receiptEntries(
   ];
   let next = exchange.response.body.next;
   while (typeof next === "string") {
-    const target = next.slice(SCOPE.length);
+    expect(next.startsWith(fixture.scope), exchange.id).toBe(true);
+    const target = next.slice(fixture.scope.length);
     const page = fixture.exchanges.find(
       (candidate) =>
         candidate.request.target === target &&
@@ -1135,10 +1160,65 @@ function receiptEntries(
   return entries;
 }
 
-function expectReceiptRepresentation(receipt: JsonRecord, exchange: FixtureExchange): void {
+/** Check the complete illustrative page chain against this Scope's discovery bound. */
+function expectReceiptPagination(fixture: TransactionalFixture, maximumItems: number): void {
+  for (const exchange of fixture.exchanges) {
+    if (exchange.response.schema === "#/$defs/mutationReceiptPage") {
+      expect(
+        (exchange.response.body.results as readonly unknown[]).length,
+        exchange.id,
+      ).toBeLessThanOrEqual(maximumItems);
+      continue;
+    }
+    if (
+      exchange.response.schema !== "#/$defs/mutationReceipt" ||
+      exchange.response.body.status !== "completed" ||
+      exchange.response.body.detail !== "available"
+    )
+      continue;
+    const receipt = exchange.response.body;
+    const inline = receipt.results as readonly JsonRecord[];
+    const all = [...inline];
+    expect(inline.length, exchange.id).toBeLessThanOrEqual(maximumItems);
+    let next = receipt.next;
+    const visited = new Set<string>();
+    while (typeof next === "string") {
+      expect(next.startsWith(fixture.scope), exchange.id).toBe(true);
+      expect(visited.has(next), `${exchange.id}: page cycle`).toBe(false);
+      visited.add(next);
+      const target = next.slice(fixture.scope.length);
+      const page = fixture.exchanges.find(
+        (candidate) =>
+          candidate.request.target === target &&
+          candidate.response.schema === "#/$defs/mutationReceiptPage",
+      );
+      expect(page, `${exchange.id}: missing page ${target}`).toBeDefined();
+      const body = page?.response.body as JsonRecord;
+      expect(body.receipt, exchange.id).toBe(receipt.id);
+      const results = body.results as readonly JsonRecord[];
+      expect(results.length, exchange.id).toBeGreaterThan(0);
+      expect(results.length, exchange.id).toBeLessThanOrEqual(maximumItems);
+      all.push(...results);
+      next = body.next;
+    }
+    expect(next, `${exchange.id}: terminal next`).toBeNull();
+    if (all.length <= maximumItems) {
+      expect(receipt.next, `${exchange.id}: all entries fit inline`).toBeNull();
+      expect(inline, exchange.id).toEqual(all);
+    } else {
+      expect(typeof receipt.next, `${exchange.id}: entries exceed inline bound`).toBe("string");
+    }
+  }
+}
+
+function expectReceiptRepresentation(
+  receipt: JsonRecord,
+  exchange: FixtureExchange,
+  scope = SCOPE,
+): void {
   const label = exchange.id;
   expect(typeof receipt.id, label).toBe("string");
-  expect((receipt.id as string).startsWith(`${SCOPE}receipts/`), label).toBe(true);
+  expect((receipt.id as string).startsWith(`${scope}receipts/`), label).toBe(true);
   if (exchange.request.method === "POST")
     expect(receipt.idempotencyKey, label).toBe(exchange.request.headers["idempotency-key"]);
   if (receipt.status === "pending") {
@@ -1184,6 +1264,7 @@ function expectEntriesCorrespond(
   operations: readonly JsonRecord[],
   label: string,
   priorResources: readonly JsonRecord[] = [],
+  scope = SCOPE,
 ): void {
   let lastIndex = -1;
   for (const [position, entry] of entries.entries()) {
@@ -1231,17 +1312,37 @@ function expectEntriesCorrespond(
     expect(entry.outcome, entryLabel).toBe(kind.startsWith("create") ? "created" : "updated");
     const resource = entry.resource as JsonRecord;
     if (operation.type !== undefined) expect(resource.type, entryLabel).toBe(operation.type);
-    if (
-      entry.outcome === "updated" &&
-      operation.expectedRevision !== undefined &&
-      resource.revision === operation.expectedRevision
-    ) {
-      // A semantic no-op: the retained version keeps its own attribution.
-      const prior = priorResources.find((record) => record.id === resource.id);
-      expect(prior, `${entryLabel}: missing before-state oracle`).toBeDefined();
+    const subject = operation.bead ?? operation.link;
+    const prior =
+      typeof subject === "string"
+        ? priorResources.find((record) => record.id === new URL(subject, scope).href)
+        : undefined;
+    if (prior !== undefined) {
+      // These explicit before-state fixtures use same-value replacements.
+      // Prove the request is a no-op before examining the returned revision.
+      expect(kind, entryLabel).toMatch(/^update/);
+      expect(operation.expectedRevision, entryLabel).toBe(prior.revision);
+      const patches = operation.change as readonly JsonRecord[];
+      expect(patches.length, entryLabel).toBeGreaterThan(0);
+      for (const patch of patches) {
+        expect(patch.op, entryLabel).toBe("replace");
+        let value: unknown = prior.properties;
+        const pointer = patch.path as string;
+        for (const token of pointer === "" ? [] : pointer.slice(1).split("/")) {
+          const key = token.replace(/~1/g, "/").replace(/~0/g, "~");
+          expect(Object.hasOwn(value as object, key), entryLabel).toBe(true);
+          value = (value as JsonRecord)[key];
+        }
+        expect(patch.value, entryLabel).toEqual(value);
+      }
       expect(resource, entryLabel).toEqual(prior);
-    } else if (operation.attribution !== undefined) {
-      expect(resource.attribution, entryLabel).toEqual(operation.attribution);
+    } else {
+      if (entry.outcome === "updated" && operation.expectedRevision !== undefined)
+        expect(resource.revision, `${entryLabel}: no-op needs a before-state oracle`).not.toBe(
+          operation.expectedRevision,
+        );
+      if (operation.attribution !== undefined)
+        expect(resource.attribution, entryLabel).toEqual(operation.attribution);
     }
     if (resource.type === OWNED_LINK_TYPE) {
       expect(entry.source, entryLabel).toBe(resource.source);
@@ -1272,6 +1373,34 @@ function expectChangeGroup(group: JsonRecord, label: string): void {
   for (const event of events) {
     expect(event.transaction, label).toBe(group.transaction);
     expect(isJsonSchemaDateTime(event.time as string), label).toBe(true);
+    if (event.type === "created" || event.type === "updated") {
+      const data = event.data as JsonRecord;
+      const postimage = changes.find(
+        (change) =>
+          change.operation === "upsert" &&
+          (change.resource as JsonRecord).id === event.subject &&
+          (change.resource as JsonRecord).revision === data.revision,
+      )?.resource as JsonRecord | undefined;
+      // Groups contain all ordered Events, but only final postimages;
+      // compare attribution only when the exact version is present.
+      if (postimage !== undefined) {
+        expect(data.attribution, `${label}: Event attribution`).toEqual(postimage.attribution);
+      }
+      const owned = data.ownedLink as JsonRecord | undefined;
+      if (owned !== undefined && owned.operation !== "deleted") {
+        const link = owned.link as JsonRecord;
+        const linkPostimage = changes.find(
+          (change) =>
+            change.operation === "upsert" &&
+            (change.resource as JsonRecord).id === link.id &&
+            (change.resource as JsonRecord).revision === link.revision,
+        )?.resource as JsonRecord | undefined;
+        if (linkPostimage !== undefined)
+          expect(link.attribution, `${label}: nested Link attribution`).toEqual(
+            linkPostimage.attribution,
+          );
+      }
+    }
   }
   // An owning source's postimage and its owned Links' postimages describe
   // one graph: the inline record and the first-class record agree.
@@ -1305,7 +1434,7 @@ function expectOrdinalsIncrease(events: readonly JsonRecord[], label: string): v
 }
 
 /** A snapshot is a closed projection: in-Scope endpoints present, inline owned Links agreeing. */
-function expectClosedSnapshot(manifest: JsonRecord, label: string): void {
+function expectClosedSnapshot(manifest: JsonRecord, label: string, scope = SCOPE): void {
   const beads = (manifest.beads as JsonRecord).items as readonly JsonRecord[];
   const links = (manifest.links as JsonRecord).items as readonly JsonRecord[];
   const beadIds = new Set(beads.map((bead) => bead.id as string));
@@ -1314,7 +1443,7 @@ function expectClosedSnapshot(manifest: JsonRecord, label: string): void {
     for (const endpoint of ["source", "target"] as const) {
       const reference = link[endpoint];
       const uri = typeof reference === "string" ? reference : (reference as JsonRecord).uri;
-      if (typeof uri === "string" && uri.startsWith(`${SCOPE}beads/`))
+      if (typeof uri === "string" && uri.startsWith(`${scope}beads/`))
         expect(beadIds.has(uri), `${label}: ${link.id} ${endpoint}`).toBe(true);
     }
   }
@@ -1440,3 +1569,141 @@ function problemTableRows(section: string): readonly (readonly [string, string, 
     ...section.matchAll(/^\| `([a-z-]+)` \| `([a-z-]+)` \| (\d{3}) \| `([a-z-]+)` \|$/gm),
   ].map((match) => [match[1] ?? "", match[2] ?? "", Number(match[3]), match[4] ?? ""] as const);
 }
+
+describe("Transactional correction regression probes", () => {
+  it.each(TRANSACTIONAL_PROBLEM_ROWS)(
+    "rejects validation diagnostics on %s",
+    (code, family, status, retry) => {
+      const definition =
+        code === "cardinality-violated" ? "receiptProblem" : "transactionalProblem";
+      const valid = {
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}${family}`,
+        code,
+        status,
+        retry,
+        ...(code === "cardinality-violated" ? { operationIndex: 0 } : {}),
+      };
+      const validate = ajv.getSchema(
+        `${BDP_V0_SCHEMA_ID}#/$defs/${definition}`,
+      ) as ValidateFunction;
+      expect(validate(valid), JSON.stringify(validate.errors)).toBe(true);
+      expect(
+        validate({ ...valid, diagnostics: [{ message: "valid diagnostic on wrong code" }] }),
+      ).toBe(false);
+      expect(validate({ ...valid, diagnosticsTruncated: true })).toBe(false);
+    },
+  );
+
+  it("rejects a no-op response that mints a revision or replaces prior attribution", () => {
+    const fixture = fixtures.find((candidate) =>
+      candidate.exchanges.some(
+        (exchange) => exchange.id === "no-op-preserves-existing-attribution",
+      ),
+    ) as TransactionalFixture;
+    const exchange = fixture.exchanges.find(
+      (candidate) => candidate.id === "no-op-preserves-existing-attribution",
+    ) as FixtureExchange;
+    const operations = requestOperations(exchange) as readonly JsonRecord[];
+    const entries = receiptEntries(fixture, exchange);
+    expect(() =>
+      expectEntriesCorrespond(entries, operations, "valid no-op", exchange.priorResources),
+    ).not.toThrow();
+    for (const mutation of [
+      { revision: "noop-r2" },
+      { attribution: operations[0]?.attribution },
+      { revision: "noop-r2", attribution: operations[0]?.attribution },
+    ]) {
+      const corrupt = structuredClone(entries) as JsonRecord[];
+      corrupt[0] = {
+        ...corrupt[0],
+        resource: { ...(corrupt[0]?.resource as JsonRecord), ...mutation },
+      };
+      expect(() =>
+        expectEntriesCorrespond(corrupt, operations, "corrupt no-op", exchange.priorResources),
+      ).toThrow();
+    }
+  });
+
+  it("rejects omitted attribution in either successor Event and its nested Link delta", () => {
+    const example = fixtures
+      .flatMap((fixture) => fixture.groupExamples ?? [])
+      .find((candidate) => candidate.id === "isolated-live-owned-link-erasure");
+    expect(example).toBeDefined();
+    const group = example?.body as JsonRecord;
+    expect(() => expectChangeGroup(group, "valid erasure successor")).not.toThrow();
+    for (const target of ["link", "source", "nested"]) {
+      const corrupt = structuredClone(group);
+      const events = corrupt.events as JsonRecord[];
+      const data = events[target === "link" ? 0 : 1]?.data as JsonRecord;
+      if (target === "nested")
+        delete ((data.ownedLink as JsonRecord).link as JsonRecord).attribution;
+      else delete data.attribution;
+      expect(() => expectChangeGroup(corrupt, `missing ${target} attribution`)).toThrow();
+    }
+  });
+
+  it("rejects unnecessary pagination and over-bound inline or page results", () => {
+    const fixture = fixtures.find(
+      (candidate) => candidate.id === "transactional-receipt-pagination",
+    ) as TransactionalFixture;
+    expect(() => expectReceiptPagination(fixture, 3)).not.toThrow();
+    // The original acme defect: all five entries fit, yet next still points to a page.
+    expect(() => expectReceiptPagination(fixture, 200)).toThrow();
+    const inlineOverflow = structuredClone(fixture);
+    const receipt = inlineOverflow.exchanges.find(
+      (exchange) => exchange.id === "pagination-batch-original",
+    )?.response.body as JsonRecord;
+    const results = receipt.results as JsonRecord[];
+    results.push(...structuredClone(results));
+    expect(() => expectReceiptPagination(inlineOverflow, 3)).toThrow();
+    const pageOverflow = structuredClone(fixture);
+    const page = pageOverflow.exchanges.find(
+      (exchange) => exchange.response.schema === "#/$defs/mutationReceiptPage",
+    )?.response.body as JsonRecord;
+    (page.results as JsonRecord[]).push(
+      structuredClone((page.results as JsonRecord[])[0] as JsonRecord),
+    );
+    expect(() => expectReceiptPagination(pageOverflow, 3)).toThrow();
+  });
+
+  it("compares attribution only for the Event's exact version, including nested Link versions", () => {
+    const example = fixtures
+      .flatMap((fixture) => fixture.groupExamples ?? [])
+      .find((candidate) => candidate.id === "isolated-live-owned-link-erasure");
+    const group = structuredClone(example?.body as JsonRecord);
+    const finalEvents = group.events as JsonRecord[];
+    const earlierEvents = structuredClone(finalEvents);
+    for (const event of earlierEvents) {
+      const data = event.data as JsonRecord;
+      event.id = `${event.id}-earlier`;
+      data.previousRevision = `${data.previousRevision}-before`;
+      data.revision = `${data.revision}-intermediate`;
+      data.attribution = { principal: "human:earlier-author", status: "claimed" };
+      const owned = data.ownedLink as JsonRecord | undefined;
+      if (owned !== undefined) {
+        const link = owned.link as JsonRecord;
+        link.previousRevision = `${link.previousRevision}-before`;
+        link.revision = `${link.revision}-intermediate`;
+        link.attribution = data.attribution;
+      }
+    }
+    // Only the final postimages appear in changes; ordered earlier facts
+    // retain their own version's attribution and must not be compared to them.
+    for (const [index, event] of finalEvents.entries()) {
+      const data = event.data as JsonRecord;
+      const earlier = (earlierEvents[index] as JsonRecord).data as JsonRecord;
+      data.previousRevision = earlier.revision;
+      const owned = data.ownedLink as JsonRecord | undefined;
+      if (owned !== undefined)
+        (owned.link as JsonRecord).previousRevision = (
+          (earlier.ownedLink as JsonRecord).link as JsonRecord
+        ).revision;
+    }
+    group.events = [...earlierEvents, ...finalEvents].map((event, ordinal) => ({
+      ...event,
+      ordinal,
+    }));
+    group.eventCount = 4;
+    expect(() => expectChangeGroup(group, "intermediate attribution")).not.toThrow();
+  });
+});

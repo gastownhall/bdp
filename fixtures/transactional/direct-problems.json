@@ -290,7 +290,9 @@
           "type": "https://github.com/gastownhall/bdp/problems/request",
           "code": "malformed-request",
           "status": 400,
-          "retry": "never"
+          "retry": "never",
+          "pointer": "/operations/0/properties/title",
+          "title": "Invalid Unicode scalar string"
         }
       }
     },
@@ -318,7 +320,9 @@
           "type": "https://github.com/gastownhall/bdp/problems/request",
           "code": "malformed-request",
           "status": 400,
-          "retry": "never"
+          "retry": "never",
+          "pointer": "/operations/0/properties/title",
+          "title": "Duplicate decoded member name"
         }
       }
     }

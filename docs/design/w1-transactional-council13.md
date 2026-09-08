@@ -118,3 +118,63 @@ No review or test process remains running. This second correction commit has
 not received a new complete council at its exact head. T49/T62/T63/T64 are
 unapplied choices and T50–T61 require ratification; a final exact-head council,
 hosted CI and the operator's readiness/merge decisions remain mandatory.
+
+
+## AFK review of the second correction head: Claude fold
+
+Claude independently reviewed exact head `1eef4e439629e247e9055ef8e42045acbea66b75`
+against main `0b7d86e7cfec47f88cd1ec22314a73f39763bcf8` and reported
+**0 Critical, 0 High, 4 Medium, 2 Low** new findings. These findings concern
+the draft artifacts; they do not select the four open operator choices.
+
+| Finding | Verified disposition |
+| --- | --- |
+| Medium 1: live-successor catalog obligation contradicts the amended delta law | Corrected the specification table and catalog title together: same-group successor, property root replacement, owning-source ownedLink-only delta, and change in revision-determining durable state. Added the owning-source paragraph citation. The catalog test now compares all 114 row titles and IDs against the specification, in order, rather than comparing only IDs. |
+| Medium 2: successor Event attribution differs from its postimages | Preserved the correction adding explicit attribution to both successor Event data objects and the nested Link delta. Assertions compare attribution only for matching Resource identity and revision; negative probes omit each of the three fields. A positive probe supplies earlier Events with different attribution and only final postimages, so a check cannot incorrectly compare an intermediate version with final state. These are group-shape consistency probes, not a full Event application runtime. |
+| Medium 3: isolated erasure example appears to follow deleted identities | Clarified the intended independent hypothetical initial history and live endpoints. It now uses distinct scopeEpoch/authorizationView and plainly separate opaque position/checkpoint tokens. Resource IDs and digest vectors remain unchanged. Position tokens were already opaque: this clarification does not infer a numerical ordering law from pos-60 or introduce a restore/identity-reuse exception. |
+| Medium 4: five-entry receipt paginates below the Scope's advertised bound | Main acme rcpt-9 now contains all five entries with next null at its existing pos-46. A separate receipt-pagination Scope advertises defaultItems/maximumItems of three and narrates its own initial live graph; it contains the five-entry transaction as a two-entry inline prefix plus a final three-entry page. Page expiry and the two page minimum-position errors moved into that scenario; non-page rcpt-7 cases remain. Tests cross-check receipt/page bounds using discovery from the same Scope and reject unnecessary pagination and over-bound inline/pages. No global limit was lowered. |
+| Low 5: all-profile I-JSON law lacks a lower-profile catalog counterpart | Recorded a T56 downstream Read+Update catalog/admission obligation for integration. The inherited catalog is unchanged and the normative all-profile rule remains. This coverage gap is not declared resolved by the Transactional examples or by inventing a catalog ruling. |
+| Low 6: I-JSON problems omit useful location/title | Both raw-text negative examples now carry a diagnostic title and pointer /operations/0/properties/title. The SHOULD-level recommendation is preserved. |
+
+The corpus now has eleven Transactional JSON files: ten exchange fixtures
+with 63 schema-tagged exchange bodies, four separately validated committed
+group examples, and eight digest vectors. The two invalid I-JSON request
+texts remain raw; parsing them would discard duplicate-member evidence.
+The catalog remains 114 rows with 12 retirements. No additional definitions
+or modifications to the 83 inherited definitions were made by this Claude fold.
+
+Focused verification: the Transactional wire and catalog suites pass all 130
+tests under Node 24.16.0. Typecheck passes. An initial touched-file lint pass
+caught three unsafe optional chains in newly authored test helpers; they were
+corrected before the passing rerun. Full gates and final committed-head review
+are Janet's subsequent work, not claimed by these focused results. No write
+profile is implemented or shown conformant. T49/T62/T63/T64 remain unselected;
+T50–T61 remain provisional, including T56 and integrated JCS coverage T57.
+
+
+## AFK Codex/Gemini dispositions and full correction checks
+
+At `1eef4e439629e247e9055ef8e42045acbea66b75`, the Codex CLI seat returned
+0 Critical, 0 High, 2 Medium and 1 Low; Gemini returned no new findings.
+Codex's Event-attribution Medium overlaps Claude Medium 2 above and is fixed
+with version-specific checks. Its other Medium is fixed in only the new
+Transactional problem branches: cardinality-violated, event-history-expired,
+and catch-up-timeout now reject diagnostics and diagnosticsTruncated.
+Positive base objects and otherwise valid diagnostic mutations exercise this
+guard. No inherited definition was edited. The Low no-op oracle defect is
+fixed by establishing the fixture's same-value replacement from its explicit
+before-state and request before checking the whole returned Resource.
+Revision-only, attribution-only, and combined corruptions must fail. This
+fixture-specific assertion is not an RFC 6902 implementation.
+
+The combined author correction passed all 1,546 tests (48 files) under Node
+24.16.0, including the packaged-executable preflight. Typecheck, full lint,
+format and whitespace checks pass. The preceding correction build and
+dependency-boundary checks passed; subsequent changes are fixtures, tests
+and documents. Strict Ajv compilation covers all 138 definitions and validates
+256 bodies with zero failures. Both schema mirrors are identical; exact source
+byte slices of all 26 main and all 83 inherited Read+Update definitions remain
+unchanged. Existing Read evidence verification still reports 74 target-row
+instances at constant 5141c855420f6c7c032e513e5d072cd446275587. Those historical
+Read observations establish no Transactional runtime result. The resulting
+commit still needs independent council review; this record claims no clearance.

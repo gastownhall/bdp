@@ -7475,3 +7475,28 @@ member of served groups.
 exception for a new finite request. The law and fixtures must distinguish an
 existing admitted stream from a new request presenting an expired checkpoint.
 This delivery choice is unapplied pending Donna's ruling.
+
+
+## Council 13 — AFK correction fold (2026-09-08)
+
+The independent Claude review of `1eef4e4` found four Medium and two Low
+issues. Their dispositions are recorded in [Council 13](w1-transactional-council13.md).
+This correction implements no choice from T49/T62/T63/T64, and T50–T61
+remain provisional. The live-successor catalog row now matches the existing
+property-versus-owned-Link delta law. The owned-Link erasure example explicitly
+uses an independent hypothetical history with distinct epoch/view and opaque
+position/checkpoint tokens; it does not restore or follow the acme timeline.
+The main receipt's five entries fit its advertised bound and are all inline;
+pagination is illustrated in a separate canonical Scope advertising a
+three-entry maximum. These examples and their consistency checks are not
+write runtime or conformance evidence.
+
+**T56 integration obligation, pending ratification.** Preserve the all-profile
+Unicode-scalar and decoded-member-uniqueness law. The Transactional catalog
+records its obligation, but the inherited Read+Update catalog has no counterpart.
+When #19 and this branch reconcile, carry a corresponding Read+Update admission
+obligation into the combined catalog and cover both invalid strings and duplicate
+decoded member names. This is a recorded downstream obligation, not a new row,
+new catalog ruling, or an inferred change to the sealed Read catalog. T56's
+ratification and integration must settle its lower-profile catalog coverage;
+the all-profile normative law is not narrowed to hide the gap.
