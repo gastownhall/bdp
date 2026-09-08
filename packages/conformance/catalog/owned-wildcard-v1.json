@@ -1,0 +1,158 @@
+{
+  "catalogVersion": 1,
+  "scenarios": [
+    {
+      "id": "read.owned-wildcard.declaration",
+      "title": "A Bead Type Descriptor may own every outgoing Link Type through the wildcard entry",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "`ownsOutgoing` MAY also contain the **wildcard entry** `\"*\"`, whose value is exactly `{ max }`: it declares every outgoing Link Type not listed explicitly as owned."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The wildcard MAY be the only entry."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "The key MAY also be the wildcard `\"*\"`, whose value is exactly `{ max }`: it owns every outgoing Link Type not named explicitly, its `max` bounds the whole owned set, and explicit entries take precedence for the types they name, under [Owned Links](#owned-links). A Link Type Descriptor must not carry `ownsOutgoing`."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "A Bead Type's `ownsOutgoing` MAY carry the wildcard entry `\"*\"` — exactly `{ max }` — owning every outgoing Link Type not named explicitly"
+        }
+      ]
+    },
+    {
+      "id": "read.owned-wildcard.max-required",
+      "title": "The wildcard entry is exactly { max }",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Each declaration MUST carry `max`, the largest owned set the Type permits."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The wildcard entry carries no `label`: it names no Link Type."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "Descriptor objects and endpoint-constraint objects are closed: no members are allowed except those defined above. An `ownsOutgoing` entry is closed the same way: `{ label?, max }` under a Link Type URL, `{ max }` under the wildcard."
+        }
+      ]
+    },
+    {
+      "id": "read-update.owned-wildcard.explicit-precedence",
+      "title": "Explicit entries govern the types they name; the wildcard's max bounds the whole owned set",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Explicit entries take precedence for the Link Types they name: an explicitly declared Link Type is governed by its own entry — its own `max` bounds that type and its `label`, if any, describes it — and the wildcard governs every other outgoing Link Type."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The wildcard's `max` bounds the Bead's whole owned set: every owned Link of the Bead across every owned Link Type, the explicitly declared types' Links included, so a Bead never carries more owned Links than the wildcard's `max`, whatever its explicit entries permit."
+        }
+      ]
+    },
+    {
+      "id": "read.owned-wildcard.present-entries",
+      "title": "A wildcard owner's ownedLinks carries present types plus empty explicit entries, never the wildcard",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The member carries one entry for each owned Link Type actually present on the Bead — at least one owned Link of that type exists — plus an entry, possibly empty, for each explicitly declared Link Type; a Link Type owned only through the wildcard has an entry exactly when an owned Link of that type is present."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The wildcard `\"*\"` is never a key: the member is keyed by Link Type URL alone."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The member is present, possibly empty, for every Bead whose Type carries `ownsOutgoing`, and absent for Beads whose Type owns nothing."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#resource-records",
+          "selectedText": "A Bead whose Type owns outgoing Link Types additionally carries its `ownedLinks` member — one entry per owned Link Type present on the Bead and one, possibly empty, per explicitly declared Link Type, keyed by the Link Type URL and never by the wildcard `\"*\"`, valued by the owned Links' complete records in ascending code-unit order of their canonical `id`s — on every record read; the member is absent for Beads whose Type owns nothing."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "the `ownedLinks` member of such a Bead MUST carry one entry per owned Link Type present plus an empty entry per explicitly declared type, keyed by Link Type URL and never by `\"*\"`."
+        }
+      ]
+    },
+    {
+      "id": "read-update.owned-wildcard.undeclared-type-versions-source",
+      "title": "A mutation of a Link owned only through the wildcard versions the source, never the target",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "An owned Link is an ordinary first-class Link whose Link Type the source's Bead Type owns under `ownsOutgoing` — by an explicit entry or through the wildcard — and a Scope's Links are the only edges there are."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Every mutation of an owned Link versions the source Bead."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "An incoming Link never versions its target, whatever its type, so reverse projections such as cited-by remain computed views."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The wildcard changes no other rule of ownership: nothing is owned by default, only Bead Types may own, every mutation of an owned Link versions the source, an incoming Link never versions its target, and `label` never appears in a record."
+        }
+      ]
+    },
+    {
+      "id": "read.owned-wildcard.closure",
+      "title": "A view is closed over wildcard-owned Links",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Because the member is covered, it is never authorization-filtered. An Authorization View that projects a Bead projects its owned Links and their in-Scope target Beads: a view is closed over owned Links, and hiding a Bead from a view therefore requires hiding every Bead that owns a Link to it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "For a wildcard owner the consequence is stated plainly, because it is the price of inline, revision-covered references: such a Bead owns every outgoing Link it makes, so a Bead that owns a Link to a Bead hidden from a view is hidden from that view too — a Memory that cites a hidden Bead is hidden with it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#authorization-views",
+          "selectedText": "A visible Bead need not expose hidden incident Links — a latitude confined to incoming and unowned Links: a visible source's owned Links, covered by its revision, are never withheld, and the view includes their in-Scope targets, under [Owned Links](#owned-links)."
+        }
+      ]
+    }
+  ]
+}
