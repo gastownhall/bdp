@@ -11,6 +11,7 @@ import {
   loadScenarioCatalogJson,
   parseScenarioCatalog,
   profileIncludes,
+  retiredScenarioIds,
   SYMBOLIC_URLS,
   selectApplicableScenariosForProfile,
   selectDiagnosticScenariosForProfile,
@@ -132,6 +133,47 @@ describe("scenario metadata catalog", () => {
 
   it("quotes unusual unknown keys in issue paths", () => {
     expectIssues({ catalogVersion: 1, scenarios: [], "wire.schema": true }, ['$["wire.schema"]']);
+  });
+
+  it("returns a retires list as written and omits the member when absent", () => {
+    const retiring = {
+      ...scenario("transactional.discovery.document", "transactional"),
+      retires: ["read-update.discovery.document"],
+    };
+    const source = {
+      catalogVersion: 1,
+      scenarios: [retiring, scenario("read-update.discovery.document", "read-update")],
+    };
+    const catalog = parseScenarioCatalog(source);
+    expect(catalog).toEqual(source);
+    expect(catalog.scenarios[0]?.retires).not.toBe(retiring.retires);
+    expect(Object.hasOwn(catalog.scenarios[1] as object, "retires")).toBe(false);
+  });
+
+  it("rejects an empty, non-array, self-referential, duplicate, or malformed retires member", () => {
+    expectIssues(
+      {
+        catalogVersion: 1,
+        scenarios: [
+          { ...scenario("transactional.a", "transactional"), retires: [] },
+          { ...scenario("transactional.b", "transactional"), retires: "read-update.x" },
+          { ...scenario("transactional.c", "transactional"), retires: ["transactional.c"] },
+          {
+            ...scenario("transactional.d", "transactional"),
+            retires: ["read-update.x", "read-update.x"],
+          },
+          { ...scenario("transactional.e", "transactional"), retires: ["Read Update X", 7] },
+        ],
+      },
+      [
+        "$.scenarios[0].retires",
+        "$.scenarios[1].retires",
+        "$.scenarios[2].retires[0]",
+        "$.scenarios[3].retires[1]",
+        "$.scenarios[4].retires[0]",
+        "$.scenarios[4].retires[1]",
+      ],
+    );
   });
 });
 
@@ -295,6 +337,37 @@ describe("cumulative profile selection", () => {
     expect(() => selectApplicableScenariosForProfile(empty, "invalid" as "read")).toThrow(
       RangeError,
     );
+    expect(() => retiredScenarioIds(empty, "invalid" as "read")).toThrow(RangeError);
+  });
+
+  it("excludes a retired row from the claim that retires it and keeps it below", () => {
+    // The Transactional row retires a Read+Update obligation the profile
+    // contradicts (T48): a Transactional claim never inherits it, while a
+    // Read+Update claim, below the retiring row, keeps it.
+    const combined = parseScenarioCatalog({
+      catalogVersion: 1,
+      scenarios: [
+        scenario("read-update.idempotency.in-progress", "read-update"),
+        scenario("read-update.idempotency.kept", "read-update"),
+        {
+          ...scenario("transactional.idempotency.concurrent-join", "transactional"),
+          retires: ["read-update.idempotency.in-progress"],
+        },
+      ],
+    });
+    expect([...retiredScenarioIds(combined, "transactional")]).toEqual([
+      "read-update.idempotency.in-progress",
+    ]);
+    expect([...retiredScenarioIds(combined, "read-update")]).toEqual([]);
+    expect(
+      selectApplicableScenariosForProfile(combined, "transactional").map(({ id }) => id),
+    ).toEqual(["read-update.idempotency.kept", "transactional.idempotency.concurrent-join"]);
+    expect(
+      selectNormativeScenariosForProfile(combined, "transactional").map(({ id }) => id),
+    ).toEqual(["read-update.idempotency.kept", "transactional.idempotency.concurrent-join"]);
+    expect(
+      selectApplicableScenariosForProfile(combined, "read-update").map(({ id }) => id),
+    ).toEqual(["read-update.idempotency.in-progress", "read-update.idempotency.kept"]);
   });
 });
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json",
   "title": "BDP v0 schema bundle",
-  "description": "Normative JSON Schema 2020-12 bundle for the BDP v0 discovery, Read, and Read+Update surface. The Read+Update definitions are drafted pending review; Transactional definitions are added to this same bundle before their implementation wave.",
+  "description": "Normative JSON Schema 2020-12 bundle for the BDP v0 discovery, Read, Read+Update, and Transactional surface. The Read+Update and Transactional definitions are drafted pending review; the Read definitions are sealed by the Read evidence cohort.",
   "$defs": {
     "absoluteHttpUrl": {
       "type": "string",
@@ -2400,6 +2400,2102 @@
         },
         "sequence": {
           "const": "sequence"
+        }
+      },
+      "additionalProperties": false
+    },
+    "wireToken": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,256}$"
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "typedLinkReference": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "createdData": {
+      "type": "object",
+      "required": ["revision", "properties"],
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        },
+        "source": {
+          "$ref": "#/$defs/reference"
+        },
+        "target": {
+          "$ref": "#/$defs/reference"
+        }
+      },
+      "dependentRequired": {
+        "source": ["target"],
+        "target": ["source"]
+      },
+      "additionalProperties": false
+    },
+    "ownedLinkDelta": {
+      "type": "object",
+      "required": ["id", "type", "previousRevision", "revision", "change"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "previousRevision": {
+          "$ref": "#/$defs/revision"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "change": {
+          "$ref": "#/$defs/propertyChange"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ownedLinkChange": {
+      "type": "object",
+      "required": ["operation", "link"],
+      "properties": {
+        "operation": {
+          "enum": ["created", "updated", "deleted"]
+        },
+        "link": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "created"
+              }
+            },
+            "required": ["operation"]
+          },
+          "then": {
+            "properties": {
+              "link": {
+                "$ref": "#/$defs/linkRecord"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "updated"
+              }
+            },
+            "required": ["operation"]
+          },
+          "then": {
+            "properties": {
+              "link": {
+                "$ref": "#/$defs/ownedLinkDelta"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "deleted"
+              }
+            },
+            "required": ["operation"]
+          },
+          "then": {
+            "properties": {
+              "link": {
+                "$ref": "#/$defs/resourceIdentity"
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "updatedData": {
+      "type": "object",
+      "required": ["previousRevision", "revision"],
+      "properties": {
+        "previousRevision": {
+          "$ref": "#/$defs/revision"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "change": {
+          "$ref": "#/$defs/propertyChange"
+        },
+        "ownedLink": {
+          "$ref": "#/$defs/ownedLinkChange"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        }
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["change"],
+          "properties": {
+            "change": true,
+            "ownedLink": false
+          }
+        },
+        {
+          "type": "object",
+          "required": ["ownedLink"],
+          "properties": {
+            "ownedLink": true,
+            "change": false
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "deletedData": {
+      "type": "object",
+      "required": ["revision"],
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/revision"
+        }
+      },
+      "additionalProperties": false
+    },
+    "linkDeltaData": {
+      "type": "object",
+      "required": ["endpoint", "link", "source", "target"],
+      "properties": {
+        "endpoint": {
+          "enum": ["source", "target"]
+        },
+        "link": {
+          "$ref": "#/$defs/typedLinkReference"
+        },
+        "source": {
+          "$ref": "#/$defs/reference"
+        },
+        "target": {
+          "$ref": "#/$defs/reference"
+        }
+      },
+      "additionalProperties": false
+    },
+    "eventType": {
+      "enum": ["created", "updated", "deleted", "linked", "unlinked"]
+    },
+    "event": {
+      "title": "BDP Event",
+      "type": "object",
+      "required": [
+        "id",
+        "ordinal",
+        "type",
+        "source",
+        "subject",
+        "subjectType",
+        "transaction",
+        "time",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "type": {
+          "$ref": "#/$defs/eventType"
+        },
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "subject": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "subjectType": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "transaction": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "time": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "created"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/createdData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "updated"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/updatedData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "deleted"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/deletedData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": ["linked", "unlinked"]
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/linkDeltaData"
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "eventPage": {
+      "title": "BDP Event Source page",
+      "type": "object",
+      "required": ["source", "events", "next"],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "selector": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cardinality": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+    "updateWhereMembers": {
+      "type": "object",
+      "required": ["collection", "selector", "change"],
+      "properties": {
+        "collection": {
+          "enum": ["beads", "links"]
+        },
+        "selector": {
+          "$ref": "#/$defs/selector"
+        },
+        "change": {
+          "$ref": "#/$defs/propertyChange"
+        },
+        "cardinality": {
+          "$ref": "#/$defs/cardinality"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        }
+      }
+    },
+    "deleteWhereMembers": {
+      "type": "object",
+      "required": ["collection", "selector"],
+      "properties": {
+        "collection": {
+          "enum": ["beads", "links"]
+        },
+        "selector": {
+          "$ref": "#/$defs/selector"
+        },
+        "cardinality": {
+          "$ref": "#/$defs/cardinality"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        }
+      }
+    },
+    "updateWhereRequest": {
+      "title": "BDP Transactional update-where request",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/updateWhereMembers"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "deleteWhereRequest": {
+      "title": "BDP Transactional delete-where request",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteWhereMembers"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "createBeadOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/createBeadMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "createBead"
+        },
+        "name": {
+          "$ref": "#/$defs/localName"
+        }
+      },
+      "required": ["operation"],
+      "unevaluatedProperties": false
+    },
+    "updateBeadPropertiesOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/updateBeadPropertiesMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "updateBeadProperties"
+        }
+      },
+      "required": ["operation"],
+      "unevaluatedProperties": false
+    },
+    "deleteBeadOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteBeadMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteBead"
+        }
+      },
+      "required": ["operation"],
+      "unevaluatedProperties": false
+    },
+    "createLinkOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/createLinkMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "createLink"
+        },
+        "name": {
+          "$ref": "#/$defs/localName"
+        }
+      },
+      "required": ["operation"],
+      "unevaluatedProperties": false
+    },
+    "updateLinkPropertiesOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/updateLinkPropertiesMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "updateLinkProperties"
+        }
+      },
+      "required": ["operation"],
+      "unevaluatedProperties": false
+    },
+    "deleteLinkOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteLinkMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteLink"
+        }
+      },
+      "required": ["operation"],
+      "unevaluatedProperties": false
+    },
+    "updateWhereOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/updateWhereMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "updateWhere"
+        }
+      },
+      "required": ["operation"],
+      "unevaluatedProperties": false
+    },
+    "deleteWhereOperation": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteWhereMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteWhere"
+        }
+      },
+      "required": ["operation"],
+      "unevaluatedProperties": false
+    },
+    "batchOperation": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/createBeadOperation"
+        },
+        {
+          "$ref": "#/$defs/updateBeadPropertiesOperation"
+        },
+        {
+          "$ref": "#/$defs/deleteBeadOperation"
+        },
+        {
+          "$ref": "#/$defs/createLinkOperation"
+        },
+        {
+          "$ref": "#/$defs/updateLinkPropertiesOperation"
+        },
+        {
+          "$ref": "#/$defs/deleteLinkOperation"
+        },
+        {
+          "$ref": "#/$defs/updateWhereOperation"
+        },
+        {
+          "$ref": "#/$defs/deleteWhereOperation"
+        }
+      ]
+    },
+    "batchRequest": {
+      "title": "BDP Transactional batch request",
+      "type": "object",
+      "required": ["operations"],
+      "properties": {
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/batchOperation"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "transactionalOperationDirectory": {
+      "title": "BDP Transactional Operation Directory",
+      "type": "object",
+      "required": [
+        "createBead",
+        "updateBeadProperties",
+        "deleteBead",
+        "createLink",
+        "updateLinkProperties",
+        "deleteLink",
+        "putAlias",
+        "deleteAlias",
+        "sequence",
+        "updateWhere",
+        "deleteWhere",
+        "batch"
+      ],
+      "properties": {
+        "createBead": {
+          "const": "create-bead"
+        },
+        "updateBeadProperties": {
+          "const": "update-bead-properties"
+        },
+        "deleteBead": {
+          "const": "delete-bead"
+        },
+        "createLink": {
+          "const": "create-link"
+        },
+        "updateLinkProperties": {
+          "const": "update-link-properties"
+        },
+        "deleteLink": {
+          "const": "delete-link"
+        },
+        "putAlias": {
+          "const": "put-alias"
+        },
+        "deleteAlias": {
+          "const": "delete-alias"
+        },
+        "sequence": {
+          "const": "sequence"
+        },
+        "updateWhere": {
+          "const": "update-where"
+        },
+        "deleteWhere": {
+          "const": "delete-where"
+        },
+        "batch": {
+          "const": "batch"
+        }
+      },
+      "additionalProperties": false
+    },
+    "receiptStatus": {
+      "enum": ["pending", "completed", "failed"]
+    },
+    "receiptDetail": {
+      "enum": ["available", "expired", "withheld"]
+    },
+    "receiptEntryOutcome": {
+      "enum": ["created", "updated", "deleted", "matched", "withheld", "erased"]
+    },
+    "receiptResult": {
+      "type": "object",
+      "required": ["operationIndex", "outcome"],
+      "properties": {
+        "operationIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operationName": {
+          "$ref": "#/$defs/localName"
+        },
+        "outcome": {
+          "$ref": "#/$defs/receiptEntryOutcome"
+        },
+        "resource": {
+          "oneOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/beadRecord"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "links": false
+                  }
+                }
+              ]
+            },
+            {
+              "$ref": "#/$defs/linkRecord"
+            }
+          ]
+        },
+        "deleted": {
+          "$ref": "#/$defs/deletedIdentity"
+        },
+        "erased": {
+          "$ref": "#/$defs/resourceIdentity"
+        },
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "sourceRevision": {
+          "$ref": "#/$defs/revision"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "enum": ["created", "updated"]
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "required": ["resource"],
+            "properties": {
+              "resource": true,
+              "deleted": false,
+              "erased": false,
+              "count": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "deleted"
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "required": ["deleted"],
+            "properties": {
+              "deleted": true,
+              "resource": false,
+              "erased": false,
+              "count": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "erased"
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "required": ["erased"],
+            "properties": {
+              "erased": true,
+              "resource": false,
+              "deleted": false,
+              "count": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "matched"
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "required": ["count"],
+            "properties": {
+              "count": true,
+              "operationName": false,
+              "resource": false,
+              "deleted": false,
+              "erased": false,
+              "source": false,
+              "sourceRevision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "withheld"
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "resource": false,
+              "deleted": false,
+              "erased": false,
+              "source": false,
+              "sourceRevision": false,
+              "count": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["resource"],
+            "properties": {
+              "resource": {
+                "$ref": "#/$defs/beadRecord"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source": false,
+              "sourceRevision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["deleted"],
+            "properties": {
+              "deleted": {
+                "type": "object",
+                "required": ["resourceKind"],
+                "properties": {
+                  "resourceKind": {
+                    "const": "bead"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source": false,
+              "sourceRevision": false
+            }
+          }
+        }
+      ],
+      "dependentRequired": {
+        "source": ["sourceRevision"],
+        "sourceRevision": ["source"]
+      },
+      "additionalProperties": false
+    },
+    "allocatedIdentity": {
+      "type": "object",
+      "required": ["operationIndex"],
+      "properties": {
+        "operationIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operationName": {
+          "$ref": "#/$defs/localName"
+        },
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "withheld": {
+          "const": true
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["id", "type"],
+          "properties": {
+            "id": true,
+            "type": true,
+            "withheld": false
+          }
+        },
+        {
+          "required": ["withheld"],
+          "properties": {
+            "withheld": true,
+            "id": false,
+            "type": false
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "receiptCore": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "status": {
+          "$ref": "#/$defs/receiptStatus"
+        },
+        "detail": {
+          "$ref": "#/$defs/receiptDetail"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        },
+        "scopeEpoch": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "authorizationView": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "transaction": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "requiredPosition": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "effectPosition": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/receiptResult"
+          }
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allocated": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/allocatedIdentity"
+          }
+        },
+        "problem": {
+          "$ref": "#/$defs/receiptProblem"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/dateTime"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "effectPosition": false,
+              "detail": {
+                "const": "available"
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "mutationReceipt": {
+      "title": "BDP Mutation Receipt",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/receiptCore"
+        }
+      ],
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "status",
+            "idempotencyKey",
+            "scopeEpoch",
+            "authorizationView",
+            "transaction"
+          ],
+          "properties": {
+            "id": true,
+            "status": {
+              "const": "pending"
+            },
+            "idempotencyKey": true,
+            "scopeEpoch": true,
+            "authorizationView": true,
+            "transaction": true,
+            "detail": false,
+            "requiredPosition": false,
+            "effectPosition": false,
+            "results": false,
+            "next": false,
+            "allocated": false,
+            "problem": false,
+            "expiresAt": false
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "status",
+            "detail",
+            "idempotencyKey",
+            "scopeEpoch",
+            "authorizationView",
+            "transaction",
+            "requiredPosition",
+            "results",
+            "next",
+            "expiresAt"
+          ],
+          "properties": {
+            "id": true,
+            "status": {
+              "const": "completed"
+            },
+            "detail": {
+              "const": "available"
+            },
+            "idempotencyKey": true,
+            "scopeEpoch": true,
+            "authorizationView": true,
+            "transaction": true,
+            "requiredPosition": true,
+            "effectPosition": true,
+            "results": true,
+            "next": true,
+            "expiresAt": true,
+            "allocated": false,
+            "problem": false
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "status",
+            "detail",
+            "idempotencyKey",
+            "scopeEpoch",
+            "authorizationView",
+            "transaction",
+            "requiredPosition",
+            "problem",
+            "expiresAt"
+          ],
+          "properties": {
+            "id": true,
+            "status": {
+              "const": "failed"
+            },
+            "detail": {
+              "const": "available"
+            },
+            "idempotencyKey": true,
+            "scopeEpoch": true,
+            "authorizationView": true,
+            "transaction": true,
+            "requiredPosition": true,
+            "problem": true,
+            "expiresAt": true,
+            "effectPosition": false,
+            "results": false,
+            "next": false,
+            "allocated": false
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "status",
+            "detail",
+            "idempotencyKey",
+            "scopeEpoch",
+            "authorizationView",
+            "transaction",
+            "requiredPosition",
+            "allocated"
+          ],
+          "properties": {
+            "id": true,
+            "status": {
+              "const": "completed"
+            },
+            "detail": {
+              "const": "expired"
+            },
+            "idempotencyKey": true,
+            "scopeEpoch": true,
+            "authorizationView": true,
+            "transaction": true,
+            "requiredPosition": true,
+            "effectPosition": true,
+            "allocated": true,
+            "results": false,
+            "next": false,
+            "problem": false,
+            "expiresAt": false
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "status",
+            "detail",
+            "idempotencyKey",
+            "scopeEpoch",
+            "authorizationView",
+            "transaction",
+            "requiredPosition"
+          ],
+          "properties": {
+            "id": true,
+            "status": {
+              "const": "completed"
+            },
+            "detail": {
+              "const": "withheld"
+            },
+            "idempotencyKey": true,
+            "scopeEpoch": true,
+            "authorizationView": true,
+            "transaction": true,
+            "requiredPosition": true,
+            "effectPosition": true,
+            "results": false,
+            "next": false,
+            "allocated": false,
+            "problem": false,
+            "expiresAt": false
+          }
+        }
+      ]
+    },
+    "mutationReceiptPage": {
+      "title": "BDP Mutation Receipt page",
+      "type": "object",
+      "required": ["receipt", "results", "next"],
+      "properties": {
+        "receipt": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "results": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/receiptResult"
+          }
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "transactionalOnlyProblemCode": {
+      "enum": ["cardinality-violated", "event-history-expired", "catch-up-timeout"]
+    },
+    "transactionalProblemCode": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/readUpdateProblemCode"
+        },
+        {
+          "$ref": "#/$defs/transactionalOnlyProblemCode"
+        }
+      ]
+    },
+    "directProblemCode": {
+      "enum": [
+        "malformed-request",
+        "invalid-parameter",
+        "unauthenticated",
+        "forbidden",
+        "resource-not-found",
+        "resource-pruned",
+        "resource-erased",
+        "foreign-view",
+        "cursor-expired",
+        "request-too-large",
+        "limit-exceeded",
+        "rate-limited",
+        "temporarily-unavailable",
+        "unsupported-media-type",
+        "idempotency-conflict",
+        "event-history-expired",
+        "catch-up-timeout"
+      ]
+    },
+    "receiptProblemCode": {
+      "enum": [
+        "forbidden",
+        "resource-not-found",
+        "limit-exceeded",
+        "binding-unavailable",
+        "validation-failed",
+        "type-not-installed",
+        "identity-taken",
+        "alias-path-taken",
+        "revision-mismatch",
+        "incident-links-exist",
+        "aggregate-constraint-violation",
+        "cardinality-violated"
+      ]
+    },
+    "transactionalProblem": {
+      "title": "BDP Transactional Problem Details",
+      "type": "object",
+      "required": ["type", "code", "retry"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "enum": [400, 401, 403, 404, 409, 410, 413, 415, 422, 429, 503]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        "code": {
+          "$ref": "#/$defs/directProblemCode"
+        },
+        "retry": {
+          "$ref": "#/$defs/retryDisposition"
+        },
+        "retryAfter": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pointer": {
+          "$ref": "#/$defs/jsonPointer"
+        },
+        "limit": {
+          "type": "string",
+          "pattern": "^[a-z]+\\.[A-Za-z]+$"
+        },
+        "archivedAt": {
+          "$ref": "#/$defs/reference"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/readUpdateProblemCode"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "$ref": "#/$defs/readUpdateProblem"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "event-history-expired"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "catch-up-timeout"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/unavailable"
+              },
+              "status": {
+                "const": 503
+              },
+              "retry": {
+                "const": "after-delay"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-erased"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "pointer": false
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "code": {
+                  "const": "limit-exceeded"
+                }
+              },
+              "required": ["code"]
+            }
+          },
+          "then": {
+            "properties": {
+              "limit": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "retry": {
+                "const": "after-delay"
+              }
+            },
+            "required": ["retry"]
+          },
+          "else": {
+            "properties": {
+              "retryAfter": false
+            }
+          }
+        }
+      ]
+    },
+    "receiptProblem": {
+      "title": "BDP Mutation Receipt problem",
+      "type": "object",
+      "required": ["type", "code", "status", "retry"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "enum": [400, 403, 404, 409, 413, 422]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        "code": {
+          "$ref": "#/$defs/receiptProblemCode"
+        },
+        "retry": {
+          "$ref": "#/$defs/retryDisposition"
+        },
+        "operationIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operationName": {
+          "$ref": "#/$defs/localName"
+        },
+        "pointer": {
+          "$ref": "#/$defs/jsonPointer"
+        },
+        "limit": {
+          "type": "string",
+          "pattern": "^[a-z]+\\.[A-Za-z]+$"
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/validationDiagnostics"
+        },
+        "diagnosticsTruncated": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/readUpdateProblemCode"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "$ref": "#/$defs/readUpdateProblem"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "cardinality-violated"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "code": {
+                  "enum": ["limit-exceeded", "aggregate-constraint-violation"]
+                }
+              },
+              "required": ["code"]
+            }
+          },
+          "then": {
+            "required": ["operationIndex"],
+            "properties": {
+              "operationIndex": true
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "code": {
+                  "const": "limit-exceeded"
+                }
+              },
+              "required": ["code"]
+            }
+          },
+          "then": {
+            "properties": {
+              "limit": false
+            }
+          }
+        }
+      ],
+      "dependentRequired": {
+        "operationName": ["operationIndex"]
+      }
+    },
+    "stateChange": {
+      "type": "object",
+      "required": ["operation", "resourceKind", "resource"],
+      "properties": {
+        "operation": {
+          "enum": ["upsert", "tombstone"]
+        },
+        "resourceKind": {
+          "$ref": "#/$defs/resourceKind"
+        },
+        "resource": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "upsert"
+              },
+              "resourceKind": {
+                "const": "bead"
+              }
+            },
+            "required": ["operation", "resourceKind"]
+          },
+          "then": {
+            "properties": {
+              "resource": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/beadRecord"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "links": false
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "upsert"
+              },
+              "resourceKind": {
+                "const": "link"
+              }
+            },
+            "required": ["operation", "resourceKind"]
+          },
+          "then": {
+            "properties": {
+              "resource": {
+                "$ref": "#/$defs/linkRecord"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "tombstone"
+              }
+            },
+            "required": ["operation"]
+          },
+          "then": {
+            "properties": {
+              "resource": {
+                "$ref": "#/$defs/resourceIdentity"
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "erasureDigest": {
+      "type": "object",
+      "required": ["scheme", "value"],
+      "properties": {
+        "scheme": {
+          "enum": ["sha-256-jcs"]
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "erasureRecord": {
+      "type": "object",
+      "required": ["subject", "revision", "digest"],
+      "properties": {
+        "subject": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "digest": {
+          "$ref": "#/$defs/erasureDigest"
+        }
+      },
+      "additionalProperties": false
+    },
+    "changeGroup": {
+      "title": "BDP change group",
+      "type": "object",
+      "required": [
+        "scopeEpoch",
+        "authorizationView",
+        "checkpoint",
+        "position",
+        "previousPosition",
+        "projectionAdvance",
+        "eventCount",
+        "changes",
+        "erasures",
+        "events"
+      ],
+      "properties": {
+        "scopeEpoch": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "authorizationView": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "checkpoint": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "position": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "previousPosition": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "projectionAdvance": {
+          "type": "boolean"
+        },
+        "transaction": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "eventCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stateChange"
+          }
+        },
+        "erasures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/erasureRecord"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "projectionAdvance": {
+                "const": true
+              }
+            },
+            "required": ["projectionAdvance"]
+          },
+          "then": {
+            "properties": {
+              "transaction": false,
+              "eventCount": {
+                "const": 0
+              },
+              "changes": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "erasures": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "events": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "type": "object",
+            "required": ["transaction"],
+            "properties": {
+              "transaction": true
+            },
+            "anyOf": [
+              {
+                "properties": {
+                  "changes": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "erasures": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "events": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "changefeedPage": {
+      "title": "BDP changefeed page",
+      "type": "object",
+      "required": [
+        "scope",
+        "scopeEpoch",
+        "authorizationView",
+        "after",
+        "observedHeadPosition",
+        "groups",
+        "next"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "scopeEpoch": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "authorizationView": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "after": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "observedHeadPosition": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/changeGroup"
+          }
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "snapshotManifest": {
+      "title": "BDP snapshot manifest",
+      "type": "object",
+      "required": [
+        "id",
+        "scope",
+        "scopeEpoch",
+        "authorizationView",
+        "scopePosition",
+        "checkpoint",
+        "expiresAt",
+        "erasures",
+        "beads",
+        "links"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "scope": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "scopeEpoch": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "authorizationView": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "scopePosition": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "checkpoint": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "erasures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/erasureRecord"
+          }
+        },
+        "beads": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/beadCollection"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "links": false
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "links": {
+          "$ref": "#/$defs/linkCollection"
+        }
+      },
+      "additionalProperties": false
+    },
+    "transactionalAdvertisedLimits": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "object",
+          "properties": {
+            "defaultItems": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "maximumItems": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "targetBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "bodyBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "resource": {
+          "type": "object",
+          "properties": {
+            "representationBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "propertiesBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "selector": {
+          "type": "object",
+          "properties": {
+            "bytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "depth": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "nodes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "patch": {
+          "type": "object",
+          "properties": {
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathDepth": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "sequence": {
+          "type": "object",
+          "properties": {
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "diagnostics": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "diagnosticBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "transaction": {
+          "type": "object",
+          "properties": {
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "examinedResources": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "matchedResources": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "mutatedResources": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "inducedEvents": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "duration": {
+              "$ref": "#/$defs/iso8601Duration"
+            }
+          },
+          "additionalProperties": false
+        },
+        "retention": {
+          "type": "object",
+          "properties": {
+            "receipt": {
+              "$ref": "#/$defs/iso8601Duration"
+            },
+            "maximumSnapshotLifetime": {
+              "$ref": "#/$defs/iso8601Duration"
+            },
+            "replay": {
+              "$ref": "#/$defs/iso8601Duration"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "transactionalDiscovery": {
+      "title": "BDP Transactional discovery document",
+      "type": "object",
+      "required": [
+        "bdpVersion",
+        "profile",
+        "scope",
+        "beads",
+        "links",
+        "types",
+        "operations",
+        "aliases",
+        "scopeEpoch",
+        "authorizationView",
+        "headPosition",
+        "minimumReplayPosition",
+        "receipts",
+        "snapshot",
+        "changes",
+        "events"
+      ],
+      "properties": {
+        "bdpVersion": {
+          "$ref": "#/$defs/bdpVersion"
+        },
+        "profile": {
+          "const": "transactional"
+        },
+        "scope": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "scopeEpoch": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "authorizationView": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "headPosition": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "minimumReplayPosition": {
+          "$ref": "#/$defs/wireToken"
+        },
+        "beads": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "links": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "types": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "operations": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "aliases": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "receipts": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "changes": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "events": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "order": {
+          "enum": ["canonical-uri"]
+        },
+        "limits": {
+          "$ref": "#/$defs/transactionalAdvertisedLimits"
+        },
+        "maximumEndpointMultiplicity": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
+          }
         }
       },
       "additionalProperties": false

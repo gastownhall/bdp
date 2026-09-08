@@ -6,7 +6,7 @@ import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 
 import { BDP_PROBLEM_FAMILY_PREFIX, BDP_V0_SCHEMA_ID, READ_PROBLEM_DEFINITIONS } from "./index.js";
-import { isJsonSchemaUri } from "./schema-formats.js";
+import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
 
 /**
  * The drafted Read+Update wire artifacts, held in lockstep from three sides:
@@ -54,6 +54,7 @@ const OWNED_LINK_TYPE = "https://work.example/types/cites";
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
 ajv.addSchema(schema);
 
 /** One retained disposition: entry `index` of exchange `from`, expected at `at` (or as the whole body). */

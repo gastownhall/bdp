@@ -27,6 +27,14 @@ export interface ScenarioMetadata {
   /** Lowest cumulative protocol profile to which this scenario applies. */
   readonly requiredProfile: ProtocolProfile;
   readonly requirements: readonly RequirementCitation[];
+  /**
+   * The ids of lower-profile rows this row supersedes, when a higher profile
+   * contradicts an obligation a lower profile binds. A claim that includes
+   * this row's profile excludes every retired row, under `selection.ts`.
+   * The retired rows live in their own profile's catalog; this member names
+   * them and does not restate them.
+   */
+  readonly retires?: readonly string[];
 }
 
 /**
@@ -60,7 +68,14 @@ export class CatalogValidationError extends Error {
 export type CitationSourceLoader = (source: string) => string | undefined;
 
 const CATALOG_KEYS = new Set(["catalogVersion", "scenarios"]);
-const SCENARIO_KEYS = new Set(["id", "title", "kind", "requiredProfile", "requirements"]);
+const SCENARIO_KEYS = new Set([
+  "id",
+  "title",
+  "kind",
+  "requiredProfile",
+  "requirements",
+  "retires",
+]);
 const CITATION_KEYS = new Set(["source", "anchor", "selectedText"]);
 const SCENARIO_ID = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const SCENARIO_ID_MAX_LENGTH = 128;
@@ -194,17 +209,64 @@ function parseScenario(
     `${path}.requirements`,
     issues,
   );
+  const retires = readRetires(ownValue(value, "retires"), `${path}.retires`, id, issues);
 
   if (
     !idValid ||
     title === undefined ||
     kind === undefined ||
     requiredProfile === undefined ||
-    requirements === undefined
+    requirements === undefined ||
+    retires === undefined
   ) {
     return undefined;
   }
-  return { id, title, kind, requiredProfile, requirements };
+  return retires.length === 0
+    ? { id, title, kind, requiredProfile, requirements }
+    : { id, title, kind, requiredProfile, requirements, retires };
+}
+
+/**
+ * An absent member reads as no retirement. A present member is a nonempty
+ * array of unique scenario ids, none of them the row's own; whether each id
+ * names a row of a lower profile is checked against the catalogs by the
+ * repository tests, since the retired rows live in another catalog file.
+ */
+function readRetires(
+  value: unknown,
+  path: string,
+  ownId: string | undefined,
+  issues: CatalogIssue[],
+): readonly string[] | undefined {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length === 0) {
+    issues.push({ path, message: "must be a nonempty array of scenario identifiers" });
+    return undefined;
+  }
+  const retired: string[] = [];
+  const seen = new Set<string>();
+  for (const [index, candidate] of value.entries()) {
+    const entryPath = `${path}[${index}]`;
+    const valid =
+      typeof candidate === "string" &&
+      candidate.length <= SCENARIO_ID_MAX_LENGTH &&
+      SCENARIO_ID.test(candidate);
+    if (!valid) {
+      issues.push({ path: entryPath, message: "must be a scenario identifier" });
+      continue;
+    }
+    if (candidate === ownId) {
+      issues.push({ path: entryPath, message: "a scenario cannot retire itself" });
+      continue;
+    }
+    if (seen.has(candidate)) {
+      issues.push({ path: entryPath, message: `retired identifier '${candidate}' must be unique` });
+      continue;
+    }
+    seen.add(candidate);
+    retired.push(candidate);
+  }
+  return retired.length === value.length ? retired : undefined;
 }
 
 function readCitations(

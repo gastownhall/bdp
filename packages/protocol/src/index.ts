@@ -204,7 +204,7 @@ export {
   resolveCanonicalLocalResourceId,
 } from "./read-values.js";
 
-export { isJsonSchemaUri } from "./schema-formats.js";
+export { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
 
 /**
  * A Reference is how anything in BDP points at anything: a URI — or a
