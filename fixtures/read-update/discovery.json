@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "read-update-discovery",
-  "description": "A Read+Update discovery document — the Read members plus the Operation Directory URL the optional limits the profile binds, and one maximum-endpoint-multiplicity policy on the reference domain's dependency Link Type — and the directory it identifies: exactly the six singleton targets plus sequence. Illustrative wire example; not evidence.",
+  "description": "A Read+Update discovery document — the Read members plus the Operation Directory URL, the required aliases root, the optional limits the profile binds, and one maximum-endpoint-multiplicity policy on the reference domain's dependency Link Type — and the directory it identifies: the six Resource targets, the two alias targets, and sequence. Every Read+Update Scope offers the alias targets and serves alias resolution, so aliases is a required member of its discovery document. Illustrative wire example; not evidence.",
   "scope": "https://beads.example/acme/",
   "exchanges": [
     {
@@ -23,6 +23,7 @@
           "links": "https://beads.example/acme/links/",
           "types": "https://beads.example/acme/types/",
           "operations": "https://beads.example/acme/operations/",
+          "aliases": "https://beads.example/acme/alias/",
           "limits": {
             "page": { "defaultItems": 50, "maximumItems": 200 },
             "request": { "targetBytes": 2048, "bodyBytes": 65536 },
@@ -59,6 +60,8 @@
           "createLink": "create-link",
           "updateLinkProperties": "update-link-properties",
           "deleteLink": "delete-link",
+          "putAlias": "put-alias",
+          "deleteAlias": "delete-alias",
           "sequence": "sequence"
         }
       }

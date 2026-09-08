@@ -113,7 +113,14 @@
         "schema": "#/$defs/mutationResult",
         "body": {
           "outcome": "deleted",
-          "deleted": "https://beads.example/acme/beads/projects/alpha/tasks/t-1"
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+              "type": "https://work.example/types/task",
+              "revision": "t-1-r1"
+            }
+          }
         }
       }
     },
@@ -272,7 +279,14 @@
         "schema": "#/$defs/mutationResult",
         "body": {
           "outcome": "deleted",
-          "deleted": "https://beads.example/acme/links/cites-110",
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://beads.example/acme/links/cites-110",
+              "type": "https://work.example/types/cites",
+              "revision": "cites-110-r2"
+            }
+          },
           "source": "https://beads.example/acme/beads/decision-7",
           "sourceRevision": "decision-7-r7"
         }

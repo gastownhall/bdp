@@ -768,18 +768,6 @@
           },
           "additionalProperties": false
         },
-        "validation": {
-          "type": "object",
-          "properties": {
-            "diagnostics": {
-              "$ref": "#/$defs/positiveInteger"
-            },
-            "diagnosticBytes": {
-              "$ref": "#/$defs/positiveInteger"
-            }
-          },
-          "additionalProperties": false
-        },
         "transaction": {
           "type": "object",
           "properties": {
@@ -1157,6 +1145,27 @@
         }
       }
     },
+    "putAliasMembers": {
+      "type": "object",
+      "required": ["alias", "target"],
+      "properties": {
+        "alias": {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        "target": {
+          "$ref": "#/$defs/resourceReference"
+        }
+      }
+    },
+    "deleteAliasMembers": {
+      "type": "object",
+      "required": ["alias"],
+      "properties": {
+        "alias": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      }
+    },
     "createBeadRequest": {
       "type": "object",
       "allOf": [
@@ -1237,6 +1246,29 @@
           "$ref": "#/$defs/durableResourceReference"
         }
       },
+      "unevaluatedProperties": false
+    },
+    "putAliasRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/putAliasMembers"
+        }
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "deleteAliasRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteAliasMembers"
+        }
+      ],
       "unevaluatedProperties": false
     },
     "sequenceCreateBead": {
@@ -1353,6 +1385,42 @@
       "required": ["operation", "idempotencyKey"],
       "unevaluatedProperties": false
     },
+    "sequencePutAlias": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/putAliasMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "putAlias"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequenceDeleteAlias": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteAliasMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteAlias"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
     "sequenceMember": {
       "oneOf": [
         {
@@ -1372,6 +1440,12 @@
         },
         {
           "$ref": "#/$defs/sequenceDeleteLink"
+        },
+        {
+          "$ref": "#/$defs/sequencePutAlias"
+        },
+        {
+          "$ref": "#/$defs/sequenceDeleteAlias"
         }
       ]
     },
@@ -1393,6 +1467,39 @@
     "mutationOutcome": {
       "enum": ["created", "updated", "deleted"]
     },
+    "resourceKind": {
+      "enum": ["bead", "link"]
+    },
+    "resourceIdentity": {
+      "type": "object",
+      "required": ["id", "type", "revision"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "deletedIdentity": {
+      "type": "object",
+      "required": ["resourceKind", "resource"],
+      "properties": {
+        "resourceKind": {
+          "$ref": "#/$defs/resourceKind"
+        },
+        "resource": {
+          "$ref": "#/$defs/resourceIdentity"
+        }
+      },
+      "additionalProperties": false
+    },
     "mutationResultMembers": {
       "type": "object",
       "required": ["outcome"],
@@ -1411,7 +1518,7 @@
           ]
         },
         "deleted": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+          "$ref": "#/$defs/deletedIdentity"
         },
         "source": {
           "$ref": "#/$defs/absoluteHttpUrl"
@@ -1435,7 +1542,7 @@
             "required": ["deleted"],
             "properties": {
               "deleted": {
-                "$ref": "#/$defs/absoluteHttpUrl"
+                "$ref": "#/$defs/deletedIdentity"
               },
               "resource": false
             }
@@ -1472,6 +1579,28 @@
               "sourceRevision": false
             }
           }
+        },
+        {
+          "if": {
+            "required": ["deleted"],
+            "properties": {
+              "deleted": {
+                "type": "object",
+                "required": ["resourceKind"],
+                "properties": {
+                  "resourceKind": {
+                    "const": "bead"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source": false,
+              "sourceRevision": false
+            }
+          }
         }
       ],
       "dependentRequired": {
@@ -1485,6 +1614,51 @@
       "allOf": [
         {
           "$ref": "#/$defs/mutationResultMembers"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "aliasResultMembers": {
+      "type": "object",
+      "required": ["outcome", "alias"],
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/mutationOutcome"
+        },
+        "alias": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "target": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "deleted"
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "target": false
+            }
+          },
+          "else": {
+            "required": ["target"]
+          }
+        }
+      ]
+    },
+    "aliasResult": {
+      "title": "BDP Read+Update alias result",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/aliasResultMembers"
         }
       ],
       "unevaluatedProperties": false
@@ -1503,6 +1677,22 @@
         },
         "operationName": {
           "$ref": "#/$defs/localName"
+        }
+      },
+      "required": ["operationIndex"],
+      "unevaluatedProperties": false
+    },
+    "sequenceMemberAliasResult": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/aliasResultMembers"
+        }
+      ],
+      "properties": {
+        "operationIndex": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": ["operationIndex"],
@@ -1528,6 +1718,7 @@
         "validation-failed",
         "type-not-installed",
         "identity-taken",
+        "alias-path-taken",
         "revision-mismatch",
         "incident-links-exist",
         "aggregate-constraint-violation",
@@ -1544,11 +1735,10 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "schemaLocation": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/absoluteUri"
         },
         "instanceLocation": {
-          "type": "string"
+          "$ref": "#/$defs/jsonPointer"
         },
         "message": {
           "type": "string",
@@ -1731,6 +1921,29 @@
               },
               "retry": {
                 "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "alias-path-taken"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
               }
             }
           }
@@ -1979,6 +2192,9 @@
                 "$ref": "#/$defs/sequenceMemberResult"
               },
               {
+                "$ref": "#/$defs/sequenceMemberAliasResult"
+              },
+              {
                 "$ref": "#/$defs/sequenceMemberProblem"
               }
             ]
@@ -1989,25 +2205,121 @@
     },
     "readUpdateAdvertisedLimits": {
       "type": "object",
-      "allOf": [
-        {
-          "$ref": "#/$defs/advertisedLimits"
-        }
-      ],
       "properties": {
-        "transaction": false,
+        "page": {
+          "type": "object",
+          "properties": {
+            "defaultItems": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "maximumItems": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "targetBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "bodyBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "resource": {
+          "type": "object",
+          "properties": {
+            "representationBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "propertiesBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "selector": {
+          "type": "object",
+          "properties": {
+            "bytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "depth": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "nodes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "patch": {
+          "type": "object",
+          "properties": {
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathDepth": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "sequence": {
+          "type": "object",
+          "properties": {
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "diagnostics": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "diagnosticBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
         "retention": {
           "type": "object",
           "properties": {
-            "receipt": false,
-            "replay": false
-          }
+            "idempotency": {
+              "$ref": "#/$defs/iso8601Duration"
+            },
+            "maximumSnapshotLifetime": {
+              "$ref": "#/$defs/iso8601Duration"
+            }
+          },
+          "additionalProperties": false
         }
-      }
+      },
+      "additionalProperties": false
     },
     "readUpdateDiscovery": {
       "type": "object",
-      "required": ["bdpVersion", "profile", "scope", "beads", "links", "types", "operations"],
+      "required": [
+        "bdpVersion",
+        "profile",
+        "scope",
+        "beads",
+        "links",
+        "types",
+        "operations",
+        "aliases"
+      ],
       "properties": {
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion"
@@ -2057,6 +2369,8 @@
         "createLink",
         "updateLinkProperties",
         "deleteLink",
+        "putAlias",
+        "deleteAlias",
         "sequence"
       ],
       "properties": {
@@ -2077,6 +2391,12 @@
         },
         "deleteLink": {
           "const": "delete-link"
+        },
+        "putAlias": {
+          "const": "put-alias"
+        },
+        "deleteAlias": {
+          "const": "delete-alias"
         },
         "sequence": {
           "const": "sequence"

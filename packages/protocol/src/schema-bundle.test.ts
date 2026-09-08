@@ -45,6 +45,8 @@ describe("BDP v0 schema bundle", () => {
       "absoluteHttpUrl",
       "absoluteUri",
       "advertisedLimits",
+      "aliasResult",
+      "aliasResultMembers",
       "attribution",
       "bdpVersion",
       "beadCollection",
@@ -53,10 +55,13 @@ describe("BDP v0 schema bundle", () => {
       "createBeadRequest",
       "createLinkMembers",
       "createLinkRequest",
+      "deleteAliasMembers",
+      "deleteAliasRequest",
       "deleteBeadMembers",
       "deleteBeadRequest",
       "deleteLinkMembers",
       "deleteLinkRequest",
+      "deletedIdentity",
       "durableInputPinnedReference",
       "durableInputReference",
       "durableResourceReference",
@@ -81,6 +86,8 @@ describe("BDP v0 schema bundle", () => {
       "properties",
       "propertyChange",
       "protocolProfile",
+      "putAliasMembers",
+      "putAliasRequest",
       "readDiscovery",
       "readProblem",
       "readProblemCode",
@@ -90,15 +97,20 @@ describe("BDP v0 schema bundle", () => {
       "readUpdateProblem",
       "readUpdateProblemCode",
       "reference",
+      "resourceIdentity",
+      "resourceKind",
       "resourceReference",
       "retryDisposition",
       "sequenceCreateBead",
       "sequenceCreateLink",
+      "sequenceDeleteAlias",
       "sequenceDeleteBead",
       "sequenceDeleteLink",
       "sequenceMember",
+      "sequenceMemberAliasResult",
       "sequenceMemberProblem",
       "sequenceMemberResult",
+      "sequencePutAlias",
       "sequenceRequest",
       "sequenceResponse",
       "sequenceUpdateBeadProperties",
@@ -146,9 +158,12 @@ describe("BDP v0 schema bundle", () => {
   it("pins each discovery definition to its own profile", () => {
     expect(propertiesOf("readDiscovery").profile).toEqual({ const: "read" });
     expect(propertiesOf("readUpdateDiscovery").profile).toEqual({ const: "read-update" });
+    // Read+Update offers the alias targets, so it serves alias resolution and
+    // must advertise `aliases`; Read keeps the member optional (D37, option 2).
     expect(def("readUpdateDiscovery").required).toEqual([
       ...(def("readDiscovery").required as readonly string[]),
       "operations",
+      "aliases",
     ]);
     expect(def("protocolProfile")).toEqual({ enum: PROTOCOL_PROFILES });
   });

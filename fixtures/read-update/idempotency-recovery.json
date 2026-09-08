@@ -314,7 +314,14 @@
             {
               "operationIndex": 0,
               "outcome": "deleted",
-              "deleted": "https://beads.example/acme/links/relates-12"
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/acme/links/relates-12",
+                  "type": "https://work.example/types/relates",
+                  "revision": "relates-12-r1"
+                }
+              }
             }
           ]
         }
