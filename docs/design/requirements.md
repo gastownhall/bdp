@@ -87,6 +87,13 @@ here rather than being invented by an implementation.
   excluded from the semantic no-op comparison. Domain Types MUST NOT need
   to declare attribution as a property. A future attested form is a
   distinct member.
+- **PROTO-016**: Number equality under the no-op law is over exact decimal
+  values. An authority MUST refuse at admission any number literal in
+  `properties`, at any depth, whose exact decimal value does not round-trip
+  through IEEE 754 binary64 unchanged, as `validation-failed` with a
+  diagnostic naming the member; a content-derived revision-token scheme
+  MUST declare its number model by name, and `sha256-jcs` names RFC 8785
+  serialization with numbers as binary64.
 - **PROTO-005**: A generic client MUST be able to parse and issue protocol
   requests without retrieving a Type Descriptor. Descriptor retrieval is for
   validation assistance and domain understanding, not basic wire parsing.

@@ -630,6 +630,36 @@ value-comparison rules of RFC 6902 Section 4.6, to the value immediately
 before that operation, then the operation retains the existing revision and
 emits no `updated` Event.
 
+That comparison is over **exact decimal values**. Two JSON numbers are the
+same value if and only if the decimal values their literals denote are
+equal, whatever their spelling: `1.0`, `1`, and `1e0` are one value, and
+`9007199254740993` and `9007199254740992` are two. So that no two
+conforming peers can disagree about a no-op, and so that a token one peer
+derives from content verifies against bytes another canonicalized, BDP
+makes the interoperability rule of
+[RFC 7493 Section 2.2](https://www.rfc-editor.org/rfc/rfc7493.html#section-2.2)
+mandatory: a number literal is **admissible** if and only if converting
+its exact decimal value to the nearest IEEE 754 binary64 value and
+serializing that value back in its shortest round-trip form — the
+ECMAScript `Number::toString` form that
+[RFC 8785 Section 3.2.2.3](https://www.rfc-editor.org/rfc/rfc8785.html#section-3.2.2.3)
+adopts — yields a literal denoting the same exact decimal value. `1e300`
+and its expanded form are admissible; `-0.0` denotes zero, is admissible,
+and is the same value as `0`; `9007199254740993` and a decimal of twenty
+significant digits are not admissible. An authority MUST refuse at
+admission a `properties` document — supplied whole or through a Property
+Change — that contains an inadmissible literal at any depth: nothing
+changes, and the operation fails as the write profiles' `validation-failed`
+with a diagnostic naming the offending member. The Read profile has no
+mutation targets, so that refusal is a mutation-profile obligation defined
+with those profiles. On every admitted value the exact-decimal model and
+the binary64 model agree by construction. A revision-token scheme that
+derives tokens from content MUST declare, by name, the number model it
+serializes under: `sha256-jcs` means RFC 8785 serialization with numbers
+as binary64 under its Section 3.2.2.3, and is exact over admitted values
+by construction; a scheme over exact decimals is a different scheme with a
+different name.
+
 No-op detection is operation-local. An update followed by a later reverse
 update in the same ordered transaction is two state transitions. Each
 transition receives its own revision and Event, and both become visible
@@ -1000,7 +1030,8 @@ state before evaluating the next operation. It checks:
 - Link-Type external-endpoint policy, syntactic validity, and opaque
   handling of out-of-Scope endpoint URIs;
 - immutable-member rules;
-- Type and properties-schema constraints;
+- Type and properties-schema constraints, and the admissibility of every
+  number literal under [Revisions](#revisions);
 - applicable Scope aggregate constraints;
 - authorization;
 - expected revisions and cardinality;
@@ -2799,7 +2830,9 @@ This distinguishes assigning JSON `null` from removing a member. Applying the
 patch must yield a JSON object satisfying every effective Type schema. If the
 result equals the immediately preceding `properties` value under RFC 6902
 Section 4.6 JSON comparison, the operation is a no-op. It preserves the
-Resource revision and emits no `updated` Event.
+Resource revision and emits no `updated` Event. Number equality in that
+comparison, and the admissibility of every number literal a change carries,
+are defined under [Revisions](#revisions).
 
 ### Set mutation objects
 
@@ -3587,10 +3620,32 @@ The decision and coverage categories are normative. The matrix, fixtures, and
 expected results must exist in the repository for an implementation to claim
 complete acceptance evidence.
 
+#### Numeric-model conformance rows
+
+The rows below were drafted with the numeric model ruled on 2026-09-08
+([Open protocol questions](#open-protocol-questions), entry 17). Each
+names one obligation and binds the normative text that states it; none
+carries an executable plan, a fixture realization, or evidence. The
+metadata catalog file `packages/conformance/catalog/numeric-model-v1.json`
+carries the same rows and no manifest binds it, so no runner report can
+claim them. The vectors in `fixtures/numeric-model/numeric-model.json` —
+admitted spellings of one value, refused literals, and the RFC 8785 form
+of each admitted value — are checked by a lockstep test that implements
+the round-trip rule over them and establishes none of the behavior the
+rows describe. The rows become claimable only under the evidence law in
+`packages/conformance/matrices/README.md`.
+
+| Row | Obligation |
+| --- | --- |
+| `read-update.numeric-model.same-value-no-op` | A Property Change that rewrites a number as another admissible spelling of the same exact decimal value — `1.0` as `1` or `1e0`, `0` as `-0.0`, `1e300` as `1E300` — is a no-op that retains the revision and emits no `updated` Event, while an admissible literal of a different exact value mints a fresh revision |
+| `read-update.numeric-model.round-trip-admission` | A number literal whose exact decimal value does not round-trip through binary64 — an integer past 2^53, a decimal of twenty significant digits, a magnitude beyond binary64 — is refused at admission with `validation-failed` and a diagnostic naming the member, changing nothing, while `1.0`, `-0.0`, `1e300`, and its expanded form are admitted |
+| `read-update.numeric-model.nested-refusal` | The refusal applies at any depth within `properties`, whether the document is supplied whole or as a Property Change `value`, and the diagnostic names the nested member by its JSON Pointer within `properties` |
+| `read.numeric-model.declared-token-model` | A revision-token scheme that derives tokens from content declares its number model by name; a target declaring `sha256-jcs` produces one token for every admissible spelling of the same value, over RFC 8785 bytes with numbers as binary64; honestly not applicable to a target declaring no content-derived scheme |
+
 ### Open protocol questions
 
 This ledger records the protocol questions raised against the draft and their
-current state, in dependency order. The 15 questions below carry recorded
+current state, in dependency order. The 17 questions below carry recorded
 decisions or explicit artifact gates. Entries marked pending remain open. A
 separate joint product/protocol decision selected
 `https://github.com/gastownhall/bdp/` as the provisional v0
@@ -3687,6 +3742,26 @@ protocol-identifier prefix, with the release-stability rule stated above.
 15. **Resolved 2026-08-08:** every v0 Link has at least one in-Scope Bead
     endpoint. A future cross-Scope indexing profile may define ownership and
     lifecycle for Links whose endpoints are both external.
+17. **Resolved 2026-09-08:** equality under the no-op law is over exact
+    decimal values: two JSON numbers are the same value iff the decimal
+    values their literals denote are equal, so `1.0`, `1`, and `1e0` are
+    one value and `9007199254740993` and `9007199254740992` are two. An
+    authority refuses at admission any number literal whose exact decimal
+    value does not round-trip through IEEE 754 binary64 unchanged — RFC
+    7493's interoperability rule made mandatory — as the write profiles'
+    `validation-failed` with a diagnostic naming the member, so on every
+    admitted value the exact-decimal and binary64 models agree and no two
+    conforming peers can disagree about a no-op. A content-derived
+    revision-token scheme declares its number model by name: `sha256-jcs`
+    means RFC 8785 serialization with numbers as binary64 and is exact
+    over admitted values by construction; a scheme over exact decimals is
+    a different scheme with its own name. Ruled at
+    [gastownhall/bdp#21](https://github.com/gastownhall/bdp/issues/21#issuecomment-5586406564);
+    stated under [Revisions](#revisions); the judgments the ruling left
+    open are recorded in `docs/design/numeric-model-decisions.md`
+    (NM1–NM11), the vectors live in `fixtures/numeric-model/`, and the
+    [Numeric-model conformance rows](#numeric-model-conformance-rows) are
+    metadata bound to this text, none claimed.
 
 Implementation proceeds Read-first. Later-profile work begins only when its
 schema, problem, and conformance artifacts are reviewed. Implementation

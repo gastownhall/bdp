@@ -15,5 +15,12 @@ artifact (`docs/design/evidence/read-cohort/read-v1.json`; law in
 evidence:verify`. Runner reports keep `claimEligible` false by construction.
 New semantics enter the contract with conformance rows, or they don't enter.
 
+The numeric model ruled 2026-09-08 (gastownhall/bdp#21) enters as four
+unclaimed metadata rows (`packages/conformance/catalog/numeric-model-v1.json`)
+plus vectors in `fixtures/numeric-model/`; it changes no bundle definition,
+and the sealed Read cohort is untouched — a lockstep test finds no
+non-round-tripping number literal in any sealed Read artifact (NM8 in
+`docs/design/numeric-model-decisions.md`).
+
 Open protocol questions are tracked in the specification's "Open protocol
 questions" section; contributions there are welcome.
