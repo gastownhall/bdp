@@ -14,7 +14,7 @@ whole. D1–D32 are ruled or ratified (2026-09-08): D29 ruled C with its
 corrective applied, D9 superseded by the cross-packet ruling X1 (option
 B) applied as D32, D31 ruled B (reversing its recommendation) and applied
 as D33–D37, and every other decision ratified as drafted or ruled as its
-status line records. D33–D37, D39, and D40 were ruled or ratified on 2026-09-08 after council 12; D38 (alias spellings in Resource records, applied provisionally as option (b)) is the only open decision. The operator rules on them one at a time; a
+status line records. D33–D40 were ruled or ratified on 2026-09-08 after council 12; no decision in this packet is open. The operator rules on them one at a time; a
 ruling that departs from the recommendation is applied by editing the quoted
 specification sentence, the corresponding bundle definition, the fixtures,
 and the catalog row together. The lockstep tests
@@ -1993,8 +1993,7 @@ through "the bundle's `readUpdateDiscovery` requires it." Bundle:
 
 ## D38 — Alias spellings in Resource records
 
-**Status: applied provisionally as option (b) after council 12
-(2026-09-08); teed up for the operator.**
+**Status: RULED 2026-09-08 (operator: option (b) — alias spellings admitted for a `bead` subject and Link endpoints, resolved when the member is reached, identity over the retained resolution; `put-alias`'s target stays canonical-only).**
 
 **Context.** The model says "A reference written using an alias is
 resolved to the canonical Bead URL when the authority admits the write;
