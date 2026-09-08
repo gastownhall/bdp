@@ -31,9 +31,7 @@ waves are internal sequencing labels, not protocol concepts.
   recommendation, and the specification sentence that depends on it — and
   the findings of review councils 9 and 12 folded into them. D1–D32 are
   ruled or ratified (2026-09-08; D29 ruled C, cross-packet X1 ruled B, and
-  D31 ruled B, all applied); D33–D40, the judgment calls made in applying
-  D31's ruling and in folding council 12, are provisional and remain for
-  the operator to rule on one at a time.
+  D31 ruled B, all applied); D33–D37, D39, and D40 ruled or ratified 2026-09-08; D38 is the only open decision, applied provisionally as option (b).
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

@@ -14,9 +14,7 @@ whole. D1–D32 are ruled or ratified (2026-09-08): D29 ruled C with its
 corrective applied, D9 superseded by the cross-packet ruling X1 (option
 B) applied as D32, D31 ruled B (reversing its recommendation) and applied
 as D33–D37, and every other decision ratified as drafted or ruled as its
-status line records. D33–D40, the judgment calls made in applying D31's
-ruling and in folding council 12, are provisional and are the only open
-decisions. The operator rules on them one at a time; a
+status line records. D33–D37, D39, and D40 were ruled or ratified on 2026-09-08 after council 12; D38 (alias spellings in Resource records, applied provisionally as option (b)) is the only open decision. The operator rules on them one at a time; a
 ruling that departs from the recommendation is applied by editing the quoted
 specification sentence, the corresponding bundle definition, the fixtures,
 and the catalog row together. The lockstep tests
@@ -147,7 +145,7 @@ profile". Fixture `idempotency-recovery.json`, exchanges
 `idempotency-conflict`. The Transactional normalization rules exist for
 batch bodies but say nothing about `name`, `@name`, or the singleton target.
 
-**Options.**
+**Options.** The council-12 amendment — a pinned `uri` spelled by `@name` or by alias resolves before comparison, as a bare reference does — RATIFIED 2026-09-08.
 
 1. Identity = operation kind (from `operation` or the singleton target) plus
    the normalized record: durable references canonicalized, `@name`
@@ -1622,8 +1620,7 @@ identity beside a postimage, a postimage outcome carrying an identity).
 
 ## D33 — The alias result shape and its idempotency
 
-**Status: applied as recommended while transcribing D31's ruling
-(2026-09-08); provisional.**
+**Status: RATIFIED 2026-09-08 (operator: as applied).**
 
 **Context.** The ruling fixes what an alias mutation reports — a put
 reports the alias path and the canonical target URL, a delete the alias
@@ -1709,8 +1706,7 @@ spelled as an alias result, an alias entry carrying `operationName`).
 
 ## D34 — Bundle spelling of the alias records and their directory entries
 
-**Status: applied as recommended while transcribing D31's ruling
-(2026-09-08); provisional.**
+**Status: RATIFIED 2026-09-08 (operator: as applied).**
 
 **Context.** The ruling names the targets put and delete, "keyed by alias
 path under the `alias/` root", and leaves the wire spelling to the draft:
@@ -1770,9 +1766,7 @@ targets).
 
 ## D35 — The uniqueness namespace is symmetric and Bead-scoped
 
-**Status: applied as recommended while transcribing D31's ruling
-(2026-09-08); provisional. Fork for the operator: Bead-scoped (option 1,
-applied) versus literal canonical segments including Links (option 3).**
+**Status: RULED 2026-09-08 (operator: option 1 — Bead-scoped uniqueness, confirmed as a deliberate narrowing of the ruling's wording; `links/foo` and `alias/foo` coexist; the evolution note below stands).**
 
 **Context.** The ruling: "uniqueness across canonical segments and aliases
 is a store invariant refused with `identity-taken` (a put whose path is a
@@ -1851,8 +1845,7 @@ exchange `create-bead-on-a-released-alias-path`. Catalog rows
 
 ## D36 — Classifying a bad `alias` or `target` spelling
 
-**Status: applied as recommended while transcribing D31's ruling
-(2026-09-08); provisional.**
+**Status: RATIFIED 2026-09-08 (operator: as amended by council 12 — a wrong-root subject, the `alias` member included, is `resource-not-found`; a wrong-category target is `validation-failed`; a non-reference value is `malformed-request`).**
 
 **Context.** The ruling classifies a taken path (`identity-taken`), an
 unknown or invisible target and an unknown alias on delete
@@ -1939,8 +1932,7 @@ and `read-update.sequence.contextual-validation`.
 
 ## D37 — Alias resolution follows from the alias targets
 
-**Status: applied as option 2 after council 12 (2026-09-08);
-provisional.**
+**Status: RULED 2026-09-08 (operator: option 2 — `aliases` required on Read+Update and Transactional discovery, optional in Read).**
 
 **Context.** *Scope discovery* says `aliases` "appears, in any profile,
 exactly when the authority serves alias resolution", and *Alias
@@ -2076,7 +2068,7 @@ reference resolution.
 
 ## D39 — A Bead creation on a live alias path is `alias-path-taken`
 
-**Status: applied provisionally after council 12 (2026-09-08).**
+**Status: RATIFIED 2026-09-08 (operator: the dedicated `alias-path-taken` row, retry after-state-change).**
 
 **Context.** D35 refused a creation whose supplied `id` is a live alias
 path with `identity-taken` — `conflict`, `409`, retry `never`, justified
@@ -2121,7 +2113,7 @@ entry 6.
 
 ## D40 — Authorization of alias operations
 
-**Status: applied provisionally after council 12 (2026-09-08).**
+**Status: RATIFIED 2026-09-08 (operator: alias operations authorized as mutations of the Beads they touch).**
 
 **Context.** *Alias targets* said "A put or delete the principal may not
 perform fails with `forbidden`", and *Authorization views* says a
