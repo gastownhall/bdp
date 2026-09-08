@@ -32,16 +32,21 @@ waves are internal sequencing labels, not protocol concepts.
   the findings of review councils 9 and 12 folded into them. D1–D32 are
   ruled or ratified (2026-09-08; D29 ruled C, cross-packet X1 ruled B, and
   D31 ruled B, all applied); D33–D37, D39, and D40 ruled or ratified 2026-09-08; D38 is the only open decision, applied provisionally as option (b).
-- [W1 Transactional packet](./w1-transactional-packet.md) proposes, for the
+- [W1 Transactional packet](./w1-transactional-packet.md) records, for the
   Transactional profile, the normative text, schema definitions, fixtures,
-  and unclaimed conformance rows the draft still lacks — the owned-Link
-  delta, batch envelopes, Mutation Receipts and the Transactional problem
-  table, transaction-level idempotency and `sequence` on a Transactional
-  Scope, and version erasure on the changefeed — as numbered provisional
-  decisions (T1–T48 and the cross-packet X1–X4), with review council 10
-  folded and every shared name reconciled against the Read+Update wire. It
-  is packet-only: nothing in it changes the specification, the bundle, the
-  fixtures, or the catalogs until the operator rules and it is applied.
+  and unclaimed conformance rows the draft lacked — the owned-Link delta,
+  batch envelopes, Mutation Receipts and the Transactional problem table,
+  transaction-level idempotency and `sequence` on a Transactional Scope,
+  and version erasure on the changefeed — as numbered decisions (T1–T48
+  and the cross-packet X1–X4), with review council 10 folded and every
+  shared name reconciled against the Read+Update wire. All of T1–T48 and
+  X1–X4 are ruled or ratified (2026-09-08; T47 ruled (b)), and the packet
+  was applied the same day to the specification, the bundle,
+  `fixtures/transactional/`, and `packages/conformance/catalog/transactional-v1.json`;
+  its apply record lists what landed where, the ruled sentences it
+  amended, T49 (the alias targets' Transactional contract, open and teed
+  up for the operator), and the apply-time judgment calls T50–T61,
+  applied provisionally.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

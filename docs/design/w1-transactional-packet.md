@@ -1,6 +1,11 @@
 # W1 Transactional packet: wire artifacts for the Transactional profile
 
-Status: design packet, non-normative until applied. Workstream W1, second
+Status: **applied 2026-09-08** — decisions T1–T48 and X1–X4 ruled or
+ratified, T49 open and teed up for the operator, T50–T61 applied
+provisionally; see [Apply record (2026-09-08)](#apply-record-2026-09-08).
+The proposals below are kept as written for the record; where a ruling
+departed from them, the ruling is what landed. Originally: design packet,
+non-normative until applied. Workstream W1, second
 half. Base: `gastownhall/bdp` at `2df0216` — the head of
 `janet-w1-read-update-wire`, which carries the Read+Update wire artifacts
 (`docs/specs/bdp.md`, `schemas/bdp-v0.schema.json`, `fixtures/read-update/`,
@@ -6609,6 +6614,21 @@ inheritance as is and let a Transactional claim fail the retired rows
 
 ## 7. What is still not enough
 
+*Apply note (2026-09-08).* The first three residuals below are resolved by
+the apply pass: X1 is ruled B and applied on both sides (`deletedIdentity`),
+the `retires` member and selection rule exist (T48), and `date-time` is
+registered in both validators (T45). The I-JSON contract lands with
+gastownhall/bdp#23 as the number model under *Revisions*; on this branch
+only a forward reference exists, and the string and duplicate-member rules
+the packet's paragraph carried are unstated (T56). The JCS conformance
+check is partial: no RFC 8785 serializer exists in the repository or its
+installed `node_modules`, none was added, and the lockstep test reproduces
+every digest from the vector's recorded serialization — checking that the
+serialization parses to the record with members in UTF-16 code-unit order
+and that SHA-256 over it is the recorded digest — without recomputing the
+canonicalization (T57). The alias targets' Transactional contract is
+decision T49, open. Every other residual stands as written.
+
 An implementer who has this packet, ruled, still lacks:
 
 - **The X1 ruling applied on both sides.** Until the deleted identity is
@@ -6731,7 +6751,20 @@ An implementer who has this packet, ruled, still lacks:
 | X1 | `deleted` is the identity record `{ id, type, revision }` in both profiles; recommend for both. |
 | X2 | `retention.idempotency` is Read+Update-only; Transactional discovery MUST NOT advertise it; recommend for both. |
 | X3 | One sentence: Read+Update refuses a concurrent duplicate because it has no receipt to hand it; Transactional joins; recommend for both. |
-| X4 | `source` beside `sourceRevision` on every owned-Link result in both profiles; recommend for both. |
+| X4 | `source` beside `sourceRevision` on every owned-Link result in both profiles; recommend for both. **RULED A 2026-09-08; applied.** |
+| T49 | Alias targets on a Transactional Scope: receipt, history, changefeed, and `batch` membership; recommend the minimal contract (option 1) with the `batch` fork recorded. **Open, teed up for the operator; applied nowhere.** |
+| T50 | Receipt entries spell `deleted` as `deletedIdentity`; `erased` and the owned-Link `deleted` transition keep `resourceIdentity`. **Applied provisionally (apply record).** |
+| T51 | `alias-path-taken` joins the receipt context. **Applied provisionally.** |
+| T52 | `transactionalAdvertisedLimits` is a closed definition of its own carrying `validation` and rejecting `retention.idempotency`. **Applied provisionally.** |
+| T53 | `transactionalOperationDirectory` pins the twelve targets, the alias entries included. **Applied provisionally.** |
+| T54 | `binding-unavailable` is a receipt code for a sequence member's failed receipt. **Applied provisionally.** |
+| T55 | A transient dependent's admitted pending receipt is retracted and its key unbound. **Applied provisionally.** |
+| T56 | T44 lands as a forward reference to #23's number model; carrier syntax says "well-formed JSON". **Applied provisionally.** |
+| T57 | Digest vectors reproduced from recorded serializations; no RFC 8785 serializer added; gap recorded. **Applied provisionally.** |
+| T58 | T34's duration rule stated under *Mutation Receipt responses*. **Applied provisionally.** |
+| T59 | The snapshot example completed into a closed projection. **Applied provisionally.** |
+| T60 | The token-profile paragraph scoped to the Transactional profile. **Applied provisionally.** |
+| T61 | The council 12 one-element `results` sentence kept, the set-target clause appended. **Applied provisionally.** |
 
 ## Appendix A. Paste set
 
@@ -7008,3 +7041,325 @@ digests and the section 5.4 vectors were recomputed with an RFC 8785
 serializer. None of it is conformance evidence; `claimEligible` remains
 `false`, no manifest binds a Transactional row, and no evidence generation
 was run.
+
+## Apply record (2026-09-08)
+
+The packet was applied to `gastownhall/bdp` on branch
+`janet-w1-transactional-packet` after decisions T1–T48 and X1–X4 were
+ruled or ratified, on top of `janet-w1-read-update-wire` at `89f56d1`
+(merged as `8386529`). Where a ruling departed from the packet's proposed
+text the ruling was applied, and every judgment the apply pass had to make
+is numbered below (T50 onward), each applied provisionally. Nothing here is
+a conformance claim: every row stays unclaimed, no manifest binds the
+catalog, and the fixtures are illustrations, never evidence.
+
+### What landed where
+
+- **Specification** (`docs/specs/bdp.md`): the protocol section's
+  introduction (the numeric-model forward reference and the timestamp
+  profile); *Events and Event Sources* (the `UpdatedData`,
+  `OwnedLinkChange`, `OwnedLinkDelta`, and `ResourceIdentity` model
+  blocks, the owned-Link delta paragraphs, the delta-application
+  paragraph, and the `canonical-uri` set-expansion order); *Event replay
+  and live observation* (the `updated` bullet); *Change groups and
+  replication* (`checkpoint` in the model block, the owned-Link
+  two-entries paragraph, and the invisible-group sentence); *Batch
+  operation target* (section 2.1 whole, with the endpoint/status matrix);
+  *Operation record schema* and *Operation Directory and singleton
+  targets* (the sentences the packet named); *Mutation Receipt responses*
+  (the `rcpt-7` example and section 3.1 whole); *Problem details* (section
+  3.2 whole); *Mutation Transactions* (section 4.1 whole); *Advertised
+  limits* (the X2 paragraph, beside the amended X6 sentence);
+  *Event-ID and checkpoint character profile* (T15); *Scope changefeed*
+  (the wire-form paragraph and `erasures` in both examples); *Version
+  erasure* (section 5.1 whole, and the amended T28 sentence); *Scope
+  snapshots* (the closed-projection and ledger paragraph, and the example
+  completed); *Mutation receipts* in the data model (T47); *Normative
+  schema bundle* and *Open protocol questions* entries 5, 6, and 13
+  (status notes); and a new *Transactional conformance rows* subsection
+  mirroring the catalog in order and listing the ten retirements.
+- **Bundle** (`schemas/bdp-v0.schema.json`, copied byte-identically to
+  `packages/protocol/schemas/bdp-v0.schema.json`): 52 definitions appended
+  after the Read+Update definitions — every name in Appendix A except
+  `resourceKind` and `resourceIdentity`, which #19's X1 application had
+  already defined and which are reused — and the top-level `description`;
+  135 definitions in all. The 26 sealed Read definitions and every
+  Read+Update definition are byte-identical to the merge base.
+- **Fixtures** (`fixtures/transactional/`): `discovery.json`,
+  `batch.json`, `receipts.json`, `set-singletons.json`,
+  `direct-problems.json`, `sequence.json`, `events.json`,
+  `changefeed.json`, and `snapshots.json` in the exchange shape
+  `fixtures/read-update/` uses, on the packet's one timeline
+  (`pos-42` … `pos-49`), plus `erasure-digest-vectors.json` carrying the
+  section 5.4 vectors. Every negative fixture of the packet is a rejected
+  shape in the lockstep test rather than a file.
+- **Catalog** (`packages/conformance/catalog/transactional-v1.json`): the
+  113 rows of section 6 in order, every packet citation re-pointed at the
+  specification section the text moved into, every `selectedText` a
+  verbatim substring of its anchored section, and the ten `retires`
+  members of the `<!-- catalog-retirements -->` map on the retiring rows.
+- **Conformance kit**: `retires` on `ScenarioMetadata` (validated:
+  nonempty, unique, never self-referential) and `retiredScenarioIds` in
+  `packages/conformance/src/selection.ts`, with
+  `selectApplicableScenariosForProfile` excluding a retired row from the
+  claim that retires it (T48); `date-time` registered from ajv-formats'
+  full mode in `packages/conformance/src/schema-validator.ts` and in the
+  protocol tests, exported as `isJsonSchemaDateTime` beside
+  `isJsonSchemaUri` (T45).
+- **Tests**: `packages/protocol/src/transactional-wire.test.ts` (problem
+  rows and contexts, fixtures, receipt/operation correspondence, change
+  group and snapshot invariants, the digest vectors, the rejected shapes,
+  discovery and limits), `packages/conformance/src/transactional-catalog.test.ts`
+  (strict parse, citations, prefix and areas, no collision, retirements,
+  selection over the concatenated catalogs, no manifest binding, the
+  specification table), the bundle key-list test extended by the 52
+  names, the `retires` and selection tests in `catalog.test.ts`, the
+  `date-time` boundary tests, and the Read+Update problem-table test
+  bounded to its own rows.
+- **Status**: `STATUS.md`'s Transactional row and `docs/design/README.md`.
+
+### Ruled Read+Update and Read sentences amended
+
+Each carries "(amended 2026-09-08, Transactional apply)" in the
+specification.
+
+- *Advertised limits*, the council 12 sentence "The Transactional
+  discovery definition, when it is drafted, carries the `validation` group
+  as well, since a Transactional authority advertises the same bound." now
+  reads "The Transactional discovery document's `limits` is
+  `transactionalAdvertisedLimits`, a closed definition of its own on the
+  same primitives: it carries the `validation` group as well, since a
+  Transactional authority advertises the same bound, admits the
+  `transaction` group and the `retention.receipt`,
+  `retention.maximumSnapshotLifetime`, and `retention.replay` members, and
+  rejects `retention.idempotency` under the paragraph below" (X6, X2).
+- *Operation Directory and singleton targets*, the council 12 sentence
+  "It returns the same Mutation Receipt shape with a one-element `results`
+  array (amended 2026-09-08, council 12)." keeps its text and gains "; the
+  two set targets `update-where` and `delete-where` return it with a
+  `matched` entry followed by one entry per selected Resource, under
+  Mutation Receipt responses" (T61), and the deferral sentence "The alias
+  targets' Transactional contract … is defined with the Transactional
+  profile." gains "; it is teed up as decision T49 in
+  `docs/design/w1-transactional-packet.md` and remains open".
+- *Mutation receipts* (data model, Transactional sidebar): "After the
+  applicable interval it may discard bulky result data, but it retains a
+  compact tombstone — the key, the request identity, and the disposition —
+  for the rest of the Scope epoch." now reads "… may discard a completed
+  transaction's bulky result data, but it retains a compact tombstone —
+  the key, the request identity, the disposition, and the identities the
+  transaction allocated — for the rest of the Scope epoch." followed by
+  the failed-receipt sentence (T47).
+- *Version erasure*: "An erasure does not rotate the Scope epoch: every
+  other token remains exactly as valid as it was." now reads "… every
+  token anchored at or after the erasure position remains exactly as valid
+  as it was" (T28, Appendix B.14).
+- The Read profile's closed tables, the Read definitions, and every other
+  Read or Read+Update sentence are untouched; the Event-ID profile
+  paragraph is appended, scoped to the Transactional profile (T60).
+
+### T49 — Alias targets on a Transactional Scope (open, teed up for the operator)
+
+**Status: open; applied nowhere.** The Transactional profile inherits the
+two alias targets under [Alias targets](../specs/bdp.md#alias-targets),
+and #19's text defers their Transactional contract — receipt, Scope
+history, changefeed appearance, and whether `batch` admits alias members —
+to this profile. The apply pass did not decide it: `batchOperation` stays
+the eight-record union, the alias targets are outside the endpoint/status
+matrix, the directory lists them because the profile inherits them (T53),
+and no row claims or retires an alias obligation.
+
+**Context.** An alias is a locator, not a Resource: it mints no version,
+has no revision, and is not a member of any Bead record. A Transactional
+Scope makes every mutation a Mutation Transaction with a receipt, occupies
+a Scope position for every effectful transaction, and replicates state
+through change groups; none of those say what an alias put or delete is.
+
+**Options.**
+
+1. **Minimal contract.** A singleton alias target on a Transactional Scope
+   is a one-operation Mutation Transaction whose receipt's one entry is
+   the alias result — `outcome`, `alias`, and `target` on a put — under
+   `operationIndex` `0`; the key and receipt rules of
+   [Mutation Transactions](../specs/bdp.md#mutation-transactions) apply
+   unchanged, and a sequence member's projection is the Read+Update one.
+   Alias mutation occupies no Scope position, induces no Event, and
+   appears in no change group or snapshot: the alias table is
+   identity-level state beside the erasure ledger, and a replica resolves
+   aliases through the authority's redirect rather than mirroring the
+   table. `batch` does not admit alias records. Costs: a replica cannot
+   resolve aliases offline; a `@label` bound by a Bead creation cannot be
+   aliased in the same atomic transaction.
+2. **Aliases as history.** Each alias put or delete is an effectful
+   transaction at its own Scope position whose change group carries a new
+   `aliases` member (the alias path, the target, and the transition), so
+   replicas mirror the alias table and a snapshot manifest carries it;
+   `batch` admits `putAlias` and `deleteAlias` records (a ten-record
+   union), receipts carry alias results under their operation indices, and
+   a `@label` may be aliased in the transaction that creates it. Costs: a
+   new group member, a snapshot member, a receipt-entry outcome for a
+   non-Resource, and erasure and authorization-view rules for alias facts.
+3. **Aliases as their own facts.** As option 2 for history and
+   replication, but through `Event`s of new types (`aliased`,
+   `unaliased`) rather than a group member. Costs: two Event Types for a
+   non-Resource, contrary to "five domain-independent Event Types".
+
+**Recommendation.** Option 1, with the `batch` membership fork recorded:
+admitting alias members in `batch` is the natural extension once aliases
+have a history story, and only then, because a batch's atomicity would
+otherwise commit an alias transition that no group carries. Whichever
+option is ruled, the sequence projection, the key namespace, and the
+`alias-path-taken` and `identity-taken` rows are unaffected.
+
+**Depends on this decision.** *Batch operation target* (the union and the
+matrix's alias sentence), *Operation Directory and singleton targets* (the
+deferral sentence), `batchOperation`, `transactionalOperationDirectory`
+(present under T53), the fixture `discovery.json` narration, and the rows
+a ruling adds (`transactional.alias.*`).
+
+### Judgment calls at apply time (applied provisionally)
+
+**T50 — X1 spellings on receipt entries.** Options: (a) a receipt entry's
+`deleted` member is #19's `deletedIdentity` record
+(`{ resourceKind, resource: { id, type, revision } }`), while `erased`
+and the owned-Link `deleted` transition keep the bare lineage marker
+`resourceIdentity` (`{ id, type, revision }`); (b) `erased` becomes an
+identity record too; (c) the owned-Link transition becomes
+`deletedIdentity`. Recommendation: (a). X1 names `deleted`; T2 ratified
+the bare identity for the transition, whose kind is always a Link; and
+the erasure text names the lineage marker `{ id, type, revision }`
+throughout. A deleted Bead's entry rejects `source` and `sourceRevision`
+as `mutationResultMembers` does after council 12. Applied provisionally.
+
+**T51 — `alias-path-taken` in the receipt context.** Council 12's twelfth
+Read+Update row postdates the packet's fold. Options: (a) add it to
+`receiptProblemCode` and the receipt-context list, since a Bead creation
+in a batch whose supplied `id` is a live alias path raises it whatever
+T49 decides; (b) omit it until T49. Recommendation: (a). Applied
+provisionally.
+
+**T52 — Shape of `transactionalAdvertisedLimits`.** The packet composed
+`allOf: [advertisedLimits]` and rejected `retention.idempotency`; the
+sealed `advertisedLimits` closes without a `validation` group, so that
+composition would reject the group X6 requires. Options: (a) a closed
+definition of its own on the shared primitives, as
+`readUpdateAdvertisedLimits` is — the six shared groups and `transaction`
+copied from `advertisedLimits`, `validation` from
+`readUpdateAdvertisedLimits`, and a `retention` group of `receipt`,
+`maximumSnapshotLifetime`, and `replay`; (b) `allOf` over the sealed
+definition plus `validation` (rejected by closure). Recommendation: (a),
+with the lockstep test asserting the copied groups stay equal. Applied
+provisionally.
+
+**T53 — The alias entries in `transactionalOperationDirectory`.** The
+specification's Transactional listing already carries `put-alias` and
+`delete-alias` (#19: the profile inherits the targets). Options: (a) the
+bundle definition pins twelve entries, `putAlias` and `deleteAlias`
+included; (b) ten entries until T49. Recommendation: (a), because the
+directory advertises what the Scope offers and the targets are offered;
+what they return is T49. Applied provisionally.
+
+**T54 — `binding-unavailable` as a receipt code.** The packet made
+`binding-unavailable` a projection-only code while saying a dependent
+member whose creator's receipt is `failed` "fails with
+`binding-unavailable`, retained"; on a Transactional Scope that member
+was admitted with a pending receipt and must reach a terminal one.
+Options: (a) add `binding-unavailable` (`400`) to `receiptProblemCode`: the
+member's own `failed` receipt carries it, and its projection is that
+problem; (b) leave the member's receipt undefined; (c) not admit a
+dependent until its creator terminalizes (contradicts the linearizable
+admission claim of D26). Recommendation: (a). Applied provisionally.
+
+**T55 — Transient dependents and their admitted keys.** The packet said a
+member whose creator is pending or transient "claims no key", although
+admission recorded a pending receipt for every unknown key before any
+member ran. Options: (a) the text now says the member "holds no key": a
+pending receipt recorded for it at admission is retracted and its key
+unbound, as after a transient abort, which is Read+Update's released
+claim in Transactional terms; (b) admit dependents lazily after their
+creators terminalize. Recommendation: (a). Applied provisionally.
+
+**T56 — T44 without #23's text on this branch.** #23 (branch
+`janet-numeric-model`) carries the number model under *Revisions* and is
+absent here. Options: (a) one forward-reference sentence in the protocol
+section's introduction citing *Revisions* and gastownhall/bdp#23, the
+erasure digest paragraph citing the number model rather than restating
+I-JSON, and the pre-admission list saying "a body that is not well-formed
+JSON" rather than "not an I-JSON text", since under #23 an inadmissible
+number literal is `validation-failed`, not `malformed-request`; (b) paste
+the packet's I-JSON paragraph (contradicts #23's failure code and
+restates what #23 states). Recommendation: (a). The I-JSON string and
+duplicate-member rules the packet's paragraph carried are therefore
+unstated on this branch, recorded under section 7. Applied provisionally.
+
+**T57 — Digest vectors without an RFC 8785 serializer.** No JCS
+implementation exists in the repository or its installed `node_modules`,
+and no dependency was added. Options: (a) the lockstep test recomputes
+SHA-256 over each vector's recorded serialization, checks that the
+serialization parses to the record with member names in UTF-16 code-unit
+order at every level, and cross-checks the erasure digests the fixtures
+serve against the vectors — the canonicalization step itself is not
+recomputed; (b) a hand-rolled canonicalizer in the test (for I-JSON
+values, `JSON.stringify` over recursively sorted members is RFC 8785);
+(c) a dependency. Recommendation: (a) now, recorded as a known gap in
+`STATUS.md` and section 7; (b) is the cheapest closure if the operator
+wants the canonicalization recomputed. Applied provisionally.
+
+**T58 — Where T34's duration rule lives.** T34 (ruled) decided that
+exceeding `transaction.duration` is permanent, but the packet's paste set
+carried it only as decision text. Options: (a) one sentence under
+*Mutation Receipt responses* beside the `limit` rule, so row
+`transactional.batch.duration-limit` cites the specification; (b) leave
+the row citing decision text (rows cite the specification). Recommendation:
+(a). Applied provisionally.
+
+**T59 — The snapshot example's closed projection.** T30 makes a snapshot
+whose Link's in-Scope endpoint is absent invalid, and the draft's example
+carried `assigned-to-81` to `person-7` with no `person-7` Bead. Options:
+(a) add the required `erasures: []` and a `person-7` Bead record to the
+example; (b) replace the Link with the packet's `blocks-3` → `task-41`
+pair. Recommendation: (a), keeping the Link the rest of the draft uses.
+Applied provisionally.
+
+**T60 — Scope of the token-profile paragraph.** The packet's sentence
+listed epochs, views, positions, transaction identifiers, receipt tokens,
+and keys together in a cross-cutting section Read shares. Options: (a)
+scope it — "In the Transactional profile, … as idempotency keys do in
+every write profile" — so Read text gains no Transactional obligation and
+the row cites the scoped wording; (b) the unscoped sentence.
+Recommendation: (a). Applied provisionally.
+
+**T61 — The one-element `results` sentence.** After council 12 delimited
+the singleton paragraph to the six Resource targets, "a one-element
+`results` array" is exact for them. Options: (a) keep the council 12
+sentence and append the set-target clause; (b) replace it as the packet
+proposed. Recommendation: (a). Applied provisionally.
+
+### Proposed and not applied
+
+- The T44 I-JSON paragraph (T56): a forward reference instead.
+- The sixth receipt representation, `failed` with `detail: expired`, and
+  every sentence, fixture, and row built on the epoch-lifetime law for
+  failed receipts (T47 ruled (b)): rewritten — the failed receipt is
+  retained for at least `retention.receipt`, forgotten whole, its URL then
+  `404`, its key then unknown; `idempotency-conflict` holds for as long as
+  the key is bound; the X2 rationale names both retentions; rows
+  `transactional.idempotency.failed-retained` and
+  `transactional.idempotency.conflict` re-titled; a `404` for a forgotten
+  failed receipt joins the matrix and the non-disclosure sentence; the
+  fixtures show the forgotten receipt and its key executing as new.
+- The packet's `deleted: resourceIdentity` on receipt entries (X1 ruled B):
+  `deletedIdentity`.
+- The packet's `transactionalAdvertisedLimits` composition (T52) and its
+  ten-entry directory (T53); the discovery fixture without `aliases`
+  (D37 requires it).
+- The T46 amendment of the Read-era `page.*` bullet: applied as the
+  packet's own appended Transactional paragraph under *Advertised limits*
+  instead, so the Read bullet is untouched.
+- The packet's `transactional.discovery.operation-directory` title ("ten
+  targets"): twelve.
+- Appendix A's "125 definitions": the bundle holds 135 (83 at the merge
+  base plus 52).
+- Section 7's first three residuals are resolved by this apply (X1 on
+  both sides, `retires`, `date-time`); the rest stand, with the additions
+  recorded there.
