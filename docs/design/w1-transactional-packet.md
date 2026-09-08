@@ -3346,7 +3346,10 @@ sanity check exercises: `2026-99-99T99:99:99+99:99` and
 `2026-02-30T00:00:00Z` rejected, `2026-09-07T18:04:12Z` and
 `2026-09-07T18:04:12.5+02:00` accepted. Recommendation: (a).
 
-**X1 — The deleted identity is a record in both profiles.**
+**X1 — The deleted identity is a record in both profiles.** RULED 2026-09-08 (operator, option B): the
+identity record `{ resourceKind, resource: { id, type, revision } }` with `revision` the final live
+revision, in both profiles; the Read+Update draft's D9 (`deleted` as a URL string) is superseded and its
+bundle, fixture, and row change on #19.
 Context: Read+Update D9 spells `deleted` as the absolute canonical URL and
 reports no revision, because deletion mints none; T22 spelled it as a
 record carrying the final live revision, matching the changefeed tombstone
