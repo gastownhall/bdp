@@ -3366,7 +3366,7 @@ other deletion exchanges, and the rows `read-update.singleton.delete-bead`
 and `read-update.singleton.delete-link`. Recommendation: (a), for both
 profiles.
 
-**X2 — `retention.idempotency` is Read+Update-only.**
+**X2 — `retention.idempotency` is Read+Update-only.** RULED 2026-09-08 (operator: ACK as drafted).
 Context: D6 makes `retention.idempotency` the Read+Update floor; T14
 prohibits it on Transactional discovery. The two are consistent, but the
 Advertised-limits text had to say so (cross-packet note X2). Decision: the
@@ -3375,7 +3375,7 @@ Transactional discovery document MUST NOT advertise it, and
 `transactionalAdvertisedLimits` rejects it. Recommendation: apply to both
 halves' reading of the Advertised-limits section.
 
-**X3 — Why Read+Update refuses and Transactional joins.**
+**X3 — Why Read+Update refuses and Transactional joins.** RULED 2026-09-08 (operator: ACK as drafted; the uniformity principle carries the sentence once).
 Context: D5 refuses a concurrent duplicate (`idempotency-in-progress`);
 the Transactional profile joins it through a pending receipt (`202`).
 Both packets say so; the specification's own text should carry the reason
@@ -3396,6 +3396,8 @@ the pair exactly as `mutationResultMembers` does, including on `deleted`
 and `erased` entries; the bundle's `receiptResult` rejects either member
 alone and both on a Bead postimage. Recommendation: apply to both
 profiles; already applied on the Read+Update side.
+
+X4 RULED 2026-09-08 (operator, option A): `source` beside `sourceRevision` on every owned-Link result — create, update, delete — in both profiles; `receiptResult` gains `source` and its fixture follows when this packet is applied.
 
 ## 5. Version erasure on the changefeed
 
