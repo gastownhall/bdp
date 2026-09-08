@@ -158,9 +158,12 @@ describe("BDP v0 schema bundle", () => {
   it("pins each discovery definition to its own profile", () => {
     expect(propertiesOf("readDiscovery").profile).toEqual({ const: "read" });
     expect(propertiesOf("readUpdateDiscovery").profile).toEqual({ const: "read-update" });
+    // Read+Update offers the alias targets, so it serves alias resolution and
+    // must advertise `aliases`; Read keeps the member optional (D37, option 2).
     expect(def("readUpdateDiscovery").required).toEqual([
       ...(def("readDiscovery").required as readonly string[]),
       "operations",
+      "aliases",
     ]);
     expect(def("protocolProfile")).toEqual({ enum: PROTOCOL_PROFILES });
   });

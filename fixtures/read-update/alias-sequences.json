@@ -1,0 +1,290 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-alias-sequences",
+  "description": "Alias members inside sequences beyond the create-then-bind case: a delete-alias member beside a Resource update; the same sequence retried, so the retained alias disposition is replayed inside the envelope without re-authorization while the retained postimage is re-authorized as every retained record is; a Bead creation that takes the path the deleted alias released; and one pair that separates carrier syntax from member failure — a later alias member whose alias value is no reference shape rejects the whole carrier before the well-formed first member starts, whereas a well-formed alias member whose target is a Link fails only its member after the first member committed. Runs after read-update-aliases: alias/notes/alias-mutation targets note-120, which is at note-120-r1. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "delete-alias-inside-a-sequence",
+      "condition": "Member 0 updates the Bead the alias targets; member 1 deletes the alias. The delete mints no version — note-120 moves to r2 because of the update, not the delete — and the alias member binds no name and carries operationIndex only.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-q-note-accept",
+              "operation": "updateBeadProperties",
+              "bead": "beads/note-120",
+              "change": [{ "op": "replace", "path": "/status", "value": "accepted" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-q-note-alias-delete",
+              "operation": "deleteAlias",
+              "alias": "alias/notes/alias-mutation"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/note-120",
+                "type": "https://work.example/types/decision",
+                "revision": "note-120-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Alias mutation joins Read+Update",
+                  "status": "accepted"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "alias": "https://beads.example/acme/alias/notes/alias-mutation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "retained-alias-disposition-replayed-inside-a-sequence",
+      "condition": "The same sequence retried under the same keys. Member 0's retained postimage is re-authorized for disclosure against the present view, as every retained record is; member 1's alias result discloses no record and is returned as retained without re-authorization, as a deleted identity is. Nothing executes.",
+      "retained": [
+        { "from": "delete-alias-inside-a-sequence", "index": 0, "at": 0 },
+        { "from": "delete-alias-inside-a-sequence", "index": 1, "at": 1 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-q-note-accept",
+              "operation": "updateBeadProperties",
+              "bead": "beads/note-120",
+              "change": [{ "op": "replace", "path": "/status", "value": "accepted" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-q-note-alias-delete",
+              "operation": "deleteAlias",
+              "alias": "alias/notes/alias-mutation"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/note-120",
+                "type": "https://work.example/types/decision",
+                "revision": "note-120-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Alias mutation joins Read+Update",
+                  "status": "accepted"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "alias": "https://beads.example/acme/alias/notes/alias-mutation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "create-bead-on-a-released-alias-path",
+      "condition": "alias/notes/alias-mutation was deleted above, so the path it held is free: the Bead creation that would have been alias-path-taken while the alias was live succeeds now, which is what its after-state-change disposition promised. The path becomes a canonical Bead segment and is never released again.",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-q-notes-reuse"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "id": "beads/notes/alias-mutation",
+          "type": "https://work.example/types/task",
+          "properties": { "title": "Take the released alias path", "status": "open" },
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/beads/notes/alias-mutation",
+            "type": "https://work.example/types/task",
+            "revision": "alias-mutation-r1",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "properties": { "title": "Take the released alias path", "status": "open" }
+          }
+        }
+      }
+    },
+    {
+      "id": "malformed-later-alias-member-rejects-the-carrier",
+      "condition": "Member 0 is well-formed; member 1's alias value carries a query, which no reference spelling admits under the local-ID grammar, so it is no reference shape at all. That is decidable from the request text: the carrier is rejected whole before member 0 starts, nothing executes, and no key is claimed.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-q-first-create",
+              "operation": "createBead",
+              "name": "first",
+              "type": "https://work.example/types/task",
+              "properties": { "title": "First, well-formed", "status": "open" },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-q-bad-alias",
+              "operation": "putAlias",
+              "alias": "alias/notes/draft?v=2",
+              "target": "@first"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "operations[1].alias alias/notes/draft?v=2 carries a query; a reference spelling admits no query or fragment"
+        }
+      }
+    },
+    {
+      "id": "inadmissible-alias-target-fails-only-its-member",
+      "condition": "Member 0 is well-formed and commits. Member 1 is well-formed too, but its target is a Link, which an alias never targets: that is an admission check made when the member is reached, so it fails only its member, inside the 200 OK envelope, and member 0 stays committed.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-q-second-create",
+              "operation": "createBead",
+              "name": "second",
+              "type": "https://work.example/types/task",
+              "properties": { "title": "Second, committed", "status": "open" },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-q-draft-alias",
+              "operation": "putAlias",
+              "alias": "alias/notes/draft",
+              "target": "links/cites-7-1"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "second",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-119",
+                "type": "https://work.example/types/task",
+                "revision": "task-119-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": { "title": "Second, committed", "status": "open" }
+              }
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/validation",
+              "code": "validation-failed",
+              "status": 422,
+              "retry": "never",
+              "operationIndex": 1,
+              "detail": "the target is not a canonical Bead reference",
+              "diagnostics": [
+                {
+                  "message": "links/cites-7-1 is a Link; an alias targets a canonical Bead URL only"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

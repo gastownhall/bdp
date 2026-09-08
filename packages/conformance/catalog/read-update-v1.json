@@ -15,6 +15,29 @@
       ]
     },
     {
+      "id": "read-update.discovery.aliases",
+      "title": "Read+Update discovery advertises aliases: every Read+Update Scope offers the alias targets and serves alias resolution",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "| `aliases` | optional | required | required |"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "The `aliases` member is optional in Read, where it appears exactly when the authority serves alias resolution, and required in Read+Update and Transactional, which offer the alias targets under [Alias targets](#alias-targets) and therefore serve alias resolution"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "Because every Read+Update Scope offers the alias targets, a Read+Update authority serves alias resolution and advertises `aliases` in its discovery document"
+        }
+      ]
+    },
+    {
       "id": "read-update.discovery.limits",
       "title": "Read+Update discovery limits carry no Transactional capability group",
       "kind": "normative",
@@ -34,6 +57,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#advertised-limits",
           "selectedText": "A group is relevant only when the advertised profile exposes that capability."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#advertised-limits",
+          "selectedText": "the group is mutation surface: it is not advertised by a Read discovery document, and a Read+Update or Transactional authority that omits diagnostics beyond a bound MUST advertise it"
         }
       ]
     },
@@ -458,6 +486,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
           "selectedText": "both carry `alias`, the absolute alias URL, `alias/{alias-path}` resolved against the canonical Scope URL, and `target`, the absolute canonical Bead URL the alias now resolves to."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "an alias mutation produces the alias result defined under [Alias targets](#alias-targets) instead"
         }
       ]
     },
@@ -509,15 +542,107 @@
     },
     {
       "id": "read-update.alias.uniqueness-invariant",
-      "title": "Alias paths and canonical Bead segments share one uniqueness namespace; alias-target and unknown-subject refusals carry their ruled codes",
+      "title": "Alias paths and canonical Bead segments share one uniqueness namespace, checked first: a put on a committed Bead path is identity-taken and a Bead creation on a live alias path is alias-path-taken",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "Canonical Bead segments and alias paths share one uniqueness namespace in the Scope, a store invariant the authority enforces when the member is reached: a put whose alias path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope — a deleted one included, since canonical segments are never released — fails with `identity-taken`, and a creation that supplies an `id` whose `{id-path}` is a live alias path fails with `identity-taken` as well."
+          "selectedText": "Canonical Bead segments and alias paths share one uniqueness namespace in the Scope, a store invariant the authority enforces when the member is reached: a put whose alias path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope — a deleted one included, since canonical segments are never released — fails with `identity-taken`, and a Bead creation that supplies an `id` whose `{id-path}` is a live alias path fails with `alias-path-taken`, a condition that clears when the alias is deleted."
         },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "An alias path in use as an alias is not taken for a put, which repoints it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "Alias operations follow the model's check order under [Explicit alias operations](#explicit-alias-operations), identifier uniqueness first, so a put whose path is taken and whose target is unknown answers the uniqueness fault."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#explicit-alias-operations",
+          "selectedText": "When one is reached it follows the check order under [Validation and results](#validation-and-results), identifier uniqueness first, so a put whose path is taken and whose target is unknown answers the uniqueness fault."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "an alias put whose path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope, a deleted one included, fails the same way, while a Bead creation whose supplied `id` has the `{id-path}` of a live alias is `alias-path-taken`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "`alias-path-taken`: a Bead creation whose supplied `id` has the `{id-path}` of a live alias, under [Alias targets](#alias-targets). The path is held by an alias rather than by a committed identity, so the condition clears when the alias is deleted and the retry disposition is `after-state-change`, where `identity-taken`'s is `never`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#aliases",
+          "selectedText": "They share it because the realizations the alias root fronts share one — in the beads realization, keys and aliases occupy one project-wide namespace — so the invariant is imported from the store rather than required by resolution, which spelling alone decides."
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.link-coexistence",
+      "title": "Link segments and alias paths coexist: a Link created at links/foo beside a live alias/foo collides with nothing",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "Link segments and alias paths coexist: `links/foo` and `alias/foo` do not collide, and a Link creation may supply an `id` whose `{id-path}` is a live alias path."
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.allocation-avoids-aliases",
+      "title": "An authority-allocated Bead id is never a live alias path",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "An authority never allocates a Bead id whose segment is a live alias path."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scopes-and-identity",
+          "selectedText": "An authority-allocated local ID is a single opaque segment, and for a Bead never one that is a live alias path under [Aliases](#aliases)"
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.non-canonical-target",
+      "title": "A put whose target is an alias, a Link, or an external URI fails with validation-failed and one diagnostic naming the cause",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A put whose `target` is not a canonical Bead reference — an alias, absolute or local, a Link, or an external URI — fails with `validation-failed`, carrying one diagnostic that names the cause: an alias targets a canonical Bead URL only, so no chain is ever admitted"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A put's own `target` admits no alias spelling: an alias target is `validation-failed`, as above."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "an endpoint or target reference of the wrong category — an alias, a Link, or an external URI as an alias put's `target`, or a Link path as a Link endpoint — is `validation-failed`"
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.unknown-subject",
+      "title": "An unknown or invisible target, an unknown alias on delete, and an alias member beneath the wrong root fail with resource-not-found",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
@@ -526,12 +651,76 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "A put whose `target` is not a canonical Bead reference — an alias, absolute or local, a Link, or an external URI — fails with `validation-failed`, carrying one diagnostic that names the cause"
+          "selectedText": "a well-formed spelling that is not beneath the `alias/` root names no alias and fails with `resource-not-found` when the member is reached, as a wrong-root subject reference does under [Problem details](#problem-details)"
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#problem-details",
-          "selectedText": "an alias put whose path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope, a deleted one included, and a creation whose supplied `id` has the `{id-path}` of a live alias, fail the same way."
+          "selectedText": "a subject reference — `bead`, `link`, or the `alias` member of an alias record — whose spelling has the wrong root is `resource-not-found`, since the subject does not exist as the required kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "An alias put whose canonical `target` names a Bead that does not exist or is not visible, and an alias delete whose alias is unknown, fail the same way: aliases are not an enumeration oracle."
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.carrier-syntax",
+      "title": "An alias value that violates the grammar or is no reference shape is carrier syntax: the whole sequence is rejected before any member executes",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "a spelling that violates the grammar is carrier syntax rejected before execution with `malformed-request`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "a value that is not a reference shape at all — neither a relative path nor an absolute URL under the local-ID grammar, or a `@name` where none is admitted — is carrier syntax, `malformed-request`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "A carrier or operation-record syntax error is rejected before execution with a direct problem response."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "are direct problem responses and execute nothing"
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.authorization",
+      "title": "Alias operations are authorized as mutations of the Beads they touch, and an invisible current target makes the alias resource-not-found",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "Alias operations are authorized as mutations of the Beads they touch: a put requires that the principal may write the proposed target Bead, and a repoint or a delete additionally that it may write the alias's current target; when the current target is not visible to the principal, the alias itself is `resource-not-found`, disclosing nothing."
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.forbidden",
+      "title": "A put or delete the principal may not perform fails with forbidden",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A put or delete the principal may not perform fails with `forbidden`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "A member the principal may not perform fails with `forbidden`"
         }
       ]
     },
@@ -578,6 +767,90 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
           "selectedText": "An alias disposition is retained, replayed, and tombstoned exactly as a Resource mutation's is"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A `@name` bound by a Link creation is of the wrong Resource kind and is rejected before execution."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "a sequence member's entry is the alias result plus `operationIndex`, and never `operationName`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "A result entry is the member's mutation result plus those two members, or its alias result plus `operationIndex` alone, and it is closed."
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.retained-without-reauthorization",
+      "title": "A retained alias disposition discloses no record and is returned as retained without replay re-authorization",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "an alias result discloses no Resource record, so it is returned as retained, as a `deleted` identity is"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "Retained problems, `deleted` identities, and alias results disclose no record and are returned as retained."
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.reference-resolution",
+      "title": "An alias spelling as a bead subject or a Link endpoint resolves to the alias's current target when the member is reached and is stored canonical",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "An alias spelling — `alias/{alias-path}` or the absolute alias URL — is admitted wherever a canonical in-Scope Bead reference is: as the `bead` subject of an update or a deletion and as a Link endpoint `source` or `target`, bare or as the `uri` of a Pinned Reference, in a singleton and in a sequence member alike."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "The authority resolves it to the alias's current target when the member is reached — exactly as a `@name` binding is resolved when its member is reached, so an alias put earlier in the same sequence is what a later member observes — and stores and serves the canonical Bead URL, as [Aliases](#aliases) requires: a reference resolved through an alias does not follow a later repoint."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "An alias spelling that names no live alias fails with `resource-not-found`, under the same non-disclosure rule as an unknown Bead, and a `link` subject spelled by alias is of the wrong kind and fails with `resource-not-found` too, since an alias resolves to a Bead only."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#aliases",
+          "selectedText": "A reference written using an alias is resolved to the canonical Bead URL when the authority admits the write; stored and served references are always canonical, so aliases never appear in Resource data."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "except that a `bead` subject or a Link endpoint spelled by alias is admitted and resolved under [Alias targets](#alias-targets), and fails this way only when the spelling names no live alias"
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.reference-idempotency",
+      "title": "The semantic identity of a member that spelled a reference by alias records the resolution, so a retry after a repoint receives the retained disposition",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "An alias spelling admitted under [Alias targets](#alias-targets) normalizes to the canonical Bead URL it resolved to when the member was reached: the authority records that resolution with the member's disposition and in its tombstone, and every later presentation of the key compares against the recorded resolution — never against the spelling and never against the alias's present target — so a repoint between a member and its byte-identical retry changes no identity"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "The semantic identity of a member that spelled a reference by alias records the resolution rather than the spelling, under [Idempotency keys](#idempotency-keys)."
         }
       ]
     },
@@ -773,8 +1046,13 @@
         },
         {
           "source": "docs/specs/bdp.md",
+          "anchor": "#normative-schema-bundle",
+          "selectedText": "the resolution of an alias spelling to a live alias, and, for an alias member, whether a put's `target` is a canonical Bead reference and whether its alias path is taken"
+        },
+        {
+          "source": "docs/specs/bdp.md",
           "anchor": "#problem-details",
-          "selectedText": "so does a durable reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind — the subject does not exist as the required kind"
+          "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind — the subject does not exist as the required kind"
         }
       ]
     },
@@ -887,6 +1165,24 @@
       ]
     },
     {
+      "id": "read-update.idempotency.claim-atomicity",
+      "title": "A carrier's admission claims are one linearizable step: a competing presentation observes all of them or none, and no lock outlives admission",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "The claims one carrier makes at admission are one linearizable step relative to competing admissions: a competing presentation observes all of a carrier's claims or none of them, so two presentations of one sequence can never split its keys between them, even for members that depend on each other through state rather than through `@name`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "The claim step holds no lock past admission; members execute, interleave, and are answered exactly as before."
+        }
+      ]
+    },
+    {
       "id": "read-update.idempotency.concurrent-dependent-retry",
       "title": "A concurrent retry never poisons the first presentation's dependent member",
       "kind": "normative",
@@ -926,7 +1222,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written; `expectedRevision` and `attribution` are members of the record and therefore of its identity."
+          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does (amended 2026-09-08, council 12); `expectedRevision` and `attribution` are members of the record and therefore of its identity."
         }
       ]
     },
@@ -1209,6 +1505,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#problem-details",
           "selectedText": "This is inherently an existence signal for the identity the creator chose, hidden or deleted alike"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "An alias put is a cheaper existence probe than a creation — it allocates no Resource, mints no version, and is deletable — gated only by permission to put aliases, which is therefore what that permission grants."
         }
       ]
     },

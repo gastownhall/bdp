@@ -37,6 +37,7 @@ const READ_UPDATE_PROBLEM_ROWS: readonly (readonly [string, string, number, stri
   ["validation-failed", "validation", 422, "never"],
   ["type-not-installed", "validation", 422, "after-state-change"],
   ["identity-taken", "conflict", 409, "never"],
+  ["alias-path-taken", "conflict", 409, "after-state-change"],
   ["revision-mismatch", "conflict", 409, "after-state-change"],
   ["incident-links-exist", "conflict", 409, "after-state-change"],
   ["aggregate-constraint-violation", "conflict", 409, "after-state-change"],
@@ -162,6 +163,8 @@ describe("Read+Update problem rows", () => {
 describe("Read+Update wire fixtures", () => {
   it("cover discovery, every singleton target, the sequence cases, and the recovery cases", () => {
     expect(fixtures.map(({ id }) => id)).toEqual([
+      "read-update-alias-references",
+      "read-update-alias-sequences",
       "read-update-aliases",
       "read-update-carrier-rejections",
       "read-update-discovery",
@@ -392,7 +395,11 @@ describe("shapes the bundle now rejects", () => {
     resourceKind: "link",
     resource: { id: `${scope}links/1`, type: "https://t.example/t", revision: "r1" },
   };
-  const discovery = {
+  const deletedBead = {
+    resourceKind: "bead",
+    resource: { id: `${scope}beads/1`, type: "https://t.example/t", revision: "r1" },
+  };
+  const discoveryWithoutAliases = {
     bdpVersion: "0",
     profile: "read-update",
     scope,
@@ -401,6 +408,8 @@ describe("shapes the bundle now rejects", () => {
     types: `${scope}types/`,
     operations: `${scope}operations/`,
   };
+  // `aliases` is required in Read+Update discovery (D37, option 2).
+  const discovery = { ...discoveryWithoutAliases, aliases: `${scope}alias/` };
   const readDiscovery = {
     bdpVersion: "0",
     profile: "read",
@@ -442,6 +451,22 @@ describe("shapes the bundle now rejects", () => {
       "mutationResult",
       "sourceRevision without source",
       { outcome: "deleted", deleted: deletedLink, sourceRevision: "r9" },
+    ],
+    [
+      "mutationResult",
+      "a deleted Bead carrying source and sourceRevision",
+      { outcome: "deleted", deleted: deletedBead, source: `${scope}beads/2`, sourceRevision: "r9" },
+    ],
+    [
+      "sequenceMemberResult",
+      "a deleted Bead member result carrying source and sourceRevision",
+      {
+        operationIndex: 0,
+        outcome: "deleted",
+        deleted: deletedBead,
+        source: `${scope}beads/2`,
+        sourceRevision: "r9",
+      },
     ],
     [
       "mutationResult",
@@ -494,6 +519,11 @@ describe("shapes the bundle now rejects", () => {
       "an unknown limits group",
       { ...discovery, limits: { history: { events: 1 } } },
     ],
+    [
+      "readUpdateDiscovery",
+      "a Read+Update discovery document without aliases",
+      discoveryWithoutAliases,
+    ],
     ["readUpdateProblem", "validation-failed without diagnostics", validationFailed],
     [
       "readUpdateProblem",
@@ -504,6 +534,16 @@ describe("shapes the bundle now rejects", () => {
       "validationDiagnostic",
       "a Type without its schema location",
       { message: "m", type: "https://t.example/t" },
+    ],
+    [
+      "validationDiagnostic",
+      "an instance location that is not a JSON Pointer",
+      { message: "m", instanceLocation: "status" },
+    ],
+    [
+      "validationDiagnostic",
+      "a schema location that is not an absolute URI",
+      { message: "m", type: "https://t.example/t", schemaLocation: "#/properties/status/enum" },
     ],
     [
       "readUpdateProblem",
@@ -631,6 +671,17 @@ describe("shapes the bundle now rejects", () => {
       "#/$defs/readUpdateDiscovery",
       { ...discovery, limits: { validation: { diagnostics: 16, diagnosticBytes: 8192 } } },
       "Read+Update validation limits",
+    );
+    expectValid("#/$defs/readUpdateDiscovery", discovery, "Read+Update discovery with aliases");
+    expectValid(
+      "#/$defs/validationDiagnostic",
+      {
+        message: "m",
+        type: "https://t.example/t",
+        schemaLocation: "https://t.example/schemas/t#/properties/status/enum",
+        instanceLocation: "/status",
+      },
+      "an absolute keyword location and a JSON Pointer",
     );
     expectValid(
       "#/$defs/sequenceMemberProblem",
@@ -863,7 +914,13 @@ function expectResultCorrespondence(
   }
 }
 
-/** A written reference — `@name`, Scope-relative, or absolute — names `resolvedUri`. */
+/**
+ * A written reference — `@name`, an alias spelling, Scope-relative, or
+ * absolute — names `resolvedUri`. An alias spelling resolves to the alias's
+ * target when the member is reached, which only the fixture's narrated
+ * condition knows; what is checked is that the resolution is a canonical
+ * in-Scope Bead URL, never the alias spelling itself (D38).
+ */
 function expectResolvedReference(
   spelled: unknown,
   resolvedUri: unknown,
@@ -873,7 +930,10 @@ function expectResolvedReference(
 ): void {
   const written = typeof spelled === "string" ? spelled : (spelled as JsonRecord).uri;
   if (typeof written !== "string") throw new Error(`${label}: unreadable reference`);
-  if (written.startsWith("@")) {
+  if (written.startsWith("alias/") || written.startsWith(`${scope}alias/`)) {
+    expect(typeof resolvedUri, label).toBe("string");
+    expect((resolvedUri as string).startsWith(`${scope}beads/`), `${label}: ${written}`).toBe(true);
+  } else if (written.startsWith("@")) {
     const creator = earlier.find((candidate) => candidate.operationName === written.slice(1));
     const created = creator?.resource as JsonRecord | undefined;
     if (created !== undefined) {

@@ -1579,6 +1579,28 @@
               "sourceRevision": false
             }
           }
+        },
+        {
+          "if": {
+            "required": ["deleted"],
+            "properties": {
+              "deleted": {
+                "type": "object",
+                "required": ["resourceKind"],
+                "properties": {
+                  "resourceKind": {
+                    "const": "bead"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source": false,
+              "sourceRevision": false
+            }
+          }
         }
       ],
       "dependentRequired": {
@@ -1696,6 +1718,7 @@
         "validation-failed",
         "type-not-installed",
         "identity-taken",
+        "alias-path-taken",
         "revision-mismatch",
         "incident-links-exist",
         "aggregate-constraint-violation",
@@ -1712,11 +1735,10 @@
           "$ref": "#/$defs/absoluteHttpUrl"
         },
         "schemaLocation": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/absoluteUri"
         },
         "instanceLocation": {
-          "type": "string"
+          "$ref": "#/$defs/jsonPointer"
         },
         "message": {
           "type": "string",
@@ -1899,6 +1921,29 @@
               },
               "retry": {
                 "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "alias-path-taken"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
               }
             }
           }
@@ -2265,7 +2310,16 @@
     },
     "readUpdateDiscovery": {
       "type": "object",
-      "required": ["bdpVersion", "profile", "scope", "beads", "links", "types", "operations"],
+      "required": [
+        "bdpVersion",
+        "profile",
+        "scope",
+        "beads",
+        "links",
+        "types",
+        "operations",
+        "aliases"
+      ],
       "properties": {
         "bdpVersion": {
           "$ref": "#/$defs/bdpVersion"

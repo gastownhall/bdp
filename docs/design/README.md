@@ -25,13 +25,15 @@ waves are internal sequencing labels, not protocol concepts.
   and the testable contract-suite and Wave 2 freeze evidence milestones the
   eventual port must meet.
 - [W1 Read+Update wire decisions](./w1-read-update-decisions.md) records the
-  numbered provisional decisions (D1–D37) behind the drafted Read+Update
-  sequence envelopes, alias targets, idempotency contract, durability and
-  recovery rules, and problem rows — each with its context, options,
-  tradeoffs, recommendation, and the specification sentence that depends on
-  it — and the review-council findings folded into them, for the operator
-  to rule on one at a time (D29 ruled C, cross-packet X1 ruled B, and D31
-  ruled B on 2026-09-08, all applied).
+  numbered decisions (D1–D40) behind the drafted Read+Update sequence
+  envelopes, alias targets, idempotency contract, durability and recovery
+  rules, and problem rows — each with its context, options, tradeoffs,
+  recommendation, and the specification sentence that depends on it — and
+  the findings of review councils 9 and 12 folded into them. D1–D32 are
+  ruled or ratified (2026-09-08; D29 ruled C, cross-packet X1 ruled B, and
+  D31 ruled B, all applied); D33–D40, the judgment calls made in applying
+  D31's ruling and in folding council 12, are provisional and remain for
+  the operator to rule on one at a time.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

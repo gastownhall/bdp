@@ -8,13 +8,15 @@ Read+Update problem rows — in `docs/specs/bdp.md`,
 `schemas/bdp-v0.schema.json`, `fixtures/read-update/`, and
 `packages/conformance/catalog/read-update-v1.json`.
 
-Each decision is applied in the draft as its recommendation so that the
+Each decision was applied in the draft as its recommendation so that the
 profile is implementable on paper and the artifacts can be reviewed as a
-whole. D29 is ruled (option C, 2026-09-08) and its corrective is applied,
-D9 is superseded by the cross-packet ruling X1 (option B, 2026-09-08)
-applied as D32, and D31 is ruled (option B, 2026-09-08, reversing its
-recommendation) and applied as D33–D37; the rest are provisional. The
-operator rules on them one at a time; a
+whole. D1–D32 are ruled or ratified (2026-09-08): D29 ruled C with its
+corrective applied, D9 superseded by the cross-packet ruling X1 (option
+B) applied as D32, D31 ruled B (reversing its recommendation) and applied
+as D33–D37, and every other decision ratified as drafted or ruled as its
+status line records. D33–D40, the judgment calls made in applying D31's
+ruling and in folding council 12, are provisional and are the only open
+decisions. The operator rules on them one at a time; a
 ruling that departs from the recommendation is applied by editing the quoted
 specification sentence, the corresponding bundle definition, the fixtures,
 and the catalog row together. The lockstep tests
@@ -26,7 +28,7 @@ anchored section, the catalog mirrors the specification's row table in
 order, the fixtures validate and align member by member, retained
 dispositions are byte-identical wherever they are replayed, and the wire
 shapes the council found admitted are now rejected. They inspect none of
-the semantics D1–D37 describe: a ruling can change a decision's meaning
+the semantics D1–D40 describe: a ruling can change a decision's meaning
 without failing a test, and a green run establishes only that the four
 artifact families still agree on what they say.
 
@@ -36,7 +38,13 @@ findings recorded under [Council 9 fold](#council-9-fold). D26–D31 fold
 the Claude report, which arrived after the first pass. D32 applies the
 cross-packet ruling X1 (option B, 2026-09-08), which supersedes D9.
 D33–D37 record the judgment calls made while applying the ruling of D31
-(option B, 2026-09-08): alias mutation joins the profile.
+(option B, 2026-09-08): alias mutation joins the profile. D38–D40, and
+the amendments marked *(council 12)* under D3, D10, D13, D16, D20, D26,
+D31, D33, D35, D36, and D37, fold the second review council's findings
+recorded under [Council 12 fold](#council-12-fold): alias spellings in
+Resource records, the `alias-path-taken` row, alias authorization,
+`aliases` required in Read+Update discovery, and the linearizable claim
+step.
 
 Nothing in this packet is a conformance claim. The Read+Update profile has
 no manifest, fixture realization, runner, or evidence; `claimEligible`
@@ -178,6 +186,18 @@ therefore of its identity. The alternative — normalizing an unresolvable
 reference to the creating member's key — would put a client-minted token
 into identity, which the exclusion of `idempotencyKey` deliberately avoids.
 
+**Extended (council 12).** An alias spelling admitted in a Resource record
+under D38 normalizes to the canonical Bead URL it resolved to when the
+member was reached; the authority records that resolution with the
+disposition and in its tombstone, and every later presentation compares
+against the recorded resolution, never the spelling and never the alias's
+present target — D24's rule for `@name`, applied to aliases. One ruled
+sentence is amended (2026-09-08, council 12): "Opaque external URIs and
+Pinned References are compared byte-exactly as written" now continues ",
+a pinned `uri` spelled by `@name` or by alias having first resolved as the
+bare spelling does", a clarification the pinned-`@name` case the bundle
+already admits was owed.
+
 **Depends on this decision.** Under *Idempotency keys*: "The **semantic
 identity** of a member is its operation kind — from `operation`, or from
 the singleton target — plus its normalized operation record." through "BDP
@@ -186,9 +206,12 @@ each `@name` reference to the identity its creating member bound — taken
 from that member's fresh, retained, or expired disposition, never from the
 spelling", "is normalized to one distinguished unbound marker rather than
 to its spelling", and "Opaque external URIs and Pinned References are
-compared byte-exactly as written; `expectedRevision` and `attribution` are
+compared byte-exactly as written, a pinned `uri` spelled by `@name` or by
+alias having first resolved as the bare spelling does (amended
+2026-09-08, council 12); `expectedRevision` and `attribution` are
 members of the record and therefore of its identity." Fixture
-`semantic-identity.json`.
+`semantic-identity.json`; after council 12 also the alias-resolution
+sentence under D38 and fixture `alias-references.json`.
 
 ## D4 — Which dispositions are retained
 
@@ -498,6 +521,16 @@ ruled B on 2026-09-08 — the record in both profiles — applied here as
 D32, so a deleted owned Link now reports its own identity in `deleted`
 beside `source` and `sourceRevision`.
 
+**Tightened (council 12).** The bundle rejected `source` and
+`sourceRevision` on a Bead postimage but not on a deleted Bead, whose
+result carries no postimage: strict Ajv accepted `{ outcome: "deleted",
+deleted: { resourceKind: "bead", … }, source, sourceRevision }` against
+"absent from every other result" (Codex 4, Gemini 2). A second `allOf`
+branch on `mutationResultMembers` now forbids both members when
+`deleted.resourceKind` is `bead`; the wire test rejects the shape as a
+singleton result and as a sequence member result. No specification
+sentence changed.
+
 **Depends on this decision.** Under *Mutation results*: "the result
 additionally carries `source`, the source Bead's absolute canonical URL,
 and `sourceRevision`, the source Bead's resulting revision, on creation,
@@ -505,7 +538,8 @@ update, and deletion alike" and "`source` and `sourceRevision` are absent
 from every other result, and each is present exactly when the other is."
 Under *Validation and results*: "The envelope member carrying that
 secondary revision is `sourceRevision`". Bundle: `mutationResultMembers`
-(`source`, `dependentRequired`, the Bead-postimage branch). Fixture
+(`source`, `dependentRequired`, the Bead-postimage branch, and the
+deleted-Bead branch). Fixture
 `singletons.json`, exchanges `create-link-owned-versions-the-source`
 through `delete-link-owned-versions-the-source`.
 
@@ -628,7 +662,21 @@ The operator may prefer `aggregate-constraint-violation` for the owned-set
 case; the packet chose the Type-contract reading because `max` is declared
 by the Type Descriptor, not by Scope policy.
 
-**Depends on this decision.** The eleven-row table and the "The Read+Update
+**Amended (council 12).** The table gains a twelfth row, `alias-path-taken`
+(`conflict`, `409`, `after-state-change`), under D39 — the one code the
+fold adds — and the boundary sentence "a durable reference whose spelling
+is not a canonical reference of the required kind … is
+`resource-not-found`" is amended (2026-09-08, council 12) to say
+*subject* reference and to except a `bead` subject or Link endpoint
+spelled by alias, which D38 admits and resolves. One new sentence under
+*Problem details* scopes every reference fault by what the reference is:
+a subject reference (`bead`, `link`, the `alias` member) with the wrong
+root is `resource-not-found`; an endpoint or target reference of the
+wrong category is `validation-failed`; a value that is no reference shape
+at all is `malformed-request` (D36 amended). The carrier-syntax sentence
+loses the `alias/`-root clause D36 had put there and is marked amended.
+
+**Depends on this decision.** The twelve-row table and the "The Read+Update
 rows mean:" list under *Problem details*; bundle `readUpdateProblemCode`
 and the `readUpdateProblem` branches; `packages/protocol/src/read-update-wire.test.ts`
 holds the same rows and fails on drift.
@@ -789,6 +837,23 @@ limits* says the group is Read+Update surface, and the *Link endpoint
 constraints* sentence names the Read+Update discovery document as where
 the bounds are advertised.
 
+**Corrected again (council 12, 2026-09-08).** "Advertised only by a
+Read+Update discovery document" overshot: profiles are cumulative, a
+Transactional authority returns `validation-failed` with `diagnostics`
+too and, if it truncates, MUST advertise the bound — which that wording
+forbade it to do (Claude M4, Codex 6). The bullet now reads "the group is
+mutation surface: it is not advertised by a Read discovery document, and
+a Read+Update or Transactional authority that omits diagnostics beyond a
+bound MUST advertise it (amended 2026-09-08, council 12)", the *Link
+endpoint constraints* sentence says "in its discovery document's `limits`
+— a Read+Update or Transactional document, since a Read discovery
+document does not carry the group (amended 2026-09-08, council 12)", and
+the *Advertised limits* definition paragraph notes that the Transactional
+discovery definition carries the group when drafted. The bundle is
+unchanged: the group still lives only in `readUpdateAdvertisedLimits`,
+and the sealed `advertisedLimits` still admits none. Cross-packet note X6
+records the obligation on the Transactional packet.
+
 ## D17 — Carrier discipline: keys, names, and the stray field
 
 **Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
@@ -945,6 +1010,12 @@ only — sharing the `positiveInteger` and `iso8601Duration` primitives.
 The rejections Codex M7 asked for are unchanged: `transaction`,
 `retention.receipt`, `retention.replay`, and any unknown group fail
 closure.
+
+**Amended (council 12).** `readUpdateDiscovery.required` gains `aliases`
+under D37 (applied as option 2): a Read+Update discovery document without
+it now fails the bundle, and the schema-bundle test holds the required
+list to Read's plus `operations` and `aliases`. The sealed
+`readDiscovery` is untouched.
 
 **Depends on this decision.** Under *Operation Directory and singleton
 targets*: "The bundle defines the Read+Update discovery document as
@@ -1214,16 +1285,35 @@ case (Claude H1).
 
 **Recommendation.** Option 1.
 
+**Clarified after council 12 (2026-09-08).** Claiming "in declaration
+order" did not by itself prevent two presentations of one sequence from
+splitting its keys: for identical sequences `[K1, K2]`, request A claims
+K1, request B finds K1 in flight and claims K2, then A finds K2 in flight
+— and B executes K2 before A executes K1, which dependency normalization
+never sees because state-dependent members need no `@name` (Codex 1). The
+specification now says the claims one carrier makes at admission are one
+linearizable step relative to competing admissions — a competing
+presentation observes all of a carrier's claims or none — and that the
+claim step holds no lock past admission, so execution interleaves exactly
+as before. No lock, no isolation, and no change to the four outcomes:
+only the granularity at which a competing admission observes the claims.
+
 **Depends on this decision.** Under *Read+Update sequence target*: "claims
 every member's key in declaration order under Duplicate keys and retained
 dispositions". Under *Duplicate keys and retained dispositions*: "A key is
 **claimed** before it executes" through "retain a disposition the original
 would contradict." and item 3, "claimed by a request whose member has not
-reached a terminal outcome". Under *Durability and recovery*: "A sequence
+reached a terminal outcome"; after council 12 also "The claims one carrier
+makes at admission are one linearizable step relative to competing
+admissions" through "members execute, interleave, and are answered exactly
+as before." Under *Durability and recovery*: "A sequence
 claims every member's unknown key at admission and a singleton claims its
-key before executing". Fixture `sequence-idempotent-retry.json`, exchange
-`concurrent-retry-meets-the-creator-in-flight`. Catalog row
-`read-update.idempotency.key-reservation`.
+key before executing". Fixture `sequence-idempotent-retry.json`, exchanges
+`concurrent-retry-meets-the-creator-in-flight` and, after council 12,
+`claims-are-one-step-original`, `competing-presentation-observes-every-claim`,
+and `presentation-after-completion-replays-both`. Catalog rows
+`read-update.idempotency.key-reservation` and
+`read-update.idempotency.claim-atomicity`.
 
 ## D27 — Static reference errors are carrier rejections
 
@@ -1460,7 +1550,9 @@ targets plus `put-alias` and `delete-alias` — and `sequence` (amended
 references* and *Mutation results*: the no-version sentences; the whole
 *Alias targets* subsection; *Open protocol questions* entries 2, 5, and 6.
 Bundle: the definitions listed under D33 and D34. Fixtures `aliases.json`
-and `discovery.json`. Catalog rows `read-update.alias.*` (six) and
+and `discovery.json`, and after council 12 `alias-references.json` and
+`alias-sequences.json`. Catalog rows `read-update.alias.*` (six at the
+ruling; sixteen after council 12) and
 `read-update.discovery.operation-directory`; row
 `read-update.discovery.no-alias-mutation` is withdrawn.
 
@@ -1576,6 +1668,18 @@ the exact result shape to the draft.
 
 **Recommendation.** Option 1, applied.
 
+**Corrected (council 12).** Two sentences misdescribed the alias result's
+place. "A result entry is the member's mutation result or alias result
+plus those two members" now reads "the member's mutation result plus
+those two members, or its alias result plus `operationIndex` alone" —
+an alias entry never carries `operationName` (Claude L6). And the
+*Mutation results* introduction, "Every successful Read+Update mutation …
+produces one mutation result", was false for alias mutations; it is
+amended (2026-09-08, council 12) to Resource mutations, with an alias
+mutation producing the alias result instead (Claude M5, Codex 10). D33
+stays provisional: it was applied while transcribing D31's ruling and has
+not been ruled.
+
 **Depends on this decision.** Under *Alias targets*: the `AliasResult`
 sketch and "A put reports `created` when the alias path was not in use as
 an alias" through "`sequenceDeleteAlias`, and `sequenceMemberAliasResult`.",
@@ -1583,7 +1687,9 @@ and "An alias member's semantic identity is its operation kind plus its
 normalized record" through "as a `deleted` identity is."; under *Sequence
 response envelope*: "An entry is the member's mutation result, its alias
 result under Alias targets, or its problem" and "A result entry is the
-member's mutation result or alias result plus those two members"; under
+member's mutation result plus those two members, or its alias result plus
+`operationIndex` alone"; under *Mutation results*: "an alias mutation
+produces the alias result defined under Alias targets instead"; under
 *Duplicate keys and retained dispositions*: "A member's **disposition** is
 its mutation result, its alias result, or its problem" and "Retained
 problems, `deleted` identities, and alias results disclose no record and
@@ -1665,7 +1771,8 @@ targets).
 ## D35 — The uniqueness namespace is symmetric and Bead-scoped
 
 **Status: applied as recommended while transcribing D31's ruling
-(2026-09-08); provisional.**
+(2026-09-08); provisional. Fork for the operator: Bead-scoped (option 1,
+applied) versus literal canonical segments including Links (option 3).**
 
 **Context.** The ruling: "uniqueness across canonical segments and aliases
 is a store invariant refused with `identity-taken` (a put whose path is a
@@ -1694,21 +1801,53 @@ the other side.
    `beads/foo` creatable beside a live `alias/foo`, the collision the
    invariant exists to prevent.
 3. Symmetric over Bead and Link segments alike, "canonical segments" read
-   literally. Stricter with no resolution benefit; it can be widened later
-   without invalidating an existing alias, whereas narrowing later would.
+   literally — the literal reading of the ruling. Stricter with no
+   resolution benefit. *(Corrected, council 12: the migration claim this
+   option first carried was inverted. Widening the namespace later, from
+   option 1 to this one, is what invalidates existing state — an
+   `alias/foo` lawfully beside `links/foo` becomes a violated invariant —
+   whereas narrowing later invalidates nothing. The argument from safe
+   evolution therefore favours starting with this option, which is why
+   the choice is flagged as a fork.)*
 
 **Recommendation.** Option 1, applied.
 
+**Amended (council 12).** Option 1 stays applied, with its rationale
+corrected (Claude M1, Codex 5, Claude L2). The reason first given — that
+`links/foo` and `alias/foo` are told apart by spelling — applies word for
+word to `beads/foo` and `alias/foo`, so it cannot be what distinguishes
+Beads from Links. The real distinguishing reason is the realization
+namespace: the alias root fronts the realization's aliases, and in beads
+keys and aliases share one project-wide namespace while Links have no
+addressable ids there; the invariant is imported from the store, and Read
+resolution decides nothing — whether a URI names an alias is decided by
+its spelling alone. The specification now says so under *Aliases* and
+states three things option 1 had left implicit under *Alias targets*: the
+refused creation is a *Bead* creation; Link segments and alias paths
+coexist (`links/foo` and `alias/foo` do not collide, and a Link creation
+may supply an id that is a live alias path); and an authority never
+allocates a Bead id that is a live alias path (also stated, amended,
+under *Scopes and identity*). The creation direction is no longer
+`identity-taken` but `alias-path-taken`, under D39.
+
 **Depends on this decision.** Under *Alias targets*: "Canonical Bead
 segments and alias paths share one uniqueness namespace in the Scope"
-through "which repoints it."; under *Problem details*, the
+through "answers the uniqueness fault."; under *Problem details*, the
 `identity-taken` meaning: "Canonical Bead segments and alias paths share
-one uniqueness namespace under Alias targets" through "fail the same
-way."; under *Aliases*: "Alias paths and canonical Bead segments share one
-uniqueness namespace in the Scope." Fixture `aliases.json`, exchanges
-`put-alias-on-a-committed-bead-path` and
-`create-bead-on-a-live-alias-path`. Catalog row
-`read-update.alias.uniqueness-invariant`.
+one uniqueness namespace under Alias targets" through "is
+`alias-path-taken` (amended 2026-09-08, council 12)."; under *Aliases*:
+"Alias paths and canonical Bead segments share one
+uniqueness namespace in the Scope." and "They share it because the
+realizations the alias root fronts share one" through "which spelling
+alone decides."; under *Scopes and identity*: "and for a Bead never one
+that is a live alias path under Aliases (amended 2026-09-08, council
+12)". Fixtures `aliases.json`, exchanges
+`put-alias-on-a-committed-bead-path`, `create-bead-on-a-live-alias-path`,
+and `create-link-at-a-path-beside-an-alias`, and `alias-sequences.json`,
+exchange `create-bead-on-a-released-alias-path`. Catalog rows
+`read-update.alias.uniqueness-invariant`,
+`read-update.alias.link-coexistence`, and
+`read-update.alias.allocation-avoids-aliases`.
 
 ## D36 — Classifying a bad `alias` or `target` spelling
 
@@ -1751,27 +1890,57 @@ begins.
 the alias-target cause and the carrier-syntax sentence gains the `alias/`
 root check.
 
+**Amended (council 12).** Still provisional, with one reclassification
+and one scoping sentence (Claude M3, Codex 8). The `alias` member's
+wrong-root case moves from `malformed-request` to `resource-not-found`:
+a well-formed `alias` beneath the wrong root is a subject reference with
+the wrong root, and D13 answers a wrong-root subject with
+`resource-not-found` — the subject does not exist as the required kind —
+for a put as for a delete; option 3's objection, that nothing is "not
+found" for a put, is outweighed by parity with D13, and the profile
+already answered a wrong-root `bead` the same way whatever the operation.
+Grammar violations remain `malformed-request`. After the fold the same
+fault class no longer has three answers: one sentence under *Problem
+details* scopes every reference fault by what the reference is — a
+subject reference (`bead`, `link`, or the `alias` member) with the wrong
+root is `resource-not-found`; an endpoint or target reference of the
+wrong category (an alias, Link, or external URI as a put's `target`, or a
+Link path as a Link endpoint) is `validation-failed`; and a value that is
+no reference shape at all (neither a relative path nor an absolute URL
+under the grammar, or a `@name` where none is admitted) is carrier
+syntax, `malformed-request`, rejecting the whole carrier.
+
 **Depends on this decision.** Under *Alias targets*: "`alias` is resolved
 against the canonical Scope URL like a durable reference, and it never
-accepts `@name`; a spelling that is not beneath the `alias/` root, or that
-violates the grammar, is carrier syntax rejected before execution with
-`malformed-request`." and "A put whose `target` is not a canonical Bead
-reference — an alias, absolute or local, a Link, or an external URI —
-fails with `validation-failed`, carrying one diagnostic that names the
-cause"; under *Problem details*: "or an alias put's `target` is not a
-canonical Bead reference — an alias, a Link, or an external URI", "An
-alias put whose canonical `target` names a Bead that does not exist or is
-not visible, and an alias delete whose alias is unknown, fail the same
-way", and "and an `alias` member whose spelling is not beneath the
-`alias/` root". Fixture `aliases.json`, exchanges
-`put-alias-chain-target-is-validation-failed`, `put-alias-unknown-target`,
-and `delete-alias-unknown`. Catalog row
-`read-update.alias.uniqueness-invariant`.
+accepts `@name`; a spelling that violates the grammar is carrier syntax
+rejected before execution with `malformed-request`, and a well-formed
+spelling that is not beneath the `alias/` root names no alias and fails
+with `resource-not-found` when the member is reached" and "A put whose
+`target` is not a canonical Bead reference — an alias, absolute or local,
+a Link, or an external URI — fails with `validation-failed`, carrying one
+diagnostic that names the cause"; under *Problem details*: "or an alias
+put's `target` is not a canonical Bead reference — an alias, a Link, or
+an external URI", "An alias put whose canonical `target` names a Bead
+that does not exist or is not visible, and an alias delete whose alias is
+unknown, fail the same way", and "Which code a reference fault takes
+follows from what the reference is" through "is carrier syntax,
+`malformed-request`." Fixtures `aliases.json`, exchanges
+`put-alias-chain-target-is-validation-failed`,
+`put-alias-link-target-is-validation-failed`,
+`put-alias-external-target-is-validation-failed`,
+`put-alias-unknown-target`, `delete-alias-unknown`, and
+`put-alias-wrong-root-alias-is-resource-not-found`, and
+`alias-sequences.json`, exchanges
+`malformed-later-alias-member-rejects-the-carrier` and
+`inadmissible-alias-target-fails-only-its-member`. Catalog rows
+`read-update.alias.non-canonical-target`,
+`read-update.alias.unknown-subject`, `read-update.alias.carrier-syntax`,
+and `read-update.sequence.contextual-validation`.
 
 ## D37 — Alias resolution follows from the alias targets
 
-**Status: applied as recommended while transcribing D31's ruling
-(2026-09-08); provisional.**
+**Status: applied as option 2 after council 12 (2026-09-08);
+provisional.**
 
 **Context.** *Scope discovery* says `aliases` "appears, in any profile,
 exactly when the authority serves alias resolution", and *Alias
@@ -1795,13 +1964,195 @@ Read+Update, and the ruling did not address discovery.
    question 1 that the ruling did not make.
 3. Say nothing. Leaves the contradiction for a council to find.
 
-**Recommendation.** Option 1, applied; option 2 is the one-line follow-up
-if the operator wants the bundle to enforce it.
+**Recommendation.** Option 1 was applied at the transcription; option 2
+is applied after council 12.
 
-**Depends on this decision.** Under *Alias targets*: "Because every
+**Applied as option 2 (council 12, 2026-09-08).** Option 1 enforced the
+consequence by nothing: the membership table row, `readUpdateDiscovery`,
+the specification's own minimum Read+Update example, and the wire test's
+admitted shapes all said optional, so an implementer reading them would
+ship a directory that offers `put-alias` while discovery omits `aliases`
+— and under the Read profile's rule ("a client MUST NOT construct alias
+URLs for an authority that does not advertise it") every alias such an
+authority minted would resolve `404` (Claude H1, Codex 2). `aliases` is
+now required in Read+Update and Transactional: the table row reads
+optional | required | required, `readUpdateDiscovery.required` carries
+`aliases` (the sealed `readDiscovery` is untouched), both write-profile
+discovery examples advertise it, the *Scope discovery* sentence is
+amended (2026-09-08, council 12) to say it is optional in Read and
+required in the profiles that offer the alias targets, the wire test
+admits a document with it and rejects one without, and row
+`read-update.discovery.aliases` binds it. Still provisional: this changes
+the discovery membership resolved under question 1, which D31's ruling
+did not address.
+
+**Depends on this decision.** Under *Scope discovery and human
+documentation*: "The `aliases` member is optional in Read, where it
+appears exactly when the authority serves alias resolution, and required
+in Read+Update and Transactional" and the table row "| `aliases` |
+optional | required | required |"; the minimum Read+Update example and
+the Transactional example. Under *Alias targets*: "Because every
 Read+Update Scope offers the alias targets, a Read+Update authority serves
-alias resolution and advertises `aliases` in its discovery document."
-Fixture `discovery.json`, exchange `discovery-document` (`aliases`).
+alias resolution and advertises `aliases` in its discovery document"
+through "the bundle's `readUpdateDiscovery` requires it." Bundle:
+`readUpdateDiscovery.required`. Fixture `discovery.json`, exchange
+`discovery-document` (`aliases`). Catalog row
+`read-update.discovery.aliases`.
+
+## D38 — Alias spellings in Resource records
+
+**Status: applied provisionally as option (b) after council 12
+(2026-09-08); teed up for the operator.**
+
+**Context.** The model says "A reference written using an alias is
+resolved to the canonical Bead URL when the authority admits the write;
+stored and served references are always canonical, so aliases never
+appear in Resource data." Read+Update is the first write profile, and its
+text refused every non-canonical durable reference with
+`resource-not-found` ("the subject does not exist as the required kind")
+and verified the fixed root before lookup, so `bead: "alias/adr/latest"`
+on an update, or `source: "alias/adr/latest"` on a Link creation, was
+admitted by the bundle, promised to resolve by the model, and refused by
+the profile. D31's ruling settled only `put-alias`'s own `target`. Nor did
+the identity normalization mention alias spellings: re-resolving a
+spelling on every presentation would make a byte-identical retry after a
+repoint an `idempotency-conflict` — the spelling-versus-resolution class
+council 9 fixed for `@name` (Claude H2, Codex 3).
+
+**Options.**
+
+1. (a) Alias spellings are not admitted in Resource records: the
+   wrong-kind rule applies and they fail `resource-not-found` (or
+   `validation-failed`, mirroring the put-target ruling), and the model
+   sentence is narrowed to "a reference written using an alias is
+   admitted only by alias resolution under the Read profile; mutation
+   records name canonical identity". Smaller, and consistent with the
+   no-chain posture; but it narrows ruled model text.
+2. (b) Alias spellings are admitted for a `bead` subject and for Link
+   endpoints `source` and `target`, bare or as a pinned `uri`, resolved to
+   the alias's current target when the member is reached — exactly as a
+   `@name` binding is — and stored and served canonical; the retained
+   disposition and tombstone record the resolved canonical URL, and a
+   retry compares against the retained resolution, never the spelling
+   (D24's rule); an alias spelling that names no live alias fails
+   `resource-not-found`; a `link` subject spelled by alias is of the wrong
+   kind (`resource-not-found`, D13); `put-alias`'s own `target` stays
+   canonical-only as ruled.
+
+**Recommendation.** Option (b), applied. It keeps the pinned model
+sentence and reuses the spelling-versus-resolution machinery council 9
+built for `@name`; (a) would narrow ruled model text. The one ruled
+sentence it touches is D3's "Opaque external URIs and Pinned References
+are compared byte-exactly as written", amended (2026-09-08, council 12)
+to add that a pinned `uri` spelled by `@name` or by alias first resolves
+as the bare spelling does — a clarification the pinned-`@name` case the
+bundle already admits was owed. Resolution timing is observable inside a
+sequence: a put earlier in the sequence is what a later member observes,
+and a reference resolved through an alias does not follow a later
+repoint.
+
+**Depends on this decision.** Under *Aliases*: "Which mutation members
+admit an alias spelling, and when the authority resolves it, is defined
+under Alias targets." Under *Alias targets*: "An alias spelling —
+`alias/{alias-path}` or the absolute alias URL — is admitted wherever a
+canonical in-Scope Bead reference is" through "records the resolution
+rather than the spelling, under Idempotency keys." Under *Problem
+details*: "except that a `bead` subject or a Link endpoint spelled by
+alias is admitted and resolved under Alias targets, and fails this way
+only when the spelling names no live alias (amended 2026-09-08, council
+12)". Under *Idempotency keys*: the amended Pinned-Reference sentence and
+"An alias spelling admitted under Alias targets normalizes to the
+canonical Bead URL it resolved to when the member was reached" through
+"exactly as a `@name` reference resolves through its creator's retained
+or expired disposition." Under *Normative schema bundle*: "the resolution
+of an alias spelling to a live alias". Fixture `alias-references.json`
+(a put, an update through an alias subject, a Link created through an
+alias source, a sequence that repoints then creates a Link through the
+alias, a retry after the repoint that matches its retained resolution, a
+`link` subject spelled by alias, and an alias spelling naming no live
+alias). Catalog rows `read-update.alias.reference-resolution` and
+`read-update.alias.reference-idempotency`; the wire test's alias-aware
+reference resolution.
+
+## D39 — A Bead creation on a live alias path is `alias-path-taken`
+
+**Status: applied provisionally after council 12 (2026-09-08).**
+
+**Context.** D35 refused a creation whose supplied `id` is a live alias
+path with `identity-taken` — `conflict`, `409`, retry `never`, justified
+in D13 by "the identity is never reassigned, so the same request can
+never succeed". A live alias path is not never reassigned: delete the
+alias and the identical creation succeeds, which the fixture's own
+condition said while its response said `never`. Clients branch on
+`retry`, and the problem-row table is closed per code, so the
+mis-disposition could not be fixed in the meaning text alone (Claude M2).
+
+**Options.**
+
+1. A dedicated row: `alias-path-taken`, family `conflict`, `409`, retry
+   `after-state-change` — the path is held by a live alias, and the
+   condition clears when the alias is deleted. `identity-taken` keeps the
+   committed-Bead-path direction (never reassigned, retry `never`). One
+   more row in a closed table, and the one code this fold adds.
+2. Keep `identity-taken` for both directions and accept the
+   mis-disposition, saying in the meaning that for a live alias path the
+   condition clears when the alias is deleted and the client then presents
+   a new key — which is what `never` means for the key, not for the
+   semantic request, a distinction the profile does not otherwise draw.
+
+**Recommendation.** Option 1, applied: clients branch on `retry`, and a
+`never` that means "after one state change" is the imprecision the
+disposition vocabulary exists to avoid.
+
+**Depends on this decision.** The row "| `alias-path-taken` | `conflict`
+| 409 | `after-state-change` |" and its meaning under *Problem details*;
+the amended `identity-taken` meaning ("while a Bead creation whose
+supplied `id` has the `{id-path}` of a live alias is `alias-path-taken`
+(amended 2026-09-08, council 12)"); under *Alias targets*: "a Bead
+creation that supplies an `id` whose `{id-path}` is a live alias path
+fails with `alias-path-taken`, a condition that clears when the alias is
+deleted"; bundle `readUpdateProblemCode` and the `readUpdateProblem`
+branch; the wire test's row table; fixtures `aliases.json`
+(`create-bead-on-a-live-alias-path`, now `alias-path-taken`) and
+`alias-sequences.json` (`create-bead-on-a-released-alias-path`, the
+condition clearing); catalog row
+`read-update.alias.uniqueness-invariant`; *Open protocol questions*
+entry 6.
+
+## D40 — Authorization of alias operations
+
+**Status: applied provisionally after council 12 (2026-09-08).**
+
+**Context.** *Alias targets* said "A put or delete the principal may not
+perform fails with `forbidden`", and *Authorization views* says a
+mutation's policy "observes the authenticated principal, the staged
+pre-state, and the proposed post-state". Authorization Views are
+projections over Resources, and an alias is not one: nothing said what
+the pre-state of a repoint or delete is when the current target is
+invisible to the principal, nor whether a put requires write on its
+target Bead. The generic sentence covered it formally; an implementer had
+to invent the predicate (Claude L7).
+
+**Options.**
+
+1. State the predicate: alias operations are authorized as mutations of
+   the Beads they touch — a put requires that the principal may write the
+   proposed target Bead, and a repoint or delete additionally the current
+   target; when the current target is invisible to the principal the
+   alias is `resource-not-found`, disclosing nothing, as an invisible
+   subject is.
+2. Leave it to "its policy". Formally covered, but two conforming
+   authorities would answer the same probe differently, and an alias put
+   or delete would become a way to learn whether a hidden Bead exists.
+
+**Recommendation.** Option 1, applied.
+
+**Depends on this decision.** Under *Alias targets*: "Alias operations
+are authorized as mutations of the Beads they touch" through "the alias
+itself is `resource-not-found`, disclosing nothing." Fixture
+`aliases.json`, exchange `delete-alias-with-an-invisible-current-target`.
+Catalog rows `read-update.alias.authorization` and
+`read-update.alias.forbidden`.
 
 ---
 
@@ -1840,7 +2191,20 @@ Not decisions, but things the operator may want to know:
   Transactional profile inherits the two alias targets as singleton and
   sequence members. Whether `batch` admits alias members, and how alias
   mutation appears in Scope history, receipts, and the changefeed, is
-  left to the Transactional packet; *Alias targets* says so.
+  left to the Transactional packet; *Alias targets* and, after council
+  12, *Explicit alias operations* and the Transactional listing under
+  *Operation Directory and singleton targets* say so — the one-operation
+  Mutation Transaction and Mutation Receipt paragraph is delimited to the
+  six Resource targets, and the alias targets are not added to the
+  eight-record `batch` sketch, which would decide the deferred question.
+- **The `validation` limits group on Transactional discovery
+  (cross-packet note X6).** After D29's corrective the group lives only
+  in `readUpdateAdvertisedLimits`, and after council 12 the *Advertised
+  limits* bullet calls it mutation surface advertised by a Read+Update or
+  Transactional authority. The Transactional discovery definition, when
+  it is drafted, must therefore carry the `validation` group; the shared
+  `advertisedLimits` no longer does and, being sealed Read surface, must
+  not.
 
 ---
 
@@ -1976,4 +2340,60 @@ the 26 sealed definitions byte-identical to `0b7d86e7`, and the sealed
 definition order is still the bundle's prefix. No sealed artifact was
 touched, no Read evidence was regenerated, and nothing here is a
 conformance claim.
+
+---
+
+## Council 12 fold
+
+Council 12 (Claude, Codex, Gemini) reviewed `0b7d86e7..00493f2`, the head
+at which D31's ruling was applied. Each finding below records what was
+done and where, or why it was not folded. Every judgment the fold
+required is a numbered decision above — D38–D40, applied provisionally —
+or an amendment recorded under the decision that owns the sentence.
+Ruled sentences were amended, never contradicted, and each carries
+"(amended 2026-09-08, council 12)" in the specification: the *Scope
+discovery* `aliases` sentence and its example caption, the *Scopes and
+identity* allocation sentence, the *Advertised limits* `validation`
+bullet, the *Link endpoint constraints* advertising sentence, the
+`identity-taken` meaning, the `resource-not-found` boundary sentence and
+the carrier-syntax sentence under *Problem details*, the *Mutation
+results* introduction, the Pinned-Reference sentence under *Idempotency
+keys*, and the Transactional singleton paragraph under *Operation
+Directory and singleton targets*. No new problem code was added beyond
+`alias-path-taken` (D39), and the Read profile's closed tables are
+untouched.
+
+| Finding | Disposition |
+| --- | --- |
+| Claude H1 / Codex 2 — `aliases` optional in the table, bundle, example, and test while *Alias targets* makes every Read+Update authority advertise it | Folded: D37 applied as option 2 — table row optional \| required \| required; `readUpdateDiscovery.required` gains `aliases` (sealed `readDiscovery` untouched); both write-profile examples advertise it; *Scope discovery* sentence amended; schema-bundle and wire tests updated (admits with, rejects without); row `read-update.discovery.aliases`. |
+| Claude H2 / Codex 3 — alias-spelled references in ordinary mutation records: the model promises resolution on write, the profile refused them, and identity never mentioned them | Folded: D38, applied provisionally as (b) and teed up for the operator — admitted for a `bead` subject and Link endpoints, resolved when the member is reached, stored canonical, identity over the retained resolution; the D3 Pinned-Reference sentence amended; *Aliases*, *Alias targets*, *Problem details*, *Idempotency keys*, *Normative schema bundle*; fixture `alias-references.json`; rows `read-update.alias.reference-resolution` and `read-update.alias.reference-idempotency`; the wire test resolves alias spellings. |
+| Codex 4 / Gemini 2 — a deleted Bead result may carry `source` and `sourceRevision` | Folded: `mutationResultMembers` gains an `allOf` branch keyed on `deleted.resourceKind` (D10 tightened); wire-test rejections for a singleton result and a sequence member result; bound by the existing "absent from every other result" citation under `read-update.singleton.owned-link-source-revision`. |
+| Claude M4 / Codex 6 — `validation` "advertised only by a Read+Update discovery document" excludes Transactional | Folded: the bullet now calls the group mutation surface advertised by a Read+Update or Transactional authority and absent from Read discovery; *Link endpoint constraints* sentence amended; definition paragraph notes the Transactional definition carries the group; D16 corrected again; cross-packet note X6; citation added to `read-update.discovery.limits`. |
+| Claude M5 / Codex 10 — stale ruling-state prose; "every successful mutation produces a mutation result" false for aliases | Folded: packet intro, design index, STATUS.md, and Open protocol question 2 now say D1–D32 are ruled or ratified and D33–D40 are the only open decisions; *Mutation results* introduction restricted to Resource mutations with an alias mutation producing the alias result (D33 corrected; D33 stays provisional). |
+| Claude M1 / Codex 5 / Claude L2 — D35's boundary text and inverted migration claim | Folded: "a Bead creation"; Link segments and alias paths coexist; the allocator never mints a live alias path (*Alias targets* and, amended, *Scopes and identity*); the invariant motivated under *Aliases* by the realization namespace; option 3's claim corrected and the fork flagged for the operator; rows `read-update.alias.link-coexistence` and `read-update.alias.allocation-avoids-aliases`; fixtures `create-link-at-a-path-beside-an-alias` and `create-bead-on-a-released-alias-path`. |
+| Claude M2 — a creation on a live alias path is `never` yet succeeds after the alias is deleted | Folded: D39 — row `alias-path-taken` (`conflict`, `409`, `after-state-change`), `identity-taken` keeps the committed-path direction; bundle, wire-test table, fixture `create-bead-on-a-live-alias-path`, row `read-update.alias.uniqueness-invariant`, question 6. |
+| Claude M3 / Codex 8 — wrong-root codes inconsistent across subject, alias member, and target | Folded: one scoping sentence under *Problem details* (subject → `resource-not-found`; endpoint or target of the wrong category → `validation-failed`; no reference shape → `malformed-request`); D36 amended (the `alias` member's wrong-root case moves to `resource-not-found`, parity with D13); fixtures for a Link-spelled and an external-URI target, a wrong-root `alias` member, and a non-reference `alias` value rejecting the whole carrier; rows `read-update.alias.non-canonical-target`, `read-update.alias.unknown-subject`, `read-update.alias.carrier-syntax` (split out of `uniqueness-invariant`, which keeps the two uniqueness directions), and `read-update.sequence.contextual-validation` re-cited. |
+| Codex 1 — D26's admission claims are not atomic per carrier, so identical sequences can split ownership | Folded: the claims are one linearizable step relative to competing admissions, holding no lock past admission (D26 clarified); row `read-update.idempotency.claim-atomicity`; fixture trio in `sequence-idempotent-retry.json` (original, competing presentation refused member by member, replay after completion). |
+| Codex 7 — the inherited Transactional listing promises an unreconciled alias receipt contract | Folded: the one-operation Mutation Transaction and Mutation Receipt paragraph delimited to the six Resource targets (amended), with the alias targets' Transactional contract — receipt, history, changefeed, and `batch` admission — deferred to the Transactional profile (X5); aliases not added to the eight-record batch sketch. |
+| Claude L1 — alias operations have no model hook or check order, and `batch` admission is not named open | Folded: new *Explicit alias operations* section with `PutAlias(alias, target)` and `DeleteAlias(alias)` sketches, protocol-level, following the model's check order with identifier uniqueness first; the *Alias targets* deferral sentence names `batch` admission; cited by `read-update.alias.uniqueness-invariant`. |
+| Claude L3 — `put-alias` is a cheaper existence probe than a creation | Folded: one sentence beside the `identity-taken` meaning, cited by `read-update.validation.identity-taken`. |
+| Claude L7 — what "may not perform" means for an alias | Folded: D40 — alias operations are authorized as mutations of the Beads they touch; an invisible current target makes the alias `resource-not-found`; fixture `delete-alias-with-an-invisible-current-target`; rows `read-update.alias.authorization` and `read-update.alias.forbidden`. |
+| Claude L4 / Codex 9 — `validationDiagnostic` locations untyped | Folded: `instanceLocation` is `jsonPointer`, `schemaLocation` is `absoluteUri`; wire-test rejections for a non-pointer and a non-URI, and an admitted absolute keyword location. |
+| Claude L6 — wording (`discovery.json` description; "plus those two members" for an alias entry) | Folded: description reworded; the *Sequence response envelope* sentence says an alias entry carries `operationIndex` alone (D33 corrected). |
+| Claude M6 / Codex 8 — coverage holes; one row bundling four obligations | Folded: rows `read-update.alias.forbidden`, `read-update.alias.retained-without-reauthorization`, and the split rows above; `read-update.alias.sequence-binding` now also binds "never `operationName`" and the Link-bound `@name` rejection; fixtures for an alias `idempotency-conflict`, a `delete-alias` member in a sequence, a retained alias disposition replayed inside a sequence, and the whole-carrier-versus-member pair in `alias-sequences.json`. |
+| Claude L5 — the Read-projection definition the separate gate needs is not pinned | Not folded here: it feeds the separate gate PR under D29 (the sealed definition set by name, `protocolProfile` included; top-level metadata out). Recorded so it is not lost. |
+| Gemini 1 — corrupted `@name` strings and malformed JSON in the catalog and `aliases.json` | Not folded: a false positive. The Gemini CLI expanded `@name` tokens as file references while reading its input; the tree is clean — the catalog parses (66 rows at that head), `read-update.alias.sequence-binding` is intact, and no `@docs/` string exists. |
+| Gemini 3, 4, 5 — praise for the alias record split, the fold's internal consistency, and evidence discipline | No action. |
+
+### Validation at the fold
+
+The lockstep tests, strict Ajv compilation of every bundle definition (83),
+validation of every fixture body (189 across thirteen fixture files), the
+Read-projection check (all 26 sealed definitions byte-identical to
+`0b7d86e7`, the sealed order still the bundle's prefix, both bundle copies
+identical), and the repository's typecheck, lint, format, boundary, and
+evidence gates were run and are reported with the fold. None of it is
+conformance evidence; `claimEligible` remains `false`, no manifest binds a
+Read+Update row (78 after this fold, all unclaimed), and the sealed Read
+cohort is untouched.
 

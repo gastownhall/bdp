@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "read-update-sequence-idempotent-retry",
-  "description": "A sequence whose client disconnected after admission, so its response was lost. A concurrent identical retry meets the first member in flight: that member and its dependent fail transiently and claim nothing, while an unrelated third member runs. After the delay the sequence is retried byte-identically, then with a new member in front, then with all three members: every retained disposition is returned without re-execution — the allocated identities and revisions never change — positioned by the present member's operationIndex and operationName. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "description": "A sequence whose client disconnected after admission, so its response was lost. A concurrent identical retry meets the first member in flight: that member and its dependent fail transiently and claim nothing, while an unrelated third member runs. After the delay the sequence is retried byte-identically, then with a new member in front, then with all three members: every retained disposition is returned without re-execution — the allocated identities and revisions never change — positioned by the present member's operationIndex and operationName. A second pair shows that a carrier's admission claims are one linearizable step: two identical sequences whose members depend on each other through state rather than through @name are presented concurrently, the second observes every claim of the first and is refused member by member, and, presented again after the first completes, replays both retained dispositions. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
   "scope": "https://beads.example/acme/",
   "exchanges": [
     {
@@ -469,6 +469,225 @@
                 "attribution": { "principal": "agent:planner", "status": "claimed" },
                 "properties": {
                   "title": "Tidy the fixture world",
+                  "status": "closed"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "claims-are-one-step-original",
+      "condition": "Admitted first. Its members depend on each other through state, not through @name: member 1 addresses by canonical id the Bead that member 0 creates with a supplied id. Admission claims both keys as one linearizable step before member 0 starts.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-claims-create",
+              "operation": "createBead",
+              "id": "beads/notes/claims",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Claims are one step",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-claims-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/notes/claims",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/notes/claims",
+                "type": "https://work.example/types/task",
+                "revision": "claims-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Claims are one step",
+                  "status": "open"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/notes/claims",
+                "type": "https://work.example/types/task",
+                "revision": "claims-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Claims are one step",
+                  "status": "closed"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "competing-presentation-observes-every-claim",
+      "condition": "The identical sequence presented while the original's member 0 is still in flight. The original's claims were one step, so this presentation observes both of them: member 1 finds w1-claims-close in flight although the original has not reached that member, and so cannot execute the update ahead of the creation or retain a disposition the original would contradict. Nothing executes, retains, or claims; the claim step held no lock, and unrelated requests interleave as before.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-claims-create",
+              "operation": "createBead",
+              "id": "beads/notes/claims",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Claims are one step",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-claims-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/notes/claims",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-in-progress",
+              "status": 409,
+              "retry": "after-delay",
+              "operationIndex": 0,
+              "retryAfter": 2,
+              "detail": "w1-claims-create has not reached a terminal outcome"
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-in-progress",
+              "status": 409,
+              "retry": "after-delay",
+              "operationIndex": 1,
+              "retryAfter": 2,
+              "detail": "w1-claims-close is claimed by the sequence that first presented it and has not reached a terminal outcome"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "presentation-after-completion-replays-both",
+      "condition": "After the delay, once the original has completed: both keys are retained with the same semantic identity, so both retained dispositions answer without re-execution.",
+      "retained": [
+        { "from": "claims-are-one-step-original", "index": 0, "at": 0 },
+        { "from": "claims-are-one-step-original", "index": 1, "at": 1 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-claims-create",
+              "operation": "createBead",
+              "id": "beads/notes/claims",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Claims are one step",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-claims-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/notes/claims",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/notes/claims",
+                "type": "https://work.example/types/task",
+                "revision": "claims-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Claims are one step",
+                  "status": "open"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/notes/claims",
+                "type": "https://work.example/types/task",
+                "revision": "claims-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Claims are one step",
                   "status": "closed"
                 }
               }
