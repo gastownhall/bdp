@@ -81,3 +81,41 @@ read back the primary Memory-compat item 4 and original erasure-question comment
 checked diff whitespace and local Markdown links. No runtime tests, commit, push,
 or external post were performed by this reconciliation worker. The parent must
 review the diff and retain the full exact-head council gate before any clearance.
+
+
+## 2026-09-08 — council on reconciled head500100aa
+
+Native Codex reviewed the whole reconciled packet at
+`500100aacf2afd4bb999684cc0b9c70ef3ca2119`:0C/0H/1M/1L. Gemini reviewed the
+same frozen packet with bounded source context:0C/2H/0M/0L. Claude and the
+final correction-head checks remain pending. This is not full-panel clearance.
+
+- Codex Medium, replacement-history enumeration: accepted. H7 now explicitly
+  queues current-lineage-only versus all-retained enumeration after
+  `r1→r2→r3`, restore to r1, retain r2/r3, then mint r4. It names ordering,
+  completeness and H6 predecessor/successor consequences; HR09/HR10 exercise
+  that case. No alternative selected and H9 retained addresses stay fixed.
+- Codex Low, RP1 queue wording: accepted. RP1’s by-name26-definition projection
+  is already ruled. The introduction now names only the remaining separate
+  coverage-walk judgment, whose walk never changes the digest.
+- Gemini High, exact-decimal versus binary64 admission: not accepted. The
+  snapshot did not include #23’s full later admission paragraph. At pinned
+  `2c537a6f8a4f42e4fef0fa5d47439bcb25d2efe7`, Revisions lines632–661 explicitly
+  retains exact-decimal equality and admits only literals that round-trip
+  through binary64 unchanged in exact decimal value. It states agreement on
+  admitted values and the named JCS model. TX’s erasure paragraph references
+  that already selected law; restricting numeric admission to digest-only
+  would contradict it. No numeric law was changed. Supplement the next seat’s
+  snapshot with the actual #23 paragraph rather than treating absent merged
+  prerequisites as a newly discovered History contradiction.
+- Gemini High, baseline wildcard schema rejects `*`: the baseline observation
+  is true and already identified as an unmerged #22 prerequisite. Exact
+  `c201cc28f74c6f71212aaf7f25966aabf55fb97e` has `ownsOutgoing.propertyNames.anyOf`
+  allowing either `*` or absoluteHttpUrl, and a separate wildcard declaration.
+  The source map expressly separates that head from the sealed main baseline.
+  Do not modify the baseline schema or treat a known integration prerequisite
+  as a new packet defect. Supply this actual shape in the next review snapshot.
+
+Parent independently checked the changed History paragraphs, pinned TX erasure
+text, #23 numeric paragraph and #22 wildcard definition. Only design documents
+change. Runtime/product/harness conformance remains untested and unclaimed.

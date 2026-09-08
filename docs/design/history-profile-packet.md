@@ -85,7 +85,9 @@ not a byte-level rule. H10 makes this a visible decision rather than an adapter 
 
 Each recommendation below remains unruled. Draft wording is quoted for review,
 not inserted into the normative spec. H1–H4 form the first History batch after
-W1’s outstanding RP1 decision is addressed; subsequent batches follow dependencies.
+W1’s remaining RP1 apply judgment is addressed: whether the `$ref` walk stays as
+a coverage check that never changes the digest. RP1’s projection by the26 sealed
+definition names is already ruled. Subsequent batches follow dependencies.
 
 ### H1 — Profile placement and advertised capability
 
@@ -268,6 +270,22 @@ Recommend pagination pins enumeration only, creates no retention hold, and fails
 explicitly if it cannot honor that snapshot. A latest link need not be a page member.
 History lineage branching/merge navigation is not inferred from importing Jim’s
 store-local ordinals. The generic authority remains the selected single history.
+
+**History replacement fork (OPEN, added 2026-09-08 council).** Start with
+`r1 → r2 → r3`; restore the authority to `r1`, retain the old addresses for
+`r2`/`r3`, then mint `r4`. H9 requires retained exact addresses to keep resolving,
+but does not say which versions this page enumerates. Choose between:
+(a) enumerate only the current authority lineage, with completeness explicitly
+limited to that lineage, while retained replaced versions remain directly
+addressable; or (b) enumerate every retained version, with an explicit ordering
+and membership model distinguishing replaced history from the current lineage.
+The second option costs extra metadata and navigation rules; the first makes
+address resolution broader than enumeration and must disclose that limit.
+H7 option B can instead defer enumeration until this is settled. No alternative
+is selected here. H6 must then say which predecessor/successor relations survive
+replacement and whether any can cross it; never label `r4` a direct successor
+of `r3` just because a storage ordinal is larger. All options preserve H9’s
+retained-address law and H12’s permanent erasure obligations.
 
 **Consequences.** New page definitions, page/cursor fixtures, participation retention
 budget, client iteration. Coverage counts must be authorization-relative and observed
@@ -462,8 +480,8 @@ observable cases are the minimum review checklist, not a hand-maintained require
 | HR06 dispositions | Pruned/erased/unknown/unretained distinguished by evidence | Storage timeout never becomes not-found; erased payload never disclosed |
 | HR07 addressing | Escaped opaque token resolves exactly | Repeated/empty/query-mixed/alias revision request rejected |
 | HR08 HEAD | Status and permitted headers match GET; body empty | Client never treats status alone as a full typed absence diagnosis |
-| HR09 enumeration | Stable paginated window and declared order | Concurrent pruning yields selected refusal; no implied retention hold |
-| HR10 currency | Authorized responder-relative relations | Hidden latest/successor omitted, no invented global freshness |
+| HR09 enumeration | Stable paginated window, declared order and explicit current-lineage/all-retained membership after history replacement | Restore r1 after r1→r2→r3, retain r2/r3, mint r4; verify selected membership/completeness; concurrent pruning yields selected refusal and no retention hold |
+| HR10 currency | Authorized responder-relative relations, including the selected replacement boundary | Hidden latest/successor omitted; no invented global freshness or direct r3→r4 relation after restoration |
 | HR11 restore | Surviving unerased old address resolves unchanged; permanent ledger still applies to old copies | Positional tokens fenced; erased content never restored by epoch change; loss inferred only from positive evidence |
 | HR12 numeric/token boundary | Declared scheme and admitted values honored | Issue/graph serialization or ordinal mistaken for identity detected |
 | HR13 erasure recovery | For a Transactional consumer, T28 resnapshot and T29 projected-ledger cleanup cover old copies across restore/view rotation before publication | Pre-P checkpoint/snapshot refused; unestablishable retained content discarded; stale-import admission and History-only applicability remain unruled |
