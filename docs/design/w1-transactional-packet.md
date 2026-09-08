@@ -675,7 +675,7 @@ instant.
 
 ### 1.4 Decisions
 
-**T1 — Shape of the owned-Link delta.** *Revised (council 10).*
+**T1 — Shape of the owned-Link delta.** RATIFIED 2026-09-08 (operator: as drafted). *Revised (council 10).*
 Context: the draft requires an `updated` Event on the source with its fresh
 revision but leaves the delta member undefined. Options: (a) a singular
 `ownedLink { operation, link }` carrying exactly one transition, exclusive
@@ -695,7 +695,7 @@ another name, repeated the change the Link's own fact already carries in
 full, and widened the surface an erasure must reach (Claude M1); the delta
 form is what the draft's own Event law asks for. Recommendation: (a).
 
-**T2 — Payload of a `deleted` owned-Link transition.**
+**T2 — Payload of a `deleted` owned-Link transition.** RATIFIED 2026-09-08 (operator: as drafted).
 Options: (a) the deleted Link's identity `{ id, type, revision }`, with
 `revision` the final live revision; (b) the Link's complete last record;
 (c) `id` alone. Tradeoffs: (b) makes a deletion carry properties, contrary
@@ -704,7 +704,7 @@ to "Deleted Events do not retain the Resource's properties"; (c) drops the
 (a), which also matches the changefeed tombstone's identity shape (T17) and
 the deleted identity of X1.
 
-**T3 — Ordinal order of the facts one owned-Link operation induces.**
+**T3 — Ordinal order of the facts one owned-Link operation induces.** RATIFIED 2026-09-08 (operator: as drafted).
 *Clarified (council 10).*
 Options: (a) the Link's lifecycle fact, then the graph facts at in-Scope
 endpoints (source before target, a self-Link's one endpoint receiving both
@@ -721,7 +721,7 @@ which is the order a reader of the record would reconstruct. Consumers
 apply a group atomically, so the intermediate states between these facts
 are never published. Recommendation: (a).
 
-**T4 — No-op owned-Link updates; creation and deletion deltas.**
+**T4 — No-op owned-Link updates; creation and deletion deltas.** RATIFIED 2026-09-08 (operator: as drafted).
 *Clarified (council 10).*
 Options: (a) a no-op owned-Link property update versions neither the Link nor
 the source, and `CreatedData`/`DeletedData` carry no owned-Link data; (b) the
@@ -1257,7 +1257,7 @@ rejected.
 
 ### 2.4 Decisions
 
-**T5 — Batch envelope and request-side reference grammar.** *Revised
+**T5 — Batch envelope and request-side reference grammar.** RATIFIED 2026-09-08 (operator: as drafted). *Revised
 (council 10).*
 Context: the draft's operation sketch is non-normative, uses `format: uri`
 for Type IDs where the bundle uses `absoluteHttpUrl`, and lets a Pinned
@@ -1285,7 +1285,7 @@ validation the draft forbids); for (e), one open definition shared by both
 carriers (loses closure), or restated closed records (drift). Recommendation:
 (a)–(e) as stated.
 
-**T6 — HTTP statuses for the mutation surface.** *Revised (council 10).*
+**T6 — HTTP statuses for the mutation surface.** RATIFIED 2026-09-08 (operator: as drafted). *Revised (council 10).*
 Sub-decisions: (a) `200 OK` for every terminal receipt, `failed` included;
 alternatives are the failing operation's would-be status with a receipt body
 (mixes a problem status with a non-problem media type and breaks the
@@ -1306,7 +1306,7 @@ one statement of every target's statuses (T42), replacing the first
 draft's three partly inconsistent lists (Codex M12). Recommendation: (a)–(f)
 as stated.
 
-**T41 — Carrier-neutral semantic identity and pre-admission precedence.**
+**T41 — Carrier-neutral semantic identity and pre-admission precedence.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: T13 chose one key namespace across carriers but left the semantic
 comparison to the draft's "delivery-only metadata" sentence, which does not
 say whether `name` is significant or how a `@label` compares before its
@@ -1327,7 +1327,7 @@ incomparable to its own duplicate); (d) evaluate limits and rate limits
 before the key (a retry can then be refused the outcome it already owns).
 Recommendation: (a). The proposed text is under sections 2.1 and 4.1.
 
-**T42 — The endpoint/status matrix.**
+**T42 — The endpoint/status matrix.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft assigned statuses in three places that disagreed
 — its pre-admission set included `429` and `503` in one list and not
 another, "every method other than POST" swept up a CORS `OPTIONS` it also
@@ -2677,7 +2677,7 @@ rejected: the pair is present together or not at all.
 
 ### 3.5 Decisions
 
-**T7 — Result-entry model, pagination unit, and counting.** *Revised
+**T7 — Result-entry model, pagination unit, and counting.** RATIFIED 2026-09-08 (operator: as drafted). *Revised
 (council 10).*
 Context: the draft says a successful batch "contains one result per
 operation in declaration order" and that "Large set-operation results
@@ -2702,7 +2702,7 @@ projection of it (T32); and the sentence "one result per operation" in the
 draft is replaced at apply time (Claude M5). Counting is T46.
 Recommendation: (a).
 
-**T8 — Receipt lifecycle representation.** *Revised (council 10).*
+**T8 — Receipt lifecycle representation.** RATIFIED 2026-09-08 (operator: as drafted). *Revised (council 10).*
 Options: (a) `status` ∈ {`pending`, `completed`, `failed`} as the
 immutable disposition plus `detail` ∈ {`available`, `expired`,
 `withheld`} on terminal receipts, with the expired `completed`
@@ -2719,7 +2719,7 @@ always has one response shape; `pending` is not itself immutable — it is
 the one state that ends, by terminalization or by retraction (T34) — while
 a terminal disposition is. Recommendation: (a).
 
-**T9 — Receipt addressing and access.** *Clarified (council 10).*
+**T9 — Receipt addressing and access.** RATIFIED 2026-09-08 (operator: as drafted). *Clarified (council 10).*
 Sub-decisions: (a) receipts live at `receipts/{token}`, token in the
 checkpoint character profile, and `id` is the absolute URL; (b) unknown,
 foreign-principal, retracted, and prior-epoch receipt URLs return `404`
@@ -2737,7 +2737,7 @@ principal's credentials); for (d), a `200` namespace document with no
 members (a representation with no protocol meaning); for (e), `404`.
 Recommendation: (a)–(e) as stated.
 
-**T10 — Receipt problem form.** *Revised (council 10).*
+**T10 — Receipt problem form.** RATIFIED 2026-09-08 (operator: as drafted). *Revised (council 10).*
 Options: (a) the Read+Update problem shape composed by reference, plus
 required `status`, `operationIndex` under the T37 rule, optional
 `operationName`, `pointer`, `limit`, and the Read+Update `diagnostics` and
@@ -2750,7 +2750,7 @@ which the Read+Update wire has since superseded with
 sequence-only taxonomy" the draft refused for sequences; (c) states one
 diagnostic twice. Recommendation: (a).
 
-**T11 — Transactional problem table.** *Revised (council 10).*
+**T11 — Transactional problem table.** RATIFIED 2026-09-08 (operator: as drafted). *Revised (council 10).*
 Sub-decisions: (a) three Transactional-only rows — `cardinality-violated`,
 `event-history-expired`, `catch-up-timeout` — beside the inherited Read
 table and Read+Update rows, with the meanings of the three Read codes
@@ -2772,7 +2772,7 @@ construct a new request — and the diagnostics locate the failure); for
 names). Recommendation: (a)–(d) as stated.
 
 **T32 — One current-authorization projection for every receipt delivery
-path.**
+path.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft re-authorized "later reads" only, said nothing
 about duplicate `POST` responses, pages, or sequence projections, left
 `matched` summaries and deleted or superseded results unclassified, and
@@ -2798,7 +2798,7 @@ withholds the Decision and its owned Link and serves the Task.
 Recommendation: (a), with (b) recorded for the operator as the stricter
 reading.
 
-**T33 — Receipt response fields are the serving request's observation.**
+**T33 — Receipt response fields are the serving request's observation.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft required a terminal receipt's `BDP-Scope-Position`
 to equal the historical `requiredPosition`, which after a view rotation
 belongs to another view and after later mutations can precede a caller's
@@ -2871,7 +2871,7 @@ that writes the receipt row with the effects, one Dolt commit under the
 lease fence — and it is D22/D23's rule with the words changed.
 
 **T36 — Terminal disposition and allocated identities survive detail
-expiry.**
+expiry.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft's expired representation dropped `results`
 entirely, so a client retrying after expiry received `200 OK` and lost the
 authority-allocated identities of everything the transaction created, and
@@ -2890,7 +2890,7 @@ representation. Tradeoffs: (c) duplicates the `created` entries on
 This is the receipt-side twin of Read+Update D24. Recommendation: (a).
 
 **T37 — Receipt problem attribution: `operationIndex`, `pointer`, and
-`resource-erased`.**
+`resource-erased`.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft required `operationIndex` on every receipt
 problem although a serialization abort, a duration or induced-Event limit,
 or a joint aggregate constraint has no single index (Claude M6); its
@@ -2924,7 +2924,7 @@ value the client learns from `Retry-After` anyway); (c) forbid `202` on
 the original (an authority must then hold a connection for the whole
 duration). Recommendation: (a).
 
-**T39 — No-op entries and all-no-op transactions.**
+**T39 — No-op entries and all-no-op transactions.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft did not say how a receipt reports a semantic
 no-op update, which Read+Update D11 reports as `updated` with the retained
 revision (Claude M10). Options: (a) `updated` with the retained revision
@@ -2937,7 +2937,7 @@ outcome D11 declined for the same reason; a client that holds
 Recommendation: (a).
 
 **T43 — Problem definitions composed by context from the Read+Update
-definitions.**
+definitions.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft's `problemCodeRows` restated every Read row and
 its direct and receipt definitions did not enforce their own taxonomy —
 strict Ajv accepted `idempotency-conflict` inside a receipt problem,
@@ -2954,7 +2954,7 @@ would move Read's sealed rows into a new definition and duplicate them
 until then). Tradeoffs: (b) touches the sealed Read definition or states
 rows twice; (a) states nothing twice today. Recommendation: (a).
 
-**T46 — Receipt pagination counting.**
+**T46 — Receipt pagination counting.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft bounded receipt pages by "the advertised bound"
 while `page.maximumItems` counts Resource records, so it was unstated how
 `matched`, `withheld`, and `erased` entries count (Codex M17). Options:
@@ -3185,7 +3185,7 @@ RFC 9457 extension member.
 
 ### 4.3 Decisions
 
-**T12 — Key grammar and HTTP field form (shared).**
+**T12 — Key grammar and HTTP field form (shared).** RATIFIED 2026-09-08 (operator: as drafted).
 Options: (a) the checkpoint character profile, bare token in the HTTP field
 — now stated once by the Read+Update wire (D1) and referenced here; (b) the
 IETF `Idempotency-Key` draft's quoted `sf-string`; (c) any nonempty string
@@ -3215,7 +3215,7 @@ the first draft's (a) because it selected the namespace without completing
 the identity rule, the member projections, or the dependent-member cases
 (Codex H6, Claude H5); T40 and T41 complete it. Recommendation: (a).
 
-**T14 — `retention.idempotency` on a Transactional Scope.**
+**T14 — `retention.idempotency` on a Transactional Scope.** RATIFIED 2026-09-08 (operator: as drafted).
 Options: (a) prohibited, because the epoch-long receipt retention makes any
 finite value false, and the Advertised-limits text says the member is
 Read+Update-only (X2); (b) allowed as a lower bound; (c) allowed and
@@ -3223,7 +3223,7 @@ binding. Tradeoffs: (c) contradicts the draft's tombstone rule; (b)
 advertises a number that means nothing to a client. Recommendation: (a);
 the cross-packet statement is X2.
 
-**T15 — Character profile for the other history tokens.** *Revised
+**T15 — Character profile for the other history tokens.** RATIFIED 2026-09-08 (operator: as drafted). *Revised
 (council 10).*
 Options: (a) extend the Event-ID and checkpoint profile to epochs, view
 tokens, positions, transaction identifiers, receipt tokens, and keys, and
@@ -3238,7 +3238,7 @@ is struck (Codex M14, Claude verdict T15). Tradeoffs: (b) leaves the three
 Recommendation: (a).
 
 **T40 — `sequence` on a Transactional Scope: member projections and the
-retired Read+Update forms.**
+retired Read+Update forms.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the draft lists `sequence` among the Transactional targets, says
 sequence responses are not durable receipts, and says every mutation is a
 Mutation Transaction; the first draft chose one namespace but did not say
@@ -3325,7 +3325,7 @@ both profiles keep tombstones for committed effects only.
 ### 4.4 Shared-shape rules and cross-packet decisions
 
 **T22 — Owned-source secondary revision and the deleted-identity shape
-(shared).** *Revised (council 10).*
+(shared).** RATIFIED 2026-09-08 (operator: as drafted). *Revised (council 10).*
 Context: the draft says the member carrying the source Bead's resulting
 revision "is defined with the write profiles" and that deletes return "the
 canonical deleted identity", without fixing either spelling. The
@@ -3344,7 +3344,7 @@ revision that tombstones and `DeletedData` carry); (d) the first draft's
 redundant kind and a member name the sibling does not use. Recommendation:
 (a).
 
-**T23 — Bundle naming and validator conventions (shared).** *Revised
+**T23 — Bundle naming and validator conventions (shared).** RATIFIED 2026-09-08 (operator: as drafted). *Revised
 (council 10).*
 Options: (a) operation records are `<operation>Operation` over the
 Read+Update `<operation>Members` mixins, singleton bodies are
@@ -3355,7 +3355,7 @@ the first draft's pattern-only `dateTime` and its `problemCodeRows`
 definition. Tradeoffs: (b) accepted impossible dates and stated every Read
 row twice. Recommendation: (a).
 
-**T24 — Reconciliation with the landed Read+Update wire.**
+**T24 — Reconciliation with the landed Read+Update wire.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft was written against a sibling branch that carried
 no change and said its spellings would be "re-pointed at apply time"; the
 sibling has since landed 71 definitions, six spec subsections, fixtures,
@@ -3377,7 +3377,7 @@ third pass reconciles them. The full table is under
 [Reconciliation with Read+Update](#reconciliation-with-readupdate).
 Recommendation: (a).
 
-**T45 — Validated timestamps.**
+**T45 — Validated timestamps.** RATIFIED 2026-09-08 (operator: as drafted).
 Context: the first draft's `dateTime` was a pattern that checked
 punctuation and digit counts, accepted `2026-99-99T99:99:99+99:99`, and
 rejected the lowercase `t` and `z` RFC 3339 permits (Codex M15, Claude
@@ -4637,7 +4637,7 @@ surrogate-pair key last; a newline and a tab inside `a` are escaped as
 
 ### 5.5 Decisions
 
-**T16 — Change-group wire form.** *Revised (council 10).*
+**T16 — Change-group wire form.** RATIFIED 2026-09-08 (operator: as drafted). *Revised (council 10).*
 Sub-decisions: (a) `erasures` is required and possibly empty, like
 `changes` and `events`, so the draft's two changefeed examples gain an
 empty `erasures` array; (b) `checkpoint` is a group member on the wire, as
@@ -4655,7 +4655,7 @@ erasures" from "a producer that predates erasure"); for (c), omit
 `transaction` (breaks the visible-group invariant and the schema's
 conditional). Recommendation: (a)–(f) as stated.
 
-**T17 — Tombstone entry.**
+**T17 — Tombstone entry.** RATIFIED 2026-09-08 (operator: as drafted).
 Options: (a) `operation` `tombstone` with `resource` `{ id, type,
 revision }`, one shape for deletion and for projection removal; (b)
 `operation` `delete`; (c) distinct `deleted` and `hidden` operations.
@@ -4663,7 +4663,7 @@ Tradeoffs: (b) asserts deletion where the draft says a projection tombstone
 does not; (c) discloses whether a Resource still exists to a view that lost
 it. Recommendation: (a).
 
-**T18 — Erasure digest discipline and encoding.** *Revised (council 10).*
+**T18 — Erasure digest discipline and encoding.** RATIFIED 2026-09-08 (operator: as drafted). *Revised (council 10).*
 Options: (a) one registered scheme, `sha-256-jcs`, SHA-256 over the RFC
 8785 canonical serialization of the served version record, `value` as 64
 lowercase hexadecimal characters, `scheme` schema-closed to that value,
@@ -4677,7 +4677,7 @@ extensible by a later scheme value. The first draft's fixtures carried
 synthetic digests; the packet now carries the real ones and the vectors
 under section 5.4 (Codex M16, Claude L6). Recommendation: (a).
 
-**T19 — Erasing the live version and inline owned-Link copies.**
+**T19 — Erasing the live version and inline owned-Link copies.** RULED 2026-09-08 (operator: (a)).
 *Revised (council 10).*
 Options: (a) an erasure of the live version MUST be accompanied in the same
 group by the successor's `upsert` or the Resource's `tombstone`, the
@@ -4709,7 +4709,7 @@ shape and keeps a pointer where the draft says even a pointer discloses,
 and leaving Event-Source behavior to policy lets one implementation leak
 what another erases.
 
-**T25 — Erased content and withholding by content.**
+**T25 — Erased content and withholding by content.** RULED 2026-09-08 (operator: (a)).
 Context: Codex C1. Options: (a) define the erased content of a version as
 its record less the lineage marker, and withhold every Event whose `data`
 carries it — the minting fact, the source's `ownedLink` fact, and a graph
@@ -4723,7 +4723,7 @@ every fact of every erased subject (destroys the lineage the draft wants
 verifiable, and hides `deleted` facts that carry nothing); (c) the first
 draft's type-based rule. Recommendation: (a).
 
-**T26 — Receipts, pages, and retained dispositions are erasure stores.**
+**T26 — Receipts, pages, and retained dispositions are erasure stores.** RULED 2026-09-08 (operator: (a)).
 Context: Claude C1: fixture `rcpt-7` served the erased `task-42-r8`
 postimage for a week. Options: (a) add receipts, receipt pages, and
 retained sequence dispositions — which on a Transactional Scope are
@@ -4741,7 +4741,7 @@ discloses erasure to every caller of the receipt; (c) drop the entry
 (renumbers nothing but hides that an operation existed). Recommendation:
 (a).
 
-**T27 — Successor delta form after a live-version erasure.**
+**T27 — Successor delta form after a live-version erasure.** RULED 2026-09-08 (operator: (a)).
 Context: Claude H1: the successor's `updated` fact carried an ordinary
 Property Change whose paths and prior values describe the erased content,
 and fixture `pos-45`'s successor was byte-identical to the erased version.
@@ -4756,7 +4756,7 @@ history that a consumer cannot distinguish from a hidden fact; (c) is the
 finding. The fixture now changes the title. Recommendation: (a).
 
 **T28 — Replication across an erasure: invalidation at the erasure
-position.**
+position.** RULED 2026-09-08 (operator: (a)).
 Context: Claude H2 and Codex H2 (with Codex H3): obligation 1 scrubs
 stored postimages, so a group published before the erasure would have to
 change after publication; there was no wire form for a scrubbed group; a
@@ -4783,7 +4783,7 @@ resnapshot, which erasure's rarity and the snapshot lifetime bound make
 acceptable, and keeps groups immutable. Recommendation: (a), with (b)
 recorded as the alternative Codex preferred.
 
-**T29 — The erasure ledger outside fenced history.**
+**T29 — The erasure ledger outside fenced history.** RULED 2026-09-08 (operator: (a)).
 Context: Codex H3 and Claude M12: the obligations began when a replica
 processed the record and did not reach a replica whose checkpoint had
 expired, whose view had rotated, or whose Scope had been restored into a
@@ -4804,7 +4804,7 @@ would destroy everything on every resnapshot). Tradeoffs: the ledger is
 bounded by the number of erasures, which are rare administrative acts.
 Recommendation: (a).
 
-**T30 — Snapshot and group agreement verified; disagreement rejected.**
+**T30 — Snapshot and group agreement verified; disagreement rejected.** RULED 2026-09-08 (operator: (a)).
 Context: Codex H10: Appendix B.13 of the first draft proposed treating the
 `links` stream as authoritative for the Link and the Bead postimage as
 authoritative for the source revision when they disagree, which permits
@@ -4818,7 +4818,7 @@ to leave endpoint liveness, owned closure, and source-version agreement
 intact; (b) the withdrawn authority rule. Recommendation: (a); Appendix B
 item 13 is rewritten accordingly.
 
-**T31 — The tombstone path is an administrative deletion.**
+**T31 — The tombstone path is an administrative deletion.** RULED 2026-09-08 (operator: (a)).
 Context: Claude M11: erasing a live version with the tombstone is a
 deletion, subject to deletion safety, and for an owned Link it versions the
 source and induces `deleted` and `unlinked` facts, yet T16 said erasure
@@ -4832,7 +4832,7 @@ no facts (a replica's Event Sources then never learn the Link ended, and
 an owning source's version history skips a transition). Recommendation:
 (a).
 
-**T44 — Digest input domain: the I-JSON contract.**
+**T44 — Digest input domain: the I-JSON contract.** RATIFIED 2026-09-08 (settled by gastownhall/bdp#21, ruled C: exact equality plus I-JSON admission; landed by PR #23).
 Context: Codex H9: JCS is defined only over I-JSON values — binary64
 numbers, no unpaired surrogates — and BDP's open `properties` did not
 establish that, so an otherwise accepted record could fail canonicalization
@@ -4920,7 +4920,7 @@ to the catalog shape at apply time, not by these rows.
 }
 ```
 
-**T21 — Category tagging, capability names, and `bdpbd`.** *Revised
+**T21 — Category tagging, capability names, and `bdpbd`.** RATIFIED 2026-09-08 (operator: as drafted). *Revised
 (council 10).*
 Options: (a) no catalog member for the category — it is the packet's
 grouping — and the capability names above are proposed for the fixtures;
@@ -4933,7 +4933,7 @@ evidence law: missing a profile is unsupported-profile and missing an
 observation harness is an evidence limitation, and neither is the absence
 of an optional capability (Codex H11). Recommendation: (a).
 
-**T48 — Id convention, category grouping, and retired Read+Update rows.**
+**T48 — Id convention, category grouping, and retired Read+Update rows.** RULED 2026-09-08 (operator: (a)).
 Context: the first draft's ids put the coverage category in the second
 segment (`transactional.positive.…`) where the existing catalogs put the
 functional area (Claude M14), and its section 6.1 said a Transactional run
@@ -6680,54 +6680,54 @@ An implementer who has this packet, ruled, still lacks:
 
 | Decision | One line |
 | --- | --- |
-| T1 | Owned-Link delta is a singular `ownedLink { operation, link }`, exclusive with `change`; `link` is the record for `created`, the Link's delta for `updated`, the identity for `deleted`; recommend (revised). |
-| T2 | A `deleted` owned-Link transition carries the identity `{ id, type, revision }`; recommend. |
-| T3 | Facts of one owned-Link operation are ordered lifecycle, graph (source, target), source `updated` last; set expansion in `canonical-uri` order; recommend (clarified). |
-| T4 | A no-op owned-Link update versions neither Resource; `CreatedData`/`DeletedData` carry no owned data; the empty key set is authoritative in the record, not the Event; recommend (clarified). |
-| T5 | Closed `batchRequest`; Read+Update reference definitions; pins on labels accepted; `@`-free supplied `id`; `<op>Operation` over `<op>Members`; `updateWhereRequest`/`deleteWhereRequest`; recommend (revised). |
-| T6 | `200` for every terminal receipt, `202` bounded, closed pre-admission set in precedence order, transient-abort `503`, `405` with the CORS exception, one matrix; recommend (revised). |
-| T7 | Flat entries in the Read+Update vocabulary with `matched`, `withheld`, `erased`; `canonical-uri` order; entry-granular pages; recommend (revised). |
-| T8 | `status` pending/completed/failed plus `detail` available/expired/withheld; `allocated` on expired; `failed` never withheld; expired retry is `200`; recommend (revised). |
-| T9 | `receipts/{token}`, `404` non-disclosure incl. retracted receipts, no listing, root `404` with its rationale, pages `410` after expiry; recommend (clarified). |
-| T10 | Receipt problem = Read+Update shape by `$ref` + `status` + attribution members + Read+Update diagnostics; recommend (revised). |
-| T11 | Three Transactional-only rows beside the inherited tables; one row per shared code; direct/receipt contexts closed; recommend (revised). |
-| T12 | Idempotency key = checkpoint character profile, bare header token (shared, D1); recommend. |
+| T1 | Owned-Link delta is a singular `ownedLink { operation, link }`, exclusive with `change`; `link` is the record for `created`, the Link's delta for `updated`, the identity for `deleted`; recommend (revised). **RATIFIED 2026-09-08.** |
+| T2 | A `deleted` owned-Link transition carries the identity `{ id, type, revision }`; recommend. **RATIFIED 2026-09-08.** |
+| T3 | Facts of one owned-Link operation are ordered lifecycle, graph (source, target), source `updated` last; set expansion in `canonical-uri` order; recommend (clarified). **RATIFIED 2026-09-08.** |
+| T4 | A no-op owned-Link update versions neither Resource; `CreatedData`/`DeletedData` carry no owned data; the empty key set is authoritative in the record, not the Event; recommend (clarified). **RATIFIED 2026-09-08.** |
+| T5 | Closed `batchRequest`; Read+Update reference definitions; pins on labels accepted; `@`-free supplied `id`; `<op>Operation` over `<op>Members`; `updateWhereRequest`/`deleteWhereRequest`; recommend (revised). **RATIFIED 2026-09-08.** |
+| T6 | `200` for every terminal receipt, `202` bounded, closed pre-admission set in precedence order, transient-abort `503`, `405` with the CORS exception, one matrix; recommend (revised). **RATIFIED 2026-09-08.** |
+| T7 | Flat entries in the Read+Update vocabulary with `matched`, `withheld`, `erased`; `canonical-uri` order; entry-granular pages; recommend (revised). **RATIFIED 2026-09-08.** |
+| T8 | `status` pending/completed/failed plus `detail` available/expired/withheld; `allocated` on expired; `failed` never withheld; expired retry is `200`; recommend (revised). **RATIFIED 2026-09-08.** |
+| T9 | `receipts/{token}`, `404` non-disclosure incl. retracted receipts, no listing, root `404` with its rationale, pages `410` after expiry; recommend (clarified). **RATIFIED 2026-09-08.** |
+| T10 | Receipt problem = Read+Update shape by `$ref` + `status` + attribution members + Read+Update diagnostics; recommend (revised). **RATIFIED 2026-09-08.** |
+| T11 | Three Transactional-only rows beside the inherited tables; one row per shared code; direct/receipt contexts closed; recommend (revised). **RATIFIED 2026-09-08.** |
+| T12 | Idempotency key = checkpoint character profile, bare header token (shared, D1); recommend. **RATIFIED 2026-09-08.** |
 | T13 | One key namespace across singleton, batch, and sequence members; member = one-operation transaction; envelope unchanged; recommend (revised, completed by T40/T41). **RULED (a) 2026-09-08.** |
-| T14 | `retention.idempotency` prohibited on Transactional discovery; recommend (X2). |
-| T15 | History tokens share the checkpoint profile; revisions stay opaque equality-only strings; recommend (revised). |
-| T16 | Group wire form: `erasures` required, `checkpoint` on the wire, `transaction` on erasure groups, non-empty visible groups, `after` for `start=now`; recommend (revised). |
-| T17 | Tombstone entry is `operation: tombstone` with `{ id, type, revision }`; recommend. |
-| T18 | Single digest scheme `sha-256-jcs`, 64 lowercase hex characters, over the I-JSON record; real digests and vectors; recommend (revised). |
-| T19 | Erasing a live version requires a same-group successor or tombstone under T27/T30/T31; inline owned copies get their own records; recommend (revised). |
+| T14 | `retention.idempotency` prohibited on Transactional discovery; recommend (X2). **RATIFIED 2026-09-08.** |
+| T15 | History tokens share the checkpoint profile; revisions stay opaque equality-only strings; recommend (revised). **RATIFIED 2026-09-08.** |
+| T16 | Group wire form: `erasures` required, `checkpoint` on the wire, `transaction` on erasure groups, non-empty visible groups, `after` for `start=now`; recommend (revised). **RATIFIED 2026-09-08.** |
+| T17 | Tombstone entry is `operation: tombstone` with `{ id, type, revision }`; recommend. **RATIFIED 2026-09-08.** |
+| T18 | Single digest scheme `sha-256-jcs`, 64 lowercase hex characters, over the I-JSON record; real digests and vectors; recommend (revised). **RATIFIED 2026-09-08.** |
+| T19 | Erasing a live version requires a same-group successor or tombstone under T27/T30/T31; inline owned copies get their own records; recommend (revised). **RULED (a) 2026-09-08.** |
 | T20 | Replaced by T25, T26, T28, T29 and the six store obligations. |
-| T21 | No catalog member for the category; proposed capability names; `bdpbd` outside Transactional claims, no N/A rows; recommend (revised). |
-| T22 | `source` + `sourceRevision` on owned-Link results and `deleted` as an identity record, both profiles (X1, X4); recommend (revised). |
-| T23 | `<op>Operation`/`<op>Request` naming, `format: date-time`, `$ref` problem composition; recommend (revised). |
-| T24 | Adopt the landed Read+Update spellings wherever the halves must agree; recommend. |
-| T25 | Erased content = record less lineage marker; Events withheld by content; ordinals, cursors, `eventCount`; recommend. |
-| T26 | Receipts, pages, retained dispositions are erasure stores; `erased` entry to authorized callers, `withheld` otherwise; recommend. |
-| T27 | Successor delta after a live-version erasure is one root `replace`; successor must differ or tombstone; recommend. |
-| T28 | An erasure at P expires checkpoints and snapshots anchored before P per view; recommend ((b) scrubbed form recorded). |
-| T29 | Erasure ledger outside fenced history: manifest `erasures`, restore re-emission, unestablishable content destroyed; recommend. |
-| T30 | Snapshot and group agreement verified; disagreement rejected, never resolved by authority; recommend. |
-| T31 | Tombstone path is an administrative deletion with the ordinary facts; recommend. |
-| T32 | One current-authorization projection for every receipt delivery path, with owned closure; non-record entries served as retained; recommend. |
-| T33 | Receipt response fields are the serving request's observation; body facts never change; recommend. |
+| T21 | No catalog member for the category; proposed capability names; `bdpbd` outside Transactional claims, no N/A rows; recommend (revised). **RATIFIED 2026-09-08.** |
+| T22 | `source` + `sourceRevision` on owned-Link results and `deleted` as an identity record, both profiles (X1, X4); recommend (revised). **RATIFIED 2026-09-08.** |
+| T23 | `<op>Operation`/`<op>Request` naming, `format: date-time`, `$ref` problem composition; recommend (revised). **RATIFIED 2026-09-08.** |
+| T24 | Adopt the landed Read+Update spellings wherever the halves must agree; recommend. **RATIFIED 2026-09-08.** |
+| T25 | Erased content = record less lineage marker; Events withheld by content; ordinals, cursors, `eventCount`; recommend. **RULED (a) 2026-09-08.** |
+| T26 | Receipts, pages, retained dispositions are erasure stores; `erased` entry to authorized callers, `withheld` otherwise; recommend. **RULED (a) 2026-09-08.** |
+| T27 | Successor delta after a live-version erasure is one root `replace`; successor must differ or tombstone; recommend. **RULED (a) 2026-09-08.** |
+| T28 | An erasure at P expires checkpoints and snapshots anchored before P per view; recommend ((b) scrubbed form recorded). **RULED (a) 2026-09-08.** |
+| T29 | Erasure ledger outside fenced history: manifest `erasures`, restore re-emission, unestablishable content destroyed; recommend. **RULED (a) 2026-09-08.** |
+| T30 | Snapshot and group agreement verified; disagreement rejected, never resolved by authority; recommend. **RULED (a) 2026-09-08.** |
+| T31 | Tombstone path is an administrative deletion with the ordinary facts; recommend. **RULED (a) 2026-09-08.** |
+| T32 | One current-authorization projection for every receipt delivery path, with owned closure; non-record entries served as retained; recommend. **RATIFIED 2026-09-08.** |
+| T33 | Receipt response fields are the serving request's observation; body facts never change; recommend. **RATIFIED 2026-09-08.** |
 | T34 | Transient abort after admission retracts the receipt, unbinds the key, answers direct `503`; duration limit is permanent; recommend. **RULED (a) 2026-09-08.** |
 | T35 | Admission is one durable step with execution ownership; commits are fenced; pending recovery within `transaction.duration`; recommend. **RULED (a) 2026-09-08.** |
-| T36 | Expired `completed` receipts carry `allocated` identities; recommend. |
-| T37 | `operationIndex` omitted only for transaction-wide failures; one `pointer` base; no `pointer` on `resource-erased`; recommend. |
+| T36 | Expired `completed` receipts carry `allocated` identities; recommend. **RATIFIED 2026-09-08.** |
+| T37 | `operationIndex` omitted only for transaction-wide failures; one `pointer` base; no `pointer` on `resource-erased`; recommend. **RATIFIED 2026-09-08.** |
 | T38 | `202` on the original submission only past the synchronous wait bound; recommend. **RULED (a) 2026-09-08.** |
-| T39 | No-op entries are `updated` at the retained revision; all-no-op omits `effectPosition`; recommend. |
-| T40 | `sequence` on a Transactional Scope: member projections for completed, withheld, erased, failed, pending, expired, and dependents; retired direct forms; recommend. |
-| T41 | Carrier-neutral semantic identity (`name` excluded, batch `@label` normalized to index or supplied id) and the pre-admission precedence; recommend. |
-| T42 | One endpoint/status matrix; recommend. |
-| T43 | `directProblemCode`/`receiptProblemCode`; problem definitions composed by `$ref` from `readUpdateProblem`; recommend. |
-| T44 | I-JSON data contract for all BDP JSON; JCS over it; digest failure never gates erasure; recommend. |
-| T45 | Validated timestamps through `format: date-time` registered in both validators; uppercase emission profile; recommend. |
-| T46 | `page.maximumItems` bounds receipt entries, every entry counting as one; recommend. |
+| T39 | No-op entries are `updated` at the retained revision; all-no-op omits `effectPosition`; recommend. **RATIFIED 2026-09-08.** |
+| T40 | `sequence` on a Transactional Scope: member projections for completed, withheld, erased, failed, pending, expired, and dependents; retired direct forms; recommend. **RATIFIED 2026-09-08.** |
+| T41 | Carrier-neutral semantic identity (`name` excluded, batch `@label` normalized to index or supplied id) and the pre-admission precedence; recommend. **RATIFIED 2026-09-08.** |
+| T42 | One endpoint/status matrix; recommend. **RATIFIED 2026-09-08.** |
+| T43 | `directProblemCode`/`receiptProblemCode`; problem definitions composed by `$ref` from `readUpdateProblem`; recommend. **RATIFIED 2026-09-08.** |
+| T44 | I-JSON data contract for all BDP JSON; JCS over it; digest failure never gates erasure; recommend. **RATIFIED 2026-09-08.** |
+| T45 | Validated timestamps through `format: date-time` registered in both validators; uppercase emission profile; recommend. **RATIFIED 2026-09-08.** |
+| T46 | `page.maximumItems` bounds receipt entries, every entry counting as one; recommend. **RATIFIED 2026-09-08.** |
 | T47 | Failed receipts retained for `retention.receipt`, then forgotten — D28's rule in both profiles; the draft's epoch-lifetime law and the recorded divergence are withdrawn. **RULED (b) 2026-09-08 (judgment delegated).** |
-| T48 | `transactional.<area>.<case>` ids; category as grouping; `retires` member and selection rule for the ten retired Read+Update rows; recommend. |
+| T48 | `transactional.<area>.<case>` ids; category as grouping; `retires` member and selection rule for the ten retired Read+Update rows; recommend. **RULED (a) 2026-09-08.** |
 | X1 | `deleted` is the identity record `{ id, type, revision }` in both profiles; recommend for both. |
 | X2 | `retention.idempotency` is Read+Update-only; Transactional discovery MUST NOT advertise it; recommend for both. |
 | X3 | One sentence: Read+Update refuses a concurrent duplicate because it has no receipt to hand it; Transactional joins; recommend for both. |
