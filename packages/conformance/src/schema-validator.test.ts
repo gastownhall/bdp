@@ -34,6 +34,12 @@ describe("offline schema validator", () => {
     });
     expect(validator.validate("#/$defs/instant", "2026-99-99T99:99:99+99:99")).not.toHaveLength(0);
     expect(validator.validate("#/$defs/instant", "2026-02-30T00:00:00Z")).not.toHaveLength(0);
+    for (const separator of [" ", "\t", "\n"]) {
+      expect(
+        validator.validate("#/$defs/instant", `2026-09-07${separator}18:04:12Z`),
+      ).not.toHaveLength(0);
+    }
+    expect(validator.validate("#/$defs/instant", "2026-09-07t18:04:12z")).toEqual([]);
     expect(validator.validate("#/$defs/instant", "2026-09-07T18:04:12Z")).toEqual([]);
     expect(validator.validate("#/$defs/instant", "2026-09-07T18:04:12.5+02:00")).toEqual([]);
   });

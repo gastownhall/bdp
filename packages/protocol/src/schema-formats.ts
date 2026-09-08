@@ -27,5 +27,7 @@ const callDateTimeValidator = validateDateTime as (value: string) => boolean;
  * BDP schema bundle (Transactional apply, T45).
  */
 export function isJsonSchemaDateTime(value: string): boolean {
-  return callDateTimeValidator(value);
+  // ajv-formats also accepts whitespace as the date/time separator. BDP
+  // requires RFC 3339's T (or t on input), before the full calendar check.
+  return /^\d{4}-\d{2}-\d{2}[Tt]/.test(value) && callDateTimeValidator(value);
 }

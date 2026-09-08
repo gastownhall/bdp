@@ -6619,8 +6619,8 @@ the apply pass: X1 is ruled B and applied on both sides (`deletedIdentity`),
 the `retires` member and selection rule exist (T48), and `date-time` is
 registered in both validators (T45). The I-JSON contract lands with
 gastownhall/bdp#23 as the number model under *Revisions*; on this branch
-only a forward reference exists, and the string and duplicate-member rules
-the packet's paragraph carried are unstated (T56). The JCS conformance
+the number-model forward reference remains, while council 13 restores the
+string and duplicate-member rules separately (T56 amended). The JCS conformance
 check is partial: no RFC 8785 serializer exists in the repository or its
 installed `node_modules`, none was added, and the lockstep test reproduces
 every digest from the vector's recorded serialization — checking that the
@@ -6759,7 +6759,7 @@ An implementer who has this packet, ruled, still lacks:
 | T53 | `transactionalOperationDirectory` pins the twelve targets, the alias entries included. **Applied provisionally.** |
 | T54 | `binding-unavailable` is a receipt code for a sequence member's failed receipt. **Applied provisionally.** |
 | T55 | A transient dependent's admitted pending receipt is retracted and its key unbound. **Applied provisionally.** |
-| T56 | T44 lands as a forward reference to #23's number model; carrier syntax says "well-formed JSON". **Applied provisionally.** |
+| T56 | Number model references #23; council 13 restores T44's Unicode scalar and duplicate-member rules separately, with their syntax failure code. **Amended; ratification pending.** |
 | T57 | Digest vectors reproduced from recorded serializations; no RFC 8785 serializer added; gap recorded. **Applied provisionally.** |
 | T58 | T34's duration rule stated under *Mutation Receipt responses*. **Applied provisionally.** |
 | T59 | The snapshot example completed into a closed projection. **Applied provisionally.** |
@@ -7288,9 +7288,15 @@ I-JSON, and the pre-admission list saying "a body that is not well-formed
 JSON" rather than "not an I-JSON text", since under #23 an inadmissible
 number literal is `validation-failed`, not `malformed-request`; (b) paste
 the packet's I-JSON paragraph (contradicts #23's failure code and
-restates what #23 states). Recommendation: (a). The I-JSON string and
-duplicate-member rules the packet's paragraph carried are therefore
-unstated on this branch, recorded under section 7. Applied provisionally.
+restates what #23 states). Recommendation: (a). The initial apply omitted the string and duplicate-member rules. **Amended
+2026-09-08, council 13:** the protocol introduction restores those T44
+rules independently of the number model: Unicode scalar strings and
+member names, no duplicate names after escape decoding, string/object
+violations `malformed-request`; inadmissible numbers remain
+`validation-failed` under #23. Adapters map or refuse out-of-contract
+stored values before serving them. This corrects the dropped portion of
+ratified T44 rather than introducing a second numeric model. Ratification
+of the amended T56 remains pending.
 
 **T57 — Digest vectors without an RFC 8785 serializer.** No JCS
 implementation exists in the repository or its installed `node_modules`,
@@ -7337,7 +7343,7 @@ proposed. Recommendation: (a). Applied provisionally.
 
 ### Proposed and not applied
 
-- The T44 I-JSON paragraph (T56): a forward reference instead.
+- The original T44 numeric wording (T56): a forward reference instead. Council 13 restores its string/object rules separately; see amended T56.
 - The sixth receipt representation, `failed` with `detail: expired`, and
   every sentence, fixture, and row built on the epoch-lifetime law for
   failed receipts (T47 ruled (b)): rewritten — the failed receipt is
@@ -7363,3 +7369,55 @@ proposed. Recommendation: (a). Applied provisionally.
 - Section 7's first three residuals are resolved by this apply (X1 on
   both sides, `retires`, `date-time`); the rest stand, with the additions
   recorded there.
+
+
+## Council 13 — apply review and correction pass (2026-09-08)
+
+Reviewed apply head `ce8399c785a85e30d0d7aad78c49ea76538bde45` against main
+`0b7d86e7cfec47f88cd1ec22314a73f39763bcf8`. The review record and per-finding
+status are in [Council 13](w1-transactional-council13.md). The council is
+incomplete while a reviewer is unavailable; this section claims no clearance.
+Corrections to ruled sentences carry dated council-13 markers. T49 and
+T50–T61 remain open/provisional as recorded above; T56 now includes the
+restored string/object admission law. New T62 below is unapplied.
+
+### T62 — Sequence dependency identity at atomic admission (OPEN)
+
+**Context.** D26 requires one linearizable admission that claims all unknown
+member keys before execution. The Transactional text durably records every
+member's normalized identity and pending receipt at that step. But the
+identity of a dependent member resolves a creation label to its creator's
+committed Resource identity, which does not exist yet for an authority-allocated
+creation. A failed creator supplies no Resource identity at all. A singleton
+retry using the dependent's key must still share the carrier-neutral namespace.
+The current text cannot satisfy these rules together; green shape tests do not
+prove an implementable admission state machine.
+
+**Options and consequences.**
+
+1. Preserve atomic reservation of all member keys, but specify a durable
+   unresolved dependency form tied to the creator's key and owned execution,
+   with an atomic transition to the normalized Resource identity when the
+   creator terminalizes. Define how duplicate carriers are compared before
+   resolution, how a failed creator terminalizes its dependent's retained
+   failure, and how crash/retraction releases reservations without allowing a
+   stale owner to commit. This keeps D26 but adds an explicit internal state
+   and observable retry rules; no new public receipt state should be inferred.
+2. Preplan creation identities during admission and normalize dependents to
+   those prospective URLs. This needs a precise distinction between a planned
+   URL and a durably allocated identity, failed-creator semantics, and recovery
+   rules. It changes the timing described by the current allocation text.
+3. Admit a dependent only after its creator terminalizes. This is simpler but
+   explicitly amends D26's all-member admission law and T54/T55; it must not be
+   smuggled in as a wording correction.
+
+**Recommendation.** Work out option 1 while preserving the ruled carrier-neutral
+identity and all-member reservation guarantees. This recommendation does not
+select its missing duplicate-response contract. The final ruling must specify
+same-template and canonical-singleton retries both before and after binding,
+failed/transient creators, restart and stale-owner commits. Add observable
+cases for each before any write-profile realization can claim this behavior.
+
+**Owning destinations.** Mutation Transactions; Read+Update sequence admission
+and idempotency; corresponding catalog obligations and future executable
+sequence-admission tests. No wire or normative change is applied for T62 yet.

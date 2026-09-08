@@ -1823,8 +1823,18 @@ protocol uses one small, uniform surface:
 Every JSON text BDP admits or emits follows the number model defined under
 [Revisions](#revisions) — exact-decimal equality with binary64 round-trip
 admission, ruled at gastownhall/bdp#21 and landing with gastownhall/bdp#23 —
-which is what gives every Resource record exactly one RFC 8785 canonical
-serialization for [Version erasure](#version-erasure) to digest. Every
+which combines with the I-JSON string and object rules below to give every
+Resource record exactly one RFC 8785 canonical serialization for
+[Version erasure](#version-erasure) to digest. Every JSON text BDP admits or
+emits uses Unicode scalar values in strings and object member names; an
+unpaired surrogate, including one produced by an escape, is invalid, and
+an object MUST NOT carry duplicate member names after escape decoding.
+These string and object violations are carrier syntax rejected before
+execution with `malformed-request` in every profile. Inadmissible numbers
+instead follow the ruled `validation-failed` admission rule under
+[Revisions](#revisions). An authority adapting an existing store MUST map
+or refuse values outside this data contract before serving them as BDP
+Resources (amended 2026-09-08, council 13; T44/T56). Every
 instant BDP emits — an Event's `time`, a receipt's or a snapshot's
 `expiresAt` — is an RFC 3339 `date-time` written with uppercase `T` and
 `Z`, and the bundle's `dateTime` definition validates the calendar and the
@@ -3863,7 +3873,8 @@ unexpected internal fault produces anywhere.
 
 | Target | Method | Response |
 | --- | --- | --- |
-| `batch`, the six Resource singleton targets, the two set targets, and `sequence` | `POST` | `200` terminal receipt (`sequence`: the `200` envelope of [Sequence response envelope](#sequence-response-envelope)); `202` pending receipt; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503` |
+| `batch`, the six Resource singleton targets, and the two set targets | `POST` | `200` terminal receipt; `202` pending receipt; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503` |
+| `sequence` | `POST` | `200` envelope of [Sequence response envelope](#sequence-response-envelope), pending members included as problems; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503`; never a sequence-level `202` receipt (amended 2026-09-08, council 13) |
 | the same targets | any other method | `405`, `Allow: POST` — plus `OPTIONS` when cross-origin access is enabled, in which case `OPTIONS` is answered by the CORS rules rather than `405` — and no BDP Problem body |
 | `operations/` | `GET`, `HEAD` | `200` Operation Directory; `401`, `403`, `429`, `503` |
 | `operations/` | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
@@ -4863,9 +4874,11 @@ snapshot.
 A snapshot manifest carries `erasures`, the erasure ledger projected for
 the manifest's view under [Version erasure](#version-erasure), and a
 replica applies those records before it publishes the replacement
-generation. A snapshot's two streams describe one graph: every Link whose
-in-Scope endpoint is in the projection appears in the `links` stream and
-its endpoint Bead in the `beads` stream, and every owned Link inlined in a
+generation. A snapshot's two streams describe one authorization projection:
+every Link in that projection appears in the `links` stream, and all of
+its in-Scope endpoint Beads appear in the `beads` stream. Visibility of a
+Bead alone does not require an incoming or unowned Link hidden by that
+view to appear (amended 2026-09-08, council 13). Every owned Link inlined in a
 Bead record of the `beads` stream also appears as a first-class record in
 the `links` stream, member for member. A replica stages both streams
 completely and verifies that agreement before it publishes; a snapshot in

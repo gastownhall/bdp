@@ -80,6 +80,12 @@ interface TransactionalFixture {
   readonly description: string;
   readonly scope: string;
   readonly exchanges: readonly FixtureExchange[];
+  /** Committed group shapes; these are not finite HTTP replay responses. */
+  readonly groupExamples?: readonly {
+    readonly id: string;
+    readonly schema: string;
+    readonly body: JsonRecord;
+  }[];
 }
 
 interface DigestVector {
@@ -322,11 +328,19 @@ describe("Transactional wire fixtures", () => {
       });
 
       it("keeps change groups, Event pages, and snapshots to their stated invariants", () => {
+        for (const example of fixture.groupExamples ?? []) {
+          expectValid(example.schema, example.body, example.id);
+          expectChangeGroup(example.body, example.id);
+        }
         for (const exchange of fixture.exchanges) {
           const body = exchange.response.body;
           if (exchange.response.schema === "#/$defs/changefeedPage") {
-            for (const group of body.groups as readonly JsonRecord[])
+            for (const group of body.groups as readonly JsonRecord[]) {
               expectChangeGroup(group, exchange.id);
+              // A finite replay from before an erasure cannot return that
+              // erasure: its cursor is already fenced by the committed group.
+              expect(group.erasures, exchange.id).toEqual([]);
+            }
           } else if (exchange.response.schema === "#/$defs/eventPage") {
             const events = body.events as readonly JsonRecord[];
             for (const event of events) expect(event.source, exchange.id).toBe(body.source);
@@ -375,11 +389,15 @@ describe("erasure digest vectors", () => {
     const served = new Map<string, JsonRecord>();
     const erased = new Map<string, string>();
     for (const fixture of fixtures) {
-      for (const { response } of fixture.exchanges) {
-        for (const record of servedRecords(response.body)) {
+      const bodies = [
+        ...fixture.exchanges.map(({ response }) => response.body),
+        ...(fixture.groupExamples ?? []).map(({ body }) => body),
+      ];
+      for (const body of bodies) {
+        for (const record of servedRecords(body)) {
           served.set(`${record.id}@${record.revision}`, record);
         }
-        for (const record of erasureRecords(response.body)) {
+        for (const record of erasureRecords(body)) {
           erased.set(
             `${record.subject}@${record.revision}`,
             (record.digest as JsonRecord).value as string,

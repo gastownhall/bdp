@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "transactional-changefeed",
-  "description": "Finite changefeed reads along the timeline: the first batch's group at pos-43, whose changes carry three postimages — the Decision with its owned set inline, the Link, and the Task — and whose events carry six facts in the order the owned-Link rule fixes; an erasure-only group at pos-44 erasing a historical version of the Task; the correction group at pos-45 erasing the Task's live version with its successor's content-free root-replace delta; the identifier-free projection advance a view that never saw the Task receives at pos-44; and the tombstone path at pos-47, an administrative deletion whose graph facts are withheld. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "description": "Finite changefeed reads along the timeline: the first batch's group at pos-43, whose changes carry three postimages — the Decision with its owned set inline, the Link, and the Task — and whose events carry six facts in the order the owned-Link rule fixes; an erasure-only group at pos-44 erasing a historical version of the Task; the correction group at pos-45 erasing the Task's live version with its successor's content-free root-replace delta; the identifier-free projection advance a view that never saw the Task receives at pos-44; and the tombstone path at pos-47, an administrative deletion whose graph facts are withheld. Conditions are narrated, not observed. Illustrative wire example; not evidence. Erasure-bearing groups are recorded separately as committed group examples: finite HTTP reads from their earlier checkpoints are fenced, then recover with the pos-47 snapshot.",
   "scope": "https://beads.example/acme/",
   "exchanges": [
     {
@@ -256,7 +256,7 @@
     },
     {
       "id": "after-ckpt-43-historical-erasure",
-      "condition": "The one group erases task-42-r7, superseded by task-42-r8, so no state change is needed and no Event is induced. The digest is the SHA-256 of the JCS serialization of the record the authority served for task-42-r7 — the snapshot fixture's record — and, in the view that receives it, every checkpoint and snapshot anchored before pos-44 expires.",
+      "condition": "The replica reconnects after the erasures through pos-47 have committed. Its requested checkpoint precedes an erasure it must apply, so the finite read fails with cursor-expired. It next installs snapshot-at-pos-47 from snapshots.json, applies that manifest’s erasure ledger to every retained copy, and resumes from ckpt-47.",
       "request": {
         "method": "GET",
         "target": "changes/?after=ckpt-43",
@@ -265,52 +265,23 @@
         }
       },
       "response": {
-        "status": 200,
+        "status": 410,
         "headers": {
-          "content-type": "application/json",
-          "cache-control": "private, no-store",
-          "bdp-scope-epoch": "epoch-1",
-          "bdp-authorization-view": "view-a",
-          "bdp-scope-position": "pos-44"
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
         },
-        "schema": "#/$defs/changefeedPage",
+        "schema": "#/$defs/transactionalProblem",
         "body": {
-          "scope": "https://beads.example/acme/",
-          "scopeEpoch": "epoch-1",
-          "authorizationView": "view-a",
-          "after": "ckpt-43",
-          "observedHeadPosition": "pos-44",
-          "groups": [
-            {
-              "scopeEpoch": "epoch-1",
-              "authorizationView": "view-a",
-              "checkpoint": "ckpt-44",
-              "position": "pos-44",
-              "previousPosition": "pos-43",
-              "projectionAdvance": false,
-              "transaction": "adm-e1",
-              "eventCount": 0,
-              "changes": [],
-              "erasures": [
-                {
-                  "subject": "https://beads.example/acme/beads/task-42",
-                  "revision": "task-42-r7",
-                  "digest": {
-                    "scheme": "sha-256-jcs",
-                    "value": "5c9db2f807bbed90617ec1a01f3c4c86e44967c703bf6e480ca97c2ce4fae832"
-                  }
-                }
-              ],
-              "events": []
-            }
-          ],
-          "next": null
+          "type": "https://github.com/gastownhall/bdp/problems/gone",
+          "code": "cursor-expired",
+          "status": 410,
+          "retry": "after-state-change"
         }
       }
     },
     {
       "id": "after-ckpt-44-correction",
-      "condition": "The Task's live version task-42-r8 is erased and its corrected successor task-42-r9 — a different title — is committed in the same group: the erasure record, the successor's postimage, and the successor's own updated fact in the content-free delta form, one root replace carrying the successor's complete properties, from which nothing of task-42-r8 can be read.",
+      "condition": "The replica reconnects after the erasures through pos-47 have committed. Its requested checkpoint precedes an erasure it must apply, so the finite read fails with cursor-expired. It next installs snapshot-at-pos-47 from snapshots.json, applies that manifest’s erasure ledger to every retained copy, and resumes from ckpt-47.",
       "request": {
         "method": "GET",
         "target": "changes/?after=ckpt-44",
@@ -319,85 +290,17 @@
         }
       },
       "response": {
-        "status": 200,
+        "status": 410,
         "headers": {
-          "content-type": "application/json",
-          "cache-control": "private, no-store",
-          "bdp-scope-epoch": "epoch-1",
-          "bdp-authorization-view": "view-a",
-          "bdp-scope-position": "pos-45"
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
         },
-        "schema": "#/$defs/changefeedPage",
+        "schema": "#/$defs/transactionalProblem",
         "body": {
-          "scope": "https://beads.example/acme/",
-          "scopeEpoch": "epoch-1",
-          "authorizationView": "view-a",
-          "after": "ckpt-44",
-          "observedHeadPosition": "pos-45",
-          "groups": [
-            {
-              "scopeEpoch": "epoch-1",
-              "authorizationView": "view-a",
-              "checkpoint": "ckpt-45",
-              "position": "pos-45",
-              "previousPosition": "pos-44",
-              "projectionAdvance": false,
-              "transaction": "adm-e2",
-              "eventCount": 1,
-              "changes": [
-                {
-                  "operation": "upsert",
-                  "resourceKind": "bead",
-                  "resource": {
-                    "id": "https://beads.example/acme/beads/task-42",
-                    "type": "https://work.example/types/task",
-                    "revision": "task-42-r9",
-                    "properties": {
-                      "title": "Specify BDP mutation receipts",
-                      "status": "cited"
-                    }
-                  }
-                }
-              ],
-              "erasures": [
-                {
-                  "subject": "https://beads.example/acme/beads/task-42",
-                  "revision": "task-42-r8",
-                  "digest": {
-                    "scheme": "sha-256-jcs",
-                    "value": "f51ab17bca9039a933d2780986bbc02d3efacae2e4dc372c9c26fe3646543677"
-                  }
-                }
-              ],
-              "events": [
-                {
-                  "id": "ckpt-45_0",
-                  "ordinal": 0,
-                  "type": "updated",
-                  "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/beads/task-42",
-                  "subjectType": "https://work.example/types/task",
-                  "transaction": "adm-e2",
-                  "time": "2026-09-07T18:20:05Z",
-                  "data": {
-                    "previousRevision": "task-42-r8",
-                    "revision": "task-42-r9",
-                    "change": [
-                      {
-                        "op": "replace",
-                        "path": "",
-                        "value": {
-                          "title": "Specify BDP mutation receipts",
-                          "status": "cited"
-                        }
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          ],
-          "next": null
+          "type": "https://github.com/gastownhall/bdp/problems/gone",
+          "code": "cursor-expired",
+          "status": 410,
+          "retry": "after-state-change"
         }
       }
     },
@@ -447,7 +350,7 @@
     },
     {
       "id": "after-ckpt-46-tombstone",
-      "condition": "The only version of the unowned relates Link rel-5 (task-43 to task-44) is erased with the Link's tombstone, an administrative deletion. It induces three facts — the Link's deleted fact and an unlinked fact at each endpoint — but the two graph facts carry the erased endpoints and are withheld, leaving ordinals 1 and 2 as gaps; only the identity-bearing deleted fact is served and counted.",
+      "condition": "The replica reconnects after the erasures through pos-47 have committed. Its requested checkpoint precedes an erasure it must apply, so the finite read fails with cursor-expired. It next installs snapshot-at-pos-47 from snapshots.json, applies that manifest’s erasure ledger to every retained copy, and resumes from ckpt-47.",
       "request": {
         "method": "GET",
         "target": "changes/?after=ckpt-46",
@@ -456,71 +359,164 @@
         }
       },
       "response": {
-        "status": 200,
+        "status": 410,
         "headers": {
-          "content-type": "application/json",
-          "cache-control": "private, no-store",
-          "bdp-scope-epoch": "epoch-1",
-          "bdp-authorization-view": "view-a",
-          "bdp-scope-position": "pos-47"
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
         },
-        "schema": "#/$defs/changefeedPage",
+        "schema": "#/$defs/transactionalProblem",
         "body": {
-          "scope": "https://beads.example/acme/",
-          "scopeEpoch": "epoch-1",
-          "authorizationView": "view-a",
-          "after": "ckpt-46",
-          "observedHeadPosition": "pos-47",
-          "groups": [
-            {
-              "scopeEpoch": "epoch-1",
-              "authorizationView": "view-a",
-              "checkpoint": "ckpt-47",
-              "position": "pos-47",
-              "previousPosition": "pos-46",
-              "projectionAdvance": false,
-              "transaction": "adm-e3",
-              "eventCount": 1,
-              "changes": [
+          "type": "https://github.com/gastownhall/bdp/problems/gone",
+          "code": "cursor-expired",
+          "status": 410,
+          "retry": "after-state-change"
+        }
+      }
+    }
+  ],
+  "groupExamples": [
+    {
+      "id": "after-ckpt-43-historical-erasure-committed-group",
+      "condition": "The one group erases task-42-r7, superseded by task-42-r8, so no state change is needed and no Event is induced. The digest is the SHA-256 of the JCS serialization of the record the authority served for task-42-r7 — the snapshot fixture's record — and, in the view that receives it, every checkpoint and snapshot anchored before pos-44 expires. This is the committed group shape, not a successful finite HTTP replay after its checkpoint fence.",
+      "schema": "#/$defs/changeGroup",
+      "body": {
+        "scopeEpoch": "epoch-1",
+        "authorizationView": "view-a",
+        "checkpoint": "ckpt-44",
+        "position": "pos-44",
+        "previousPosition": "pos-43",
+        "projectionAdvance": false,
+        "transaction": "adm-e1",
+        "eventCount": 0,
+        "changes": [],
+        "erasures": [
+          {
+            "subject": "https://beads.example/acme/beads/task-42",
+            "revision": "task-42-r7",
+            "digest": {
+              "scheme": "sha-256-jcs",
+              "value": "5c9db2f807bbed90617ec1a01f3c4c86e44967c703bf6e480ca97c2ce4fae832"
+            }
+          }
+        ],
+        "events": []
+      }
+    },
+    {
+      "id": "after-ckpt-44-correction-committed-group",
+      "condition": "The Task's live version task-42-r8 is erased and its corrected successor task-42-r9 — a different title — is committed in the same group: the erasure record, the successor's postimage, and the successor's own updated fact in the content-free delta form, one root replace carrying the successor's complete properties, from which nothing of task-42-r8 can be read. This is the committed group shape, not a successful finite HTTP replay after its checkpoint fence.",
+      "schema": "#/$defs/changeGroup",
+      "body": {
+        "scopeEpoch": "epoch-1",
+        "authorizationView": "view-a",
+        "checkpoint": "ckpt-45",
+        "position": "pos-45",
+        "previousPosition": "pos-44",
+        "projectionAdvance": false,
+        "transaction": "adm-e2",
+        "eventCount": 1,
+        "changes": [
+          {
+            "operation": "upsert",
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://beads.example/acme/beads/task-42",
+              "type": "https://work.example/types/task",
+              "revision": "task-42-r9",
+              "properties": {
+                "title": "Specify BDP mutation receipts",
+                "status": "cited"
+              }
+            }
+          }
+        ],
+        "erasures": [
+          {
+            "subject": "https://beads.example/acme/beads/task-42",
+            "revision": "task-42-r8",
+            "digest": {
+              "scheme": "sha-256-jcs",
+              "value": "f51ab17bca9039a933d2780986bbc02d3efacae2e4dc372c9c26fe3646543677"
+            }
+          }
+        ],
+        "events": [
+          {
+            "id": "ckpt-45_0",
+            "ordinal": 0,
+            "type": "updated",
+            "source": "https://beads.example/acme/events/",
+            "subject": "https://beads.example/acme/beads/task-42",
+            "subjectType": "https://work.example/types/task",
+            "transaction": "adm-e2",
+            "time": "2026-09-07T18:20:05Z",
+            "data": {
+              "previousRevision": "task-42-r8",
+              "revision": "task-42-r9",
+              "change": [
                 {
-                  "operation": "tombstone",
-                  "resourceKind": "link",
-                  "resource": {
-                    "id": "https://beads.example/acme/links/rel-5",
-                    "type": "https://work.example/types/relates",
-                    "revision": "rel-5-r1"
-                  }
-                }
-              ],
-              "erasures": [
-                {
-                  "subject": "https://beads.example/acme/links/rel-5",
-                  "revision": "rel-5-r1",
-                  "digest": {
-                    "scheme": "sha-256-jcs",
-                    "value": "818526cfc51ba7e4efcb8b77e78b97f570a19d90411e4bfb8984baa947bfa784"
-                  }
-                }
-              ],
-              "events": [
-                {
-                  "id": "ckpt-47_0",
-                  "ordinal": 0,
-                  "type": "deleted",
-                  "source": "https://beads.example/acme/events/",
-                  "subject": "https://beads.example/acme/links/rel-5",
-                  "subjectType": "https://work.example/types/relates",
-                  "transaction": "adm-e3",
-                  "time": "2026-09-07T18:31:00Z",
-                  "data": {
-                    "revision": "rel-5-r1"
+                  "op": "replace",
+                  "path": "",
+                  "value": {
+                    "title": "Specify BDP mutation receipts",
+                    "status": "cited"
                   }
                 }
               ]
             }
-          ],
-          "next": null
-        }
+          }
+        ]
+      }
+    },
+    {
+      "id": "after-ckpt-46-tombstone-committed-group",
+      "condition": "The only version of the unowned relates Link rel-5 (task-43 to task-44) is erased with the Link's tombstone, an administrative deletion. It induces three facts — the Link's deleted fact and an unlinked fact at each endpoint — but the two graph facts carry the erased endpoints and are withheld, leaving ordinals 1 and 2 as gaps; only the identity-bearing deleted fact is served and counted. This is the committed group shape, not a successful finite HTTP replay after its checkpoint fence.",
+      "schema": "#/$defs/changeGroup",
+      "body": {
+        "scopeEpoch": "epoch-1",
+        "authorizationView": "view-a",
+        "checkpoint": "ckpt-47",
+        "position": "pos-47",
+        "previousPosition": "pos-46",
+        "projectionAdvance": false,
+        "transaction": "adm-e3",
+        "eventCount": 1,
+        "changes": [
+          {
+            "operation": "tombstone",
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://beads.example/acme/links/rel-5",
+              "type": "https://work.example/types/relates",
+              "revision": "rel-5-r1"
+            }
+          }
+        ],
+        "erasures": [
+          {
+            "subject": "https://beads.example/acme/links/rel-5",
+            "revision": "rel-5-r1",
+            "digest": {
+              "scheme": "sha-256-jcs",
+              "value": "818526cfc51ba7e4efcb8b77e78b97f570a19d90411e4bfb8984baa947bfa784"
+            }
+          }
+        ],
+        "events": [
+          {
+            "id": "ckpt-47_0",
+            "ordinal": 0,
+            "type": "deleted",
+            "source": "https://beads.example/acme/events/",
+            "subject": "https://beads.example/acme/links/rel-5",
+            "subjectType": "https://work.example/types/relates",
+            "transaction": "adm-e3",
+            "time": "2026-09-07T18:31:00Z",
+            "data": {
+              "revision": "rel-5-r1"
+            }
+          }
+        ]
       }
     }
   ]

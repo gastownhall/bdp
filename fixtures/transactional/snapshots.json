@@ -6,7 +6,7 @@
   "exchanges": [
     {
       "id": "snapshot-at-pos-42",
-      "condition": "blocks-3 targets the in-Scope task-41, which the beads stream therefore carries; the projection is closed.",
+      "condition": "blocks-3 targets the in-Scope task-41, which the beads stream therefore carries; the projection is closed. The authority also holds the unowned Link links/hidden-incident from an invisible Bead to task-42; view-a hides that Link and its source. Their incidence on visible task-42 does not add either to this snapshot.",
       "request": {
         "method": "GET",
         "target": "snapshot",

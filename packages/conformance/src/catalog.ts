@@ -229,8 +229,8 @@ function parseScenario(
 /**
  * An absent member reads as no retirement. A present member is a nonempty
  * array of unique scenario ids, none of them the row's own; whether each id
- * names a row of a lower profile is checked against the catalogs by the
- * repository tests, since the retired rows live in another catalog file.
+ * names a normative row of a lower profile is checked by selection against
+ * the combined catalogs, since retired rows may live in another file.
  */
 function readRetires(
   value: unknown,

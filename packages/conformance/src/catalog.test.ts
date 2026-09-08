@@ -369,6 +369,38 @@ describe("cumulative profile selection", () => {
       selectApplicableScenariosForProfile(combined, "read-update").map(({ id }) => id),
     ).toEqual(["read-update.idempotency.in-progress", "read-update.idempotency.kept"]);
   });
+
+  it.each([
+    ["diagnostic replacement", "transactional", "diagnostic", "read", "normative"],
+    ["same-profile replacement", "read", "normative", "read", "normative"],
+    ["lower-profile replacement", "read", "normative", "read-update", "normative"],
+    ["diagnostic target", "transactional", "normative", "read", "diagnostic"],
+  ] as const)(
+    "rejects %s instead of dropping a claim obligation",
+    (_, profile, kind, oldProfile, oldKind) => {
+      const invalid = parseScenarioCatalog({
+        catalogVersion: 1,
+        scenarios: [
+          scenario("read.old", oldProfile, oldKind),
+          { ...scenario("transactional.new", profile, kind), retires: ["read.old"] },
+        ],
+      });
+      expect(() => selectNormativeScenariosForProfile(invalid, "transactional")).toThrow(
+        /strictly lower profile/,
+      );
+    },
+  );
+
+  it("requires retired rows in the combined catalog before selecting the higher claim", () => {
+    const incomplete = parseScenarioCatalog({
+      catalogVersion: 1,
+      scenarios: [{ ...scenario("transactional.new", "transactional"), retires: ["read.missing"] }],
+    });
+    expect(() => selectNormativeScenariosForProfile(incomplete, "transactional")).toThrow(
+      /known normative row/,
+    );
+    expect(selectNormativeScenariosForProfile(incomplete, "read")).toEqual([]);
+  });
 });
 
 describe("runner vocabulary", () => {

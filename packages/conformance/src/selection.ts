@@ -25,10 +25,24 @@ export function retiredScenarioIds(
   claimedProfile: ProtocolProfile,
 ): ReadonlySet<string> {
   profileRank(claimedProfile);
+  const byId = new Map(catalog.scenarios.map((scenario) => [scenario.id, scenario]));
   const retired = new Set<string>();
   for (const scenario of catalog.scenarios) {
     if (!profileIncludes(claimedProfile, scenario.requiredProfile)) continue;
-    for (const id of scenario.retires ?? []) retired.add(id);
+    for (const id of scenario.retires ?? []) {
+      const previous = byId.get(id);
+      if (
+        previous === undefined ||
+        scenario.kind !== "normative" ||
+        previous.kind !== "normative" ||
+        profileRank(scenario.requiredProfile) <= profileRank(previous.requiredProfile)
+      ) {
+        throw new RangeError(
+          `scenario '${scenario.id}' must retire a known normative row of a strictly lower profile: '${id}'`,
+        );
+      }
+      retired.add(id);
+    }
   }
   return retired;
 }
