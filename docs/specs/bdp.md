@@ -1170,6 +1170,150 @@ admitted, client disconnection does not decide the outcome. The authority
 commits or rolls back, and it records one terminal receipt. Retrying returns
 that same outcome, including authority-allocated IDs.
 
+An idempotency key is the token defined under
+[Idempotency keys](#idempotency-keys): the `Idempotency-Key` HTTP field of
+a batch or singleton request and the `idempotencyKey` member of a sequence
+member carry the same case-sensitive `[A-Za-z0-9_-]{1,256}` token, bare,
+compared byte-exactly; a request whose key is absent, repeated, or outside
+the grammar is malformed. On a Transactional Scope the key's namespace is
+the canonical Scope URL, the Scope epoch, and the authenticated principal —
+the Read+Update namespace with the epoch it lacks — and every mutation
+carrier feeds that one namespace: a singleton request, a `batch`, and each
+member of a `sequence` is a Mutation Transaction with its own durable
+Mutation Receipt, and the carrier is delivery metadata that the semantic
+comparison excludes.
+
+The semantic identity of a Mutation Transaction is the sequence, in
+declaration order, of its operations' semantic identities under
+[Idempotency keys](#idempotency-keys): each is the operation kind plus its
+normalized record — durable references canonicalized, protocol defaults
+expanded, array order preserved, member order ignored, `name` and the
+carrier excluded, `expectedRevision` and `attribution` included, opaque
+URIs and pins compared byte-exactly, and the records compared under RFC
+6902 Section 4.6. In a batch, a `@label` reference is normalized to the
+creating operation's zero-based index when that operation supplies no
+`id`, and to the supplied identity's canonical URL when it does — never to
+the label's spelling, so renaming a label is not a semantic change, and
+never to an allocated identity, which does not exist before commit. In a
+sequence, a `@name` reference is normalized to the identity its creating
+member bound, as in Read+Update. A one-operation batch, the equivalent
+singleton request, and the equivalent sequence member therefore present
+one semantic request, and any of them retrieves the receipt the others
+created.
+
+Concurrent identical requests join one execution and receive the same
+receipt identity, pending or terminal. Read+Update refuses a concurrent
+duplicate with `idempotency-in-progress` because it has no durable receipt
+to hand the duplicate; the Transactional profile joins the duplicate to
+the one execution and hands it the pending receipt, which is the same
+exactly-once promise made with the profile's own vehicle. A later identical
+request returns the retained receipt — with its detail available, expired,
+or withheld — and never executes again. A request with the same key and a
+different normalized request is refused before admission with `409`
+`idempotency-conflict` for as long as the key is bound: for the rest of
+the Scope epoch when the earlier transaction completed, whether or not its
+detail has expired, and for as long as its failed receipt is retained
+otherwise. A new epoch is a new namespace: a key first used under a prior
+epoch is unbound, and a retry under the new epoch executes as a new
+mutation, which a client that observes a changed `scopeEpoch` MUST treat
+as a first execution rather than a replay. Authorization View changes do
+not create a new namespace.
+
+Admission is one durable step. The authority records the key, the
+normalized request identity, the `pending` Mutation Receipt with its
+`transaction` identity, and its own exclusive ownership of the execution
+together or not at all, so that a crash leaves a key either unknown with
+nothing committed or bound to a receipt. Exactly one execution owns a
+pending receipt, and ownership is what a commit checks: the Resource state,
+the change group, and the terminal receipt commit atomically only while the
+committing execution still owns the receipt, so an execution that lost
+ownership — because the authority retracted the receipt, or because
+recovery reclaimed it — cannot commit and produces no group. Identities an
+execution allocates become durable only with its commit; a retry after a
+retraction allocates anew, or reuses a supplied `id`. On restart or
+failover, every `pending` receipt without a committed group is retracted
+under the transient-abort rule of
+[Batch operation target](#batch-operation-target) within
+`transaction.duration` when that limit is advertised and within a finite
+bound of the authority's choosing otherwise: the authority never resumes an
+execution on its own initiative, the client's retry is the recovery path,
+and a `pending` receipt older than the bound is a conformance failure.
+Every mutation route — each singleton target, the batch target, the
+sequence target, and every replica that accepts mutations — consults one
+authoritative key state for the namespace; two routes MUST NOT each treat
+the same key as unknown.
+
+A `completed` receipt's compact form is retained under its key for the rest
+of the Scope epoch: the disposition and the allocated identities outlive the
+detail, because exactly-once protects committed effects. A `failed`
+receipt — disposition and detail alike — is retained under its key for at
+least `retention.receipt` after it becomes terminal when that limit is
+advertised, and for a finite interval of the authority's choosing when it
+is not; the authority MAY retain it longer. While it is retained, a retry
+of the failed transaction returns that same failed receipt. Once the
+authority forgets it, its URL answers the uniform `404` as a retracted
+receipt's does, and its key is unknown: a later presentation executes as a
+new mutation under the guards the request carries — a first execution,
+since the failed transaction committed nothing and allocated nothing
+durable. A failed receipt never enters `detail` `expired`; that state
+belongs to completed receipts. Both profiles therefore keep tombstones for
+committed effects only, as [Outcome retention](#outcome-retention) does. A
+client that has refreshed its state constructs a new request under a new
+key.
+
+On a Transactional Scope the `sequence` target is the carrier defined under
+[Read+Update sequence target](#readupdate-sequence-target), and it keeps
+its envelope, its member records, its declaration order, its separate
+commitment, its lack of isolation, and its `@name` rules unchanged; what
+the profile changes is what a member's disposition is. Each member is a
+one-operation Mutation Transaction: the sequence's admission admits every
+member whose key is unknown, in declaration order, recording a pending
+receipt for each — the profile's form of claiming a key — and the members
+then execute in order, each committing its own state, change group, and
+terminal receipt. The envelope projects each member's receipt into one
+entry, and it adds no receipt member:
+
+- a `completed` receipt with its detail available projects the receipt's
+  one result entry in the shape of
+  [Sequence response envelope](#sequence-response-envelope), carrying
+  `operationIndex` and `operationName` for the present member; an entry
+  the current view withholds projects as the `forbidden` member problem of
+  [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions),
+  which is not retained; an entry whose version was erased projects as a
+  `resource-erased` member problem to a caller authorized for the subject's
+  retained history and as `forbidden` to every other caller;
+- a `failed` receipt projects its problem as the member problem, with the
+  present member's `operationIndex` and `operationName`;
+- a `pending` receipt — the member's key is bound to a transaction still
+  executing, here or elsewhere — projects as an `idempotency-in-progress`
+  member problem, which MAY carry `retryAfter`; the sequence does not wait,
+  executes nothing for the member, and retains nothing, and the pending
+  receipt continues to be the key's state;
+- a receipt whose detail expired projects as an `idempotency-expired`
+  member problem carrying, for a `completed` creation, the extension
+  member `allocated` — the `id` and `type` the receipt retains under
+  [Mutation Receipt responses](#mutation-receipt-responses) — so that the
+  member's disposition and identity are never lost to the envelope; and
+- a member whose `@name` creator's receipt is `failed` fails with
+  `binding-unavailable` in its own `failed` receipt, retained as every
+  failed receipt is; a member whose creator's receipt is `pending`, or
+  whose creator was answered transiently in this request, fails
+  transiently with `idempotency-in-progress`, consults no key state,
+  executes nothing, retains nothing, and holds no key — a pending receipt
+  recorded for it at admission is retracted and its key unbound, as after
+  a transient abort — exactly as Read+Update releases the member's claim;
+  a member whose creator's receipt has expired resolves the binding
+  through the receipt's `allocated` identity.
+
+The Read+Update dispositions therefore keep their meanings inside the
+sequence envelope and lose their direct forms: on a Transactional Scope a
+pending key is joined rather than refused, an expired key returns its
+expired receipt rather than `410`, and a failed disposition is a receipt
+with a URL of its own, retained for at least `retention.receipt`, rather
+than an inline disposition. The conformance rows those direct forms bind
+are retired for a Transactional Scope under
+[Transactional conformance rows](#transactional-conformance-rows).
+
 ### Set mutation
 
 > **Transactional/Replication only — Transactional profile.**
@@ -1270,10 +1414,15 @@ principal-bound: possessing its URL does not grant access. The authority
 re-authorizes detailed results on every later read, so a grant change may
 redact or deny detail without changing the terminal disposition. When the
 authority advertises receipt retention, it binds how long detailed outcomes
-remain. After the applicable interval it may discard bulky result data, but
-it retains a compact tombstone — the key, the request identity, and the
-disposition — for the rest of the Scope epoch. A later retry returns an
-outcome-expired result and never executes the mutation as new.
+remain. After the applicable interval it may discard a completed
+transaction's bulky result data, but it retains a compact tombstone — the
+key, the request identity, the disposition, and the identities the
+transaction allocated — for the rest of the Scope epoch. A later retry
+returns an outcome-expired result and never executes the mutation as new.
+A failed transaction committed nothing: its receipt is retained, whole, for
+at least that interval and may then be forgotten, after which its key
+executes as new, under [Mutation Transactions](#mutation-transactions)
+(amended 2026-09-08, Transactional apply, T47).
 
 A receipt may inline every result or the first bounded page. Large
 set-operation results continue through immutable pages of that same receipt.
@@ -1334,27 +1483,119 @@ CreatedData {
 UpdatedData {
   previousRevision: Revision
   revision: Revision
-  change: PropertyChange
-  attribution?: Attribution   // the new version's carried attribution
+  change?: PropertyChange        // exactly one of change and ownedLink
+  ownedLink?: OwnedLinkChange
+  attribution?: Attribution      // the new version's carried attribution
 }
 
+OwnedLinkChange {
+  operation: created | updated | deleted
+  link: LinkState                // created: the owned Link's complete record
+      | OwnedLinkDelta           // updated: the owned Link's own delta
+      | ResourceIdentity         // deleted: id, type, and final live revision
+}
+
+OwnedLinkDelta {
+  id: URI                        // the owned Link's canonical URL
+  type: TypeId
+  previousRevision: Revision     // the Link's revisions, not the source's
+  revision: Revision
+  change: PropertyChange
+  attribution?: Attribution      // the Link's new version's carried attribution
+}
+
+ResourceIdentity {
+  id: URI                        // the canonical Resource URL
+  type: TypeId
+  revision: Revision
+}
 
 DeletedData {
   revision: Revision
 }
 ```
 
-An owned-Link change produces an `updated` Event on the source Bead
-with its fresh revision. The delta member carrying the owned-Link
-change is not yet part of this draft; until it exists, the Transactional
-profile cannot be implemented for owning Types.
+An owned-Link change produces an `updated` Event on the source Bead with
+its fresh revision; its delta carries `ownedLink` in place of `change`.
+Exactly one of the two members is present in any `updated` delta. No single
+operation changes both a Bead's `properties` and one of its owned Links, and
+every owned-Link mutation mints its own source version, so a Mutation
+Transaction that changes both — or that changes two owned Links of one
+source — produces one `updated` Event per transition, each with its own
+`previousRevision` and `revision`, in operation order.
 
+`ownedLink.operation` names the transition, and `ownedLink.link` is the
+delta of that transition, never a snapshot. For `created`, it is the owned
+Link's complete record: exactly the record the Link serves at its own URL
+after the transition, because creation is the delta from absence, so its
+`revision` is the Link's fresh revision and its `attribution`, when present,
+is the Link's own. For `updated`, it is the owned Link's delta — the Link's
+`id` and `type`, its `previousRevision` and fresh `revision`, the committed
+`change`, and the Link's new version's `attribution` when one was recorded —
+the same delta the Link's own `updated` fact carries, so that neither fact
+carries the Link's properties in full. For `deleted`, it is the deleted
+Link's identity — `id`, `type`, and its final live `revision` — because
+deletion mints no Link version and a deleted Event does not retain
+properties. `previousRevision` and `revision` at the Event level are the
+source Bead's. `attribution` at the Event level, when present, is the
+source's new version's carried attribution. An operation that mints both a
+Link version and a source version records its one attribution on both, so a
+`created` or `updated` delta whose Link record or Link delta carries
+`attribution` carries the same value at the Event level, and a delta whose
+Link record or Link delta carries none carries none.
+
+`CreatedData` and `DeletedData` carry no owned-Link data. A Bead is created
+with an empty owned set for every Link Type its Type owns, and the record's
+empty `ownedLinks` entries follow from the Type Descriptor rather than from
+the Event: a consumer that reconstructs a record from Events alone cannot
+know which empty entries the record carries without the Type Descriptor,
+and the canonical record read or the snapshot, not the Event stream, is
+where that key set is authoritative. A Bead with a live owned Link cannot
+be deleted, so a `deleted` Bead Event never has owned Links to report.
+
+A source Bead's owned-Link `updated` Event is in addition to, not instead
+of, the facts the Link mutation already induces: the Link's own `created`,
+`updated`, or `deleted` fact, and the `linked` or `unlinked` fact at each
+in-Scope endpoint, including the source itself. Within a change group, the
+facts induced by one owned-Link operation are ordered: the Link's lifecycle
+fact first, then the graph facts at its in-Scope endpoints, source before
+target — a self-Link's one endpoint Bead receiving its `source` fact before
+its `target` fact — then the source's `updated` fact last. Ordinals are
+assigned in that order and never renumbered by projection. A Bead-scoped
+Event Source for an owning source therefore reports an owned Link's
+property change twice, under two subjects: once as the incident Link's
+`updated` fact and once as the source's own `updated` fact carrying the
+same delta.
+
+A no-op owned-Link property update — one whose patch yields `properties`
+equal, under the RFC 6902 Section 4.6 comparison, to the value immediately
+before it — retains the Link's revision and emits no Event, and it does not
+version the source: there is no transition for the source's version to
+cover.
+
+A consumer that holds the source's record at `previousRevision` advances it
+to `revision` by applying `ownedLink` to the entry keyed by `link.type` in
+the record's `ownedLinks` member: for `created`, inserting `link` in
+ascending code-unit order of `id`; for `updated`, locating the entry whose
+`id` equals `link.id` and whose `revision` equals `link.previousRevision`,
+applying `link.change` to its `properties`, and setting its `revision` to
+`link.revision` and its `attribution` to `link.attribution`, removing that
+member when the delta carries none; for `deleted`, removing the entry whose
+`id` equals `link.id`; then setting the record's `revision` to the Event's
+`revision` and its `attribution` to the Event's `attribution`, removing the
+member when the Event carries none. A consumer whose held revision is not
+`previousRevision`, or whose held entry is not at `link.previousRevision`,
+is not positioned to apply the delta; it re-reads the record or resumes
+from a snapshot. Replicas do not need the delta at all: the containing
+change group's `changes` member carries the source Bead's complete
+postimage, `ownedLinks` inline, beside the Link's own postimage or
+tombstone.
 
 `CreatedData` contains the complete initial properties, because creation is
 the delta from absence to the initial state. For a Link, it also contains the
 Link's source and target endpoint references. `UpdatedData` contains the
-committed Property Change — or, once its pending delta member exists, the
-owned-Link change — rather than a resulting state snapshot.
+committed Property Change — or the owned-Link change — rather than a
+resulting state snapshot.
 `DeletedData.revision` is the Resource's final live revision. Deleted Events
 do not retain the Resource's properties.
 
@@ -1414,7 +1655,12 @@ For Event purposes, `UpdateWhere` and `DeleteWhere` expand over their
 selected Resources as the corresponding singleton operations. Each affected
 Resource produces exactly the Event facts that its singleton update or
 deletion would produce, including incident Link facts at in-Scope endpoint
-Beads. A zero-match operation produces no Events. All Events induced by one
+Beads, and the selected Resources expand in ascending code-unit order of
+their canonical `id`s — the `canonical-uri` order of
+[Collection retrieval and selection](#collection-retrieval-and-selection) —
+so that the Events a set operation induces and the entries its Mutation
+Receipt reports follow one order that does not depend on the authority's
+selection mechanism. A zero-match operation produces no Events. All Events induced by one
 Mutation Transaction carry that transaction's identity, and they become
 observable together only after commit.
 
@@ -1458,6 +1704,7 @@ A change group contains:
 ChangeGroup {
   scopeEpoch: ScopeEpoch
   authorizationView: AuthorizationViewToken
+  checkpoint: Checkpoint
   position: ScopePosition
   previousPosition: ScopePosition
   projectionAdvance: Boolean
@@ -1489,8 +1736,16 @@ Resource normalize to its final projected postimage or tombstone. Consumers
 apply the complete array atomically; its internal order has no semantic
 effect.
 
+An owned-Link mutation changes the state of two Resources, so a group's
+`changes` carries both: the owned Link's postimage or tombstone, and the
+source Bead's postimage at its fresh revision with the owned set inline.
+The two entries describe one graph: the inline record in the source's
+postimage and the Link's own postimage are member-for-member equal, and a
+consumer verifies that agreement before applying the group, under
+[Scope snapshots](#scope-snapshots).
+
 For an invisible group, `projectionAdvance` is true, `transaction` is absent,
-and `changes` and `events` are empty. No Resource, Type, Link endpoint,
+and `changes`, `erasures`, and `events` are empty. No Resource, Type, Link endpoint,
 actor, or transaction identifier from the hidden group crosses the
 authorization boundary.
 
@@ -1564,6 +1819,17 @@ protocol uses one small, uniform surface:
   and
 - snapshots and the Scope changefeed let a replica bootstrap and catch up
   losslessly, while Event Sources provide observation for applications.
+
+Every JSON text BDP admits or emits follows the number model defined under
+[Revisions](#revisions) — exact-decimal equality with binary64 round-trip
+admission, ruled at gastownhall/bdp#21 and landing with gastownhall/bdp#23 —
+which is what gives every Resource record exactly one RFC 8785 canonical
+serialization for [Version erasure](#version-erasure) to digest. Every
+instant BDP emits — an Event's `time`, a receipt's or a snapshot's
+`expiresAt` — is an RFC 3339 `date-time` written with uppercase `T` and
+`Z`, and the bundle's `dateTime` definition validates the calendar and the
+clock, not merely the punctuation; a client accepts the lowercase forms
+RFC 3339 permits.
 
 ### Scope discovery and human documentation
 
@@ -1808,8 +2074,23 @@ unchanged, carries the `validation` group, and rejects the `transaction`
 group and the Transactional `retention.receipt` and `retention.replay`
 members, while keeping `retention.idempotency` and the pagination
 `retention.maximumSnapshotLifetime`. The Transactional discovery
-definition, when it is drafted, carries the `validation` group as well,
-since a Transactional authority advertises the same bound.
+document's `limits` is `transactionalAdvertisedLimits`, a closed
+definition of its own on the same primitives: it carries the `validation`
+group as well, since a Transactional authority advertises the same bound,
+admits the `transaction` group and the `retention.receipt`,
+`retention.maximumSnapshotLifetime`, and `retention.replay` members, and
+rejects `retention.idempotency` under the paragraph below (amended
+2026-09-08, Transactional apply).
+
+On a Transactional Scope a key's disposition is retained by its receipt — a
+completed transaction's for the rest of the epoch and a failed
+transaction's for at least `retention.receipt` — so `retention.idempotency`
+is a Read+Update-only member: a Transactional discovery document MUST NOT
+advertise it, `retention.receipt` bounds how long detailed outcomes and
+failed receipts remain, and the bundle's `transactionalAdvertisedLimits`
+rejects the member. `page.defaultItems` and `page.maximumItems` also count
+the result entries of a Mutation Receipt and its pages, every entry
+counting as one.
 
 For example:
 
@@ -1852,8 +2133,13 @@ Read+Update definitions — discovery, Operation Directory, singleton
 requests, alias requests, sequence request and response, mutation and
 alias results, and problems — are drafted in the bundle pending the review
 recorded under
-[Open protocol questions](#open-protocol-questions). The bundle is finished
-only when it covers the complete BDP v0 surface.
+[Open protocol questions](#open-protocol-questions). The Transactional
+definitions — the Event surface, the batch envelope and its operation
+records, the set-operation bodies, Mutation Receipts and their pages, the
+Transactional problem shapes, change groups, changefeed pages, snapshot
+manifests, and the Transactional discovery document and Operation
+Directory — are drafted on the same terms (2026-09-08). The bundle is
+finished only when it covers the complete BDP v0 surface.
 
 The bundle validates wire shape, not admission. Checks the schema cannot
 express remain the authority's, performed at admission or when the member
@@ -2040,6 +2326,67 @@ values. The bundle defines `readUpdateProblemCode`, `readUpdateProblem`
 [Sequence response envelope](#sequence-response-envelope)),
 `validationDiagnostic`, and `validationDiagnostics`.
 
+The Transactional profile inherits the Read table and the Read+Update rows
+above and adds three rows:
+
+| Code | Family suffix | HTTP status | Retry |
+| --- | --- | --- | --- |
+| `cardinality-violated` | `conflict` | 409 | `after-state-change` |
+| `event-history-expired` | `gone` | 410 | `never` |
+| `catch-up-timeout` | `unavailable` | 503 | `after-delay` |
+
+The Transactional rows mean:
+
+- `cardinality-violated`: a set operation's matched count is outside its
+  `cardinality`, under [Set mutation](#set-mutation).
+- `event-history-expired`: an Event Source's history aged out of the
+  retention window, disclosed only to a principal authorized for that
+  subject's retained history, under
+  [Reads after deletion](#reads-after-deletion).
+- `catch-up-timeout`: a read carrying `BDP-Minimum-Scope-Position` could
+  not be served at or after that position within the authority's wait
+  bound, under
+  [HTTP consistency, caching, and CORS fields](#http-consistency-caching-and-cors-fields).
+
+On a Transactional Scope every code occurs in one of two contexts, and the
+bundle closes each context to its codes. A *direct* code is served as a
+direct problem response: every Read code, `unsupported-media-type`,
+`idempotency-conflict`, `event-history-expired`, and `catch-up-timeout`. A
+*receipt* code occurs inside a `failed` Mutation Receipt, where the problem
+carries the code's `status` as the failure's would-be direct status:
+`validation-failed`, `type-not-installed`, `identity-taken`,
+`alias-path-taken`, `revision-mismatch`, `incident-links-exist`,
+`aggregate-constraint-violation`, `cardinality-violated`,
+`binding-unavailable` — a sequence member on a Transactional Scope whose
+`@name` creator's receipt is `failed`, under
+[Mutation Transactions](#mutation-transactions) — and three Read codes
+with these meanings — `forbidden`, operation-local authorization denied
+the operation when it was reached, including a selected Resource that is
+not writable; `resource-not-found`, `bead`, `link`, or an in-Scope
+endpoint does not identify a live Resource visible in the request's
+Authorization View, or a durable reference names a Resource of another
+kind; and `limit-exceeded`, an advertised or enforced transaction limit —
+examined, matched, or mutated Resources, induced Events, or duration — was
+crossed after admission. A `failed` receipt never carries
+`temporarily-unavailable`: an abort the authority does not retry is
+transient and retracts the receipt under
+[Mutation Transactions](#mutation-transactions), so no receipt is ever
+bound to an outcome a retry could change. Inside a `failed` receipt, `retry`
+`never` means the request as written can never succeed, and `retry`
+`after-state-change` means a new request under a new key may succeed after
+the client refreshes its state; neither means the same key executes again
+while the failed receipt is retained. The Read+Update dispositions
+`idempotency-in-progress` and `idempotency-expired` are never direct
+problems on a Transactional Scope — a pending receipt is joined and an
+expired one is returned — and occur only as the sequence-member projections
+defined under [Mutation Transactions](#mutation-transactions);
+`binding-unavailable` is never a direct problem either, and occurs only in
+a sequence member's `failed` receipt and its projection. The bundle defines
+`transactionalOnlyProblemCode`, `transactionalProblemCode`,
+`directProblemCode`, `receiptProblemCode`, `transactionalProblem`, and
+`receiptProblem`; the Transactional profile adds no `status` value beyond
+the Read+Update set.
+
 A direct problem uses its code's HTTP status. Its RFC 9457 `status` member is
 optional, but when present it MUST match the HTTP status. RFC 9457 extension
 members are allowed. A syntactically admitted sequence still returns
@@ -2129,6 +2476,15 @@ assigned to an Event or later position. The restricted alphabet is a wire
 profile, not a requirement that the value decode as base64url.
 Implementations may encode UUIDs, ULIDs, hashes, counters, or other native
 identities into it.
+
+In the Transactional profile, Scope epochs, Authorization View tokens, Scope
+positions, transaction identifiers, and receipt tokens use this same
+profile, as idempotency keys do in every write profile under
+[Idempotency keys](#idempotency-keys), so that every history token is safe
+in a JSON value, a URL query, and an HTTP field. Resource revisions are not
+covered: a revision is an opaque nonempty string compared only for
+equality, and how the protocol projection encodes one as an HTTP validator
+is a separate rule.
 
 ### Resource records
 
@@ -3380,6 +3736,146 @@ absolute canonical URLs. JSON object member order and equivalent accepted
 local versus absolute spellings therefore do not cause a false idempotency
 conflict. Operation order, array order, member presence, and JSON values
 remain semantic.
+
+A batch request body conforms to the bundle's `batchRequest` definition:
+exactly one member, `operations`, an array of one or more operation records,
+each conforming to `batchOperation` — the closed eight-record union whose
+`operation` discriminator selects `createBead`, `updateBeadProperties`,
+`deleteBead`, `createLink`, `updateLinkProperties`, `deleteLink`,
+`updateWhere`, or `deleteWhere`. Each record composes the operation's
+member definition shared with the Read+Update singleton and sequence
+records — `createBeadMembers` through `deleteLinkMembers`, plus
+`updateWhereMembers` and `deleteWhereMembers` — with the `operation`
+discriminator and, on a creation record, the optional `name` label, and it
+is closed. A body-level `idempotencyKey`, a per-operation `idempotencyKey`,
+or any other undefined member makes the request malformed. The
+`Idempotency-Key` HTTP field is required and follows
+[Idempotency keys](#idempotency-keys); a request that carries no such
+field, more than one, or a value outside the grammar is malformed. Whether
+`batch` admits the alias records of [Alias targets](#alias-targets) is
+open (decision T49 in `docs/design/w1-transactional-packet.md`); the union
+above does not admit them.
+
+Reference members of operation records take the Read+Update reference
+definitions: `bead` and `link` are `resourceReference` — a canonical local
+ID, an absolute canonical Resource URL, or an `@label` — and `source` and
+`target` are `inputReference`, which additionally admits an absolute
+out-of-Scope URI and the Pinned Reference form `inputPinnedReference`
+around any of those spellings. A creation record's `id` is
+`durableResourceReference`: a canonical local ID or an absolute canonical
+URL, never an `@label`; a local ID whose first character is `@` is supplied
+as its absolute URL. A Pinned Reference whose `uri` is an `@label` is
+accepted: the authority resolves the `uri` to the allocated canonical URL
+and stores and echoes the `revision` byte-identically, applying no semantic
+validation to it, exactly as for every other pin.
+
+Before admission, the authority decides the request's fate in this order,
+and a request that fails one step never reaches the next:
+
+1. request bounds — a request target above `request.targetBytes` or a body
+   above `request.bodyBytes` is rejected with `413` `request-too-large`
+   before the body is parsed;
+2. carrier syntax — a body media type other than `application/json` is
+   `415` `unsupported-media-type`; a body that is not well-formed JSON, an
+   absent, repeated, or invalid `Idempotency-Key`, a body outside
+   `batchRequest`, a forward, unknown, or duplicate label, a label used
+   where the other Resource kind is required, a noncanonical local ID
+   spelling, or a supplied `id` beneath the wrong fixed root is `400`
+   `malformed-request`, whose problem SHOULD carry `pointer`, an RFC 6901
+   JSON Pointer into the request body naming the offending member;
+3. the principal — an unauthenticated request is `401` `unauthenticated`,
+   and a principal that may not submit mutations to the Scope is `403`
+   `forbidden`;
+4. the key — a key bound, for this Scope, epoch, and principal, to a
+   different normalized request is `409` `idempotency-conflict`, and the
+   earlier request's outcome is unaffected; a key bound to the same
+   normalized request is answered with its receipt, pending or terminal,
+   under [Mutation Transactions](#mutation-transactions), and nothing
+   below is evaluated; and
+5. admission controls for an unknown key — an `operations` count above
+   `transaction.operations` is `413` `limit-exceeded` with `limit`
+   `transaction.operations`, a rate limit is `429` `rate-limited`, and an
+   authority that cannot admit is `503` `temporarily-unavailable`.
+
+Every one of these is a direct problem that creates no receipt and binds no
+key. A syntactically invalid request therefore never consults key state, and
+a retained or pending receipt is returned before limits and rate limits are
+evaluated, so that a retry that only wants its outcome is never refused for
+the capacity its original consumed.
+
+A request is admitted when the authority has durably recorded, in one step,
+the key, the normalized request identity, the `pending` Mutation Receipt
+with its `transaction` identity, and its own ownership of the execution,
+under [Mutation Transactions](#mutation-transactions). From that point
+client disconnection, a transport failure, and a bodyless `500` decide
+nothing: the transaction commits or fails on its own, the receipt records
+which, and every response to that request or to an identical retry is a
+Mutation Receipt representation — with one exception. A transient abort
+after admission — a serialization conflict the authority does not retry, or
+a component it cannot reach — retracts the pending receipt and unbinds the
+key in one durable step and is answered, to the original request and to
+every joined duplicate, with a direct `503` `temporarily-unavailable` that
+SHOULD carry `Retry-After`; the retracted receipt's URL then answers the
+uniform `404`, and a retry under the same key executes as a new mutation.
+Every other failure after admission is permanent and is reported inside a
+`failed` receipt, never as a direct problem.
+
+The batch target's responses are:
+
+- `200 OK` with the terminal Mutation Receipt, whose `status` is `completed`
+  or `failed`. A failed transaction is a successful representation of its
+  receipt; the HTTP status does not repeat the embedded problem's `status`,
+  exactly as a syntactically admitted sequence returns `200 OK` around
+  failed members. The synchronous response to the original submission is
+  this terminal receipt whenever the transaction reaches its terminal
+  disposition within the authority's synchronous wait bound, which is never
+  longer than `transaction.duration` when that limit is advertised; the
+  normal case therefore requires no follow-up read.
+- `202 Accepted` with the `pending` Mutation Receipt: to the original
+  submission only when the transaction is still executing at the wait
+  bound, and to an identical duplicate that the authority answers before
+  the transaction is terminal. The response SHOULD carry `Retry-After` and
+  MAY carry `Location` equal to the receipt's `id`. The client waits,
+  repeats the original request, or reads the receipt until it is terminal.
+- A direct problem, from the ordered list above or the transient-abort
+  rule, for a request that is not admitted or whose execution was
+  retracted.
+
+Receipt representations use `Content-Type: application/json`,
+`Cache-Control: private, no-store`, and the three Transactional response
+fields as the serving request's own observation under
+[Mutation Receipt responses](#mutation-receipt-responses). Singleton
+operation targets on a Transactional Scope use exactly these statuses and
+rules: the six Resource targets' bodies are the Read+Update singleton
+request records `createBeadRequest` through `deleteLinkRequest` — the
+operation's members without `operation` and `name`, rejecting `@label` in
+bare and pinned forms — and, for the two set targets, `updateWhereRequest`
+and `deleteWhereRequest`, the set-operation members without `operation`;
+each executes as a one-operation Mutation Transaction and returns its
+receipt. The alias targets `put-alias` and `delete-alias`, which the
+profile inherits under [Alias targets](#alias-targets), are outside these
+rules and the matrix below until their Transactional contract is defined
+(decision T49 in `docs/design/w1-transactional-packet.md`).
+
+The Transactional mutation surface answers as follows; a row's statuses are
+exhaustive for that target and method, apart from the bodyless `500` an
+unexpected internal fault produces anywhere.
+
+| Target | Method | Response |
+| --- | --- | --- |
+| `batch`, the six Resource singleton targets, the two set targets, and `sequence` | `POST` | `200` terminal receipt (`sequence`: the `200` envelope of [Sequence response envelope](#sequence-response-envelope)); `202` pending receipt; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503` |
+| the same targets | any other method | `405`, `Allow: POST` — plus `OPTIONS` when cross-origin access is enabled, in which case `OPTIONS` is answered by the CORS rules rather than `405` — and no BDP Problem body |
+| `operations/` | `GET`, `HEAD` | `200` Operation Directory; `401`, `403`, `429`, `503` |
+| `operations/` | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
+| a receipt URL `receipts/{token}` | `GET`, `HEAD` | `200` receipt in its current representation; `401`; `404` for an unknown token, another principal's receipt, a retracted receipt, a forgotten failed receipt, or a prior epoch's receipt; `429`, `503` |
+| a receipt page URL | `GET`, `HEAD` | `200` page; `401`; `404` under the same non-disclosure rule; `410` `cursor-expired` after the receipt's detail expired; `429`, `503` |
+| a receipt or page URL | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
+| the `receipts` root | any method | `404` `resource-not-found` for `GET` and `HEAD`, `405` with `Allow: GET, HEAD` otherwise |
+
+On a receipt or page read, authentication is decided first, then the
+principal and epoch non-disclosure rule, then page expiry, then the
+representation: a caller who may not see a receipt learns nothing from an
+expired page of it.
 ### Operation record schema
 
 > **Transactional/Replication constructs within this section.**
@@ -3392,9 +3888,11 @@ remain semantic.
 > `name`, and body-level `idempotencyKey` as described below.
 
 Every object in a batch conforms to the bundle's operation definition. The
-following non-normative sketch previews the eight-record Transactional union.
-The sketch has no independent `$id`. The `operation` discriminator selects one
-of the eight generic operation records:
+bundle's `batchOperation` definition is the normative eight-record union,
+composed from the same `<operation>Members` definitions the Read+Update
+singleton and sequence records use; the sketch below is a non-normative
+preview of it and carries no independent `$id`. The `operation`
+discriminator selects one of the eight generic operation records:
 
 ```json
 {
@@ -3749,47 +4247,64 @@ atomic graph cleanup required before deleting a Bead with incident Links.
 > not durable Mutation Receipts.
 
 The response to a completed mutation is its durable Mutation Receipt
-representation. A successful batch contains one result per operation in
-declaration order:
+representation. A successful batch contains one entry per single-Resource
+operation and, for a set operation, a `matched` entry followed by one entry
+per selected Resource, in declaration order:
 
 ```json
 {
-  "id": "https://beads.example/acme/receipts/receipt-7",
+  "id": "https://beads.example/acme/receipts/rcpt-7",
   "status": "completed",
-  "idempotencyKey": "client-generated-opaque-key",
-  "scopeEpoch": "opaque-scope-epoch",
-  "authorizationView": "opaque-authorization-view",
-  "requiredPosition": "opaque-position-43",
-  "effectPosition": "opaque-position-43",
-  "transaction": "opaque-transaction-id",
+  "detail": "available",
+  "idempotencyKey": "client-key-0001",
+  "scopeEpoch": "epoch-1",
+  "authorizationView": "view-a",
+  "transaction": "txn-0a1b",
+  "requiredPosition": "pos-43",
+  "effectPosition": "pos-43",
   "results": [
     {
-      "name": "newTask",
+      "operationIndex": 0,
+      "operationName": "decision",
       "outcome": "created",
       "resource": {
-        "id": "https://beads.example/acme/beads/task-104",
-        "type": "https://work.example/types/task",
-        "revision": "opaque-task-revision",
-        "properties": {
-          "title": "Specify BDP mutation",
-          "status": "open"
-        }
+        "id": "https://beads.example/acme/beads/dec-9",
+        "type": "https://work.example/types/decision",
+        "revision": "dec-9-r1",
+        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "properties": { "title": "Adopt owned Links", "status": "proposed" },
+        "ownedLinks": { "https://work.example/types/cites": [] }
       }
     },
     {
+      "operationIndex": 1,
+      "operationName": "cite",
       "outcome": "created",
       "resource": {
-        "id": "https://beads.example/acme/links/assigned-to-81",
-        "type": "https://work.example/types/assigned-to",
-        "revision": "opaque-link-revision",
-        "source": "https://beads.example/acme/beads/task-104",
-        "target": "https://beads.example/acme/beads/person-7",
-        "properties": {}
+        "id": "https://beads.example/acme/links/9c1e",
+        "type": "https://work.example/types/cites",
+        "revision": "9c1e-r1",
+        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "source": "https://beads.example/acme/beads/dec-9",
+        "target": "https://beads.example/acme/beads/task-42",
+        "properties": { "role": "evidence" }
+      },
+      "source": "https://beads.example/acme/beads/dec-9",
+      "sourceRevision": "dec-9-r2"
+    },
+    {
+      "operationIndex": 2,
+      "outcome": "updated",
+      "resource": {
+        "id": "https://beads.example/acme/beads/task-42",
+        "type": "https://work.example/types/task",
+        "revision": "task-42-r8",
+        "properties": { "title": "Specify BDP mutation", "status": "cited" }
       }
     }
   ],
   "next": null,
-  "expiresAt": "2026-09-04T19:12:45Z"
+  "expiresAt": "2026-09-14T18:04:12Z"
 }
 ```
 
@@ -3817,12 +4332,183 @@ determines how long results stay available.
 
 If an operation fails after admission, the synchronous response is the
 terminal Mutation Receipt with `status` equal to `failed`. It carries one
-problem value that identifies the failing operation by zero-based index and,
-when present, by `name`. The receipt contains no committed operation results
-because the complete transaction is rolled back. Retrying returns that same
-failed receipt. Request syntax and authentication failures that occur before
-admission return a direct problem response and do not create receipts. Exact
-HTTP statuses and receipt problem schemas are not yet assigned in this draft.
+problem value that identifies the failing operation by zero-based
+`operationIndex` and, when present, by `operationName`. The receipt
+contains no committed operation results because the complete transaction
+is rolled back. Retrying returns that same failed receipt. It does so for
+as long as the failed receipt is retained, under
+[Mutation Transactions](#mutation-transactions). Request syntax and
+authentication failures that occur before admission return a direct
+problem response and do not create receipts.
+
+Every admitted mutation has one Mutation Receipt at an authority-allocated
+URL beneath the discovered `receipts` root — `receipts/{token}`, where the
+token is a checkpoint-profile token — and the receipt's `id` is that
+absolute URL. `GET` and `HEAD` of the receipt URL return the receipt's
+current representation with `200 OK`, `Cache-Control: private, no-store`,
+and the Transactional response fields. A receipt URL that does not exist,
+that belongs to another principal, that was retracted under
+[Mutation Transactions](#mutation-transactions), that named a failed
+receipt the authority has since forgotten under the same section, or that
+was allocated in another Scope epoch returns the uniform `404`
+`resource-not-found`: receipts are principal-bound, and they are not an
+enumeration oracle. The `receipts` root is a namespace prefix, not a
+Resource: it is discovered so that receipt URLs are recognizably the
+authority's and clients never construct them, BDP v0 defines no receipt
+listing and no lookup by key, and a `GET` of the root returns `404`
+`resource-not-found`. A client resolves a lost response by retrying the
+original request with its original key, which returns the receipt.
+
+A receipt's `status` is `pending` until the transaction is terminal and then
+exactly one of `completed` or `failed`, forever. Every receipt carries `id`,
+`status`, `idempotencyKey`, `scopeEpoch`, `authorizationView`, and
+`transaction`, the opaque identity every Event and change group of the
+transaction carries. A terminal receipt additionally carries
+`requiredPosition` and `detail`, and, when the transaction produced a change
+group, `effectPosition`. `detail` states what the representation discloses
+beyond the disposition: `available` — the results or the problem are
+present; `expired` — the authority discarded a completed transaction's
+results under its receipt retention; `withheld` — the caller's current
+Authorization View may not see any of them. When `detail` is `available`, a
+`completed` receipt carries `results`, `next`, and `expiresAt`, and a
+`failed` receipt carries `problem` and `expiresAt`. `expiresAt` is the
+instant until which the authority retains what the representation
+discloses — a completed receipt's detail, and a failed receipt's disposition
+and detail alike; when discovery advertises `retention.receipt`, it MUST be
+no earlier than the terminal instant plus that duration. After `expiresAt`
+the authority MAY discard a completed receipt's detail and serve the
+receipt with `detail` `expired`. What it never discards is a completed
+transaction's compact receipt — the key, the normalized request identity,
+the disposition, the positions, and, for every creation operation, the
+identity it allocated — which it retains for the rest of the Scope epoch,
+because exactly-once protects committed effects. An `expired` `completed`
+receipt therefore carries `allocated`: one entry per creation operation in
+operation order, with the operation's `operationIndex`, its
+`operationName` when it declared one, and the allocated `id` and `type` —
+the same identities the vanished `created` entries carried and the ones a
+later `@name` reference in a sequence still resolves through. An identical
+retry after expiry returns the `expired` receipt with `200 OK` and never
+executes the mutation again. A failed receipt is forgotten whole rather
+than expired: after `expiresAt` the authority MAY forget it — disposition
+and detail alike, since the transaction committed nothing and allocated
+nothing durable — and MAY retain it longer; a failed receipt never enters
+`detail` `expired`, and once it is forgotten its URL answers the uniform
+`404` and its key is unknown, so a later presentation executes as new,
+under [Mutation Transactions](#mutation-transactions).
+
+`results` is an ordered array of result entries in the vocabulary of
+[Mutation results](#mutation-results). Each entry carries the zero-based
+`operationIndex` of the operation that produced it and, when that operation
+declared one, its `operationName`. A single-Resource operation produces
+exactly one entry: `created` or `updated`, carrying `resource`, the
+complete postimage — the Resource's state immediately after that
+operation, which a later operation in the same transaction may supersede —
+or `deleted`, carrying `deleted`, the deleted Resource's identity record —
+`resourceKind` and `resource`, holding `id`, `type`, and final live
+`revision` — the `deletedIdentity` record of
+[Mutation results](#mutation-results). A semantic no-op update, defined
+under [Revisions](#revisions), produces an `updated` entry carrying the
+postimage at the retained revision, and a transaction all of whose
+operations are no-ops is an admitted no-effect mutation: it completes,
+produces no group, and its receipt omits `effectPosition`. An entry for an
+operation on an owned Link additionally carries `source`, the source Bead's
+canonical URL, and `sourceRevision`, the source Bead's resulting revision,
+on creation, update, and deletion alike; on a no-op update
+`sourceRevision` is the source's unchanged revision. A set operation
+produces one `matched` entry carrying `count`, the number of Resources it
+selected, followed by one `updated` or `deleted` entry per selected
+Resource in ascending code-unit order of their canonical `id`s, the order
+in which the operation expands under
+[Events and Event Sources](#events-and-event-sources); a zero-match
+operation produces its `matched` entry with `count` `0` and nothing else.
+Entries appear in operation order. `page.maximumItems`, when advertised,
+bounds the entries in the receipt's inline `results` and in each page,
+every entry counting as one whatever its outcome; when it is not, the
+authority applies a bound of its own. When every entry fits within the
+bound, `results` holds them all and `next` is `null`; otherwise `results`
+holds a prefix and `next` is an absolute URL whose `GET` returns a
+`mutationReceiptPage` — `receipt`, the receipt's `id`; `results`, the next
+entries; and `next`. Pages are immutable in what they record, never split
+an entry, and are served through the same projection as the receipt. After
+the receipt's detail expires, a page URL returns `410` `cursor-expired`,
+decided after authentication and the receipt's non-disclosure rule.
+
+Every delivery of a receipt — the synchronous response, the response to a
+duplicate, a later `GET` or `HEAD`, every page, and the projection of a
+member's receipt into a sequence response — is one representation, the
+receipt as retained projected under the serving request's current
+Authorization View. An entry that carries a Resource record — `created`
+or `updated` — is served only when the current view projects that record
+as retained, whether or not the Resource still exists or is at that
+revision, and the view's closure over owned Links applies: hiding a Bead
+hides the entries of every Bead that owns a Link to it and of those Links.
+An entry the view does not project is served as `withheld`, carrying only
+`operationIndex` and, when present, `operationName`; an `allocated` entry
+is re-authorized the same way and carries `withheld` `true` in place of its
+identity. Entries that carry no record — `matched` counts, `deleted` and
+`erased` identities, and `withheld` entries — and a `failed` receipt's
+`problem` are the transaction's own execution facts, disclosed to the
+principal when it executed, and are served as retained. When a `completed`
+receipt's every entry is withheld, the receipt carries `detail` `withheld`
+and neither `results`, `next`, nor `allocated`; a `failed` receipt is never
+`withheld`. The disposition, `requiredPosition`, and `effectPosition` are
+never withheld. Withholding is authorization, never deletion: an entry
+whose Resource was since deleted is served like any other when the view
+projects its retained record.
+
+A receipt is a store of every version its postimages carry, and
+[Version erasure](#version-erasure) reaches it: from the moment the
+authority processes the erasure record, on every delivery path and
+whatever `expiresAt` promised, an entry whose postimage is an erased
+version never carries the content again. To a caller authorized for the
+subject's retained history — the one authorization that gates the
+`resource-erased` disclosure under [Reads after deletion](#reads-after-deletion)
+— the entry is served as `erased`: `operationIndex`, `operationName` when
+present, `erased`, the version's lineage marker `{ id, type, revision }`,
+and `source` and `sourceRevision` when the operation was on an owned Link.
+To every other caller it is the uniform `withheld` entry, so that a receipt
+is no more an erasure oracle than a read is.
+
+The three Transactional response fields on a receipt or page response are
+the serving request's own observation, never the body's history:
+`BDP-Scope-Epoch` and `BDP-Authorization-View` carry the current epoch and
+the caller's current view token, and `BDP-Scope-Position` carries the
+position the read observed — at or after `effectPosition` on a terminal
+receipt served synchronously, honoring `BDP-Minimum-Scope-Position` on a
+later read exactly as any read does, and the observed head on a `202`. The
+body's `scopeEpoch`, `authorizationView`, `requiredPosition`, and
+`effectPosition` are the execution's recorded facts and never change; after
+a view rotation the body still names the view under which the transaction
+executed, and the recorded `requiredPosition` remains evidence about that
+view rather than a checkpoint for the current one.
+
+A `failed` receipt's `problem` is a Problem Details object of the receipt
+form. It carries the code's `status` — the HTTP status the failure would
+have had as a direct response, required because the enclosing status is
+`200 OK` — and `operationIndex`, the zero-based index of the operation
+being evaluated when the failure was detected, with `operationName` when
+that operation declared one. A failure the authority establishes for the
+transaction as a whole rather than at one operation — a `limit-exceeded`
+on `transaction.duration`, `transaction.inducedEvents`,
+`transaction.examinedResources`, `transaction.matchedResources`, or
+`transaction.mutatedResources` counted across operations, or an
+`aggregate-constraint-violation` established at commit — omits
+`operationIndex` rather than fabricating one. When the authority can locate
+the cause within the request, the problem carries `pointer`, an RFC 6901
+JSON Pointer into the request body as submitted, so that in a batch it
+begins with `/operations/{operationIndex}` and in a singleton it addresses
+the record directly. A `limit-exceeded` problem SHOULD carry `limit`, the
+dotted name of the crossed limit under `limits`. Exceeding
+`transaction.duration` is permanent, not transient: the request as written
+does not fit the advertised bound, the receipt fails with `limit-exceeded`
+and `limit` `transaction.duration`, and the client divides the work under
+new keys. A `validation-failed` problem carries `diagnostics` and, when it
+truncated them, `diagnosticsTruncated`, exactly as
+[Problem details](#problem-details) defines them for the Read+Update rows.
+A `failed` receipt's problem describes the rejected request, not a
+committed version, and lies outside erasure; an authority that nonetheless
+quoted a committed version's content in `detail` or a diagnostic scrubs it
+as a store would.
 
 ### Incident Link reads
 
@@ -4028,10 +4714,16 @@ accepts the members
 defined by its operation record, excluding the batch-only `operation`
 discriminator and `name` label. The request executes as a one-operation
 Mutation Transaction. It returns the same Mutation Receipt shape with a
-one-element `results` array (amended 2026-09-08, council 12). The alias
+one-element `results` array (amended 2026-09-08, council 12); the two set
+targets `update-where` and `delete-where` return it with a `matched` entry
+followed by one entry per selected Resource, under
+[Mutation Receipt responses](#mutation-receipt-responses) (amended
+2026-09-08, Transactional apply). The alias
 targets' Transactional contract — receipt, Scope history, changefeed
 appearance, and whether `batch` admits alias members — is defined with
-the Transactional profile. Transactional singleton requests require
+the Transactional profile; it is teed up as decision T49 in
+`docs/design/w1-transactional-packet.md` and remains open (amended
+2026-09-08, Transactional apply). Transactional singleton requests require
 `Idempotency-Key` and cannot use `@label` references.
 
 Within the Transactional profile, the singleton and batch forms have identical
@@ -4114,8 +4806,17 @@ first page of each typed stream and may contain both streams completely:
   "scopePosition": "opaque-position-42",
   "checkpoint": "opaque-checkpoint-42",
   "expiresAt": "2026-08-05T19:22:00Z",
+  "erasures": [],
   "beads": {
     "items": [
+      {
+        "id": "https://beads.example/acme/beads/person-7",
+        "type": "https://people.example/types/person",
+        "revision": "opaque-person-revision",
+        "properties": {
+          "name": "Person Seven"
+        }
+      },
       {
         "id": "https://beads.example/acme/beads/task-42",
         "type": "https://work.example/types/task",
@@ -4159,6 +4860,25 @@ group after `scopePosition` through `expiresAt`. Collection cursors remain
 query snapshots. They do not substitute for this complete projected Scope
 snapshot.
 
+A snapshot manifest carries `erasures`, the erasure ledger projected for
+the manifest's view under [Version erasure](#version-erasure), and a
+replica applies those records before it publishes the replacement
+generation. A snapshot's two streams describe one graph: every Link whose
+in-Scope endpoint is in the projection appears in the `links` stream and
+its endpoint Bead in the `beads` stream, and every owned Link inlined in a
+Bead record of the `beads` stream also appears as a first-class record in
+the `links` stream, member for member. A replica stages both streams
+completely and verifies that agreement before it publishes; a snapshot in
+which an inline owned Link and its first-class record disagree, or in which
+a Link's in-Scope endpoint is absent, is invalid, and the replica discards
+it and fetches a new one rather than choosing an authoritative stream. The
+same verification applies to a change group: a source Bead's `upsert` and
+the `upsert` or `tombstone` of each of its owned Links MUST agree, and a
+group whose entries disagree is rejected as an authority fault, never
+applied in part. A snapshot anchored before an erasure record's position is
+expired by that record in the view that receives it. The bundle defines
+the manifest as `snapshotManifest`.
+
 ### Version erasure
 
 Retention removals and erasures replicate oppositely, by nature. A store
@@ -4196,7 +4916,145 @@ means erasing the offending version and committing its corrected successor,
 atomically in one change group when both are needed. Reads of an erased
 version answer with the `resource-erased` disclosure under
 [Reads after deletion](#reads-after-deletion). An erasure does not rotate
-the Scope epoch: every other token remains exactly as valid as it was.
+the Scope epoch: every token anchored at or after the erasure position
+remains exactly as valid as it was (amended 2026-09-08, Transactional
+apply, T28).
+
+Each `erasures` entry carries `subject`, the canonical Resource URL;
+`revision`, the erased version's token; and `digest`, an object with
+`scheme` and `value`. BDP v0 defines exactly one scheme, `sha-256-jcs`:
+`value` is the lowercase hexadecimal SHA-256 of the RFC 8785 (JCS)
+serialization of the erased version's complete Resource record — the
+record the authority served for that revision, `attribution` and
+`ownedLinks` included and the `links` aggregate excluded — with JCS's
+ES6 number serialization and its UTF-16 code-unit member ordering. Under
+the number model of [Revisions](#revisions) every admitted number is a
+binary64 value, so every record has exactly one canonical serialization
+and one digest, and implementations agree on it without a BDP-specific
+canonicalization rule. Digest computation never gates erasure: an
+authority that cannot serialize a version under JCS has committed a value
+outside the data contract, which is its own conformance failure; it erases
+the content all the same, emits the record with the digest it computes
+over its best canonical serialization, and reports the escape out of band,
+and the mismatch a replica then reports is the correct audit signal for a
+record that escaped the contract, never a reason to hold the content.
+
+The **erased content** of a version is its record less its lineage marker
+— everything but `id`, `type`, and `revision`: `properties`,
+`attribution`, a Link's `source`, `target`, and pin, and a source Bead's
+inline owned-Link records. The lineage marker, the erasure record, and the
+digest survive erasure everywhere; the erased content survives nowhere.
+
+An erasure group is an ordinary visible group at its own position —
+`projectionAdvance` `false`, `transaction` present and minted by the
+authority for the administrative act, which has no Mutation Receipt because
+erasure is not a BDP operation. An erasure-only group, one that erases
+historical versions and commits nothing, carries empty `changes` and
+`events`. Because a source Bead's version record inlines its owned Links'
+records, erasing an owned Link's version erases every source version that
+inlined it: the authority emits one erasure record per erased version in
+the same group, and each is applied on its own.
+
+An authority MUST NOT commit an erasure of a Resource's live version
+without, in the same group, either the successor's `upsert` postimage or
+the Resource's `tombstone`; a replica never holds a live Resource without
+content. When the group commits a successor, the successor's `updated`
+fact is the delta from a version whose content must not exist, and an
+ordinary Property Change — its `remove` and `replace` paths and prior
+values — would disclose it. The successor's fact therefore carries the
+content-free delta form: `change` is exactly one `replace` at the root
+pointer `""` whose `value` is the successor's complete `properties`, and
+`previousRevision` is the erased revision. The successor MUST differ from
+the erased version — a `properties` value equal under RFC 6902 Section 4.6
+would re-commit the erased content and, under [Revisions](#revisions),
+mints nothing — or the group tombstones the Resource instead. An owned
+Link's successor is carried the same way in its own `updated` fact and in
+the source's `ownedLink` delta.
+
+Erasing a live version with a tombstone is an administrative deletion of
+the Resource. It is subject to deletion safety — a Bead with a live
+incident Link cannot be tombstoned, so the administrator first deletes or
+erases those Links — and it induces the ordinary facts of a deletion: the
+subject's `deleted` fact, an `unlinked` fact at each in-Scope endpoint of a
+deleted Link, and, for an owned Link, the source Bead's fresh version, whose
+postimage joins `changes` and whose `updated` fact carries `ownedLink` with
+`operation` `deleted` and the Link's identity. Those facts carry the
+administrative transaction identity and are subject to the withholding rule
+below like every other Event, so that in the common case — every version
+of a Link erased with its tombstone — its graph facts are withheld and only
+the identity-bearing `deleted` fact is served. A group carrying a
+live-version erasure is valid only when its successor `upsert` or
+`tombstone` leaves every Link's in-Scope endpoints live, every view closed
+over owned Links, and every owning source at a version whose inline owned
+set agrees with the Links' first-class records.
+
+A store, cache, or replica that processes an erasure record MUST, for the
+named subject and revision:
+
+1. discard the erased content wherever it holds it — the retained version
+   record, stored change-group postimages, retained Events, Mutation
+   Receipts and receipt pages, retained sequence dispositions, snapshots
+   and snapshot pages, caches, and derived indexes — before it makes any
+   further state visible;
+2. retain the lineage marker, the erasure record, and the digest, so that
+   an audit can prove which version once stood at that point without
+   recovering it, and a replica SHOULD verify the digest against its held
+   copy before discarding it and report a mismatch out of band — a mismatch
+   never suspends the obligation;
+3. answer reads of that version with the `resource-erased` disclosure to
+   callers authorized for the subject's retained history and with the
+   uniform `404` `resource-not-found` to every other caller; serve a
+   receipt entry whose postimage was the version as `erased` to the former
+   and as `withheld` to the latter, under
+   [Mutation Receipt responses](#mutation-receipt-responses); and, for a
+   tombstoned subject, keep serving the Event-Source cursors and the
+   `deleted` fact its lineage marker permits;
+4. withhold, from every Event Source it serves, every Event whose `data`
+   carries erased content: the `created` or `updated` fact that minted the
+   erased revision; the source Bead's `updated` fact whose `ownedLink`
+   carries the erased Link version; and a `linked` or `unlinked` fact whose
+   endpoint References are erased content — which is the case exactly when
+   every version of the Link that carried them is erased, since a Link's
+   endpoints are immutable across its versions. A `deleted` fact carries
+   only a lineage marker and is never withheld. Withholding removes the
+   Event from every projection and leaves its ordinal as a gap exactly as a
+   hidden fact does; every served Event's cursor stays valid, a cursor
+   whose Event was withheld remains a valid exclusive `after` position, and
+   a group's `eventCount` counts the Events it serves;
+5. carry the record onward on any changefeed and in every snapshot manifest
+   it serves, under [Scope snapshots](#scope-snapshots); and
+6. expire, in every view that received the record, every changefeed
+   checkpoint and every snapshot anchored before the record's position, as
+   the next paragraph requires.
+
+An erasure record committed at position P invalidates, in each view that
+receives it, every changefeed checkpoint and every snapshot anchored before
+P: `minimumReplayPosition` advances to at least P, a read whose `after`
+precedes P fails with `cursor-expired`, a page of a snapshot anchored
+before P returns `410` `cursor-expired`, and the manifest's `expiresAt` is
+superseded. A replica behind P therefore bootstraps from a fresh snapshot —
+anchored at or after P, and so free of the erased content by construction —
+rather than replaying the groups that carried it, and no group that
+predates an erasure it must apply is ever served to it again. Within a view
+that never received the record nothing expires.
+
+Erasure records are identity-level state, outside fenced history. The
+authority keeps every erasure record it has committed — the **erasure
+ledger** — for the lifetime of the logical Scope, exactly as it keeps the
+identity non-reuse guarantee, and the ledger survives restore, epoch
+rotation, and view rotation. Every snapshot manifest carries `erasures`,
+the ledger projected for the manifest's view — each record whose subject
+was observable in that view — so that a replica installing a replacement
+generation, after resnapshot, after a view rotation, or after a restore,
+applies the same obligations to everything it retains from before: its
+previous generation, retained groups, Events, receipts, indexes, and
+caches. After a restore into a new epoch the authority also re-emits the
+projected ledger as erasure-only groups at the new epoch's first positions,
+before any other group, and no group of the prior epoch is served under the
+new one. Epoch rotation never revokes an erasure obligation. A replica that
+retains content whose erasure status it cannot establish — content held
+under a view or epoch for which it can no longer obtain the ledger — MUST
+discard that content.
 
 ### Scope changefeed
 
@@ -4254,6 +5112,7 @@ Accept: application/json
           }
         }
       ],
+      "erasures": [],
       "events": [
         {
           "id": "opaque-event-id",
@@ -4296,6 +5155,27 @@ affected Resource.
 zero-based authority-group `ordinal`, including gaps left by hidden facts.
 Consumers do not derive application Events from postimages.
 
+On the wire, a change group carries `scopeEpoch`, `authorizationView`,
+`checkpoint`, `position`, `previousPosition`, `projectionAdvance`,
+`transaction`, `eventCount`, `changes`, `erasures`, and `events`. `changes`,
+`erasures`, and `events` are always present, and each is empty when the
+group carries nothing of its kind; a visible group carries at least one of
+the three non-empty. A `changes` entry is either an `upsert` — `operation`
+`upsert`, `resourceKind`, and `resource`, the complete canonical Bead or
+Link record at its final projected revision, without the `links`
+aggregate — or a `tombstone` — `operation` `tombstone`, `resourceKind`,
+and `resource` carrying the `id`, the immutable `type`, and the last
+visible `revision`. A tombstone has the same shape whether the Resource
+was deleted or merely left the view, because an authorization-projection
+tombstone does not assert underlying deletion. A projection advance
+carries `projectionAdvance` `true`, no `transaction`, `eventCount` `0`, and
+three empty arrays. `eventCount` equals the number of entries in `events`
+as the group is served. A finite read's `after` is the exclusive checkpoint
+the page continues from: the requested `after`, or, for `start=now`, the
+head checkpoint the authority observed when it admitted the request. The
+bundle defines `changeGroup`, `stateChange`, `erasureRecord`, and the
+finite read's page as `changefeedPage`.
+
 When a transaction has no visible effect, the group is instead a projection
 advance that carries no identifiers:
 
@@ -4309,6 +5189,7 @@ advance that carries no identifiers:
   "projectionAdvance": true,
   "eventCount": 0,
   "changes": [],
+  "erasures": [],
   "events": []
 }
 ```
@@ -4402,12 +5283,15 @@ contains deltas rather than Resource snapshots:
   created version's `attribution` when one was recorded. For a
   Link it also carries the `source` and `target` endpoint references, with a
   stored pin preserved byte-identically.
-- `updated` carries `previousRevision`, `revision`, `change`, and the new
-  version's `attribution` when one was recorded. `change`
-  uses the same committed Property Change representation accepted by
-  singleton DML; for an owned-Link change on the source Bead, the
-  delta member is pending as recorded in the model section, and the wire
-  form arrives with it.
+- `updated` carries `previousRevision`, `revision`, exactly one of `change`
+  and `ownedLink`, and the new version's `attribution` when one was
+  recorded. `change` uses the same committed Property Change representation
+  accepted by singleton DML. `ownedLink` carries one owned-Link transition
+  of the source Bead: `operation` is `created`, `updated`, or `deleted`, and
+  `link` is the owned Link's complete record for the first, its own delta —
+  `id`, `type`, `previousRevision`, `revision`, `change`, and `attribution`
+  when recorded — for the second, and its identity — `id`, `type`, and final
+  live `revision` — for the third.
 - `deleted` carries only `revision`, meaning the final live Resource
   revision.
 - `linked` and `unlinked` carry `endpoint`, a typed `link` reference, and the
@@ -4590,6 +5474,164 @@ Read+Update profile is not realized until every row is proved.
 | `read-update.http.cache-no-store` | Every mutation response carries `Cache-Control: private, no-store` |
 | `read-update.http.cors-idempotency-key` | With cross-origin access enabled, the CORS policy allows the `Idempotency-Key` request field and exposes `Retry-After` |
 
+#### Transactional conformance rows
+
+The Transactional rows below were drafted with the profile's wire artifacts
+and applied from `docs/design/w1-transactional-packet.md` on 2026-09-08.
+Each names one obligation and binds the normative text that states it;
+none carries an executable plan, a fixture realization, or evidence. The
+metadata catalog file `packages/conformance/catalog/transactional-v1.json`
+carries the same rows and no manifest binds it, so no runner report can
+claim them. The lockstep tests over these artifacts check structure,
+table, citation, and example consistency — that the rows mirror this
+table, that every citation still appears in its anchored section, that the
+bundle's problem branches mirror the code table, and that the illustrative
+fixtures under `fixtures/transactional/` validate and align — and
+establish none of the behavior the rows describe. The rows become
+claimable only under the evidence law in
+`packages/conformance/matrices/README.md`, and the Transactional profile is
+not realized until every row is proved.
+
+A Transactional claim inherits the Read rows and the Read+Update rows whose
+obligations the profile preserves — the Read+Update singleton obligations
+are observed through the receipt's one entry — and retires the ten
+Read+Update rows the profile contradicts: the rows bound to Read+Update's
+discovery document, limits, and directory shapes, to its inline singleton
+result, and to its refused, `410`, forgotten, and restore forms of the key
+dispositions. The retiring row names them in its `retires` member, and the
+selection rule excludes a retired row from the claim that retires it:
+
+- `transactional.discovery.document` retires `read-update.discovery.document`
+- `transactional.discovery.operation-directory` retires `read-update.discovery.operation-directory`
+- `transactional.discovery.limits` retires `read-update.discovery.limits`
+- `transactional.discovery.no-idempotency-retention` retires `read-update.idempotency.retention-minimum`
+- `transactional.singleton.receipt` retires `read-update.singleton.result-headers`
+- `transactional.receipt.reauthorization` retires `read-update.idempotency.authorization-view`
+- `transactional.idempotency.concurrent-join` retires `read-update.idempotency.in-progress`
+- `transactional.idempotency.expired-detail` retires `read-update.idempotency.expired`
+- `transactional.idempotency.failed-retained` retires `read-update.idempotency.expired-failure`
+- `transactional.restore.key-namespace` retires `read-update.idempotency.restore`
+
+The alias targets `put-alias` and `delete-alias` have no Transactional row
+until their Transactional contract is defined (decision T49 in the packet,
+open); no row below claims or retires an alias obligation.
+
+| Row | Obligation |
+| --- | --- |
+| `transactional.discovery.document` | Transactional discovery has the exact required history and replication members |
+| `transactional.discovery.operation-directory` | The Transactional Operation Directory lists all twelve targets |
+| `transactional.discovery.limits` | Transactional discovery may advertise the transaction group and receipt and replay retention |
+| `transactional.discovery.no-idempotency-retention` | Transactional discovery never advertises retention.idempotency |
+| `transactional.batch.atomic-commit` | A multi-operation batch commits atomically with ordered postimages |
+| `transactional.batch.local-references` | Batch-local labels bind staged identity, including as Link endpoints and inside pins |
+| `transactional.batch.rollback` | A failing operation rolls back the complete batch into a failed receipt |
+| `transactional.batch.label-errors` | Forward, unknown, duplicate, and wrong-kind labels are rejected before admission |
+| `transactional.batch.envelope-errors` | A batch without exactly one header key, or with a body or per-operation key, is malformed |
+| `transactional.batch.pre-admission-precedence` | Pre-admission checks run bounds, syntax, principal, key, then admission controls, and never consult key state for an invalid request |
+| `transactional.batch.transaction-limits` | Advertised transaction limits fail the whole transaction without partial effect |
+| `transactional.batch.duration-limit` | Exceeding transaction.duration is a permanent limit-exceeded failure naming the limit, not a transient abort |
+| `transactional.batch.deletion-safety` | Deleting a Bead with live incident Links fails the transaction |
+| `transactional.batch.owned-link-transitions` | Several owned-Link transitions of one source in one batch mint one source version and one updated Event each, in operation order, each carrying its attribution |
+| `transactional.batch.no-op-entries` | A no-op update reports updated at the retained revision, and an all-no-op transaction completes without a group or effectPosition |
+| `transactional.batch.revision-guard-race` | Racing guarded updates serialize into one success and one revision-mismatch |
+| `transactional.batch.aggregate-constraint-race` | Racing Link creations cannot jointly cross a maximum multiplicity |
+| `transactional.set.mutation` | Set mutation mutates the complete matched set and reports flat entries in canonical-uri order |
+| `transactional.set.zero-match` | A zero-match set operation reports matched 0 and induces no Events |
+| `transactional.set.cardinality` | A matched count outside the supplied cardinality fails the transaction with cardinality-violated |
+| `transactional.set.singleton-targets` | The update-where and delete-where singleton targets accept the set-operation body without the discriminator and return receipts |
+| `transactional.set.attribution-fanout` | A set mutation's attribution is recorded on every version it mints, owned sources included |
+| `transactional.singleton.receipt` | Singleton targets execute one-operation transactions and return receipts under the batch statuses |
+| `transactional.singleton.semantics` | A singleton and the equivalent one-operation batch have identical allocation, validation, idempotency, and Event semantics |
+| `transactional.receipt.readable` | Receipts are independently readable with GET and HEAD |
+| `transactional.receipt.pagination` | Large set results continue through immutable pages bounded by page.maximumItems, every entry counting as one |
+| `transactional.receipt.page-expiry` | A page URL returns 410 cursor-expired after detail expiry, decided after authentication and non-disclosure |
+| `transactional.receipt.nondisclosure` | Unknown, foreign-principal, retracted, forgotten, and prior-epoch receipt URLs share one 404 |
+| `transactional.receipt.root` | The receipts root is a namespace with no listing or key lookup |
+| `transactional.receipt.headers` | Receipt responses carry the serving request's observation in the response fields and the execution's facts in the body |
+| `transactional.receipt.reauthorization` | A view change withholds record-bearing entries under owned closure without changing the disposition |
+| `transactional.receipt.reauthorization-paths` | The synchronous response, a duplicate's response, later reads, pages, and sequence projections share one authorization projection |
+| `transactional.receipt.non-record-entries` | Matched counts, deleted and erased identities, withheld entries, and failed problems are served as retained |
+| `transactional.receipt.whole-withheld` | A completed receipt whose every entry is withheld reports detail withheld; a failed receipt is never withheld |
+| `transactional.receipt.pending-202` | The original submission receives 202 only past the wait bound; a duplicate may receive it any time before terminal |
+| `transactional.receipt.deleted-identity` | A deleted entry carries the identity record with the final live revision |
+| `transactional.receipt.owned-link-source` | Owned-Link entries carry source and sourceRevision together on creation, update, and deletion |
+| `transactional.receipt.problem-shape` | A receipt problem carries the would-be status, the failing operationIndex, and a request-body pointer |
+| `transactional.receipt.transaction-level-failure` | A transaction-wide failure omits operationIndex rather than fabricating one |
+| `transactional.receipt.validation-diagnostics` | A validation-failed receipt problem carries the Read+Update diagnostics and truncation marker |
+| `transactional.receipt.no-transient-failure` | No failed receipt ever carries temporarily-unavailable |
+| `transactional.receipt.expiry-allocated` | An expired receipt keeps its disposition, positions, and allocated identities and never re-executes |
+| `transactional.receipt.retention-minimum` | expiresAt is no earlier than the terminal instant plus an advertised retention.receipt |
+| `transactional.idempotency.concurrent-join` | Concurrent identical requests join one execution and one receipt |
+| `transactional.idempotency.conflict` | A reused key with different semantics is refused without execution for as long as the key is bound |
+| `transactional.idempotency.semantic-identity` | Semantic identity excludes name and the carrier, normalizes labels to the creator's index or supplied identity, and includes pins, attribution, guards, and order |
+| `transactional.idempotency.cross-carrier` | A one-operation batch, the equivalent singleton, and the equivalent sequence member present one semantic request and share one receipt |
+| `transactional.idempotency.key-grammar` | Keys are bare checkpoint-profile tokens compared byte-exactly, and an absent, repeated, or invalid key is malformed |
+| `transactional.idempotency.expired-detail` | A retry after detail expiry receives the expired receipt with 200 and never re-executes |
+| `transactional.idempotency.transient-abort` | A transient abort after admission retracts the pending receipt, unbinds the key, answers 503, and a retry executes anew |
+| `transactional.idempotency.failed-retained` | A failed receipt is retained for at least retention.receipt and a retry returns it; once forgotten, its URL answers 404 and its key executes anew |
+| `transactional.idempotency.durable-admission` | Admission records key, identity, pending receipt, transaction identity, and ownership as one durable step |
+| `transactional.idempotency.ownership-fencing` | A commit succeeds only while the committing execution owns the pending receipt; a fenced execution produces no group |
+| `transactional.idempotency.pending-recovery` | After a crash every uncommitted pending receipt is retracted within the bound; an older pending receipt is a conformance failure |
+| `transactional.idempotency.one-key-state` | Every mutation route consults one authoritative key state |
+| `transactional.sequence.member-transactions` | Each sequence member is a one-operation transaction with its own receipt, admitted in declaration order, in an unchanged envelope |
+| `transactional.sequence.completed-projection` | A completed member projects its receipt's one entry in the Read+Update result shape |
+| `transactional.sequence.in-flight-projection` | A member whose key is bound to a pending receipt projects a transient idempotency-in-progress problem without waiting or retaining |
+| `transactional.sequence.expired-projection` | A member whose receipt detail expired projects idempotency-expired carrying the allocated identity of a creation |
+| `transactional.sequence.pending-creator` | A dependent whose creator is pending or transient fails transiently and holds no key |
+| `transactional.sequence.failed-creator` | A dependent whose creator's receipt is failed fails with binding-unavailable in its own failed receipt |
+| `transactional.sequence.member-reauthorization` | A withheld entry projects as a forbidden member problem and an erased one as resource-erased to an authorized caller |
+| `transactional.event.owned-link-delta` | Owned-Link mutations emit source updated Events carrying exactly one ownedLink delta |
+| `transactional.event.owned-link-update-delta` | An updated owned-Link transition carries the Link's delta, not its record |
+| `transactional.event.owned-link-deleted-identity` | A deleted owned-Link transition carries the Link's identity with its final live revision |
+| `transactional.event.fact-order` | One owned-Link operation's facts are ordered lifecycle, graph facts source before target, then the source's updated fact |
+| `transactional.event.no-op-owned-update` | A no-op owned-Link update versions neither the Link nor the source and emits no Event |
+| `transactional.event.graph-facts` | Link lifecycle produces linked and unlinked facts at every in-Scope endpoint |
+| `transactional.event.self-link` | A self-Link's one endpoint receives a source fact and a target fact in the same group |
+| `transactional.event.set-expansion-order` | A set operation's induced facts and receipt entries follow canonical-uri order |
+| `transactional.event.history-expired` | event-history-expired is disclosed only to a principal authorized for the subject's retained history |
+| `transactional.event.cursor-after-withheld` | A cursor naming a withheld Event remains a valid exclusive after position, and eventCount counts served Events |
+| `transactional.changefeed.group` | Change groups carry normalized postimages and ordered Events behind one checkpoint |
+| `transactional.changefeed.wire-form` | Every group carries changes, erasures, and events; a visible group carries transaction and at least one non-empty array |
+| `transactional.changefeed.sse` | SSE delivery frames one complete group per message |
+| `transactional.changefeed.start-intent` | A changefeed read without an explicit starting intent is an error |
+| `transactional.changefeed.owned-link-agreement` | A group carries the owned Link's and the source's postimages, and their inline and first-class records agree |
+| `transactional.changefeed.consistency-fields` | Scope-bounded responses carry epoch, view, and position, and honor minimum positions |
+| `transactional.changefeed.catch-up-timeout` | A minimum-position read that cannot be served within the wait bound fails with catch-up-timeout |
+| `transactional.changefeed.replay-window` | Late, foreign-epoch, and foreign-view cursors fail explicitly |
+| `transactional.changefeed.sse-reconnect` | SSE reconnection resumes from Last-Event-ID without gaps or duplicates |
+| `transactional.changefeed.projection-advance` | A hidden transaction projects an identifier-free advance |
+| `transactional.changefeed.owned-closure` | Feeds and Event Sources project owned Links with their visible source |
+| `transactional.snapshot.rendezvous` | A snapshot checkpoint continues losslessly into the changefeed |
+| `transactional.snapshot.closed-projection` | A snapshot is a closed projection whose inline and first-class owned-Link records agree; a disagreeing snapshot is rejected |
+| `transactional.snapshot.expiry` | A snapshot stays continuable through expiresAt, and a page it cannot serve before then is a service failure |
+| `transactional.snapshot.erasure-ledger` | Every snapshot manifest carries the erasure ledger projected for its view |
+| `transactional.erasure.record-digest` | Erasure records propagate with a verifiable sha-256-jcs digest |
+| `transactional.erasure.digest-domain` | BDP JSON follows the number model, so every record has one canonical serialization, and digest computation never gates erasure |
+| `transactional.erasure.historical-version` | Erasing a historical version commits no state change and induces no Event |
+| `transactional.erasure.live-successor` | A live-version erasure with a successor carries the content-free root-replace delta, and the successor differs from the erased version |
+| `transactional.erasure.live-tombstone` | A live-version erasure with a tombstone is an administrative deletion under deletion safety, inducing the ordinary facts |
+| `transactional.erasure.owned-link-cascade` | Erasing an owned Link's version erases every source version that inlined it, one record each |
+| `transactional.erasure.event-withholding` | Event Sources withhold every Event whose data carries erased content, leaving ordinal gaps |
+| `transactional.erasure.graph-facts` | Graph facts are withheld exactly when every version of the Link that carried their endpoints is erased; deleted facts never are |
+| `transactional.erasure.receipts` | Receipts and pages stop serving an erased postimage at once, serving erased to authorized callers and withheld otherwise |
+| `transactional.erasure.replication-invalidation` | An erasure at P expires every checkpoint and snapshot anchored before P in the views that receive it |
+| `transactional.erasure.retention-non-propagation` | Retention removals do not propagate; a longer-window replica keeps what the authority dropped, while erasure reaches it |
+| `transactional.erasure.restore` | After a restore the ledger is re-emitted at the new epoch's first positions and no prior-epoch group is served |
+| `transactional.erasure.unestablishable-content` | A replica destroys retained content whose erasure status it cannot establish |
+| `transactional.erasure.view-projection` | An erasure record reaches only views that observed the subject |
+| `transactional.erasure.reads` | Reads of an erased version disclose resource-erased without a pointer to authorized callers and 404 to everyone else |
+| `transactional.erasure.epoch-unrotated` | An erasure does not rotate the epoch; tokens anchored at or after it stay valid |
+| `transactional.http.status-matrix` | Every mutation-surface target answers with exactly the statuses of the matrix |
+| `transactional.http.method-405` | Mutation targets answer non-POST methods with 405 and Allow: POST, with enabled CORS OPTIONS answered by the CORS rules |
+| `transactional.http.problem-table` | Every Transactional Problem preserves its status, family, code, and retry row |
+| `transactional.http.problem-contexts` | Direct and receipt codes are disjoint contexts, and the Read+Update key dispositions never appear as direct problems |
+| `transactional.http.internal-fault` | A bodyless 500 or transport failure after admission decides nothing; the receipt records the disposition |
+| `transactional.http.disconnect-admitted` | A disconnect after admission does not decide the outcome |
+| `transactional.http.timestamps` | Every emitted instant is a valid RFC 3339 date-time with uppercase T and Z |
+| `transactional.http.token-profile` | Epochs, view tokens, positions, transaction ids, receipt tokens, and keys use the checkpoint character profile; revisions do not |
+| `transactional.restore.epoch-fence` | A restore keeps canonical URLs and fences every prior-epoch token |
+| `transactional.restore.key-namespace` | A prior-epoch key is unbound under the new epoch and executes anew, never as a replay |
+
 ### Open protocol questions
 
 This ledger records the protocol questions raised against the draft and their
@@ -4696,7 +5738,15 @@ protocol-identifier prefix, with the release-stability rule stated above.
    `sourceRevision` on a deleted Bead as on a Bead postimage;
    `validationDiagnostic.instanceLocation` is a `jsonPointer` and
    `schemaLocation` an `absoluteUri`; `readUpdateProblem` gains the
-   `alias-path-taken` branch. Transactional definitions remain pending.
+   `alias-path-taken` branch. **Transactional definitions drafted
+   2026-09-08 (Transactional apply):** the bundle carries the Event
+   surface, the batch envelope and its eight operation records, the
+   set-operation bodies, Mutation Receipts and their pages, the
+   Transactional problem shapes, change groups, changefeed pages, snapshot
+   manifests, and the Transactional discovery document and Operation
+   Directory — 52 definitions — pending review, with the judgments they
+   rest on recorded in `docs/design/w1-transactional-packet.md` (T1–T48
+   ruled or ratified; T49 open).
    Later-profile definitions gate their corresponding waves. This question
    closes when the complete reviewed bundle exists.
 6. **Read table recorded 2026-08-12; later-profile rows pending:** BDP uses a
@@ -4731,8 +5781,11 @@ protocol-identifier prefix, with the release-stability rule stated above.
    alias is deleted; an `alias` member beneath the wrong root is
    `resource-not-found`; and reference faults are scoped by what the
    reference is — a subject, an endpoint or target, or no reference shape
-   at all. Transactional rows remain
-   pending. This question closes when every normative failure is present
+   at all. **Transactional rows drafted 2026-09-08 (Transactional
+   apply):** three rows — `cardinality-violated`, `event-history-expired`,
+   and `catch-up-timeout` — join the table, and the direct and receipt
+   contexts are closed in the bundle's `transactionalProblem` and
+   `receiptProblem`. This question closes when every normative failure is present
    in the reviewed code table and schema bundle.
 7. **Resolved 2026-08-08:** only Transactional exposes Scope epoch,
    Authorization View, visible position, and minimum-position HTTP fields.
@@ -4768,7 +5821,9 @@ protocol-identifier prefix, with the release-stability rule stated above.
     concurrency, disconnect, expiry, restore, authorization-view, and
     cross-implementation behavior. The Read+Update rows drafted under
     [Read+Update conformance rows](#readupdate-conformance-rows) are metadata
-    only and claim nothing. This question closes when its reviewed
+    only and claim nothing, as are the Transactional rows drafted under
+    [Transactional conformance rows](#transactional-conformance-rows)
+    (2026-09-08). This question closes when its reviewed
     machine-readable matrix, fixtures, and expected results exist.
 14. **Resolved 2026-08-08:** discovery optionally carries the unordered
     `maximumEndpointMultiplicity` array. Absence or an empty array means no

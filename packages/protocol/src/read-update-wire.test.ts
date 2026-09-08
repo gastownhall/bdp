@@ -119,7 +119,14 @@ describe("Read+Update problem rows", () => {
   });
 
   it("adds exactly the drafted rows to the specification table", () => {
-    expect(tableRows.slice(READ_PROBLEM_DEFINITIONS.length)).toEqual(READ_UPDATE_PROBLEM_ROWS);
+    // The Transactional rows follow in the same section; the Transactional
+    // lockstep test owns that tail.
+    expect(
+      tableRows.slice(
+        READ_PROBLEM_DEFINITIONS.length,
+        READ_PROBLEM_DEFINITIONS.length + READ_UPDATE_PROBLEM_ROWS.length,
+      ),
+    ).toEqual(READ_UPDATE_PROBLEM_ROWS);
   });
 
   it("mirrors the table in the bundle's readUpdateProblem branches", () => {
