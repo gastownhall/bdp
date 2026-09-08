@@ -1145,6 +1145,27 @@
         }
       }
     },
+    "putAliasMembers": {
+      "type": "object",
+      "required": ["alias", "target"],
+      "properties": {
+        "alias": {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        "target": {
+          "$ref": "#/$defs/resourceReference"
+        }
+      }
+    },
+    "deleteAliasMembers": {
+      "type": "object",
+      "required": ["alias"],
+      "properties": {
+        "alias": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      }
+    },
     "createBeadRequest": {
       "type": "object",
       "allOf": [
@@ -1225,6 +1246,29 @@
           "$ref": "#/$defs/durableResourceReference"
         }
       },
+      "unevaluatedProperties": false
+    },
+    "putAliasRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/putAliasMembers"
+        }
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "deleteAliasRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteAliasMembers"
+        }
+      ],
       "unevaluatedProperties": false
     },
     "sequenceCreateBead": {
@@ -1341,6 +1385,42 @@
       "required": ["operation", "idempotencyKey"],
       "unevaluatedProperties": false
     },
+    "sequencePutAlias": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/putAliasMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "putAlias"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequenceDeleteAlias": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteAliasMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteAlias"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
     "sequenceMember": {
       "oneOf": [
         {
@@ -1360,6 +1440,12 @@
         },
         {
           "$ref": "#/$defs/sequenceDeleteLink"
+        },
+        {
+          "$ref": "#/$defs/sequencePutAlias"
+        },
+        {
+          "$ref": "#/$defs/sequenceDeleteAlias"
         }
       ]
     },
@@ -1510,6 +1596,51 @@
       ],
       "unevaluatedProperties": false
     },
+    "aliasResultMembers": {
+      "type": "object",
+      "required": ["outcome", "alias"],
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/mutationOutcome"
+        },
+        "alias": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "target": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "deleted"
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "target": false
+            }
+          },
+          "else": {
+            "required": ["target"]
+          }
+        }
+      ]
+    },
+    "aliasResult": {
+      "title": "BDP Read+Update alias result",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/aliasResultMembers"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "sequenceMemberResult": {
       "type": "object",
       "allOf": [
@@ -1524,6 +1655,22 @@
         },
         "operationName": {
           "$ref": "#/$defs/localName"
+        }
+      },
+      "required": ["operationIndex"],
+      "unevaluatedProperties": false
+    },
+    "sequenceMemberAliasResult": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/aliasResultMembers"
+        }
+      ],
+      "properties": {
+        "operationIndex": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": ["operationIndex"],
@@ -2000,6 +2147,9 @@
                 "$ref": "#/$defs/sequenceMemberResult"
               },
               {
+                "$ref": "#/$defs/sequenceMemberAliasResult"
+              },
+              {
                 "$ref": "#/$defs/sequenceMemberProblem"
               }
             ]
@@ -2165,6 +2315,8 @@
         "createLink",
         "updateLinkProperties",
         "deleteLink",
+        "putAlias",
+        "deleteAlias",
         "sequence"
       ],
       "properties": {
@@ -2185,6 +2337,12 @@
         },
         "deleteLink": {
           "const": "delete-link"
+        },
+        "putAlias": {
+          "const": "put-alias"
+        },
+        "deleteAlias": {
+          "const": "delete-alias"
         },
         "sequence": {
           "const": "sequence"

@@ -106,7 +106,7 @@ every lower profile:
 | Profile | What it adds | What its implementer may ignore |
 | --- | --- | --- |
 | **Read** | Scope discovery and safe retrieval of canonical Bead and Link Resource records | All mutation sections and every Transactional/Replication sidebar |
-| **Read+Update** | Read plus the six single-Resource targets and an ordered, non-atomic `sequence` carrier | Set mutation, atomic `batch`, Scope history, receipts, snapshots, Events, and changefeed replication |
+| **Read+Update** | Read plus the six single-Resource targets, the two alias targets, and an ordered, non-atomic `sequence` carrier (amended 2026-09-08) | Set mutation, atomic `batch`, Scope history, receipts, snapshots, Events, and changefeed replication |
 | **Transactional** | The complete transaction and replication contract | Nothing |
 
 The **Transactional** profile includes BDP's replication machinery.
@@ -147,11 +147,13 @@ and Link reads.
 The Read+Update profile retains the existing `create-bead`,
 `update-bead-properties`, `delete-bead`, `create-link`,
 `update-link-properties`, and `delete-link` operation URLs and request-record
-shapes. It does not introduce collection `POST` or direct Resource
-`PUT`/`PATCH`/`DELETE`. Each singleton request is individually atomic. The
-profile additionally requires `sequence`, an ordered carrier for those same
-six operations. A sequence never reorders or parallelizes its members, but it
-takes no sequence-wide lock. That means unrelated requests may interleave
+shapes, and adds the two alias targets, `put-alias` and `delete-alias`,
+defined under [Alias targets](#alias-targets) (amended 2026-09-08). It does
+not introduce collection `POST` or direct Resource `PUT`/`PATCH`/`DELETE`.
+Each singleton request is individually atomic. The profile additionally
+requires `sequence`, an ordered carrier for those same six operations and
+the two alias operations. A sequence never reorders or parallelizes its
+members, but it takes no sequence-wide lock. That means unrelated requests may interleave
 between members, successful members remain committed after a later failure,
 and independent members continue after a failure. The profile does not
 include `UpdateWhere`, `DeleteWhere`, or `batch`.
@@ -168,7 +170,9 @@ Every Read+Update mutation member has its own idempotency key. Repeating the
 same semantic member with the same key returns its retained outcome rather
 than executing it again. Reusing the key for different semantics is a
 conflict. Creates and updates return the complete Resource postimage and an
-opaque revision. Deletes return the canonical deleted identity.
+opaque revision. Deletes return the canonical deleted identity. An alias
+put or delete returns the absolute alias URL and, for a put, the canonical
+target, and mints no revision.
 `expectedRevision` remains optional for updates and deletes, and it produces
 a conflict on mismatch. Read+Update has no durable Mutation Receipts and no
 BDP Events.
@@ -610,13 +614,17 @@ and carries no identity promise.
 A reference written using an alias is resolved to the canonical Bead URL
 when the authority admits the write; stored and served references are
 always canonical, so aliases never appear in Resource data. Alias creation,
-repointing, and deletion are mutation surface deferred beyond the
-Read+Update profile: its Operation Directory is exactly the six singleton
-targets plus `sequence`, so a Read+Update Scope serves alias resolution over
-aliases established administratively, and alias mutation targets are
-defined with the Transactional profile or the administrator specification.
-Serving alias resolution is Read surface, advertised through the `aliases`
-discovery member.
+repointing, and deletion are mutation surface: the Read+Update profile
+defines the two alias targets, `put-alias` and `delete-alias`, under
+[Alias targets](#alias-targets), and the Transactional profile inherits
+them (amended 2026-09-08). A put creates the alias or repoints an existing
+one to exactly one canonical in-Scope Bead URL; a delete removes it, and
+the path is reusable afterwards. Alias paths and canonical Bead segments
+share one uniqueness namespace in the Scope. Putting or deleting an alias
+mints no version of any Bead: an alias is a locator, not part of the
+target's durable state, and it is not a member of the Bead record or of
+its `properties`. Serving alias resolution is Read surface, advertised
+through the `aliases` discovery member.
 
 Beads and Links are both **Resources**: each has identity, a representation,
 and uniform operations. Authorization is separate from identity and typing.
@@ -903,7 +911,9 @@ Reference comparison.
 Creating or deleting a Link does not mutate an in-Scope endpoint Bead or
 change that Bead's Resource revision — with one declared exception: when
 the Link's type is owned by the source Bead's declared Type, the source's
-revision changes. The target's never does.
+revision changes. The target's never does. Putting or deleting an alias
+mutates no Bead and changes no revision: an alias is a locator outside
+every Resource's durable state, under [Aliases](#aliases).
 
 ### Explicit Bead operations
 
@@ -989,8 +999,8 @@ DeleteLink(
 > Cross-operation staged validation, serializable aggregate-invariant outcomes,
 > complete-transaction rollback, and ordered transaction results apply only to
 > the Transactional profile. Read+Update validates each singleton or sequence
-> member independently and returns its inline postimage, deleted identity, or
-> problem. A mutation of an owned Link is a mutation of two Resources: the
+> member independently and returns its inline postimage, deleted identity,
+> alias result, or problem. A mutation of an owned Link is a mutation of two Resources: the
 > inline postimage (or deleted identity) remains the Link's, and the same
 > response member additionally reports the source Bead's resulting
 > `revision` — its full postimage is available at its own URL. The envelope
@@ -1794,8 +1804,9 @@ version.
 The discovery and Read definitions in the bundle are complete. Each later
 profile's definitions must exist before that profile can be implemented. The
 Read+Update definitions — discovery, Operation Directory, singleton
-requests, sequence request and response, mutation results, and problems —
-are drafted in the bundle pending the review recorded under
+requests, alias requests, sequence request and response, mutation and
+alias results, and problems — are drafted in the bundle pending the review
+recorded under
 [Open protocol questions](#open-protocol-questions). The bundle is finished
 only when it covers the complete BDP v0 surface.
 
@@ -1805,9 +1816,11 @@ is reached: Scope containment of durable references, Resource kind,
 `@name` resolution and its kind, ownership — whether `source` and
 `sourceRevision` apply to a Link result — correspondence between a result
 and its request (`operationIndex`, `operationName`, and the outcome
-against the operation), and the uniqueness of keys and names within one
-sequence. A schema-valid request may therefore still be rejected before
-execution or fail its member, and schema validity is never a conformance
+against the operation), the uniqueness of keys and names within one
+sequence, and, for an alias member, whether a put's `target` is a canonical
+Bead reference and whether its alias path is taken under
+[Alias targets](#alias-targets). A schema-valid request may therefore still
+be rejected before execution or fail its member, and schema validity is never a conformance
 claim about those checks.
 
 ### Problem details
@@ -1889,8 +1902,10 @@ The Read+Update rows mean:
   target, an in-Scope endpoint fails an effective endpoint constraint or
   describes the wrong Resource category, or an out-of-Scope endpoint violates
   the Link Type's external-endpoint policy, or the source's resulting owned
-  set would exceed the owning Type's declared `max`. The problem MUST carry
-  `diagnostics`: a nonempty, bounded array of `{ type?, schemaLocation?,
+  set would exceed the owning Type's declared `max`, or an alias put's
+  `target` is not a canonical Bead reference — an alias, a Link, or an
+  external URI — under [Alias targets](#alias-targets). The problem MUST
+  carry `diagnostics`: a nonempty, bounded array of `{ type?, schemaLocation?,
   instanceLocation?, message }` entries. When the failure is an effective
   Type contract, every entry names the failing effective Type in `type` and
   the failed keyword in `schemaLocation` — the absolute keyword location,
@@ -1911,7 +1926,12 @@ The Read+Update rows mean:
   installed, under
   [Descriptor resolution and installation](#descriptor-resolution-and-installation).
 - `identity-taken`: a supplied `id` whose canonical Resource URL was ever
-  committed in the logical Scope, including a deleted one. This is
+  committed in the logical Scope, including a deleted one. Canonical Bead
+  segments and alias paths share one uniqueness namespace under
+  [Alias targets](#alias-targets): an alias put whose path is the
+  `{id-path}` of a canonical Bead URL ever committed in the logical Scope,
+  a deleted one included, and a creation whose supplied `id` has the
+  `{id-path}` of a live alias, fail the same way. This is
   inherently an existence signal for the identity the creator chose, hidden
   or deleted alike: the non-reuse guarantee cannot be non-disclosing for a
   supplied spelling, and BDP accepts that one exception to its
@@ -1933,14 +1953,18 @@ or is not visible in the request's Authorization View fails with the Read
 profile's `resource-not-found`, under the same non-disclosure rule; so does
 a durable reference whose spelling is not a canonical reference of the
 required kind or that names a Resource of another kind — the subject does
-not exist as the required kind. A member the principal may not perform
+not exist as the required kind. An alias put whose canonical `target`
+names a Bead that does not exist or is not visible, and an alias delete
+whose alias is unknown, fail the same way: aliases are not an enumeration
+oracle. A member the principal may not perform
 fails with `forbidden`, as does the replay of a retained result whose
 record the present Authorization View does not project, under
 [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions);
 a member that exceeds a `patch` or `resource` limit fails with
-`limit-exceeded`. A patch `path` that is not a JSON Pointer, and a
-reference whose spelling is invalid under the local-ID grammar, are
-carrier syntax and are rejected before execution with `malformed-request`.
+`limit-exceeded`. A patch `path` that is not a JSON Pointer, a reference
+whose spelling is invalid under the local-ID grammar, and an `alias` member
+whose spelling is not beneath the `alias/` root, are carrier syntax and
+are rejected before execution with `malformed-request`.
 The Read+Update profile adds `415` and `422` to the permitted `status`
 values. The bundle defines `readUpdateProblemCode`, `readUpdateProblem`
 (with the member-level `retryAfter` under
@@ -2542,12 +2566,14 @@ by a Type or Scope.
 ### Read+Update sequence target
 
 The Read+Update and Transactional profiles expose `operations/sequence` as a
-convenience carrier for the six single-Resource operations. It is deliberately
-not named `batch`. A sequence is ordered and partially committing, while BDP
+convenience carrier for the six single-Resource operations and the two alias
+operations under [Alias targets](#alias-targets) (amended 2026-09-08). It is
+deliberately not named `batch`. A sequence is ordered and partially committing, while BDP
 `batch` is the Transactional profile's all-or-nothing Mutation Transaction.
 
 A sequence contains one or more operation members. Each member carries its own
-`idempotencyKey` and one of the six singleton operation records. The authority
+`idempotencyKey` and one of the eight singleton operation records: the six
+Resource records, or the two alias records. The authority
 validates the carrier and operation-record syntax before starting, claims
 every member's key in declaration order under
 [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions),
@@ -2613,7 +2639,8 @@ Accept: application/json
 The body is one object whose only member, `operations`, is an ordered,
 nonempty array of members. Each member is one of the six single-Resource
 operation records defined under
-[Operation record schema](#operation-record-schema) — carrying its
+[Operation record schema](#operation-record-schema), or one of the two
+alias records defined under [Alias targets](#alias-targets) — carrying its
 `operation` discriminator and, on a creation record, its optional `name` —
 plus one required `idempotencyKey`:
 
@@ -2694,7 +2721,7 @@ that corrects a creator presents new keys for its dependents as well. The
 bundle defines the envelope as `sequenceRequest`
 and its members as `sequenceCreateBead`, `sequenceUpdateBeadProperties`,
 `sequenceDeleteBead`, `sequenceCreateLink`, `sequenceUpdateLinkProperties`,
-and `sequenceDeleteLink`.
+`sequenceDeleteLink`, `sequencePutAlias`, and `sequenceDeleteAlias`.
 
 Once the authority has admitted a sequence — validated its carrier and
 operation-record syntax and started its first member — client
@@ -2744,16 +2771,132 @@ On a semantic no-op update
 `sourceRevision` is the source's unchanged current revision. The source's
 full postimage is available at its own URL. `source` and `sourceRevision`
 are absent from every other result, and each is present exactly when the
-other is. A result is closed. The bundle defines
+other is. That is the only secondary revision any result reports: putting
+or deleting an alias mints no version and moves no revision — the target
+Bead's revision is unchanged by alias mutation, and the alias result
+defined under [Alias targets](#alias-targets) carries none. A result is
+closed. The bundle defines
 `mutationResult`; a singleton target returns it as the body of a `200 OK`
 response, under
 [Operation Directory and singleton targets](#operation-directory-and-singleton-targets).
+
+#### Alias targets
+
+The Read+Update profile defines two alias targets, `put-alias` and
+`delete-alias`, keyed by alias path beneath the fixed `alias/` root defined
+under [Aliases](#aliases); the Transactional profile inherits both (amended
+2026-09-08; decision D31 in `docs/design/w1-read-update-decisions.md`).
+Each is a singleton target under
+[Operation Directory and singleton targets](#operation-directory-and-singleton-targets)
+and a sequence member with its own `idempotencyKey`; the operation
+discriminators are `putAlias` and `deleteAlias`.
+
+A **put** creates an alias or repoints an existing one to exactly one
+canonical in-Scope Bead URL; repointing is the same operation, not a second
+one. Its record carries `alias`, the alias named by its local spelling
+`alias/{alias-path}` or by its absolute alias URL, and `target`, one
+canonical in-Scope Bead reference — a durable local ID, an absolute
+canonical Bead URL, or, in a sequence, a `@name` bound by an earlier
+creation of a Bead in the same sequence. A **delete** removes the alias;
+its record carries `alias` alone, and the path is reusable afterwards, as
+[Aliases](#aliases) says. Neither record carries `expectedRevision`, since
+an alias has no revision, nor `attribution`, since attribution is per
+version and alias mutation mints none; neither binds a `name`, since
+neither creates a Resource.
+
+```json
+{
+  "alias": "alias/adr/sequence-envelopes",
+  "target": "beads/decision-7"
+}
+```
+
+The alias path uses the local-ID grammar: one or more safe segments,
+compared exactly as local-ID segments are. `alias` is resolved against the
+canonical Scope URL like a durable reference, and it never accepts
+`@name`; a spelling that is not beneath the `alias/` root, or that
+violates the grammar, is carrier syntax rejected before execution with
+`malformed-request`. Canonical Bead segments and alias paths share one
+uniqueness namespace in the Scope, a store invariant the authority
+enforces when the member is reached: a put whose alias path is the
+`{id-path}` of a canonical Bead URL ever committed in the logical Scope —
+a deleted one included, since canonical segments are never released —
+fails with `identity-taken`, and a creation that supplies an `id` whose
+`{id-path}` is a live alias path fails with `identity-taken` as well. An
+alias path in use as an alias is not taken for a put, which repoints it.
+A put whose `target` is a canonical Bead reference naming a Bead that does
+not exist or is not visible in the request's Authorization View fails with
+`resource-not-found`, and a delete of an unknown alias fails with
+`resource-not-found`: aliases are not an enumeration oracle. A put whose
+`target` is not a canonical Bead reference — an alias, absolute or local,
+a Link, or an external URI — fails with `validation-failed`, carrying one
+diagnostic that names the cause: an alias targets a canonical Bead URL
+only, so no chain is ever admitted, exactly as
+[Alias resolution](#alias-resolution) never follows one. A put or delete
+the principal may not perform fails with `forbidden`.
+
+Alias mutation mints no version: an alias is a locator, not part of any
+Bead's durable state, so the target Bead's revision is unchanged by a put
+or a delete, and a repoint changes the revision of neither the former nor
+the new target. Aliases are not members of the Bead record or of its
+`properties`, carry no revision, and are not Resources. How alias mutation
+appears in Transactional Scope history, receipts, and the changefeed is
+defined with the Transactional profile.
+
+Every successful alias mutation produces one **alias result**, closed:
+
+```text
+AliasResult {
+  outcome: created | updated | deleted
+  alias             // the absolute alias URL
+  target?           // created, updated: the absolute canonical target Bead URL
+}
+```
+
+A put reports `created` when the alias path was not in use as an alias and
+`updated` when it repointed an existing alias — including a put whose
+`target` the alias already had, which changes nothing and reports
+`updated`; both carry `alias`, the absolute alias URL, `alias/{alias-path}`
+resolved against the canonical Scope URL, and `target`, the absolute
+canonical Bead URL the alias now resolves to. A delete reports `deleted`
+with `alias` and no `target`. The outcome vocabulary is the mutation
+result's own. A singleton alias target returns the alias result as the
+body of a `200 OK` response, exactly as a mutation result is returned
+under
+[Operation Directory and singleton targets](#operation-directory-and-singleton-targets);
+a sequence member's entry is the alias result plus `operationIndex`, and
+never `operationName`. The bundle defines `aliasResult`,
+`putAliasRequest`, `deleteAliasRequest`, `sequencePutAlias`,
+`sequenceDeleteAlias`, and `sequenceMemberAliasResult`.
+
+Alias members are sequence members under every rule of this section: keys
+are claimed at admission, carrier discipline and static reference checks
+apply unchanged, and a put's `target` may name a `@name` bound by an
+earlier Bead creation in the same sequence — creating the Bead and then
+binding its alias is one sequence — resolving to the identity the
+creation allocated, fresh, retained, or expired. A `@name` bound by a Link
+creation is of the wrong Resource kind and is rejected before execution.
+An alias member's semantic identity is its operation kind plus its
+normalized record, under [Idempotency keys](#idempotency-keys): `alias`
+canonicalized to the absolute alias URL and `target` resolved to the
+canonical Bead URL or to the identity its creating member bound. The same
+key with the same semantic identity returns the retained disposition, as
+for every singleton, and the same key with a different identity is
+`idempotency-conflict`. An alias disposition is retained, replayed, and
+tombstoned exactly as a Resource mutation's is: a put or delete commits
+state, so its tombstone outlives the retention interval under
+[Outcome retention](#outcome-retention), and an alias result discloses no
+Resource record, so it is returned as retained, as a `deleted` identity
+is. Because every Read+Update Scope offers the alias targets, a
+Read+Update authority serves alias resolution and advertises `aliases` in
+its discovery document.
 
 #### Sequence response envelope
 
 A syntactically admitted sequence returns `200 OK` with one object whose
 only member, `results`, holds one entry per member in declaration order.
-An entry is either the member's mutation result or its problem:
+An entry is the member's mutation result, its alias result under
+[Alias targets](#alias-targets), or its problem:
 
 ```json
 {
@@ -2809,7 +2952,7 @@ An entry is either the member's mutation result or its problem:
 Every entry carries `operationIndex`, the member's zero-based position in
 the request's `operations` array, and carries `operationName` exactly when
 the member declared `name`. A result entry is the member's mutation result
-plus those two members, and it is closed. A problem entry is the Read+Update
+or alias result plus those two members, and it is closed. A problem entry is the Read+Update
 Problem Details shape under [Problem details](#problem-details) — `type`,
 `code`, `retry`, its required would-be `status`, the other RFC 9457
 members, and extension members — plus `operationIndex` and
@@ -2820,7 +2963,8 @@ carrier inside a `200 OK` envelope. The `Retry-After` field applies to
 direct problems; a member problem without `retryAfter` gives no hint, and
 the client backs off on its own. `results` has exactly as many
 entries as `operations`. The bundle defines `sequenceResponse`,
-`sequenceMemberResult`, and `sequenceMemberProblem`.
+`sequenceMemberResult`, `sequenceMemberAliasResult`, and
+`sequenceMemberProblem`.
 
 Failures of the carrier itself — an unauthenticated principal, a body media
 type other than `application/json`, malformed or oversized JSON, a member
@@ -2892,8 +3036,8 @@ algorithm.
 
 #### Duplicate keys and retained dispositions
 
-A member's **disposition** is its mutation result or its problem, excluding
-`operationIndex` and `operationName`. When a member reaches its terminal
+A member's **disposition** is its mutation result, its alias result, or
+its problem, excluding `operationIndex` and `operationName`. When a member reaches its terminal
 outcome, the authority retains that disposition under the member's key
 unless the disposition is transient. A disposition whose `retry` is
 `after-delay` — `rate-limited`, `temporarily-unavailable`, and
@@ -2954,8 +3098,9 @@ When the view no longer projects that record, the member fails with
 `forbidden` and discloses nothing retained. That response is not retained:
 it replaces neither the disposition nor its semantic identity, it permits
 no execution, and a later replay under a view that projects the record
-receives the original disposition. Retained problems and `deleted`
-identities disclose no record and are returned as retained.
+receives the original disposition. Retained problems, `deleted`
+identities, and alias results disclose no record and are returned as
+retained.
 
 #### Outcome retention
 
@@ -3110,9 +3255,10 @@ remain semantic.
 >
 > The batch wrapper, `updateWhere`, and `deleteWhere` definitions apply only to
 > Transactional. Read+Update `sequence` uses the `operation` discriminator,
-> optional create-member `name`, per-member `idempotencyKey`, and only the six
-> single-Resource definitions. Singleton targets remove `operation`, `name`,
-> and body-level `idempotencyKey` as described below.
+> optional create-member `name`, per-member `idempotencyKey`, the six
+> single-Resource definitions, and the two alias definitions under
+> [Alias targets](#alias-targets). Singleton targets remove `operation`,
+> `name`, and body-level `idempotencyKey` as described below.
 
 Every object in a batch conforms to the bundle's operation definition. The
 following non-normative sketch previews the eight-record Transactional union.
@@ -3682,8 +3828,8 @@ authorization-dependent `private, no-store` rule remains binding.
 
 > **Transactional/Replication entries within this section.**
 >
-> Read+Update uses the six single-Resource entries plus `sequence`.
-> `update-where`, `delete-where`, `batch`, one-operation transaction
+> Read+Update uses the six single-Resource entries, the two alias entries,
+> and `sequence`. `update-where`, `delete-where`, `batch`, one-operation transaction
 > desugaring, transaction-level idempotency, and Mutation Receipt responses
 > apply only to Transactional.
 
@@ -3698,6 +3844,8 @@ POST operations/delete-bead
 POST operations/create-link
 POST operations/update-link-properties
 POST operations/delete-link
+POST operations/put-alias
+POST operations/delete-alias
 POST operations/sequence
 POST operations/update-where
 POST operations/delete-where
@@ -3716,6 +3864,8 @@ For a Transactional Scope the response is:
   "createLink": "create-link",
   "updateLinkProperties": "update-link-properties",
   "deleteLink": "delete-link",
+  "putAlias": "put-alias",
+  "deleteAlias": "delete-alias",
   "sequence": "sequence",
   "updateWhere": "update-where",
   "deleteWhere": "delete-where",
@@ -3724,8 +3874,9 @@ For a Transactional Scope the response is:
 ```
 
 A Read Scope does not advertise `operations` and has no BDP Operation
-Directory. A Read+Update Scope's directory contains exactly the six singleton
-targets plus `sequence`:
+Directory. A Read+Update Scope's directory contains exactly eight singleton
+targets — the six Resource targets plus `put-alias` and `delete-alias` —
+and `sequence` (amended 2026-09-08):
 
 ```json
 {
@@ -3735,6 +3886,8 @@ targets plus `sequence`:
   "createLink": "create-link",
   "updateLinkProperties": "update-link-properties",
   "deleteLink": "delete-link",
+  "putAlias": "put-alias",
+  "deleteAlias": "delete-alias",
   "sequence": "sequence"
 }
 ```
@@ -3751,9 +3904,11 @@ allocation, patch, validation, authorization, idempotency, concurrency, event,
 and deletion semantics. The Read+Update profile preserves the existing
 `create-bead`, `update-bead-properties`, `delete-bead`, `create-link`,
 `update-link-properties`, and `delete-link` target names and their operation
-request records, and it adds `sequence`. Each Read+Update singleton requires
-an `Idempotency-Key` HTTP field. It returns its final Resource postimage,
-deleted identity, or direct problem inline rather than a Mutation Receipt.
+request records, adds the alias targets `put-alias` and `delete-alias`
+under [Alias targets](#alias-targets), and adds `sequence`. Each
+Read+Update singleton requires an `Idempotency-Key` HTTP field. It returns
+its final Resource postimage, deleted identity, alias result, or direct
+problem inline rather than a Mutation Receipt.
 Read+Update does not include the set-oriented `update-where` or `delete-where`
 targets, which require selection and mutation at one serialization point. It
 also does not include `batch`.
@@ -3762,14 +3917,17 @@ Concretely, each Read+Update singleton target accepts `POST` with an
 `application/json` body containing its operation record with `operation`
 and `name` removed — the bundle defines `createBeadRequest`,
 `updateBeadPropertiesRequest`, `deleteBeadRequest`, `createLinkRequest`,
-`updateLinkPropertiesRequest`, and `deleteLinkRequest` — and one required
+`updateLinkPropertiesRequest`, `deleteLinkRequest`, `putAliasRequest`, and
+`deleteAliasRequest` — and one required
 `Idempotency-Key` field carrying a key under
 [Idempotency keys](#idempotency-keys). A singleton never accepts `@name`,
 bare or within a Pinned Reference; the bundle's singleton request
 definitions reject the spelling, so it is carrier syntax rejected before
 execution with `malformed-request`.
 A successful singleton returns `200 OK` whose body is the mutation result
-defined under [Mutation results](#mutation-results), and carries no `ETag`
+defined under [Mutation results](#mutation-results) — or, for an alias
+target, the alias result defined under [Alias targets](#alias-targets) —
+and carries no `ETag`
 and no `Location`: the operation target is not the Resource's URL, and the
 result's `resource.id` and `resource.revision` say what those fields would.
 A failed singleton
@@ -4220,8 +4378,7 @@ Read+Update profile is not realized until every row is proved.
 | --- | --- |
 | `read-update.discovery.document` | Read+Update discovery carries `operations` and no Transactional member |
 | `read-update.discovery.limits` | Read+Update discovery `limits` carries no `transaction` group and no `retention.receipt` or `retention.replay` |
-| `read-update.discovery.operation-directory` | The directory lists exactly the six singleton targets plus `sequence` |
-| `read-update.discovery.no-alias-mutation` | The Read+Update directory offers no alias mutation target; advertised alias resolution serves administratively established aliases |
+| `read-update.discovery.operation-directory` | The directory lists exactly eight singleton targets — the six Resource targets plus `put-alias` and `delete-alias` — and `sequence` |
 | `read-update.singleton.create-bead` | `create-bead` returns the created postimage; omitted `id` is allocated, supplied `id` is honored |
 | `read-update.singleton.update-bead-properties` | `update-bead-properties` applies the patch, returns the postimage and fresh revision, and retains the revision on a semantic no-op |
 | `read-update.singleton.delete-bead` | `delete-bead` returns the deleted identity, the identity then reads as `404`, and a live incident Link fails it with `incident-links-exist` |
@@ -4243,6 +4400,12 @@ Read+Update profile is not realized until every row is proved.
 | `read-update.singleton.method-405` | Mutation targets answer other methods with a bodyless `405` and `Allow: POST`; with cross-origin access enabled, `OPTIONS` is answered by the CORS rules and joins `Allow` |
 | `read-update.singleton.no-local-bindings` | A singleton request that spells `@name`, bare or within a Pinned Reference, is rejected before execution with `malformed-request` |
 | `read-update.singleton.result-headers` | A singleton success carries no `ETag` and no `Location`; `resource.id` and `resource.revision` say what those fields would |
+| `read-update.alias.put-creates` | `put-alias` creates an alias to exactly one canonical in-Scope Bead and reports the absolute alias URL and the canonical target with outcome `created` |
+| `read-update.alias.put-repoints` | `put-alias` on an existing alias repoints it as the same operation and reports `updated`, a put to the target the alias already has included; resolution then follows the new target |
+| `read-update.alias.delete-releases` | `delete-alias` removes the alias and reports `deleted` with no `target`; the alias then resolves as `404`, and the path is reusable by a later put |
+| `read-update.alias.uniqueness-invariant` | Alias paths and canonical Bead segments share one uniqueness namespace: a put on a committed Bead's path, a deleted one included, and a creation on a live alias path fail with `identity-taken`; an alias or non-canonical target fails with `validation-failed`; an unknown or invisible target, and an unknown alias on delete, fail with `resource-not-found` |
+| `read-update.alias.no-version-minted` | Alias mutation mints no version: the target Bead's revision is unchanged by a put, a repoint, or a delete, and an alias result carries no revision |
+| `read-update.alias.sequence-binding` | Alias members are sequence members with their own keys: a put's `target` may name a `@name` bound by an earlier Bead creation in the same sequence, and alias dispositions are retained and replayed as every member's are |
 | `read-update.sequence.order-and-partial-commit` | Members run strictly in order; a failed member leaves earlier successes committed and later independent members run |
 | `read-update.sequence.local-bindings` | A `@name` binding is usable after its creating member commits; a reference to a creating member whose retained disposition is a failure fails only its member with `binding-unavailable` |
 | `read-update.sequence.transient-predecessor` | A member whose `@name` creator ended transiently in the same request fails with `idempotency-in-progress`, retains nothing, releases its claim, and later independent members still run |
@@ -4325,7 +4488,14 @@ protocol-identifier prefix, with the release-stability rule stated above.
    `retryAfter` hint, and the deferral of alias mutation are applied
    provisionally as decisions D21–D31 and revisions of D3–D6, D10, D13,
    D15–D18, and D20; what remains is their ruling, after which the
-   Read+Update implementation wave may begin.
+   Read+Update implementation wave may begin. **Amended 2026-09-08 (D31
+   ruled B):** alias mutation joins the profile — the two alias targets
+   `put-alias` and `delete-alias`, their singleton and sequence records,
+   the alias result, and the uniqueness namespace shared by alias paths and
+   canonical Bead segments are defined under
+   [Alias targets](#alias-targets), so the directory holds eight singleton
+   targets plus `sequence`; the result shape and the residual judgment
+   calls are recorded as decisions D33–D37.
 3. **Resolved 2026-08-08:** the required machine-discovery mechanism is the
    Scope response's registered `service-desc` Link field. A `200` Scope body
    may contain HTML, Markdown, or another human representation and may link to
@@ -4362,7 +4532,11 @@ protocol-identifier prefix, with the release-stability rule stated above.
    `resourceKind` and `resource: { id, type, revision }`, `revision` the
    final live revision — in place of a URL string, the shape both write
    profiles share; `resourceKind` and `resourceIdentity` are defined with
-   it. Transactional definitions remain pending.
+   it. **Amended 2026-09-08 (D31 ruled B):** the bundle carries
+   `putAliasRequest`, `deleteAliasRequest`, `sequencePutAlias`,
+   `sequenceDeleteAlias`, `aliasResult`, and `sequenceMemberAliasResult`,
+   and `readUpdateOperationDirectory` pins eight singleton targets plus
+   `sequence`. Transactional definitions remain pending.
    Later-profile definitions gate their corresponding waves. This question
    closes when the complete reviewed bundle exists.
 6. **Read table recorded 2026-08-12; later-profile rows pending:** BDP uses a
@@ -4386,9 +4560,13 @@ protocol-identifier prefix, with the release-stability rule stated above.
    view does not project is `forbidden`, wrong-kind durable references are
    `resource-not-found`, non-JSON-Pointer patch paths and `@name` in a
    singleton are `malformed-request`, and an owned-set overflow is
-   `validation-failed`. Transactional rows remain pending. This question
-   closes when every normative failure is present in the reviewed code
-   table and schema bundle.
+   `validation-failed`. **Amended 2026-09-08 (D31 ruled B):** the alias
+   targets add no code: a taken alias path, or a creation on a live alias
+   path, is `identity-taken`; an unknown or invisible target, or an
+   unknown alias on delete, is `resource-not-found`; and an alias or
+   non-canonical target is `validation-failed`. Transactional rows remain
+   pending. This question closes when every normative failure is present
+   in the reviewed code table and schema bundle.
 7. **Resolved 2026-08-08:** only Transactional exposes Scope epoch,
    Authorization View, visible position, and minimum-position HTTP fields.
    Read and Read+Update use Resource `ETag`s and snapshot-preserving cursors

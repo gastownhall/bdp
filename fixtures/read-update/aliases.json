@@ -1,0 +1,433 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-aliases",
+  "description": "The two alias targets: a put that creates an alias to a canonical Bead, a put that repoints it, a retry that returns the retained disposition, a put to the target the alias already has, a creation refused on the live alias path, a delete that releases the path, a put that reuses it, one sequence that creates a Bead and then binds its alias through @name, and the refusals — an alias chain target, a committed Bead's path, an unknown target, and an unknown alias on delete. No target Bead changes revision anywhere here: alias mutation mints no version. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "put-alias-creates",
+      "condition": "No alias is at alias/adr/sequence-envelopes and no canonical Bead segment has the path adr/sequence-envelopes. decision-7 is at decision-7-r7 before the put and after it.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-envelopes-put"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/adr/sequence-envelopes",
+          "target": "beads/decision-7"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/aliasResult",
+        "body": {
+          "outcome": "created",
+          "alias": "https://beads.example/acme/alias/adr/sequence-envelopes",
+          "target": "https://beads.example/acme/beads/decision-7"
+        }
+      }
+    },
+    {
+      "id": "put-alias-repoints",
+      "condition": "The same alias put to another canonical Bead, spelled absolutely: repointing is the same operation and reports updated. Neither decision-7 nor adr-104 changes revision.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-envelopes-repoint"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/adr/sequence-envelopes",
+          "target": "https://beads.example/acme/beads/adr-104"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/aliasResult",
+        "body": {
+          "outcome": "updated",
+          "alias": "https://beads.example/acme/alias/adr/sequence-envelopes",
+          "target": "https://beads.example/acme/beads/adr-104"
+        }
+      }
+    },
+    {
+      "id": "put-alias-idempotent-retry",
+      "condition": "The first put retried under its key after the repoint: the retained disposition is returned without re-execution and still reports the target that put established, although the alias now resolves to adr-104. An alias result discloses no Resource record, so it is returned as retained.",
+      "retained": [{ "from": "put-alias-creates", "index": 0 }],
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-envelopes-put"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/adr/sequence-envelopes",
+          "target": "beads/decision-7"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/aliasResult",
+        "body": {
+          "outcome": "created",
+          "alias": "https://beads.example/acme/alias/adr/sequence-envelopes",
+          "target": "https://beads.example/acme/beads/decision-7"
+        }
+      }
+    },
+    {
+      "id": "put-alias-same-target-reports-updated",
+      "condition": "A put to the target the alias already has changes nothing and reports updated: the alias was in use, and there is no fourth outcome.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-envelopes-same"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/adr/sequence-envelopes",
+          "target": "beads/adr-104"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/aliasResult",
+        "body": {
+          "outcome": "updated",
+          "alias": "https://beads.example/acme/alias/adr/sequence-envelopes",
+          "target": "https://beads.example/acme/beads/adr-104"
+        }
+      }
+    },
+    {
+      "id": "create-bead-on-a-live-alias-path",
+      "condition": "alias/adr/sequence-envelopes is live. Canonical Bead segments and alias paths share one uniqueness namespace, so a creation supplying the same path is refused; after the alias is deleted the path is free for a creation.",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-envelopes-collide"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "id": "beads/adr/sequence-envelopes",
+          "type": "https://work.example/types/decision",
+          "properties": { "title": "Collide with a live alias", "status": "proposed" }
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "identity-taken",
+          "status": 409,
+          "retry": "never",
+          "detail": "adr/sequence-envelopes is a live alias path; canonical Bead segments and alias paths share one uniqueness namespace"
+        }
+      }
+    },
+    {
+      "id": "delete-alias-releases",
+      "condition": "The alias named by its absolute URL. Afterwards alias/adr/sequence-envelopes resolves as 404 and the path is reusable; adr-104 keeps its revision.",
+      "request": {
+        "method": "POST",
+        "target": "operations/delete-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-envelopes-delete"
+        },
+        "schema": "#/$defs/deleteAliasRequest",
+        "body": {
+          "alias": "https://beads.example/acme/alias/adr/sequence-envelopes"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/aliasResult",
+        "body": {
+          "outcome": "deleted",
+          "alias": "https://beads.example/acme/alias/adr/sequence-envelopes"
+        }
+      }
+    },
+    {
+      "id": "put-alias-after-delete-reuses-the-path",
+      "condition": "The released path put again: no alias is in use at it, so the put reports created, not updated. An alias carries no identity promise.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-envelopes-reput"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/adr/sequence-envelopes",
+          "target": "beads/adr-104"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/aliasResult",
+        "body": {
+          "outcome": "created",
+          "alias": "https://beads.example/acme/alias/adr/sequence-envelopes",
+          "target": "https://beads.example/acme/beads/adr-104"
+        }
+      }
+    },
+    {
+      "id": "sequence-creates-a-bead-then-binds-its-alias",
+      "condition": "The pattern a Memory key follows — create the Bead, then bind its name — as one sequence: @note resolves to the identity the creation allocated. note-120 stays at note-120-r1 after the put, which mints no version, and the alias member binds no name.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-a-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Alias mutation joins Read+Update",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-a-note-alias",
+              "operation": "putAlias",
+              "alias": "alias/notes/alias-mutation",
+              "target": "@note"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/note-120",
+                "type": "https://work.example/types/decision",
+                "revision": "note-120-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Alias mutation joins Read+Update",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "alias": "https://beads.example/acme/alias/notes/alias-mutation",
+              "target": "https://beads.example/acme/beads/note-120"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "put-alias-chain-target-is-validation-failed",
+      "condition": "The target is an alias spelling. An alias targets a canonical Bead URL only, so no chain is admitted; the diagnostic names the cause and carries no Type or schema location.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-latest-chain"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/adr/latest",
+          "target": "alias/adr/sequence-envelopes"
+        }
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/validation",
+          "code": "validation-failed",
+          "status": 422,
+          "retry": "never",
+          "detail": "the target is not a canonical Bead reference",
+          "diagnostics": [
+            {
+              "message": "alias/adr/sequence-envelopes is an alias; an alias targets a canonical Bead URL only"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "put-alias-on-a-committed-bead-path",
+      "condition": "beads/projects/alpha/tasks/t-1 was committed and later deleted (the singletons fixture). Canonical segments are never released, so the alias path is taken.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-taken-path"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/projects/alpha/tasks/t-1",
+          "target": "beads/decision-7"
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "identity-taken",
+          "status": 409,
+          "retry": "never",
+          "detail": "projects/alpha/tasks/t-1 is the path of a canonical Bead segment committed in this Scope"
+        }
+      }
+    },
+    {
+      "id": "put-alias-unknown-target",
+      "condition": "A well-formed canonical target naming a Bead that does not exist, or that the request's Authorization View does not project: the same non-disclosing 404.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-unknown-target"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/adr/missing",
+          "target": "beads/decision-999"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/not-found",
+          "code": "resource-not-found",
+          "status": 404,
+          "retry": "after-state-change",
+          "detail": "beads/decision-999 does not exist or is not visible"
+        }
+      }
+    },
+    {
+      "id": "delete-alias-unknown",
+      "condition": "No alias is at alias/adr/never-put. Aliases are not an enumeration oracle: the same 404 an unknown Resource receives.",
+      "request": {
+        "method": "POST",
+        "target": "operations/delete-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-a-delete-unknown"
+        },
+        "schema": "#/$defs/deleteAliasRequest",
+        "body": {
+          "alias": "alias/adr/never-put"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/not-found",
+          "code": "resource-not-found",
+          "status": 404,
+          "retry": "after-state-change",
+          "detail": "alias/adr/never-put is not an alias"
+        }
+      }
+    }
+  ]
+}

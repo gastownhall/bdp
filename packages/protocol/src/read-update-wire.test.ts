@@ -47,6 +47,7 @@ const READ_UPDATE_PROBLEM_ROWS: readonly (readonly [string, string, number, stri
 
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{1,256}$/;
 const LINK_OPERATIONS = new Set(["createLink", "updateLinkProperties", "deleteLink"]);
+const ALIAS_OPERATIONS = new Set(["putAlias", "deleteAlias"]);
 /** The reference domain's only owned Link Type: `decision` owns `cites`. */
 const OWNED_LINK_TYPE = "https://work.example/types/cites";
 
@@ -161,6 +162,7 @@ describe("Read+Update problem rows", () => {
 describe("Read+Update wire fixtures", () => {
   it("cover discovery, every singleton target, the sequence cases, and the recovery cases", () => {
     expect(fixtures.map(({ id }) => id)).toEqual([
+      "read-update-aliases",
       "read-update-carrier-rejections",
       "read-update-discovery",
       "read-update-idempotency-recovery",
@@ -180,8 +182,10 @@ describe("Read+Update wire fixtures", () => {
       "operations/",
       "operations/create-bead",
       "operations/create-link",
+      "operations/delete-alias",
       "operations/delete-bead",
       "operations/delete-link",
+      "operations/put-alias",
       "operations/sequence",
       "operations/update-bead-properties",
       "operations/update-link-properties",
@@ -258,12 +262,14 @@ describe("Read+Update wire fixtures", () => {
             const label = `${exchange.id}[${index}]`;
             expect(entry.operationIndex, label).toBe(index);
             expect(entry.operationName, label).toEqual(member.name);
-            if ("outcome" in entry) {
-              expectResultShape(entry, member, label);
-              expectResultCorrespondence(entry, member, results.slice(0, index), scope, label);
-            } else {
+            if (!("outcome" in entry)) {
               expect(entry.outcome, label).toBeUndefined();
               expectProblemRow(entry, label);
+            } else if (ALIAS_OPERATIONS.has(member.operation as string)) {
+              expectAliasResult(entry, member, results.slice(0, index), scope, label);
+            } else {
+              expectResultShape(entry, member, label);
+              expectResultCorrespondence(entry, member, results.slice(0, index), scope, label);
             }
           }
         }
@@ -274,6 +280,10 @@ describe("Read+Update wire fixtures", () => {
           const operation = SINGLETON_OPERATIONS.get(exchange.request.target);
           if (operation === undefined || isDirectProblem(exchange)) continue;
           const member = { ...exchange.request.body, operation } as JsonRecord;
+          if (ALIAS_OPERATIONS.has(operation)) {
+            expectAliasResult(exchange.response.body, member, [], fixture.scope, exchange.id);
+            continue;
+          }
           expectResultShape(exchange.response.body, member, exchange.id);
           expectResultCorrespondence(
             exchange.response.body,
@@ -506,6 +516,82 @@ describe("shapes the bundle now rejects", () => {
         retryAfter: 1,
       },
     ],
+    ["putAliasRequest", "a singleton @name alias target", { alias: "alias/x", target: "@x" }],
+    ["putAliasRequest", "a @name alias", { alias: "@x", target: "beads/1" }],
+    [
+      "putAliasRequest",
+      "a pinned alias target",
+      { alias: "alias/x", target: { uri: "beads/1", revision: "r" } },
+    ],
+    [
+      "putAliasRequest",
+      "an alias put guarded by expectedRevision",
+      { alias: "alias/x", target: "beads/1", expectedRevision: "r1" },
+    ],
+    [
+      "deleteAliasRequest",
+      "an alias delete carrying attribution",
+      { alias: "alias/x", attribution: { principal: "p", status: "claimed" } },
+    ],
+    [
+      "sequenceRequest",
+      "an alias member binding a name",
+      {
+        operations: [
+          {
+            operation: "putAlias",
+            idempotencyKey: "k",
+            name: "x",
+            alias: "alias/x",
+            target: "beads/1",
+          },
+        ],
+      },
+    ],
+    [
+      "aliasResult",
+      "a deleted alias carrying a target",
+      { outcome: "deleted", alias: `${scope}alias/x`, target: `${scope}beads/1` },
+    ],
+    [
+      "aliasResult",
+      "a created alias without its target",
+      { outcome: "created", alias: `${scope}alias/x` },
+    ],
+    [
+      "aliasResult",
+      "an alias result carrying a revision",
+      { outcome: "created", alias: `${scope}alias/x`, target: `${scope}beads/1`, revision: "r1" },
+    ],
+    [
+      "mutationResult",
+      "a mutation result spelled as an alias result",
+      { outcome: "created", alias: `${scope}alias/x`, target: `${scope}beads/1` },
+    ],
+    [
+      "sequenceMemberAliasResult",
+      "an alias entry carrying operationName",
+      {
+        operationIndex: 0,
+        operationName: "x",
+        outcome: "created",
+        alias: `${scope}alias/x`,
+        target: `${scope}beads/1`,
+      },
+    ],
+    [
+      "readUpdateOperationDirectory",
+      "a directory without the alias targets",
+      {
+        createBead: "create-bead",
+        updateBeadProperties: "update-bead-properties",
+        deleteBead: "delete-bead",
+        createLink: "create-link",
+        updateLinkProperties: "update-link-properties",
+        deleteLink: "delete-link",
+        sequence: "sequence",
+      },
+    ],
   ];
   for (const [definition, label, value] of rejected) {
     it(`rejects ${label}`, () => {
@@ -563,6 +649,101 @@ describe("shapes the bundle now rejects", () => {
       { outcome: "deleted", deleted: deletedLink, source: `${scope}beads/1`, sourceRevision: "r9" },
       "owned-Link deletion carrying its identity record",
     );
+    expectValid(
+      "#/$defs/sequenceRequest",
+      {
+        operations: [
+          { operation: "createBead", idempotencyKey: "a", name: "x", type: "https://t.example/t" },
+          { operation: "putAlias", idempotencyKey: "b", alias: "alias/x", target: "@x" },
+          { operation: "deleteAlias", idempotencyKey: "c", alias: `${scope}alias/y` },
+        ],
+      },
+      "alias members, a @name target included",
+    );
+    expectValid(
+      "#/$defs/sequenceResponse",
+      {
+        results: [
+          {
+            operationIndex: 0,
+            outcome: "updated",
+            alias: `${scope}alias/x`,
+            target: `${scope}beads/1`,
+          },
+          { operationIndex: 1, outcome: "deleted", alias: `${scope}alias/y` },
+        ],
+      },
+      "alias member results",
+    );
+  });
+});
+
+describe("the alias targets", () => {
+  const SIX = [
+    ["createBead", "create-bead"],
+    ["updateBeadProperties", "update-bead-properties"],
+    ["deleteBead", "delete-bead"],
+    ["createLink", "create-link"],
+    ["updateLinkProperties", "update-link-properties"],
+    ["deleteLink", "delete-link"],
+  ] as const;
+
+  it("pins the six Resource targets, the two alias targets, and sequence in the directory", () => {
+    const entries = [
+      ...SIX,
+      ["putAlias", "put-alias"],
+      ["deleteAlias", "delete-alias"],
+      ["sequence", "sequence"],
+    ];
+    const directory = def("readUpdateOperationDirectory");
+    expect(directory.required).toEqual(entries.map(([key]) => key));
+    expect(directory.additionalProperties).toBe(false);
+    expect(propertiesOf("readUpdateOperationDirectory")).toEqual(
+      Object.fromEntries(entries.map(([key, target]) => [key, { const: target }])),
+    );
+  });
+
+  it("shares the alias records between the singleton and sequence forms", () => {
+    expect(propertiesOf("putAliasMembers")).toEqual({
+      alias: { $ref: "#/$defs/durableResourceReference" },
+      target: { $ref: "#/$defs/resourceReference" },
+    });
+    expect(propertiesOf("deleteAliasMembers")).toEqual({
+      alias: { $ref: "#/$defs/durableResourceReference" },
+    });
+    expect(propertiesOf("putAliasRequest").target).toEqual({
+      $ref: "#/$defs/durableResourceReference",
+    });
+    expect(propertiesOf("sequencePutAlias").operation).toEqual({ const: "putAlias" });
+    expect(propertiesOf("sequenceDeleteAlias").operation).toEqual({ const: "deleteAlias" });
+    expect((def("sequenceMember").oneOf as SchemaRecord[]).map((branch) => branch.$ref)).toEqual([
+      "#/$defs/sequenceCreateBead",
+      "#/$defs/sequenceUpdateBeadProperties",
+      "#/$defs/sequenceDeleteBead",
+      "#/$defs/sequenceCreateLink",
+      "#/$defs/sequenceUpdateLinkProperties",
+      "#/$defs/sequenceDeleteLink",
+      "#/$defs/sequencePutAlias",
+      "#/$defs/sequenceDeleteAlias",
+    ]);
+  });
+
+  it("reports an alias result in the mutation outcome vocabulary, with a target exactly on a put", () => {
+    expect(propertiesOf("aliasResultMembers")).toEqual({
+      outcome: { $ref: "#/$defs/mutationOutcome" },
+      alias: { $ref: "#/$defs/absoluteHttpUrl" },
+      target: { $ref: "#/$defs/absoluteHttpUrl" },
+    });
+    expect(def("aliasResultMembers").required).toEqual(["outcome", "alias"]);
+    const results = (def("sequenceResponse").properties as SchemaRecord).results as SchemaRecord;
+    expect(((results.items as SchemaRecord).oneOf as SchemaRecord[]).map((b) => b.$ref)).toEqual([
+      "#/$defs/sequenceMemberResult",
+      "#/$defs/sequenceMemberAliasResult",
+      "#/$defs/sequenceMemberProblem",
+    ]);
+    expect(propertiesOf("sequenceMemberAliasResult")).toEqual({
+      operationIndex: { type: "integer", minimum: 0 },
+    });
   });
 });
 
@@ -573,6 +754,8 @@ const SINGLETON_OPERATIONS: ReadonlyMap<string, string> = new Map([
   ["operations/create-link", "createLink"],
   ["operations/update-link-properties", "updateLinkProperties"],
   ["operations/delete-link", "deleteLink"],
+  ["operations/put-alias", "putAlias"],
+  ["operations/delete-alias", "deleteAlias"],
 ]);
 
 function isDirectProblem(exchange: FixtureExchange): boolean {
@@ -705,6 +888,39 @@ function expectResolvedReference(
   } else {
     expect(resolvedUri, label).toBe(written);
   }
+}
+
+/**
+ * An alias result: `alias` is the absolute alias URL the request's spelling
+ * resolves to, a put's `target` is the canonical Bead URL its reference
+ * resolves to — through an earlier member's binding when spelled `@name` —
+ * a delete carries no `target`, and no alias member binds a name or carries
+ * a Resource record, an identity, or a revision.
+ */
+function expectAliasResult(
+  entry: JsonRecord,
+  member: JsonRecord,
+  earlier: readonly JsonRecord[],
+  scope: string,
+  label: string,
+): void {
+  expect(member.name, label).toBeUndefined();
+  expect(entry.operationName, label).toBeUndefined();
+  for (const field of ["resource", "deleted", "source", "sourceRevision", "revision"]) {
+    expect(entry[field], `${label}: ${field}`).toBeUndefined();
+  }
+  const alias = member.alias as string;
+  const aliasUrl = alias.startsWith("alias/") ? `${scope}${alias}` : alias;
+  expect(aliasUrl.startsWith(`${scope}alias/`), `${label}: ${alias} is not an alias`).toBe(true);
+  expect(entry.alias, label).toBe(aliasUrl);
+  if (member.operation === "deleteAlias") {
+    expect(entry.outcome, label).toBe("deleted");
+    expect(entry.target, label).toBeUndefined();
+    return;
+  }
+  expect(["created", "updated"], label).toContain(entry.outcome);
+  expectResolvedReference(member.target, entry.target, earlier, scope, `${label}: target`);
+  expect((entry.target as string).startsWith(`${scope}beads/`), `${label}: target`).toBe(true);
 }
 
 function expectProblemRow(problem: JsonRecord, label: string): void {
