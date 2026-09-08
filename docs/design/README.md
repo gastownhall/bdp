@@ -31,7 +31,7 @@ waves are internal sequencing labels, not protocol concepts.
   recommendation, and the specification sentence that depends on it — and
   the findings of review councils 9 and 12 folded into them. D1–D32 are
   ruled or ratified (2026-09-08; D29 ruled C, cross-packet X1 ruled B, and
-  D31 ruled B, all applied); D33–D40 ruled or ratified 2026-09-08; no decision is open.
+  D31 ruled B, all applied); D33–D40 ruled or ratified 2026-09-08. Council 13 separately exposes the cross-profile admission gap T62 in the Transactional packet.
 - [W1 Transactional packet](./w1-transactional-packet.md) records, for the
   Transactional profile, the normative text, schema definitions, fixtures,
   and unclaimed conformance rows the draft lacked — the owned-Link delta,
@@ -46,7 +46,10 @@ waves are internal sequencing labels, not protocol concepts.
   its apply record lists what landed where, the ruled sentences it
   amended, T49 (the alias targets' Transactional contract, open and teed
   up for the operator), and the apply-time judgment calls T50–T61,
-  applied provisionally.
+  applied provisionally. Council 13 adds open T62–T64 for admission identity,
+  withheld allocation projection, and live erasure delivery.
+
+- [`w1-transactional-council13.md`](w1-transactional-council13.md) — three-seat apply review, verified finding dispositions and correction-pass validation. T49 and T62–T64 are OPEN; T50–T61 remain provisional, with T56 amended. No merge clearance.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

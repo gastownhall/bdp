@@ -65,7 +65,7 @@
           "bdp-authorization-view": "view-a",
           "bdp-scope-position": "pos-49"
         },
-        "schema": "#/$defs/sequenceResponse",
+        "schema": "#/$defs/transactionalSequenceResponse",
         "body": {
           "results": [
             {

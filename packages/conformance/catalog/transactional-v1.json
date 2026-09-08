@@ -712,7 +712,8 @@
           "anchor": "#mutation-transactions",
           "selectedText": "A one-operation batch, the equivalent singleton request, and the equivalent sequence member therefore present one semantic request, and any of them retrieves the receipt the others created."
         }
-      ]
+      ],
+      "retires": ["read-update.singleton.idempotent-retry"]
     },
     {
       "id": "transactional.idempotency.key-grammar",
@@ -783,8 +784,14 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
           "selectedText": "The authority records the key, the normalized request identity, the `pending` Mutation Receipt with its `transaction` identity, and its own exclusive ownership of the execution together or not at all"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "From that point\nclient disconnection, a transport failure, and a bodyless `500` decide\nnothing"
         }
-      ]
+      ],
+      "retires": ["read-update.sequence.internal-fault"]
     },
     {
       "id": "transactional.idempotency.ownership-fencing",
@@ -1319,7 +1326,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#version-erasure",
-          "selectedText": "The successor MUST differ from the erased version"
+          "selectedText": "The successor MUST differ in the durable state that determines its"
         }
       ]
     },
@@ -1582,6 +1589,19 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#bdp-json-and-http-protocol",
           "selectedText": "is an RFC 3339 `date-time` written with uppercase `T` and `Z`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.ijson-strings-objects",
+      "title": "Unicode scalar strings and unique decoded member names are checked as carrier syntax before execution",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#bdp-json-and-http-protocol",
+          "selectedText": "These string and object violations are carrier syntax rejected before\nexecution with `malformed-request` in every profile."
         }
       ]
     },

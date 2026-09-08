@@ -518,6 +518,151 @@
           }
         ]
       }
+    },
+    {
+      "id": "isolated-live-owned-link-erasure",
+      "condition": "Isolated scenario outside the pos42–47 timeline. The before Link/source records are the9c1e-r1 and dec-9-r2 digest vectors. Erase the live Link version and every containing source version, commit corrected Link and source postimages atomically. Source properties are unchanged; its new owned set mints the revision. Its Event uses ownedLink only, whose nested change is the safe root replacement. This is a committed-group example, not finite replay across the erasure fence.",
+      "schema": "#/$defs/changeGroup",
+      "body": {
+        "scopeEpoch": "epoch-1",
+        "authorizationView": "view-a",
+        "checkpoint": "ckpt-60",
+        "position": "pos-60",
+        "previousPosition": "pos-59",
+        "projectionAdvance": false,
+        "transaction": "adm-owned-isolated",
+        "eventCount": 2,
+        "changes": [
+          {
+            "operation": "upsert",
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://beads.example/acme/links/9c1e",
+              "type": "https://work.example/types/cites",
+              "revision": "9c1e-r2",
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              },
+              "source": "https://beads.example/acme/beads/dec-9",
+              "target": "https://beads.example/acme/beads/task-42",
+              "properties": {
+                "role": "sanitized"
+              }
+            }
+          },
+          {
+            "operation": "upsert",
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://beads.example/acme/beads/dec-9",
+              "type": "https://work.example/types/decision",
+              "revision": "dec-9-owned-corrected-r3",
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              },
+              "properties": {
+                "title": "Adopt owned Links",
+                "status": "proposed"
+              },
+              "ownedLinks": {
+                "https://work.example/types/cites": [
+                  {
+                    "id": "https://beads.example/acme/links/9c1e",
+                    "type": "https://work.example/types/cites",
+                    "revision": "9c1e-r2",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42",
+                    "properties": {
+                      "role": "sanitized"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "erasures": [
+          {
+            "subject": "https://beads.example/acme/links/9c1e",
+            "revision": "9c1e-r1",
+            "digest": {
+              "scheme": "sha-256-jcs",
+              "value": "e9de824dfe1c19c21703d7644e5d248fd52a74e99a8c31e94cc441e21725119e"
+            }
+          },
+          {
+            "subject": "https://beads.example/acme/beads/dec-9",
+            "revision": "dec-9-r2",
+            "digest": {
+              "scheme": "sha-256-jcs",
+              "value": "be72a080a2fcdf1d964ce0e23b85d82d9f4b54a45ab2e25b584cfd079b2307f0"
+            }
+          }
+        ],
+        "events": [
+          {
+            "id": "ckpt-60_0",
+            "ordinal": 0,
+            "type": "updated",
+            "source": "https://beads.example/acme/events/",
+            "subject": "https://beads.example/acme/links/9c1e",
+            "subjectType": "https://work.example/types/cites",
+            "transaction": "adm-owned-isolated",
+            "time": "2026-09-08T19:00:00Z",
+            "data": {
+              "previousRevision": "9c1e-r1",
+              "revision": "9c1e-r2",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {
+                    "role": "sanitized"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "ckpt-60_1",
+            "ordinal": 1,
+            "type": "updated",
+            "source": "https://beads.example/acme/events/",
+            "subject": "https://beads.example/acme/beads/dec-9",
+            "subjectType": "https://work.example/types/decision",
+            "transaction": "adm-owned-isolated",
+            "time": "2026-09-08T19:00:00Z",
+            "data": {
+              "previousRevision": "dec-9-r2",
+              "revision": "dec-9-owned-corrected-r3",
+              "ownedLink": {
+                "operation": "updated",
+                "link": {
+                  "id": "https://beads.example/acme/links/9c1e",
+                  "type": "https://work.example/types/cites",
+                  "previousRevision": "9c1e-r1",
+                  "revision": "9c1e-r2",
+                  "change": [
+                    {
+                      "op": "replace",
+                      "path": "",
+                      "value": {
+                        "role": "sanitized"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
     }
   ]
 }

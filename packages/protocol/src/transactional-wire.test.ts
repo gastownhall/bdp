@@ -59,6 +59,8 @@ interface FixtureExchange {
   readonly condition?: string;
   /** An exchange in this fixture whose response body this one repeats byte for byte. */
   readonly sameReceiptAs?: string;
+  /** Explicit before-state oracle for a semantic no-op. */
+  readonly priorResources?: readonly JsonRecord[];
   readonly request: {
     readonly method: string;
     readonly target: string;
@@ -310,7 +312,7 @@ describe("Transactional wire fixtures", () => {
           const operations = requestOperations(exchange);
           if (operations === undefined) continue;
           const entries = receiptEntries(fixture, exchange);
-          expectEntriesCorrespond(entries, operations, exchange.id);
+          expectEntriesCorrespond(entries, operations, exchange.id, exchange.priorResources);
         }
       });
 
@@ -354,6 +356,56 @@ describe("Transactional wire fixtures", () => {
   }
 });
 
+describe("Transactional sequence problem extensions", () => {
+  const expired = {
+    type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
+    code: "idempotency-expired",
+    status: 410,
+    retry: "never",
+    operationIndex: 0,
+  };
+
+  it.each([42, {}, { id: "not-a-url", type: 7 }])(
+    "rejects malformed allocated identity %j",
+    (allocated) => {
+      expect(
+        compiledDefinition("#/$defs/transactionalSequenceMemberProblem")({ ...expired, allocated }),
+      ).toBe(false);
+    },
+  );
+
+  it("permits the disclosed expired-creation identity and keeps it out of other codes", () => {
+    const allocated = { id: `${SCOPE}beads/task-42`, type: "https://work.example/types/task" };
+    expectValid(
+      "#/$defs/transactionalSequenceMemberProblem",
+      { ...expired, allocated },
+      "expired creation",
+    );
+    const forbidden = {
+      ...expired,
+      type: `${BDP_PROBLEM_FAMILY_PREFIX}authorization`,
+      code: "forbidden",
+      status: 403,
+      retry: "after-state-change",
+    };
+    expectValid("#/$defs/transactionalSequenceMemberProblem", forbidden, "forbidden projection");
+    expect(
+      compiledDefinition("#/$defs/transactionalSequenceMemberProblem")({ ...forbidden, allocated }),
+    ).toBe(false);
+  });
+
+  it("rejects an erasure pointer in the sequence path", () => {
+    const erased = { ...expired, code: "resource-erased" };
+    expectValid("#/$defs/transactionalSequenceMemberProblem", erased, "erased projection");
+    expect(
+      compiledDefinition("#/$defs/transactionalSequenceMemberProblem")({
+        ...erased,
+        pointer: "/properties/title",
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("erasure digest vectors", () => {
   const vectors = digestVectors?.vectors ?? [];
 
@@ -368,6 +420,7 @@ describe("erasure digest vectors", () => {
       "dec-9-r2",
       "vec-1-r1",
       "vec-2-r1",
+      "rel-5-r1",
     ]);
   });
 
@@ -395,7 +448,10 @@ describe("erasure digest vectors", () => {
       ];
       for (const body of bodies) {
         for (const record of servedRecords(body)) {
-          served.set(`${record.id}@${record.revision}`, record);
+          const key = `${record.id}@${record.revision}`;
+          const previous = served.get(key);
+          if (previous !== undefined) expect(record, key).toEqual(previous);
+          served.set(key, record);
         }
         for (const record of erasureRecords(body)) {
           erased.set(
@@ -406,6 +462,8 @@ describe("erasure digest vectors", () => {
       }
     }
     expect(served.size).toBeGreaterThan(0);
+    const vectorKeys = new Set(vectors.map(({ record }) => `${record.id}@${record.revision}`));
+    for (const key of erased.keys()) expect(vectorKeys.has(key), key).toBe(true);
     for (const vector of vectors) {
       const key = `${vector.record.id}@${vector.record.revision}`;
       const record = served.get(key);
@@ -1084,8 +1142,9 @@ function expectReceiptRepresentation(receipt: JsonRecord, exchange: FixtureExcha
   if (exchange.request.method === "POST")
     expect(receipt.idempotencyKey, label).toBe(exchange.request.headers["idempotency-key"]);
   if (receipt.status === "pending") {
-    expect(exchange.response.status, label).toBe(202);
-    expect(exchange.response.headers["retry-after"], label).toBeDefined();
+    expect(exchange.response.status, label).toBe(exchange.request.method === "POST" ? 202 : 200);
+    if (exchange.request.method === "POST")
+      expect(exchange.response.headers["retry-after"], label).toBeDefined();
     expect(receipt.detail, label).toBeUndefined();
     return;
   }
@@ -1124,6 +1183,7 @@ function expectEntriesCorrespond(
   entries: readonly JsonRecord[],
   operations: readonly JsonRecord[],
   label: string,
+  priorResources: readonly JsonRecord[] = [],
 ): void {
   let lastIndex = -1;
   for (const [position, entry] of entries.entries()) {
@@ -1177,9 +1237,9 @@ function expectEntriesCorrespond(
       resource.revision === operation.expectedRevision
     ) {
       // A semantic no-op: the retained version keeps its own attribution.
-      expect(resource.attribution, entryLabel).toEqual(
-        operation.attribution === undefined ? resource.attribution : undefined,
-      );
+      const prior = priorResources.find((record) => record.id === resource.id);
+      expect(prior, `${entryLabel}: missing before-state oracle`).toBeDefined();
+      expect(resource, entryLabel).toEqual(prior);
     } else if (operation.attribution !== undefined) {
       expect(resource.attribution, entryLabel).toEqual(operation.attribution);
     }

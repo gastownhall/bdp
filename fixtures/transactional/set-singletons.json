@@ -196,7 +196,104 @@
           "next": null,
           "expiresAt": "2026-09-14T18:12:00Z"
         }
-      }
+      },
+      "priorResources": [
+        {
+          "id": "https://beads.example/acme/beads/task-43",
+          "type": "https://work.example/types/task",
+          "revision": "task-43-r2",
+          "properties": {
+            "title": "Draft the receipt schema",
+            "status": "open"
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-op-preserves-existing-attribution",
+      "condition": "An isolated no-op case outside the shared timeline. The before record carries agent:prior attribution. Supplying agent:planner on a property no-op preserves the entire before record and its revision, including that existing attribution.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "no-op-prior-attribution"
+        },
+        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "body": {
+          "bead": "beads/noop-example",
+          "expectedRevision": "noop-r1",
+          "change": [
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "open"
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-46"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-noop",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "no-op-prior-attribution",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-noop",
+          "requiredPosition": "pos-46",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/noop-example",
+                "type": "https://work.example/types/task",
+                "revision": "noop-r1",
+                "properties": {
+                  "title": "Draft the receipt schema",
+                  "status": "open"
+                },
+                "attribution": {
+                  "principal": "agent:prior",
+                  "status": "claimed"
+                }
+              }
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-14T18:12:00Z"
+        }
+      },
+      "priorResources": [
+        {
+          "id": "https://beads.example/acme/beads/noop-example",
+          "type": "https://work.example/types/task",
+          "revision": "noop-r1",
+          "properties": {
+            "title": "Draft the receipt schema",
+            "status": "open"
+          },
+          "attribution": {
+            "principal": "agent:prior",
+            "status": "claimed"
+          }
+        }
+      ]
     }
   ]
 }

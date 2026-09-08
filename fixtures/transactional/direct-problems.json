@@ -265,6 +265,62 @@
           "retry": "never"
         }
       }
+    },
+    {
+      "id": "batch-unpaired-surrogate",
+      "condition": "The raw request text is well-formed JSON but violates the protocol I-JSON string/object contract before key lookup or execution. bodyText preserves the exact wire text because parsing would erase duplicate-name evidence.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "invalid-json-unpaired-surrogate"
+        },
+        "bodyText": "{\"operations\":[{\"operation\":\"createBead\",\"type\":\"https://work.example/types/task\",\"properties\":{\"title\":\"\\uD800\"}}]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never"
+        }
+      }
+    },
+    {
+      "id": "batch-duplicate-decoded-member",
+      "condition": "The raw request text is well-formed JSON but violates the protocol I-JSON string/object contract before key lookup or execution. bodyText preserves the exact wire text because parsing would erase duplicate-name evidence.",
+      "request": {
+        "method": "POST",
+        "target": "operations/batch",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "invalid-json-duplicate-decoded-member"
+        },
+        "bodyText": "{\"operations\":[{\"operation\":\"createBead\",\"type\":\"https://work.example/types/task\",\"properties\":{\"title\":\"first\",\"\\u0074itle\":\"second\"}}]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never"
+        }
+      }
     }
   ]
 }

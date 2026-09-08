@@ -136,6 +136,19 @@
       },
       "jcs": "{\"id\":\"https://beads.example/acme/beads/vec-2\",\"properties\":{\"Z\":\"\\\"quoted\\\" \\\\ back\",\"a\":\"line\\nbreak\\ttab\",\"é\":\"café\",\"😀\":\"emoji\"},\"revision\":\"vec-2-r1\",\"type\":\"https://work.example/types/task\"}",
       "sha256": "135fbc96c7deb12207e0b0321ac97686a77d40cf1cf07c75eb730b67d96b9d06"
+    },
+    {
+      "label": "rel-5-r1",
+      "record": {
+        "id": "https://beads.example/acme/links/rel-5",
+        "type": "https://work.example/types/relates",
+        "revision": "rel-5-r1",
+        "source": "https://beads.example/acme/beads/task-43",
+        "target": "https://beads.example/acme/beads/task-44",
+        "properties": {}
+      },
+      "jcs": "{\"id\":\"https://beads.example/acme/links/rel-5\",\"properties\":{},\"revision\":\"rel-5-r1\",\"source\":\"https://beads.example/acme/beads/task-43\",\"target\":\"https://beads.example/acme/beads/task-44\",\"type\":\"https://work.example/types/relates\"}",
+      "sha256": "818526cfc51ba7e4efcb8b77e78b97f570a19d90411e4bfb8984baa947bfa784"
     }
   ]
 }

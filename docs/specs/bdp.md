@@ -1271,7 +1271,20 @@ member whose key is unknown, in declaration order, recording a pending
 receipt for each — the profile's form of claiming a key — and the members
 then execute in order, each committing its own state, change group, and
 terminal receipt. The envelope projects each member's receipt into one
-entry, and it adds no receipt member:
+entry, and it adds no receipt member. The bundle's
+`transactionalSequenceResponse` specializes the shared envelope with
+`transactionalSequenceMemberProblem`: its `allocated` extension, permitted
+only on `idempotency-expired`, is `sequenceAllocatedIdentity`, a closed
+`{ id, type }` object, distinct from a receipt's indexed `allocated` array.
+A creation's expired projection requires that identity when it is disclosed;
+non-creation projections omit it. The projection when that identity is
+withheld remains OPEN as T63. `resource-erased` member problems reject
+`pointer` just as direct problems do (amended 2026-09-08, council 13).
+A member newly admitted by this carrier executes under its own pending
+receipt and exclusive ownership; the in-flight projection below applies only
+to an execution this carrier did not admit. This ownership distinction does
+not resolve the dependent-identity transition left open in T62 (amended
+2026-09-08, council 13). The projections are:
 
 - a `completed` receipt with its detail available projects the receipt's
   one result entry in the shape of
@@ -1284,8 +1297,8 @@ entry, and it adds no receipt member:
   retained history and as `forbidden` to every other caller;
 - a `failed` receipt projects its problem as the member problem, with the
   present member's `operationIndex` and `operationName`;
-- a `pending` receipt — the member's key is bound to a transaction still
-  executing, here or elsewhere — projects as an `idempotency-in-progress`
+- a `pending` receipt owned by another execution — at this route or
+  elsewhere — projects as an `idempotency-in-progress`
   member problem, which MAY carry `retryAfter`; the sequence does not wait,
   executes nothing for the member, and retains nothing, and the pending
   receipt continues to be the key's state;
@@ -3125,7 +3138,10 @@ plus one required `idempotencyKey`:
 }
 ```
 
-The envelope is closed. `operations` is bounded by `sequence.operations`
+The envelope is closed. Before key lookup or execution, its JSON text must
+also satisfy the protocol's Unicode-scalar string/member-name and decoded
+member-name uniqueness rules; violations are carrier syntax
+`malformed-request` (amended 2026-09-08, council 13). `operations` is bounded by `sequence.operations`
 when that limit is advertised; a longer sequence is rejected before
 execution with `limit-exceeded`. Two members of one sequence MUST NOT carry
 the same `idempotencyKey`; a sequence that repeats a key is rejected before
@@ -3786,8 +3802,9 @@ and a request that fails one step never reaches the next:
    above `request.bodyBytes` is rejected with `413` `request-too-large`
    before the body is parsed;
 2. carrier syntax — a body media type other than `application/json` is
-   `415` `unsupported-media-type`; a body that is not well-formed JSON, an
-   absent, repeated, or invalid `Idempotency-Key`, a body outside
+   `415` `unsupported-media-type`; a body that is not well-formed JSON, a string or member name with an
+   unpaired surrogate, duplicate member names after escape decoding
+   (amended 2026-09-08, council 13), an absent, repeated, or invalid `Idempotency-Key`, a body outside
    `batchRequest`, a forward, unknown, or duplicate label, a label used
    where the other Resource kind is required, a noncanonical local ID
    spelling, or a supplied `id` beneath the wrong fixed root is `400`
@@ -3874,19 +3891,23 @@ unexpected internal fault produces anywhere.
 | Target | Method | Response |
 | --- | --- | --- |
 | `batch`, the six Resource singleton targets, and the two set targets | `POST` | `200` terminal receipt; `202` pending receipt; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503` |
-| `sequence` | `POST` | `200` envelope of [Sequence response envelope](#sequence-response-envelope), pending members included as problems; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503`; never a sequence-level `202` receipt (amended 2026-09-08, council 13) |
+| `sequence` | `POST` | `200` envelope of [Sequence response envelope](#sequence-response-envelope), pending members included as problems; direct `400`, `401`, `403`, `413`, `415`, `429`, `503`; never a sequence-level `202` receipt (amended 2026-09-08, council 13) |
 | the same targets | any other method | `405`, `Allow: POST` — plus `OPTIONS` when cross-origin access is enabled, in which case `OPTIONS` is answered by the CORS rules rather than `405` — and no BDP Problem body |
 | `operations/` | `GET`, `HEAD` | `200` Operation Directory; `401`, `403`, `429`, `503` |
 | `operations/` | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
-| a receipt URL `receipts/{token}` | `GET`, `HEAD` | `200` receipt in its current representation; `401`; `404` for an unknown token, another principal's receipt, a retracted receipt, a forgotten failed receipt, or a prior epoch's receipt; `429`, `503` |
-| a receipt page URL | `GET`, `HEAD` | `200` page; `401`; `404` under the same non-disclosure rule; `410` `cursor-expired` after the receipt's detail expired; `429`, `503` |
+| a receipt URL `receipts/{token}` | `GET`, `HEAD` | `200` receipt in its current representation; `401`; `404` for an unknown token, another principal's receipt, a retracted receipt, a forgotten failed receipt, or a prior epoch's receipt; `409` `foreign-view` or `410` `cursor-expired` for incompatible minimum-position context; `429`, `503` |
+| a receipt page URL | `GET`, `HEAD` | `200` page; `401`; `404` under the same non-disclosure rule; `409` `foreign-view` or `410` `cursor-expired` for incompatible minimum-position context; `410` `cursor-expired` after the receipt's detail expired; `429`, `503` |
 | a receipt or page URL | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
 | the `receipts` root | any method | `404` `resource-not-found` for `GET` and `HEAD`, `405` with `Allow: GET, HEAD` otherwise |
 
 On a receipt or page read, authentication is decided first, then the
-principal and epoch non-disclosure rule, then page expiry, then the
-representation: a caller who may not see a receipt learns nothing from an
-expired page of it.
+principal and epoch non-disclosure rule, then the request's minimum-position
+context and consistency wait, then page expiry, then the representation.
+An incompatible view returns `409` `foreign-view`; an expired context
+returns `410` `cursor-expired`; a failed catch-up wait returns `503`
+`catch-up-timeout`, under the shared consistency rules. These checks never
+let a caller who may not see the receipt learn about its pages or history
+(amended 2026-09-08, council 13).
 ### Operation record schema
 
 > **Transactional/Replication constructs within this section.**
@@ -4977,12 +4998,21 @@ ordinary Property Change — its `remove` and `replace` paths and prior
 values — would disclose it. The successor's fact therefore carries the
 content-free delta form: `change` is exactly one `replace` at the root
 pointer `""` whose `value` is the successor's complete `properties`, and
-`previousRevision` is the erased revision. The successor MUST differ from
-the erased version — a `properties` value equal under RFC 6902 Section 4.6
-would re-commit the erased content and, under [Revisions](#revisions),
-mints nothing — or the group tombstones the Resource instead. An owned
-Link's successor is carried the same way in its own `updated` fact and in
-the source's `ownedLink` delta.
+`previousRevision` is the erased revision. The successor MUST differ in the durable state that determines its
+revision — `properties` and, for a Bead, its complete inline owned-Link
+set — or the group tombstones the Resource instead. An owned-set change
+can mint a source Bead revision with unchanged Bead properties.
+
+The root-replacement `change` above applies to a successor produced by a
+property correction. For the owning Bead's successor induced by an owned
+Link's correction or deletion, its `updated` fact instead carries only
+`ownedLink`, never both delta forms. An owned Link's property correction
+uses the content-free root replacement in its own `updated` fact and in
+the nested `ownedLink.link.change` of the source's fact; deletion uses the
+identity-only deleted transition. The source's new postimage carries the
+complete resulting owned set. These are the existing exclusive delta
+forms, not permission to rewrite an erased version in place or expose its
+partial content (amended 2026-09-08, council 13).
 
 Erasing a live version with a tombstone is an administrative deletion of
 the Resource. It is subject to deletion safety — a Bead with a live
@@ -5524,6 +5554,13 @@ selection rule excludes a retired row from the claim that retires it:
 - `transactional.idempotency.expired-detail` retires `read-update.idempotency.expired`
 - `transactional.idempotency.failed-retained` retires `read-update.idempotency.expired-failure`
 - `transactional.restore.key-namespace` retires `read-update.idempotency.restore`
+- `transactional.idempotency.cross-carrier` retires `read-update.singleton.idempotent-retry`
+- `transactional.idempotency.durable-admission` retires `read-update.sequence.internal-fault`
+
+The last two retirements preserve cross-carrier replay through receipts and
+the bodyless internal-fault response while rejecting the Read+Update-only
+direct-disposition and immediate claim-clearing obligations (amended
+2026-09-08, council 13).
 
 The alias targets `put-alias` and `delete-alias` have no Transactional row
 until their Transactional contract is defined (decision T49 in the packet,
@@ -5641,6 +5678,7 @@ open); no row below claims or retires an alias obligation.
 | `transactional.http.internal-fault` | A bodyless 500 or transport failure after admission decides nothing; the receipt records the disposition |
 | `transactional.http.disconnect-admitted` | A disconnect after admission does not decide the outcome |
 | `transactional.http.timestamps` | Every emitted instant is a valid RFC 3339 date-time with uppercase T and Z |
+| `transactional.http.ijson-strings-objects` | Unicode scalar strings and unique decoded member names are checked as carrier syntax before execution |
 | `transactional.http.token-profile` | Epochs, view tokens, positions, transaction ids, receipt tokens, and keys use the checkpoint character profile; revisions do not |
 | `transactional.restore.epoch-fence` | A restore keeps canonical URLs and fences every prior-epoch token |
 | `transactional.restore.key-namespace` | A prior-epoch key is unbound under the new epoch and executes anew, never as a replay |

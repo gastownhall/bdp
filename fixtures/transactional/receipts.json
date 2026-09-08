@@ -532,6 +532,150 @@
           "expiresAt": "2026-09-21T09:00:00Z"
         }
       }
+    },
+    {
+      "id": "receipt-pending-get",
+      "condition": "Before the original execution terminalizes, a GET of its pending receipt returns200;202 is a submission response, not the polling status.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-7",
+        "headers": {
+          "accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-42",
+          "retry-after": "1",
+          "location": "https://beads.example/acme/receipts/rcpt-7"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-7",
+          "status": "pending",
+          "idempotencyKey": "client-key-0001",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-0a1b"
+        }
+      }
+    },
+    {
+      "id": "receipts-rcpt-7-minimum-foreign-view",
+      "condition": "The receipt belongs to this principal in the current epoch and is visible; its detail is retained. The minimum-position request context is incompatible, so consistency fails only after receipt nondisclosure passes.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-7",
+        "headers": {
+          "accept": "application/json",
+          "bdp-minimum-scope-position": "pos-42",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-old"
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "foreign-view",
+          "status": 409,
+          "retry": "after-state-change"
+        }
+      }
+    },
+    {
+      "id": "receipts-rcpt-7-minimum-cursor-expired",
+      "condition": "The receipt belongs to this principal in the current epoch and is visible; its detail is retained. The minimum-position request context is incompatible, so consistency fails only after receipt nondisclosure passes.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-7",
+        "headers": {
+          "accept": "application/json",
+          "bdp-minimum-scope-position": "pos-42",
+          "bdp-scope-epoch": "epoch-old",
+          "bdp-authorization-view": "view-a"
+        }
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/gone",
+          "code": "cursor-expired",
+          "status": 410,
+          "retry": "after-state-change"
+        }
+      }
+    },
+    {
+      "id": "receipts-rcpt-9-page=2-minimum-foreign-view",
+      "condition": "The receipt belongs to this principal in the current epoch and is visible; its detail is retained. The minimum-position request context is incompatible, so consistency fails only after receipt nondisclosure passes.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "accept": "application/json",
+          "bdp-minimum-scope-position": "pos-42",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-old"
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "foreign-view",
+          "status": 409,
+          "retry": "after-state-change"
+        }
+      }
+    },
+    {
+      "id": "receipts-rcpt-9-page=2-minimum-cursor-expired",
+      "condition": "The receipt belongs to this principal in the current epoch and is visible; its detail is retained. The minimum-position request context is incompatible, so consistency fails only after receipt nondisclosure passes.",
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "accept": "application/json",
+          "bdp-minimum-scope-position": "pos-42",
+          "bdp-scope-epoch": "epoch-old",
+          "bdp-authorization-view": "view-a"
+        }
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/gone",
+          "code": "cursor-expired",
+          "status": 410,
+          "retry": "after-state-change"
+        }
+      }
     }
   ]
 }

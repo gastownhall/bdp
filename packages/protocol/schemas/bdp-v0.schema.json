@@ -4499,6 +4499,91 @@
         }
       },
       "additionalProperties": false
+    },
+    "sequenceAllocatedIdentity": {
+      "title": "BDP sequence expired-creation identity",
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "transactionalSequenceMemberProblem": {
+      "title": "BDP Transactional sequence member problem",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/sequenceMemberProblem"
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "idempotency-expired"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "allocated": {
+                "$ref": "#/$defs/sequenceAllocatedIdentity"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "allocated": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-erased"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "pointer": false
+            }
+          }
+        }
+      ]
+    },
+    "transactionalSequenceResponse": {
+      "title": "BDP Transactional sequence response",
+      "type": "object",
+      "required": ["results"],
+      "properties": {
+        "results": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/sequenceMemberResult"
+              },
+              {
+                "$ref": "#/$defs/sequenceMemberAliasResult"
+              },
+              {
+                "$ref": "#/$defs/transactionalSequenceMemberProblem"
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

@@ -7421,3 +7421,57 @@ cases for each before any write-profile realization can claim this behavior.
 **Owning destinations.** Mutation Transactions; Read+Update sequence admission
 and idempotency; corresponding catalog obligations and future executable
 sequence-admission tests. No wire or normative change is applied for T62 yet.
+
+
+### T63 — Withheld allocation in a sequence projection (OPEN)
+
+**Context.** A completed creation's compact receipt retains its committed
+identity, including a client-supplied ID. A current view can receive that
+receipt's allocated entry as `withheld: true`. The sequence projection
+previously specified only `allocated: { id, type }`, leaving both its
+schema and the withheld case undefined. Council 13 adds the typed disclosed
+form and a Transactional sequence envelope without changing the83 inherited
+Read+Update definitions; `resource-erased` member pointers are also rejected.
+The withheld form and its dependent-member behavior remain unapplied.
+
+**Options.** (a) Project `idempotency-expired` with
+`allocated: { withheld: true }` when the creation identity is withheld.
+The authority can still resolve a later label from its retained execution
+record internally; every dependent undergoes ordinary current authorization
+and exposes no hidden identity through its result. This parallels receipt
+projection but adds an explicit sequence union and its authorization cases.
+(b) Project `forbidden` for the creator and skip its dependents with transient
+`forbidden` projections, releasing their new reservations. This is simpler
+on the wire but couples replay progress to disclosure of a retained identity.
+
+**Recommendation.** (a), preserving the distinction between retained execution
+identity and what the current response may disclose. Coordinate reservation
+and retry behavior with T62. The complete ruling must cover granted/revoked
+views, retries from other carriers, and a dependent that is independently
+unauthorized. No withheld allocation shape is applied yet.
+
+### T64 — Erasure delivery to an already connected stream (OPEN)
+
+**Context.** Ruled T28 expires every checkpoint/snapshot before erasure position
+P. Finite reads and reconnects from older checkpoints therefore recover through
+a new snapshot's permanent erasure ledger. The spec still calls the changefeed
+the vehicle carrying each erasure and requires onward delivery, but does not say
+how an already connected SSE stream crosses the commit at P. Correcting the
+finite examples exposes this missing live-delivery contract; it does not
+invalidate T28 or prove that a finite replay may include the erased group.
+
+**Options.** (a) An already admitted, caught-up live stream delivers the complete
+erasure group as the atomic publication at P and advances its stream cursor;
+a stream lagging behind the immediately preceding head, any new finite read,
+or any reconnect still follows T28 and resnapshots. This requires explicit
+publication/fencing order and live/disconnect race tests, without serving
+pre-erasure content after the fence. (b) Fence live streams too and deliver
+erasure records only through snapshot manifests. This is simpler to implement
+but makes every erasure restart replication, and requires narrowing the
+changefeed/onward-delivery prose and reconciling the now-unobservable erasure
+member of served groups.
+
+**Recommendation.** (a), with an explicit caught-up-stream rule; no one-group
+exception for a new finite request. The law and fixtures must distinguish an
+existing admitted stream from a new request presenting an expired checkpoint.
+This delivery choice is unapplied pending Donna's ruling.
