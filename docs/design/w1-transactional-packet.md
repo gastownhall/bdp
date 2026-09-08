@@ -2813,7 +2813,7 @@ strict-read law that success is never reported with an older position.
 Recommendation: (a).
 
 **T34 — Transient aborts after admission retract the receipt and unbind
-the key.**
+the key.** RULED 2026-09-08 (operator: (a)).
 Context: a retained `failed` receipt carrying `temporarily-unavailable`
 with `retry` `after-delay` answered every retry of its key forever, so the
 delay could never lead to another execution (Codex H7, Claude H3).
@@ -2835,7 +2835,8 @@ finding. Alternative for the duration bound: treat it as transient
 client crossed. Recommendation: (a).
 
 **T35 — Admission as one durable step; execution ownership; pending
-recovery bound.**
+recovery bound.** RULED 2026-09-08 (operator: (a); the operator noted (b)
+was the expected answer — see the ruling note).
 Context: the first draft admitted a request when the key and a pending
 receipt were "durably recorded" but said nothing about the atomicity of
 that record, about which worker may commit, or about a `pending` receipt
@@ -2857,6 +2858,17 @@ as Read+Update D22, which clears rather than resumes); (c) leave recovery
 to the implementation. Recommendation: (a), which mirrors D22 and D23 in
 Transactional terms: "cleared" is "retracted", and the client's retry is
 the recovery path.
+
+**Ruling note (T35, 2026-09-08).** The operator ruled (a) while noting that
+(b) — resumption under a lease — was the expected answer. Why (a) holds:
+(b) needs the full request body durably queued before execution and a
+recovery executor that resumes partial progress idempotently, which in
+Dolt makes every progress checkpoint a commit and in Postgres a journal
+of its own, and the client still cannot tell a resumed execution from a
+retracted one until it retries; (a) needs one durable admission row and
+a fenced commit, which both stores give directly — a Postgres transaction
+that writes the receipt row with the effects, one Dolt commit under the
+lease fence — and it is D22/D23's rule with the words changed.
 
 **T36 — Terminal disposition and allocated identities survive detail
 expiry.**
@@ -2898,6 +2910,7 @@ the body-relative `pointer`. Tradeoffs: (b) fabricates attribution; (c)
 two members for one location. Recommendation: (a).
 
 **T38 — `202` on the original submission only past the wait bound.**
+RULED 2026-09-08 (operator: (a)).
 Context: T6 (b) in the first draft made `202` legal for any original
 submission, which contradicted "the normal case requires no follow-up
 read" (Claude M9). Options: (a) the original submission receives its
@@ -3184,7 +3197,7 @@ grammars; (a) reuses a profile the draft already fixes and keeps both
 carriers byte-identical. Recommendation: (a).
 
 **T13 — One key namespace across carriers on a Transactional Scope
-(shared).** *Revised (council 10).*
+(shared).** *Revised (council 10).* RULED 2026-09-08 (operator: (a)).
 Options: (a) a singleton, a batch, and each sequence member is a Mutation
 Transaction in one namespace; the carrier is excluded from the semantic
 comparison under the completed rule of T41; every one has a receipt; the
@@ -3252,7 +3265,10 @@ one carrier, which T13 (c) already declined). Tradeoffs: (a) keeps one
 envelope and one member vocabulary and uses RFC 9457's extension latitude
 for the one member the vocabulary lacks. Recommendation: (a).
 
-**T47 — Failed dispositions are retained for the epoch.**
+**T47 — Failed dispositions are retained for the epoch.** RULED 2026-09-08
+(operator ACKed (a), found (b) plausible, and delegated the judgment with
+implementability against Dolt and Postgres to weigh; ruled **(b)** — see
+the ruling note).
 Context: Read+Update D28 forgets a retained failure after its retention
 interval, so that no principal can grow permanent storage with requests
 that commit nothing; the draft's Transactional law retains "a compact
@@ -3275,6 +3291,36 @@ conflict about itself. Recommendation: (a), recorded as a deliberate
 divergence from D28 for the operator to weigh; the transient-abort rule
 (T34) already keeps every abort the client can retry out of the retained
 set.
+
+**Ruling note (T47, 2026-09-08).** Ruled (b), for three reasons. First,
+the uniform rule is D28's, not the draft's: a disposition is retained for
+as long as it has effects to protect — a completed receipt's disposition
+and allocated identities for the epoch (T36), because exactly-once
+protects committed effects; a failed receipt for `retention.receipt`,
+because it committed nothing and allocated nothing durable (T35), so a
+presentation of its key after the window can double-apply nothing.
+Second, storage: under (a) every permanently failed transaction leaves a
+tombstone until epoch rotation, an administrative act that may never
+occur, so rejected traffic grows the authority's storage without bound —
+in Postgres a table autovacuum can never trim, in Dolt a table whose live
+size and replication working set grow with every refusal — whereas under
+(b) the live set is bounded by rate times window, using the reaper that
+`retention.receipt` already requires for completed receipts' detail,
+deleting the row instead of trimming it. Third, the client contract is no
+worse: a held URL answers `404` after the window exactly as a retracted
+receipt does (T9), and a retry after forgetting executes as new, which is
+the outcome a client that still wants the work done needs; under (a) that
+client is told `failed` for the epoch and made to mint a new key. Law for
+the apply pass: a failed receipt — disposition and detail alike — is
+retained for at least `retention.receipt` after it becomes terminal; an
+authority MAY retain it longer; once forgotten, its URL answers `404`
+(non-disclosure, as for a retracted receipt) and its key is unknown, so a
+later presentation executes as new. A failed receipt never enters
+`detail: expired`; that state belongs to completed receipts. "Retrying
+returns that same failed receipt" holds within the window. The draft's
+"compact tombstone for the rest of the Scope epoch" applies to committed
+transactions only, and the recorded divergence from D28 is withdrawn:
+both profiles keep tombstones for committed effects only.
 
 ### 4.4 Shared-shape rules and cross-packet decisions
 
@@ -6646,7 +6692,7 @@ An implementer who has this packet, ruled, still lacks:
 | T10 | Receipt problem = Read+Update shape by `$ref` + `status` + attribution members + Read+Update diagnostics; recommend (revised). |
 | T11 | Three Transactional-only rows beside the inherited tables; one row per shared code; direct/receipt contexts closed; recommend (revised). |
 | T12 | Idempotency key = checkpoint character profile, bare header token (shared, D1); recommend. |
-| T13 | One key namespace across singleton, batch, and sequence members; member = one-operation transaction; envelope unchanged; recommend (revised, completed by T40/T41). |
+| T13 | One key namespace across singleton, batch, and sequence members; member = one-operation transaction; envelope unchanged; recommend (revised, completed by T40/T41). **RULED (a) 2026-09-08.** |
 | T14 | `retention.idempotency` prohibited on Transactional discovery; recommend (X2). |
 | T15 | History tokens share the checkpoint profile; revisions stay opaque equality-only strings; recommend (revised). |
 | T16 | Group wire form: `erasures` required, `checkpoint` on the wire, `transaction` on erasure groups, non-empty visible groups, `after` for `start=now`; recommend (revised). |
@@ -6667,11 +6713,11 @@ An implementer who has this packet, ruled, still lacks:
 | T31 | Tombstone path is an administrative deletion with the ordinary facts; recommend. |
 | T32 | One current-authorization projection for every receipt delivery path, with owned closure; non-record entries served as retained; recommend. |
 | T33 | Receipt response fields are the serving request's observation; body facts never change; recommend. |
-| T34 | Transient abort after admission retracts the receipt, unbinds the key, answers direct `503`; duration limit is permanent; recommend. |
-| T35 | Admission is one durable step with execution ownership; commits are fenced; pending recovery within `transaction.duration`; recommend. |
+| T34 | Transient abort after admission retracts the receipt, unbinds the key, answers direct `503`; duration limit is permanent; recommend. **RULED (a) 2026-09-08.** |
+| T35 | Admission is one durable step with execution ownership; commits are fenced; pending recovery within `transaction.duration`; recommend. **RULED (a) 2026-09-08.** |
 | T36 | Expired `completed` receipts carry `allocated` identities; recommend. |
 | T37 | `operationIndex` omitted only for transaction-wide failures; one `pointer` base; no `pointer` on `resource-erased`; recommend. |
-| T38 | `202` on the original submission only past the synchronous wait bound; recommend. |
+| T38 | `202` on the original submission only past the synchronous wait bound; recommend. **RULED (a) 2026-09-08.** |
 | T39 | No-op entries are `updated` at the retained revision; all-no-op omits `effectPosition`; recommend. |
 | T40 | `sequence` on a Transactional Scope: member projections for completed, withheld, erased, failed, pending, expired, and dependents; retired direct forms; recommend. |
 | T41 | Carrier-neutral semantic identity (`name` excluded, batch `@label` normalized to index or supplied id) and the pre-admission precedence; recommend. |
@@ -6680,7 +6726,7 @@ An implementer who has this packet, ruled, still lacks:
 | T44 | I-JSON data contract for all BDP JSON; JCS over it; digest failure never gates erasure; recommend. |
 | T45 | Validated timestamps through `format: date-time` registered in both validators; uppercase emission profile; recommend. |
 | T46 | `page.maximumItems` bounds receipt entries, every entry counting as one; recommend. |
-| T47 | Failed receipts retained for the epoch (draft law), a recorded divergence from D28; recommend. |
+| T47 | Failed receipts retained for `retention.receipt`, then forgotten — D28's rule in both profiles; the draft's epoch-lifetime law and the recorded divergence are withdrawn. **RULED (b) 2026-09-08 (judgment delegated).** |
 | T48 | `transactional.<area>.<case>` ids; category as grouping; `retires` member and selection rule for the ten retired Read+Update rows; recommend. |
 | X1 | `deleted` is the identity record `{ id, type, revision }` in both profiles; recommend for both. |
 | X2 | `retention.idempotency` is Read+Update-only; Transactional discovery MUST NOT advertise it; recommend for both. |
