@@ -103,6 +103,7 @@ const bindings: ReadCohortBindings = {
   manifest: MANIFEST_DIGEST,
   fixture: FIXTURE_DIGEST,
   schema: digest("11"),
+  schemaReadProjection: digest("12"),
   validator: digest("22"),
   runner: digest("33"),
   harness: digest("44"),
@@ -388,6 +389,18 @@ describe("read cohort artifact", () => {
     };
     expect(() => createReadCohortArtifact(input({ targets: [target, bdpbdTarget] }))).toThrow(
       /does not match the digest the run measured/,
+    );
+  });
+
+  // D29 = C: the Read-reachable schema projection is a binding every run must
+  // carry; the verifier recomputes it, so an artifact without it cannot be
+  // proved against the tree at all.
+  it("requires every run to bind the Read schema projection", () => {
+    const pruned = { ...bindings };
+    delete (pruned as Record<string, unknown>).schemaReadProjection;
+    const target: ReadCohortTargetInput = { ...bdptestTarget, bindings: pruned };
+    expect(() => createReadCohortArtifact(input({ targets: [target, bdpbdTarget] }))).toThrow(
+      /binding 'schemaReadProjection' must be a sha-256 hex digest/,
     );
   });
 

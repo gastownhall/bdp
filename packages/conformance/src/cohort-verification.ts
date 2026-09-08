@@ -49,6 +49,14 @@ export interface ReadCohortVerificationInput {
   /** The self-certifiable set derived independently from the bound manifest. */
   readonly derivedSelfCertifiable: readonly string[];
   /**
+   * D29 = C: the digest of the Read-reachable projection of the schema
+   * bundle, recomputed by the gate from the committed bundle with roots
+   * derived from the bound manifest and the protocol parse table. Every
+   * segment must bind exactly this value; drift means a Read-facing
+   * definition changed since the seal, and the cohort closes until re-sealed.
+   */
+  readonly derivedSchemaReadProjection: string;
+  /**
    * D4: the pinned bd identity, recomputed by the caller from the committed
    * baseline observations. Every bdpbd segment must record exactly this
    * identity — any drift closes bdpbd and therefore both targets.
@@ -75,6 +83,7 @@ const ALWAYS_REQUIRED_BINDING_KEYS = [
   "manifest",
   "fixture",
   "schema",
+  "schemaReadProjection",
   "validator",
   "runner",
   "harness",
@@ -166,6 +175,16 @@ export function verifyReadCohortEvidence(input: ReadCohortVerificationInput): vo
   const required = new Set(input.requiredScenarioIds);
   if (required.size !== input.requiredScenarioIds.length) {
     throw new ReadCohortVerificationError("the derived required scenario set repeats ids");
+  }
+  // The projection digest is recomputed by the gate, never read from the
+  // artifact; a gate that derived none must not pass by vacuous agreement.
+  if (
+    typeof input.derivedSchemaReadProjection !== "string" ||
+    !SHA256_HEX.test(input.derivedSchemaReadProjection)
+  ) {
+    throw new ReadCohortVerificationError(
+      "verification input carries no derived Read schema projection digest; the gate must recompute one from the committed bundle",
+    );
   }
 
   // The recorded required set is re-derived rather than trusted, exactly like
@@ -281,6 +300,16 @@ export function verifyReadCohortEvidence(input: ReadCohortVerificationInput): vo
             `target '${targetName}' binding '${key}' must be a sha-256 hex digest`,
           );
         }
+      }
+      // D29 = C: the seal binds the Read-reachable projection of the schema
+      // bundle, and the gate recomputes it from the committed tree. `schema`
+      // (the whole-bundle digest) stays recorded provenance checked for format
+      // only, because a later profile's definitions legitimately move it; the
+      // projection is what a Read-facing change cannot move without a re-seal.
+      if (bindings.schemaReadProjection !== input.derivedSchemaReadProjection) {
+        throw new ReadCohortVerificationError(
+          `Read-reachable schema drift: re-seal required (target '${targetName}' ${admission} run binds Read schema projection ${String(bindings.schemaReadProjection)}; the committed bundle projects ${input.derivedSchemaReadProjection})`,
+        );
       }
       // A packaged run must name the payload, process and workspace behind it;
       // an in-process one has none of those and must not claim any. Relabeling

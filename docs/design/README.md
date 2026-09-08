@@ -24,6 +24,11 @@ waves are internal sequencing labels, not protocol concepts.
   items 4 and 5 must close, the parallel item-9 work that proceeds today,
   and the testable contract-suite and Wave 2 freeze evidence milestones the
   eventual port must meet.
+- [Read schema projection gate](./read-projection-gate.md) records the
+  2026-09-08 ruling (D29 = C) that the sealed Read cohort binds the digest
+  of the Read-reachable projection of the schema bundle, the projection
+  rule and derived roots, the re-seal trigger, and the one-time
+  binding-format migration of the sealed artifact.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

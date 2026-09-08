@@ -56,6 +56,13 @@ export {
   ReadCohortVerificationError,
   verifyReadCohortEvidence,
 } from "./cohort-verification.js";
+export { CanonicalJsonError, canonicalJson } from "./canonical-json.js";
+export {
+  deriveReadSchemaProjectionRoots,
+  projectReadSchemaBundle,
+  type ReadSchemaProjection,
+  ReadSchemaProjectionError,
+} from "./schema-read-projection.js";
 export {
   CONFORMANCE_RESULT_STATES,
   type ConformanceResultState,
