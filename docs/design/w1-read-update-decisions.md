@@ -239,6 +239,8 @@ disposition was transient is transient by the same rule". Fixture
 
 ## D5 — Concurrent duplicate: refuse or join
 
+**Status: RATIFIED 2026-09-08** (via X3: Read+Update refuses a concurrent duplicate; Transactional joins through a receipt).
+
 **Context.** The draft listed "duplicate-join behavior" as missing. The
 Transactional profile joins a concurrent duplicate to one execution and may
 hand it a pending receipt. Read+Update has no receipt to hand out.
@@ -283,6 +285,8 @@ disposition expired". Problem row `idempotency-in-progress`. Fixture
 `concurrent-retry-meets-the-creator-in-flight`.
 
 ## D6 — Retention window, tombstones, and expiry
+
+**Status: RULED A 2026-09-08** (Q19: tombstones only for committed effects, Scope lifetime; failed dispositions retained for the window, then forgettable).
 
 **Context.** The draft required "finite outcome-retention rules" tied to the
 advertised `retention.idempotency`, and a problem code for what a client
@@ -489,6 +493,8 @@ secondary revision is `sourceRevision`". Bundle: `mutationResultMembers`
 through `delete-link-owned-versions-the-source`.
 
 ## D11 — Outcome vocabulary and the semantic no-op
+
+**Status: RULED A 2026-09-08** (Q20: a semantic no-op reports `updated` with the retained revision; rows assert revision and attribution equality).
 
 **Context.** Results need an outcome discriminator. The revision rule says a
 no-op update "retains the existing revision and emits no `updated` Event",
@@ -916,6 +922,8 @@ a closed definition of its own that shares every limit primitive with
 
 ## D21 — Replay re-authorization
 
+**Status: RULED A 2026-09-08** (Q21: replay re-authorizes disclosure; key, identity, and outcome preserved; non-disclosing `forbidden` replaces nothing and executes nothing).
+
 **Context.** The draft returned a retained postimage unconditionally. A
 principal could create or update a Resource, lose access to it, replay its
 key, and receive the old record — owned Links and their targets included —
@@ -1213,6 +1221,8 @@ Read-coded `resource-not-found` member). Catalog rows
 `read-update.sequence.carrier-rejection`.
 
 ## D28 — Tombstones only for committed effects
+
+**Status: RULED A 2026-09-08** (Q19, with D6).
 
 **Context.** D6 kept a Scope-lifetime tombstone for *every* retained
 disposition, so any authenticated principal could grow permanent storage
