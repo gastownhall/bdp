@@ -110,7 +110,11 @@ binding-format migration, not new evidence and not a re-seal: the added value
 is a pure function of the bundle bytes the seal already pinned
 (`bindings.schema` is the SHA-256 of the bundle at the run head, and that
 bundle is byte-identical to the one projected), and no row, exchange, score,
-or other binding changed.
+or other binding changed. The evidence constant moved from
+`5141c855420f6c7c032e513e5d072cd446275587` to
+`7e18f51ae390bc74876b2757faa64a5f9a5507f5` because it is the digest of the
+artifact bytes; the migration commit changed only the artifact and the
+constant file.
 
 The evidence law confines the delta from the run head to the evidence
 commit — the most recent commit touching the artifact or the constant — to
