@@ -211,3 +211,57 @@ checks after a fresh build. Typecheck, full lint and format, and whitespace
 checks pass. Strict Ajv compiles 138 definitions and validates all 256 bodies
 with no failure. No schema or catalog bytes changed from the preceding
 verified correction. The final committed correction still needs review.
+
+
+## Claude's frozen-head final review and bounded correction
+
+Claude completed the same `245c03e6f7730dd0780a35b336fb844a8c37ed06` review and
+reported **0 Critical, 0 High, 2 Medium, 6 Low**. It independently reproduced
+the 138-definition/256-body checks, byte-stable baselines, 114 TX rows and
+12 retirements, and all eight canonical strings/digests. The dispositions
+below distinguish actual defects, authoring clarifications, existing checks,
+and inherited integration work. They do not turn every reported count into
+an accepted defect or select an open ruling.
+
+| Finding | Verified disposition |
+| --- | --- |
+| Medium 1 and Low 7: retirement count and unbounded bullet assertions | Confirmed stale count and test scope. Normative prose now says twelve and includes direct-disposition replay and immediate internal-fault claim clearing in its enumeration. The catalog test bounds both rows and retirement bullets to the Transactional subsection, compares the exact count, and checks the stated count word. No retirement policy or catalog row changes. |
+| Medium 2: hypothetical erasure example reuses acme identities | Strengthened namespace isolation rather than declaring an exception to the permanent ledger. The standalone committed-group example now explicitly carries canonical Scope https://beads.example/owned-erasure/ in its fixture metadata; all protocol Resource/Event URLs in that example and the two before-record vectors use that Scope. The HTTP exchanges retain their fixture's acme Scope. Scope-aware assertions verify the override, and the two digests were recomputed with PR24's existing serializer. Epoch/view distinctions alone are not used as erasure-ledger isolation. The initial history is still an illustration, not a claimed sequence of executed states. |
+| Low 3: raw I-JSON examples unasserted | Confirmed coverage gap. Fixture typing and probes now require exactly the two bodyText exchanges, well-formed JSON, absent parsed body/schema, and the intended lone-surrogate or duplicate-decoded-name fault at the supplied pointer. Repairing either fault makes its illustration probe fail. The small authored-example checker is not an I-JSON admission implementation or conformance evidence. |
+| Low 4: empty available receipt | Accepted only for an empty terminal receipt. The completed/available schema branch requires at least one result when next is null. The existing text permits a non-maximal prefix and does not rule out an empty prefix with continuation; that structural latitude is preserved and explicitly tested. No unconditional minItems was added to receiptCore or the available branch. The complete-chain/request correspondence checks from the Codex fold still require every operation's outcome. |
+| Low 5: missing snapshot inline/first-class agreement check | Rejected as an exact-tree claim: expectClosedSnapshot already builds linkById and checks every inline owned Link for presence and member-for-member equality. Added a nonvacuous positive graph and two corruptions (missing first-class Link and disagreeing properties), both rejected by the existing helper. No duplicate agreement implementation was added. |
+| Low 6: administrative attribution rule allegedly inferred by the probe | The probe compares exact-version Event/postimage attribution; it does not prescribe attribution for all administrative writes. The example now explicitly narrates that this administrative writer supplied agent:erasure-administrator for the two successor versions, matching the existing claimed meaning and differing from the old agent:planner value. It invents no administrative API or universal policy. A positive probe omits attribution consistently from Events and postimages and still passes; one-sided omission remains a consistency error. No additional ruling was inferred. |
+| Low 8: inherited RU title wording differs | Recorded for #19 integration audit. The reviewed RU catalog is byte-inherited, and different title wording alone does not establish semantic drift from its cited obligation. Reconcile any verified semantic difference and decide whether exact title equality is the intended RU authoring convention during integration; do not blanket-rewrite 77 inherited titles or imply that all are wrong. |
+
+The two moved vector digests are 9c1e-r1
+`5e34ceb5dabdca08822ee32862214e9c92de6c2c395fc63964c97fded50030a3`
+and dec-9-r2
+`84d844516ff305e9ad934aa120bbbcfd0d4faec51c7e1e5fe3d0f3da07cc2051`.
+All eight vectors were independently re-canonicalized and hashed using
+PR24's existing serializer in scratch execution; integrated coverage remains
+T57. The corpus stays at 11 files, 63 exchange bodies, four group examples,
+and eight vectors. The bundle stays at 138 definitions; no inherited Read or
+Read+Update definition was edited. Final gates and review of the eventual
+committed correction remain separate from these focused checks.
+T49/T62/T63/T64 remain OPEN; T50–T61 remain provisional.
+
+
+Focused validation of this correction: Node 24.16.0 passes all 150 tests
+across Transactional wire, schema-bundle, and Transactional catalog suites,
+plus typecheck and touched-file lint/format. Strict Ajv compiles 138 definitions
+and validates all 256 parsed bodies with zero failures. Both schema mirrors
+match; source-byte comparisons against main and inherited #19 confirm all
+26 Read and 83 Read+Update definitions unchanged. An initial lint pass caught
+an unsafe optional chain in the new snapshot probe; it was corrected before
+the passing rerun. Full-suite verification was deliberately left to the
+integrating Janet session; no later-head council result is claimed here.
+
+The driver verified the completed fold with all 1,555 tests in 48 files
+under Node 24.16.0 (35.63 seconds), full lint/format, and the existing Read
+evidence verifier (74 historical target-row instances). The preceding build
+remains current for unchanged runtime sources; focused typecheck/strict Ajv
+and definition-byte comparisons passed after the schema correction. All
+eight vectors independently match PR24's existing canonical serializer and
+SHA-256, including both rewritten Scope identities. Final correction-head
+reviews are still required. Claude is unavailable until its reported 21:30
+Buenos Aires session reset; the missing review is not a clean seat.

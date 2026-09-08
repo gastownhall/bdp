@@ -521,7 +521,7 @@
     },
     {
       "id": "isolated-live-owned-link-erasure",
-      "condition": "Independent hypothetical initial history, not a later phase of the acme pos-42–pos-47 timeline or a restore of that history. This example uses distinct scopeEpoch and authorizationView values; its opaque position/checkpoint tokens are not comparable with that timeline. Initially dec-9, task-42, and Link 9c1e are live, and the before Link/source records are the 9c1e-r1 and dec-9-r2 digest vectors. No prior deletion of these identities is assumed. Erase the live Link version and every containing source version, and commit corrected Link and source postimages atomically. Source properties are unchanged; its new owned set mints the revision. Its Event uses ownedLink only, whose nested change is the safe root replacement. The successor versions explicitly record their displayed attribution. This is a committed-group example, not finite replay across the erasure fence.",
+      "condition": "Independent hypothetical initial history in canonical Scope https://beads.example/owned-erasure/, with no identity or erasure ledger shared with acme. This example's explicit scope metadata overrides the fixture's HTTP-exchange scope. Its distinct epoch/view and opaque position/checkpoint tokens are not comparable with the acme timeline. Initially dec-9, task-42, and Link 9c1e are live in this Scope. The before Link/source records are the 9c1e-r1 and dec-9-r2 digest vectors under this Scope; no prior deletion is assumed. Erase the live Link version and every containing source version, and commit corrected Link and source postimages atomically. Source properties are unchanged; its new owned set mints the revision. The administrative writer explicitly supplies agent:erasure-administrator as the attribution principal for both new versions, so claimed describes this example's recorded input; it is not copied from the erased versions. The Events carry the same attribution as their matching postimages. This illustrates no universal administrative attribution policy and defines no administrative API. The source Event uses ownedLink only, with a safe nested root replacement. This is a committed-group example, not finite replay across the erasure fence.",
       "schema": "#/$defs/changeGroup",
       "body": {
         "scopeEpoch": "epoch-owned-hypothesis",
@@ -537,15 +537,15 @@
             "operation": "upsert",
             "resourceKind": "link",
             "resource": {
-              "id": "https://beads.example/acme/links/9c1e",
+              "id": "https://beads.example/owned-erasure/links/9c1e",
               "type": "https://work.example/types/cites",
               "revision": "9c1e-r2",
               "attribution": {
-                "principal": "agent:planner",
+                "principal": "agent:erasure-administrator",
                 "status": "claimed"
               },
-              "source": "https://beads.example/acme/beads/dec-9",
-              "target": "https://beads.example/acme/beads/task-42",
+              "source": "https://beads.example/owned-erasure/beads/dec-9",
+              "target": "https://beads.example/owned-erasure/beads/task-42",
               "properties": {
                 "role": "sanitized"
               }
@@ -555,11 +555,11 @@
             "operation": "upsert",
             "resourceKind": "bead",
             "resource": {
-              "id": "https://beads.example/acme/beads/dec-9",
+              "id": "https://beads.example/owned-erasure/beads/dec-9",
               "type": "https://work.example/types/decision",
               "revision": "dec-9-owned-corrected-r3",
               "attribution": {
-                "principal": "agent:planner",
+                "principal": "agent:erasure-administrator",
                 "status": "claimed"
               },
               "properties": {
@@ -569,15 +569,15 @@
               "ownedLinks": {
                 "https://work.example/types/cites": [
                   {
-                    "id": "https://beads.example/acme/links/9c1e",
+                    "id": "https://beads.example/owned-erasure/links/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r2",
                     "attribution": {
-                      "principal": "agent:planner",
+                      "principal": "agent:erasure-administrator",
                       "status": "claimed"
                     },
-                    "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42",
+                    "source": "https://beads.example/owned-erasure/beads/dec-9",
+                    "target": "https://beads.example/owned-erasure/beads/task-42",
                     "properties": {
                       "role": "sanitized"
                     }
@@ -589,19 +589,19 @@
         ],
         "erasures": [
           {
-            "subject": "https://beads.example/acme/links/9c1e",
+            "subject": "https://beads.example/owned-erasure/links/9c1e",
             "revision": "9c1e-r1",
             "digest": {
               "scheme": "sha-256-jcs",
-              "value": "e9de824dfe1c19c21703d7644e5d248fd52a74e99a8c31e94cc441e21725119e"
+              "value": "5e34ceb5dabdca08822ee32862214e9c92de6c2c395fc63964c97fded50030a3"
             }
           },
           {
-            "subject": "https://beads.example/acme/beads/dec-9",
+            "subject": "https://beads.example/owned-erasure/beads/dec-9",
             "revision": "dec-9-r2",
             "digest": {
               "scheme": "sha-256-jcs",
-              "value": "be72a080a2fcdf1d964ce0e23b85d82d9f4b54a45ab2e25b584cfd079b2307f0"
+              "value": "84d844516ff305e9ad934aa120bbbcfd0d4faec51c7e1e5fe3d0f3da07cc2051"
             }
           }
         ],
@@ -610,8 +610,8 @@
             "id": "owned-correction-event-0",
             "ordinal": 0,
             "type": "updated",
-            "source": "https://beads.example/acme/events/",
-            "subject": "https://beads.example/acme/links/9c1e",
+            "source": "https://beads.example/owned-erasure/events/",
+            "subject": "https://beads.example/owned-erasure/links/9c1e",
             "subjectType": "https://work.example/types/cites",
             "transaction": "adm-owned-isolated",
             "time": "2026-09-08T19:00:00Z",
@@ -628,7 +628,7 @@
                 }
               ],
               "attribution": {
-                "principal": "agent:planner",
+                "principal": "agent:erasure-administrator",
                 "status": "claimed"
               }
             }
@@ -637,8 +637,8 @@
             "id": "owned-correction-event-1",
             "ordinal": 1,
             "type": "updated",
-            "source": "https://beads.example/acme/events/",
-            "subject": "https://beads.example/acme/beads/dec-9",
+            "source": "https://beads.example/owned-erasure/events/",
+            "subject": "https://beads.example/owned-erasure/beads/dec-9",
             "subjectType": "https://work.example/types/decision",
             "transaction": "adm-owned-isolated",
             "time": "2026-09-08T19:00:00Z",
@@ -648,7 +648,7 @@
               "ownedLink": {
                 "operation": "updated",
                 "link": {
-                  "id": "https://beads.example/acme/links/9c1e",
+                  "id": "https://beads.example/owned-erasure/links/9c1e",
                   "type": "https://work.example/types/cites",
                   "previousRevision": "9c1e-r1",
                   "revision": "9c1e-r2",
@@ -662,19 +662,20 @@
                     }
                   ],
                   "attribution": {
-                    "principal": "agent:planner",
+                    "principal": "agent:erasure-administrator",
                     "status": "claimed"
                   }
                 }
               },
               "attribution": {
-                "principal": "agent:planner",
+                "principal": "agent:erasure-administrator",
                 "status": "claimed"
               }
             }
           }
         ]
-      }
+      },
+      "scope": "https://beads.example/owned-erasure/"
     }
   ]
 }

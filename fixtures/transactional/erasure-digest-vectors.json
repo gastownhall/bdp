@@ -34,21 +34,21 @@
     {
       "label": "9c1e-r1",
       "record": {
-        "id": "https://beads.example/acme/links/9c1e",
+        "id": "https://beads.example/owned-erasure/links/9c1e",
         "type": "https://work.example/types/cites",
         "revision": "9c1e-r1",
         "attribution": {
           "principal": "agent:planner",
           "status": "claimed"
         },
-        "source": "https://beads.example/acme/beads/dec-9",
-        "target": "https://beads.example/acme/beads/task-42",
+        "source": "https://beads.example/owned-erasure/beads/dec-9",
+        "target": "https://beads.example/owned-erasure/beads/task-42",
         "properties": {
           "role": "evidence"
         }
       },
-      "jcs": "{\"attribution\":{\"principal\":\"agent:planner\",\"status\":\"claimed\"},\"id\":\"https://beads.example/acme/links/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"source\":\"https://beads.example/acme/beads/dec-9\",\"target\":\"https://beads.example/acme/beads/task-42\",\"type\":\"https://work.example/types/cites\"}",
-      "sha256": "e9de824dfe1c19c21703d7644e5d248fd52a74e99a8c31e94cc441e21725119e"
+      "jcs": "{\"attribution\":{\"principal\":\"agent:planner\",\"status\":\"claimed\"},\"id\":\"https://beads.example/owned-erasure/links/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"source\":\"https://beads.example/owned-erasure/beads/dec-9\",\"target\":\"https://beads.example/owned-erasure/beads/task-42\",\"type\":\"https://work.example/types/cites\"}",
+      "sha256": "5e34ceb5dabdca08822ee32862214e9c92de6c2c395fc63964c97fded50030a3"
     },
     {
       "label": "2d4f-r1",
@@ -69,7 +69,7 @@
     {
       "label": "dec-9-r2",
       "record": {
-        "id": "https://beads.example/acme/beads/dec-9",
+        "id": "https://beads.example/owned-erasure/beads/dec-9",
         "type": "https://work.example/types/decision",
         "revision": "dec-9-r2",
         "attribution": {
@@ -83,15 +83,15 @@
         "ownedLinks": {
           "https://work.example/types/cites": [
             {
-              "id": "https://beads.example/acme/links/9c1e",
+              "id": "https://beads.example/owned-erasure/links/9c1e",
               "type": "https://work.example/types/cites",
               "revision": "9c1e-r1",
               "attribution": {
                 "principal": "agent:planner",
                 "status": "claimed"
               },
-              "source": "https://beads.example/acme/beads/dec-9",
-              "target": "https://beads.example/acme/beads/task-42",
+              "source": "https://beads.example/owned-erasure/beads/dec-9",
+              "target": "https://beads.example/owned-erasure/beads/task-42",
               "properties": {
                 "role": "evidence"
               }
@@ -99,8 +99,8 @@
           ]
         }
       },
-      "jcs": "{\"attribution\":{\"principal\":\"agent:planner\",\"status\":\"claimed\"},\"id\":\"https://beads.example/acme/beads/dec-9\",\"ownedLinks\":{\"https://work.example/types/cites\":[{\"attribution\":{\"principal\":\"agent:planner\",\"status\":\"claimed\"},\"id\":\"https://beads.example/acme/links/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"source\":\"https://beads.example/acme/beads/dec-9\",\"target\":\"https://beads.example/acme/beads/task-42\",\"type\":\"https://work.example/types/cites\"}]},\"properties\":{\"status\":\"proposed\",\"title\":\"Adopt owned Links\"},\"revision\":\"dec-9-r2\",\"type\":\"https://work.example/types/decision\"}",
-      "sha256": "be72a080a2fcdf1d964ce0e23b85d82d9f4b54a45ab2e25b584cfd079b2307f0"
+      "jcs": "{\"attribution\":{\"principal\":\"agent:planner\",\"status\":\"claimed\"},\"id\":\"https://beads.example/owned-erasure/beads/dec-9\",\"ownedLinks\":{\"https://work.example/types/cites\":[{\"attribution\":{\"principal\":\"agent:planner\",\"status\":\"claimed\"},\"id\":\"https://beads.example/owned-erasure/links/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"source\":\"https://beads.example/owned-erasure/beads/dec-9\",\"target\":\"https://beads.example/owned-erasure/beads/task-42\",\"type\":\"https://work.example/types/cites\"}]},\"properties\":{\"status\":\"proposed\",\"title\":\"Adopt owned Links\"},\"revision\":\"dec-9-r2\",\"type\":\"https://work.example/types/decision\"}",
+      "sha256": "84d844516ff305e9ad934aa120bbbcfd0d4faec51c7e1e5fe3d0f3da07cc2051"
     },
     {
       "label": "vec-1-r1",

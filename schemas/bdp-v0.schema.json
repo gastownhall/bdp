@@ -3464,7 +3464,27 @@
             "expiresAt": true,
             "allocated": false,
             "problem": false
-          }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "next": {
+                    "type": "null"
+                  }
+                },
+                "required": ["next"]
+              },
+              "then": {
+                "properties": {
+                  "results": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
         },
         {
           "type": "object",

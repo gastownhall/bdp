@@ -5537,11 +5537,12 @@ not realized until every row is proved.
 
 A Transactional claim inherits the Read rows and the Read+Update rows whose
 obligations the profile preserves — the Read+Update singleton obligations
-are observed through the receipt's one entry — and retires the ten
+are observed through the receipt's one entry — and retires the twelve
 Read+Update rows the profile contradicts: the rows bound to Read+Update's
 discovery document, limits, and directory shapes, to its inline singleton
-result, and to its refused, `410`, forgotten, and restore forms of the key
-dispositions. The retiring row names them in its `retires` member, and the
+result, to its refused, `410`, forgotten, and restore forms of the key
+dispositions, and to direct-disposition replay and immediate internal-fault
+claim clearing. The retiring row names them in its `retires` member, and the
 selection rule excludes a retired row from the claim that retires it:
 
 - `transactional.discovery.document` retires `read-update.discovery.document`

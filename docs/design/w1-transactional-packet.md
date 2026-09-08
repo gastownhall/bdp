@@ -7513,3 +7513,24 @@ batch and the reference domain's ownership declaration, rejecting the pair
 for an erased Bead and requiring it for an erased owned Link. This does not
 add a discriminator, alter the erasure shape, or ratify T50. Future receipt
 realization must enforce the same context.
+
+
+**Final council 13 mechanical clarifications (2026-09-08).** The independent
+owned-Link erasure group now uses its own canonical Scope, not just an
+independent epoch/view in acme; its two before-record digests were recomputed.
+Its narrated administrative writer supplies the new versions' displayed
+attribution. Existing per-version claimed semantics and Event/postimage
+agreement apply to those recorded values; this is not an administrative
+attribution policy or a new API/ruling. Consistent absence of attribution
+remains valid. An available receipt may not end with no result entries;
+the schema now rejects results [] with next null, while preserving the
+unruled latitude of an empty continued prefix. This does not revise any of
+T49/T62/T63/T64 or ratify T50–T61.
+
+**Inherited RU catalog integration audit.** Claude observed title wording
+differences between 77 of 78 inherited RU catalog rows and the normative
+RU table. Wording inequality alone does not prove semantic disagreement.
+During #19 integration, audit each cited obligation and reconcile actual
+semantic drift; separately decide whether to adopt exact title equality
+as the RU authoring convention. No inherited catalog, definition, or ruling
+was changed by this Transactional correction.

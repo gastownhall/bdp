@@ -68,6 +68,8 @@ interface FixtureExchange {
     readonly headers: Readonly<Record<string, string>>;
     readonly schema?: string;
     readonly body?: JsonRecord;
+    /** Exact invalid I-JSON wire text, kept unparsed to preserve the fault. */
+    readonly bodyText?: string;
   };
   readonly response: {
     readonly status: number;
@@ -87,6 +89,8 @@ interface TransactionalFixture {
   readonly groupExamples?: readonly {
     readonly id: string;
     readonly schema: string;
+    /** Canonical Scope override for an independent committed-group example. */
+    readonly scope?: string;
     readonly body: JsonRecord;
   }[];
 }
@@ -362,6 +366,7 @@ describe("Transactional wire fixtures", () => {
         for (const example of fixture.groupExamples ?? []) {
           expectValid(example.schema, example.body, example.id);
           expectChangeGroup(example.body, example.id);
+          expectGroupScope(example.body, example.scope ?? fixture.scope, example.id);
         }
         for (const exchange of fixture.exchanges) {
           const body = exchange.response.body;
@@ -1401,6 +1406,27 @@ function expectEntriesCorrespond(
   }
 }
 
+/** Committed-group example metadata supplies its own canonical Scope. */
+function expectGroupScope(group: JsonRecord, scope: string, label: string): void {
+  expect(isJsonSchemaUri(scope), label).toBe(true);
+  expect(scope.endsWith("/"), label).toBe(true);
+  for (const event of group.events as readonly JsonRecord[]) {
+    expect(event.source, label).toBe(`${scope}events/`);
+    expect((event.subject as string).startsWith(scope), label).toBe(true);
+  }
+  for (const change of group.changes as readonly JsonRecord[]) {
+    const identity = (change.resource ?? change) as JsonRecord;
+    expect((identity.id as string).startsWith(scope), label).toBe(true);
+  }
+  for (const record of erasureRecords(group))
+    expect((record.subject as string).startsWith(scope), label).toBe(true);
+  for (const record of servedRecords(group)) {
+    expect((record.id as string).startsWith(scope), label).toBe(true);
+    if (typeof record.source === "string")
+      expect(record.source.startsWith(scope), label).toBe(true);
+  }
+}
+
 function expectChangeGroup(group: JsonRecord, label: string): void {
   const events = group.events as readonly JsonRecord[];
   const changes = group.changes as readonly JsonRecord[];
@@ -1678,6 +1704,12 @@ describe("Transactional correction regression probes", () => {
     expect(example).toBeDefined();
     const group = example?.body as JsonRecord;
     expect(() => expectChangeGroup(group, "valid erasure successor")).not.toThrow();
+    // Equality is required only when attribution was recorded. Omitting it
+    // consistently is valid too; this probe imposes no administrative policy.
+    const unattributed = JSON.parse(JSON.stringify(group), (key, value: unknown) =>
+      key === "attribution" ? undefined : value,
+    ) as JsonRecord;
+    expect(() => expectChangeGroup(unattributed, "no attribution recorded")).not.toThrow();
     for (const target of ["link", "source", "nested"]) {
       const corrupt = structuredClone(group);
       const events = corrupt.events as JsonRecord[];
@@ -1933,4 +1965,137 @@ describe("Transactional correction regression probes", () => {
       expect(() => receiptEntries(corrupt, receipt)).toThrow();
     }
   });
+
+  it("keeps the two raw I-JSON examples well-formed JSON with their intended string/object faults", () => {
+    const raw = fixtures
+      .flatMap((fixture) => fixture.exchanges)
+      .filter((exchange) => exchange.request.bodyText !== undefined);
+    expect(raw.map(({ id }) => id).sort()).toEqual([
+      "batch-duplicate-decoded-member",
+      "batch-unpaired-surrogate",
+    ]);
+    for (const exchange of raw) expectIJsonIllustration(exchange);
+    const surrogate = structuredClone(
+      raw.find((exchange) => exchange.id === "batch-unpaired-surrogate") as FixtureExchange,
+    );
+    const repaired = JSON.parse(surrogate.request.bodyText as string) as JsonRecord;
+    (((repaired.operations as JsonRecord[])[0] as JsonRecord).properties as JsonRecord).title =
+      "valid scalar string";
+    expect(() =>
+      expectIJsonIllustration({
+        ...surrogate,
+        request: { ...surrogate.request, bodyText: JSON.stringify(repaired) },
+      }),
+    ).toThrow();
+    const duplicate = raw.find(
+      (exchange) => exchange.id === "batch-duplicate-decoded-member",
+    ) as FixtureExchange;
+    expect(() =>
+      expectIJsonIllustration({
+        ...duplicate,
+        request: {
+          ...duplicate.request,
+          bodyText: JSON.stringify(JSON.parse(duplicate.request.bodyText as string)),
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects an empty terminal available receipt while preserving the unspecified continued-prefix length", () => {
+    const fixture = fixtures.find(
+      (candidate) => candidate.id === "transactional-receipt-pagination",
+    ) as TransactionalFixture;
+    const exchange = fixture.exchanges.find(
+      (candidate) => candidate.id === "pagination-batch-original",
+    ) as FixtureExchange;
+    const receipt = { ...exchange.response.body, results: [] };
+    // The wire text bounds a prefix without requiring it to be nonempty.
+    expectValid("#/$defs/mutationReceipt", receipt, "empty continued prefix");
+    expect(compiledDefinition("#/$defs/mutationReceipt")({ ...receipt, next: null })).toBe(false);
+  });
+
+  it("rejects an owned snapshot record absent from or unequal to its first-class Link", () => {
+    const fixture = fixtures.find(
+      (candidate) => candidate.id === "transactional-changefeed",
+    ) as TransactionalFixture;
+    const exchange = fixture.exchanges[0] as FixtureExchange;
+    const changes = ((exchange.response.body.groups as JsonRecord[])[0] as JsonRecord)
+      .changes as JsonRecord[];
+    const source = changes.find(
+      (change) => (change.resource as JsonRecord).id === `${SCOPE}beads/dec-9`,
+    )?.resource as JsonRecord;
+    const link = changes.find(
+      (change) => (change.resource as JsonRecord).id === `${SCOPE}links/9c1e`,
+    )?.resource as JsonRecord;
+    const original = fixtures
+      .find((fixture) => fixture.id === "transactional-batch")
+      ?.exchanges.find((exchange) => exchange.id === "batch-1-original") as FixtureExchange;
+    const target = (original.response.body.results as JsonRecord[]).find(
+      (entry) => (entry.resource as JsonRecord).id === `${SCOPE}beads/task-42`,
+    )?.resource as JsonRecord;
+    // A closed graph projection assembled from the known pos-43 records;
+    // this is an invariant probe, not a newly published snapshot manifest.
+    const graph = { beads: { items: [source, target] }, links: { items: [link] }, erasures: [] };
+    expect(() => expectClosedSnapshot(graph, "matching owned projection")).not.toThrow();
+    const absent = structuredClone(graph);
+    absent.links.items = [];
+    expect(() => expectClosedSnapshot(absent, "missing first-class Link")).toThrow();
+    const unequal = structuredClone(graph);
+    (unequal.links.items[0] as JsonRecord).properties = { role: "inconsistent" };
+    expect(() => expectClosedSnapshot(unequal, "unequal first-class Link")).toThrow();
+  });
+
+  it("isolates the owned-erasure group's identities and digest vectors from acme", () => {
+    const fixture = fixtures.find(
+      (candidate) => candidate.id === "transactional-changefeed",
+    ) as TransactionalFixture;
+    const example = fixture.groupExamples?.find(
+      (candidate) => candidate.id === "isolated-live-owned-link-erasure",
+    );
+    expect(example?.scope).toBe("https://beads.example/owned-erasure/");
+    expect(example?.scope).not.toBe(fixture.scope);
+    const group = example?.body as JsonRecord;
+    expect(() =>
+      expectGroupScope(group, example?.scope as string, "independent Scope"),
+    ).not.toThrow();
+    expect(() => expectGroupScope(group, fixture.scope, "wrong Scope")).toThrow();
+    for (const erasure of group.erasures as JsonRecord[]) {
+      const vector = digestVectors?.vectors.find(
+        ({ record }) => record.id === erasure.subject && record.revision === erasure.revision,
+      );
+      expect(vector).toBeDefined();
+      expect((erasure.digest as JsonRecord).value).toBe(vector?.sha256);
+    }
+  });
 });
+
+/** These two authored examples are illustrations, not an I-JSON admission parser. */
+function expectIJsonIllustration(exchange: FixtureExchange): void {
+  const raw = exchange.request.bodyText as string;
+  expect(typeof raw, exchange.id).toBe("string");
+  expect(exchange.request.schema, exchange.id).toBeUndefined();
+  expect(exchange.request.body, exchange.id).toBeUndefined();
+  const parsed = JSON.parse(raw) as JsonRecord;
+  const properties = ((parsed.operations as JsonRecord[])[0] as JsonRecord)
+    .properties as JsonRecord;
+  expect(exchange.response.body.code, exchange.id).toBe("malformed-request");
+  expect(exchange.response.body.pointer, exchange.id).toBe("/operations/0/properties/title");
+  if (exchange.id === "batch-unpaired-surrogate") {
+    const title = properties.title as string;
+    expect(title.length).toBe(1);
+    expect(title.charCodeAt(0)).toBeGreaterThanOrEqual(0xd800);
+    expect(title.charCodeAt(0)).toBeLessThanOrEqual(0xdfff);
+  } else {
+    expect(exchange.id).toBe("batch-duplicate-decoded-member");
+    // This authored properties object contains only string-valued members;
+    // count its raw name tokens before JSON.parse discards the duplicate.
+    const objectText = raw.match(/"properties"\s*:\s*(\{[^{}]*\})/)?.[1] as string;
+    expect(typeof objectText).toBe("string");
+    const names = [...objectText.matchAll(/("(?:[^"\\]|\\.)*")\s*:/g)].map((match) =>
+      JSON.parse(match[1] as string),
+    );
+    expect(names).toEqual(["title", "title"]);
+    expect(names.length).toBeGreaterThan(Object.keys(properties).length);
+    expect(Object.keys(properties)).toEqual(["title"]);
+  }
+}

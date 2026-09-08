@@ -174,15 +174,22 @@ describe("draft Transactional catalog", () => {
     const section = specification.slice(start + 1);
     const bodyStart = section.indexOf("\n") + 1;
     const end = section.slice(bodyStart).search(/^#{1,4} /m);
-    const rows = [
-      ...(end < 0 ? section : section.slice(0, bodyStart + end)).matchAll(
-        /^\| `([a-z0-9.-]+)` \| (.*) \|$/gm,
-      ),
-    ].map((match) => ({ id: match[1], title: match[2] }));
+    const boundedSection = end < 0 ? section : section.slice(0, bodyStart + end);
+    const rows = [...boundedSection.matchAll(/^\| `([a-z0-9.-]+)` \| (.*) \|$/gm)].map((match) => ({
+      id: match[1],
+      title: match[2],
+    }));
     expect(rows).toEqual(catalog.scenarios.map(({ id, title }) => ({ id, title })));
     // The retirements are stated in the same subsection, one bullet each.
+    const bullets = [
+      ...boundedSection.matchAll(
+        /^- `(transactional\.[a-z0-9.-]+)` retires `(read-update\.[a-z0-9.-]+)`$/gm,
+      ),
+    ];
+    expect(bullets.length).toBe(Object.keys(RETIREMENTS).length);
+    expect(boundedSection).toContain("retires the twelve\nRead+Update rows");
     for (const [retiring, retired] of Object.entries(RETIREMENTS)) {
-      expect(section).toContain(`- \`${retiring}\` retires \`${retired[0]}\``);
+      expect(boundedSection).toContain(`- \`${retiring}\` retires \`${retired[0]}\``);
     }
   });
 });
