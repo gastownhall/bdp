@@ -47,6 +47,8 @@ then the problem rows, then carrier and HTTP discipline.
 
 ## D1 — Idempotency-key syntax and field spelling
 
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
+
 **Context.** The draft required a key syntax before the profile could be
 implemented. The Transactional `Idempotency-Key` example in the draft is an
 unquoted token; the IETF `draft-ietf-httpapi-idempotency-key-header` spells
@@ -84,6 +86,8 @@ carries it more than once: the authority rejects a repeated
 `repeated-idempotency-key-field` and `malformed-idempotency-key`.
 
 ## D2 — Idempotency namespace
+
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
 
 **Context.** The Transactional profile scopes a key to the canonical Scope
 URL, the Scope epoch, and the authenticated principal. Read+Update exposes
@@ -125,6 +129,8 @@ profile". Fixture `idempotency-recovery.json`, exchanges
 `principal-isolation` and `cross-carrier-key-equivalence`.
 
 ## D3 — Semantic identity of a member
+
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
 
 **Context.** "Same semantics" decides between a retained disposition and an
 `idempotency-conflict`. The Transactional normalization rules exist for
@@ -182,6 +188,8 @@ members of the record and therefore of its identity." Fixture
 `semantic-identity.json`.
 
 ## D4 — Which dispositions are retained
+
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
 
 **Context.** The draft said a repeated member "returns its retained
 outcome". It did not say whether a failure is an outcome, and a retained
@@ -346,6 +354,8 @@ Problem row `idempotency-expired`. Fixture
 
 ## D7 — `idempotency-conflict` status and family
 
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
+
 **Context.** The draft called key reuse for different semantics "an
 idempotency conflict" without a status. The IETF draft answers a mismatched
 payload with `422 Unprocessable Content` and an in-flight duplicate with
@@ -368,6 +378,8 @@ payload with `422 Unprocessable Content` and an in-flight duplicate with
 and retained dispositions*.
 
 ## D8 — Sequence envelope shapes
+
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
 
 **Context.** The draft sketched members with their own `idempotencyKey`,
 inline results, and problems carrying `status`, `operationIndex`, and
@@ -445,6 +457,8 @@ record: deletion mints no version." Bundle: `mutationResultMembers`.
 
 ## D10 — The owned-Link source-revision member
 
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
+
 **Context.** The model says an owned-Link mutation "additionally reports the
 source Bead's resulting `revision`" and that "the envelope member carrying
 that secondary revision is defined with the write profiles."
@@ -521,6 +535,8 @@ retained revision." Bundle: `mutationOutcome`.
 
 ## D12 — Singleton success response
 
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
+
 **Context.** The draft says a singleton "returns its final Resource
 postimage, deleted identity, or direct problem inline", without a status,
 body shape, or place for `sourceRevision`.
@@ -551,6 +567,8 @@ mutation result defined under Mutation results". Under *Mutation results*:
 "a singleton target returns it as the body of a `200 OK` response".
 
 ## D13 — The new problem rows
+
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
 
 **Context.** The Read table is closed and mutation codes are "defined with
 their profiles". The mutation failure conditions the model enumerates under
@@ -614,6 +632,8 @@ holds the same rows and fails on drift.
 
 ## D14 — `unsupported-media-type` now
 
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
+
 **Context.** The Read table "deliberately omits" codes for unacceptable
 response media types and unsupported request media types. Read has no
 request bodies; Read+Update does.
@@ -637,6 +657,8 @@ rows above assign the latter, for mutation targets only, as
 `unsupported-media-type`."
 
 ## D15 — `binding-unavailable` family and status
+
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
 
 **Context.** A sequence member that references a forward, unknown, failed,
 or wrong-kind `@name` "fails normally" per the draft, while the batch text
@@ -766,6 +788,8 @@ the bounds are advertised.
 
 ## D17 — Carrier discipline: keys, names, and the stray field
 
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
+
 **Context.** Several syntactic conditions had no stated disposition: a key
 repeated within one sequence, an `Idempotency-Key` field on a sequence
 request, a singleton without one, and duplicate or invalid `name` values.
@@ -801,6 +825,8 @@ key is rejected before execution with `malformed-request`, as is one whose
 *Idempotency keys*: "as is a singleton request that omits the field."
 
 ## D18 — Client disconnection after admission
+
+**Status: RULED A 2026-09-08** (Q26: an admitted sequence runs to completion after client disconnect; authority crash is D23's resubmit).
 
 **Context.** The Transactional profile says admission decides the outcome
 and disconnection does not. Read+Update's non-atomic carrier could instead
@@ -839,6 +865,8 @@ Problem details even mid-sequence." Catalog rows
 
 ## D19 — Methods and `Allow` values for the mutation surface
 
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
+
 **Context.** The Read profile's method rules end with "Those profiles define
 their additional methods and `Allow` values."
 
@@ -869,6 +897,8 @@ CORS rules rather than with `405` and joins `Allow`; listing it in `Allow`
 is not the preflight behavior."
 
 ## D20 — Discovery and directory definitions
+
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
 
 **Context.** The bundle had only `readDiscovery` (profile `read`). The
 Read+Update discovery membership table and the exact seven-member directory
@@ -1336,6 +1366,8 @@ sentence, and catalog row `read-update.discovery.limits`.
 
 ## D30 — A member-level delay hint
 
+**Status: RULED A 2026-09-08** (Q27: optional `retryAfter` on member problems; the HTTP `Retry-After` SHOULD applies to direct problems).
+
 **Context.** `after-delay` problems "SHOULD carry `Retry-After`", but a
 member problem lives inside a `200 OK` envelope, where `Retry-After` has no
 carrier and no standard meaning (Claude M5).
@@ -1387,6 +1419,8 @@ through "defined with the Transactional profile or the administrator
 specification." Catalog row `read-update.discovery.no-alias-mutation`.
 
 ## D32 — The member that carries the deleted identity record
+
+**Status: RATIFIED 2026-09-08** (Q29 batch, as drafted).
 
 **Context.** Cross-packet X1 was ruled B on 2026-09-08: a `deleted`
 outcome carries the identity record
