@@ -368,6 +368,17 @@ endpoint Bead's declared Type: readers that need endpoint Types use the
 read views, and an authority validates endpoint Types against the
 identified Beads themselves.
 
+A Reference exists where this specification defines one — a Link
+endpoint, or a member it names as a Reference. A URI or a Pinned
+Reference that appears as a value inside `properties` is not one: it is
+authored data, which the authority does not validate, canonicalize,
+resolve, or traverse, and it is not an edge of the graph. A Type that
+wants graph semantics for a reference — versioning with its source,
+validation at admission, closure under views — declares an owned Link
+Type for it, under an explicit `ownsOutgoing` entry or the wildcard, and
+the reference is a Link (ruled 2026-09-08,
+[gastownhall/bdp#1, item 5 as amended](https://github.com/gastownhall/bdp/issues/1#issuecomment-5587346463)).
+
 #### Owned Links
 
 A Bead Type MAY declare that certain outgoing Link Types are **owned**:
@@ -3786,9 +3797,13 @@ protocol-identifier prefix, with the release-stability rule stated above.
     whole owned set, the explicitly declared types' Links included, so an
     explicitly declared entry's `max` MUST NOT exceed the wildcard's `max`
     in the same descriptor, and a descriptor that declares one is invalid
-    and is not installed. Letting a descriptor mark
-    property members as References so they receive target validation is a
-    separate, later addition.
+    and is not installed. The ruling's closing clause — that letting a
+    descriptor mark property members as References for target validation
+    would be a separate, later addition — was withdrawn on 2026-09-08
+    ([item 5 as amended](https://github.com/gastownhall/bdp/issues/1#issuecomment-5587346463)): a reference inside `properties` is authored
+    data and never an edge, and a Type that wants graph semantics for a
+    reference declares an owned Link Type; the law is stated under
+    [References](#references).
 
 Implementation proceeds Read-first. Later-profile work begins only when its
 schema, problem, and conformance artifacts are reviewed. Implementation

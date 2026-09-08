@@ -212,6 +212,15 @@ profile-prefix and profile-selection assertions.
 
 ## OW6 — Scope of the transcription
 
+**Status: superseded 2026-09-08.** The operator withdrew the deferred
+addition rather than keeping it visible
+([gastownhall/bdp#1, item 5 as amended](https://github.com/gastownhall/bdp/issues/1#issuecomment-5587346463)): a reference inside
+`properties` is authored data, never an edge; a Type that wants graph
+semantics for a reference declares an owned Link Type, explicitly or
+through the wildcard. The Reference definition now carries the law and
+ledger entry 16 records the withdrawal in place of the deferral. The
+options below are kept for the record; neither is taken.
+
 **Context.** Item 5 of the ruling also says that `derived-from` stays a
 structured field rather than a Link, and that letting a descriptor mark
 property members as References so they receive target validation is a
