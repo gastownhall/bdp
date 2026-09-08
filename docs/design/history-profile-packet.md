@@ -28,6 +28,7 @@ Pending changes were checked against their remote heads:
 
 | Input | Head | Relevance |
 | --- | --- | --- |
+| BDP #20 | `1eef4e439629e247e9055ef8e42045acbea66b75` | Ruled TX erasure constraints, checked in the dated reconciliation below; open T49/T62–T64 and provisional T50–T61 remain unselected |
 | BDP #19 | `06ebabdb391d8ea730295f4e01ed00bc1206fe38` | Ruled Read+Update wire decisions; no write implementation claim |
 | BDP #22 | `c201cc28f74c6f71212aaf7f25966aabf55fb97e` | Wildcard ownership and opaque properties |
 | BDP #23 | `2c537a6f8a4f42e4fef0fa5d47439bcb25d2efe7` | Exact-decimal equality, admission, named numeric models |
@@ -35,9 +36,11 @@ Pending changes were checked against their remote heads:
 | Beads #6358 | `c8995b58c00d4407f49af13c6cb3330d903a2988` | Issue-plane version writer; product evidence only |
 | Beads #6422 | `ec692e146ad2a879d1c6819ecc8bf786597d617b` | Graph P0; subsequent History/serving implementation remains work |
 
-**Transactional exclusion:** no read or write of the active TX apply checkout,
-branch, or packet was used to prepare this document. T49 and T50+ must be reconciled
-after Donna releases that hold. Proposed History text must not silently amend them.
+**Initial Transactional exclusion ended 2026-09-08.** The initial packet and its
+first council excluded the TX apply. After Donna released that hold, the read-only
+reconciliation below checked the applied TX specification and its recorded rulings
+at the pinned #20 head. That draft PR is not merged or a conformance claim. Its
+remaining choices and provisional ratifications are not History defaults.
 
 Primary records:
 
@@ -59,12 +62,15 @@ Primary records:
 | Whole-set wildcard ownership and opaque properties (item 5, amended) | Owned Links are graph state; `properties` values are never reference-typed protocol edges. No new property-reference annotation mechanism. |
 | Attribution `claimed` or `unknown` | Carry the version’s existing attribution, including absence. Do not introduce `verified`, infer an actor, or promote import provenance into authentication. |
 | Exact-decimal equality and admission (#21) | Preserve the ruling. Issue-plane JCS storage is evidence of one declared serialization discipline, not a mandate to make generic graph equality binary64. |
-| Erasure propagates; retention does not | The three missed-announcement, resurrection, and promise-boundary questions stay open; a History read cannot claim those guarantees from the existing feed alone. |
+| Erasure propagates; retention does not | T19/T25–T29 now fix containing-version erasure, copy cleanup, pre-erasure token expiry, and the permanent projected ledger. History capability applicability, stale-import admission, and the exact externally claimable promise remain open; resolution alone proves none of them. |
 
 The baseline’s Scope-history paragraph still says all prior-epoch history tokens,
-including revisions, are rejected. That conflicts with item 4’s later ruling;
-materialization must amend that paragraph with a dated marker, preserving the
-fences for tokens that name a history position.
+including revisions, are rejected. The pinned TX head retains that paragraph too
+([lines 1094–1102](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L1094-L1102)).
+It conflicts with Memory-compat item 4’s retained-address ruling; H9 materialization
+must amend it with a dated marker, preserving the fences for tokens that name a
+history position. T29’s erasure ledger survives those fences; retaining an old
+address never authorizes retaining or serving erased content.
 
 The input’s suggestion to cache immutable historical responses conflicts with the
 selected `private, no-store` rule for authorization-dependent Scope data. Content
@@ -290,8 +296,12 @@ it is not implemented as Transactional batch and cannot silently strengthen admi
 
 ### H9 — Epochs, retained mappings, and selective loss
 
-The survival law is already ruled. The open choice is its materialization and the
-evidence required to report a loss for an opaque token.
+The survival law is already ruled by Memory-compat item 4. Both the main baseline
+and the pinned TX Scope-history paragraph still need its dated materialization;
+T15 preserves opaque revisions but does not itself repair epoch fencing. The open
+choice is the materialization and evidence required to report loss for an opaque
+token. T29 independently fixes erasure-ledger survival across restore and rotation;
+an erased version is not a surviving retained state eligible for successful resolution.
 
 **Recommendation.** Amend the Scope-history paragraph to distinguish Resource-state
 addresses from authority-position tokens. Preserve exact old-address resolution for
@@ -311,6 +321,8 @@ addresses. A `revisionScheme` change cannot silently rebind an old address.
 
 **Consequences.** Dated amendment to Scope history, historical-resolution cases for
 retained/lost/unknown versions across restore, mixed old/new addressing, and cursors.
+Include an erased version whose address survives as lineage but whose content must
+remain unavailable after restore; apply the permanent ledger to old retained copies.
 The after-restore write-guard treatment of an old revision needs an explicit boundary
 with the write profiles; it is not settled by a historical GET succeeding.
 
@@ -368,24 +380,49 @@ Import provenance and assisting-actor context do not assert authenticated author
 field, immutable acceptance context, exact wire names, no-op exclusion, and schema,
 write-input, Event and history-list fan-out. Existing `claimed|unknown` is not reopened.
 
-### H12 — Erasure recovery and incident-Link deletion boundaries
+### H12 — History erasure boundary and incident-Link deletion
 
-**Context.** The input’s surviving-citation requirement cannot by itself change the
-current refusal to delete a Bead with live incident Links. Erasure is also distinct
-from ordinary deletion and retention. The TX apply may already resolve some wire
-questions; it is excluded from this drafting pass.
+**Context.** Ordinary deletion, retention, and erasure remain different operations.
+The input’s surviving-citation requirement cannot by itself change the refusal to
+delete a Bead with live incident Links. The TX reconciliation now removes choices
+that T19/T25–T29 already settled; H12 remains OPEN for the History-specific boundary
+and incident-Link lifecycle, not for a second erasure mechanism.
 
-**Recommendation.** Keep the two unresolved mechanisms visible as follow-up decisions,
-not invented History defaults. Reconcile T49/T50+ and the TX apply before selecting
-changefeed or receipt behavior. Historical success must never claim erasure recovery
-or physical purge conformance merely because it can return `resource-erased`.
+**Fixed TX constraints.** Erasing an owned Link revision erases every source version
+that inlined it, with a separate erasure record for each in the same group. A store
+processing a record removes its erased content from every held copy before making
+further state visible, retains only the permitted lineage evidence, and applies the
+selected history-authorization disclosure. A live affected Resource needs a successor
+or tombstone in the same group, preserving endpoint liveness and owned-state agreement.
+A restricted-but-unerased containing version is no longer an alternative here, and
+no successful historical record may omit embedded bytes or change them under its old
+revision. Embedded Link content is distinct from a non-owning reference to a target;
+erasing target content alone does not invent reference retention or rewriting.
 
-**Required forks.** What a disconnected consumer stops serving after losing its feed
-checkpoint; durable anti-resurrection evidence and stale-import admission; the exact
-promise boundary (supported reads, cooperating replicas/caches, provider history).
-Separately: whether and how a live citation can survive target deletion without
-altering the source’s owned state or violating selected endpoint liveness. Retain
-the input’s concrete alternatives for the next ruling rather than losing them:
+T28 already requires a replica behind erasure position P to resnapshot at or after P;
+older checkpoints and snapshots expire in each view receiving the record. T29 keeps
+the authority’s ledger for the logical Scope’s lifetime across restore, epoch rotation,
+and view rotation; each snapshot manifest projects it for its view. Installing a replacement generation applies that ledger to old
+retained groups, Events, receipts, indexes, caches, and other held copies. A replica
+unable to establish a retained copy’s erasure status must discard it. Restore
+re-emits the projected ledger before other groups in the new epoch. Missing an old
+feed announcement or rotating an epoch is therefore not permission to serve an
+erased copy. These duties are fixed constraints on any applicable History surface;
+this packet neither relaxes them nor claims a runnable History proof.
+
+**Remaining erasure choices.** Determine how an optional History-only resolver and
+its consumers establish these obligations without assuming Transactional replication
+from a read capability (H1); define stale-import admission and the evidence it checks;
+and select what conformance actually proves across supported reads, cooperating
+replicas/caches, and provider history. The existing store obligations must remain
+intact within their applicable scope. Do not reinterpret an open assurance or
+capability boundary as permission for an obligated store to retain erased content.
+The exact behavior of a caught-up live stream crossing P is separately OPEN as TX
+T64; History cannot select that behavior or reopen T28’s finite/reconnect fence.
+
+**Incident-Link alternatives.** Whether and how a live citation can survive target
+deletion without changing its source’s owned state or violating endpoint liveness
+remains unruled:
 
 - Check endpoint liveness at creation and introduce a per-Link-Type policy controlling
   whether an existing Link requires its target to remain live. This separates source
@@ -395,29 +432,18 @@ the input’s concrete alternatives for the next ruling rather than losing them:
 - Preserve the current refusal and explicitly limit the Memory mapping until a later
   lifecycle design; this delays the requested surviving-citation behavior.
 
-None of these alternatives is selected by this packet.
+**Recommendation.** Preserve the ruled TX constraints and decide the remaining
+History assurance/applicability, stale-import, and incident-Link questions explicitly.
+No incident-Link alternative is selected by this packet. A historical success or a
+`resource-erased` refusal alone proves neither erasure recovery nor physical purge.
+T49/T62–T64 and T50–T61 remain on their own TX ruling/ratification queue.
 
-**Containing-version erasure is a separate mandatory fork.** An old Bead version
-contains the complete bytes of each owned Link at that time. Erasing such a Link
-revision at its own URL while returning it inside one or more historical Beads
-would still serve the erased content. Omitting it from a successful Bead response
-would violate complete-or-refuse. The erased byte copy is not a non-owning reference
-to a target: removing target content and removing an embedded Link record are
-different operations. Queue explicitly whether every containing version is also
-erased, or whether its erased bytes are removed and it becomes a permanently
-non-servable restricted version with a selected typed refusal. Neither may return
-a partial record or alter bytes under the old revision and claim success.
-
-The choice must identify all containing versions, define the restriction/disclosure
-shape, preserve only permitted lineage evidence, and apply across Resource reads,
-History pages, Events, receipts, snapshots, replicas and caches according to the
-selected erasure promise. Changing the surviving live source, if needed, requires a
-separate version rather than rebinding its old token. Reconcile this with the TX
-apply’s erasure-copy rules after the exclusion ends; do not duplicate or override them.
-
-**First adversarial case.** Disconnect consumer; erase a version; expire its checkpoint;
-reconnect; attempt stale reimport; assert the selected serve/reconcile/refuse behavior.
-This case stays explicitly unclaimable while its expected outcomes are unruled.
+**First adversarial case.** Disconnect a Transactional consumer; erase a version;
+expire its checkpoint; reconnect via a fresh snapshot; check the ledger against all
+old retained copies before exposing the replacement generation. Repeat after restore
+and view rotation, including inability to obtain a prior view’s ledger. Those expected
+duties are fixed. Attempt a stale reimport separately: its admission contract and the
+History-only variant remain unruled, so they cannot receive an invented passing result.
 
 ## Conformance plan — proposals, not catalog entries
 
@@ -438,15 +464,41 @@ observable cases are the minimum review checklist, not a hand-maintained require
 | HR08 HEAD | Status and permitted headers match GET; body empty | Client never treats status alone as a full typed absence diagnosis |
 | HR09 enumeration | Stable paginated window and declared order | Concurrent pruning yields selected refusal; no implied retention hold |
 | HR10 currency | Authorized responder-relative relations | Hidden latest/successor omitted, no invented global freshness |
-| HR11 restore | Surviving old address resolves unchanged | Positional tokens fenced; loss inferred only from positive evidence |
+| HR11 restore | Surviving unerased old address resolves unchanged; permanent ledger still applies to old copies | Positional tokens fenced; erased content never restored by epoch change; loss inferred only from positive evidence |
 | HR12 numeric/token boundary | Declared scheme and admitted values honored | Issue/graph serialization or ordinal mistaken for identity detected |
-| HR13 erasure recovery | Expected results filled after H12/TX reconciliation | Disconnect, erase, expire cursor, reimport stale state; no silent pass |
+| HR13 erasure recovery | For a Transactional consumer, T28 resnapshot and T29 projected-ledger cleanup cover old copies across restore/view rotation before publication | Pre-P checkpoint/snapshot refused; unestablishable retained content discarded; stale-import admission and History-only applicability remain unruled |
 | HR14 product differential | Memory behavior compared through its public interface | A product-only harness result is never counted as BDP HTTP conformance |
-| HR15 embedded erasure | The selected disposition is applied to every historical Bead containing an erased Link revision | Erase a Link revision embedded in several source versions; probe every copy path; no erased bytes or partial successful record |
+| HR15 embedded erasure | T19 emits a same-group erasure record for the Link revision and every source version embedding it; T25/T26 cleanup and authorization apply | Probe all historical and retained copy paths, including receipts and snapshots; no erased bytes, partial success, or old-token rebinding; any affected live version gets a valid successor or tombstone |
 
 The RFC navigation definitions are [RFC 5829 §3](https://www.rfc-editor.org/rfc/rfc5829.html#section-3).
 JCS’s numeric serialization is [RFC 8785 §3.2.2.3](https://www.rfc-editor.org/rfc/rfc8785.html#section-3.2.2.3).
 These sources establish those standards’ rules, not this packet’s unruled BDP choices.
+
+## 2026-09-08 reconciliation with the applied Transactional draft
+
+This is a source reconciliation after release of the initial exclusion, not a new
+ruling or council clearance. H1–H12 all remain OPEN. The initial review record is
+preserved, with its containing-version fork superseded by the verified T19 ruling.
+Only this packet and its review record change; no normative, schema, catalog,
+implementation, fixture, or evidence artifact changes.
+
+The following anchors pin the inspected #20 head, not a moving branch. The
+specification is the owning protocol text; the packet links establish the recorded
+ruling behind it. They do not promote the design packet into normative authority.
+
+| Verified constraint | Owning text at `1eef4e4` | Recorded ruling / effect here |
+| --- | --- | --- |
+| Owned-Link erasure reaches containing source versions; live versions need valid successors/tombstones | [Version erasure, lines 4982–5032](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L4982-L5032) | [T19, lines 4685–4702](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4685-L4702); H12/HR15 no longer reopen containing-version disposition |
+| Content and copy-path obligations, with authorized disclosures | [Version erasure, lines 4976–4980](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L4976-L4980) and [lines 5034–5071](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L5034-L5071) | [T25/T26, lines 4717–4747](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4717-L4747); HR13/HR15 cover held copies without inventing a weaker History default |
+| Pre-P checkpoint/snapshot expiry and fresh bootstrap | [Version erasure, lines 5073–5082](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L5073-L5082) | [T28, lines 4763–4789](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4763-L4789); HR13 recovery expectations fixed, live-delivery T64 remains open |
+| Permanent ledger, old-copy cleanup, restore re-emission, discard if status cannot be established | [Version erasure, lines 5084–5100](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L5084-L5100) | [T29, lines 4791–4810](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4791-L4810); H9/HR11 distinguish surviving address from erased content |
+| Retained addresses survive epochs, while current text still fences revisions | [Scope history, lines 1094–1115](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L1094-L1115) | [Memory-compat item 4](https://github.com/gastownhall/bdp/issues/1#issuecomment-5586084982); H9 retains the dated-amendment obligation and opaque-token loss-evidence question |
+
+The earlier [three open erasure questions](https://github.com/gastownhall/bdp/issues/12#issuecomment-5570349470)
+are historical input: T28/T29 subsequently select the Transactional missed-announcement
+and durable-ledger mechanisms. They do not by themselves settle every stale-import
+admission rule, optional History capability boundary, or provider-history proof.
+No expected result for those remaining choices is inferred from the reference runner.
 
 ## Implementation and evidence work after rulings
 
