@@ -1,6 +1,6 @@
 # History packet review record
 
-Status: all seats completed on `ef6e997`; author fold awaits final-head review; no full-panel clearance. Non-normative.
+Status: all seats completed on `9c93b0e`; subsequent author fold awaits final-head review; no full-panel clearance. Non-normative.
 Initial review date: 2026-09-08. Initial reviewed head: `02c598aa48630a41b2d9cf9d5b08b42878e1a9d9`.
 Scope: `history-profile-packet.md` and its pinned authority snapshot.
 The TX apply checkout, branch and packet were excluded from every initial seat.
@@ -49,6 +49,10 @@ remained required; the later completed seats and author fold are recorded below.
 separate release gates. This record does not authorize a merge or advertise History.
 
 ## 2026-09-08 — TX source reconciliation after exclusion release
+
+The [operator’s release record](https://github.com/donnabox/agent-coordination/blob/ee0c6b32f06f5960c6d74dfc5a5cfb20ce42e368/context/janet/beads-workstream-state.md#L744-L751)
+records Donna’s explicit completion relay and directions after the earlier absolute
+hold. It supplies the authorization provenance for this reconciliation.
 
 Inspected TX head: `1eef4e439629e247e9055ef8e42045acbea66b75`; History starting
 head: `42a24be9b8baa2c2db97934211d9512585d9a8ea`. This was a bounded authoring
@@ -165,3 +169,44 @@ pinned source ranges, all twelve H decision headings still OPEN, all fifteen HR
 rows still proposals, and owned-file scope. No runtime tests, reviewer processes,
 commit, push, or external post were performed by the fold worker. Parent review
 and the final-head gate remain required before clearance.
+
+
+## 2026-09-08 — completed seats on 9c93b0e and second author fold
+
+Reviewed head: `9c93b0e4026f846a7afb195330a5be4d4199f2ec`. Native Codex and
+Gemini returned 0 Critical, 0 High, 0 Medium, and 0 Low. Claude completed with
+0 Critical, 3 High, 5 Medium, and 4 Low (12 findings). The following source-checked
+fold records all twelve; it is authoring, not a new independent review or clearance.
+H1–H12 remain OPEN, with H1a/H1b sequenced as subparts rather than new decision IDs.
+
+| Claude finding | Disposition and concrete fold |
+| --- | --- |
+| 1 High — retained-address destination excludes Read/RU | Accepted. H1/H9 explicitly state those profiles expose no TX epoch. H9 queues one profile-neutral owning home for retained-address law and a separate Transactional fencing amendment, without requiring new epoch fields on read-only resolvers. HR11 covers every advertised History profile. |
+| 2 High — proposed fencing sentence narrows tokens/triggers | Accepted. H9 now explicitly replaces the offending TX sentence, preserves restore/destructive-reinitialization/authority-replacement triggers, all existing non-revision history-token classes, epoch/view-bound cached representations, and refusal behavior. It retains independent Read/RU continuation rules and removes only blanket invalidation of surviving version addresses. |
+| 3 High — deletion alternatives omit closure/snapshot consequences | Accepted as missing consequences; the universal invalid-snapshot claim is too broad. Hiding the source and its Link consistently can preserve projection validity, but defeats the intended readable surviving citation. H12 now blocks either non-default alternative on an explicit endpoint/visibility model and names Authorization views, Owned Links, PROTO-011, endpoint liveness/DeleteBead, snapshot/group agreement, and live-erasure validity as potential amendment destinations. It permits no invisible reinterpretation of in-Scope references and selects no deletion model or weakening of T19/T25–T30. |
+| 4 Medium — disclosure amendments apply beyond fourth 410 | Accepted. H5 lists all four proposed wire rows’ effects on PROTO-013, Reads after deletion, the problem table, and applicable code/problem definitions, including authorized 404/409 distinctions. The trigger is any materialized new disclosure row, not only revision-reorganized. |
+| 5 Medium — include=links combination missing | Accepted. H3 explicitly recommends refusal of `revision` plus `include`, including `include=links`, under canonical-Resource invalid-parameter. HR07 names the combination; historical incident-Link aggregate/ETag semantics require a later explicit contract. |
+| 6 Medium — H1/H7 dependency cycle | Accepted. First batch contains H1a placement plus H2/H3/H4; H1b advertised shape/retention returns after H2–H9. H7 costs the chosen placement and supplies input to H1b. No complete H1 ruling is implied by batch one. |
+| 7 Medium — TX hold release lacks citation | Accepted as missing provenance; no confirmation is needed. Pinned ledger ee0c6b3 lines 744–751 records Donna’s explicit relay that the old apply finished and her gates/push/council direction, superseding the earlier hold. Both documents now cite it. |
+| 8 Medium — H11 conditional owner/input absent | Accepted. Read back csells’s Memory #5877 R12 and the History revision-2 §7 mapping. H11 records the four required elements, Chris Sells as Memory requirement owner, and Donna’s first-BDP-release scope decision as the prerequisite. Richer fields are required for claiming that Memory capability, not silently mandated for every basic History deployment. No outreach was sent. |
+| 9 Low — H5 reseal cost omitted | Accepted. H5 names changes to sealed readProblemCode/readProblem, the Read projection digest and reseal. Their names are already sealed; no list edit follows merely from expanding their contents. New supporting definitions still need the projection/coverage audit. |
+| 10 Low — settled revision-unknown name omitted | Accepted after primary-source readback. Memory-compat item 2 preserves the read-side answer name. The fixed-constraint row and H5 distinguish that from the still-unmaterialized family/status/retry/evidence tuple; no settled name is reopened. |
+| 11 Low — ruled revision query address offered as a live alternative | Accepted after primary-source readback. Comment 5464020140 explicitly names `?revision=` among prior rulings. The source annotation and H3 reflect that; a new target/path is historical alternative only, requiring an explicit amendment to reopen. Method/combination/refusal details remain open. The older disclosure direction does not supply all later exact code tuples. |
+| 12 Low — reorganization retry assumes permanent loss | Accepted. H5 surfaces never versus after-state-change with later restore/reimport of the same version as the distinguishing case; the retry field no longer silently selects never. It does not invent a prohibition on administrative restore or change existing pruning/erasure retry contracts. |
+
+Verification sources: TX `1eef4e439629e247e9055ef8e42045acbea66b75` spec
+Authorization views 792–823, Scope-history profile/triggers 1079–1102, absence of
+Read/RU epoch exposure 2449–2454, include aggregate 2635–2678, snapshot/group
+agreement 4895–4914, live-erasure validity 5017–5032; requirements PROTO-011
+51–60. Those exact source ranges are linked from the packet. The earlier #19
+PROTO-013 and Reads-after-deletion sources were re-used unchanged. Primary comments
+5464020140, 5586084982, and 5573074065 were read back, as was csells’s #5877 R12
+(issue last updated 2026-09-08T15:12:50Z at inspection). The operator release is
+pinned to coordination `ee0c6b32f06f5960c6d74dfc5a5cfb20ce42e368` lines 744–751.
+
+Validation: diff whitespace, local links/anchors, pinned-source range checks,
+twelve H headings and fifteen HR proposal rows, plus the two-file write scope.
+No normative/schema/catalog/runtime/fixture/evidence edits, tests, review CLIs,
+agents, commit, push, or external posts were performed by this fold worker.
+Parent inspection and final-head review remain owed; this record grants neither
+readiness nor a merge transition.
