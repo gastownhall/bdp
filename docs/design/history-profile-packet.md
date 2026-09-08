@@ -138,7 +138,9 @@ addressing; B could isolate the wire shape but adds another locator.
 value, and combinations with `view`, selection, or pagination on this operation;
 `view=versions` is H7’s separate operation. Do not add query semantics to aliases.
 Use existing `invalid-parameter` for malformed query use. Revisions are decoded once
-as query data and remain opaque; do not impose checkpoint-token grammar on them.
+as query data and remain opaque; do not impose checkpoint-token grammar on existing
+opaque revisions. A later advertised verification scheme may select its own explicit
+token grammar under H10 without narrowing the tokens already admitted by Read.
 
 **Proposed wording:** “A canonical Resource request with exactly one nonempty
 `revision` selects the complete retained state at that revision. It is never a
@@ -197,6 +199,10 @@ version. `revision-unknown` is not proof of tampering or a promise that sync wil
 **Alternatives.** Use `410` for Unretained as in the input; or collapse participation
 into unknown and advertise less diagnosis. Recommendation keeps incomplete retained
 state distinct from confirmed removal and allows an explicit repair/reimport policy.
+`after-state-change` requires a changed state or a newly constructed request; it is
+not an instruction to poll, wait for sync, or repeat a request indefinitely. Operator
+repair can be such a change. If a disposition is permanently unrepairable at the
+responder, the alternative `never` contract must be selected explicitly.
 Existing pruning and erasure rows retain their current status/retry contracts;
 erasure gains no condition-specific extensions. All historical diagnostics, including
 404 distinctions and participation, are gated by H4. A backend timeout remains a
@@ -267,8 +273,12 @@ consistently or omitted; global hidden-resource counts would leak information.
 refusal use GET. B: new diagnostic response headers. C: a separate checking endpoint.
 
 **Recommendation: A for the first cut; defer bulk checks explicitly.** HTTP status
-alone cannot distinguish every selected outcome: several use 404, 409, or 410. Never
-advertise the proposed three-answer test as a complete typed admission oracle.
+alone cannot distinguish every selected outcome: several use 404, 409, or 410.
+For an authorized caller in the retained/known-removal/unresolved subset, 200/410/404
+do provide a useful coarse address check. They do not distinguish an invisible
+subject from an unknown revision, or diagnose all H5 restrictions. Never advertise
+that coarse check as the complete typed admission oracle, and never convert a 409
+restriction into either Gone or Unknown just to fit three buckets.
 
 **Proposed wording:** “HEAD performs the same authorization and resolution decision
 as GET and omits the content. A caller requiring the problem code obtains the GET
@@ -306,8 +316,12 @@ with the write profiles; it is not settled by a historical GET succeeding.
 
 ### H10 — Token, witness, bytes, and numeric planes
 
-**Context.** Jim’s #6358 stores JCS bytes in a LONGBLOB, uses durable `version_id`
-addresses rather than local ordinals, and has product-specific version contents.
+**Context.** Jim’s #6358 stores JCS bytes in a LONGBLOB and has product-specific
+version contents. It names `version_id` as the durable-address design and ordinals
+as store-local, but explicitly defers migration 0068 steps 1–5 (including the UUID
+primary-key/address reshape). Its current writer is documented as single-writer-only
+until that swap lands. This is selected design plus partial implementation, not proof
+that the durable-address migration or a historical resolver has shipped.
 BDP’s ordinary record is a different representation. Never claim those bytes are
 identical, or that an internal content hash is automatically the BDP revision.
 
@@ -370,7 +384,36 @@ or physical purge conformance merely because it can return `resource-erased`.
 checkpoint; durable anti-resurrection evidence and stale-import admission; the exact
 promise boundary (supported reads, cooperating replicas/caches, provider history).
 Separately: whether and how a live citation can survive target deletion without
-altering the source’s owned state or violating selected endpoint liveness.
+altering the source’s owned state or violating selected endpoint liveness. Retain
+the input’s concrete alternatives for the next ruling rather than losing them:
+
+- Check endpoint liveness at creation and introduce a per-Link-Type policy controlling
+  whether an existing Link requires its target to remain live. This separates source
+  ownership from target liveness but adds a new policy surface.
+- Exempt Links owned by their source from blocking target deletion. This is smaller
+  but couples the source-versioning declaration to a target-liveness rule.
+- Preserve the current refusal and explicitly limit the Memory mapping until a later
+  lifecycle design; this delays the requested surviving-citation behavior.
+
+None of these alternatives is selected by this packet.
+
+**Containing-version erasure is a separate mandatory fork.** An old Bead version
+contains the complete bytes of each owned Link at that time. Erasing such a Link
+revision at its own URL while returning it inside one or more historical Beads
+would still serve the erased content. Omitting it from a successful Bead response
+would violate complete-or-refuse. The erased byte copy is not a non-owning reference
+to a target: removing target content and removing an embedded Link record are
+different operations. Queue explicitly whether every containing version is also
+erased, or whether its erased bytes are removed and it becomes a permanently
+non-servable restricted version with a selected typed refusal. Neither may return
+a partial record or alter bytes under the old revision and claim success.
+
+The choice must identify all containing versions, define the restriction/disclosure
+shape, preserve only permitted lineage evidence, and apply across Resource reads,
+History pages, Events, receipts, snapshots, replicas and caches according to the
+selected erasure promise. Changing the surviving live source, if needed, requires a
+separate version rather than rebinding its old token. Reconcile this with the TX
+apply’s erasure-copy rules after the exclusion ends; do not duplicate or override them.
 
 **First adversarial case.** Disconnect consumer; erase a version; expire its checkpoint;
 reconnect; attempt stale reimport; assert the selected serve/reconcile/refuse behavior.
@@ -399,6 +442,7 @@ observable cases are the minimum review checklist, not a hand-maintained require
 | HR12 numeric/token boundary | Declared scheme and admitted values honored | Issue/graph serialization or ordinal mistaken for identity detected |
 | HR13 erasure recovery | Expected results filled after H12/TX reconciliation | Disconnect, erase, expire cursor, reimport stale state; no silent pass |
 | HR14 product differential | Memory behavior compared through its public interface | A product-only harness result is never counted as BDP HTTP conformance |
+| HR15 embedded erasure | The selected disposition is applied to every historical Bead containing an erased Link revision | Erase a Link revision embedded in several source versions; probe every copy path; no erased bytes or partial successful record |
 
 The RFC navigation definitions are [RFC 5829 §3](https://www.rfc-editor.org/rfc/rfc5829.html#section-3).
 JCS’s numeric serialization is [RFC 8785 §3.2.2.3](https://www.rfc-editor.org/rfc/rfc8785.html#section-3.2.2.3).
@@ -436,5 +480,8 @@ These sources establish those standards’ rules, not this packet’s unruled BD
   artifact exist and the cross-profile reconciliation is complete.
 - Implemented only when public HTTP scenarios execute for the target. Claimable only
   when the required set is derived and its evidence gate verifies the packaged target.
-- This first draft has had no council yet. No History tests, harness trial, or
-  conformance run is claimed by this document.
+- Review status and finding dispositions are recorded in
+  [History packet review](./history-profile-review.md). The first council is incomplete:
+  two seats returned findings; the third was unavailable. The fold does not imply
+  a full-panel clearance or a ruling. No History tests, harness trial, or conformance
+  run is claimed by this document.
