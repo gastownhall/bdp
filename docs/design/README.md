@@ -32,5 +32,9 @@ waves are internal sequencing labels, not protocol concepts.
   context, options, recommendation, and the specification sentence that
   depends on it.
 
+- [Owned-Link wildcard runtime review](./owned-wildcard-runtime-review.md) records
+  the Read parser and reference-adapter draft, verification, council findings
+  and dispositions, and the remaining conformance integration obligations.
+
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

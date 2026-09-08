@@ -16,6 +16,8 @@ import {
   type Reference,
   type ExternalEndpointPolicy,
   type TypeDescriptor,
+  type BeadTypeDescriptor,
+  ProtocolArtifactValidationError,
 } from "./index.js";
 
 // Compile-time contract: a Reference is a URI string, or a Pinned
@@ -301,6 +303,23 @@ describe("Type artifact parsing", () => {
     } as const satisfies TypeDescriptor;
     expect([bead.describes, link.describes]).toEqual(["bead", "link"]);
 
+    const wildcardBead: BeadTypeDescriptor = {
+      ...bead,
+      ownsOutgoing: {
+        "*": { max: 3 },
+        "https://work.example/types/cites": { max: 2, label: "cites" },
+      },
+    };
+    const labeledWildcardBead: BeadTypeDescriptor = {
+      ...bead,
+      ownsOutgoing: {
+        // @ts-expect-error The wildcard declaration cannot carry a label.
+        "*": { max: 3, label: "everything" },
+      },
+    };
+    expect(wildcardBead.ownsOutgoing?.["*"]).toEqual({ max: 3 });
+    expect(labeledWildcardBead.describes).toBe("bead");
+
     // @ts-expect-error Link descriptors require both endpoint constraints.
     const invalidLink: TypeDescriptor = {
       id: "https://work.example/types/blocks",
@@ -339,13 +358,17 @@ describe("Type artifact parsing", () => {
     expect(() => parse({ "*": { max: 3 }, [cites]: { max: 4 } })).toThrow(
       "exceeds the wildcard max",
     );
-    expect(() => parse({ "*": { max: 3, label: "everything" } })).toThrow();
-    expect(() => parse({ "*": { max: 0 } })).toThrow();
-    expect(() => parse({ "*": { max: 1.5 } })).toThrow();
+    expect(() => parse({ "*": { max: 3, label: "everything" } })).toThrow(
+      ProtocolArtifactValidationError,
+    );
+    expect(() => parse({ "*": { max: 0 } })).toThrow(ProtocolArtifactValidationError);
+    expect(() => parse({ "*": { max: 1.5 } })).toThrow(ProtocolArtifactValidationError);
     expect(() =>
       parse({ "*": { max: 3 }, "https://user:pw@work.example/types/cites": { max: 1 } }),
-    ).toThrow();
-    expect(() => parse({ "*": { max: 3 }, "not-a-type-url": { max: 1 } })).toThrow();
+    ).toThrow(ProtocolArtifactValidationError);
+    expect(() => parse({ "*": { max: 3 }, "not-a-type-url": { max: 1 } })).toThrow(
+      ProtocolArtifactValidationError,
+    );
     expect(() =>
       parseTypeDescriptor({
         ...type,
@@ -354,7 +377,7 @@ describe("Type artifact parsing", () => {
         target: { conformsTo: [] },
         ownsOutgoing: { "*": { max: 3 } },
       }),
-    ).toThrow();
+    ).toThrow(ProtocolArtifactValidationError);
     expect(() =>
       parseBeadRecord({
         id: `${scope}beads/a`,
@@ -363,7 +386,7 @@ describe("Type artifact parsing", () => {
         properties: {},
         ownedLinks: { "*": [] },
       }),
-    ).toThrow();
+    ).toThrow(ProtocolArtifactValidationError);
   });
 
   it("enforces owned-declaration uniqueness and canonical Type URLs", () => {

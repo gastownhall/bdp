@@ -101,6 +101,8 @@ function wildcardFixture(wildcardMax = 3, explicitMax = 2) {
 describe("wildcard ownership through public Read", () => {
   it("serves present-plus-explicit groups through HTTP and the Fetch client with opaque properties", async () => {
     const withdrawEvidence = establishReadConformanceEvidenceForTesting("bdptest");
+    const serverErrors: unknown[] = [];
+    const onError = (error: unknown) => serverErrors.push(error);
     try {
       const server = createReadServer({
         scope,
@@ -109,14 +111,12 @@ describe("wildcard ownership through public Read", () => {
         port: createPortableReferenceFixturePort(scope, wildcardFixture()),
       });
       try {
-        const listener = createNodeHttpServer(server);
+        const listener = createNodeHttpServer(server, { onError });
         try {
           await listenNodeHttpServer(listener, {
             host: "127.0.0.1",
             port: 0,
-            onError: (error) => {
-              throw error;
-            },
+            onError,
           });
           const address = listener.address();
           if (address === null || typeof address === "string")
@@ -208,6 +208,7 @@ describe("wildcard ownership through public Read", () => {
       }
     } finally {
       withdrawEvidence();
+      expect(serverErrors).toEqual([]);
     }
   });
 
@@ -229,8 +230,10 @@ describe("wildcard ownership through public Read", () => {
     );
   });
 
+  // Integration guards for existing fixture admission rules. These checks
+  // apply equally without wildcard ownership; no dynamic view filtering is claimed.
   it.each(["source", "target"] as const)(
-    "refuses a wildcard-owned Link with an absent in-Scope %s",
+    "preserves fixture endpoint validation with wildcard ownership: absent in-Scope %s",
     (endpoint) => {
       const fixture = wildcardFixture();
       expect(() =>
@@ -244,7 +247,7 @@ describe("wildcard ownership through public Read", () => {
     },
   );
 
-  it("requires wildcard-covered concrete types to remain declared Link Types", () => {
+  it("preserves fixture Link Type validation with wildcard ownership", () => {
     const fixture = wildcardFixture();
     expect(() =>
       createPortableReferenceFixturePort(scope, {

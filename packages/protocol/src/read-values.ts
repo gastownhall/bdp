@@ -119,11 +119,17 @@ export function parseBeadRecord(value: unknown, path = "Bead record"): BeadRecor
         const itemPath = `${path}.ownedLinks[${JSON.stringify(key)}][${index}]`;
         const owned_ = parseLinkRecord(item, itemPath);
         if (owned_.type !== key)
-          throw new Error(`${itemPath}.type must equal its entry's Link Type key`);
+          throw new ProtocolArtifactValidationError(
+            `${itemPath}.type must equal its entry's Link Type key`,
+          );
         if (referenceUri(owned_.source) !== record.id)
-          throw new Error(`${itemPath}.source must be the containing Bead`);
+          throw new ProtocolArtifactValidationError(
+            `${itemPath}.source must be the containing Bead`,
+          );
         if (previousId !== undefined && compareCanonicalIds(previousId, owned_.id) >= 0)
-          throw new Error(`${itemPath}.id must ascend in code-unit order within its entry`);
+          throw new ProtocolArtifactValidationError(
+            `${itemPath}.id must ascend in code-unit order within its entry`,
+          );
         previousId = owned_.id;
       }
     }

@@ -22,7 +22,7 @@ const allowedRuntimeInternalDependencies = new Map([
 ]);
 
 const allowedDevInternalDependencies = new Map([
-  ["@bdp/bdptest", ["@bdp/bd-domain", "@bdp/client", "@bdp/conformance"]],
+  ["@bdp/bdptest", ["@bdp/bd-domain", "@bdp/client", "@bdp/conformance", "@bdp/protocol"]],
   ["@bdp/bdpbd", ["@bdp/bd-domain", "@bdp/client", "@bdp/conformance"]],
 ]);
 async function typescriptSources(directory) {
