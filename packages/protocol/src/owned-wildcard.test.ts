@@ -15,8 +15,11 @@ import { isJsonSchemaUri } from "./schema-formats.js";
  * in lockstep from two sides: the bundle's `ownsOutgoing` and `ownedLinks`
  * shapes, and the checked-in `fixtures/owned-wildcard` example. This checks
  * structure and example consistency — the bundle admits the wildcard where
- * the ruling puts it and nowhere else, the fixture validates, and its
- * records follow the present-plus-declared entry rule and the bounds. It
+ * the ruling puts it and nowhere else, the fixture validates, its records
+ * follow the present-plus-declared entry rule and the bounds, and its
+ * descriptors keep every explicit max within the wildcard's (OW1, ruled A
+ * 2026-09-08: a descriptor-validation rule beyond the schema, checked here
+ * by a small validator because the bundle cannot compare two members). It
  * establishes none of the behavior: no target served these records, and
  * none of this is conformance evidence.
  */
@@ -58,6 +61,11 @@ interface FixtureRecord extends JsonRecord {
 interface RejectedShape {
   readonly id: string;
   readonly schema: string;
+  /**
+   * Absent: the bundle rejects the shape. "descriptor-validation": the
+   * bundle accepts it and descriptor validation refuses it (OW1, ruled A).
+   */
+  readonly rejectedBy?: "descriptor-validation";
   readonly reason: string;
   readonly value: unknown;
 }
@@ -187,7 +195,13 @@ describe("owned-wildcard fixture", () => {
     expect(new Set(fixture.rejected.map(({ id }) => id)).size).toBe(fixture.rejected.length);
     for (const rejected of fixture.rejected) {
       expect(rejected.reason.length, rejected.id).toBeGreaterThan(0);
-      expectInvalid(rejected.schema, rejected.value, rejected.id);
+      if (rejected.rejectedBy === "descriptor-validation") {
+        // OW1, ruled A: schema-valid, refused beyond the schema.
+        expectValid(rejected.schema, rejected.value, rejected.id);
+        expect(explicitMaxWithinWildcard(rejected.value), rejected.id).toBe(false);
+      } else {
+        expectInvalid(rejected.schema, rejected.value, rejected.id);
+      }
     }
   });
 
@@ -198,6 +212,7 @@ describe("owned-wildcard fixture", () => {
       "wildcard-max-zero",
       "wildcard-on-link-type",
       "wildcard-as-record-key",
+      "explicit-max-exceeds-wildcard",
     ]);
   });
 
@@ -298,6 +313,40 @@ describe("owned-wildcard fixture", () => {
   });
 });
 
+describe("explicit max bounded by the wildcard's max (OW1, ruled A 2026-09-08)", () => {
+  const cites = "https://memory.example/types/cites";
+
+  it("is a descriptor-validation rule beyond the schema: the bundle accepts what the validator refuses", () => {
+    const exceeds = beadTypeDescriptor({
+      [WILDCARD]: { max: 8 },
+      [cites]: { label: "cites", max: 16 },
+    });
+    expectValid("#/$defs/typeDescriptor", exceeds);
+    expect(explicitMaxWithinWildcard(exceeds)).toBe(false);
+  });
+
+  it("accepts an explicit max at or below the wildcard's, and descriptors without a wildcard", () => {
+    expect(
+      explicitMaxWithinWildcard(
+        beadTypeDescriptor({ [WILDCARD]: { max: 16 }, [cites]: { max: 16 } }),
+      ),
+    ).toBe(true);
+    expect(
+      explicitMaxWithinWildcard(
+        beadTypeDescriptor({ [WILDCARD]: { max: 16 }, [cites]: { max: 8 } }),
+      ),
+    ).toBe(true);
+    expect(explicitMaxWithinWildcard(beadTypeDescriptor({ [cites]: { max: 16 } }))).toBe(true);
+    expect(explicitMaxWithinWildcard(linkTypeDescriptor())).toBe(true);
+  });
+
+  it("holds for every descriptor the fixture serves", () => {
+    for (const descriptor of fixture.descriptors) {
+      expect(explicitMaxWithinWildcard(descriptor), descriptor.id).toBe(true);
+    }
+  });
+});
+
 function beadTypeDescriptor(ownsOutgoing: SchemaRecord): SchemaRecord {
   return {
     id: "https://memory.example/types/memory",
@@ -358,4 +407,26 @@ function requiredRecord(value: unknown, pathLabel: string): SchemaRecord {
     throw new Error(`${pathLabel} must be a record`);
   }
   return value as SchemaRecord;
+}
+
+/**
+ * OW1, ruled A (2026-09-08): an explicitly declared entry's max MUST NOT
+ * exceed the wildcard's max in the same descriptor. The rule compares two
+ * members, which the bundle cannot express, so it is descriptor validation
+ * beyond the schema — a descriptor the bundle accepts can still fail it.
+ * Assumes a schema-valid descriptor; one without a wildcard holds trivially.
+ */
+function explicitMaxWithinWildcard(descriptor: unknown): boolean {
+  const ownsOutgoing = requiredRecord(descriptor, "descriptor").ownsOutgoing;
+  if (ownsOutgoing === undefined) return true;
+  const entries = requiredRecord(ownsOutgoing, "ownsOutgoing");
+  const wildcard = entries[WILDCARD];
+  if (wildcard === undefined) return true;
+  const bound = requiredRecord(wildcard, 'ownsOutgoing["*"]').max;
+  if (typeof bound !== "number") return false;
+  return Object.entries(entries).every(([key, declaration]) => {
+    if (key === WILDCARD) return true;
+    const max = requiredRecord(declaration, `ownsOutgoing[${key}]`).max;
+    return typeof max === "number" && max <= bound;
+  });
 }

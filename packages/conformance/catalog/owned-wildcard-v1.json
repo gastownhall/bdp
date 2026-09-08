@@ -71,6 +71,29 @@
       ]
     },
     {
+      "id": "read.owned-wildcard.explicit-max-bounded",
+      "title": "An explicitly declared entry's max does not exceed the wildcard's max in the same descriptor",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "An explicitly declared entry's `max` therefore MUST NOT exceed the wildcard's `max` in the same descriptor — the excess could never be reached — and a descriptor that declares one is invalid: descriptor validation refuses it, and the Type is not installed."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "That rule compares two members, which the schema bundle cannot express; it is a descriptor-validation rule beyond the schema, and a descriptor the bundle accepts can still fail it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "An explicitly declared entry's `max` MUST NOT exceed the wildcard's `max` in the same descriptor, since the wildcard's `max` bounds the whole owned set: such a descriptor is invalid and is not installed — a descriptor-validation rule beyond the schema bundle, which cannot compare the two members — under [Owned Links](#owned-links)."
+        }
+      ]
+    },
+    {
       "id": "read.owned-wildcard.present-entries",
       "title": "A wildcard owner's ownedLinks carries present types plus empty explicit entries, never the wildcard",
       "kind": "normative",

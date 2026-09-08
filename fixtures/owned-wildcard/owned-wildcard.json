@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "owned-wildcard",
-  "description": "A Memory-like Bead Type that owns every outgoing Link Type through the wildcard entry beside one explicitly declared type, a wildcard-only Type, and the Beads of those Types: one carrying owned Links of two Link Types its descriptor never names plus the explicitly declared type's empty entry, one carrying only that empty entry, and one carrying nothing yet. Followed by the shapes the bundle rejects: a wildcard without max, a wildcard with a label, a wildcard bound of zero, a wildcard on a Link Type Descriptor, and the wildcard as an ownedLinks record key. Illustrative wire example; not evidence.",
+  "description": "A Memory-like Bead Type that owns every outgoing Link Type through the wildcard entry beside one explicitly declared type, a wildcard-only Type, and the Beads of those Types: one carrying owned Links of two Link Types its descriptor never names plus the explicitly declared type's empty entry, one carrying only that empty entry, and one carrying nothing yet. Followed by the shapes the bundle rejects: a wildcard without max, a wildcard with a label, a wildcard bound of zero, a wildcard on a Link Type Descriptor, and the wildcard as an ownedLinks record key; then one shape the bundle accepts and descriptor validation refuses: an explicitly declared max above the wildcard's (OW1, ruled A 2026-09-08). Illustrative wire example; not evidence.",
   "scope": "https://beads.example/acme/",
   "wildcardOwner": "https://memory.example/types/memory",
   "wildcardOnlyOwner": "https://memory.example/types/note",
@@ -199,6 +199,22 @@
               "properties": {}
             }
           ]
+        }
+      }
+    },
+    {
+      "id": "explicit-max-exceeds-wildcard",
+      "schema": "#/$defs/typeDescriptor",
+      "rejectedBy": "descriptor-validation",
+      "reason": "Schema-valid but descriptor-invalid (OW1, ruled A 2026-09-08): the explicitly declared max (16) exceeds the wildcard's max (8) in the same descriptor, and the excess could never be reached. The bundle cannot compare two max values, so it accepts this shape; descriptor validation refuses it and the Type is not installed.",
+      "value": {
+        "id": "https://memory.example/types/memory",
+        "name": "Memory",
+        "describes": "bead",
+        "conformsTo": [],
+        "ownsOutgoing": {
+          "*": { "max": 8 },
+          "https://memory.example/types/cites": { "label": "cites", "max": 16 }
         }
       }
     }

@@ -21,7 +21,7 @@ bundle after the Read cohort was sealed at `0b7d86e7`, so the cohort's
 `bindings.schema` digest no longer matches the current bundle and the
 evidence gate checks that binding's shape without recomputing it — the
 cohort proves the Read surface against the bundle it was sealed with, and
-re-sealing is the operator's call. The wildcard's six conformance rows
+re-sealing is the operator's call. The wildcard's seven conformance rows
 (`packages/conformance/catalog/owned-wildcard-v1.json`) are unclaimed
 metadata bound to the specification text: no manifest, fixture realization,
 runner, or evidence exists for them.

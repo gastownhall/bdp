@@ -55,6 +55,7 @@ describe("draft owned-Link wildcard catalog", () => {
     expect(selectNormativeScenariosForProfile(catalog, "read").map(({ id }) => id)).toEqual([
       "read.owned-wildcard.declaration",
       "read.owned-wildcard.max-required",
+      "read.owned-wildcard.explicit-max-bounded",
       "read.owned-wildcard.present-entries",
       "read.owned-wildcard.closure",
     ]);

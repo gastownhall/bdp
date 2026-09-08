@@ -46,6 +46,20 @@ scoped, then the transcription's edges, then evidence and runtime posture.
 
 ## OW1 — What the wildcard's `max` bounds
 
+**RULED A (2026-09-08).** The operator ruled for option 1, the literal
+reading: the wildcard's `max` bounds the Bead's whole owned set — every
+owned Link across every owned Link Type, the explicitly declared types'
+Links included — exactly as the draft says. One consequence is now
+normative, and it replaces option 1's "permitted and never reached": an
+explicitly declared entry's `max` MUST NOT exceed the wildcard's `max`
+in the same descriptor, because the excess could never be reached, and a
+descriptor that declares one is invalid — descriptor validation refuses
+it, and the Type is not installed. The rule compares two `max` values,
+which JSON Schema 2020-12 cannot express portably, so the bundle is not
+contorted to carry it: the specification states it as a
+descriptor-validation rule beyond the schema, and the artifacts that
+apply it are listed under *Depends on this decision*.
+
 **Context.** The ruling says the wildcard's `max` bounds "the whole owned
 set" and that explicit entries take precedence for the types they name,
 each with its own `max`. Whether "the whole owned set" includes the Links
@@ -76,10 +90,23 @@ it later would.
 bounds the Bead's whole owned set: every owned Link of the Bead across
 every owned Link Type, the explicitly declared types' Links included, so
 a Bead never carries more owned Links than the wildcard's `max`, whatever
-its explicit entries permit." Bundle: nothing — bounds are not
-schema-checkable. Fixture: `mem-1` carries three owned Links under a
-wildcard `max` of 64 and none under `cites` (`max` 16). Row
-`read-update.owned-wildcard.explicit-precedence`.
+its explicit entries permit." and, from the ruling's consequence, "An
+explicitly declared entry's `max` therefore MUST NOT exceed the
+wildcard's `max` in the same descriptor — the excess could never be
+reached — and a descriptor that declares one is invalid: descriptor
+validation refuses it, and the Type is not installed." with the
+companion sentence that places the rule beyond the schema; under *Types
+and Type Descriptors*, the matching sentence at the end of the
+`ownsOutgoing` bullet; ledger entry 16's OW1 clause. Bundle: nothing —
+bounds are not schema-checkable, and the explicit-max rule compares two
+members, which JSON Schema 2020-12 cannot express portably. Fixture:
+`mem-1` carries three owned Links under a wildcard `max` of 64 and none
+under `cites` (`max` 16); rejection `explicit-max-exceeds-wildcard`
+(explicit `max` 16 beside a wildcard `max` 8) is schema-valid and
+descriptor-invalid, and the lockstep test asserts exactly that — the
+bundle accepts it and a small validator in the test refuses it. Rows
+`read-update.owned-wildcard.explicit-precedence` and
+`read.owned-wildcard.explicit-max-bounded`.
 
 ## OW2 — No `label` on the wildcard entry
 

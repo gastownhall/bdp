@@ -399,7 +399,14 @@ any, describes it — and the wildcard governs every other outgoing Link
 Type. The wildcard's `max` bounds the Bead's whole owned set: every
 owned Link of the Bead across every owned Link Type, the explicitly
 declared types' Links included, so a Bead never carries more owned Links
-than the wildcard's `max`, whatever its explicit entries permit. The
+than the wildcard's `max`, whatever its explicit entries permit. An
+explicitly declared entry's `max` therefore MUST NOT exceed the
+wildcard's `max` in the same descriptor — the excess could never be
+reached — and a descriptor that declares one is invalid: descriptor
+validation refuses it, and the Type is not installed. That rule compares
+two members, which the schema bundle cannot express; it is a
+descriptor-validation rule beyond the schema, and a descriptor the
+bundle accepts can still fail it. The
 wildcard entry carries no `label`: it names no Link Type. The wildcard
 changes no other rule of ownership: nothing is owned by default, only
 Bead Types may own, every mutation of an owned Link versions the source,
@@ -2281,7 +2288,12 @@ The descriptor members have these meanings:
   it owns every outgoing Link Type not named explicitly, its `max` bounds
   the whole owned set, and explicit entries take precedence for the types
   they name, under [Owned Links](#owned-links). A Link Type Descriptor
-  must not carry `ownsOutgoing`.
+  must not carry `ownsOutgoing`. An explicitly declared entry's `max`
+  MUST NOT exceed the wildcard's `max` in the same descriptor, since the
+  wildcard's `max` bounds the whole owned set: such a descriptor is
+  invalid and is not installed — a descriptor-validation rule beyond the
+  schema bundle, which cannot compare the two members — under
+  [Owned Links](#owned-links).
 
 Descriptor objects and endpoint-constraint objects are closed: no members are
 allowed except those defined above. An `ownsOutgoing` entry is closed the same
@@ -3648,6 +3660,7 @@ rows describe. The rows become claimable only under the evidence law in
 | `read.owned-wildcard.declaration` | A Bead Type Descriptor's `ownsOutgoing` MAY carry the wildcard entry `"*"`, alone or beside explicit entries, and is served schema-valid; a Link Type Descriptor carries no `ownsOutgoing` |
 | `read.owned-wildcard.max-required` | The wildcard entry is exactly `{ max }`: a wildcard without `max`, or with a `label`, is not a valid descriptor |
 | `read-update.owned-wildcard.explicit-precedence` | An explicitly declared Link Type is governed by its own entry's `max`; the wildcard's `max` bounds the Bead's whole owned set, the explicitly declared types' Links included |
+| `read.owned-wildcard.explicit-max-bounded` | An explicitly declared entry's `max` does not exceed the wildcard's `max` in the same descriptor: a descriptor whose explicit `max` exceeds the wildcard's is not a valid descriptor and is not installed, although the schema bundle accepts it |
 | `read.owned-wildcard.present-entries` | A wildcard owner's `ownedLinks` carries one entry per owned Link Type present plus an empty entry per explicitly declared type, keyed by Link Type URL and never by `"*"`, and is present, possibly empty, whenever the Type owns |
 | `read-update.owned-wildcard.undeclared-type-versions-source` | Creating, updating, or deleting a Link whose type is owned only through the wildcard versions the source Bead and never the target |
 | `read.owned-wildcard.closure` | A view is closed over wildcard-owned Links: a Bead that owns a Link to a hidden Bead is hidden from that view |
@@ -3768,7 +3781,12 @@ protocol-identifier prefix, with the release-stability rule stated above.
     the judgments the ruling left open are recorded in
     `docs/design/owned-wildcard-decisions.md` (OW1–OW8), and the
     [Owned-Link wildcard conformance rows](#owned-link-wildcard-conformance-rows)
-    are metadata bound to this text, none claimed. Letting a descriptor mark
+    are metadata bound to this text, none claimed. OW1 was ruled on
+    2026-09-08 — A, the literal reading: the wildcard's `max` bounds the
+    whole owned set, the explicitly declared types' Links included, so an
+    explicitly declared entry's `max` MUST NOT exceed the wildcard's `max`
+    in the same descriptor, and a descriptor that declares one is invalid
+    and is not installed. Letting a descriptor mark
     property members as References so they receive target validation is a
     separate, later addition.
 
