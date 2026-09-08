@@ -27,3 +27,7 @@ waves are internal sequencing labels, not protocol concepts.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.
+
+- [History resolution packet](./history-profile-packet.md) separates existing rulings
+  from the open historical-read wire, capability, retention and verification choices.
+  It is non-normative and claims no History implementation or conformance.
