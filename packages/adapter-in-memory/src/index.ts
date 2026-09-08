@@ -282,11 +282,9 @@ function snapshotPreparedReferenceFixture(
       }),
     ),
   );
-  // The owned-Links plane: for each Bead whose declared Type owns
-  // outgoing Link Types, inline the owned Links' complete records in
-  // ascending code-unit id order, one entry per declared owned type
-  // (empty when no owned Links exist). The declared bound is enforced
-  // here so the plane is always servable inline.
+  // Inline the same first-class Link records under concrete Type URLs:
+  // present owned types plus explicit declarations, including empty ones.
+  // Bounds include every owned Link, before serving this closed fixture view.
   const ownedByBeadType = new Map(
     prepared.typeDescriptors.flatMap((descriptor) =>
       descriptor.describes === "bead" && descriptor.ownsOutgoing !== undefined
@@ -298,15 +296,30 @@ function snapshotPreparedReferenceFixture(
     prepared.beads.map((bead) => {
       const owned = ownedByBeadType.get(bead.type);
       if (owned === undefined) return Object.freeze({ ...bead });
+      const groups = new Map<string, LinkRecord[]>(
+        Object.keys(owned)
+          .filter((type) => type !== "*")
+          .map((type) => [type, []]),
+      );
+      let total = 0;
+      for (const link of links) {
+        if (referenceUri(link.source) !== bead.id) continue;
+        if (owned[link.type] === undefined && owned["*"] === undefined) continue;
+        const records = groups.get(link.type) ?? [];
+        records.push(link);
+        groups.set(link.type, records);
+        total += 1;
+      }
+      if (owned["*"] !== undefined && total > owned["*"].max)
+        throw new Error(`owned Links for ${bead.id} exceed the whole-set wildcard bound`);
       const ownedLinks: Record<string, readonly LinkRecord[]> = {};
-      for (const [ownedType, declaration] of Object.entries(owned)) {
-        const records = links
-          .filter((link) => link.type === ownedType && referenceUri(link.source) === bead.id)
-          .slice()
-          .sort((left, right) => compareCanonicalIds(left.id, right.id));
-        if (records.length > declaration.max)
-          throw new Error(`owned Links for ${bead.id} exceed the declared bound of ${ownedType}`);
-        ownedLinks[ownedType] = Object.freeze(records);
+      for (const [type, records] of groups) {
+        const declaration = owned[type];
+        if (declaration !== undefined && records.length > declaration.max)
+          throw new Error(`owned Links for ${bead.id} exceed the declared bound of ${type}`);
+        ownedLinks[type] = Object.freeze(
+          records.sort((left, right) => compareCanonicalIds(left.id, right.id)),
+        );
       }
       return Object.freeze({ ...bead, ownedLinks: Object.freeze(ownedLinks) });
     }),

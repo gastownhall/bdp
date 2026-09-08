@@ -33,7 +33,7 @@ a ruling can change a decision's meaning without failing a test, and a
 green run establishes only that the artifact families still agree on
 what they say.
 
-Nothing in this packet is a conformance claim. No manifest, fixture
+Nothing in this packet is a conformance claim. No conformance manifest, catalog fixture
 realization, runner, or evidence exists for any wildcard row;
 `claimEligible` remains `false` everywhere, and the sealed Read cohort is
 untouched.
@@ -288,3 +288,15 @@ so no served record is affected.
 **Depends on this decision.** Under *Owned-Link wildcard conformance
 rows*: "none carries an executable plan, a fixture realization, or
 evidence." No bundle, fixture, or catalog artifact.
+
+
+## 2026-09-08 — separate Read runtime preparation
+
+OW8 records the original specification transcription's boundary. The separate
+`codex/janet-wildcard-read-runtime` draft, based on #22 at c201cc2, now prepares
+the parser/type/reference-adapter changes and test-only HTTP fixtures. It
+does not select a new protocol choice or imply that #22 was merged. Its
+[review record](owned-wildcard-runtime-review.md) states the implementation
+scope, validation and still-missing catalog/evidence work. The operator owns
+integration and readiness. OW7's old evidence binding remains historical;
+this draft neither rebinds nor reseals it.

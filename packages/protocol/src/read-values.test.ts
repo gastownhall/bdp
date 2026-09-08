@@ -317,6 +317,55 @@ describe("Type artifact parsing", () => {
     expect([invalidLink.describes, invalidBead.describes]).toEqual(["link", "bead"]);
   });
 
+  it("parses wildcard ownership and enforces the cross-entry bound beyond schema validation", () => {
+    const type = {
+      id: "https://work.example/types/memory",
+      name: "Memory",
+      describes: "bead",
+      conformsTo: [],
+    } as const;
+    const cites = "https://work.example/types/cites";
+    const parse = (ownsOutgoing: unknown) => parseTypeDescriptor({ ...type, ownsOutgoing });
+    for (const ownsOutgoing of [
+      { "*": { max: 3 } },
+      { "*": { max: 3 }, [cites]: { max: 3, label: "cites" } },
+      { [cites]: { max: 2, label: "cites" }, "*": { max: 3 } },
+    ]) {
+      const parsed = parse(ownsOutgoing);
+      expect(parsed).toEqual({ ...type, ownsOutgoing });
+      if (parsed.describes !== "bead") throw new Error("expected Bead Type");
+      expect(Object.isFrozen(parsed.ownsOutgoing)).toBe(true);
+    }
+    expect(() => parse({ "*": { max: 3 }, [cites]: { max: 4 } })).toThrow(
+      "exceeds the wildcard max",
+    );
+    expect(() => parse({ "*": { max: 3, label: "everything" } })).toThrow();
+    expect(() => parse({ "*": { max: 0 } })).toThrow();
+    expect(() => parse({ "*": { max: 1.5 } })).toThrow();
+    expect(() =>
+      parse({ "*": { max: 3 }, "https://user:pw@work.example/types/cites": { max: 1 } }),
+    ).toThrow();
+    expect(() => parse({ "*": { max: 3 }, "not-a-type-url": { max: 1 } })).toThrow();
+    expect(() =>
+      parseTypeDescriptor({
+        ...type,
+        describes: "link",
+        source: { conformsTo: [] },
+        target: { conformsTo: [] },
+        ownsOutgoing: { "*": { max: 3 } },
+      }),
+    ).toThrow();
+    expect(() =>
+      parseBeadRecord({
+        id: `${scope}beads/a`,
+        type: type.id,
+        revision: "1",
+        properties: {},
+        ownedLinks: { "*": [] },
+      }),
+    ).toThrow();
+  });
+
   it("enforces owned-declaration uniqueness and canonical Type URLs", () => {
     const descriptor = {
       id: "https://work.example/types/decision",

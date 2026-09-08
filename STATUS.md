@@ -23,8 +23,11 @@ evidence gate checks that binding's shape without recomputing it — the
 cohort proves the Read surface against the bundle it was sealed with, and
 re-sealing is the operator's call. The wildcard's seven conformance rows
 (`packages/conformance/catalog/owned-wildcard-v1.json`) are unclaimed
-metadata bound to the specification text: no manifest, fixture realization,
-runner, or evidence exists for them.
+metadata bound to the specification text: no conformance manifest, catalog
+fixture realization, runner, or evidence exists for them. A separate
+[Read runtime draft](docs/design/owned-wildcard-runtime-review.md) now exercises
+the parser, reference adapter, and public HTTP client with test-only fixtures.
+Those checks are not catalog execution or a replacement Read evidence cohort.
 
 Open protocol questions are tracked in the specification's "Open protocol
 questions" section; contributions there are welcome.

@@ -11,6 +11,7 @@ import type {
   BeadRecord,
   LinkCollection,
   LinkRecord,
+  OwnedOutgoingDeclarations,
   PropertiesRecord,
   ReadDiscovery,
   ReadProblem,
@@ -62,9 +63,17 @@ export function parseTypeDescriptor(value: unknown, path = "Type Descriptor"): T
   validateResourceTypeIds(type.conformsTo, `${path}.conformsTo`);
   if (type.source !== undefined) validateEndpointConstraint(type.source, `${path}.source`);
   if (type.target !== undefined) validateEndpointConstraint(type.target, `${path}.target`);
-  if (type.ownsOutgoing !== undefined)
-    for (const key of Object.keys(type.ownsOutgoing as Readonly<Record<string, unknown>>))
+  if (type.ownsOutgoing !== undefined) {
+    const owned = type.ownsOutgoing as OwnedOutgoingDeclarations;
+    for (const [key, declaration] of Object.entries(owned)) {
+      if (key === "*") continue;
       parseResourceTypeId(key, `${path}.ownsOutgoing key`);
+      if (owned["*"] !== undefined && declaration.max > owned["*"].max)
+        throw new Error(
+          `${path}.ownsOutgoing[${JSON.stringify(key)}].max exceeds the wildcard max`,
+        );
+    }
+  }
   return type as unknown as TypeDescriptor;
 }
 
