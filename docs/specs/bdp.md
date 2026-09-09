@@ -368,6 +368,17 @@ endpoint Bead's declared Type: readers that need endpoint Types use the
 read views, and an authority validates endpoint Types against the
 identified Beads themselves.
 
+A Reference exists where this specification defines one — a Link
+endpoint, or a member it names as a Reference. A URI or a Pinned
+Reference that appears as a value inside `properties` is not one: it is
+authored data, which the authority does not validate, canonicalize,
+resolve, or traverse, and it is not an edge of the graph. A Type that
+wants graph semantics for a reference — versioning with its source,
+validation at admission, closure under views — declares an owned Link
+Type for it, under an explicit `ownsOutgoing` entry or the wildcard, and
+the reference is a Link (ruled 2026-09-08,
+[gastownhall/bdp#1, item 5 as amended](https://github.com/gastownhall/bdp/issues/1#issuecomment-5587346463)).
+
 #### Owned Links
 
 A Bead Type MAY declare that certain outgoing Link Types are **owned**:
@@ -384,6 +395,35 @@ each pair at most once by construction. Each declaration MUST carry
 appears only in the Type Descriptor and MUST NOT appear in any Resource
 record — the `ownedLinks` member is keyed by Link Type URL alone.
 
+`ownsOutgoing` MAY also contain the **wildcard entry** `"*"`, whose
+value is exactly `{ max }`: it declares every outgoing Link Type not
+listed explicitly as owned. A Type whose relationship vocabulary is open
+cannot declare ownership type by type — a Memory Bead relates to other
+Beads through Link Types it does not enumerate, and every one of those
+outgoing references must version with its source
+([gastownhall/beads#5877](https://github.com/gastownhall/beads/issues/5877),
+R17 and R22) — and the wildcard is how such a Type owns what it makes.
+The wildcard MAY be the only entry. Explicit entries take precedence for
+the Link Types they name: an explicitly declared Link Type is governed
+by its own entry — its own `max` bounds that type and its `label`, if
+any, describes it — and the wildcard governs every other outgoing Link
+Type. The wildcard's `max` bounds the Bead's whole owned set: every
+owned Link of the Bead across every owned Link Type, the explicitly
+declared types' Links included, so a Bead never carries more owned Links
+than the wildcard's `max`, whatever its explicit entries permit. An
+explicitly declared entry's `max` therefore MUST NOT exceed the
+wildcard's `max` in the same descriptor — the excess could never be
+reached — and a descriptor that declares one is invalid: descriptor
+validation refuses it, and the Type is not installed. That rule compares
+two members, which the schema bundle cannot express; it is a
+descriptor-validation rule beyond the schema, and a descriptor the
+bundle accepts can still fail it. The
+wildcard entry carries no `label`: it names no Link Type. The wildcard
+changes no other rule of ownership: nothing is owned by default, only
+Bead Types may own, every mutation of an owned Link versions the source,
+an incoming Link never versions its target, and `label` never appears in
+a record.
+
 Every mutation of an owned Link versions the source Bead. Because a
 Link's `id`, `type`, `source`, `target`, and pin are immutable, the only
 mutations that exist are creation, deletion, and property update;
@@ -397,21 +437,28 @@ covered by the source's revision as well. That is what ownership means.
 
 To say it as plainly as possible: there is no reference entity in the
 model, and no second graph. An owned Link is an ordinary first-class
-Link whose Link Type the source's Bead Type declares in `ownsOutgoing`,
-and a Scope's Links are the only edges there are. Owned Links appear on
+Link whose Link Type the source's Bead Type owns under `ownsOutgoing` —
+by an explicit entry or through the wildcard — and a Scope's Links are
+the only edges there are. Owned Links appear on
 the links collection and in incident-Link views exactly like every other
 Link. The `ownedLinks` member defined below inlines those same Links: it
 is derived data, never writable directly and never a rival edge set —
 create, delete, or update the owned Links, and the member follows.
 
 A Bead whose Type owns outgoing Link Types carries an **ownedLinks**
-member in its record: one entry per declared owned Link Type, keyed by
-the Link Type URL, whose value is the array of the owned Links' complete
-records — for each owned Link, exactly the record it serves at its own
-URL, its `type` equal to the entry's key and its `source` equal to the
-containing Bead — in ascending code-unit order of the Links' canonical
-`id`s. An entry is present, possibly empty, for every declared owned
-type; the member is absent for Beads whose Type owns nothing. The record
+member in its record: entries keyed by Link Type URL, each valued by the
+array of that Link Type's owned Links' complete records — for each owned
+Link, exactly the record it serves at its own URL, its `type` equal to
+the entry's key and its `source` equal to the containing Bead — in
+ascending code-unit order of the Links' canonical `id`s. The member
+carries one entry for each owned Link Type actually present on the Bead
+— at least one owned Link of that type exists — plus an entry, possibly
+empty, for each explicitly declared Link Type; a Link Type owned only
+through the wildcard has an entry exactly when an owned Link of that
+type is present. The wildcard `"*"` is never a key: the member is keyed
+by Link Type URL alone. The member is present, possibly empty, for every
+Bead whose Type carries `ownsOutgoing`, and absent for Beads whose Type
+owns nothing. The record
 read always serves the member, because the Bead's revision covers it: a
 reader holding a revision can always see everything that revision
 covers, owned-Link properties included. The `properties` view remains
@@ -423,7 +470,11 @@ their in-Scope target Beads: a view is closed over owned Links, and
 hiding a Bead from a view therefore requires hiding every Bead that owns
 a Link to it. The latitude to withhold incident Links from a visible
 Bead applies to its incoming Links and to unowned Links, never to a
-visible source's owned Links.
+visible source's owned Links. For a wildcard owner the consequence is
+stated plainly, because it is the price of inline, revision-covered
+references: such a Bead owns every outgoing Link it makes, so a Bead
+that owns a Link to a Bead hidden from a view is hidden from that view
+too — a Memory that cites a hidden Bead is hidden with it.
 
 The posture in one sentence: owned Links are outgoing, bounded, inline,
 and versioned; incident Links are unbounded, a view, and version
@@ -1939,10 +1990,11 @@ A Link record is:
 
 `id` and `type` are always absolute canonical URLs in responses. A Bead
 whose Type owns outgoing Link Types additionally carries its `ownedLinks`
-member — one entry per declared owned Link Type, keyed by the Link Type
-URL, valued by the owned Links' complete records in ascending code-unit
-order of their canonical `id`s — on
-every record read; the member is absent for Beads whose Type owns
+member — one entry per owned Link Type present on the Bead and one,
+possibly empty, per explicitly declared Link Type, keyed by the Link
+Type URL and never by the wildcard `"*"`, valued by the owned Links'
+complete records in ascending code-unit order of their canonical `id`s
+— on every record read; the member is absent for Beads whose Type owns
 nothing. Link
 `source` and `target` are References as defined under
 [Beads and Links](#beads-and-links): an in-Scope endpoint's `uri` is the
@@ -2242,11 +2294,22 @@ The descriptor members have these meanings:
   values are `{ label?, max }`, under
   [Owned Links](#owned-links). `max` is the required bound on
   the owned set, and `label` is display documentation, like `name`: it
-  appears only in the descriptor and never in any Resource record. A Link
-  Type Descriptor must not carry `ownsOutgoing`.
+  appears only in the descriptor and never in any Resource record. The
+  key MAY also be the wildcard `"*"`, whose value is exactly `{ max }`:
+  it owns every outgoing Link Type not named explicitly, its `max` bounds
+  the whole owned set, and explicit entries take precedence for the types
+  they name, under [Owned Links](#owned-links). A Link Type Descriptor
+  must not carry `ownsOutgoing`. An explicitly declared entry's `max`
+  MUST NOT exceed the wildcard's `max` in the same descriptor, since the
+  wildcard's `max` bounds the whole owned set: such a descriptor is
+  invalid and is not installed — a descriptor-validation rule beyond the
+  schema bundle, which cannot compare the two members — under
+  [Owned Links](#owned-links).
 
 Descriptor objects and endpoint-constraint objects are closed: no members are
-allowed except those defined above. Type-ID arrays contain unique Type URLs and
+allowed except those defined above. An `ownsOutgoing` entry is closed the same
+way: `{ label?, max }` under a Link Type URL, `{ max }` under the wildcard.
+Type-ID arrays contain unique Type URLs and
 may be empty where this specification permits an unconstrained endpoint.
 
 The canonical `typeDescriptor` definition exists only in the single BDP v0
@@ -3587,10 +3650,36 @@ The decision and coverage categories are normative. The matrix, fixtures, and
 expected results must exist in the repository for an implementation to claim
 complete acceptance evidence.
 
+#### Owned-Link wildcard conformance rows
+
+The rows below were drafted with the wildcard ownership entry ruled on
+2026-09-08 ([Open protocol questions](#open-protocol-questions), entry
+16). Each names one obligation and binds the normative text that states
+it; none carries an executable plan, a fixture realization, or evidence.
+The metadata catalog file
+`packages/conformance/catalog/owned-wildcard-v1.json` carries the same
+rows and no manifest binds it, so no runner report can claim them. The
+lockstep tests over these artifacts check that the rows mirror this
+table in order, that every citation still appears in its anchored
+section, and that the illustrative fixture in `fixtures/owned-wildcard/`
+validates against the bundle — and establish none of the behavior the
+rows describe. The rows become claimable only under the evidence law in
+`packages/conformance/matrices/README.md`.
+
+| Row | Obligation |
+| --- | --- |
+| `read.owned-wildcard.declaration` | A Bead Type Descriptor's `ownsOutgoing` MAY carry the wildcard entry `"*"`, alone or beside explicit entries, and is served schema-valid; a Link Type Descriptor carries no `ownsOutgoing` |
+| `read.owned-wildcard.max-required` | The wildcard entry is exactly `{ max }`: a wildcard without `max`, or with a `label`, is not a valid descriptor |
+| `read-update.owned-wildcard.explicit-precedence` | An explicitly declared Link Type is governed by its own entry's `max`; the wildcard's `max` bounds the Bead's whole owned set, the explicitly declared types' Links included |
+| `read.owned-wildcard.explicit-max-bounded` | An explicitly declared entry's `max` does not exceed the wildcard's `max` in the same descriptor: a descriptor whose explicit `max` exceeds the wildcard's is not a valid descriptor and is not installed, although the schema bundle accepts it |
+| `read.owned-wildcard.present-entries` | A wildcard owner's `ownedLinks` carries one entry per owned Link Type present plus an empty entry per explicitly declared type, keyed by Link Type URL and never by `"*"`, and is present, possibly empty, whenever the Type owns |
+| `read-update.owned-wildcard.undeclared-type-versions-source` | Creating, updating, or deleting a Link whose type is owned only through the wildcard versions the source Bead and never the target |
+| `read.owned-wildcard.closure` | A view is closed over wildcard-owned Links: a Bead that owns a Link to a hidden Bead is hidden from that view |
+
 ### Open protocol questions
 
 This ledger records the protocol questions raised against the draft and their
-current state, in dependency order. The 15 questions below carry recorded
+current state, in dependency order. The 16 questions below carry recorded
 decisions or explicit artifact gates. Entries marked pending remain open. A
 separate joint product/protocol decision selected
 `https://github.com/gastownhall/bdp/` as the provisional v0
@@ -3687,6 +3776,34 @@ protocol-identifier prefix, with the release-stability rule stated above.
 15. **Resolved 2026-08-08:** every v0 Link has at least one in-Scope Bead
     endpoint. A future cross-Scope indexing profile may define ownership and
     lifecycle for Links whose endpoints are both external.
+16. **Resolved 2026-09-08:** `ownsOutgoing` MAY carry the wildcard entry
+    `"*"`, exactly `{ max }`, declaring every outgoing Link Type not listed
+    explicitly as owned; its `max` bounds the Bead's whole owned set, and
+    explicit entries take precedence for the types they name. The
+    `ownedLinks` member then carries one entry per owned Link Type present
+    plus an empty entry per explicitly declared type, never keyed by `"*"`.
+    A Type whose relationship vocabulary is open — the Memory Bead of
+    gastownhall/beads#5877 (R17, R22) — cannot declare ownership type by
+    type, and this is how it owns what it makes; the price, stated plainly,
+    is that a view closed over owned Links hides such a Bead whenever it
+    owns a Link to a hidden Bead. Nothing else about ownership changed.
+    Ruled at
+    [gastownhall/bdp#1, item 5](https://github.com/gastownhall/bdp/issues/1#issuecomment-5586084982);
+    the judgments the ruling left open are recorded in
+    `docs/design/owned-wildcard-decisions.md` (OW1–OW8), and the
+    [Owned-Link wildcard conformance rows](#owned-link-wildcard-conformance-rows)
+    are metadata bound to this text, none claimed. OW1 was ruled on
+    2026-09-08 — A, the literal reading: the wildcard's `max` bounds the
+    whole owned set, the explicitly declared types' Links included, so an
+    explicitly declared entry's `max` MUST NOT exceed the wildcard's `max`
+    in the same descriptor, and a descriptor that declares one is invalid
+    and is not installed. The ruling's closing clause — that letting a
+    descriptor mark property members as References for target validation
+    would be a separate, later addition — was withdrawn on 2026-09-08
+    ([item 5 as amended](https://github.com/gastownhall/bdp/issues/1#issuecomment-5587346463)): a reference inside `properties` is authored
+    data and never an edge, and a Type that wants graph semantics for a
+    reference declares an owned Link Type; the law is stated under
+    [References](#references).
 
 Implementation proceeds Read-first. Later-profile work begins only when its
 schema, problem, and conformance artifacts are reviewed. Implementation

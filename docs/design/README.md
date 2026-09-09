@@ -24,6 +24,13 @@ waves are internal sequencing labels, not protocol concepts.
   items 4 and 5 must close, the parallel item-9 work that proceeds today,
   and the testable contract-suite and Wave 2 freeze evidence milestones the
   eventual port must meet.
+- [Owned-Link wildcard decisions](./owned-wildcard-decisions.md) records the
+  numbered judgments (OW1–OW8) taken while transcribing the 2026-09-08
+  wildcard ownership ruling — what the wildcard's `max` bounds, the closed
+  `{ max }` entry, the present-plus-declared `ownedLinks` rule, row
+  profiles, the evidence posture, and the runtime lag — each with its
+  context, options, recommendation, and the specification sentence that
+  depends on it.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

@@ -458,7 +458,19 @@
           "type": "object",
           "minProperties": 1,
           "propertyNames": {
-            "$ref": "#/$defs/absoluteHttpUrl"
+            "anyOf": [
+              {
+                "const": "*"
+              },
+              {
+                "$ref": "#/$defs/absoluteHttpUrl"
+              }
+            ]
+          },
+          "properties": {
+            "*": {
+              "$ref": "#/$defs/ownedWildcardDeclaration"
+            }
           },
           "additionalProperties": {
             "$ref": "#/$defs/ownedLinkDeclaration"
@@ -901,6 +913,16 @@
           "type": "string",
           "minLength": 1
         },
+        "max": {
+          "$ref": "#/$defs/positiveInteger"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ownedWildcardDeclaration": {
+      "type": "object",
+      "required": ["max"],
+      "properties": {
         "max": {
           "$ref": "#/$defs/positiveInteger"
         }
