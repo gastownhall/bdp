@@ -12,6 +12,70 @@ not-applicable capability-gated row, and whose content digest is the
 recorded per-target evidence constant; the sealed artifact carries the
 authoritative counts.
 
+## Successor Read observations — pending cohort publication
+
+The successor manifest contains the original 40 Read IDs plus the five Read
+wildcard rows and one Read numeric-model row, for 46 distinct IDs. Companion
+catalog rows are copied with their original IDs and citations. Their Read+Update
+rows remain outside this manifest. This implementation is preparation for a
+new two-target cohort; the historical evidence artifact and constants have not
+been regenerated or relabeled.
+
+- `read.owned-wildcard.declaration`, `max-required`, and `explicit-max-bounded`
+  run generic-client observations on **both** targets. Exact valid and invalid
+  descriptor bodies are fixture-bound and served by the isolated external
+  publisher. Invalid bodies never enter the Scope's Type inventory. These
+  observations test client parsing, not an authority's installation endpoint
+  or public authentication engine; neither packaged target exposes such an
+  installer. The max cases include absence, label/extra members, zero,
+  negative, fractional, below-bound, equal-bound, and above-bound values.
+- `read.owned-wildcard.present-entries` reads packaged reference-domain
+  Resources: Decision F owns wildcard Blocks plus explicit Cites and an empty
+  Relates group; closed Feature C is the empty wildcard-only owner; Task A
+  remains a nonowner. C's type changes in both logical realizations while the
+  topology, statuses and readiness result stay fixed. Exact group keys/order
+  and every inline Link's equality with its first-class body are observed,
+  including a pinned external endpoint, claimed attribution and opaque
+  properties with protocol-looking names. No wildcard key or invented empty
+  group is accepted in the record plane.
+- `read.owned-wildcard.closure` is an **in-process self-certified** lifecycle
+  observation. The source descriptor and a live wildcard-only Blocks Link are
+  observed before the controlled view hides the target. Resource/property/link
+  variants and collections must hide the target, source and Link with uniform
+  non-disclosure bytes; the unrelated control's complete body stays unchanged.
+  This does not establish a packaged production authorization engine.
+- The bdpbd ownership rows alone are N/A. The applicable
+  `read.resource.external-endpoint` plan also reads the complete Type inventory,
+  its descriptors and every Bead record, verifying no ownership declaration or
+  `ownedLinks` member. A missing capability alone is not the observed absence
+  witness; an incomplete inventory is refused.
+- `read.numeric-model.declared-token-model` applies to bdpbd. The fixture binds
+  the exact [existing local discipline](../../adapter-bd/README.md), its named
+  binary64/ECMAScript number model and source pointer; tests prevent drift
+  between that declaration and documentation. Independent literal-preimage
+  tests validate the observer, which compares hashes with actual public Bead
+  and Link revisions and requires numeric values plus both Resource kinds.
+  Actual target samples use the supported native projection's numeric fields;
+  serializer unit vectors do not claim native bd supports arbitrary decimals
+  or write admission. No token algorithm, full-JCS promise, discovery member
+  or evidence constant changes. bdptest's fixture-authored opaque discipline
+  is [declared separately](../../adapter-in-memory/README.md) and does not meet
+  this row's content-derived applicability condition.
+
+Both harness digests bind the fixed-order observer support list in
+`scripts/read-harness-bindings.ts`, including the successor observer, client
+dispatcher and controlled publisher. Matrix digests additionally bind their
+entry and server composition. These are source-role provenance, not a claim
+that the gate independently recomputes every transitive installed dependency.
+
+The new fixtures, catalog, manifest, observer code and packaged reference data
+must precede the recorded clean implementation head. Run both app matrices,
+fixture parity, observer regressions, build/typecheck and applicable repository
+gates, then generate genuine packaged observations and the exact in-process
+segments under the existing generator. The driver's parallel 27-name seal and
+current-input gate integration, final review and successor evidence commit
+remain required; this document grants no claim from test-only admission.
+
 The checked-in runner still fails closed when a plan's required capability is
 absent, an observation is incomplete, or target provenance cannot be proved.
 Canonical schema and validator-implementation binding, domain-complete runtime

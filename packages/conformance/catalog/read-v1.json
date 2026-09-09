@@ -610,6 +610,159 @@
           "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `unknown` — that is carried per version and never attested"
         }
       ]
+    },
+    {
+      "id": "read.owned-wildcard.declaration",
+      "title": "A Bead Type Descriptor may own every outgoing Link Type through the wildcard entry",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "`ownsOutgoing` MAY also contain the **wildcard entry** `\"*\"`, whose value is exactly `{ max }`: it declares every outgoing Link Type not listed explicitly as owned."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The wildcard MAY be the only entry."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "The key MAY also be the wildcard `\"*\"`, whose value is exactly `{ max }`: it owns every outgoing Link Type not named explicitly, its `max` bounds the whole owned set, and explicit entries take precedence for the types they name, under [Owned Links](#owned-links). A Link Type Descriptor must not carry `ownsOutgoing`."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "A Bead Type's `ownsOutgoing` MAY carry the wildcard entry `\"*\"` — exactly `{ max }` — owning every outgoing Link Type not named explicitly"
+        }
+      ]
+    },
+    {
+      "id": "read.owned-wildcard.max-required",
+      "title": "The wildcard entry is exactly { max }",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Each declaration MUST carry `max`, the largest owned set the Type permits."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The wildcard entry carries no `label`: it names no Link Type."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "Descriptor objects and endpoint-constraint objects are closed: no members are allowed except those defined above. An `ownsOutgoing` entry is closed the same way: `{ label?, max }` under a Link Type URL, `{ max }` under the wildcard."
+        }
+      ]
+    },
+    {
+      "id": "read.owned-wildcard.explicit-max-bounded",
+      "title": "An explicitly declared entry's max does not exceed the wildcard's max in the same descriptor",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "An explicitly declared entry's `max` therefore MUST NOT exceed the wildcard's `max` in the same descriptor — the excess could never be reached — and a descriptor that declares one is invalid: descriptor validation refuses it, and the Type is not installed."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "That rule compares two members, which the schema bundle cannot express; it is a descriptor-validation rule beyond the schema, and a descriptor the bundle accepts can still fail it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#types-and-type-descriptors",
+          "selectedText": "An explicitly declared entry's `max` MUST NOT exceed the wildcard's `max` in the same descriptor, since the wildcard's `max` bounds the whole owned set: such a descriptor is invalid and is not installed — a descriptor-validation rule beyond the schema bundle, which cannot compare the two members — under [Owned Links](#owned-links)."
+        }
+      ]
+    },
+    {
+      "id": "read.owned-wildcard.present-entries",
+      "title": "A wildcard owner's ownedLinks carries present types plus empty explicit entries, never the wildcard",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The member carries one entry for each owned Link Type actually present on the Bead — at least one owned Link of that type exists — plus an entry, possibly empty, for each explicitly declared Link Type; a Link Type owned only through the wildcard has an entry exactly when an owned Link of that type is present."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The wildcard `\"*\"` is never a key: the member is keyed by Link Type URL alone."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "The member is present, possibly empty, for every Bead whose Type carries `ownsOutgoing`, and absent for Beads whose Type owns nothing."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#resource-records",
+          "selectedText": "A Bead whose Type owns outgoing Link Types additionally carries its `ownedLinks` member — one entry per owned Link Type present on the Bead and one, possibly empty, per explicitly declared Link Type, keyed by the Link Type URL and never by the wildcard `\"*\"`, valued by the owned Links' complete records in ascending code-unit order of their canonical `id`s — on every record read; the member is absent for Beads whose Type owns nothing."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "the `ownedLinks` member of such a Bead MUST carry one entry per owned Link Type present plus an empty entry per explicitly declared type, keyed by Link Type URL and never by `\"*\"`."
+        }
+      ]
+    },
+    {
+      "id": "read.owned-wildcard.closure",
+      "title": "A view is closed over wildcard-owned Links",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Because the member is covered, it is never authorization-filtered. An Authorization View that projects a Bead projects its owned Links and their in-Scope target Beads: a view is closed over owned Links, and hiding a Bead from a view therefore requires hiding every Bead that owns a Link to it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "For a wildcard owner the consequence is stated plainly, because it is the price of inline, revision-covered references: such a Bead owns every outgoing Link it makes, so a Bead that owns a Link to a Bead hidden from a view is hidden from that view too — a Memory that cites a hidden Bead is hidden with it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#authorization-views",
+          "selectedText": "A visible Bead need not expose hidden incident Links — a latitude confined to incoming and unowned Links: a visible source's owned Links, covered by its revision, are never withheld, and the view includes their in-Scope targets, under [Owned Links](#owned-links)."
+        }
+      ]
+    },
+    {
+      "id": "read.numeric-model.declared-token-model",
+      "title": "A content-derived revision-token scheme declares its number model by name",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "A revision-token scheme that derives tokens from content MUST declare, by name, the number model it serializes under: `sha256-jcs` means RFC 8785 serialization with numbers as binary64 under its Section 3.2.2.3, and is exact over admitted values by construction; a scheme over exact decimals is a different scheme with a different name."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "On every admitted value the exact-decimal model and the binary64 model agree by construction."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "a content-derived revision-token scheme MUST declare its number model by name, and `sha256-jcs` names RFC 8785 serialization with numbers as binary64."
+        }
+      ]
     }
   ]
 }

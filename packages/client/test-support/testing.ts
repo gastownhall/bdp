@@ -1,3 +1,4 @@
+import { observeSuccessorRead } from "./successor-read.js";
 import type { AbsoluteHttpUrl, ReadDiscovery } from "@bdp/protocol";
 import { referenceRevision, referenceUri, parseCanonicalTypeId } from "@bdp/protocol";
 
@@ -64,6 +65,15 @@ export function createBdpClientScenarioActionExecutor(
   return async (execution) => {
     if (execution.family !== "client") throw new Error("unsupported client scenario family");
     switch (execution.operation) {
+      case "wildcard-descriptors":
+      case "wildcard-present":
+      case "ownership-inventory":
+      case "numeric-token-model":
+        return observeSuccessorRead(
+          execution,
+          fetchImplementation,
+          externalTypeDescriptorFetchImplementation,
+        );
       case "unsupported-discovery":
         return observeUnsupportedDiscovery(execution);
       case "resource-without-type-resolution":
@@ -232,6 +242,8 @@ async function observeExternalTypeDescriptors(
   const controlledIds = new Set([
     "https://work.example/types/task",
     "https://work.example/types/blocks",
+    "https://work.example/types/decision",
+    "https://work.example/types/feature",
   ]);
   if (ids.some((id) => !controlledIds.has(id)))
     throw new Error("external-type-descriptors accepts only the controlled work.example Type IDs");

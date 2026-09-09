@@ -132,7 +132,18 @@
         "uri": "external:beads:mol-run-assignee",
         "revision": "  Cited-9F2c — α/β (draft) Å\t"
       },
-      "properties": {}
+      "properties": {
+        "label": "opaque authored label",
+        "source": {
+          "ownedLinks": {
+            "*": ["opaque authored value"]
+          }
+        }
+      },
+      "attribution": {
+        "principal": "agent:reference-wildcard",
+        "status": "claimed"
+      }
     },
     {
       "localId": "links/external-source",
@@ -191,7 +202,12 @@
       "id": "https://work.example/types/feature",
       "name": "Feature",
       "describes": "bead",
-      "conformsTo": ["https://work.example/types/work-item"]
+      "conformsTo": ["https://work.example/types/work-item"],
+      "ownsOutgoing": {
+        "*": {
+          "max": 8
+        }
+      }
     },
     {
       "id": "https://work.example/types/chore",
@@ -211,9 +227,15 @@
       "describes": "bead",
       "conformsTo": [],
       "ownsOutgoing": {
+        "*": {
+          "max": 8
+        },
         "https://work.example/types/cites": {
           "label": "cites",
           "max": 8
+        },
+        "https://work.example/types/relates": {
+          "max": 1
         }
       }
     },
