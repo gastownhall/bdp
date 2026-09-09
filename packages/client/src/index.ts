@@ -2282,6 +2282,8 @@ function validateBeadRecord(record: BeadRecord, scope: AbsoluteHttpUrl): BeadRec
     throw new ReadResponseValidationError("invalid Bead ID");
   if (record.links !== undefined)
     throw new ReadResponseValidationError("unexpected embedded Links");
+  for (const links of Object.values(record.ownedLinks ?? {}))
+    for (const link of links) validateLinkRecord(link, scope);
   return record;
 }
 

@@ -619,6 +619,38 @@ describe("BdpClient", () => {
   });
 
   it.each([
+    ["foreign Link ID", validLink({ id: "https://outside.example/links/x" })],
+    ["noncanonical local target", validLink({ target: `${BEADS}%61` })],
+  ] as const)(
+    "applies the top-level Scope boundary to an inline owned Link with %s",
+    async (_label, link) => {
+      const bead = { ...validBead(), ownedLinks: { [LINK_TYPE]: [link] } };
+      for (const [request, body] of [
+        [{ kind: "resource", resource: "bead", id: `${BEADS}a` }, bead],
+        [
+          { kind: "collection", collection: "beads" },
+          { items: [bead], next: null },
+        ],
+        [
+          { kind: "collection", collection: "links" },
+          { items: [link], next: null },
+        ],
+      ] as const) {
+        const client = new BdpClient({ scope: SCOPE, transport: new RecordingTransport(body) });
+        try {
+          await expect(client.perform(request)).resolves.toMatchObject({
+            code: "temporarily-unavailable",
+            status: 503,
+            detail: "the server returned a structurally invalid Read response",
+          });
+        } finally {
+          await client.close();
+        }
+      }
+    },
+  );
+
+  it.each([
     ["mismatched Link Type", [validLink({ type: TASK_TYPE })]],
     ["different source Bead", [validLink({ source: `${BEADS}b` })]],
     ["descending IDs", [validLink({ id: `${LINKS}z` }), validLink({ id: `${LINKS}a` })]],

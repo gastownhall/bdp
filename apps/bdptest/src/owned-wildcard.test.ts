@@ -208,9 +208,50 @@ describe("wildcard ownership through public Read", () => {
       }
     } finally {
       withdrawEvidence();
-      expect(serverErrors).toEqual([]);
     }
+    expect(serverErrors).toEqual([]);
   });
+
+  it("keeps wildcard record bytes stable when fixture Link order changes", async () => {
+    const fixture = wildcardFixture(4, 2);
+    fixture.links.push({
+      localId: "links/extra",
+      type: absent,
+      revision: "extra-1",
+      source: "beads/a",
+      target: "beads/b",
+      properties: {},
+    });
+    const forward = createPortableReferenceFixturePort(scope, fixture);
+    const reverse = createPortableReferenceFixturePort(scope, {
+      ...fixture,
+      links: [...fixture.links].reverse(),
+    });
+    const request = { kind: "resource", resource: "bead", id: `${scope}beads/a` } as const;
+    const options = { signal: new AbortController().signal };
+    const first = await forward.perform(request, options);
+    const second = await reverse.perform(request, options);
+    expect(first.kind).toBe("success");
+    expect(second.kind).toBe("success");
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+  });
+
+  it.each([memory, "https://scope.example/acme/types/not-declared"])(
+    "rejects an explicit owned declaration naming non-Link Type %s",
+    (type) => {
+      const fixture = wildcardFixture();
+      expect(() =>
+        createPortableReferenceFixturePort(scope, {
+          ...fixture,
+          typeDescriptors: fixture.typeDescriptors.map((descriptor) =>
+            descriptor.id === memory
+              ? { ...descriptor, ownsOutgoing: { "*": { max: 3 }, [type]: { max: 1 } } }
+              : descriptor,
+          ),
+        }),
+      ).toThrow("fixture owned Link Type must name a declared link Type");
+    },
+  );
 
   it("counts explicit and wildcard-covered links together against the whole-set max", () => {
     expect(() => createPortableReferenceFixturePort(scope, wildcardFixture(2, 2))).toThrow(

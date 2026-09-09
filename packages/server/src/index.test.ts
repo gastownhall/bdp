@@ -1,5 +1,6 @@
 import {
   type AbsoluteHttpUrl,
+  ProtocolArtifactValidationError,
   type ReadBodyFor,
   type ReadProblem,
   type ReadRequest,
@@ -538,6 +539,51 @@ describe("Read server contract", () => {
     });
     await expect(server.perform({ kind: "collection", collection: "beads" })).rejects.toThrow();
   });
+
+  it.each([
+    ["foreign Link ID", { id: "https://outside.example/links/x" }],
+    ["noncanonical local target", { target: `${SCOPE}beads/%61` }],
+  ] as const)(
+    "rejects inline owned Links that violate the ScopePort boundary: %s",
+    async (_label, overrides) => {
+      const link = {
+        id: `${SCOPE}links/x`,
+        type: "https://work.example/types/blocks",
+        revision: "1",
+        source: `${SCOPE}beads/a`,
+        target: `${SCOPE}beads/b`,
+        properties: {},
+        ...overrides,
+      };
+      const bead = {
+        id: `${SCOPE}beads/a`,
+        type: "https://work.example/types/task",
+        revision: "1",
+        properties: {},
+        ownedLinks: { [link.type]: [link] },
+      };
+      for (const [operation, body] of [
+        [{ kind: "resource", resource: "bead", id: bead.id }, bead],
+        [
+          { kind: "collection", collection: "beads" },
+          { items: [bead], next: null },
+        ],
+        [
+          { kind: "collection", collection: "links" },
+          { items: [link], next: null },
+        ],
+      ] as const) {
+        const server = readServer({ perform: async () => scopePortSuccess(body as never) });
+        try {
+          await expect(server.perform(operation)).rejects.toBeInstanceOf(
+            ProtocolArtifactValidationError,
+          );
+        } finally {
+          await server.close();
+        }
+      }
+    },
+  );
 
   it("enforces request identity and incident direction at the ScopePort seam", async () => {
     const beadId = `${SCOPE}beads/a`;

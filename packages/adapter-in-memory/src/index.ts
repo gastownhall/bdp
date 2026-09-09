@@ -313,7 +313,14 @@ function snapshotPreparedReferenceFixture(
       if (owned["*"] !== undefined && total > owned["*"].max)
         throw new Error(`owned Links for ${bead.id} exceed the whole-set wildcard bound`);
       const ownedLinks: Record<string, readonly LinkRecord[]> = {};
-      for (const [type, records] of groups) {
+      // Stabilize wildcard key order without changing historical explicit-only
+      // fixture serialization. Ordering object keys is not a protocol rule.
+      const types =
+        owned["*"] === undefined
+          ? [...groups.keys()]
+          : [...groups.keys()].sort(compareCanonicalIds);
+      for (const type of types) {
+        const records = groups.get(type) as LinkRecord[];
         const declaration = owned[type];
         if (declaration !== undefined && records.length > declaration.max)
           throw new Error(`owned Links for ${bead.id} exceed the declared bound of ${type}`);
@@ -576,6 +583,15 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
   );
   const beadsByLocalId = new Map(beadsWithLocalIds.map(({ localId, record }) => [localId, record]));
   const typeById = new Map(types.map((type) => [type.id, type]));
+  for (const descriptor of typeDescriptors) {
+    if (descriptor.describes !== "bead") continue;
+    for (const type of Object.keys(descriptor.ownsOutgoing ?? {})) {
+      if (type !== "*" && typeById.get(type)?.describes !== "link")
+        throw new ProtocolArtifactValidationError(
+          "fixture owned Link Type must name a declared link Type",
+        );
+    }
+  }
   for (const { record } of beadsWithLocalIds) {
     if (typeById.get(record.type)?.describes !== "bead")
       throw new Error("fixture bead type must name a declared bead Type");

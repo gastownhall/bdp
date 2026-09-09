@@ -22,11 +22,13 @@ empty groups. Negative cases exercise descriptor shape, bounds and closure.
 No write endpoint, schema, sealed artifact, catalog, conformance manifest or production
 reference-domain fixture changes.
 
-Validation: 76 focused tests passed, as did Node 24.16.0 typecheck, lint, format
+Historical validation of the initial implementation (before the corrections
+below): 76 focused tests passed, as did Node 24.16.0 typecheck, lint, format
 and dependency-boundary checks. Build passed. All 1,291 tests in 47 files passed under the pinned Node
 24.16.0, including packaged executable checks (35.22 seconds). An earlier
 run under the shell default Node 24.19.0 also passed; the pinned run is the
-reported gate. Independent council disposition remains pending. No
+reported historical gate. These 1,291-test counts do not describe the current
+correction head. Independent council disposition remains pending. No
 conformance evidence was generated.
 
 Integration remains a separately reviewed step. #24's named projection and
@@ -134,3 +136,84 @@ The prior 1,292-test result is historical. Independent review remains owed
 on the completed correction head. Claude returned a session-limit response
 on the subsequent History review, with reset at 21:30 Buenos Aires; no
 unavailable seat counts as clean and no usage reset was consumed.
+
+
+## Second Claude review and Scope-boundary correction
+
+Claude reviewed the frozen `68fc8af` implementation delta from #22 and
+reported 0 Critical, 1 High, 0 Medium and 4 Low without executing checks.
+This correction was prepared in a separate worktree based on that head.
+All preceding test counts describe the heads named in their paragraphs.
+
+1. **High — inline Links bypass client Scope validation: accepted,
+   pre-existing.** The client checked inline record shape and coherence but
+   did not apply the Scope rules used for first-class Links. Two new client
+   cases demonstrated acceptance of a foreign Link ID and a noncanonical
+   Scope-claiming target before the fix. Bead validation now calls the existing
+   Link validator for every owned record; no duplicate URI logic was added.
+   Singleton and collection Bead responses and the equivalent Link collection
+   now reject both cases as the structured invalid-response Problem.
+2. **Low — wildcard key order depends on fixture Link input order: accepted
+   as a deterministic implementation improvement, not a protocol defect.**
+   Object key order is not normative. Wildcard owners now emit concrete keys
+   in code-unit order; explicit-only owners retain their historical declaration
+   order. A fixture with two wildcard-discovered Types produces identical
+   serialized Bead records when its Link array is reversed. The production
+   reference cohort has no wildcard declarations and its ordering is unchanged.
+3. **Low — declared ownership keys may name non-Link Types: accepted,
+   pre-existing fixture validation gap.** The spec defines ownership per
+   (Bead Type, Link Type) pair and entries keyed by Link Type URL. The portable
+   fixture already requires all record Types to be declared in its inventory.
+   It now checks explicit ownership keys against that same closed inventory,
+   skipping only the wildcard. Tests reject both a Bead Type key and a missing
+   Type key. This is fixture admission, not a new global Type-fetch policy.
+4. **Low — error-array assertion in finally can mask a primary failure:
+   accepted.** The assertion now runs after the cleanup try/finally succeeds.
+   A primary test failure propagates without being replaced by that assertion;
+   a successful request/cleanup path still checks recorded server errors.
+5. **Low — stale headline counts: accepted.** The initial 76/1,291 counts are
+   explicitly historical. The 277/1,296 counts describe `68fc8af`; the current
+   correction's focused result is stated below, with no transferred full-suite
+   or council clearance.
+
+The additional correction passed 308 focused tests in four files (229 client,
+43 parser, 26 existing adapter, 10 public HTTP/fixture). Typecheck, lint,
+format, dependency boundaries and diff checks also passed under Node 24.16.0.
+The two Scope-boundary
+cases were observed failing before the client correction. No schema, production
+fixture, catalog, evidence, sealed definition, runtime write path, or pending
+protocol decision changed. Full gates and independent review remain required
+on the completed correction head. The deferred executable ownership-pair
+selection and reseal obligations above remain outstanding.
+
+
+### Server counterpart (same correction worktree)
+
+The driver authorized a bounded check of the analogous ScopePort seam.
+`validateServerBead` also omitted its existing first-class Link validator for
+inline owned records. This is a pre-existing Read boundary defect, independent
+of wildcard declaration. Two server regressions first demonstrated that a
+foreign Link ID and a noncanonical local target passed through unchanged.
+Bead validation now invokes `validateServerLink` for every inline record,
+using the existing Scope/endpoint rules and typed validation error. The tests
+exercise singleton and collection Bead reads and the equivalent Link collection;
+invalid adapter data remains a local ScopePort contract failure, not a new
+protocol problem or authorization policy. No other server behavior was added.
+
+The combined correction passed 422 tests in seven files under Node 24.16.0:
+229 client, 43 parser, 26 adapter, 10 public wildcard HTTP/fixture, 68 server
+contract, 31 HTTP handler, and 15 Node listener tests. Typecheck, lint, format,
+dependency boundaries and diff checks also passed. Both server regressions
+were observed failing before the fix. The earlier 308 count predates this
+server addition; full-suite/build and independent review remain the driver's
+next gates on the eventual committed head.
+
+
+Root full validation: 1,302 tests passed across 47 files (one skipped,
+35.36 seconds), and build plus the historical 74-row Read evidence verifier
+passed. The first full run had one failure in the unchanged adapter-bd
+process-cleanup test: its 500 ms child deadline elapsed without a PID file.
+That test passed in isolation, then the full suite passed without source
+changes. This transient failure remains recorded rather than erased by the
+rerun. No new conformance observations or successor reseal are claimed.
+A fresh independent council on this correction remains pending.

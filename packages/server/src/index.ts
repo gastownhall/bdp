@@ -2298,6 +2298,8 @@ function validateServerBead(bead: BeadRecord, scope: AbsoluteHttpUrl): void {
   validateServerLocalResourceId(bead.id, scope, "bead");
   if (bead.links !== undefined)
     throw new ProtocolArtifactValidationError("ScopePort returned unexpected embedded Links");
+  for (const links of Object.values(bead.ownedLinks ?? {}))
+    for (const link of links) validateServerLink(link, scope);
 }
 
 function validateServerLink(link: LinkRecord, scope: AbsoluteHttpUrl): void {
