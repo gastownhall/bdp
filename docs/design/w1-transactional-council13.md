@@ -297,3 +297,49 @@ ordinal correction above resolves that Low. Gemini's alleged duplicate schema
 definitions and sixth receipt branch were disproved against its exact staged
 bytes: no duplicate keys, 138 definitions and five receipt branches. The new
 ACK materialization still requires its own frozen-head independent review.
+
+
+## Operator-ACK head review: alias request spelling correction
+
+Codex independently reviewed frozen `267f79d44d5883f70b0310378719ae0303b5445f`
+and reported **0 Critical, 0 High, 1 Medium, 0 Low**. The Medium is verified:
+the new alias fixture supplied release/latest, while the unchanged Alias
+targets law resolves the supplied reference directly against the canonical
+Scope and requires it to lie beneath alias/. The correspondence helper
+incorrectly inserted that root and concealed the fixture error.
+
+All seven alias requests now use alias/release/latest, including put/delete,
+identical retries, expired retries, and sequence replay. The helper resolves
+the supplied spelling directly and rejects successful results whose subject
+is outside the Scope's alias root. The sequence replay illustration now goes
+through that correspondence check too. Positive probes cover local and
+absolute alias references for both operations; negative probes cover bare,
+Bead-root, Link-root and other-Scope alias references. The valid-local probe
+failed against the original helper, then passed after correction. Negative
+batch-member probes now use valid alias spellings so they continue to test
+the carrier exclusion. This changes no alias policy or error taxonomy: the
+wrong-root failure remains resource-not-found under the existing law.
+
+The current-inventory sentence in Open protocol question 5 also now says
+55 Transactional definitions, replacing its stale count of 52. The bundle
+remains 138 definitions, including the 83 inherited definitions; no schema
+was edited by this correction.
+
+Focused verification under Node 24.16.0: all 164 tests pass across
+Transactional wire, schema-bundle and Transactional catalog suites; typecheck,
+touched-file Biome checks and git diff --check pass. Strict Ajv compiles 138
+definitions and validates 274 tagged bodies with zero failures. Corpus counts
+remain 12 files, 11 exchange fixtures, 81 Transactional exchange bodies,
+four group examples, two narrated live schedules and eight digest vectors.
+No full-suite run or later-head council is claimed by these focused checks.
+T49/T63/T64 stay ruled; T62's observable comparison contract remains open;
+T50–T61 stay provisional. The reviewed head remained frozen while the fix
+was prepared in a separate detached worktree.
+
+
+Root validation of the alias-reference correction: 1,568 tests passed across
+48 files (one skipped, 35.25 seconds), plus build. The focused 164-test run,
+typecheck, lint/format, strict 138-definition compilation and 274-body
+validation also passed. Schema bytes and artifact counts are unchanged.
+A new independent review is still owed; the prior ACK head's Claude seat
+was still running when this correction was prepared in its separate tree.

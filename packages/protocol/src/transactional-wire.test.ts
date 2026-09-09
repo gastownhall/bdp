@@ -414,15 +414,83 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
     ])
       expect(compiledDefinition("#/$defs/receiptResult")(entry), JSON.stringify(entry)).toBe(false);
     for (const operation of [
-      { operation: "putAlias", alias: "release/latest", target: "beads/task-42" },
-      { operation: "deleteAlias", alias: "release/latest" },
+      { operation: "putAlias", alias: "alias/release/latest", target: "beads/task-42" },
+      { operation: "deleteAlias", alias: "alias/release/latest" },
     ])
       expect(compiledDefinition("#/$defs/batchOperation")(operation)).toBe(false);
     const fixture = fixtures.find(({ id }) => id === "transactional-aliases");
     for (const exchange of fixture?.exchanges ?? []) {
+      if (exchange.response.schema === "#/$defs/transactionalSequenceResponse") {
+        expectEntriesCorrespond(
+          exchange.response.body.results as JsonRecord[],
+          exchange.request.body?.operations as JsonRecord[],
+          exchange.id,
+          [],
+          fixture?.scope,
+        );
+      }
       if (exchange.response.schema !== "#/$defs/mutationReceipt") continue;
       expect(exchange.response.body.effectPosition).toBeUndefined();
       expect(exchange.response.body.requiredPosition).toBe("pos-49");
+    }
+  });
+
+  it("resolves successful alias requests directly against the Scope for local and absolute spellings", () => {
+    for (const kind of ["putAlias", "deleteAlias"]) {
+      for (const alias of ["alias/release/latest", `${SCOPE}alias/release/latest`]) {
+        const operation = {
+          operation: kind,
+          alias,
+          ...(kind === "putAlias" ? { target: "beads/task-42" } : {}),
+        };
+        const entry = {
+          operationIndex: 0,
+          outcome: kind === "putAlias" ? "created" : "deleted",
+          alias: `${SCOPE}alias/release/latest`,
+          ...(kind === "putAlias" ? { target: `${SCOPE}beads/task-42` } : {}),
+        };
+        expectValid(
+          kind === "putAlias" ? "#/$defs/sequencePutAlias" : "#/$defs/sequenceDeleteAlias",
+          { ...operation, idempotencyKey: "alias-spelling-probe" },
+          "valid alias request spelling",
+        );
+        expect(() =>
+          expectEntriesCorrespond([entry], [operation], "valid alias correspondence"),
+        ).not.toThrow();
+      }
+    }
+  });
+
+  it("rejects successful alias results for well-formed references outside the Scope's alias root", () => {
+    for (const kind of ["putAlias", "deleteAlias"]) {
+      for (const alias of [
+        "release/latest",
+        "beads/task-42",
+        `${SCOPE}links/latest`,
+        "https://beads.example/other/alias/latest",
+      ]) {
+        const operation = {
+          operation: kind,
+          alias,
+          ...(kind === "putAlias" ? { target: "beads/task-42" } : {}),
+        };
+        const entry = {
+          operationIndex: 0,
+          outcome: kind === "putAlias" ? "created" : "deleted",
+          alias: new URL(alias, SCOPE).href,
+          ...(kind === "putAlias" ? { target: `${SCOPE}beads/task-42` } : {}),
+        };
+        // These references are structurally valid; the successful exchange
+        // contradicts alias subject resolution, which is contextual.
+        expectValid(
+          kind === "putAlias" ? "#/$defs/sequencePutAlias" : "#/$defs/sequenceDeleteAlias",
+          { ...operation, idempotencyKey: "alias-root-probe" },
+          "shape-valid wrong-root request",
+        );
+        expect(() =>
+          expectEntriesCorrespond([entry], [operation], "wrong-root alias success"),
+        ).toThrow();
+      }
     }
   });
 
@@ -1460,7 +1528,9 @@ function expectEntriesCorrespond(
       continue;
     }
     if (kind === "putAlias" || kind === "deleteAlias") {
-      expect(entry.alias, entryLabel).toBe(new URL(`alias/${operation.alias}`, scope).href);
+      const alias = new URL(operation.alias as string, scope).href;
+      expect(alias.startsWith(`${scope}alias/`), `${entryLabel}: alias subject root`).toBe(true);
+      expect(entry.alias, entryLabel).toBe(alias);
       expect(entry.resource, entryLabel).toBeUndefined();
       expect(entry.deleted, entryLabel).toBeUndefined();
       if (kind === "putAlias") {

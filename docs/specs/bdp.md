@@ -5882,7 +5882,7 @@ protocol-identifier prefix, with the release-stability rule stated above.
    set-operation bodies, Mutation Receipts and their pages, the
    Transactional problem shapes, change groups, changefeed pages, snapshot
    manifests, and the Transactional discovery document and Operation
-   Directory — 52 definitions — pending review, with the judgments they
+   Directory — 55 definitions — pending review, with the judgments they
    rest on recorded in `docs/design/w1-transactional-packet.md` (T1–T48
    ruled or ratified; T49/T63/T64 ruled 2026-09-08; T62 direction selected,
    observable retry contract still open).
