@@ -25,5 +25,9 @@ waves are internal sequencing labels, not protocol concepts.
   and the testable contract-suite and Wave 2 freeze evidence milestones the
   eventual port must meet.
 
+- [Read erasure-pointer correction](./read-erasure-pointer-correction.md) records
+  the bounded hardening, review dispositions and historical evidence boundary;
+  prerequisite integration and a genuine successor cohort remain required.
+
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.
