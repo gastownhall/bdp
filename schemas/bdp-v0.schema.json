@@ -401,6 +401,21 @@
               "archivedAt": false
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "resource-erased"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "pointer": false
+            }
+          }
         }
       ]
     },
