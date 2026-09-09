@@ -6,7 +6,7 @@
   "exchanges": [
     {
       "id": "put-alias-receipt",
-      "condition": "The caller is authorized for this alias operation. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
+      "condition": "The caller is authorized for this alias operation. The target task-43 survives in snapshot-at-pos-47 and remains live through these locator-only changes. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
       "request": {
         "method": "POST",
         "target": "operations/put-alias",
@@ -18,7 +18,7 @@
         "schema": "#/$defs/putAliasRequest",
         "body": {
           "alias": "alias/release/latest",
-          "target": "beads/task-42"
+          "target": "beads/task-43"
         }
       },
       "response": {
@@ -45,7 +45,7 @@
               "operationIndex": 0,
               "outcome": "created",
               "alias": "https://beads.example/acme/alias/release/latest",
-              "target": "https://beads.example/acme/beads/task-42"
+              "target": "https://beads.example/acme/beads/task-43"
             }
           ],
           "next": null,
@@ -68,7 +68,7 @@
         "schema": "#/$defs/putAliasRequest",
         "body": {
           "alias": "alias/release/latest",
-          "target": "beads/task-42"
+          "target": "beads/task-43"
         }
       },
       "response": {
@@ -95,7 +95,7 @@
               "operationIndex": 0,
               "outcome": "created",
               "alias": "https://beads.example/acme/alias/release/latest",
-              "target": "https://beads.example/acme/beads/task-42"
+              "target": "https://beads.example/acme/beads/task-43"
             }
           ],
           "next": null,
@@ -107,7 +107,7 @@
     },
     {
       "id": "delete-alias-receipt",
-      "condition": "The caller is authorized for this alias operation. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
+      "condition": "The caller is authorized for this alias operation. The target task-43 survives in snapshot-at-pos-47 and remains live through these locator-only changes. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
       "request": {
         "method": "POST",
         "target": "operations/delete-alias",
@@ -216,7 +216,7 @@
         "schema": "#/$defs/putAliasRequest",
         "body": {
           "alias": "alias/release/latest",
-          "target": "beads/task-42"
+          "target": "beads/task-43"
         }
       },
       "response": {
@@ -300,7 +300,7 @@
               "operation": "putAlias",
               "idempotencyKey": "w1-put-alias",
               "alias": "alias/release/latest",
-              "target": "beads/task-42"
+              "target": "beads/task-43"
             }
           ]
         }
@@ -321,7 +321,7 @@
               "operationIndex": 0,
               "outcome": "created",
               "alias": "https://beads.example/acme/alias/release/latest",
-              "target": "https://beads.example/acme/beads/task-42"
+              "target": "https://beads.example/acme/beads/task-43"
             }
           ]
         }
@@ -344,7 +344,7 @@
               "operation": "putAlias",
               "idempotencyKey": "w1-put-alias",
               "alias": "alias/release/latest",
-              "target": "beads/task-42"
+              "target": "beads/task-43"
             }
           ]
         }

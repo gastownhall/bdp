@@ -404,3 +404,32 @@ catalog citation broken. Root checked the actual source: the exact sentence
 is present at lines1890–1893, with numeric refusal separately directed to
 Revisions; citation gates pass. That submitted High is disproved and requires
 no source edit. Neither older result clears this later follow-up.
+
+
+### Frozen 1c0d400 review — fixture context corrections
+
+Codex CLI reviewed the full branch at `1c0d4000d0eac2ddf96a6bd1c304b2e43945108e`
+and returned 0 Critical, 0 High, 2 Medium, 0 Low. Its read-only Node 24.16.0
+probes compiled 138 definitions, validated 276 tagged bodies, recomputed eight
+digest vectors, checked schema mirrors and the preserved 26 Read/83 inherited
+definition lexemes, and checked 121 catalog rows/twelve retirements. Gemini's
+snapshot review at that head returned zero findings; it did not execute the
+validation suite. Claude's full-branch review is still outstanding at this
+recording point. No full-panel clearance is claimed.
+
+Both Codex findings were independently confirmed and corrected in an isolated
+tree, preserving the frozen review target:
+
+| Finding | Disposition |
+| --- | --- |
+| M1, alias targets a deleted Bead | Accepted. The shared history deleted task-42 in the second batch. Alias requests and their retained/sequence results now consistently target task-43, which survives in snapshot-at-pos-47; the alias conditions explicitly preserve its liveness. A contextual assertion checks singleton and sequence targets against that surviving set and rejects the former task-42 target. |
+| M2, grant-change serving view | Accepted. receipt-7-after-grant-change now carries a distinct current `BDP-Authorization-View: view-after-grant`, while its body retains execution `authorizationView: view-a`. A regression checks the distinction and rejects restoring the stale response header. |
+
+An independent native review of these three changed fixture/test files found
+zero new findings. Root validation under Node 24.16.0: 149 Transactional wire
+tests and the full suite **1,572 passed / one skipped in 48 files** (35.30s),
+plus typecheck, lint, format, dependency boundaries, build and historical Read
+evidence verification (74 target-row instances). Schema mirrors, body counts,
+digest vectors, normative text and catalog membership are unchanged. These
+checks prove illustrated context consistency only, not live alias execution,
+Authorization View rotation or write conformance.

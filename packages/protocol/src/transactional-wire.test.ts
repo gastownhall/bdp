@@ -396,6 +396,59 @@ describe("Transactional wire fixtures", () => {
 });
 
 describe("operator-ruled alias and live-erasure illustrations", () => {
+  it("keeps successful alias targets in the narrated surviving Bead set", () => {
+    const fixture = fixtures.find(({ id }) => id === "transactional-aliases");
+    const snapshot = fixtures
+      .filter(({ scope }) => scope === fixture?.scope)
+      .flatMap(({ exchanges }) => exchanges)
+      .find(({ id }) => id === "snapshot-at-pos-47");
+    if (!fixture || !snapshot) throw new Error("missing alias or surviving snapshot illustration");
+    const liveIds = new Set(
+      ((snapshot.response.body.beads as JsonRecord).items as JsonRecord[]).map(({ id }) => id),
+    );
+    const expectLiveTarget = (target: string) =>
+      expect(liveIds.has(new URL(target, fixture.scope).href), "alias target survives").toBe(true);
+    const puts = fixture.exchanges.filter(
+      ({ request }) => request.target === "operations/put-alias",
+    );
+    expect(puts.length).toBeGreaterThan(0);
+    // The fixture narrates no Resource changes after this snapshot. These are
+    // pre-state consistency checks, not observations of an alias runtime.
+    for (const exchange of puts) expectLiveTarget(exchange.request.body?.target as string);
+    for (const exchange of fixture.exchanges) {
+      for (const operation of (exchange.request.body?.operations as JsonRecord[] | undefined) ??
+        []) {
+        if (operation.operation === "putAlias") expectLiveTarget(operation.target as string);
+      }
+    }
+    // This is the previously illustrated target, deleted by the second batch.
+    expect(() => expectLiveTarget("beads/task-42")).toThrow();
+  });
+
+  it("rotates the serving view after a grant change while preserving the receipt's execution view", () => {
+    const exchanges = fixtures.flatMap(({ exchanges }) => exchanges);
+    const original = exchanges.find(({ id }) => id === "batch-1-original");
+    const changed = exchanges.find(({ id }) => id === "receipt-7-after-grant-change");
+    if (!original || !changed) throw new Error("missing grant-change receipt illustration");
+    const expectCurrentView = (response: FixtureExchange["response"]) => {
+      expect(response.headers["bdp-authorization-view"]).toBeDefined();
+      expect(response.headers["bdp-authorization-view"]).not.toBe(
+        original.response.headers["bdp-authorization-view"],
+      );
+      expect(response.body.authorizationView).toBe(original.response.body.authorizationView);
+    };
+    expectCurrentView(changed.response);
+    expect(() =>
+      expectCurrentView({
+        ...changed.response,
+        headers: {
+          ...changed.response.headers,
+          "bdp-authorization-view": original.response.headers["bdp-authorization-view"] as string,
+        },
+      }),
+    ).toThrow();
+  });
+
   it("keeps alias results closed and excludes alias batch members", () => {
     const put = {
       operationIndex: 0,

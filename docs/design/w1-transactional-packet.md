@@ -7640,3 +7640,17 @@ focused 293 tests, typecheck/lint/format/boundaries, strict 138-definition /
 276-body validation and historical 74-row Read evidence verification passing.
 The new head still needs independent review. T62 observable comparison remains
 open, T50–T61 provisional, and no write-runtime conformance is claimed.
+
+
+### Fixture-context review follow-up
+
+The next correction after `1c0d400` changes no protocol or schema. Alias examples
+now target the surviving task-43 rather than the already-deleted task-42; the
+grant-change receipt uses a new current serving-view header while preserving
+its historical execution-view body. Two contextual regression checks detect
+the previous contradictions. Node 24.16.0 validation passes **1,572 tests in
+48 files** (one skipped), typecheck, lint, format, boundaries, build and the
+historical Read evidence verifier. Counts remain 138 definitions, 276 tagged
+bodies and 121 unclaimed Transactional rows. The council record carries the
+findings and bounded review status; no write conformance or final clearance
+is claimed.

@@ -186,7 +186,7 @@
     },
     {
       "id": "receipt-7-after-grant-change",
-      "condition": "Read later by the same principal after a grant change hid the Decision, before the erasure at pos-45. The view is closed over owned Links, so hiding dec-9 hides its owned cites Link as well: both entries are withheld, and the Task's entry — the Task is the Link's target, which closure does not hide — is served. The body's authorizationView still names the view the transaction executed under.",
+      "condition": "Read later by the same principal after a grant change hid the Decision, before the erasure at pos-45. The view is closed over owned Links, so hiding dec-9 hides its owned cites Link as well: both entries are withheld, and the Task's entry — the Task is the Link's target, which closure does not hide — is served. The body's authorizationView still names the view the transaction executed under. The response header names the new serving view-after-grant, distinct from the historical view-a in the receipt body.",
       "request": {
         "method": "GET",
         "target": "receipts/rcpt-7",
@@ -200,7 +200,7 @@
           "content-type": "application/json",
           "cache-control": "private, no-store",
           "bdp-scope-epoch": "epoch-1",
-          "bdp-authorization-view": "view-a",
+          "bdp-authorization-view": "view-after-grant",
           "bdp-scope-position": "pos-43"
         },
         "schema": "#/$defs/mutationReceipt",
