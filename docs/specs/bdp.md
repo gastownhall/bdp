@@ -1223,9 +1223,10 @@ as a first execution rather than a replay. Authorization View changes do
 not create a new namespace.
 
 Admission is one durable step. The authority records the key, the
-normalized request identity, the `pending` Mutation Receipt with its
-`transaction` identity, and its own exclusive ownership of the execution
-together or not at all, so that a crash leaves a key either unknown with
+normalized request identity or the durable unresolved dependency form below,
+the `pending` Mutation Receipt with its `transaction` identity, and its own
+exclusive ownership of the execution together or not at all, so that a crash
+leaves a key either unknown with
 nothing committed or bound to a receipt. Exactly one execution owns a
 pending receipt, and ownership is what a commit checks: the Resource state,
 the change group, and the terminal receipt commit atomically only while the
@@ -1245,6 +1246,66 @@ Every mutation route — each singleton target, the batch target, the
 sequence target, and every replica that accepts mutations — consults one
 authoritative key state for the namespace; two routes MUST NOT each treat
 the same key as unknown.
+
+When a sequence member depends on an authority-allocated creation whose
+identity is not yet committed, admission MUST durably reserve that member's
+key and pending receipt together with all other unknown member keys in the
+same atomic admission step. Its unresolved dependency form pins each reference
+to the particular creator attempt and operation slot, not merely to a reusable
+key or the spelling of a label. It preserves all other normalized semantic
+fields. This is internal admission state, not a new receipt representation,
+prospective durable Resource identity, or additional component of final
+semantic equality. Atomic admission does not combine the sequence's separately
+committing member executions into one transaction.
+
+When its creator commits, the authority atomically records the binding fact
+with the creator's effects and terminal disposition; a dependent resolves only
+against that pinned fact. A permanently failed creator resolves its reference
+to the existing unbound marker and the dependent retains its own
+`binding-unavailable` failure. The authority MUST preserve enough pinned
+resolution state to resolve or retract every dependent even if the creator's
+failed receipt is later forgotten and its key reused. A terminal dependent's
+normalized identity is immutable: a later creator attempt cannot rebind it.
+On a later presentation of the dependent, a successful new creator supplies
+an identity that conflicts with the retained unbound marker; another permanent
+creator failure normalizes to the same unbound marker when the remaining fields
+match. A pending or transient creator instead uses
+the nonwaiting sequence projection below. Binding, retraction, and commit
+check the same exclusive attempt ownership; a stale execution cannot resolve
+or commit a replacement attempt's work (T62 option 1, materialized 2026-09-09).
+
+A direct singleton or batch that encounters an unresolved reservation MUST
+reject an already provable semantic mismatch with `409` `idempotency-conflict`.
+Otherwise it MUST wait outside a database transaction for comparison to become
+possible, within one finite authority-selected comparison budget. This budget
+is separate from `transaction.duration`, which bounds admitted execution;
+it adds no discovery member. Once the reservation resolves, ordinary canonical
+comparison returns the existing receipt or the conflict. Until equality is
+established, this caller MUST NOT receive the owner's pending receipt, execute
+a second mutation, or retract the owner's reservation. If comparison remains
+unresolved at the deadline, return direct `503` `temporarily-unavailable` with
+`retry: after-delay`; the response SHOULD carry `Retry-After` when a useful
+delay is known. This timeout creates no receipt and leaves the owner's state
+intact. Current authorization and non-disclosure apply at response delivery;
+this is not a direct `idempotency-in-progress` or a minimum-position
+`catch-up-timeout` (T62a = A, ruled 2026-09-09).
+
+If that unresolved reservation is retracted while the explicit direct request
+is waiting, the request MAY compete for fresh admission in the same Scope
+epoch, under current authorization and within the same overall finite
+deadline. It executes only after winning a new reservation for its own request;
+it inherits neither the previous attempt's ownership, receipt identity, nor
+unresolved dependency form. Another winner returns it to ordinary comparison.
+Retraction or a change of owner MUST NOT reset the deadline. Deadline exhaustion
+returns the same direct `503` `temporarily-unavailable`, `retry: after-delay`,
+with the same `Retry-After` guidance. If the Scope epoch changes,
+the authority MUST stop this waiting admission attempt with that same `503`;
+the client must refresh Scope discovery and present a fresh request before
+competing in the new epoch. This permission applies only to a still-present
+explicit request that has not joined a proven-equal execution. It neither
+resumes an abandoned sequence tail nor changes the direct transient-abort
+response to an already admitted execution and its joined duplicates
+(T62b = A, ruled 2026-09-09).
 
 A `completed` receipt's compact form is retained under its key for the rest
 of the Scope epoch: the disposition and the allocated identities outlive the
@@ -1289,9 +1350,8 @@ result says `created`; its expired sequence projection omits `allocated`.
 `pointer` just as direct problems do (amended 2026-09-08, council 13).
 A member newly admitted by this carrier executes under its own pending
 receipt and exclusive ownership; the in-flight projection below applies only
-to an execution this carrier did not admit. This ownership distinction does
-not resolve the dependent-identity transition left open in T62 (amended
-2026-09-08, council 13). The projections are:
+to an execution this carrier did not admit. The unresolved admission and
+direct-carrier comparison rules above preserve this ownership distinction. The projections are:
 
 - a `completed` receipt with its detail available projects the receipt's
   one result entry in the shape of
@@ -1320,10 +1380,22 @@ not resolve the dependent-identity transition left open in T62 (amended
   whose creator was answered transiently in this request, fails
   transiently with `idempotency-in-progress`, consults no key state,
   executes nothing, retains nothing, and holds no key — a pending receipt
-  recorded for it at admission is retracted and its key unbound, as after
-  a transient abort — exactly as Read+Update releases the member's claim;
+  newly owned by this attempt and recorded for it at admission is retracted
+  and its key unbound, as after a transient abort — exactly as Read+Update
+  releases the member's claim;
   a member whose creator's receipt has expired resolves the binding
   through the receipt's `allocated` identity.
+
+These sequence projections take precedence over static semantic comparison:
+a member owned by another pending execution remains `idempotency-in-progress`,
+and a dependent of a pending or transient creator consults no dependent key,
+even if an immutable field could establish a mismatch. Renaming labels does
+not change this projection. When the creator provides a stable binding and the
+member becomes eligible for retained comparison, ordinary equality or conflict
+applies. A transient dependent releases only a reservation newly owned by this
+attempt; it MUST NOT retract another owner's receipt or retained outcome.
+Sequences do not acquire the direct carrier's comparison wait or retry after
+retraction (T55/T62, confirmed 2026-09-09).
 
 The withheld allocation form hides response data, not the retained creation
 binding. The authority resolves a dependent's `@name` internally from its
@@ -1335,9 +1407,9 @@ result or problem extensions. It is not skipped merely because the creator's
 identity is withheld. Every retry and every carrier re-authorizes disclosure
 against its serving view: a revoked view receives the withheld form; a newly
 granted view may receive `{ id, type }`. Neither response changes the retained
-identity or permits the creation to execute again. These disclosure rules do
-not choose the unresolved-admission or duplicate-response contract still
-pending under T62 (ruled 2026-09-08, T63).
+identity or permits the creation to execute again. These disclosure rules
+preserve the unresolved-admission and duplicate-response contract above without changing its semantic identity (T63; T62 materialized
+2026-09-09).
 
 The Read+Update dispositions therefore keep their meanings inside the
 sequence envelope and lose their direct forms: on a Transactional Scope a
@@ -3866,7 +3938,9 @@ and a request that fails one step never reaches the next:
    earlier request's outcome is unaffected; a key bound to the same
    normalized request is answered with its receipt, pending or terminal,
    under [Mutation Transactions](#mutation-transactions), and nothing
-   below is evaluated; and
+   below is evaluated. An unresolved reservation uses that section's bounded
+   comparison and same-epoch retraction rules; unproven equality never returns
+   a receipt or admits a second execution; and
 5. admission controls for an unknown key — an `operations` count above
    `transaction.operations` is `413` `limit-exceeded` with `limit`
    `transaction.operations`, a rate limit is `429` `rate-limited`, and an
@@ -5455,6 +5529,18 @@ therefore does not establish that retained version content has been
 reconciled with erasure obligations. Retaining such content from Event data
 does not exempt a store from the [Version erasure](#version-erasure) rules.
 
+A persistent Event consumer claiming protocol-backed erasure handling MUST
+integrate the existing Scope changefeed and snapshot erasure ledger as its
+supported acquisition and reconciliation route. It applies projected erasure
+records to its retained copies and, for this changefeed/ledger integration,
+follows the existing durable-checkpoint, disconnect, replay-expiry, and
+Authorization View recovery rules, including a fresh snapshot and its ledger when required. Event delivery alone is not that
+claim. This requirement scopes the supported erasure-handling claim; it neither
+prohibits other storage deployments nor exempts any store, cache, or replica
+from the every-store erasure duty. It adds no erasure Event, discovery member,
+or subscription API. History capability and lifecycle choices remain separate
+(T65 = A, ruled 2026-09-09).
+
 A client requests live delivery from the same Event Source and initial cursor
 by accepting Server-Sent Events:
 
@@ -5481,8 +5567,8 @@ SSE event. The server may also send SSE comment lines as keepalives and a
 `retry` field to suggest a reconnection delay.
 
 Native browser [`EventSource`](https://html.spec.whatwg.org/dev/server-sent-events.html)
-reconnects automatically and sends the most recently processed SSE `id` in the
-`Last-Event-ID` request header. BDP treats that header as the exclusive replay
+reconnects automatically and sends the last event ID recorded by the user agent
+in the `Last-Event-ID` request header. BDP treats that header as the exclusive replay
 cursor for a live request. Because the reconnect uses the original URL, a
 `Last-Event-ID` header overrides its original `after` query parameter. The
 query parameter selects an initial cursor. The standard header advances it on
@@ -5791,6 +5877,10 @@ profile-specific response vehicle.
 | `transactional.sequence.withheld-binding` | Withheld allocation preserves internal binding and independently authorizes every dependent |
 | `transactional.erasure.live-publication` | Only already admitted caught-up streams in views receiving the erasure cross its atomic publication fence |
 | `transactional.erasure.disconnect-race` | Reconnect uses the atomically applied durable checkpoint and resnapshots when it precedes erasure |
+| `transactional.idempotency.unresolved-admission` | Atomic all-member admission preserves unresolved creator attempts and immutable terminal bindings |
+| `transactional.idempotency.unresolved-comparison` | Direct unresolved comparison uses a separate finite wait, proven conflict or receipt, and retryable 503 at its deadline |
+| `transactional.idempotency.retraction-retry` | A waiting direct request may win fresh admission in the same epoch without inheriting ownership or resetting its deadline |
+| `transactional.erasure.persistent-event-consumer` | Persistent Event consumers claiming protocol-backed erasure handling integrate Scope changefeed and snapshot ledger recovery and cleanup |
 
 ### Open protocol questions
 
@@ -5907,8 +5997,10 @@ protocol-identifier prefix, with the release-stability rule stated above.
    snapshot manifests, and the Transactional discovery document and Operation
    Directory — 55 definitions — pending review, with the judgments they
    rest on recorded in `docs/design/w1-transactional-packet.md` (T1–T48
-   ruled or ratified; T49/T63/T64 ruled 2026-09-08; T62 direction selected,
-   observable retry contract still open).
+   ruled or ratified; T49/T63/T64 ruled 2026-09-08; T50–T56 and T58–T61
+   ratified 2026-09-09; T62a/b and T65 ruled and materialized 2026-09-09;
+   T57 selects existing-canonicalizer regression work after authorized
+   integration, still unimplemented here).
    Later-profile definitions gate their corresponding waves. This question
    closes when the complete reviewed bundle exists.
 6. **Read table recorded 2026-08-12; later-profile rows pending:** BDP uses a

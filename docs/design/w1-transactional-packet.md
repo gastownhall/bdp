@@ -1,9 +1,15 @@
 # W1 Transactional packet: wire artifacts for the Transactional profile
 
 Status: **applied 2026-09-08** — decisions T1–T48 and X1–X4 ruled or
-ratified; T49 option 1, T63(a) and T64(a) ACKed and materialized; T62
-direction selected with its observable retry contract still OPEN; T50–T61
-applied provisionally. See [Operator ACK materialization](#operator-ack-materialization--2026-09-08)
+ratified; T49 option 1, T63(a) and T64(a) ACKed and materialized; T50–T56
+recommendation A ratified 2026-09-09. T57 option B selects reuse of #24's existing
+canonicalizer after authorized integration; that follow-up is not implemented here.
+T58–T61 are ratified A; T62a/b and T65 are ruled A
+and materialized 2026-09-09. See the [latest ACK record](#ratification-and-materialization-of-t58-through-t65-2026-09-09)
+for the remaining integration and review work; RP1 is handled separately.
+See [T54–T57 ACK](#ratification-and-follow-up-for-t54-through-t57-2026-09-09),
+[T50–T53 ratification](#ratification-of-t50-through-t53-2026-09-09),
+[Operator ACK materialization](#operator-ack-materialization--2026-09-08)
 and the historical [Apply record (2026-09-08)](#apply-record-2026-09-08).
 The proposals below are kept as written for the record; where a ruling
 departed from them, the ruling is what landed. Originally: design packet,
@@ -5756,10 +5762,18 @@ inheritance as is and let a Transactional claim fail the retired rows
     "requiredProfile": "transactional",
     "requirements": [
       {
-        "source": "docs/design/w1-transactional-packet.md",
-        "anchor": "#41-proposed-normative-text",
-        "selectedText": "The authority records the key, the normalized request identity, the `pending` Mutation Receipt with its `transaction` identity, and its own exclusive ownership of the execution together or not at all"
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "The authority records the key, the normalized request identity or the durable unresolved dependency form below, the `pending` Mutation Receipt with its `transaction` identity, and its own exclusive ownership of the execution together or not at all"
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#batch-operation-target",
+        "selectedText": "From that point\nclient disconnection, a transport failure, and a bodyless `500` decide\nnothing"
       }
+    ],
+    "retires": [
+      "read-update.sequence.internal-fault"
     ]
   },
   {
@@ -5834,9 +5848,14 @@ inheritance as is and let a Transactional claim fail the retired rows
     "requiredProfile": "transactional",
     "requirements": [
       {
-        "source": "docs/design/w1-transactional-packet.md",
-        "anchor": "#41-proposed-normative-text",
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
         "selectedText": "projects as an `idempotency-in-progress` member problem, which MAY carry `retryAfter`; the sequence does not wait, executes nothing for the member, and retains nothing"
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "These sequence projections take precedence over static semantic comparison: a member owned by another pending execution remains `idempotency-in-progress`, and a dependent of a pending or transient creator consults no dependent key, even if an immutable field could establish a mismatch."
       }
     ]
   },
@@ -5855,14 +5874,19 @@ inheritance as is and let a Transactional claim fail the retired rows
   },
   {
     "id": "transactional.sequence.pending-creator",
-    "title": "A dependent whose creator is pending or transient fails transiently and claims no key",
+    "title": "A dependent whose creator is pending or transient fails transiently and holds no key",
     "kind": "normative",
     "requiredProfile": "transactional",
     "requirements": [
       {
-        "source": "docs/design/w1-transactional-packet.md",
-        "anchor": "#41-proposed-normative-text",
-        "selectedText": "a member whose creator's receipt is `pending`, or whose creator was answered transiently in this request, fails transiently with `idempotency-in-progress`, consults no key state, executes nothing, retains nothing, and claims no key"
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "a member whose creator's receipt is `pending`, or whose creator was answered transiently in this request, fails transiently with `idempotency-in-progress`, consults no key state, executes nothing, retains nothing, and holds no key"
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "A transient dependent releases only a reservation newly owned by this attempt; it MUST NOT retract another owner's receipt or retained outcome."
       }
     ]
   },
@@ -5894,6 +5918,100 @@ inheritance as is and let a Transactional claim fail the retired rows
         "source": "docs/design/w1-transactional-packet.md",
         "anchor": "#41-proposed-normative-text",
         "selectedText": "an entry whose version was erased projects as a `resource-erased` member problem to a caller authorized for the subject's retained history and as `forbidden` to every other caller"
+      }
+    ]
+  },
+  {
+    "id": "transactional.idempotency.unresolved-admission",
+    "title": "Atomic all-member admission preserves unresolved creator attempts and immutable terminal bindings",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "When a sequence member depends on an authority-allocated creation whose identity is not yet committed, admission MUST durably reserve that member's key and pending receipt together with all other unknown member keys in the same atomic admission step."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "Its unresolved dependency form pins each reference to the particular creator attempt and operation slot, not merely to a reusable key or the spelling of a label."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "The authority MUST preserve enough pinned resolution state to resolve or retract every dependent even if the creator's failed receipt is later forgotten and its key reused."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "A terminal dependent's normalized identity is immutable: a later creator attempt cannot rebind it."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "Atomic admission does not combine the sequence's separately committing member executions into one transaction."
+      }
+    ]
+  },
+  {
+    "id": "transactional.idempotency.unresolved-comparison",
+    "title": "Direct unresolved comparison uses a separate finite wait, proven conflict or receipt, and retryable 503 at its deadline",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "A direct singleton or batch that encounters an unresolved reservation MUST reject an already provable semantic mismatch with `409` `idempotency-conflict`."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "Otherwise it MUST wait outside a database transaction for comparison to become possible, within one finite authority-selected comparison budget."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "This budget is separate from `transaction.duration`, which bounds admitted execution;"
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "Until equality is established, this caller MUST NOT receive the owner's pending receipt, execute a second mutation, or retract the owner's reservation."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "If comparison remains unresolved at the deadline, return direct `503` `temporarily-unavailable` with `retry: after-delay`; the response SHOULD carry `Retry-After` when a useful delay is known."
+      }
+    ]
+  },
+  {
+    "id": "transactional.idempotency.retraction-retry",
+    "title": "A waiting direct request may win fresh admission in the same epoch without inheriting ownership or resetting its deadline",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "If that unresolved reservation is retracted while the explicit direct request is waiting, the request MAY compete for fresh admission in the same Scope epoch, under current authorization and within the same overall finite deadline."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "It executes only after winning a new reservation for its own request; it inherits neither the previous attempt's ownership, receipt identity, nor unresolved dependency form."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "Retraction or a change of owner MUST NOT reset the deadline."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
       }
     ]
   }
@@ -6620,6 +6738,29 @@ inheritance as is and let a Transactional claim fail the retired rows
         "selectedText": "A new epoch is a new namespace: a key first used under a prior epoch is unbound, and a retry under the new epoch executes as a new mutation, which a client that observes a changed `scopeEpoch` MUST treat as a first execution rather than a replay."
       }
     ]
+  },
+  {
+    "id": "transactional.erasure.persistent-event-consumer",
+    "title": "Persistent Event consumers claiming protocol-backed erasure handling integrate Scope changefeed and snapshot ledger recovery and cleanup",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#event-replay-and-live-observation",
+        "selectedText": "A persistent Event consumer claiming protocol-backed erasure handling MUST integrate the existing Scope changefeed and snapshot erasure ledger as its supported acquisition and reconciliation route."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#event-replay-and-live-observation",
+        "selectedText": "It applies projected erasure records to its retained copies and, for this changefeed/ledger integration, follows the existing durable-checkpoint, disconnect, replay-expiry, and Authorization View recovery rules, including a fresh snapshot and its ledger when required."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#event-replay-and-live-observation",
+        "selectedText": "This requirement scopes the supported erasure-handling claim; it neither prohibits other storage deployments nor exempts any store, cache, or replica from the every-store erasure duty."
+      }
+    ]
   }
 ]
 ```
@@ -6767,18 +6908,21 @@ An implementer who has this packet, ruled, still lacks:
 | X3 | One sentence: Read+Update refuses a concurrent duplicate because it has no receipt to hand it; Transactional joins; recommend for both. |
 | X4 | `source` beside `sourceRevision` on every owned-Link result in both profiles; recommend for both. **RULED A 2026-09-08; applied.** |
 | T49 | Alias targets on a Transactional Scope: locator-only singleton receipts; no Scope position, Events, replicated alias state or batch membership. **RULED option 1 and materialized 2026-09-08.** |
-| T50 | Receipt entries spell `deleted` as `deletedIdentity`; `erased` and the owned-Link `deleted` transition keep `resourceIdentity`. **Applied provisionally (apply record).** |
-| T51 | `alias-path-taken` joins the receipt context. **Applied provisionally.** |
-| T52 | `transactionalAdvertisedLimits` is a closed definition of its own carrying `validation` and rejecting `retention.idempotency`. **Applied provisionally.** |
-| T53 | `transactionalOperationDirectory` pins the twelve targets, the alias entries included. **Applied provisionally.** |
-| T54 | `binding-unavailable` is a receipt code for a sequence member's failed receipt. **Applied provisionally.** |
-| T55 | A transient dependent's admitted pending receipt is retracted and its key unbound. **Applied provisionally.** |
-| T56 | Number model references #23; council 13 restores T44's Unicode scalar and duplicate-member rules separately, with their syntax failure code. **Amended; ratification pending.** |
-| T57 | Digest vectors reproduced from recorded serializations; no RFC 8785 serializer added; gap recorded. **Applied provisionally.** |
-| T58 | T34's duration rule stated under *Mutation Receipt responses*. **Applied provisionally.** |
-| T59 | The snapshot example completed into a closed projection. **Applied provisionally.** |
-| T60 | The token-profile paragraph scoped to the Transactional profile. **Applied provisionally.** |
-| T61 | The council 12 one-element `results` sentence kept, the set-target clause appended. **Applied provisionally.** |
+| T50 | Receipt entries spell `deleted` as `deletedIdentity`; `erased` and the owned-Link `deleted` transition keep `resourceIdentity`, with contextual owned-Link source validation preserved. **RATIFIED A 2026-09-09.** |
+| T51 | `alias-path-taken` remains a receipt-context problem with status 409. **RATIFIED A 2026-09-09.** |
+| T52 | `transactionalAdvertisedLimits` remains separately closed on shared primitives, with common-group equality checks, carrying `validation` and rejecting `retention.idempotency`. **RATIFIED A 2026-09-09.** |
+| T53 | `transactionalOperationDirectory` pins twelve targets, including `putAlias` and `deleteAlias`. **RATIFIED A 2026-09-09.** |
+| T54 | A dependent's own retained failed receipt carries `binding-unavailable` / 400. **RATIFIED A 2026-09-09.** |
+| T55 | Retract only this attempt's newly owned transient-dependent reservation and pending receipt; preserve other owners and T62's retry choices. **RATIFIED A 2026-09-09.** |
+| T56 | Restored Unicode scalar / duplicate decoded-member rules use `malformed-request`; numeric failures remain #23's `validation-failed`. **RATIFIED amended A 2026-09-09.** |
+| T57 | Reuse #24's existing canonicalizer for actual canonicalization regression checks after authorized integration; preserve independent expected vectors and current checks. **SELECTED B 2026-09-09; follow-up not implemented here.** |
+| T58 | T34's duration rule stated under *Mutation Receipt responses*. **RATIFIED A 2026-09-09.** |
+| T59 | The snapshot example completed into a closed projection. **RATIFIED A 2026-09-09.** |
+| T60 | The token-profile paragraph scoped to the Transactional profile. **RATIFIED A 2026-09-09.** |
+| T61 | The council 12 one-element `results` sentence kept, the set-target clause appended. **RATIFIED A 2026-09-09.** |
+| T62a | Direct unresolved comparison waits within a separate finite budget; proven mismatch is 409, deadline is retryable 503, with no second execution or foreign-owner retraction. **RULED A; materialized 2026-09-09.** |
+| T62b | After retraction, the waiting explicit request may win fresh admission in the same epoch under the same deadline and current authorization; epoch change stops with 503 and requires fresh presentation. **RULED A; materialized 2026-09-09.** |
+| T65 | A persistent Event consumer claiming protocol-backed erasure handling integrates existing Scope changefeed and snapshot ledger recovery and retained-copy cleanup. **RULED A; materialized 2026-09-09.** |
 
 ## Appendix A. Paste set
 
@@ -7398,7 +7542,14 @@ Corrections to ruled sentences carry dated council-13 markers. T49 and
 T50–T61 remain open/provisional as recorded above; T56 now includes the
 restored string/object admission law. New T62 below is unapplied.
 
-### T62 — Sequence dependency identity at atomic admission (direction ACKed; observable contract OPEN)
+### T62 — Sequence dependency identity at atomic admission (RULED; materialized 2026-09-09)
+
+**Current status 2026-09-09.** Donna ACKed T62a = A and T62b = A, completing
+option 1's direct-carrier comparison/retry contract. The
+[latest ACK record](#ratification-and-materialization-of-t58-through-t65-2026-09-09)
+and *Mutation Transactions* now govern. Static sequence mismatch precedence
+is confirmation of the already ruled nonwaiting projection, not a third open
+choice. The following September 8 brief is preserved as historical context.
 
 **Status 2026-09-08.** Option 1 selected at the design level. The operator's
 condition that it be reasonably implementable with PostgreSQL is satisfied
@@ -7668,7 +7819,14 @@ findings and bounded review status; no write conformance or final clearance
 is claimed.
 
 
-### T65 — Persistent Event observer erasure acquisition (OPEN)
+### T65 — Persistent Event observer erasure acquisition (RULED A; materialized 2026-09-09)
+
+**Current status 2026-09-09.** Donna approved existing changefeed/snapshot-ledger
+integration for a persistent Event consumer claiming protocol-backed erasure
+handling, including recovery and retained-copy cleanup. The
+[latest ACK record](#ratification-and-materialization-of-t58-through-t65-2026-09-09)
+states the approved scope; History H12 stays separate. The following open-question
+brief records the prior state and is superseded by that selection.
 
 **Context.** An application observer may retain version content from an Event
 Source, which delivers no erasure records. The duty of every store, cache and
@@ -7711,3 +7869,131 @@ suite after build passes **1,573 tests in 48 files with zero skipped**, includin
 the packaged ready-CLI probe. Definitions, body counts, catalog membership and
 retirements remain unchanged. The council record distinguishes completed
 `1c0d400` reviews from the next required final-head review.
+
+### Ratification of T50 through T53 (2026-09-09)
+
+Donna explicitly ACKed recommendation A for each of T50, T51, T52 and T53.
+These recommendations were already applied provisionally; the ACK ratifies
+those existing choices without changing normative wording, schema, fixtures,
+catalog rows or runtime. Earlier provisional labels in dated apply/review
+records describe their historical state and are superseded for these four
+choices by this record and the current decision table.
+
+| Decision | Ratified disposition | Owning normative homes and preserved constraints |
+| --- | --- | --- |
+| T50 = A | Receipt `deleted` remains `{ resourceKind, resource: { id, type, revision } }`; `erased` and the owned-Link `deleted` transition remain bare `{ id, type, revision }`. | [Mutation Receipt responses](../specs/bdp.md#mutation-receipt-responses), [Mutation results](../specs/bdp.md#mutation-results), and [Events and Event Sources](../specs/bdp.md#events-and-event-sources); existing `deletedIdentity`, `resourceIdentity`, receipt-result and owned-Link-transition definitions. The `source` / `sourceRevision` pair remains applicable only to an operation on an owned Link. The bare erased marker does not gain a Resource-kind discriminator; contextual validation and its existing fixture probes remain required. |
+| T51 = A | Retain `alias-path-taken` in the receipt context, with 409 as the problem's would-be direct status. | [Problem details](../specs/bdp.md#problem-details), `receiptProblemCode` and its composed problem mapping. This does not change the HTTP status of a failed receipt or T49's already ruled alias receipt contract. |
+| T52 = A | Keep a separate closed `transactionalAdvertisedLimits` using shared primitives and common-group equality checks. | [Advertised limits](../specs/bdp.md#advertised-limits), the existing limits definition and its lockstep checks. `validation` remains included; `retention.idempotency` remains rejected. The sealed Read limits definition is not widened. |
+| T53 = A | Keep all twelve Operation Directory targets, including `putAlias` and `deleteAlias`. | [Scope discovery and human documentation](../specs/bdp.md#scope-discovery-and-human-documentation), `transactionalOperationDirectory`, and the existing twelve-target check. Directory inclusion does not add alias batch membership or alter T49's locator-only effects. |
+
+**Evidence consequences and remaining holds.** This is a status/documentation
+fold only. It changes no schema definition, wire body, manifest, catalog ID,
+retirement, evidence artifact or capability constant and supplies no new
+conformance observation. T54–T61 remain provisional. T62's selected direction
+still has two open retry choices, and T65's acquisition/assurance contract
+remains open. Their observable policies are not selected by these ACKs.
+Independent final review and the applicable integration/evidence work remain
+required; ratifying T50–T53 grants neither readiness nor merge permission.
+
+### Ratification and follow-up for T54 through T57 (2026-09-09)
+
+Donna subsequently ACKed T54–T57 as A / A / A / B. T54, T55 and the
+council-13-amended T56 are ratifications of their already applied choices.
+T57 is a selected follow-up, not an implementation completed by this ACK.
+This later record supersedes the preceding ratification record's remaining
+holds for T54–T57; earlier apply and review descriptions remain dated history.
+
+| Decision | Exact ACK disposition | Owning homes and consequences |
+| --- | --- | --- |
+| T54 = A | A dependent whose creator permanently fails receives its own retained failed receipt carrying `binding-unavailable` / 400. | [Mutation Transactions](../specs/bdp.md#mutation-transactions), [Problem details](../specs/bdp.md#problem-details), the existing receipt-code mapping and sequence projection. The 400 is the problem's would-be direct status; failed receipt HTTP handling is unchanged. |
+| T55 = A | Retract only this attempt's newly owned transient-dependent reservation and pending receipt, releasing its key; do not release another attempt's reservation or replace an existing retained outcome. | [Mutation Transactions](../specs/bdp.md#mutation-transactions) and the ruled ownership/retraction rules. T62's waiting, comparison and retry subchoices remain open; this ACK selects neither lazy admission nor a duplicate-response policy. |
+| T56 = amended A | Ratify the restored Unicode scalar rules for strings/member names and rejection of duplicate member names after escape decoding as `malformed-request`. Inadmissible numeric values remain #23's `validation-failed`. | [BDP JSON and HTTP Protocol](../specs/bdp.md#bdp-json-and-http-protocol), [Revisions](../specs/bdp.md#revisions), and [Problem details](../specs/bdp.md#problem-details). Preserve the existing string/object law and numeric separation, with no second numeric model or schema/runtime change in this fold. |
+| T57 = B | After authorized integration, use the existing #24 RFC 8785 canonicalizer for actual canonicalization regression checks. Preserve independent expected vectors and the current recorded-serialization/digest checks until then. | The existing [#24 canonicalizer](https://github.com/gastownhall/bdp/blob/87de37f673f83ec54989fdff4891bacc05730ea6/packages/conformance/src/canonical-json.ts), the Transactional digest-vector regression checks, and [Version erasure](../specs/bdp.md#version-erasure). This dated selection replaces the earlier hand-rolled option-B description with reuse of that existing implementation. No second serializer is authorized; no source or test change is made here. |
+
+**Implementation and evidence boundary.** T57 remains unimplemented on this
+branch: actual canonicalization recomputation must be added and reviewed after
+authorized integration of the existing serializer. Retain independent expected
+vectors as the oracle; calculating both expected and actual values with that
+serializer would not establish the intended regression check. Existing checks
+and their historical results remain intact, without claiming they already close
+this gap. This documentation fold changes no schema, fixture, catalog, runtime,
+manifest, evidence artifact or capability constant and adds no observation.
+
+**Remaining holds.** T58–T61 remain provisional; T62's two retry choices and
+T65 remain OPEN. RP1's separate coverage-check judgment remains separate and
+is not selected by the canonicalizer choice. Independent final review and the
+applicable integration/evidence work remain required. These ACKs grant no
+readiness or merge permission. Donna requests eight decisions per subsequent
+batch; that scheduling preference selects no remaining decision.
+
+
+### Ratification and materialization of T58 through T65 (2026-09-09)
+
+Donna ACKed all eight recommendations in the subsequent batch. This fold owns
+seven Transactional dispositions: T58–T61 = A, T62a = A, T62b = A, and T65 = A.
+RP1, the eighth item, is handled separately by the coordinator. This record
+supersedes earlier pending statuses for these decisions; historical proposal,
+apply and review records remain intact.
+
+| Decision | Exact disposition and owning normative home |
+| --- | --- |
+| T58 = A | Ratify the existing permanent `transaction.duration` failure sentence under [Mutation Receipt responses](../specs/bdp.md#mutation-receipt-responses), with its specification-backed catalog citation. |
+| T59 = A | Ratify the closed snapshot example containing `person-7` and `erasures`, under [Scope snapshots](../specs/bdp.md#scope-snapshots). No fixture is changed. |
+| T60 = A | Ratify the paragraph under [Event-ID and checkpoint character profile](../specs/bdp.md#event-id-and-checkpoint-character-profile), preserving idempotency keys in every write profile and adding no Transactional duty to Read. |
+| T61 = A | Ratify the Resource-singleton one-element `results` sentence and the separate set-result clause under [Operation Directory and singleton targets](../specs/bdp.md#operation-directory-and-singleton-targets). |
+| T62a = A | Materialize a finite authority-selected direct comparison wait, outside a database transaction and separate from `transaction.duration`; reject provable mismatch with 409, return the normal receipt/conflict after resolution, and return `503 temporarily-unavailable` / `after-delay` at the deadline, with useful `Retry-After`. No unproven equality, second execution, or retraction of another owner's state. |
+| T62b = A | Materialize fresh admission by the still-waiting explicit request after retraction, only in the same epoch, with current authorization, its own newly won reservation and the same overall deadline. No ownership/receipt inheritance or budget reset. Epoch change stops with 503 and requires fresh discovery/presentation; deadline exhaustion also returns 503. |
+| T65 = A | Under [Event replay and live observation](../specs/bdp.md#event-replay-and-live-observation), a persistent Event consumer claiming protocol-backed erasure handling integrates the existing Scope changefeed and snapshot erasure ledger, including disconnect/view recovery and retained-copy cleanup. No erasure Event, new discovery/subscription API, blanket storage prohibition, or every-store-law exemption. History H12 choices stay separate. |
+
+**T62 completion boundary.** [Mutation Transactions](../specs/bdp.md#mutation-transactions)
+now represents unresolved dependencies durably at atomic all-key admission,
+pins creator attempts through failure/key reuse, and fences binding, retraction,
+and commit. T62a/b fill the two formerly open direct-carrier choices. They do
+not reopen static mismatch precedence in a sequence: another owner's pending
+member stays nonwaiting, and a pending/transient creator prevents dependent-key
+comparison. The original admission carrier still executes each member separately;
+no database transaction spans the sequence. Internal attempt identity never
+becomes an extra component of terminal semantic equality.
+
+**Coverage and remaining work.** Four new unclaimed catalog obligations cover
+unresolved admission, bounded direct comparison, retraction retry, and the
+persistent Event consumer integration. The catalog now has **125 rows**, with
+the same twelve retirements. The specification table mirrors the full catalog;
+the seven affected maintained packet rows match their canonical catalog objects. Existing sequence/admission rows gain the precise relevant citations.
+No executable Transactional manifest, fixture realization, write runtime,
+concurrency proof, or conformance observation is added. The **138 definitions**,
+**276 tagged bodies**, **eight digest vectors**, and all schema/fixture bytes
+remain unchanged. T57 still requires regression work using #24's existing
+canonicalizer after authorized integration, with independent expected vectors.
+Independent review of this changed head, authorized integration, realization
+and evidence remain necessary; no readiness, capability or merge grant follows.
+
+**Frozen-head review disposition.** Claude's final read-only review of
+`e8d63e2` reported **0 Critical / 0 High / 0 Medium / 2 Low**, with **1,573
+passing tests and zero skipped**, **138 compiled definitions / 276 validated
+bodies**, and independent reproduction of all **eight JCS vectors**. Both Lows
+are accepted here: the current design index routes T65 to its newly ruled
+contract, and Event replay describes `Last-Event-ID` as the last event ID
+recorded by the user agent. The latter is browser cursor wording only; it adds
+no durable-application MUST for all Event Source consumers. Those frozen-head
+results do not validate or clear this changed head; the reviewer's independent
+serializer does not implement T57's repository regression follow-up.
+
+
+**Validation of this fold before publication (2026-09-09).** Node 24.16.0 and pnpm
+11.20.0, with offline frozen-lockfile installation, pass the focused
+Transactional wire/catalog suites (**158 tests**) and the post-build full suite
+(**1,574 tests in 48 files, zero skipped**), including the required local Read
+matrix with pinned `bd` 1.0.5 (Homebrew). Build, typecheck, lint, formatting,
+dependency boundaries, strict **138-definition / 276-body** validation, and
+`git diff --check` pass. The historical **74-row Read evidence** verifier passes
+with its existing constant and recorded cohort; no new evidence is produced.
+Both schema mirrors and every fixture file are byte-identical to `e8d63e2`.
+The only new test checks catalog/packet metadata consistency; none of these
+checks executes the newly ruled concurrency or persistent-consumer behavior.
+
+Parent inspection and an independent native source review of the six-file fold
+found **0 Critical / 0 High / 0 Medium / 0 Low**. The parent restored literal
+punctuation in unchanged catalog citations and proved the parsed JSON unchanged;
+the final nine-test catalog/citation suite and formatting check passed. This is
+bounded source review, not a three-seat council on the new head or runtime proof.

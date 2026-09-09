@@ -783,7 +783,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
-          "selectedText": "The authority records the key, the normalized request identity, the `pending` Mutation Receipt with its `transaction` identity, and its own exclusive ownership of the execution together or not at all"
+          "selectedText": "The authority records the key, the normalized request identity or the durable unresolved dependency form below, the `pending` Mutation Receipt with its `transaction` identity, and its own exclusive ownership of the execution together or not at all"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -868,6 +868,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
           "selectedText": "projects as an `idempotency-in-progress` member problem, which MAY carry `retryAfter`; the sequence does not wait, executes nothing for the member, and retains nothing"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "These sequence projections take precedence over static semantic comparison: a member owned by another pending execution remains `idempotency-in-progress`, and a dependent of a pending or transient creator consults no dependent key, even if an immutable field could establish a mismatch."
         }
       ]
     },
@@ -894,6 +899,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
           "selectedText": "a member whose creator's receipt is `pending`, or whose creator was answered transiently in this request, fails transiently with `idempotency-in-progress`, consults no key state, executes nothing, retains nothing, and holds no key"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A transient dependent releases only a reservation newly owned by this attempt; it MUST NOT retract another owner's receipt or retained outcome."
         }
       ]
     },
@@ -1748,6 +1758,123 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#version-erasure",
           "selectedText": "The client advances its durable checkpoint\nonly after atomically applying the complete group."
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.unresolved-admission",
+      "title": "Atomic all-member admission preserves unresolved creator attempts and immutable terminal bindings",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "When a sequence member depends on an authority-allocated creation whose identity is not yet committed, admission MUST durably reserve that member's key and pending receipt together with all other unknown member keys in the same atomic admission step."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Its unresolved dependency form pins each reference to the particular creator attempt and operation slot, not merely to a reusable key or the spelling of a label."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "The authority MUST preserve enough pinned resolution state to resolve or retract every dependent even if the creator's failed receipt is later forgotten and its key reused."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A terminal dependent's normalized identity is immutable: a later creator attempt cannot rebind it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Atomic admission does not combine the sequence's separately committing member executions into one transaction."
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.unresolved-comparison",
+      "title": "Direct unresolved comparison uses a separate finite wait, proven conflict or receipt, and retryable 503 at its deadline",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A direct singleton or batch that encounters an unresolved reservation MUST reject an already provable semantic mismatch with `409` `idempotency-conflict`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Otherwise it MUST wait outside a database transaction for comparison to become possible, within one finite authority-selected comparison budget."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "This budget is separate from `transaction.duration`, which bounds admitted execution;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Until equality is established, this caller MUST NOT receive the owner's pending receipt, execute a second mutation, or retract the owner's reservation."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If comparison remains unresolved at the deadline, return direct `503` `temporarily-unavailable` with `retry: after-delay`; the response SHOULD carry `Retry-After` when a useful delay is known."
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.retraction-retry",
+      "title": "A waiting direct request may win fresh admission in the same epoch without inheriting ownership or resetting its deadline",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If that unresolved reservation is retracted while the explicit direct request is waiting, the request MAY compete for fresh admission in the same Scope epoch, under current authorization and within the same overall finite deadline."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "It executes only after winning a new reservation for its own request; it inherits neither the previous attempt's ownership, receipt identity, nor unresolved dependency form."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Retraction or a change of owner MUST NOT reset the deadline."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.persistent-event-consumer",
+      "title": "Persistent Event consumers claiming protocol-backed erasure handling integrate Scope changefeed and snapshot ledger recovery and cleanup",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-replay-and-live-observation",
+          "selectedText": "A persistent Event consumer claiming protocol-backed erasure handling MUST integrate the existing Scope changefeed and snapshot erasure ledger as its supported acquisition and reconciliation route."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-replay-and-live-observation",
+          "selectedText": "It applies projected erasure records to its retained copies and, for this changefeed/ledger integration, follows the existing durable-checkpoint, disconnect, replay-expiry, and Authorization View recovery rules, including a fresh snapshot and its ledger when required."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-replay-and-live-observation",
+          "selectedText": "This requirement scopes the supported erasure-handling claim; it neither prohibits other storage deployments nor exempts any store, cache, or replica from the every-store erasure duty."
         }
       ]
     }

@@ -61,8 +61,31 @@ describe("draft Transactional catalog", () => {
 
   it("strictly parses and binds every citation to the current specification text", () => {
     expect(catalog.catalogVersion).toBe(1);
-    expect(catalog.scenarios.length).toBe(121);
+    expect(catalog.scenarios.length).toBe(125);
     validateCatalogCitations(catalog, (source) => readText(source), "transactional-v1.json");
+  });
+
+  it("keeps the ruled T62/T65 catalog objects in lockstep with the maintained packet rows", () => {
+    const affectedIds = [
+      "transactional.idempotency.durable-admission",
+      "transactional.sequence.in-flight-projection",
+      "transactional.sequence.pending-creator",
+      "transactional.idempotency.unresolved-admission",
+      "transactional.idempotency.unresolved-comparison",
+      "transactional.idempotency.retraction-retry",
+      "transactional.erasure.persistent-event-consumer",
+    ];
+    const packet = readText("docs/design/w1-transactional-packet.md");
+    const packetRows: unknown[] = [
+      ...packet.matchAll(/<!-- catalog-rows -->\s*```json\s*([\s\S]*?)```/g),
+    ].flatMap((match) => JSON.parse(match[1] ?? "[]") as unknown[]);
+    const packetCatalog = parseScenarioCatalog({ catalogVersion: 1, scenarios: packetRows });
+    for (const id of affectedIds) {
+      const canonical = catalog.scenarios.find((row) => row.id === id);
+      expect(canonical, id).toBeDefined();
+      const mirrored = packetCatalog.scenarios.filter((row) => row.id === id);
+      expect(mirrored, id).toEqual([canonical]);
+    }
   });
 
   it("rejects the delta catalog alone for a Transactional run; the bundle must contain inherited rows", () => {
