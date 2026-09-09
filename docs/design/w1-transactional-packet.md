@@ -1,5 +1,8 @@
 # W1 Transactional packet: wire artifacts for the Transactional profile
 
+Current extension: G1–G5 = A are ACKed and materialized 2026-09-09; see
+[HTTP gap record](#shared-http-and-retained-handle-gap-materialization--2026-09-09).
+
 Status: **applied 2026-09-08** — decisions T1–T48 and X1–X4 ruled or
 ratified; T49 option 1, T63(a) and T64(a) ACKed and materialized; T50–T56
 recommendation A ratified 2026-09-09. T57 option B selects reuse of #24's existing
@@ -6639,9 +6642,9 @@ inheritance as is and let a Transactional claim fail the retired rows
     "requiredProfile": "transactional",
     "requirements": [
       {
-        "source": "docs/design/w1-transactional-packet.md",
-        "anchor": "#21-proposed-normative-text",
-        "selectedText": "a row's statuses are exhaustive for that target and method, apart from the bodyless `500` an unexpected internal fault produces anywhere."
+        "source": "docs/specs/bdp.md",
+        "anchor": "#batch-operation-target",
+        "selectedText": "The Transactional mutation surface answers as follows; a row's statuses are exhaustive for that target and method, apart from the shared bodyless `406` negotiation refusal, GET/HEAD conditional `304` and `412`, and the bodyless `500` an unexpected internal fault produces anywhere."
       }
     ]
   },
@@ -8086,3 +8089,198 @@ selection and retirement metadata remain identical. No schema, fixture or
 runtime tests were changed. These checks validate this correction's source and
 metadata consistency, not execution of the newly specified TX behavior; review
 of the successor remains separate from the frozen-head panel above.
+
+## Shared HTTP and retained-handle gap materialization — 2026-09-09
+
+Donna ACKed G1–G5 = A (consolidated ballot items 23–27). G1 makes the retained
+manifest id retrievable by GET/HEAD without replacing its anchor or renewing
+expiry. G2 preserves issued receipt-page URLs and boundaries across ordinary
+same-epoch restart/failover, subject to existing projection and retention.
+G3 chooses shared bodyless pre-admission 406, distinct from request-content
+415. G4/G5 omit optional receipt and finite-feed validators while retaining
+HTTP preconditions and native bodyless 304/412, ordinary-refusal precedence,
+current required metadata, and no checkpoint advancement. Existing HEAD
+parity now explicitly includes finite feeds and a terminating bodyless SSE
+HEAD. No new problem code, schema shape, or server implementation is added.
+
+The eight new rows below bring the draft to **133 unclaimed Transactional
+rows**, with the same twelve retirements. The new `http-contracts.json`
+family holds 68 independent narrated HTTP cases; its dedicated test validates
+referenced wire bodies and rejects corrupted statuses, headers, manifest
+identity/expiry, receipt boundaries, projection, and checkpoint behavior.
+These are illustration checks, not executed server schedules or conformance
+evidence. The twelve older fixture files and all schema definitions remain
+unchanged. Shared Read/Read+Update implementation and catalog/manifest adoption
+belong to the genuine successor integration; the sealed Read catalog,
+manifest, results and seal are preserved. No historical observation attests
+to these newly selected HTTP rules. T57 remains the selected canonicalizer
+integration follow-up; unrelated residuals and History choices remain separate.
+The earlier section 7 uncertainty on these five families is superseded by
+this record; that does not close discovery validators, ledger paging, wait
+bounds, administrative erasure controls, or other unrelated residuals.
+
+<!-- catalog-rows -->
+```json
+[
+  {
+    "id": "transactional.snapshot.manifest-refetch",
+    "title": "Snapshot GET/HEAD retrieves the same valid manifest without replacing its anchor or renewing expiry",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#scope-snapshots",
+        "selectedText": "The manifest's `id` MUST support GET and HEAD while the snapshot handle remains valid."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#scope-snapshots",
+        "selectedText": "GET retrieves the same manifest, including its identity, anchor, checkpoint, expiry, erasure ledger, and initial stream pages; it MUST NOT create a replacement snapshot or extend `expiresAt`."
+      }
+    ]
+  },
+  {
+    "id": "transactional.snapshot.handle-refusal",
+    "title": "Snapshot handle expiry and non-disclosure precede conditionals and never disguise a pre-expiry service failure",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#scope-snapshots",
+        "selectedText": "An authorized expired or no-longer-available snapshot handle returns `410 cursor-expired`; an unknown or undisclosable target retains uniform `404 resource-not-found`."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#scope-snapshots",
+        "selectedText": "Actual service inability before the promised expiry is a service failure, not an expiration diagnosis"
+      }
+    ]
+  },
+  {
+    "id": "transactional.receipt.page-restart",
+    "title": "Issued receipt-page URLs preserve boundaries across same-epoch restart while detail remains available",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-receipt-responses",
+        "selectedText": "An already issued receipt-page URL MUST remain usable across ordinary restart or failover in the same Scope epoch while the receipt detail remains available, preserving its recorded entry boundaries and applying current authorization and erasure projection."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-receipt-responses",
+        "selectedText": "This preserves detail expiry, failed-receipt forgetting, retraction, and prior-epoch non-disclosure."
+      }
+    ]
+  },
+  {
+    "id": "transactional.http.accept-refusal",
+    "title": "Unacceptable successful response media yields bodyless 406 before admission while ordinary refusals retain precedence",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#problem-details",
+        "selectedText": "In every profile, an otherwise valid request whose `Accept` field accepts none of the endpoint's successful response media types MUST receive a bodyless `406 Not Acceptable`, with no BDP problem code, family, or retry member."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#problem-details",
+        "selectedText": "This refusal occurs before mutation admission, receipt creation, or state change."
+      }
+    ]
+  },
+  {
+    "id": "transactional.receipt.validator-omission",
+    "title": "Receipt and page responses omit optional validators while retaining private no-store and HTTP preconditions",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-receipt-responses",
+        "selectedText": "Receipt and receipt-page representations MUST omit `ETag` and `Last-Modified` initially and retain `Cache-Control: private, no-store`."
+      }
+    ]
+  },
+  {
+    "id": "transactional.http.finite-validator-omission",
+    "title": "Finite changes and Event pages omit optional validators without changing cursor semantics or adding SSE group validators",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#receipt-and-finite-feed-http-validators",
+        "selectedText": "Finite Scope changefeed pages and finite Event pages, both Scope `events/` and Resource `view=events`, MUST omit `ETag` and `Last-Modified` initially."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#receipt-and-finite-feed-http-validators",
+        "selectedText": "SSE has no per-group HTTP validator or new group-addressing URL"
+      }
+    ]
+  },
+  {
+    "id": "transactional.http.conditional-reads",
+    "title": "Read conditionals preserve ordinary refusal precedence and produce native bodyless 304 or 412 without checkpoint advancement",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#conditional-reads-and-head",
+        "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#conditional-reads-and-head",
+        "selectedText": "Omitting optional validators does not permit ignoring HTTP preconditions."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#conditional-reads-and-head",
+        "selectedText": "A `304` is not delivery or application of a change group or erasure record and MUST NOT advance a client's durable checkpoint."
+      }
+    ]
+  },
+  {
+    "id": "transactional.http.head-parity",
+    "title": "HEAD preserves GET decisions and required metadata and ends without bodies or SSE frames",
+    "kind": "normative",
+    "requiredProfile": "transactional",
+    "requirements": [
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#conditional-reads-and-head",
+        "selectedText": "HEAD retains the corresponding GET authorization, query, cursor, media negotiation, and precondition decision and MUST send no response body."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#conditional-reads-and-head",
+        "selectedText": "For an acceptable SSE representation, HEAD returns the corresponding response metadata and ends without SSE frames; it MUST NOT remain open merely to stream events."
+      }
+    ]
+  }
+]
+```
+
+Validation of this bounded materialization: Node 24.16.0 and pnpm 11.20.0,
+with an offline frozen install and the existing pinned Homebrew `bd` 1.0.5.
+The focused protocol/catalog run passed **258 tests**; the full run passed
+**1,674 tests in 49 files, no skips**, including the pinned `bd` matrix.
+Build, typecheck, lint, formatting, dependency boundaries, and diff whitespace
+passed. Both schema mirrors retain exactly 138 unchanged definitions. All
+12 older Transactional fixture files, both inherited catalogs, the Read
+manifest and sealed evidence are byte-identical to the base. The new HTTP
+family validates 22 response bodies separately from the older 83 exchange
+bodies and four committed-group examples. The historical evidence verifier
+still passes its 74 recorded rows; this is preservation evidence, not a new
+HTTP behavior observation. No external council has reviewed this successor
+by this record, and no runtime, feature grant, readiness, or merge claim is
+made. The five approved gaps are materialized in the draft; implementation,
+successor Read adoption and fresh exact-head review remain integration work.

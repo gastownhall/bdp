@@ -1,0 +1,4217 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-http-contracts",
+  "description": "G1\u2013G5 and existing HEAD law: narrated HTTP decisions and retained-handle illustrations, not server observations or executable conformance. Source references identify the existing schema/body seed; retained-handle cases compare exact originals, while Scope Event examples explicitly use an independent empty Scope; bodyOmittedFromIllustration marks ordinary failure bodies checked by the existing problem fixtures. Context/effects/ended are test metadata, never wire members. Each case is independent; opaque tokens imply no lexical ordering.",
+  "cases": [
+    {
+      "id": "read-unacceptable",
+      "profile": "read",
+      "kind": "resource",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "beads/item",
+        "headers": {
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 406,
+        "headers": {
+          "Cache-Control": "private, no-store"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "read-update-unacceptable",
+      "profile": "read-update",
+      "kind": "mutation",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 406,
+        "headers": {
+          "Cache-Control": "private, no-store"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "transactional-unacceptable",
+      "profile": "transactional",
+      "kind": "mutation",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "POST",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 406,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "missing-accept-default",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {}
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "json-q-zero-refusal",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "Accept": "*/*;q=1, application/json;q=0"
+        }
+      },
+      "response": {
+        "status": 406,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "wildcard-json-acceptable",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "Accept": "application/*;q=0.4"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "sse-selected-after-json-exclusion",
+      "profile": "transactional",
+      "kind": "changes",
+      "source": {
+        "file": "changefeed.json",
+        "exchange": "after-ckpt-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "changes/?after=ckpt-42",
+        "headers": {
+          "Accept": "application/json;q=0, text/event-stream;q=0.7"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-store, no-transform",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": false
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-none-match-star",
+      "profile": "transactional",
+      "kind": "receipt",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "pagination-batch-original"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-match-specific",
+      "profile": "transactional",
+      "kind": "receipt",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "pagination-batch-original"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+        "headers": {
+          "If-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-match-star",
+      "profile": "transactional",
+      "kind": "receipt",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "pagination-batch-original"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+        "headers": {
+          "If-Match": "*"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "id": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0003",
+          "scopeEpoch": "epoch-pagination",
+          "authorizationView": "view-pagination",
+          "transaction": "txn-pagination",
+          "requiredPosition": "pagination-commit",
+          "effectPosition": "pagination-commit",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "matched",
+              "count": 2
+            },
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/9c1e",
+                  "type": "https://work.example/types/cites",
+                  "revision": "9c1e-r1"
+                }
+              },
+              "source": "https://beads.example/receipt-pagination/beads/dec-9",
+              "sourceRevision": "dec-9-r3"
+            }
+          ],
+          "next": "https://beads.example/receipt-pagination/receipts/rcpt-9?page=2",
+          "expiresAt": "2026-09-14T18:09:40Z"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-none-match-specific",
+      "profile": "transactional",
+      "kind": "receipt",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "pagination-batch-original"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+        "headers": {
+          "If-None-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "id": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0003",
+          "scopeEpoch": "epoch-pagination",
+          "authorizationView": "view-pagination",
+          "transaction": "txn-pagination",
+          "requiredPosition": "pagination-commit",
+          "effectPosition": "pagination-commit",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "matched",
+              "count": 2
+            },
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/9c1e",
+                  "type": "https://work.example/types/cites",
+                  "revision": "9c1e-r1"
+                }
+              },
+              "source": "https://beads.example/receipt-pagination/beads/dec-9",
+              "sourceRevision": "dec-9-r3"
+            }
+          ],
+          "next": "https://beads.example/receipt-pagination/receipts/rcpt-9?page=2",
+          "expiresAt": "2026-09-14T18:09:40Z"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-match-precedence",
+      "profile": "transactional",
+      "kind": "receipt",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "pagination-batch-original"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+        "headers": {
+          "If-Match": "\"unavailable\"",
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-no-known-date",
+      "profile": "transactional",
+      "kind": "receipt",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "pagination-batch-original"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+        "headers": {
+          "If-Modified-Since": "Wed, 09 Sep 2026 12:00:00 GMT",
+          "If-Unmodified-Since": "Wed, 09 Sep 2026 12:00:00 GMT"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "id": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0003",
+          "scopeEpoch": "epoch-pagination",
+          "authorizationView": "view-pagination",
+          "transaction": "txn-pagination",
+          "requiredPosition": "pagination-commit",
+          "effectPosition": "pagination-commit",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "matched",
+              "count": 2
+            },
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/9c1e",
+                  "type": "https://work.example/types/cites",
+                  "revision": "9c1e-r1"
+                }
+              },
+              "source": "https://beads.example/receipt-pagination/beads/dec-9",
+              "sourceRevision": "dec-9-r3"
+            }
+          ],
+          "next": "https://beads.example/receipt-pagination/receipts/rcpt-9?page=2",
+          "expiresAt": "2026-09-14T18:09:40Z"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-head-json",
+      "profile": "transactional",
+      "kind": "receipt",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "pagination-batch-original"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "HEAD",
+        "target": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-none-match-star",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-match-specific",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-match-star",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-Match": "*"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-none-match-specific",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-match-precedence",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-Match": "\"unavailable\"",
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-no-known-date",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-Modified-Since": "Wed, 09 Sep 2026 12:00:00 GMT",
+          "If-Unmodified-Since": "Wed, 09 Sep 2026 12:00:00 GMT"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-head-json",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "HEAD",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "changes-none-match-star",
+      "profile": "transactional",
+      "kind": "changes",
+      "source": {
+        "file": "changefeed.json",
+        "exchange": "after-ckpt-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "changes/?after=ckpt-42",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "changes-match-specific",
+      "profile": "transactional",
+      "kind": "changes",
+      "source": {
+        "file": "changefeed.json",
+        "exchange": "after-ckpt-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "changes/?after=ckpt-42",
+        "headers": {
+          "If-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "changes-match-star",
+      "profile": "transactional",
+      "kind": "changes",
+      "source": {
+        "file": "changefeed.json",
+        "exchange": "after-ckpt-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "changes/?after=ckpt-42",
+        "headers": {
+          "If-Match": "*"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "body": {
+          "scope": "https://beads.example/acme/",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "after": "ckpt-42",
+          "observedHeadPosition": "pos-43",
+          "groups": [
+            {
+              "scopeEpoch": "epoch-1",
+              "authorizationView": "view-a",
+              "checkpoint": "ckpt-43",
+              "position": "pos-43",
+              "previousPosition": "pos-42",
+              "projectionAdvance": false,
+              "transaction": "txn-0a1b",
+              "eventCount": 6,
+              "changes": [
+                {
+                  "operation": "upsert",
+                  "resourceKind": "bead",
+                  "resource": {
+                    "id": "https://beads.example/acme/beads/dec-9",
+                    "type": "https://work.example/types/decision",
+                    "revision": "dec-9-r2",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "properties": {
+                      "title": "Adopt owned Links",
+                      "status": "proposed"
+                    },
+                    "ownedLinks": {
+                      "https://work.example/types/cites": [
+                        {
+                          "id": "https://beads.example/acme/links/9c1e",
+                          "type": "https://work.example/types/cites",
+                          "revision": "9c1e-r1",
+                          "attribution": {
+                            "principal": "agent:planner",
+                            "status": "claimed"
+                          },
+                          "source": "https://beads.example/acme/beads/dec-9",
+                          "target": "https://beads.example/acme/beads/task-42",
+                          "properties": {
+                            "role": "evidence"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "operation": "upsert",
+                  "resourceKind": "link",
+                  "resource": {
+                    "id": "https://beads.example/acme/links/9c1e",
+                    "type": "https://work.example/types/cites",
+                    "revision": "9c1e-r1",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42",
+                    "properties": {
+                      "role": "evidence"
+                    }
+                  }
+                },
+                {
+                  "operation": "upsert",
+                  "resourceKind": "bead",
+                  "resource": {
+                    "id": "https://beads.example/acme/beads/task-42",
+                    "type": "https://work.example/types/task",
+                    "revision": "task-42-r8",
+                    "properties": {
+                      "title": "Specify BDP mutation",
+                      "status": "cited"
+                    }
+                  }
+                }
+              ],
+              "erasures": [],
+              "events": [
+                {
+                  "id": "ckpt-43_0",
+                  "ordinal": 0,
+                  "type": "created",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subjectType": "https://work.example/types/decision",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "revision": "dec-9-r1",
+                    "properties": {
+                      "title": "Adopt owned Links",
+                      "status": "proposed"
+                    },
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    }
+                  }
+                },
+                {
+                  "id": "ckpt-43_1",
+                  "ordinal": 1,
+                  "type": "created",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subjectType": "https://work.example/types/cites",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "revision": "9c1e-r1",
+                    "properties": {
+                      "role": "evidence"
+                    },
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42"
+                  }
+                },
+                {
+                  "id": "ckpt-43_2",
+                  "ordinal": 2,
+                  "type": "linked",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subjectType": "https://work.example/types/cites",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "endpoint": "source",
+                    "link": {
+                      "id": "https://beads.example/acme/links/9c1e",
+                      "type": "https://work.example/types/cites"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42"
+                  }
+                },
+                {
+                  "id": "ckpt-43_3",
+                  "ordinal": 3,
+                  "type": "linked",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subjectType": "https://work.example/types/cites",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "endpoint": "target",
+                    "link": {
+                      "id": "https://beads.example/acme/links/9c1e",
+                      "type": "https://work.example/types/cites"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42"
+                  }
+                },
+                {
+                  "id": "ckpt-43_4",
+                  "ordinal": 4,
+                  "type": "updated",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subjectType": "https://work.example/types/decision",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "previousRevision": "dec-9-r1",
+                    "revision": "dec-9-r2",
+                    "ownedLink": {
+                      "operation": "created",
+                      "link": {
+                        "id": "https://beads.example/acme/links/9c1e",
+                        "type": "https://work.example/types/cites",
+                        "revision": "9c1e-r1",
+                        "attribution": {
+                          "principal": "agent:planner",
+                          "status": "claimed"
+                        },
+                        "source": "https://beads.example/acme/beads/dec-9",
+                        "target": "https://beads.example/acme/beads/task-42",
+                        "properties": {
+                          "role": "evidence"
+                        }
+                      }
+                    },
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    }
+                  }
+                },
+                {
+                  "id": "ckpt-43_5",
+                  "ordinal": 5,
+                  "type": "updated",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/beads/task-42",
+                  "subjectType": "https://work.example/types/task",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "previousRevision": "task-42-r7",
+                    "revision": "task-42-r8",
+                    "change": [
+                      {
+                        "op": "replace",
+                        "path": "/status",
+                        "value": "cited"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/changefeedPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "changes-none-match-specific",
+      "profile": "transactional",
+      "kind": "changes",
+      "source": {
+        "file": "changefeed.json",
+        "exchange": "after-ckpt-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "changes/?after=ckpt-42",
+        "headers": {
+          "If-None-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "body": {
+          "scope": "https://beads.example/acme/",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "after": "ckpt-42",
+          "observedHeadPosition": "pos-43",
+          "groups": [
+            {
+              "scopeEpoch": "epoch-1",
+              "authorizationView": "view-a",
+              "checkpoint": "ckpt-43",
+              "position": "pos-43",
+              "previousPosition": "pos-42",
+              "projectionAdvance": false,
+              "transaction": "txn-0a1b",
+              "eventCount": 6,
+              "changes": [
+                {
+                  "operation": "upsert",
+                  "resourceKind": "bead",
+                  "resource": {
+                    "id": "https://beads.example/acme/beads/dec-9",
+                    "type": "https://work.example/types/decision",
+                    "revision": "dec-9-r2",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "properties": {
+                      "title": "Adopt owned Links",
+                      "status": "proposed"
+                    },
+                    "ownedLinks": {
+                      "https://work.example/types/cites": [
+                        {
+                          "id": "https://beads.example/acme/links/9c1e",
+                          "type": "https://work.example/types/cites",
+                          "revision": "9c1e-r1",
+                          "attribution": {
+                            "principal": "agent:planner",
+                            "status": "claimed"
+                          },
+                          "source": "https://beads.example/acme/beads/dec-9",
+                          "target": "https://beads.example/acme/beads/task-42",
+                          "properties": {
+                            "role": "evidence"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "operation": "upsert",
+                  "resourceKind": "link",
+                  "resource": {
+                    "id": "https://beads.example/acme/links/9c1e",
+                    "type": "https://work.example/types/cites",
+                    "revision": "9c1e-r1",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42",
+                    "properties": {
+                      "role": "evidence"
+                    }
+                  }
+                },
+                {
+                  "operation": "upsert",
+                  "resourceKind": "bead",
+                  "resource": {
+                    "id": "https://beads.example/acme/beads/task-42",
+                    "type": "https://work.example/types/task",
+                    "revision": "task-42-r8",
+                    "properties": {
+                      "title": "Specify BDP mutation",
+                      "status": "cited"
+                    }
+                  }
+                }
+              ],
+              "erasures": [],
+              "events": [
+                {
+                  "id": "ckpt-43_0",
+                  "ordinal": 0,
+                  "type": "created",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subjectType": "https://work.example/types/decision",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "revision": "dec-9-r1",
+                    "properties": {
+                      "title": "Adopt owned Links",
+                      "status": "proposed"
+                    },
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    }
+                  }
+                },
+                {
+                  "id": "ckpt-43_1",
+                  "ordinal": 1,
+                  "type": "created",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subjectType": "https://work.example/types/cites",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "revision": "9c1e-r1",
+                    "properties": {
+                      "role": "evidence"
+                    },
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42"
+                  }
+                },
+                {
+                  "id": "ckpt-43_2",
+                  "ordinal": 2,
+                  "type": "linked",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subjectType": "https://work.example/types/cites",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "endpoint": "source",
+                    "link": {
+                      "id": "https://beads.example/acme/links/9c1e",
+                      "type": "https://work.example/types/cites"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42"
+                  }
+                },
+                {
+                  "id": "ckpt-43_3",
+                  "ordinal": 3,
+                  "type": "linked",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subjectType": "https://work.example/types/cites",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "endpoint": "target",
+                    "link": {
+                      "id": "https://beads.example/acme/links/9c1e",
+                      "type": "https://work.example/types/cites"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42"
+                  }
+                },
+                {
+                  "id": "ckpt-43_4",
+                  "ordinal": 4,
+                  "type": "updated",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subjectType": "https://work.example/types/decision",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "previousRevision": "dec-9-r1",
+                    "revision": "dec-9-r2",
+                    "ownedLink": {
+                      "operation": "created",
+                      "link": {
+                        "id": "https://beads.example/acme/links/9c1e",
+                        "type": "https://work.example/types/cites",
+                        "revision": "9c1e-r1",
+                        "attribution": {
+                          "principal": "agent:planner",
+                          "status": "claimed"
+                        },
+                        "source": "https://beads.example/acme/beads/dec-9",
+                        "target": "https://beads.example/acme/beads/task-42",
+                        "properties": {
+                          "role": "evidence"
+                        }
+                      }
+                    },
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    }
+                  }
+                },
+                {
+                  "id": "ckpt-43_5",
+                  "ordinal": 5,
+                  "type": "updated",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/beads/task-42",
+                  "subjectType": "https://work.example/types/task",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "previousRevision": "task-42-r7",
+                    "revision": "task-42-r8",
+                    "change": [
+                      {
+                        "op": "replace",
+                        "path": "/status",
+                        "value": "cited"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/changefeedPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "changes-match-precedence",
+      "profile": "transactional",
+      "kind": "changes",
+      "source": {
+        "file": "changefeed.json",
+        "exchange": "after-ckpt-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "changes/?after=ckpt-42",
+        "headers": {
+          "If-Match": "\"unavailable\"",
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "changes-no-known-date",
+      "profile": "transactional",
+      "kind": "changes",
+      "source": {
+        "file": "changefeed.json",
+        "exchange": "after-ckpt-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "changes/?after=ckpt-42",
+        "headers": {
+          "If-Modified-Since": "Wed, 09 Sep 2026 12:00:00 GMT",
+          "If-Unmodified-Since": "Wed, 09 Sep 2026 12:00:00 GMT"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "body": {
+          "scope": "https://beads.example/acme/",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "after": "ckpt-42",
+          "observedHeadPosition": "pos-43",
+          "groups": [
+            {
+              "scopeEpoch": "epoch-1",
+              "authorizationView": "view-a",
+              "checkpoint": "ckpt-43",
+              "position": "pos-43",
+              "previousPosition": "pos-42",
+              "projectionAdvance": false,
+              "transaction": "txn-0a1b",
+              "eventCount": 6,
+              "changes": [
+                {
+                  "operation": "upsert",
+                  "resourceKind": "bead",
+                  "resource": {
+                    "id": "https://beads.example/acme/beads/dec-9",
+                    "type": "https://work.example/types/decision",
+                    "revision": "dec-9-r2",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "properties": {
+                      "title": "Adopt owned Links",
+                      "status": "proposed"
+                    },
+                    "ownedLinks": {
+                      "https://work.example/types/cites": [
+                        {
+                          "id": "https://beads.example/acme/links/9c1e",
+                          "type": "https://work.example/types/cites",
+                          "revision": "9c1e-r1",
+                          "attribution": {
+                            "principal": "agent:planner",
+                            "status": "claimed"
+                          },
+                          "source": "https://beads.example/acme/beads/dec-9",
+                          "target": "https://beads.example/acme/beads/task-42",
+                          "properties": {
+                            "role": "evidence"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "operation": "upsert",
+                  "resourceKind": "link",
+                  "resource": {
+                    "id": "https://beads.example/acme/links/9c1e",
+                    "type": "https://work.example/types/cites",
+                    "revision": "9c1e-r1",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42",
+                    "properties": {
+                      "role": "evidence"
+                    }
+                  }
+                },
+                {
+                  "operation": "upsert",
+                  "resourceKind": "bead",
+                  "resource": {
+                    "id": "https://beads.example/acme/beads/task-42",
+                    "type": "https://work.example/types/task",
+                    "revision": "task-42-r8",
+                    "properties": {
+                      "title": "Specify BDP mutation",
+                      "status": "cited"
+                    }
+                  }
+                }
+              ],
+              "erasures": [],
+              "events": [
+                {
+                  "id": "ckpt-43_0",
+                  "ordinal": 0,
+                  "type": "created",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subjectType": "https://work.example/types/decision",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "revision": "dec-9-r1",
+                    "properties": {
+                      "title": "Adopt owned Links",
+                      "status": "proposed"
+                    },
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    }
+                  }
+                },
+                {
+                  "id": "ckpt-43_1",
+                  "ordinal": 1,
+                  "type": "created",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subjectType": "https://work.example/types/cites",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "revision": "9c1e-r1",
+                    "properties": {
+                      "role": "evidence"
+                    },
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42"
+                  }
+                },
+                {
+                  "id": "ckpt-43_2",
+                  "ordinal": 2,
+                  "type": "linked",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subjectType": "https://work.example/types/cites",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "endpoint": "source",
+                    "link": {
+                      "id": "https://beads.example/acme/links/9c1e",
+                      "type": "https://work.example/types/cites"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42"
+                  }
+                },
+                {
+                  "id": "ckpt-43_3",
+                  "ordinal": 3,
+                  "type": "linked",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/links/9c1e",
+                  "subjectType": "https://work.example/types/cites",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "endpoint": "target",
+                    "link": {
+                      "id": "https://beads.example/acme/links/9c1e",
+                      "type": "https://work.example/types/cites"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42"
+                  }
+                },
+                {
+                  "id": "ckpt-43_4",
+                  "ordinal": 4,
+                  "type": "updated",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/beads/dec-9",
+                  "subjectType": "https://work.example/types/decision",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "previousRevision": "dec-9-r1",
+                    "revision": "dec-9-r2",
+                    "ownedLink": {
+                      "operation": "created",
+                      "link": {
+                        "id": "https://beads.example/acme/links/9c1e",
+                        "type": "https://work.example/types/cites",
+                        "revision": "9c1e-r1",
+                        "attribution": {
+                          "principal": "agent:planner",
+                          "status": "claimed"
+                        },
+                        "source": "https://beads.example/acme/beads/dec-9",
+                        "target": "https://beads.example/acme/beads/task-42",
+                        "properties": {
+                          "role": "evidence"
+                        }
+                      }
+                    },
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    }
+                  }
+                },
+                {
+                  "id": "ckpt-43_5",
+                  "ordinal": 5,
+                  "type": "updated",
+                  "source": "https://beads.example/acme/events/",
+                  "subject": "https://beads.example/acme/beads/task-42",
+                  "subjectType": "https://work.example/types/task",
+                  "transaction": "txn-0a1b",
+                  "time": "2026-09-07T18:04:12Z",
+                  "data": {
+                    "previousRevision": "task-42-r7",
+                    "revision": "task-42-r8",
+                    "change": [
+                      {
+                        "op": "replace",
+                        "path": "/status",
+                        "value": "cited"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/changefeedPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "changes-head-json",
+      "profile": "transactional",
+      "kind": "changes",
+      "source": {
+        "file": "changefeed.json",
+        "exchange": "after-ckpt-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "HEAD",
+        "target": "changes/?after=ckpt-42",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "changes-head-event-stream",
+      "profile": "transactional",
+      "kind": "changes",
+      "source": {
+        "file": "changefeed.json",
+        "exchange": "after-ckpt-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "HEAD",
+        "target": "changes/?after=ckpt-42",
+        "headers": {
+          "Accept": "text/event-stream"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-store, no-transform",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "events-none-match-star",
+      "profile": "transactional",
+      "kind": "events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "independentEmptyScope": "https://beads.example/http-empty/"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/http-empty/events/",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "http-empty-epoch",
+          "BDP-Authorization-View": "http-empty-view",
+          "BDP-Scope-Position": "http-empty-position"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "events-match-specific",
+      "profile": "transactional",
+      "kind": "events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "independentEmptyScope": "https://beads.example/http-empty/"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/http-empty/events/",
+        "headers": {
+          "If-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "http-empty-epoch",
+          "BDP-Authorization-View": "http-empty-view",
+          "BDP-Scope-Position": "http-empty-position"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "events-match-star",
+      "profile": "transactional",
+      "kind": "events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "independentEmptyScope": "https://beads.example/http-empty/"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/http-empty/events/",
+        "headers": {
+          "If-Match": "*"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "http-empty-epoch",
+          "BDP-Authorization-View": "http-empty-view",
+          "BDP-Scope-Position": "http-empty-position"
+        },
+        "body": {
+          "source": "https://beads.example/http-empty/events/",
+          "events": [],
+          "next": null
+        },
+        "schema": "#/$defs/eventPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "events-none-match-specific",
+      "profile": "transactional",
+      "kind": "events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "independentEmptyScope": "https://beads.example/http-empty/"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/http-empty/events/",
+        "headers": {
+          "If-None-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "http-empty-epoch",
+          "BDP-Authorization-View": "http-empty-view",
+          "BDP-Scope-Position": "http-empty-position"
+        },
+        "body": {
+          "source": "https://beads.example/http-empty/events/",
+          "events": [],
+          "next": null
+        },
+        "schema": "#/$defs/eventPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "events-match-precedence",
+      "profile": "transactional",
+      "kind": "events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "independentEmptyScope": "https://beads.example/http-empty/"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/http-empty/events/",
+        "headers": {
+          "If-Match": "\"unavailable\"",
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "http-empty-epoch",
+          "BDP-Authorization-View": "http-empty-view",
+          "BDP-Scope-Position": "http-empty-position"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "events-no-known-date",
+      "profile": "transactional",
+      "kind": "events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "independentEmptyScope": "https://beads.example/http-empty/"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/http-empty/events/",
+        "headers": {
+          "If-Modified-Since": "Wed, 09 Sep 2026 12:00:00 GMT",
+          "If-Unmodified-Since": "Wed, 09 Sep 2026 12:00:00 GMT"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "http-empty-epoch",
+          "BDP-Authorization-View": "http-empty-view",
+          "BDP-Scope-Position": "http-empty-position"
+        },
+        "body": {
+          "source": "https://beads.example/http-empty/events/",
+          "events": [],
+          "next": null
+        },
+        "schema": "#/$defs/eventPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "events-head-json",
+      "profile": "transactional",
+      "kind": "events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "independentEmptyScope": "https://beads.example/http-empty/"
+      },
+      "request": {
+        "method": "HEAD",
+        "target": "https://beads.example/http-empty/events/",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "http-empty-epoch",
+          "BDP-Authorization-View": "http-empty-view",
+          "BDP-Scope-Position": "http-empty-position"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "events-head-event-stream",
+      "profile": "transactional",
+      "kind": "events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "independentEmptyScope": "https://beads.example/http-empty/"
+      },
+      "request": {
+        "method": "HEAD",
+        "target": "https://beads.example/http-empty/events/",
+        "headers": {
+          "Accept": "text/event-stream"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-store, no-transform",
+          "BDP-Scope-Epoch": "http-empty-epoch",
+          "BDP-Authorization-View": "http-empty-view",
+          "BDP-Scope-Position": "http-empty-position"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "resource-events-none-match-star",
+      "profile": "transactional",
+      "kind": "resource-events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "beads/dec-9?view=events",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 304,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "resource-events-match-specific",
+      "profile": "transactional",
+      "kind": "resource-events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "beads/dec-9?view=events",
+        "headers": {
+          "If-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "resource-events-match-star",
+      "profile": "transactional",
+      "kind": "resource-events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "beads/dec-9?view=events",
+        "headers": {
+          "If-Match": "*"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "body": {
+          "source": "https://beads.example/acme/beads/dec-9?view=events",
+          "events": [
+            {
+              "id": "ckpt-43_0",
+              "ordinal": 0,
+              "type": "created",
+              "source": "https://beads.example/acme/beads/dec-9?view=events",
+              "subject": "https://beads.example/acme/beads/dec-9",
+              "subjectType": "https://work.example/types/decision",
+              "transaction": "txn-0a1b",
+              "time": "2026-09-07T18:04:12Z",
+              "data": {
+                "revision": "dec-9-r1",
+                "properties": {
+                  "title": "Adopt owned Links",
+                  "status": "proposed"
+                },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                }
+              }
+            },
+            {
+              "id": "ckpt-43_2",
+              "ordinal": 2,
+              "type": "linked",
+              "source": "https://beads.example/acme/beads/dec-9?view=events",
+              "subject": "https://beads.example/acme/links/9c1e",
+              "subjectType": "https://work.example/types/cites",
+              "transaction": "txn-0a1b",
+              "time": "2026-09-07T18:04:12Z",
+              "data": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://beads.example/acme/links/9c1e",
+                  "type": "https://work.example/types/cites"
+                },
+                "source": "https://beads.example/acme/beads/dec-9",
+                "target": "https://beads.example/acme/beads/task-42"
+              }
+            },
+            {
+              "id": "ckpt-43_4",
+              "ordinal": 4,
+              "type": "updated",
+              "source": "https://beads.example/acme/beads/dec-9?view=events",
+              "subject": "https://beads.example/acme/beads/dec-9",
+              "subjectType": "https://work.example/types/decision",
+              "transaction": "txn-0a1b",
+              "time": "2026-09-07T18:04:12Z",
+              "data": {
+                "previousRevision": "dec-9-r1",
+                "revision": "dec-9-r2",
+                "ownedLink": {
+                  "operation": "created",
+                  "link": {
+                    "id": "https://beads.example/acme/links/9c1e",
+                    "type": "https://work.example/types/cites",
+                    "revision": "9c1e-r1",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42",
+                    "properties": {
+                      "role": "evidence"
+                    }
+                  }
+                },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                }
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/eventPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "resource-events-none-match-specific",
+      "profile": "transactional",
+      "kind": "resource-events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "beads/dec-9?view=events",
+        "headers": {
+          "If-None-Match": "\"unavailable\""
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "body": {
+          "source": "https://beads.example/acme/beads/dec-9?view=events",
+          "events": [
+            {
+              "id": "ckpt-43_0",
+              "ordinal": 0,
+              "type": "created",
+              "source": "https://beads.example/acme/beads/dec-9?view=events",
+              "subject": "https://beads.example/acme/beads/dec-9",
+              "subjectType": "https://work.example/types/decision",
+              "transaction": "txn-0a1b",
+              "time": "2026-09-07T18:04:12Z",
+              "data": {
+                "revision": "dec-9-r1",
+                "properties": {
+                  "title": "Adopt owned Links",
+                  "status": "proposed"
+                },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                }
+              }
+            },
+            {
+              "id": "ckpt-43_2",
+              "ordinal": 2,
+              "type": "linked",
+              "source": "https://beads.example/acme/beads/dec-9?view=events",
+              "subject": "https://beads.example/acme/links/9c1e",
+              "subjectType": "https://work.example/types/cites",
+              "transaction": "txn-0a1b",
+              "time": "2026-09-07T18:04:12Z",
+              "data": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://beads.example/acme/links/9c1e",
+                  "type": "https://work.example/types/cites"
+                },
+                "source": "https://beads.example/acme/beads/dec-9",
+                "target": "https://beads.example/acme/beads/task-42"
+              }
+            },
+            {
+              "id": "ckpt-43_4",
+              "ordinal": 4,
+              "type": "updated",
+              "source": "https://beads.example/acme/beads/dec-9?view=events",
+              "subject": "https://beads.example/acme/beads/dec-9",
+              "subjectType": "https://work.example/types/decision",
+              "transaction": "txn-0a1b",
+              "time": "2026-09-07T18:04:12Z",
+              "data": {
+                "previousRevision": "dec-9-r1",
+                "revision": "dec-9-r2",
+                "ownedLink": {
+                  "operation": "created",
+                  "link": {
+                    "id": "https://beads.example/acme/links/9c1e",
+                    "type": "https://work.example/types/cites",
+                    "revision": "9c1e-r1",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42",
+                    "properties": {
+                      "role": "evidence"
+                    }
+                  }
+                },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                }
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/eventPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "resource-events-match-precedence",
+      "profile": "transactional",
+      "kind": "resource-events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "beads/dec-9?view=events",
+        "headers": {
+          "If-Match": "\"unavailable\"",
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 412,
+        "headers": {
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "resource-events-no-known-date",
+      "profile": "transactional",
+      "kind": "resource-events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "GET",
+        "target": "beads/dec-9?view=events",
+        "headers": {
+          "If-Modified-Since": "Wed, 09 Sep 2026 12:00:00 GMT",
+          "If-Unmodified-Since": "Wed, 09 Sep 2026 12:00:00 GMT"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "body": {
+          "source": "https://beads.example/acme/beads/dec-9?view=events",
+          "events": [
+            {
+              "id": "ckpt-43_0",
+              "ordinal": 0,
+              "type": "created",
+              "source": "https://beads.example/acme/beads/dec-9?view=events",
+              "subject": "https://beads.example/acme/beads/dec-9",
+              "subjectType": "https://work.example/types/decision",
+              "transaction": "txn-0a1b",
+              "time": "2026-09-07T18:04:12Z",
+              "data": {
+                "revision": "dec-9-r1",
+                "properties": {
+                  "title": "Adopt owned Links",
+                  "status": "proposed"
+                },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                }
+              }
+            },
+            {
+              "id": "ckpt-43_2",
+              "ordinal": 2,
+              "type": "linked",
+              "source": "https://beads.example/acme/beads/dec-9?view=events",
+              "subject": "https://beads.example/acme/links/9c1e",
+              "subjectType": "https://work.example/types/cites",
+              "transaction": "txn-0a1b",
+              "time": "2026-09-07T18:04:12Z",
+              "data": {
+                "endpoint": "source",
+                "link": {
+                  "id": "https://beads.example/acme/links/9c1e",
+                  "type": "https://work.example/types/cites"
+                },
+                "source": "https://beads.example/acme/beads/dec-9",
+                "target": "https://beads.example/acme/beads/task-42"
+              }
+            },
+            {
+              "id": "ckpt-43_4",
+              "ordinal": 4,
+              "type": "updated",
+              "source": "https://beads.example/acme/beads/dec-9?view=events",
+              "subject": "https://beads.example/acme/beads/dec-9",
+              "subjectType": "https://work.example/types/decision",
+              "transaction": "txn-0a1b",
+              "time": "2026-09-07T18:04:12Z",
+              "data": {
+                "previousRevision": "dec-9-r1",
+                "revision": "dec-9-r2",
+                "ownedLink": {
+                  "operation": "created",
+                  "link": {
+                    "id": "https://beads.example/acme/links/9c1e",
+                    "type": "https://work.example/types/cites",
+                    "revision": "9c1e-r1",
+                    "attribution": {
+                      "principal": "agent:planner",
+                      "status": "claimed"
+                    },
+                    "source": "https://beads.example/acme/beads/dec-9",
+                    "target": "https://beads.example/acme/beads/task-42",
+                    "properties": {
+                      "role": "evidence"
+                    }
+                  }
+                },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                }
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/eventPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "resource-events-head-json",
+      "profile": "transactional",
+      "kind": "resource-events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "HEAD",
+        "target": "beads/dec-9?view=events",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "resource-events-head-event-stream",
+      "profile": "transactional",
+      "kind": "resource-events",
+      "source": {
+        "file": "events.json",
+        "exchange": "dec-9-after-owned-link-created"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json", "text/event-stream"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false
+      },
+      "request": {
+        "method": "HEAD",
+        "target": "beads/dec-9?view=events",
+        "headers": {
+          "Accept": "text/event-stream"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-store, no-transform",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-43"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-authentication",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 401,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "authentication"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 401,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-undisclosed-target",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 404,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "undisclosed-target"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-foreign-view",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 409,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "foreign-view"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-expired-epoch",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 410,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "expired-epoch"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-expired-detail",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 410,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "expired-detail"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-erasure-expiry",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 410,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "erasure-expiry"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-catch-up-timeout",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 503,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "catch-up-timeout"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 503,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-service-failure",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 503,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "service-failure"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 503,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "manifest-refetch-get",
+      "profile": "transactional",
+      "kind": "snapshot",
+      "source": {
+        "file": "snapshots.json",
+        "exchange": "snapshot-at-pos-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "handle": "retained-manifest"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+        "headers": {}
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-42"
+        },
+        "body": {
+          "id": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+          "scope": "https://beads.example/acme/",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "scopePosition": "pos-42",
+          "checkpoint": "ckpt-42",
+          "expiresAt": "2026-09-07T19:22:00Z",
+          "erasures": [],
+          "beads": {
+            "items": [
+              {
+                "id": "https://beads.example/acme/beads/task-41",
+                "type": "https://work.example/types/task",
+                "revision": "task-41-r3",
+                "properties": {
+                  "title": "Land the Read+Update wire",
+                  "status": "closed"
+                }
+              },
+              {
+                "id": "https://beads.example/acme/beads/task-42",
+                "type": "https://work.example/types/task",
+                "revision": "task-42-r7",
+                "properties": {
+                  "title": "Specify BDP mutation",
+                  "status": "open"
+                }
+              }
+            ],
+            "next": null
+          },
+          "links": {
+            "items": [
+              {
+                "id": "https://beads.example/acme/links/blocks-3",
+                "type": "https://work.example/types/blocks",
+                "revision": "blocks-3-r1",
+                "source": "https://beads.example/acme/beads/task-42",
+                "target": "https://beads.example/acme/beads/task-41",
+                "properties": {}
+              }
+            ],
+            "next": null
+          }
+        },
+        "schema": "#/$defs/snapshotManifest",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "manifest-refetch-head",
+      "profile": "transactional",
+      "kind": "snapshot",
+      "source": {
+        "file": "snapshots.json",
+        "exchange": "snapshot-at-pos-42"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "handle": "retained-manifest"
+      },
+      "request": {
+        "method": "HEAD",
+        "target": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+        "headers": {}
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-42"
+        },
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "manifest-timed-expiry",
+      "profile": "transactional",
+      "kind": "snapshot",
+      "source": {
+        "file": "snapshots.json",
+        "exchange": "snapshot-at-pos-42"
+      },
+      "context": {
+        "ordinaryStatus": 410,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "timed-expiry"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-42"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "manifest-erasure-expiry",
+      "profile": "transactional",
+      "kind": "snapshot",
+      "source": {
+        "file": "snapshots.json",
+        "exchange": "snapshot-at-pos-42"
+      },
+      "context": {
+        "ordinaryStatus": 410,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "erasure-expiry"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-42"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "manifest-unknown",
+      "profile": "transactional",
+      "kind": "snapshot",
+      "source": {
+        "file": "snapshots.json",
+        "exchange": "snapshot-at-pos-42"
+      },
+      "context": {
+        "ordinaryStatus": 404,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "unknown"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-42"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "manifest-undisclosed",
+      "profile": "transactional",
+      "kind": "snapshot",
+      "source": {
+        "file": "snapshots.json",
+        "exchange": "snapshot-at-pos-42"
+      },
+      "context": {
+        "ordinaryStatus": 404,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "undisclosed"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-42"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "manifest-service-failure-before-expiry",
+      "profile": "transactional",
+      "kind": "snapshot",
+      "source": {
+        "file": "snapshots.json",
+        "exchange": "snapshot-at-pos-42"
+      },
+      "context": {
+        "ordinaryStatus": 503,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "service-failure-before-expiry"
+      },
+      "request": {
+        "method": "GET",
+        "target": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+        "headers": {
+          "If-None-Match": "*"
+        }
+      },
+      "response": {
+        "status": 503,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-42"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-restart",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "recovery": {
+          "event": "restart",
+          "sameEpoch": true,
+          "detailAvailable": true,
+          "sameAuthorizationView": true,
+          "newErasure": false
+        }
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {}
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-failover",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "recovery": {
+          "event": "failover",
+          "sameEpoch": true,
+          "detailAvailable": true,
+          "sameAuthorizationView": true,
+          "newErasure": false
+        }
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {}
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/receipt-pagination/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-restart-withheld",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "recovery": {
+          "event": "restart",
+          "sameEpoch": true,
+          "detailAvailable": true,
+          "sameAuthorizationView": false,
+          "newErasure": false
+        },
+        "withheldIndexes": [2]
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {}
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "pagination-view-after-grant-change",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "withheld"
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "receipt-page-restart-erased",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 200,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "recovery": {
+          "event": "restart",
+          "sameEpoch": true,
+          "detailAvailable": true,
+          "sameAuthorizationView": true,
+          "newErasure": true
+        },
+        "erasedIndexes": [2]
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {}
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "body": {
+          "receipt": "https://beads.example/receipt-pagination/receipts/rcpt-9",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/links/blocks-3",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-3-r1"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "bead",
+                "resource": {
+                  "id": "https://beads.example/receipt-pagination/beads/task-42",
+                  "type": "https://work.example/types/task",
+                  "revision": "task-42-r9"
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "erased",
+              "erased": {
+                "id": "https://beads.example/receipt-pagination/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1"
+              }
+            }
+          ],
+          "next": null
+        },
+        "schema": "#/$defs/mutationReceiptPage",
+        "ended": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-unsupported-request-media",
+      "profile": "transactional",
+      "kind": "mutation",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 415,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "unsupported-request-media"
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png",
+          "Content-Type": "image/png"
+        }
+      },
+      "response": {
+        "status": 415,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-retracted-receipt",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 404,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "retracted-receipt"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-forgotten-failed-receipt",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 404,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "forgotten-failed-receipt"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    },
+    {
+      "id": "refusal-before-conditional-prior-epoch-receipt",
+      "profile": "transactional",
+      "kind": "receipt-page",
+      "source": {
+        "file": "receipt-pagination.json",
+        "exchange": "receipt-9-page-2"
+      },
+      "context": {
+        "ordinaryStatus": 404,
+        "supportedMedia": ["application/json"],
+        "entityTagAvailable": false,
+        "modificationDateAvailable": false,
+        "ordinaryRefusal": "prior-epoch-receipt"
+      },
+      "request": {
+        "method": "GET",
+        "target": "receipts/rcpt-9?page=2",
+        "headers": {
+          "If-None-Match": "*",
+          "Accept": "image/png"
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Scope-Position": "pagination-commit"
+        },
+        "ended": true,
+        "bodyOmittedFromIllustration": true
+      },
+      "effects": {
+        "newAdmissions": 0,
+        "stateChanges": 0,
+        "checkpointBefore": "durable-before",
+        "checkpointAfter": "durable-before"
+      }
+    }
+  ]
+}

@@ -51,7 +51,9 @@ waves are internal sequencing labels, not protocol concepts.
   subsequently ratified A. T62a/b and T65 were ruled A and materialized 2026-09-09;
   the [latest ACK record](w1-transactional-packet.md#ratification-and-materialization-of-t58-through-t65-2026-09-09)
   records the direct retry rules and the supported persistent Event consumer
-  erasure-handling contract.
+  erasure-handling contract. G1–G5 = A were then ACKed and materialized in the
+  [HTTP gap record](w1-transactional-packet.md#shared-http-and-retained-handle-gap-materialization--2026-09-09): retained handles, shared bodyless 406, conditional reads, validator
+  omission and existing HEAD parity. Runtime and successor Read evidence adoption remain separate.
   Council 13 exposed T62–T64 for admission identity,
   withheld allocation projection, and live erasure delivery.
 

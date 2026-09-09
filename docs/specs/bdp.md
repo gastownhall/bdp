@@ -2561,10 +2561,19 @@ MUST NOT include a BDP Problem body. These are HTTP-native rejections rather
 than members of the Read problem-code table.
 Implementations advertising later cumulative profiles MUST retain `GET` and
 `HEAD` support. Those profiles define their additional methods and `Allow`
-values. This draft does not yet assign a BDP problem code for unacceptable
-response media types, and the Read table above deliberately omits both that
-condition and unsupported request media types; the Read+Update rows above
-assign the latter, for mutation targets only, as `unsupported-media-type`.
+values. In every profile, an otherwise valid request whose `Accept` field
+accepts none of the endpoint's successful response media types MUST receive
+a bodyless `406 Not Acceptable`, with no BDP problem code, family, or retry
+member. This refusal occurs before mutation admission, receipt creation, or
+state change. Existing authentication, authorization/non-disclosure, and
+other ordinary failures retain their handling; negotiation MUST NOT expose
+a hidden target or recursively renegotiate an error representation. Missing
+`Accept` permits the endpoint's default. Ordinary HTTP media-range matching,
+specificity, and quality weights apply, including `q=0` exclusions; an
+endpoint offering JSON and SSE selects an acceptable supported representation
+when one exists. Unsupported mutation request content remains `415`
+`unsupported-media-type`, distinct from response negotiation (ruled
+2026-09-09, G3).
 An implementation MUST respond to an unexpected
 internal server fault with a body-less `500 Internal Server Error`, MUST NOT
 include a BDP Problem body, and MUST keep internal fault details off the
@@ -2611,6 +2620,67 @@ rules still govern `Accept` and `Content-Type` values. Type Descriptors
 hosted outside a Scope keep ordinary HTTP caching semantics. SSE responses
 use `Cache-Control: no-store, no-transform`. Intermediaries must not cache or
 transform the stream.
+
+### Conditional reads and HEAD
+
+GET and HEAD preconditions follow [RFC 9110 section 13.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2).
+Normal authentication, authorization/non-disclosure, query and cursor checks,
+Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST
+precede any conditional not-modified shortcut. An ordinary refusal is not
+replaced by `304`. A successful read whose HTTP condition selects
+`304 Not Modified`, or a read whose precondition fails with
+`412 Precondition Failed`, MUST be bodyless and MUST NOT carry a BDP Problem
+body. The latter is not the write-side `409 revision-mismatch`. Required
+current Scope context and applicable cache fields remain required on these
+responses (ruled 2026-09-09, G4/G5).
+
+Omitting optional validators does not permit ignoring HTTP preconditions.
+For an otherwise successful existing representation without an entity tag,
+`If-None-Match: *` yields `304`, a specific `If-Match` entity tag fails with
+`412`, and `If-Match: *` passes. A specific `If-None-Match` entity tag cannot
+match an absent entity tag. Combined conditions retain HTTP precedence:
+`If-Match` is evaluated before `If-None-Match`; date conditions obey their
+HTTP availability, validity, and precedence rules. Omission of a
+`Last-Modified` field does not itself establish whether a modification date
+is available. No new modification-date or validator construction scheme is
+assigned here.
+
+A `304` is not delivery or application of a change group or erasure record
+and MUST NOT advance a client's durable checkpoint. No conditional response
+permits retaining or reusing content that the erasure rules require removing.
+
+HEAD retains the corresponding GET authorization, query, cursor, media
+negotiation, and precondition decision and MUST send no response body. This
+includes `changes/`, Scope `events/`, Resource `view=events`, snapshot handles
+and streams, and receipt/page URLs. For an acceptable SSE representation,
+HEAD returns the corresponding response metadata and ends without SSE frames;
+it MUST NOT remain open merely to stream events. HEAD acknowledges neither
+delivery nor application and creates no mutation transaction. Ordinary HTTP
+HEAD metadata rules, including permitted omissions, apply; BDP's explicitly
+required context/cache fields remain required. This clarifies the existing
+cumulative GET/HEAD requirement, not a new method policy.
+
+### Receipt and finite-feed HTTP validators
+
+Finite Scope changefeed pages and finite Event pages, both Scope `events/`
+and Resource `view=events`, MUST omit `ETag` and `Last-Modified` initially.
+Their continuation and Scope-position contracts remain the observation
+protocol; a transaction, group checkpoint, or subject revision is not a
+whole-page HTTP validator. SSE has no per-group HTTP validator or new
+group-addressing URL (ruled 2026-09-09, G5). Receipt/page validator omission
+is specified under [Mutation Receipt responses](#mutation-receipt-responses).
+Canonical Resource, Type Descriptor, and discovery ETags remain unchanged;
+these decisions assign no snapshot or discovery validator details.
+
+| Observation target | Method | Response |
+| --- | --- | --- |
+| `changes/`, Scope `events/`, Resource `view=events` | GET, HEAD | `200` finite JSON or acceptable SSE metadata/stream as defined by the endpoint; ordinary authorization, query, cursor, epoch/view, minimum-position, erasure/history-expiry, and service failures; shared bodyless `406`, conditional `304`/`412`, or internal-fault `500` when applicable |
+| the same targets | other methods | `405`, `Allow: GET, HEAD`, with CORS `OPTIONS` handled under the shared rules |
+
+[Conditional reads and HEAD](#conditional-reads-and-head) governs ordering,
+bodylessness, required current metadata, and the absence of checkpoint
+advancement on `304` or HEAD. Finite responses retain their authorization
+cache policy; SSE retains `Cache-Control: no-store, no-transform`.
 
 ### Event-ID and checkpoint character profile
 
@@ -4014,8 +4084,11 @@ response and status rules; their bodies remain `putAliasRequest` and
 (ruled 2026-09-08, T49).
 
 The Transactional mutation surface answers as follows; a row's statuses are
-exhaustive for that target and method, apart from the bodyless `500` an
-unexpected internal fault produces anywhere.
+exhaustive for that target and method, apart from the shared bodyless `406`
+negotiation refusal, GET/HEAD conditional `304` and `412`, and the bodyless
+`500` an unexpected internal fault produces anywhere. The HTTP-native
+exceptions follow [Conditional reads and HEAD](#conditional-reads-and-head)
+and do not add BDP problem codes.
 
 | Target | Method | Response |
 | --- | --- | --- |
@@ -4596,6 +4669,22 @@ an entry, and are served through the same projection as the receipt. After
 the receipt's detail expires, a page URL returns `410` `cursor-expired`,
 decided after authentication and the receipt's non-disclosure rule.
 
+An already issued receipt-page URL MUST remain usable across ordinary
+restart or failover in the same Scope epoch while the receipt detail remains
+available, preserving its recorded entry boundaries and applying current
+authorization and erasure projection. The authority retains or reconstructs
+the pagination identity; restart alone is not early cursor expiry. This
+preserves detail expiry, failed-receipt forgetting, retraction, and prior-epoch
+non-disclosure. Temporary inability to serve available detail is a service
+failure, not permission to discard the handle or execute the transaction
+again (ruled 2026-09-09, G2).
+
+Receipt and receipt-page representations MUST omit `ETag` and `Last-Modified`
+initially and retain `Cache-Control: private, no-store`. This includes receipt
+representations returned by mutations as well as reads. GET/HEAD still applies
+[Conditional reads and HEAD](#conditional-reads-and-head); execution identity
+and retained facts are not HTTP validators (ruled 2026-09-09, G4).
+
 Every delivery of a receipt — the synchronous response, the response to a
 duplicate, a later `GET` or `HEAD`, every page, and the projection of a
 member's receipt into a sequence response — is one representation, the
@@ -5007,6 +5096,26 @@ first page of each typed stream and may contain both streams completely:
   }
 }
 ```
+
+The manifest's `id` MUST support GET and HEAD while the snapshot handle
+remains valid. GET retrieves the same manifest, including its identity,
+anchor, checkpoint, expiry, erasure ledger, and initial stream pages; it MUST
+NOT create a replacement snapshot or extend `expiresAt`. The authority retains
+or reconstructs that manifest. Existing epoch/view validity and erasure fences
+apply. An authorized expired or no-longer-available snapshot handle returns
+`410 cursor-expired`; an unknown or undisclosable target retains uniform
+`404 resource-not-found`. Actual service inability before the promised expiry
+is a service failure, not an expiration diagnosis (ruled 2026-09-09, G1).
+
+| Snapshot target | Method | Response |
+| --- | --- | --- |
+| discovered creation target | GET, HEAD | `200` snapshot manifest metadata/body as appropriate; ordinary authentication, authorization, request, consistency, and service failures |
+| manifest `id` or supplied stream continuation | GET, HEAD | `200` the retained manifest or stream page; `404 resource-not-found` for an unknown/undisclosable target; `410 cursor-expired` for an authorized expired/unavailable handle, including timed or erasure expiry; ordinary epoch/view, minimum-position, and service failures |
+| either target | other methods | `405`, `Allow: GET, HEAD`, with CORS `OPTIONS` handled under the shared rules |
+
+The shared native `406`, conditional `304`/`412`, and bodyless `500` rules
+apply. No conditional shortcut bypasses a snapshot fence. HEAD has the
+lifecycle and body rules under [Conditional reads and HEAD](#conditional-reads-and-head).
 
 Each non-null `next` is an absolute URL that the server generates. That URL is
 bound to the snapshot identity, the stream kind, the Scope epoch, the
@@ -5888,6 +5997,14 @@ profile-specific response vehicle.
 | `transactional.idempotency.unresolved-comparison` | Direct unresolved comparison uses a separate finite wait, proven conflict or receipt, and retryable 503 at its deadline |
 | `transactional.idempotency.retraction-retry` | A waiting direct request may win fresh admission in the same epoch without inheriting ownership or resetting its deadline |
 | `transactional.erasure.persistent-event-consumer` | Persistent Event consumers claiming protocol-backed erasure handling integrate Scope changefeed and snapshot ledger recovery and cleanup |
+| `transactional.snapshot.manifest-refetch` | Snapshot GET/HEAD retrieves the same valid manifest without replacing its anchor or renewing expiry |
+| `transactional.snapshot.handle-refusal` | Snapshot handle expiry and non-disclosure precede conditionals and never disguise a pre-expiry service failure |
+| `transactional.receipt.page-restart` | Issued receipt-page URLs preserve boundaries across same-epoch restart while detail remains available |
+| `transactional.http.accept-refusal` | Unacceptable successful response media yields bodyless 406 before admission while ordinary refusals retain precedence |
+| `transactional.receipt.validator-omission` | Receipt and page responses omit optional validators while retaining private no-store and HTTP preconditions |
+| `transactional.http.finite-validator-omission` | Finite changes and Event pages omit optional validators without changing cursor semantics or adding SSE group validators |
+| `transactional.http.conditional-reads` | Read conditionals preserve ordinary refusal precedence and produce native bodyless 304 or 412 without checkpoint advancement |
+| `transactional.http.head-parity` | HEAD preserves GET decisions and required metadata and ends without bodies or SSE frames |
 
 ### Open protocol questions
 

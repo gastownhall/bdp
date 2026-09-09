@@ -1530,7 +1530,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#batch-operation-target",
-          "selectedText": "a row's statuses are exhaustive for that target and method, apart from the bodyless `500` an unexpected internal fault produces anywhere."
+          "selectedText": "The Transactional mutation surface answers as follows; a row's statuses are exhaustive for that target and method, apart from the shared bodyless `406` negotiation refusal, GET/HEAD conditional `304` and `412`, and the bodyless `500` an unexpected internal fault produces anywhere."
         }
       ]
     },
@@ -1905,6 +1905,150 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#event-replay-and-live-observation",
           "selectedText": "This requirement scopes the supported erasure-handling claim; it neither prohibits other storage deployments nor exempts any store, cache, or replica from the every-store erasure duty."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.manifest-refetch",
+      "title": "Snapshot GET/HEAD retrieves the same valid manifest without replacing its anchor or renewing expiry",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "The manifest's `id` MUST support GET and HEAD while the snapshot handle remains valid."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "GET retrieves the same manifest, including its identity, anchor, checkpoint, expiry, erasure ledger, and initial stream pages; it MUST NOT create a replacement snapshot or extend `expiresAt`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.handle-refusal",
+      "title": "Snapshot handle expiry and non-disclosure precede conditionals and never disguise a pre-expiry service failure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "An authorized expired or no-longer-available snapshot handle returns `410 cursor-expired`; an unknown or undisclosable target retains uniform `404 resource-not-found`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "Actual service inability before the promised expiry is a service failure, not an expiration diagnosis"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.page-restart",
+      "title": "Issued receipt-page URLs preserve boundaries across same-epoch restart while detail remains available",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "An already issued receipt-page URL MUST remain usable across ordinary restart or failover in the same Scope epoch while the receipt detail remains available, preserving its recorded entry boundaries and applying current authorization and erasure projection."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "This preserves detail expiry, failed-receipt forgetting, retraction, and prior-epoch non-disclosure."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.accept-refusal",
+      "title": "Unacceptable successful response media yields bodyless 406 before admission while ordinary refusals retain precedence",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "In every profile, an otherwise valid request whose `Accept` field accepts none of the endpoint's successful response media types MUST receive a bodyless `406 Not Acceptable`, with no BDP problem code, family, or retry member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "This refusal occurs before mutation admission, receipt creation, or state change."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.validator-omission",
+      "title": "Receipt and page responses omit optional validators while retaining private no-store and HTTP preconditions",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Receipt and receipt-page representations MUST omit `ETag` and `Last-Modified` initially and retain `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.finite-validator-omission",
+      "title": "Finite changes and Event pages omit optional validators without changing cursor semantics or adding SSE group validators",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#receipt-and-finite-feed-http-validators",
+          "selectedText": "Finite Scope changefeed pages and finite Event pages, both Scope `events/` and Resource `view=events`, MUST omit `ETag` and `Last-Modified` initially."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#receipt-and-finite-feed-http-validators",
+          "selectedText": "SSE has no per-group HTTP validator or new group-addressing URL"
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.conditional-reads",
+      "title": "Read conditionals preserve ordinary refusal precedence and produce native bodyless 304 or 412 without checkpoint advancement",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "Omitting optional validators does not permit ignoring HTTP preconditions."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "A `304` is not delivery or application of a change group or erasure record and MUST NOT advance a client's durable checkpoint."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.head-parity",
+      "title": "HEAD preserves GET decisions and required metadata and ends without bodies or SSE frames",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "HEAD retains the corresponding GET authorization, query, cursor, media negotiation, and precondition decision and MUST send no response body."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "For an acceptable SSE representation, HEAD returns the corresponding response metadata and ends without SSE frames; it MUST NOT remain open merely to stream events."
         }
       ]
     }

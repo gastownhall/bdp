@@ -61,11 +61,11 @@ describe("draft Transactional catalog", () => {
 
   it("strictly parses and binds every citation to the current specification text", () => {
     expect(catalog.catalogVersion).toBe(1);
-    expect(catalog.scenarios.length).toBe(125);
+    expect(catalog.scenarios.length).toBe(133);
     validateCatalogCitations(catalog, (source) => readText(source), "transactional-v1.json");
   });
 
-  it("keeps the ruled T62/T65 catalog objects in lockstep with the maintained packet rows", () => {
+  it("keeps the ruled T62/T65 and HTTP-gap catalog objects in lockstep with the maintained packet rows", () => {
     const affectedIds = [
       "transactional.idempotency.durable-admission",
       "transactional.sequence.in-flight-projection",
@@ -74,6 +74,15 @@ describe("draft Transactional catalog", () => {
       "transactional.idempotency.unresolved-comparison",
       "transactional.idempotency.retraction-retry",
       "transactional.erasure.persistent-event-consumer",
+      "transactional.snapshot.manifest-refetch",
+      "transactional.snapshot.handle-refusal",
+      "transactional.receipt.page-restart",
+      "transactional.http.accept-refusal",
+      "transactional.receipt.validator-omission",
+      "transactional.http.finite-validator-omission",
+      "transactional.http.conditional-reads",
+      "transactional.http.head-parity",
+      "transactional.http.status-matrix",
     ];
     const packet = readText("docs/design/w1-transactional-packet.md");
     const packetRows: unknown[] = [
