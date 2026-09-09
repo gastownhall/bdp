@@ -158,7 +158,7 @@ source rather than accepted solely from the review. No H1–H12 choice was ruled
 
 Verified source pins: #19 `06ebabdb391d8ea730295f4e01ed00bc1206fe38` (Alias
 resolution 2300–2317, Reads after deletion 2319–2354, discovery 1747–1756,
-requirements PROTO-013 68–78); #23 `2c537a6f8a4f42e4fef0fa5d47439bcb25d2efe7`
+requirements PROTO-013 68–77); #23 `2c537a6f8a4f42e4fef0fa5d47439bcb25d2efe7`
 (Revisions 633–661); #20 `1eef4e439629e247e9055ef8e42045acbea66b75` (erasure
 digest 4957–4974, packet T15 3231–3243, T18 4671–4683, T49 7161–7220).
 The [operator handoff](https://github.com/donnabox/agent-coordination/blob/ee0c6b32f06f5960c6d74dfc5a5cfb20ce42e368/context/janet/beads-workstream-state.md#L701-L725)
@@ -281,3 +281,50 @@ proposal rows, both unchanged schema mirrors and the three-file branch scope.
 External comment bodies and the reported harness tree were not independently
 refetched, and link syntax/local object checks are not live URL checks. This is an
 author fold and must receive fresh independent final-head review before clearance.
+
+## 2026-09-08 — completed 9cc4cf4 review and residual author fold
+
+Input head: `9cc4cf47fd95e15f6f90aa1a98f3cc11c6eb1674`. Native Codex returned
+0 Critical/High/Medium/Low; the completed Gemini report also reports zero across
+all four severities. Claude returned **0 Critical, 1 High, 5 Medium, 3 Low**.
+Independent adjudication accepted six findings and partly accepted three. This
+bounded author fold applies those dispositions in a new checkout; it is not a
+clearance of the resulting content. Earlier review scopes and conclusions remain
+historical records, qualified by this follow-up where stated below.
+
+| Claude finding | Disposition and correction |
+| --- | --- |
+| 1 High — Unretained gate versus success authorization | Partly accepted. Fixed item 3 and H4/H5 now separate the already ruled Bead-history refusal gate from H4’s open successful-record permission model. HR03/05/06 cover missing owned content, authorized refusal, uniform non-disclosure and permission denial that proves no gap. Rejected reopening the fixed Bead gate, asserting that all authorization implementations require absent content, or inventing a fixed independent Link refusal contract. |
+| 2 Medium — baseline citations through draft heads | Partly accepted as a further citation improvement. Aggregate ETag, Read/RU no-epoch, view bindings and current closure now cite main 2025–2068, 1848–1853, **794–802**, and 771–792 respectively. Rejected the stronger claim that identical law becomes conditional because cited at a pinned draft, or that the earlier L4 disposition claimed every citation was replaced. TX amendment targets stay pinned to TX. |
+| 3 Medium — Gone reason versus bounded evidence | Accepted with qualification. Fixed item 1 now includes Gone with the removal reason. H5/HR06 explicitly require a dated amendment to end that promise through diagnosis expiry; a tombstone budget does not select it. This qualifies the earlier bounded-evidence dispositions: sufficient compact evidence may preserve the consequence, but Unknown after expiry is not ordinary implementation discretion where it retires ruled Gone. No lifetime storage mechanism is imposed; the TX permanent ledger remains fixed. |
+| 4 Medium — discovery participation input | Accepted. H1b queues authorized counts, a defined coverage class, or honest omission, with category/consistency definitions conditional on selection. Complete capability does not mean every Resource participates; HR01 covers that distinction and hidden-count protection. No member or denominator selected. |
+| 5 Medium — pre-removal administrative disclosure input | Partly accepted. H12 queues local affected-address disclosure, authorized recipient, actor information and required-History versus later-administration scope, cross-referenced to H5/H1b. Primary acceptance comment 5464020140 confirms the history-authorization direction, not this exact administrative API. Rejected adopting broadcast/changefeed retention propagation or a new mutation endpoint; explicit deferral claims no assurance. |
+| 6 Medium — H6/H7 enumeration dependency | Accepted. Version-history depends on actual H7 enumeration. H7-B leaves only truthful authorized latest/direct predecessor/successor candidates, without guaranteeing all exist. Replacement semantics cover the selected relation subset and page membership only where a page exists. Batching/work order and HR10 preserve that dependency; caching/validator work remains independent and H1b returns later. |
+| 7 Low — fixed visibility closure omitted | Accepted. Item 5 includes hidden in-Scope target hiding its owning source; the properties amendment did not withdraw it. H4/H12 distinguish this fixed current-plane constraint from open historical-success permission and deleted-target lifecycle choices. No deletion exception supplied. |
+| 8 Low — sync-uncertainty carrier input | Accepted as input accounting. H5 queues no extra member (recommendation) versus a separately defined, evidenced mayChangeAfterSync member. HR06 follows the selected carrier; neither option promises recovery or requires polling. The member is not restored as selected wire shape. |
+| 9 Low — PROTO-013 range | Accepted. Packet URL and earlier verification prose now stop at line 77; line 78 begins PROTO-014. Requirement content is unchanged. |
+
+Primary verification used the locally supplied Memory-compat ruling 5586084982,
+properties amendment 5587346463, revision-2 input 5573074065 (including §3/§8), and
+the previously supplied primary-comment snapshot for acceptance 5464020140.
+Main `0b7d86e7cfec47f88cd1ec22314a73f39763bcf8` Authorization views, HTTP/aggregate,
+Reads after deletion and PROTO-013 were checked from local git objects. The
+new **794–802** citation includes the actual token bindings; 771–792 alone does
+not. No live source refetch was performed in this fold.
+
+All H1–H12 remain OPEN. Item-3 Bead-history refusal authorization, item-1
+Gone-with-reason and item-5 current-plane closure remain fixed. Additional explicit
+choices are participation advertisement, an amendment if bounded diagnosis ends
+Gone, local administrative scope/disclosure and the optional sync carrier. T49,
+T63 and T64 are ruled at ACK 267f79d; T62’s direction is selected with its observable
+contract open; T50–T61 remain provisional. None supplies a History default.
+
+Validation: diff whitespace, local Markdown paths/anchors, pinned local git source
+paths/ranges, twelve H headings and fifteen HR proposal rows, and unchanged schema
+mirrors. The tracked fold writes only this record and the packet; the existing
+index remains an accurate non-normative pointer and needs no edit. The separate
+scratch first-ruling brief now presents **four items together**, with four separate
+answers/open edges, and reflects this fold. No normative/schema/catalog/runtime or
+evidence change, tests, agents, network calls, commit, push, post or merge occurred.
+Parent inspection and independent review of the resulting final head remain owed;
+this author record grants no clearance or implementation authorization.
