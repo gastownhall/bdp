@@ -22,6 +22,7 @@ import { assertIdentityPin } from "./bd-baseline.mjs";
 import {
   ALLOWED_EVIDENCE_DELTA_PATHS,
   assembleVerificationInput,
+  deriveReadInputBindings,
   assertDistMatchesCommittedConstants,
   classifyEvidenceClaim,
   EvidenceGateError,
@@ -320,6 +321,14 @@ describe("Read schema projection drift over the committed cohort", () => {
         bundle,
         deriveReadSchemaProjectionRoots(manifest),
       ).digest,
+      derivedInputBindings: deriveReadInputBindings({
+        catalogBytes: readText(catalogPath),
+        manifestBytes: readText(manifestPath),
+        fixtureBytesByTarget: {
+          bdptest: readText("packages/conformance/fixtures/read-reference-v1.json"),
+          bdpbd: readText("packages/conformance/fixtures/read-bdpbd-v1.json"),
+        },
+      }),
       expectedBdIdentity: {
         version: pinned.version,
         schemaVersion: pinned.schema_version,
@@ -522,6 +531,11 @@ function genuineVerificationInput(artifact = minimalArtifact()) {
     derivedNotApplicableByTarget: { bdptest: [], bdpbd: [] },
     derivedSelfCertifiable: ["read.scope.restore-identity"],
     derivedSchemaReadProjection: digest("12"),
+    derivedInputBindings: {
+      catalog: digest("c1"),
+      manifest: digest("d2"),
+      fixtures: { bdptest: digest("e3"), bdpbd: digest("e3") },
+    },
     expectedBdIdentity: { version: "1.0.5", schemaVersion: 1, observationsDigest: digest("ab") },
     gitFacts: {
       evidenceCommit: EVIDENCE_COMMIT,
@@ -531,3 +545,46 @@ function genuineVerificationInput(artifact = minimalArtifact()) {
   });
   return { input, constant, artifact };
 }
+
+describe("exact current input byte derivation", () => {
+  it("detects an assertion-only manifest change with unchanged scenario IDs and schema roots", () => {
+    const root = fileURLToPath(new URL("..", import.meta.url));
+    const relative = "packages/conformance/matrices/read-v1.json";
+    const manifestBytes = readFileSync(path.join(root, relative), "utf8");
+    const original = JSON.parse(manifestBytes);
+    const changed = structuredClone(original);
+    function alterAssertion(value) {
+      if (value === null || typeof value !== "object") return false;
+      if (
+        value.kind === "json-pointer" &&
+        value.exists === false &&
+        typeof value.pointer === "string"
+      ) {
+        value.pointer = "/different-assertion";
+        return true;
+      }
+      return Object.values(value).some(alterAssertion);
+    }
+    expect(alterAssertion(changed)).toBe(true);
+    const changedBytes = JSON.stringify(changed);
+    const before = loadExecutableScenarioManifestJson(manifestBytes, relative);
+    const after = loadExecutableScenarioManifestJson(changedBytes, relative);
+    expect(deriveReadSchemaProjectionRoots(after)).toEqual(deriveReadSchemaProjectionRoots(before));
+    expect(after.scenarios.map((row) => row.id)).toEqual(before.scenarios.map((row) => row.id));
+    const inputs = {
+      catalogBytes: readFileSync(path.join(root, "packages/conformance/catalog/read-v1.json")),
+      manifestBytes,
+      fixtureBytesByTarget: {
+        bdptest: readFileSync(
+          path.join(root, "packages/conformance/fixtures/read-reference-v1.json"),
+        ),
+        bdpbd: readFileSync(path.join(root, "packages/conformance/fixtures/read-bdpbd-v1.json")),
+      },
+    };
+    const expected = deriveReadInputBindings(inputs);
+    const actual = deriveReadInputBindings({ ...inputs, manifestBytes: changedBytes });
+    expect(actual.manifest).not.toBe(expected.manifest);
+    expect(actual.catalog).toBe(expected.catalog);
+    expect(actual.fixtures).toEqual(expected.fixtures);
+  });
+});

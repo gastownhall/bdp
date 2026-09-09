@@ -12,6 +12,25 @@ outside the digest. A change to the text of any sealed definition forces a
 re-seal; a definition the seal does not name, or the bundle's metadata, does
 not.
 
+
+**Successor amendment, 2026-09-09.** Donna approved retaining the original
+ordered26 names and appending `ownedWildcardDeclaration` as name27. The
+independent reachability coverage check remains mandatory and never selects
+digest inputs. This changes the named projection before the successor run
+head; it grants no coverage to old observations. The wildcard and erased
+problem definitions have changed and require a genuine two-target re-seal.
+The original26-name ruling and binding-only migrations below remain historical
+provenance, not the current named list. Approval:
+[PR/materialization ballot](https://github.com/donnabox/agent-coordination/blob/4fd5783/context/janet/pr-materialization-ballot-20260909.md), items1–2.
+
+The gate also recomputes exact current catalog and manifest byte hashes plus
+each target's fixture byte hash. Every segment must bind those current values;
+agreement among old segments is insufficient. Assertion-only edits with the
+same scenario IDs/schema roots, and fixture edits with unchanged capabilities,
+still require new observations. Both fixture paths join the committed-input
+cleanliness check. This is separate from the schema's named projection: later
+profile definitions outside that projection still do not force a Read re-seal.
+
 This document is the decision record. The evidence law lives in
 [`packages/conformance/matrices/README.md`](../../packages/conformance/matrices/README.md);
 if the two disagree, the law governs and this record must be corrected.
@@ -37,7 +56,8 @@ for format only. That left two bad options:
    `READ_SCHEMA_SEALED_DEFINITIONS` in
    `packages/conformance/src/schema-read-projection.ts`, the 26 `$defs` names
    of `schemas/bdp-v0.schema.json` at seal commit `0b7d86e7`, in the order
-   that bundle declares them. The projection's bytes are the JSON array of
+   that bundle declares them, followed by the approved name27
+   `ownedWildcardDeclaration` for the successor. The projection's bytes are the JSON array of
    `[name, definition]` pairs in that order, canonicalized under RFC 8785
    (JCS) so member order and whitespace cannot move it; the digest is SHA-256
    over those bytes. Only the text of the sealed definitions is inside the

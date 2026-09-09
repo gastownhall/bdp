@@ -58,6 +58,12 @@ export interface ReadCohortVerificationInput {
    * closes until re-sealed.
    */
   readonly derivedSchemaReadProjection: string;
+  /** SHA-256 of exact current catalog/manifest bytes and each target fixture. */
+  readonly derivedInputBindings: {
+    readonly catalog: string;
+    readonly manifest: string;
+    readonly fixtures: Readonly<Record<ReadCohortTarget, string>>;
+  };
   /**
    * D4: the pinned bd identity, recomputed by the caller from the committed
    * baseline observations. Every bdpbd segment must record exactly this
@@ -372,6 +378,27 @@ export function verifyReadCohortEvidence(input: ReadCohortVerificationInput): vo
         throw new ReadCohortVerificationError(
           `target '${targetName}' runs disagree on the bound fixture`,
         );
+      }
+
+      // Agreement between old segments is not proof that current inputs match.
+      // Bind exact bytes, including assertion-only changes with unchanged IDs
+      // and schema roots, and fixture edits that keep capabilities unchanged.
+      const currentBindings = {
+        catalog: input.derivedInputBindings?.catalog,
+        manifest: input.derivedInputBindings?.manifest,
+        fixture: input.derivedInputBindings?.fixtures?.[targetName as ReadCohortTarget],
+      };
+      for (const [key, current] of Object.entries(currentBindings)) {
+        if (typeof current !== "string" || !SHA256_HEX.test(current)) {
+          throw new ReadCohortVerificationError(
+            `current '${targetName}' ${key} binding is missing or malformed`,
+          );
+        }
+        if (bindings[key] !== current) {
+          throw new ReadCohortVerificationError(
+            `current ${key} bytes drift for '${targetName}': re-seal required`,
+          );
+        }
       }
 
       for (const scenarioEntry of array(segment.scenarios, "segment scenarios")) {

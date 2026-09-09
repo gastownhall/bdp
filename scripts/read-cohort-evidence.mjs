@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -27,6 +28,22 @@ export const ALLOWED_EVIDENCE_DELTA_PATHS = Object.freeze([
 const CATALOG_PATH = "packages/conformance/catalog/read-v1.json";
 const MANIFEST_PATH = "packages/conformance/matrices/read-v1.json";
 const SCHEMA_BUNDLE_PATH = "schemas/bdp-v0.schema.json";
+const FIXTURE_PATHS = Object.freeze({
+  bdptest: "packages/conformance/fixtures/read-reference-v1.json",
+  bdpbd: "packages/conformance/fixtures/read-bdpbd-v1.json",
+});
+
+/** Derive bindings from exact input bytes, independently of the cohort. */
+export function deriveReadInputBindings({ catalogBytes, manifestBytes, fixtureBytesByTarget }) {
+  const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+  return {
+    catalog: hash(catalogBytes),
+    manifest: hash(manifestBytes),
+    fixtures: Object.fromEntries(
+      Object.keys(FIXTURE_PATHS).map((target) => [target, hash(fixtureBytesByTarget[target])]),
+    ),
+  };
+}
 
 /**
  * Everything verification reads from the working tree must be committed state:
@@ -39,6 +56,7 @@ export const VERIFICATION_INPUT_PATHS = Object.freeze([
   CATALOG_PATH,
   MANIFEST_PATH,
   SCHEMA_BUNDLE_PATH,
+  ...Object.values(FIXTURE_PATHS),
 ]);
 
 export class EvidenceGateError extends Error {
@@ -172,6 +190,7 @@ export function assembleVerificationInput({
   derivedNotApplicableByTarget,
   derivedSelfCertifiable,
   derivedSchemaReadProjection,
+  derivedInputBindings,
   expectedBdIdentity,
   gitFacts,
 }) {
@@ -182,6 +201,7 @@ export function assembleVerificationInput({
     derivedNotApplicableByTarget,
     derivedSelfCertifiable,
     derivedSchemaReadProjection,
+    derivedInputBindings,
     expectedBdIdentity,
     runHeadIsAncestor: gitFacts.runHeadIsAncestor,
     changedPathsSinceRunHead: gitFacts.changedPathsSinceRunHead,
@@ -336,6 +356,16 @@ export async function main() {
       derivedNotApplicableByTarget,
       derivedSelfCertifiable,
       derivedSchemaReadProjection: schemaReadProjection.digest,
+      derivedInputBindings: deriveReadInputBindings({
+        catalogBytes: readFileSync(path.join(root, CATALOG_PATH)),
+        manifestBytes: readFileSync(path.join(root, MANIFEST_PATH)),
+        fixtureBytesByTarget: Object.fromEntries(
+          Object.entries(FIXTURE_PATHS).map(([target, relative]) => [
+            target,
+            readFileSync(path.join(root, relative)),
+          ]),
+        ),
+      }),
       expectedBdIdentity,
       gitFacts,
     });

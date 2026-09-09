@@ -108,6 +108,11 @@ function inputFor(
     derivedNotApplicableByTarget: { bdptest: [], bdpbd: [] },
     derivedSelfCertifiable: SELF_CERTIFIABLE,
     derivedSchemaReadProjection: digest("12"),
+    derivedInputBindings: {
+      catalog: baseBindings.catalog,
+      manifest: baseBindings.manifest,
+      fixtures: { bdptest: baseBindings.fixture, bdpbd: baseBindings.fixture },
+    },
     expectedBdIdentity: bdIdentity,
     runHeadIsAncestor: true,
     changedPathsSinceRunHead: [ARTIFACT_PATH, CONSTANT_PATH],
@@ -407,7 +412,17 @@ describe("read cohort evidence verification", () => {
         seg.bindings = { ...(seg.bindings as Record<string, unknown>), fixture: digest("e9") };
       }
     });
-    expect(() => verifyReadCohortEvidence(inputFor(twoFixtures))).not.toThrow();
+    expect(() =>
+      verifyReadCohortEvidence(
+        inputFor(twoFixtures, {
+          derivedInputBindings: {
+            catalog: baseBindings.catalog,
+            manifest: baseBindings.manifest,
+            fixtures: { bdptest: baseBindings.fixture, bdpbd: digest("e9") },
+          },
+        }),
+      ),
+    ).not.toThrow();
   });
 
   it("refuses one target's runs disagreeing on the bound fixture", () => {
@@ -611,4 +626,35 @@ describe("read cohort evidence verification", () => {
       verifyReadCohortEvidence(inputFor(artifact(), { changedPathsSinceRunHead: [CONSTANT_PATH] })),
     ).not.toThrow();
   });
+});
+
+describe("current input byte bindings", () => {
+  it.each(["catalog", "manifest"] as const)(
+    "rejects current %s drift even when all old segments agree",
+    (key) => {
+      const input = inputFor(artifact());
+      expect(() =>
+        verifyReadCohortEvidence({
+          ...input,
+          derivedInputBindings: { ...input.derivedInputBindings, [key]: digest("99") },
+        }),
+      ).toThrow(new RegExp(`current ${key} bytes drift`));
+    },
+  );
+
+  it.each(["bdptest", "bdpbd"] as const)(
+    "rejects current %s fixture drift independently",
+    (target) => {
+      const input = inputFor(artifact());
+      expect(() =>
+        verifyReadCohortEvidence({
+          ...input,
+          derivedInputBindings: {
+            ...input.derivedInputBindings,
+            fixtures: { ...input.derivedInputBindings.fixtures, [target]: digest("99") },
+          },
+        }),
+      ).toThrow(/current fixture bytes drift/);
+    },
+  );
 });

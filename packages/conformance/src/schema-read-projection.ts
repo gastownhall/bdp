@@ -59,11 +59,13 @@ export class ReadSchemaProjectionError extends Error {
 /**
  * RP1 (2026-09-08): the sealed definition set, by name, in sealed order.
  *
- * These are the 26 `$defs` of `schemas/bdp-v0.schema.json` at seal commit
+ * The original 26 names below are the `$defs` of `schemas/bdp-v0.schema.json` at seal commit
  * 0b7d86e7cfec47f88cd1ec22314a73f39763bcf8 — whole-bundle SHA-256
  * 552329e6b4a42adfc2643dc92e52403cfad5bd5e4474a25d4f0edbc12968417d, the value
- * every sealed segment records as `bindings.schema` — in the order that bundle
- * declares them. `protocolProfile` is included: the seal covers what the
+ * the historical cohort records as `bindings.schema` — in the order that bundle
+ * declares them. The approved 2026-09-09 successor appends
+ * `ownedWildcardDeclaration` as name27 before new observations.
+ * `protocolProfile` is included: the seal covers what the
  * bundle held, not what Read happened to reach.
  *
  * The projection digest is a function of this list and the named definitions'
@@ -100,6 +102,7 @@ export const READ_SCHEMA_SEALED_DEFINITIONS: readonly string[] = Object.freeze([
   "pinnedReference",
   "ownedLinkDeclaration",
   "attribution",
+  "ownedWildcardDeclaration",
 ]);
 
 export interface ReadSchemaProjection {

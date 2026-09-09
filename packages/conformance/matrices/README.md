@@ -598,7 +598,8 @@ the 26 definitions the seal covers.
 - **Projection.** The `$defs` the bundle carried at the seal commit
   `0b7d86e7cfec47f88cd1ec22314a73f39763bcf8`, named in a checked-in list in
   sealed order — `READ_SCHEMA_SEALED_DEFINITIONS` in
-  `packages/conformance/src/schema-read-projection.ts`, 26 names,
+  `packages/conformance/src/schema-read-projection.ts`: the original26 names
+  followed by `ownedWildcardDeclaration` (approved2026-09-09),27 names total,
   `protocolProfile` included — serialized as the JSON array of
   `[name, definition]` pairs in that order, canonicalized under RFC 8785
   (JCS) so member order and whitespace cannot move it, and digested with
@@ -652,3 +653,24 @@ records the decisions and the migration procedure. Each migration changed
 the artifact's bytes and therefore the evidence constant, but the value it
 wrote is a pure function of the bundle bytes the seal already pinned: a
 binding-format migration, not new evidence and not a re-seal of observations.
+
+
+### Current Read input byte bindings (2026-09-09)
+
+Every segment must bind the SHA-256 of the exact current Read catalog and
+manifest bytes and the exact current fixture bytes for its target. The gate
+recomputes these values independently from committed files; agreement between
+segments alone is insufficient. A changed assertion with unchanged scenario
+IDs and schema roots, or a fixture edit with unchanged capabilities, closes
+the cohort until genuine successor observations bind the changed inputs.
+Both target fixtures are checked for uncommitted changes along with catalog,
+manifest, schema and evidence paths. The Read catalog/manifest stay separate
+from cumulative later-profile inputs.
+
+The successor named schema seal appends `ownedWildcardDeclaration` to the
+original ordered26 definitions. The coverage walk remains an independent
+fail-closed check; it never selects digest inputs. List/definition/input changes
+precede the new run head. Only generated artifact and matching capability
+constant belong in its evidence commit; old observations cannot be rehashed
+into a claim about changed inputs. Whole-schema metadata and later-profile
+unsealed definitions retain the projection rule above.
