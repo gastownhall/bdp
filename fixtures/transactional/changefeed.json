@@ -306,10 +306,10 @@
     },
     {
       "id": "view-b-projection-advance",
-      "condition": "Read by a principal whose view never projected the Task: at the erasure's position it receives the identifier-free projection advance and learns nothing.",
+      "condition": "Read by a principal whose view never projected the Task: at the erasure's position it receives the identifier-free projection advance and learns nothing. Its checkpoints are bound to view-b and are distinct from view-a checkpoints at the same Scope positions.",
       "request": {
         "method": "GET",
-        "target": "changes/?after=ckpt-43",
+        "target": "changes/?after=ckpt-b-43",
         "headers": {
           "accept": "application/json"
         }
@@ -328,13 +328,13 @@
           "scope": "https://beads.example/acme/",
           "scopeEpoch": "epoch-1",
           "authorizationView": "view-b",
-          "after": "ckpt-43",
+          "after": "ckpt-b-43",
           "observedHeadPosition": "pos-44",
           "groups": [
             {
               "scopeEpoch": "epoch-1",
               "authorizationView": "view-b",
-              "checkpoint": "ckpt-44",
+              "checkpoint": "ckpt-b-44",
               "position": "pos-44",
               "previousPosition": "pos-43",
               "projectionAdvance": true,

@@ -69,7 +69,7 @@
     },
     {
       "id": "operation-directory",
-      "condition": "The alias targets are listed because the profile inherits them; their Transactional contract is decision T49 in the packet, open.",
+      "condition": "The alias targets are listed because the profile inherits them; their Transactional locator-only receipt contract is ruled T49 option 1 in the packet.",
       "request": {
         "method": "GET",
         "target": "operations/",

@@ -6146,7 +6146,7 @@ inheritance as is and let a Transactional claim fail the retired rows
   },
   {
     "id": "transactional.changefeed.sse-reconnect",
-    "title": "SSE reconnection resumes from Last-Event-ID without gaps or duplicates",
+    "title": "SSE reconnection uses the durable applied checkpoint with header precedence",
     "kind": "normative",
     "requiredProfile": "transactional",
     "requirements": [
@@ -6154,6 +6154,16 @@ inheritance as is and let a Transactional claim fail the retired rows
         "source": "docs/specs/bdp.md",
         "anchor": "#scope-changefeed",
         "selectedText": "On automatic reconnect, `Last-Event-ID` overrides the original `after` value."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#scope-changefeed",
+        "selectedText": "A checkpoint supplied for changefeed reconnect, whether through `Last-Event-ID` or `after`, MUST be the client's durable checkpoint under the atomic-application rule above."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#scope-changefeed",
+        "selectedText": "An SSE implementation's remembered last-event ID records transport progress, not durable application; the client MUST NOT let an unapplied last-event ID override its durable checkpoint on reconnect."
       }
     ]
   },
@@ -6628,8 +6638,10 @@ installed `node_modules`, none was added, and the lockstep test reproduces
 every digest from the vector's recorded serialization — checking that the
 serialization parses to the record with members in UTF-16 code-unit order
 and that SHA-256 over it is the recorded digest — without recomputing the
-canonicalization (T57). The alias targets' Transactional contract is
-decision T49, open. Every other residual stands as written.
+canonicalization (T57). The alias targets' Transactional contract was open here as T49.
+T49 option 1 was subsequently ACKed and materialized on 2026-09-08 as
+locator-only receipts; the later ruling and apply records supersede this
+historical status. The other residuals below describe this earlier stage.
 
 An implementer who has this packet, ruled, still lacks:
 
@@ -7654,3 +7666,48 @@ historical Read evidence verifier. Counts remain 138 definitions, 276 tagged
 bodies and 121 unclaimed Transactional rows. The council record carries the
 findings and bounded review status; no write conformance or final clearance
 is claimed.
+
+
+### T65 — Persistent Event observer erasure acquisition (OPEN)
+
+**Context.** An application observer may retain version content from an Event
+Source, which delivers no erasure records. The duty of every store, cache and
+replica holding an erased version is already ruled. The acquisition and assurance
+contract for a non-replicating persistent observer has not been selected.
+
+**Decision to close.** What supported acquisition/reconciliation contract lets
+that observer learn and apply its projected erasure obligations through
+disconnects and Authorization View changes, and what assurance may the release
+claim for that deployment?
+
+**Options and tradeoffs.** A: integrate the existing Scope changefeed and snapshot
+ledger, with their ruled recovery and cleanup behavior; making that integration
+mandatory for every persistent observer adds cost and requires an explicit scope
+decision. B: define a different supported deployment contract that accounts for
+delivery, recovery and retained-copy cleanup; this requires its own observable
+assurance before any equivalence claim. Neither option excuses an already
+obligated holder.
+
+**Recommendation for preparation.** Use existing changefeed/ledger integration
+as the candidate to evaluate and leave persistent Event-only erasure assurance
+unclaimed until the contract is ruled. No subscription API, polling cadence or
+retention prohibition is selected here. The spec's informational note describes
+the existing Event-Source limitation and preserves the every-store law.
+
+**Consequences.** Coordinate with History H12's related capability/assurance
+boundary without choosing its lifecycle or stale-import alternatives. T25–T31
+and T64 remain fixed. No new T65 conformance row or passing fixture expectation
+exists before an observable contract is selected. This is a nonnormative open
+question, not a new ruling or an amendment to the Transactional receiver duties.
+
+
+### Final residual verification
+
+The derived reconnect example and existing SSE row’s citations now agree across
+specification, catalog and packet. View-b has distinct checkpoint spellings, and
+the stale T49 references are resolved. T65 records an open assurance question
+without changing erasure law. Final Node 24.16.0 build and gates pass; the full
+suite after build passes **1,573 tests in 48 files with zero skipped**, including
+the packaged ready-CLI probe. Definitions, body counts, catalog membership and
+retirements remain unchanged. The council record distinguishes completed
+`1c0d400` reviews from the next required final-head review.

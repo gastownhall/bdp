@@ -433,3 +433,31 @@ evidence verification (74 target-row instances). Schema mirrors, body counts,
 digest vectors, normative text and catalog membership are unchanged. These
 checks prove illustrated context consistency only, not live alias execution,
 Authorization View rotation or write conformance.
+
+
+### Completed 1c0d400 Claude review and final residual fold
+
+Claude’s frozen full-branch review at `1c0d400` completed with 0 Critical,
+0 High, 1 Medium and 3 Low findings. It independently compiled all 138
+definitions, validated 276 tagged bodies, resolved catalog citations and
+recomputed eight digest vectors. It did not run the full test suite.
+The prior recording of that seat as outstanding is now historical.
+
+| Finding | Disposition |
+| --- | --- |
+| M1, durable SSE recovery and catalog coverage | Partly accepted. Existing T64 durability was already represented by `transactional.erasure.disconnect-race`; the claim that no conformance row covered it was too broad. The SSE-specific row now also cites both existing durable-checkpoint MUSTs and has a matching title in the spec/catalog/packet. A concrete client-controlled reconnect example supplies the durable `after` value without an overriding header. No blanket EventSource ban, new acknowledgement, or separate transport requirement is added. |
+| L2, stale T49 status | Accepted. The discovery condition states the ruled locator-only contract; the packet’s earlier apply note explicitly records its former open status as superseded by T49 option 1. |
+| L3, cross-view checkpoint conflation | Accepted. The view-b projection uses `ckpt-b-43`/`ckpt-b-44`, distinct from view-a checkpoints while sharing the appropriate Scope positions. The assertion checks request/response agreement within view-b and separates cross-view checkpoint tokens. The request-target inventory includes the new spelling. |
+| L4, persistent Event-only erasure acquisition | Confirmed limitation with an open operational/assurance decision, T65. An informational Event-Source note states that replay alone supplies no erasure reconciliation. The every-store duty, replication recovery and T25–T31/T64 remain intact. No mandatory second subscription, new erasure Event, retention prohibition or narrower holder class is selected. History H12 is related but remains a separate open scope. |
+
+An independent native check of the residual fold found no outstanding findings
+after correcting two packet excerpt/status omissions. A full test run caught
+the newly distinct request target missing from the fixture inventory; that
+mechanical expectation was corrected. Final Node 24.16.0 gates pass typecheck,
+lint, format, dependency boundaries, build and historical Read evidence
+verification. Running the full suite **after build passes all 1,573 tests in
+48 files, with zero skipped** (35.49s); this includes the packaged ready-CLI
+probe that was skipped before a build existed. No schema or exchange shape
+changes: 138 definitions, 276 tagged bodies, 121 rows and twelve retirements.
+Fresh final-head council verification remains required. T65 and the earlier
+operator queue remain open; no write-runtime or browser conformance is claimed.

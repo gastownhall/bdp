@@ -254,6 +254,7 @@ describe("Transactional wire fixtures", () => {
       "changes/?after=ckpt-43",
       "changes/?after=ckpt-44",
       "changes/?after=ckpt-46",
+      "changes/?after=ckpt-b-43",
       "operations/",
       "operations/batch",
       "operations/delete-alias",
@@ -644,9 +645,13 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
       ?.exchanges.find(({ id }) => id === "view-b-projection-advance");
     if (!unaffected) throw new Error("missing unaffected-view projection illustration");
     expect(unaffected.response.status).toBe(200);
-    expect(unaffected.response.body.after).toBe(caughtUp.lastEmittedCheckpoint);
+    expect(unaffected.response.body.after).not.toBe(caughtUp.lastEmittedCheckpoint);
+    expect(new URL(unaffected.request.target, SCOPE).searchParams.get("after")).toBe(
+      unaffected.response.body.after,
+    );
     expect(unaffected.response.body.authorizationView).toBe("view-b");
     const advance = (unaffected.response.body.groups as JsonRecord[])[0] as JsonRecord;
+    expect(advance.checkpoint).not.toBe(group.checkpoint);
     expect(advance.position).toBe(group.position);
     expect(advance.projectionAdvance).toBe(true);
     expect(advance.erasures).toEqual([]);

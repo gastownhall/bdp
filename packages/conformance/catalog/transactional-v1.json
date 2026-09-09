@@ -1169,7 +1169,7 @@
     },
     {
       "id": "transactional.changefeed.sse-reconnect",
-      "title": "SSE reconnection resumes from Last-Event-ID without gaps or duplicates",
+      "title": "SSE reconnection uses the durable applied checkpoint with header precedence",
       "kind": "normative",
       "requiredProfile": "transactional",
       "requirements": [
@@ -1177,6 +1177,16 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-changefeed",
           "selectedText": "On automatic reconnect, `Last-Event-ID` overrides the original `after` value."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "A checkpoint supplied for changefeed reconnect, whether through `Last-Event-ID` or `after`, MUST be the client's durable checkpoint under the atomic-application rule above."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "An SSE implementation's remembered last-event ID records transport progress, not durable application; the client MUST NOT let an unapplied last-event ID override its durable checkpoint on reconnect."
         }
       ]
     },

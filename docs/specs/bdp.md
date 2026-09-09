@@ -5338,7 +5338,11 @@ for changefeed reconnect, whether through `Last-Event-ID` or `after`, MUST
 be the client's durable checkpoint under the atomic-application rule above.
 An SSE implementation's remembered last-event ID records transport progress,
 not durable application; the client MUST NOT let an unapplied last-event ID
-override its durable checkpoint on reconnect. A stale, unavailable,
+override its durable checkpoint on reconnect. One conforming implementation
+uses an SSE reader with client-controlled reconnects: it disables automatic
+reconnection and opens each fresh request with its durable checkpoint in
+`after` and no `Last-Event-ID` header. This is an implementation example,
+not a separate transport requirement. A stale, unavailable,
 foreign-epoch, or foreign-view checkpoint fails explicitly and requires a new
 snapshot. The authority never advances it silently to
 `minimumReplayPosition`. Existing caught-up streams cross an erasure
@@ -5445,6 +5449,11 @@ after commit. A self-Link projects two endpoint Events into its Bead source,
 one for `source` and one for `target`. Individual Event delivery is intended
 for application observation. Replicas consume the containing Scope change
 group atomically.
+
+Event Sources do not deliver erasure records. Event-Source replay alone
+therefore does not establish that retained version content has been
+reconciled with erasure obligations. Retaining such content from Event data
+does not exempt a store from the [Version erasure](#version-erasure) rules.
 
 A client requests live delivery from the same Event Source and initial cursor
 by accepting Server-Sent Events:
@@ -5741,7 +5750,7 @@ profile-specific response vehicle.
 | `transactional.changefeed.consistency-fields` | Scope-bounded responses carry epoch, view, and position, and honor minimum positions |
 | `transactional.changefeed.catch-up-timeout` | A minimum-position read that cannot be served within the wait bound fails with catch-up-timeout |
 | `transactional.changefeed.replay-window` | Late, foreign-epoch, and foreign-view cursors fail explicitly |
-| `transactional.changefeed.sse-reconnect` | SSE reconnection resumes from Last-Event-ID without gaps or duplicates |
+| `transactional.changefeed.sse-reconnect` | SSE reconnection uses the durable applied checkpoint with header precedence |
 | `transactional.changefeed.projection-advance` | A hidden transaction projects an identifier-free advance |
 | `transactional.changefeed.owned-closure` | Feeds and Event Sources project owned Links with their visible source |
 | `transactional.snapshot.rendezvous` | A snapshot checkpoint continues losslessly into the changefeed |
