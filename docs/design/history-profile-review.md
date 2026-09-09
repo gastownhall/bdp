@@ -1,6 +1,6 @@
 # History packet review record
 
-Status: prior councils through `9cc4cf4` and final native/Claude reviews on `297465d` are recorded below. The subsequent 2026-09-09 two-batch operator-ACK/documentation fold requires its own review. Non-normative; no implementation or conformance claim.
+Status: all 38 presented History answer units are ACKed. The consolidated decision-document fold requires its own review; normative/wire/runtime materialization remains pending. Non-normative; no implementation or conformance claim.
 Initial review date: 2026-09-08. Initial reviewed head: `02c598aa48630a41b2d9cf9d5b08b42878e1a9d9`.
 Full branch scope: `history-profile-packet.md`, this `history-profile-review.md`,
 `docs/design/README.md`, and the pinned authority inputs. Earlier two-file write-scope
@@ -442,3 +442,87 @@ links/anchors, pinned local paths/ranges, whitespace and the three-file scope. N
 tests, agents, install, commit, push, merge or external post were performed. Both
 ACK batches and this combined uncommitted fold require parent review and subsequent
 review of the actual saved head; prior frozen-head reports do not clear it.
+
+
+## 2026-09-09 — consolidated ballot ACK: 38 History answer units
+
+Input History head: `2774ff4d1d4ab82e921d9de0311186e79cc21aaf`, preserved frozen.
+This author created an isolated `codex/janet-history-complete-rulings` worktree from
+that head and changed only the packet, this review record and the design index.
+The [durable consolidated ballot ACK](https://github.com/donnabox/agent-coordination/blob/4fd57836ae052dec41b66493b88954bdabbb4d0f/context/janet/history-tx-complete-ballot-20260909.md)
+selects **B1/B3/B19 and A for every other unit**. Its units 1–22 are History;
+23–27 belong to the separately owned Transactional/shared HTTP fold. The packet’s
+22-row answer inventory maps every new selection to its owning H section. The
+prior sixteen answers remain intact: **16 + 22 = 38 History answer units**.
+
+This closes the presented initial-release semantic ballot, not the wire or runtime.
+Equivalent encodings and truthful legacy-state restatements are not extra answer
+units. Present/known-absent/undetermined context states and legacy-envelope absence
+were already selected. Materialization authority was granted by the separate
+PR/materialization ballot’s item 9, so neither execution permission nor that repeated
+state question is queued again. Concrete contradictory requirements still require
+Donna’s decision; delegated materialization cannot invent an exception.
+
+**Recorded outcomes and consequence check:**
+
+- Units **1 B / 2 A**: bounded known-missing inventory declares incompleteness;
+  it remains whole-answer Unretained, without invented paths/temporary failures or
+  partial Resource success. No refusal-body windows initially.
+- Units **3 B / 4 A / 5 A / 6 A**: enumerate the selected all-retained population,
+  distinguishing current/replaced entries; preserve truthful direct relations within
+  each recorded lineage, without singular-cardinality assumptions or r3→r4 invention;
+  omit erased entries; permit history-authorized deleted-subject enumeration.
+- Units **7 A / 8 A / 9 A**: no minimum cursor-lifetime promise, existing
+  cursor-expired and meaningful snapshot-preserving bounded progress; no aggregate
+  participation advertisement; truthful subject participation knowledge without a
+  new permanent marker promise. Gone and erasure evidence are not shortened.
+- Units **10 A / 11 A / 12 A**: native authority-observed commit time, one instant
+  for an atomic transaction and separate instants for independently committed
+  sequence members; optional per-operation agent/message; the originating context
+  reaches every version actually minted. No context-only no-op/delete version;
+  original imported time needs provenance, never import-time substitution. Existing
+  Event-time meaning, attribution fan-out and ordinary authentication stay fixed.
+- Units **13 A / 14 A**: extra import-provenance fields deferred; native context
+  required only for versions minted under advertised History, with compatible optional
+  shared schemas and truthful legacy absence. Expose it in ordinary version records,
+  mutation/receipt postimages, authorized history rows and matching created/updated
+  Event data; not tombstones, aliases, identity references or properties-only views.
+  Existing every-copy erasure and authorization rules cover the added context.
+- Units **15 A / 16 A / 17 A**: all-profile local-store assurance and scoped tested
+  persistent-consumer routes without a generic History acquisition promise; preserve
+  exact TX/T65 duties where applicable. Imports require positive authoritative
+  origin/version erasure status before visibility, else reject/discard. No identity
+  laundering, uncontrolled quarantine or arbitrary-downloaded-copy promise. Generic
+  pre-removal administration is deferred; Gone/erasure processing still applies.
+- Unit **18 A**: new authorized `revision-unrepresentable`, conflict/409/
+  after-state-change, initially without condition-specific payload. Positive declared-
+  contract incompatibility is required; missing bytes, unknown provenance, private
+  tooling limits or outage are insufficient. Erasure/non-disclosure takes precedence;
+  Unretained and temporary service failures remain distinct. No original-value rewrite.
+- Unit **19 B**: new write-only `revision-allocation-unsafe`, conflict/409/
+  after-state-change for positively persistent repair-required conflict; transient
+  evidence-inspection failure retains 503/after-delay. Preserve direct versus admitted
+  failure, rollback/retained-failure rules, reads, duplicates, deadlines and safe
+  candidate retry. No mandatory registry or new History read failure is introduced.
+- Units **20 A / 21 A / 22 A**: newest-first stable authority display order;
+  include positively evidenced retained incomplete non-erased versions with explicit
+  body state, excluding disposition-only entries; authorize whole metadata rows,
+  omit undisclosable rows and keep completeness/window metadata authorization-relative
+  without hidden counts or redaction relabeled as uncertainty.
+
+All outcomes were checked against the complete ACKed wording, including rationale
+and fixed-boundary paragraphs, rather than just option letters. The packet’s older
+open inventory is replaced by the selected-answer/materialization inventory and
+explicit deferred-extension list. The 15 HR cases remain proposals and were updated
+to exercise the newly selected diagnoses, membership/context/import and allocation
+boundaries; no catalog row or evidence result is claimed.
+
+**Validation boundary.** Diff whitespace, local Markdown paths/anchors, locally
+available pinned source paths/ranges, 12 H headings, 15 HR proposals, exactly 22
+consolidated answer rows and the three-file scope were checked. Both schema mirrors
+and normative/runtime/catalog artifacts are unchanged by scope. No test suite,
+harness, reviewer process, dependency install or external post was run. This author
+is authorized to commit the decision-document fold locally; no push or merge is
+part of the task. A separate scratch fan-out map identifies later integrated-base
+materialization targets and validation slices without modifying those targets.
+Historical reviews remain tied to their original heads and do not clear this fold.
