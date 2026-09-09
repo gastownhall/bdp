@@ -47,6 +47,20 @@ void _pinRejectsExtras;
 const scope = "https://scope.example/acme/" as AbsoluteHttpUrl;
 
 describe("Read envelope parsing", () => {
+  it("rejects erasure pointers while preserving ordinary problem extensions", () => {
+    const problem = {
+      type: "https://github.com/gastownhall/bdp/problems/gone",
+      code: "resource-erased",
+      status: 410,
+      retry: "never",
+      traceId: "request-7",
+    };
+    expect(parseReadProblem(problem)).toEqual(problem);
+    for (const pointer of ["https://archive.example/erased", { uri: "urn:erased" }, null]) {
+      expect(() => parseReadProblem({ ...problem, pointer })).toThrow();
+    }
+  });
+
   it("freezes parsed pins so a mutated input cannot reach the snapshot", () => {
     const source = { uri: "urn:external:pin-witness", revision: "pin-1" };
     const record = {

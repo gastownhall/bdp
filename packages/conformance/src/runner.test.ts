@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import schemaBundle from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import readManifest from "../matrices/read-v1.json" with { type: "json" };
 import {
   type ConformanceArtifactBundle,
   type ConformanceFixture,
@@ -167,6 +168,44 @@ function harness(capabilities: readonly string[] = ["public-http"]): ScenarioHar
 }
 
 describe("black-box conformance runner", () => {
+  it.each([
+    { extension: {}, expected: "pass" },
+    { extension: { pointer: "https://archive.example/erased" }, expected: "fail" },
+    { extension: { pointer: null }, expected: "fail" },
+    { extension: { archivedAt: "https://archive.example/erased" }, expected: "fail" },
+  ])(
+    "observes erasure pointer disclosure in the shipped assertions: $extension",
+    async ({ extension, expected }) => {
+      const scenario = requestScenario(
+        parseExecutableScenarioManifest(readManifest).scenarios.find(
+          ({ id }) => id === "read.disclosure.gone",
+        ),
+      );
+      const erased = scenario.requests.find(({ id }) => id === "erased");
+      if (!erased) throw new Error("missing shipped erased disclosure request");
+      const result = await runConformanceMatrix({
+        ...inputs(erased.assertions.map((assertion) => ({ ...assertion }))),
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        execute: async () => ({
+          url: "https://scope.example/",
+          status: 410,
+          headers: { "content-type": "application/problem+json" },
+          bodyText: JSON.stringify({
+            type: "https://github.com/gastownhall/bdp/problems/gone",
+            code: "resource-erased",
+            retry: "never",
+            traceId: "request-7",
+            ...extension,
+          }),
+        }),
+        harness: harness(),
+      });
+      expect(result.scenarios[0]?.state).toBe(expected);
+    },
+  );
+
   it("preserves mixed action ordering while the runner owns assertions and captures", async () => {
     const calls: string[] = [];
     const runInputs = actionInputs([

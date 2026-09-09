@@ -30,4 +30,8 @@ The wildcard runtime review in `docs/design/owned-wildcard-runtime-review.md`
 records isolated parser, adapter and public HTTP checks; those checks alone
 are not catalog execution or a replacement cohort.
 
+The erased-resource pointer correction is documented in
+`docs/design/read-erasure-pointer-correction.md` and is included before the
+successor observations.
+
 Open protocol questions and dated rulings are recorded in the specification.

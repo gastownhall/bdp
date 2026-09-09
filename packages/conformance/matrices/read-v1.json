@@ -6051,6 +6051,12 @@
             {
               "id": "no-pointer",
               "kind": "json-pointer",
+              "pointer": "/pointer",
+              "exists": false
+            },
+            {
+              "id": "no-archived-at",
+              "kind": "json-pointer",
               "pointer": "/archivedAt",
               "exists": false
             }

@@ -185,6 +185,11 @@ describe("BDP v0 schema bundle", () => {
         // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
         then: { properties: { archivedAt: false } },
       },
+      {
+        if: { properties: { code: { const: "resource-erased" } }, required: ["code"] },
+        // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
+        then: { properties: { pointer: false } },
+      },
     ]);
     expectValid("readProblem", {
       type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
@@ -227,6 +232,20 @@ describe("BDP v0 schema bundle", () => {
       retry: "after-state-change",
       traceId: "extension-members-are-allowed",
     });
+  });
+
+  it("rejects erasure pointers without closing ordinary RFC 9457 extensions", () => {
+    const problem = {
+      type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
+      code: "resource-erased",
+      status: 410,
+      retry: "never",
+      traceId: "request-7",
+    };
+    expectValid("readProblem", problem);
+    for (const pointer of ["https://archive.example/erased", { uri: "urn:erased" }, null]) {
+      expectInvalid("readProblem", { ...problem, pointer });
+    }
   });
 
   it("rejects Read documents that would reopen accepted decisions", () => {

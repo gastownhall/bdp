@@ -49,5 +49,9 @@ waves are internal sequencing labels, not protocol concepts.
   the Read parser and reference-adapter draft, verification, council findings
   and dispositions, and the remaining conformance integration obligations.
 
+- [Read erasure-pointer correction](./read-erasure-pointer-correction.md) records
+  the bounded hardening, review dispositions and historical evidence boundary;
+  prerequisite integration and a genuine successor cohort remain required.
+
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.
