@@ -62,6 +62,12 @@ been regenerated or relabeled.
   is [declared separately](../../adapter-in-memory/README.md) and does not meet
   this row's content-derived applicability condition.
 
+Both harness digests bind the fixed-order observer support list in
+`scripts/read-harness-bindings.ts`, including the successor observer, client
+dispatcher and controlled publisher. Matrix digests additionally bind their
+entry and server composition. These are source-role provenance, not a claim
+that the gate independently recomputes every transitive installed dependency.
+
 The new fixtures, catalog, manifest, observer code and packaged reference data
 must precede the recorded clean implementation head. Run both app matrices,
 fixture parity, observer regressions, build/typecheck and applicable repository

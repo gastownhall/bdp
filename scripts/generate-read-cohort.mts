@@ -9,6 +9,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import { deriveReadHarnessBindings } from "./read-harness-bindings.js";
 
 import { createBdpClientScenarioActionExecutor } from "@bdp/client/testing";
 import {
@@ -317,7 +318,8 @@ function loadBundle(fixtureRelativePath: string): ConformanceArtifactBundle {
 /**
  * Binding digest conventions. Each names the exact committed byte source that
  * played the role, so a reviewer can re-derive every value from the run head.
- * The verifier recomputes only `schemaReadProjection` (D29 = C / RP1, computed
+ * The verifier recomputes current catalog, manifest and target-fixture byte
+ * bindings plus `schemaReadProjection` (D29 = C / RP1, computed
  * below from the bundle at `schema` over the sealed definition set by name,
  * with the Read roots derived from the bound manifest as the coverage check);
  * the rest, including the whole-bundle `schema` digest, are recorded
@@ -327,7 +329,6 @@ const BINDING_SOURCES = {
   schema: "schemas/bdp-v0.schema.json",
   validator: "packages/conformance/src/schema-validator.ts",
   runner: "packages/conformance/src/runner.ts",
-  packagedHarness: "scripts/generate-read-cohort.mts",
 } as const;
 
 /** The executor role spans the fetch and raw-socket lanes; digest both, fixed order. */
@@ -570,30 +571,11 @@ describe("packaged Read cohort generation", () => {
         runner: sha256(readRepoBytes(BINDING_SOURCES.runner)),
         executor: executorDigest(),
       };
-      const packagedHarnessDigest = sha256(readRepoBytes(BINDING_SOURCES.packagedHarness));
-      // The in-process rows execute through the shared test-support layers,
-      // so the harness digest binds those transitive sources too: a change
-      // to the controlled projector or the lifecycle/client executors closes
-      // the cohort exactly like a change to the matrix entry file.
-      const inProcessSupportBytes = Buffer.concat([
-        readRepoBytes("packages/server/test-support/testing.ts"),
-        readRepoBytes("packages/conformance/test-support/testing.ts"),
-        readRepoBytes("packages/client/test-support/testing.ts"),
-      ]);
-      const matrixHarnessDigest = {
-        bdptest: sha256(
-          Buffer.concat([
-            readRepoBytes("apps/bdptest/src/read-matrix.test.ts"),
-            inProcessSupportBytes,
-          ]),
-        ),
-        bdpbd: sha256(
-          Buffer.concat([
-            readRepoBytes("apps/bdpbd/src/read-matrix.test.ts"),
-            inProcessSupportBytes,
-          ]),
-        ),
-      };
+      // Both lanes bind their executed observer helpers in a fixed order;
+      // matrix bindings additionally include the controlled server composition.
+      const harnessBindings = deriveReadHarnessBindings(readRepoBytes);
+      const packagedHarnessDigest = harnessBindings.packaged;
+      const matrixHarnessDigest = harnessBindings.matrix;
       const bdExecutableDigest = sha256(readFileSync(bdExecutable));
       const targets: ReadCohortTargetInput[] = [];
       for (const plan of plans) {
