@@ -1,0 +1,264 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-sequence",
+  "description": "A sequence on a Transactional Scope, projecting three members' receipts into the unchanged Read+Update envelope: a completed creation, a member whose key is bound to a pending receipt of a transaction still executing elsewhere, and a creation whose receipt's detail expired, whose idempotency-expired problem carries the allocated identity as an RFC 9457 extension member. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "member-receipts-projected",
+      "condition": "Member 0's key was unknown: it was admitted with a pending receipt, executed, and committed its own state, group, and terminal receipt at pos-49, whose one entry projects here. Member 1's key is bound to a pending receipt elsewhere: the sequence does not wait, executes nothing, and the pending receipt remains the key's state. Member 2's key is bound to a completed receipt whose detail expired: the projection carries the identity the receipt's allocated member retains, so a later @task reference still resolves.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-adr-create",
+              "operation": "createBead",
+              "name": "adr",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Adopt sequence envelopes",
+                "status": "proposed"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "idempotencyKey": "w1-task-42-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-42",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "closed"
+                }
+              ]
+            },
+            {
+              "idempotencyKey": "w1-task-77-create",
+              "operation": "createBead",
+              "name": "task",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Draft the sequence projection",
+                "status": "open"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/transactionalSequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "adr",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/adr-104",
+                "type": "https://work.example/types/decision",
+                "revision": "adr-104-r1",
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
+                "properties": {
+                  "title": "Adopt sequence envelopes",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "title": "Key is bound to a transaction still executing",
+              "status": 409,
+              "code": "idempotency-in-progress",
+              "retry": "after-delay",
+              "retryAfter": 1,
+              "operationIndex": 1
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/gone",
+              "title": "Receipt detail expired",
+              "status": 410,
+              "code": "idempotency-expired",
+              "retry": "never",
+              "operationIndex": 2,
+              "operationName": "task",
+              "allocated": {
+                "id": "https://beads.example/acme/beads/task-77",
+                "type": "https://work.example/types/task"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "expired-allocation-view-revoked",
+      "condition": "The creator and dependent keys are already bound to terminal retained executions; no unresolved admission or before-binding duplicate is illustrated. Creation detail has expired. The serving view no longer discloses its retained identity. The dependent is independently unauthorized, so its forbidden projection exposes no Resource identity. Internal label resolution uses the retained creation binding regardless of disclosure.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-task-77-create",
+              "operation": "createBead",
+              "name": "task",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Draft the sequence projection",
+                "status": "open"
+              }
+            },
+            {
+              "operation": "updateBeadProperties",
+              "idempotencyKey": "w1-task-77-dependent",
+              "bead": "@task",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "closed"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-revoked",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/transactionalSequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "task",
+              "type": "https://github.com/gastownhall/bdp/problems/gone",
+              "code": "idempotency-expired",
+              "status": 410,
+              "retry": "never",
+              "allocated": {
+                "withheld": true
+              }
+            },
+            {
+              "operationIndex": 1,
+              "type": "https://github.com/gastownhall/bdp/problems/authorization",
+              "code": "forbidden",
+              "status": 403,
+              "retry": "after-state-change"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "expired-allocation-view-granted",
+      "condition": "The creator and dependent keys are already bound to terminal retained executions; no unresolved admission or before-binding duplicate is illustrated. Creation detail has expired. The serving view now discloses its retained identity. The dependent is independently unauthorized, so its forbidden projection exposes no Resource identity. Internal label resolution uses the retained creation binding regardless of disclosure.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-task-77-create",
+              "operation": "createBead",
+              "name": "task",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Draft the sequence projection",
+                "status": "open"
+              }
+            },
+            {
+              "operation": "updateBeadProperties",
+              "idempotencyKey": "w1-task-77-dependent",
+              "bead": "@task",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "closed"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-granted",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/transactionalSequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "task",
+              "type": "https://github.com/gastownhall/bdp/problems/gone",
+              "code": "idempotency-expired",
+              "status": 410,
+              "retry": "never",
+              "allocated": {
+                "id": "https://beads.example/acme/beads/task-77",
+                "type": "https://work.example/types/task"
+              }
+            },
+            {
+              "operationIndex": 1,
+              "type": "https://github.com/gastownhall/bdp/problems/authorization",
+              "code": "forbidden",
+              "status": 403,
+              "retry": "after-state-change"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

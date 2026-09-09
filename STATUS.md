@@ -7,7 +7,7 @@ not a conformance target.
 | --- | --- | --- |
 | Read profile | Wildcard ownership, numeric model, named schema projection and erasure-pointer correction are being integrated | Historical two-target cohort retained in Git; the changed Read contract requires genuine successor observations before a current conformance claim |
 | Read+Update profile | PR #19 wire artifacts integrated locally: singleton/sequence/alias/idempotency contracts, schemas, fixtures and78 unclaimed catalog rows; D1–D40 ruled | Runtime not yet realized |
-| Transactional profile | Ruled wire artifacts on PR #20; approved gap closure in progress | Runtime not yet realized |
+| Transactional profile | PR #20 wire artifacts and G1–G5 HTTP/retained-handle contracts integrated locally; 133 unclaimed catalog rows, including 12 Read+Update retirements | Runtime not yet realized |
 
 This is a preparatory write/History integration branch; its foundation cohort
 still awaits fresh observations and reviewed release. No main merge is implied.
@@ -38,3 +38,8 @@ The erased-resource pointer correction is documented in
 successor observations.
 
 Open protocol questions and dated rulings are recorded in the specification.
+
+G1–G5 evidence boundary (2026-09-09): shared response negotiation and HTTP
+conditionals are specified. Narrated HTTP fixtures and corruption tests do not
+attest to runtime behavior. Applicable shared Read implementation, manifest
+assertions and genuine successor observations remain required.

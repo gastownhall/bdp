@@ -674,3 +674,19 @@ precede the new run head. Only generated artifact and matching capability
 constant belong in its evidence commit; old observations cannot be rehashed
 into a claim about changed inputs. Whole-schema metadata and later-profile
 unsealed definitions retain the projection rule above.
+
+### Write-profile catalog composition (draft, T48; council 13)
+
+The Read+Update and Transactional catalog files are profile deltas, not
+standalone catalogs for claiming cumulative profiles. A write-profile
+artifact bundle's single `catalog` MUST contain the applicable lower-profile
+rows as well as the higher-profile rows, with unique IDs. For Transactional,
+combine the Read, Read+Update and Transactional scenario arrays before
+building the bundle; the bundle model itself remains a single catalog.
+Selection validates each applicable retirement against this combined catalog:
+only a normative row may replace a known normative row of a strictly lower
+profile. Missing retirement targets are an invalid bundle, not permission to
+silently drop proof obligations. The runner passes that already-composed
+catalog to selection. No write-profile manifest, runner realization or
+conformance evidence exists yet. The historical Read cohort is retained; the
+separate Read foundation changes require genuine successor observations.

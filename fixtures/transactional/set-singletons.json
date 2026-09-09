@@ -1,0 +1,299 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-set-singletons",
+  "description": "The two set targets and a Resource singleton on a Transactional Scope: a delete-where whose body is the set-operation members without the discriminator, returning a receipt with a matched entry and one entry per selected Resource; an update-where that matched nothing, completing without a group; and an update-bead-properties whose patch was a semantic no-op, completing at the retained revision with no effectPosition. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "delete-where-singleton",
+      "condition": "Submitted after the timeline's pos-47: the only relates Link from task-43 is 2d4f, unowned, so its entry carries no source pair. The cardinality floor is met by one match.",
+      "request": {
+        "method": "POST",
+        "target": "operations/delete-where",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0006"
+        },
+        "schema": "#/$defs/deleteWhereRequest",
+        "body": {
+          "collection": "links",
+          "selector": "$[?@.type == \"https://work.example/types/relates\" && @.source == \"https://beads.example/acme/beads/task-43\"]",
+          "cardinality": {
+            "min": 1
+          },
+          "attribution": {
+            "principal": "human:donna",
+            "status": "claimed"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-48"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-12",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0006",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-0a1g",
+          "requiredPosition": "pos-48",
+          "effectPosition": "pos-48",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "matched",
+              "count": 1
+            },
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/acme/links/2d4f",
+                  "type": "https://work.example/types/relates",
+                  "revision": "2d4f-r1"
+                }
+              }
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-14T18:40:00Z"
+        }
+      }
+    },
+    {
+      "id": "update-where-zero-match",
+      "condition": "No Bead has status archived: the operation selected nothing, induced no Events, and produced no group, so the receipt reports the current requiredPosition and omits effectPosition.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-where",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0007"
+        },
+        "schema": "#/$defs/updateWhereRequest",
+        "body": {
+          "collection": "beads",
+          "selector": "$[?@.properties.status == \"archived\"]",
+          "change": [
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "closed"
+            }
+          ],
+          "attribution": {
+            "principal": "human:donna",
+            "status": "claimed"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-48"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-13",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0007",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-0a1h",
+          "requiredPosition": "pos-48",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "matched",
+              "count": 0
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-14T18:41:00Z"
+        }
+      }
+    },
+    {
+      "id": "update-bead-properties-semantic-no-op",
+      "condition": "The replace writes the value the Bead already holds: a semantic no-op. The receipt completes with an updated entry at the retained revision, reports the current requiredPosition, and omits effectPosition because no group was produced; the input attribution is recorded nowhere.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "client-key-0004"
+        },
+        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "body": {
+          "bead": "beads/task-43",
+          "expectedRevision": "task-43-r2",
+          "change": [
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "open"
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-46"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-10",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "client-key-0004",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-0a1e",
+          "requiredPosition": "pos-46",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-43",
+                "type": "https://work.example/types/task",
+                "revision": "task-43-r2",
+                "properties": {
+                  "title": "Draft the receipt schema",
+                  "status": "open"
+                }
+              }
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-14T18:12:00Z"
+        }
+      },
+      "priorResources": [
+        {
+          "id": "https://beads.example/acme/beads/task-43",
+          "type": "https://work.example/types/task",
+          "revision": "task-43-r2",
+          "properties": {
+            "title": "Draft the receipt schema",
+            "status": "open"
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-op-preserves-existing-attribution",
+      "condition": "An isolated no-op case outside the shared timeline. The before record carries agent:prior attribution. Supplying agent:planner on a property no-op preserves the entire before record and its revision, including that existing attribution.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "no-op-prior-attribution"
+        },
+        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "body": {
+          "bead": "beads/noop-example",
+          "expectedRevision": "noop-r1",
+          "change": [
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "open"
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-46"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/rcpt-noop",
+          "status": "completed",
+          "detail": "available",
+          "idempotencyKey": "no-op-prior-attribution",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "txn-noop",
+          "requiredPosition": "pos-46",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/noop-example",
+                "type": "https://work.example/types/task",
+                "revision": "noop-r1",
+                "properties": {
+                  "title": "Draft the receipt schema",
+                  "status": "open"
+                },
+                "attribution": {
+                  "principal": "agent:prior",
+                  "status": "claimed"
+                }
+              }
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-14T18:12:00Z"
+        }
+      },
+      "priorResources": [
+        {
+          "id": "https://beads.example/acme/beads/noop-example",
+          "type": "https://work.example/types/task",
+          "revision": "noop-r1",
+          "properties": {
+            "title": "Draft the receipt schema",
+            "status": "open"
+          },
+          "attribution": {
+            "principal": "agent:prior",
+            "status": "claimed"
+          }
+        }
+      ]
+    }
+  ]
+}
