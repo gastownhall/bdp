@@ -238,10 +238,10 @@ describe("checked-in Read matrix artifacts", () => {
     const manifestIdList = manifest.scenarios.map(({ id }) => id);
     const catalogIds = new Set(catalogIdList);
     const manifestIds = new Set(manifestIdList);
-    expect(catalog.scenarios).toHaveLength(40);
-    expect(manifest.scenarios).toHaveLength(40);
-    expect(catalogIds.size).toBe(40);
-    expect(manifestIds.size).toBe(40);
+    expect(catalog.scenarios).toHaveLength(46);
+    expect(manifest.scenarios).toHaveLength(46);
+    expect(catalogIds.size).toBe(46);
+    expect(manifestIds.size).toBe(46);
     expect([...manifestIds].sort()).toEqual([...catalogIds].sort());
     expect(manifest.catalogId).toBe("read-v1");
     expect(manifest.scenarios.every(({ id }) => catalogIds.has(id))).toBe(true);
@@ -286,6 +286,12 @@ describe("checked-in Read matrix artifacts", () => {
       "read.owned.closure",
       "read.attribution.carried",
       "read.attribution.link",
+      "read.owned-wildcard.declaration",
+      "read.owned-wildcard.max-required",
+      "read.owned-wildcard.explicit-max-bounded",
+      "read.owned-wildcard.present-entries",
+      "read.owned-wildcard.closure",
+      "read.numeric-model.declared-token-model",
     ]);
   });
 
@@ -404,7 +410,13 @@ describe("checked-in Read matrix artifacts", () => {
     const bdFixture = JSON.parse(readText("packages/conformance/fixtures/read-bdpbd-v1.json")) as {
       readonly typeDescriptors: readonly TypeDescriptor[];
     };
-    expect(bdFixture.typeDescriptors).toEqual(selectedDescriptors);
+    expect(bdFixture.typeDescriptors).toEqual(
+      REFERENCE_TYPE_DESCRIPTORS.map((descriptor) =>
+        descriptor.describes === "bead"
+          ? (({ ownsOutgoing: _ownership, ...rest }) => rest)(descriptor)
+          : descriptor,
+      ),
+    );
 
     const problemAction = exactProgrammaticAction(
       manifest.scenarios.find(({ id }) => id === "read.http.problem-table"),

@@ -53,16 +53,21 @@ export const REFERENCE_TYPE_DESCRIPTORS: readonly TypeDescriptor[] = REFERENCE_T
                   summary.id !== "https://work.example/types/decision"
                 ? ["https://work.example/types/work-item"]
                 : [],
-          // Decision owns its citations: the owned-Links realization
-          // for the reference domain. Bounded so the plane is always
+          // Decision owns every outgoing Link, with explicit citations and an empty
+          // relates group; Feature witnesses empty wildcard-only ownership.
+          // The reference-domain bounds keep the plane always
           // servable inline; the label is descriptor documentation and
           // never appears in Resource records.
           ...(summary.id === "https://work.example/types/decision"
             ? {
                 ownsOutgoing: {
+                  "*": { max: 8 },
+                  "https://work.example/types/relates": { max: 1 },
                   "https://work.example/types/cites": { label: "cites", max: 8 },
                 },
               }
-            : {}),
+            : summary.id === "https://work.example/types/feature"
+              ? { ownsOutgoing: { "*": { max: 8 } } }
+              : {}),
         },
 );

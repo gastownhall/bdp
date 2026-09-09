@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -44,6 +45,27 @@ export const controlledReadUnauthenticatedChallenge = 'Bearer realm="bdp-conform
 export interface ControlledTypeDescriptorPublisher {
   readonly fetch: typeof fetch;
   close(): Promise<void>;
+}
+
+/** Fixture-bound invalid descriptors belong to the isolated publisher, never the Scope inventory. */
+export function successorDescriptorBodies(
+  fixture: unknown,
+): readonly Readonly<Record<string, unknown>>[] {
+  if (
+    !isPlainRecord(fixture) ||
+    !isPlainRecord(fixture.oracles) ||
+    !isPlainRecord(fixture.oracles["wildcard-descriptors"])
+  )
+    throw new Error("fixture must bind wildcard descriptor probes");
+  return Object.values(fixture.oracles["wildcard-descriptors"]).flatMap((group) => {
+    if (
+      !isPlainRecord(group) ||
+      !Array.isArray(group.descriptors) ||
+      group.descriptors.some((d) => !isPlainRecord(d))
+    )
+      throw new Error("fixture contains invalid descriptor probe list");
+    return group.descriptors as Readonly<Record<string, unknown>>[];
+  });
 }
 
 /** Starts the reviewed credential-free external Type Descriptor authority. */
@@ -247,6 +269,7 @@ export function createControlledReadActionExecutor(
           fetchImplementation,
           session,
           schemaValidator,
+          fallback,
         );
         break;
       case "disclosure-authorization-gate":
@@ -663,6 +686,7 @@ async function observeOwnedClosure(
   fetchImplementation: typeof fetch,
   session: ControlledReadActionSession,
   schemaValidator: SchemaValidator,
+  clientActions: ScenarioActionExecutor,
 ) {
   const input = actionInput(execution.input, "owned-closure input");
   const source = requiredString(input, "source");
@@ -702,6 +726,50 @@ async function observeOwnedClosure(
   );
   if (!sourceLiveBefore || beforeTarget.status !== 200)
     throw new Error("owned-closure fixture identities must be live before the exclusion");
+  const controlBeforeResponse = await fetchImplementation(
+    controlUrl,
+    requestInit(view, epoch, execution.signal),
+  );
+  if (controlBeforeResponse.status !== 200)
+    throw new Error("closure control must be live before exclusion");
+  const controlBefore = await readJsonRecord(controlBeforeResponse);
+  let wildcardOnly: boolean | undefined;
+  if (input.wildcardOnly === true) {
+    if (typeof beforeBody?.type !== "string") throw new Error("closure source Type is required");
+    const descriptors = await clientActions({
+      ...execution,
+      family: "client",
+      operation: "external-type-descriptors",
+      input: { ids: [beforeBody?.type] },
+    });
+    const rows = isPlainRecord(descriptors) ? descriptors.rows : undefined;
+    const descriptor = Array.isArray(rows) ? rows[0] : undefined;
+    const owned =
+      isPlainRecord(descriptor) && isPlainRecord(descriptor.ownsOutgoing)
+        ? descriptor.ownsOutgoing
+        : undefined;
+    const linkResponse = await fetchImplementation(
+      linkUrl,
+      requestInit(view, epoch, execution.signal),
+    );
+    if (linkResponse.status !== 200) throw new Error("closure Link must be live before exclusion");
+    const linkBody = await readJsonRecord(linkResponse);
+    wildcardOnly =
+      owned !== undefined &&
+      Object.hasOwn(owned, "*") &&
+      typeof linkBody.type === "string" &&
+      !Object.hasOwn(owned, linkBody.type);
+    if (!wildcardOnly)
+      throw new Error("closure witness is not a Link owned only through the wildcard");
+  }
+  const payloadWitness = input.payloadWitness;
+  if (
+    payloadWitness !== undefined &&
+    (typeof payloadWitness !== "string" ||
+      payloadWitness.length < 8 ||
+      !JSON.stringify(beforeBody).includes(payloadWitness))
+  )
+    throw new Error("closure payload witness must occur in the visible source before exclusion");
   session.excludeResourceFromAuthorizationView(targetUrl);
   const observations: Record<string, unknown> = {};
   const rawProblemBodies: Uint8Array[] = [];
@@ -764,6 +832,14 @@ async function observeOwnedClosure(
     epoch,
     execution.signal,
   );
+  const controlAfterResponse = await fetchImplementation(
+    controlUrl,
+    requestInit(view, epoch, execution.signal),
+  );
+  const controlAfter =
+    controlAfterResponse.status === 200 ? await readJsonRecord(controlAfterResponse) : undefined;
+  if (controlAfter === undefined) await discardBody(controlAfterResponse);
+  const controlUnchanged = isDeepStrictEqual(controlBefore, controlAfter);
   const emptyEnvelope = () => ({
     schemaValidator,
     pages: 0,
@@ -810,6 +886,14 @@ async function observeOwnedClosure(
   const bodyDigests = rawProblemBodies.map(sha256Hex);
   return {
     outcome: "success",
+    ...(wildcardOnly === undefined ? {} : { wildcardOnly }),
+    ...(typeof payloadWitness === "string"
+      ? {
+          payloadAbsent: rawProblemBodies.every(
+            (body) => !Buffer.from(body).includes(Buffer.from(payloadWitness, "utf8")),
+          ),
+        }
+      : {}),
     sourceLiveBefore,
     targetLiveBefore: beforeTarget.status === 200,
     ownedLinksServedBefore,
@@ -827,6 +911,7 @@ async function observeOwnedClosure(
       representativeByteLength: representativeBody.byteLength,
     },
     controlLiveAfter: afterControl.status === 200,
+    controlUnchanged,
     sourceAbsentFromCollection: sourceCollection.items.length === 0,
     targetAbsentFromCollection: targetCollection.items.length === 0,
     linkAbsentFromCollection: linkCollection.items.length === 0,
