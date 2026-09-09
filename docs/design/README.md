@@ -28,8 +28,10 @@ waves are internal sequencing labels, not protocol concepts.
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.
 
-- [History resolution packet](./history-profile-packet.md) separates existing rulings
-  from the open historical-read wire, capability, retention and verification choices.
+- [History resolution packet](./history-profile-packet.md) records the selected
+  historical-read cores and their remaining wire, advertisement, retention and
+  verification choices, with both dated operator ACK batches, explicit deferrals
+  and a remaining-decision inventory.
   Its [review record](./history-profile-review.md) records source checks, findings
   and the remaining review gate. Both are non-normative and claim no History
   implementation or conformance.

@@ -1,6 +1,6 @@
 # History packet review record
 
-Status: all seats returned on `195071d`; subsequent source-checked author fold awaits final-head review; no clearance for this fold. Non-normative.
+Status: prior councils through `9cc4cf4` and final native/Claude reviews on `297465d` are recorded below. The subsequent 2026-09-09 two-batch operator-ACK/documentation fold requires its own review. Non-normative; no implementation or conformance claim.
 Initial review date: 2026-09-08. Initial reviewed head: `02c598aa48630a41b2d9cf9d5b08b42878e1a9d9`.
 Full branch scope: `history-profile-packet.md`, this `history-profile-review.md`,
 `docs/design/README.md`, and the pinned authority inputs. Earlier two-file write-scope
@@ -328,3 +328,117 @@ answers/open edges, and reflects this fold. No normative/schema/catalog/runtime 
 evidence change, tests, agents, network calls, commit, push, post or merge occurred.
 Parent inspection and independent review of the resulting final head remain owed;
 this author record grants no clearance or implementation authorization.
+
+
+## 2026-09-09 — final 297465d reports, corrections and operator ACKs
+
+Reviewed input: `297465d1edde0acd5904526f1dd79b9d61d02e2f`. Native Codex reviewed
+the full three-file branch and residual fold, returning 0 Critical, 0 High, 0 Medium
+and 0 Low. The later completed Claude report returned **0 Critical, 1 High,
+2 Medium and 3 Low: six findings**. This records the available reports, not an
+inference that every other final-head seat has returned. The native zero-finding
+review did not identify the documentation gaps below and does not clear this fold.
+
+Independent adjudication checked the six claims against the frozen packet, local
+baseline git objects and supplied primary comments. Findings 1 and 3 were partly
+accepted; 2, 4 and 5 accepted; 6 accepted as provenance precision with qualification.
+The corrections preserve settled intent and its distinction from unmaterialized
+normative text. They do not create six new operator questions.
+
+| Claude finding | Disposition and concrete correction |
+| --- | --- |
+| 1 High — Gone obligation versus baseline MAY | Partly accepted. The fixed row and H5 explicitly distinguish item 1’s required, history-authorized historical-address consequence from baseline ordinary Read’s discretionary disclosure. Reads after deletion and PROTO-013 are named as dated destinations for that scope/obligation materialization; unauthorized uniform 404 and optional archivedAt remain intact. Rejected asking Donna again whether History should require the already ruled consequence, treating baseline MAY as overriding later operator intent, or implying the packet retroactively invalidates existing ordinary-Read implementations. H5/HR06 retain the explicit amendment requirement if a diagnosis bound would end Gone. |
+| 2 Medium — packet review chronology | Accepted. The summary now includes Codex/Gemini and Claude on 195071d, the nine-finding 9cc4cf4 council/fold, and the available 297465d reports. It distinguishes those reviewed inputs from this subsequent correction/ACK fold. |
+| 3 Medium — retention-policy hold input | Partly accepted. The omitted input now has an explicit disposition: revision-2 C1/§1 proposed reporting an operator/provider hold in the window, but the later item-1 ruling says BDP carries no hold on the wire. The fixed row and H7 preserve that constraint. Local retention policy is not prohibited; adding wire hold state would require an explicit amendment, not an ordinary unruled H7 member choice. H1b bounds and H12 administration do not silently select it. |
+| 4 Low — review status header | Accepted with finding 2. The header now names the recorded final native/Claude reviews and identifies this later fold as needing its own review, without inventing another seat’s completion. |
+| 5 Low — missing baseline epoch anchor | Accepted as discoverability. Main 0b7d86e7 spec 1040–1048 is linked beside TX 1eef4e4 1094–1102; H9 locates the paragraph by text/section in the actual integration target. The immutable TX anchor was not invalidated by a possible rebase. No new epoch choice selected. |
+| 6 Low — relation provenance | Accepted as precision. Acceptance 5464020140 explicitly names latest-version/successor-version; revision-2 also proposes predecessor-version/version-history. The later compatibility record broadly reaffirms currency input, so generic prior wording did not itself select new normative relations. H6 now states exact provenance; the operator’s separate ACK below selects its core. |
+
+**Separate operator decisions, 2026-09-09.** After the interviews Donna ACKed A for
+H1a, H2, H3, H4, H5 core, H6 core, H7 enumeration and H8, with every presented
+deferral retained. The author received that exact scope through the parent handoff;
+these selections come from the operator, not this review or its recommendations.
+The packet records the selections beside each decision:
+
+| Item | ACKed core | Explicit remaining boundary |
+| --- | --- | --- |
+| H1a | Optional complete History capability on Read, Read+Update and Transactional; no fourth profile | H1b advertisement remains OPEN; required Read+Update restore-disclosure amendment must precede implementation |
+| H2 | Both canonical Bead and Link historical records; full historical owned state | Exact wire/admission materialization and independent Link disclosure details remain work; no partial or current-state fallback |
+| H3 | GET/HEAD with exactly one nonempty opaque revision, complete record only; reject mixed/repeated/empty queries; canonical invalid-parameter, alias uniform 404 | No alternate address or nearest/current fallback; exact schema/fixture implementation still absent |
+| H4 | Current whole-record authorization for successful historical resolution, uniform 404 on denial | Exact historical-target permission follow-up remains OPEN; fixed Unretained subject-history gate remains separate |
+| H5 core | revision-unknown 404, revision-unretained 409, revision-reorganized 410, revision-not-tracked 409, all after-state-change; substantiated, history-authorized diagnoses | Existing pruned/erased contracts unchanged; no promised polling or repair; evidence shape/lifetime, sync carrier and refusal windows remain OPEN |
+| H6 core | private/no-store; authority’s existing validator projection; truthful authorized latest/direct predecessor/direct successor and version-history to enumeration | General validator encoding and replacement navigation remain OPEN; no guaranteed target where none is truthful/authorized |
+| H7 enumeration | Stable cursor-paginated versions surface, revision/attribution rows without payload, window/completeness, authority ordering, no retention hold | Row/page shape, replacement membership, deleted-subject enumeration and cursor/limit details remain OPEN |
+| H8 | HEAD matches GET status/headers without body; GET provides typed diagnosis | Bulk checks explicitly deferred |
+
+H9–H12 remain OPEN except for their fixed constraints; H1b and the listed residuals
+are not implicitly ACKed. All fifteen HR scenarios remain design proposals, not
+catalog entries or executable evidence. The frozen baseline has no History schema.
+No normative/schema/runtime edit belongs in this fold while these details remain open.
+
+**Queue supersession.** Donna also ACKed RP1’s separate coverage walk (never part
+of the digest), T58–T61, T62a/b and T65. Earlier pending descriptions in this record
+remain accurate only for their named historical heads; this record does not infer
+current unanswered TX items from the older provisional list.
+These current statuses were relayed with the operator handoff; this History fold
+neither materializes the separate TX decisions nor infers a History assurance choice
+from them. Their operational records remain the owning workstreams’ responsibility.
+
+**Source and validation boundary.** The adjudication reread baseline disclosure
+2095–2111, PROTO-013 68–77 and epoch paragraph 1040–1048. Supplied JSON and Markdown
+bodies match for comments 5586084982, 5587346463 and 5573074065; their recorded update
+dates put revision-2 input before the no-hold ruling. Acceptance 5464020140 was read
+from the supplied primary snapshot. No live comment refetch or product-harness run
+was performed. This fold edits only the packet, review record and design index.
+Validation is limited to diff whitespace, local links/anchors, pinned local source
+paths/ranges and three-file scope. No tests, installs, agents, commit, push, merge or
+external post were performed by this author. A subsequent review must inspect the
+actual correction head; this authoring record is not that review.
+
+
+## 2026-09-09 — second eight-item History ACK and current queue verification
+
+Donna ACKed the second presented batch as **A/A/A/A/B/A/B/A** with its explicit
+initial-release boundaries. The previous section records the first batch’s state;
+the following selections supersede only its corresponding open subchoices. They
+were relayed explicitly in the authoring handoff, not inferred from recommendations.
+
+| Item | Selected outcome | Remaining boundary |
+| --- | --- | --- |
+| H9a A | Common retained-address law in Revisions, referenced from History, plus narrow TX epoch amendment | Exact normative text/fixtures still to materialize; all other token fences and triggers remain |
+| H5b A | No mayChangeAfterSync member initially; selected retry semantics and honest uncertainty prose | Any later hint requires exact evidence/meaning; no promised polling or repair |
+| H9c A | Requested-token historical record without an extra current-scheme address initially | Internal mapping preserves the address; old/new revision identity, replacement navigation and write-guard details remain |
+| H10 A | Opaque revisions and complete ordinary records initially; exact-byte witnesses later | No selected witness envelope/scheme/failure tuple or pin digest expansion |
+| H11 B | Distinct immutable change-context envelope now meeting Memory R12 metadata | Exact wire/supply-state semantics remain; truthful absence, unchanged attribution/no-op law and no authentication/authorization claim; not full Memory compatibility |
+| H12a A | Keep incident-Link deletion refusal initially | Alternative Memory surviving-citation lifecycle explicitly deferred; no hidden endpoint or snapshot exception |
+| H1b B | No advance age/count retention guarantees initially; observed window remains distinct | Exact capability shape and participation advertisement remain; Gone duty and no-wire-hold law unchanged |
+| H4b A | Current target visibility or explicit current historical identity/relationship disclosure permission satisfies historical closure | Never inferred from source access and grants no target body access; current-plane closure/DeleteBead unchanged |
+
+H9b’s Read+Update History restore-signal exception was already required by the first
+H1a/H5 ACK and was removed from the second ballot. It is materialization work, not
+an independent unanswered choice. Donna’s current presentation preference is eight
+answer units per batch, as recorded in the current ledger; the packet work order now
+reflects that. The remaining-decision inventory distinguishes open initial-surface
+choices from optional amendment requests and explicitly deferred capabilities.
+
+**Current TX/Read status verified locally.** The [ledger at 63f3d786](https://github.com/donnabox/agent-coordination/blob/63f3d78674f93b85dad99fcfcf6cd0eed6d325c4/context/janet/beads-workstream-state.md#L944-L970)
+records T50–T53 A, T54–T56 A, T57 B, T58–T61 A, T62a/b A, T65 A and RP1 ACK.
+Its latest relevant records confirm the parent’s current status; older provisional
+labels in frozen review history are not rewritten. T57 integration is selected but
+was not implemented on the cited frozen TX head. T65’s supported claim route does
+not by itself settle History-only assurance or weaken the every-store erasure duty.
+
+**R12 primary readback.** The supplied gastownhall/beads#5877 primary issue body
+was read directly. R12 distinguishes Change Attribution from editable Inception;
+requires responsible actor, assisting agent when present, timestamp and message
+when present; says otherwise-identical context-only requests create no version;
+and makes no authentication or authorization claim. H11 now records the selected
+metadata envelope against that primary input, without claiming full Memory
+compatibility, verified product behavior or a live refetch in this author pass.
+
+This extension remains confined to the packet, review and index. No normative,
+schema, catalog, runtime or evidence artifacts are changed. Validation covers local
+links/anchors, pinned local paths/ranges, whitespace and the three-file scope. No
+tests, agents, install, commit, push, merge or external post were performed. Both
+ACK batches and this combined uncommitted fold require parent review and subsequent
+review of the actual saved head; prior frozen-head reports do not clear it.
