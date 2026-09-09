@@ -45,6 +45,9 @@ waves are internal sequencing labels, not protocol concepts.
   sealed definition set by name, not the Read-reachable closure (RP1); the
   projection rule, the derived roots as coverage check, the re-seal trigger,
   and the binding-format migrations of the sealed artifact.
+- [Owned-Link wildcard runtime review](./owned-wildcard-runtime-review.md) records
+  the Read parser and reference-adapter draft, verification, council findings
+  and dispositions, and the remaining conformance integration obligations.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

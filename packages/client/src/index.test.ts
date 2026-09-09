@@ -618,6 +618,68 @@ describe("BdpClient", () => {
     });
   });
 
+  it.each([
+    ["foreign Link ID", validLink({ id: "https://outside.example/links/x" })],
+    ["noncanonical local target", validLink({ target: `${BEADS}%61` })],
+  ] as const)(
+    "applies the top-level Scope boundary to an inline owned Link with %s",
+    async (_label, link) => {
+      const bead = { ...validBead(), ownedLinks: { [LINK_TYPE]: [link] } };
+      for (const [request, body] of [
+        [{ kind: "resource", resource: "bead", id: `${BEADS}a` }, bead],
+        [
+          { kind: "collection", collection: "beads" },
+          { items: [bead], next: null },
+        ],
+        [
+          { kind: "collection", collection: "links" },
+          { items: [link], next: null },
+        ],
+      ] as const) {
+        const client = new BdpClient({ scope: SCOPE, transport: new RecordingTransport(body) });
+        try {
+          await expect(client.perform(request)).resolves.toMatchObject({
+            code: "temporarily-unavailable",
+            status: 503,
+            detail: "the server returned a structurally invalid Read response",
+          });
+        } finally {
+          await client.close();
+        }
+      }
+    },
+  );
+
+  it.each([
+    ["mismatched Link Type", [validLink({ type: TASK_TYPE })]],
+    ["different source Bead", [validLink({ source: `${BEADS}b` })]],
+    ["descending IDs", [validLink({ id: `${LINKS}z` }), validLink({ id: `${LINKS}a` })]],
+    ["duplicate IDs", [validLink(), validLink()]],
+  ] as const)(
+    "maps invalid owned-Link coherence (%s) to a structured Problem",
+    async (_label, owned) => {
+      const bead = { ...validBead(), ownedLinks: { [LINK_TYPE]: owned } };
+      for (const [request, body] of [
+        [{ kind: "resource", resource: "bead", id: `${BEADS}a` }, bead],
+        [
+          { kind: "collection", collection: "beads" },
+          { items: [bead], next: null },
+        ],
+      ] as const) {
+        const client = new BdpClient({ scope: SCOPE, transport: new RecordingTransport(body) });
+        try {
+          await expect(client.perform(request)).resolves.toMatchObject({
+            code: "temporarily-unavailable",
+            status: 503,
+            detail: "the server returned a structurally invalid Read response",
+          });
+        } finally {
+          await client.close();
+        }
+      }
+    },
+  );
+
   it("rejects a collection whose typed Resource identities do not match its kind", async () => {
     const transport = new RecordingTransport({
       items: [
@@ -1209,6 +1271,35 @@ describe("BdpClient", () => {
 
     await expect(client.perform({ kind: "resource", resource: "type", id })).resolves.toEqual(
       validTypeDescriptor(id),
+    );
+  });
+
+  it("returns a structured failure for an explicit ownership bound above the wildcard", async () => {
+    const id = `${SCOPE}descriptors/task`;
+    const transport = new RecordingTransport({
+      ...validTypeDescriptor(id),
+      ownsOutgoing: {
+        "*": { max: 1 },
+        [`${SCOPE}types/cites`]: { max: 2 },
+      },
+    });
+    const client = new BdpClient({ scope: SCOPE, transport });
+
+    await expect(client.perform({ kind: "resource", resource: "type", id })).resolves.toMatchObject(
+      {
+        code: "temporarily-unavailable",
+        detail: "the server returned a structurally invalid Read response",
+      },
+    );
+    transport.result = {
+      ...validTypeDescriptor(id),
+      ownsOutgoing: {
+        "*": { max: 2 },
+        [`${SCOPE}types/cites`]: { max: 2 },
+      },
+    };
+    await expect(client.perform({ kind: "resource", resource: "type", id })).resolves.toEqual(
+      transport.result,
     );
   });
 

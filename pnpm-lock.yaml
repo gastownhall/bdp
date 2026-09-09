@@ -85,6 +85,9 @@ importers:
       '@bdp/conformance':
         specifier: workspace:*
         version: link:../../packages/conformance
+      '@bdp/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
 
   packages/adapter-bd:
     dependencies:

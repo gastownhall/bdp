@@ -26,4 +26,8 @@ Applicable new rows need actual observations; absent features need justified
 not-applicable dispositions. The Read manifest remains separate from later
 profile manifests.
 
+The wildcard runtime review in `docs/design/owned-wildcard-runtime-review.md`
+records isolated parser, adapter and public HTTP checks; those checks alone
+are not catalog execution or a replacement cohort.
+
 Open protocol questions and dated rulings are recorded in the specification.
