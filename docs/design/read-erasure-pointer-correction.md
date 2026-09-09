@@ -1,7 +1,7 @@
 # Read erasure-pointer correction
 
 Prepared 2026-09-08 on main baseline `0b7d86e7cfec47f88cd1ec22314a73f39763bcf8`.
-This is a bounded implementation correction, pending independent review and
+This is a bounded implementation correction, pending council review and
 integration. It grants no new profile capability or conformance claim.
 
 [Reads after deletion](../specs/bdp.md#reads-after-deletion) already prohibits
@@ -37,7 +37,13 @@ schema/manifest. After correction:
 - Typecheck, lint, format, dependency boundaries, build, packaged E2E preflight
   (7 tests), offline installed-package smoke and diff whitespace checks passed.
 - `evidence:verify` failed with exit 1 because its manifest input is uncommitted.
-  This is an expected integration hold, not a passed or bypassed evidence gate.
+  This was the observed dirty-input refusal, not a passed or bypassed evidence gate.
+- After committing implementation `208d2ed`, the current base-main verifier
+  passed its historical cohort: 74 target-row instances, run head `0a928bac`,
+  evidence commit `4795f8e`. This does not establish fresh observations for the
+  changed schema/manifest. The planned successor requirement remains.
+- Independent native review of the full seven-file correction found zero
+  Critical, High, Medium or Low issues. This is not full council clearance.
 
 The schema and manifest bytes/digests change. `readProblem` is among the sealed
 Read definitions, so the planned projection gate also requires a changed
