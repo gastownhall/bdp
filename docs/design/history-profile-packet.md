@@ -7,8 +7,8 @@ The word “History” names this design lane, not a selected fourth `profile` v
 This packet turns the historical-resolution proposal into bounded decisions.
 It proposes no edit to the normative specification, schema, catalog, or evidence.
 A recommendation is not a ruling. The dated ACK record below identifies Donna’s
-selected cores and their explicit deferrals. Existing rulings are constraints, not
-questions to reopen. Apply approved wording to its owning artifact after review;
+selected answer units and their explicit deferrals. Existing rulings are constraints,
+not questions to reopen. Apply approved wording to its owning artifact after review;
 this packet never becomes an alternative specification.
 
 ## Source and authority map
@@ -128,8 +128,12 @@ encodings, JSON Pointer escaping, finite defaults, cursor syntax and allocator/p
 construction are delegated reviewed materialization. Present/known-absent/undetermined
 context states and truthful legacy-envelope absence are already selected and are
 not repeated votes. Execution/materialization authorization already comes from the
-separate PR/materialization ballot’s item 9. A concrete contradictory requirement
-still returns to Donna; this record does not silently resolve a new conflict.
+separate [PR/materialization ballot’s item 9](https://github.com/donnabox/agent-coordination/blob/4fd57836ae052dec41b66493b88954bdabbb4d0f/context/janet/pr-materialization-ballot-20260909.md). All fourteen execution
+rulings remain constraints: BDP readiness/merge requires the full gates and current-head
+review; #6154 and #6422 must track BOTH BDP specification work #19/#20 and Jim’s
+versioning work, with actual-head verification and necessary alignment before readiness
+or P0 promotion. Julian owns upstream beads merges. This packet grants no merge
+by itself. A concrete contradictory requirement still returns to Donna; this record does not silently resolve a new conflict.
 
 The selected contracts require integrated normative text, both schema copies,
 fixtures, client/server/adapters and conformance work before support is claimable.
@@ -453,7 +457,13 @@ branching product is invented. `latest-version` may name the authorized current
 authority version. H7’s explicit membership metadata states whether the source is
 current-lineage and whether the enumeration scope can include it; `version-history`
 targets that declared scope. Counts, endpoints and relation metadata remain
-authorization-relative and reveal no omitted rows.
+authorization-relative and disclose no unauthorized identity, metadata or hidden-entry
+count. A truthful authorized relation target need not appear as a page row: permission
+to disclose the target identity and permission to disclose its whole row are distinct.
+An independently authorized identity does not become secret merely because that row’s
+context cannot be disclosed. Relation presence asserts neither page membership nor a
+count, does not force disclosure of row context, and grants no target-body access.
+Neither authorization gate is weakened and no otherwise unavailable link is invented.
 
 Do not call the next surviving entry a direct successor if intermediate versions are missing. The
 relations report this responder’s knowledge at the response, never global freshness.
@@ -524,6 +534,15 @@ an explicit incomplete-body state. Direct resolution returns Unretained; a row i
 never a partial Resource or a body-availability promise. Pruning/reorganization-only disposition evidence does not make an entry part of the retained window.
 Completeness describes this population, not every version that ever existed.
 
+Stored-body completeness is distinct from successful serviceability. A retained,
+non-erased version with a complete stored record that is positively unrepresentable
+under unit 18 remains a retained member under unit 3 and complete in the stored-body
+sense. Incompatibility alone never makes it incomplete or Unretained; complete never
+promises successful exact-address resolution. Resolution still applies unit 18’s
+`revision-unrepresentable` / `409` and the current authorization, erasure and service
+checks. This clarification selects no third public body state or new error payload;
+exact encoding remains delegated under unit 21’s existing body-state selection.
+
 **Deleted subjects — selected A, unit 6.** A subject-history-authorized caller may
 enumerate the selected retained window after ordinary deletion. The success is a
 versions page, not a live Resource. Unauthorized callers receive uniform
@@ -539,6 +558,10 @@ finite page and diagnostic defaults, explicit continuation and truthful truncati
 exact values and syntax are delegated implementation choices subject to review.
 Pagination must make meaningful progress. Its limit is not retention policy, its
 snapshot is no body-retention hold, and cursor expiry is not a revision loss diagnosis.
+Temporary inability to serve an otherwise valid unexpired enumeration snapshot is
+an ordinary temporary service failure, not `cursor-expired`. True expiry remains
+permitted under the selected no-minimum-lifetime contract; this distinction adds no
+availability or retention promise.
 
 **Participation knowledge — selected A, unit 9.** Positive retained history or other
 sound evidence establishes participation. Never/not-tracked requires positive
@@ -560,8 +583,10 @@ before inclusion; omit a row if required metadata cannot be disclosed. Completen
 window edges/counts and continuations are authorization-relative. Do not redact known
 metadata into undetermined, disclose hidden-entry counts, or claim a complete global
 window. Row access implies neither source-body nor target-body permission. Preserve
-selected snapshot/authorization fences. Exact row/page members and compatible
-encodings are delegated wire materialization.
+selected snapshot/authorization fences. H6’s independently authorized truthful relation
+target need not be included as a row; relation presence supplies neither row membership
+nor a count and cannot bypass whole-row authorization or grant target-body access.
+Exact row/page members and compatible encodings are delegated wire materialization.
 
 Revision-2’s operator/provider hold-in-window member remains excluded by the later
 item-1 no-hold-on-wire ruling. Local retention policy is not prohibited; changing
@@ -1033,7 +1058,7 @@ nor executable acceptance evidence.
 
 | Case | Positive proof | Refusal or adversarial proof |
 | --- | --- | --- |
-| HR01 negotiation | Complete capability discovered at allowed profiles; selected participation counts/class are authorized and consistent, or honestly omitted | Absent/partial capability never advertised or guessed; complete surface never implies universal Resource participation or reveals hidden counts |
+| HR01 negotiation | Complete capability discovered at allowed profiles; no aggregate participation count or coverage class is advertised; subject-specific participation knowledge comes only from authorized exact-address diagnoses and versions pages | Absent/partial capability never advertised or guessed; complete surface never implies universal Resource participation or reveals hidden counts |
 | HR02 exact resolution | Bead and Link old revisions return complete selected records | Current/nearest substitution and value-changing mapping under an already bound revision rejected; positively incompatible existing BDP revisions use revision-unrepresentable/409 under its narrow evidence gate |
 | HR03 owned state | Old source includes its historical owned records | Missing owned set refuses whole answer; history-authorized Bead caller receives the selected Unretained diagnosis despite absent owned content; current Link lookup caught |
 | HR04 attribution/context | Native commit-time context and optional per-operation agent/message propagate to every minted version and selected record/row/Event/receipt copy; atomic transaction shares its instant, independent sequence commits differ | Legacy unknown stays truthful; no fabricated import time/actor, context-only version, tombstone/alias context or change to Event-time meaning |
@@ -1059,7 +1084,8 @@ extensions are distinct from the closed initial semantic ballot.
 
 This is a source reconciliation after release of the initial exclusion, not a new
 ruling or council clearance. At that reconciliation H1–H12 all remained OPEN;
-the 2026-09-09 ACK above subsequently selected eight cores with deferrals. The initial review record is
+the three 2026-09-09 ACK records above subsequently selected all 38 History answer
+units with their explicit deferrals. The initial review record is
 preserved, with its containing-version fork superseded by the verified T19 ruling.
 That reconciliation edited only this packet and its review record; the complete
 branch also includes their design-index entry. No normative, schema, catalog,
@@ -1125,11 +1151,11 @@ helpers, allocation/evidence structures and continuation syntax are delegated re
 implementation choices. Preserve current equality/write guards and profile fences;
 return concrete contradictions to Donna instead of inventing an exception.
 
-**Deferred extensions.** Exact-byte witness envelope/scheme/failure, extra current-
+**Deferred extensions include** exact-byte witness envelope/scheme/failure, extra current-
 scheme address mapping, sync-hint member, advance retention guarantees, aggregate
 participation counts/classes, erased-entry enumeration, minimum cursor lifetime,
 extra import-provenance fields, generic removal-preview administration, bulk checks
-and Memory’s alternative surviving-citation lifecycle remain later work. No amendment
+and Memory’s alternative surviving-citation lifecycle. No amendment
 ending the fixed Gone duty was selected. General validator-encoding materialization
 remains separate under the selected authority projection. Deferred features are not
 claimed as part of the initial capability, and their absence does not reopen its
@@ -1138,9 +1164,14 @@ selected semantics.
 ## Authorized implementation and evidence work
 
 1. Materialize all 38 selected History answers on the integrated foundation base.
-   Execution authority is already recorded in the PR/materialization ballot; no
-   further authorization vote is implied here. This isolated decision-document fold
-   does not itself edit normative/schema/runtime artifacts. Apply protocol text,
+   Execution authority is recorded in the [pinned PR/materialization ballot](https://github.com/donnabox/agent-coordination/blob/4fd57836ae052dec41b66493b88954bdabbb4d0f/context/janet/pr-materialization-ballot-20260909.md); all fourteen
+   rulings remain fixed. BDP readiness/merge is gated on the full required checks and
+   current-head review, with no capability claim before evidence and #24 ancestry
+   preserved. For #6154 and #6422, verify alignment with BOTH BDP spec #19/#20 and
+   Jim’s versioning work at their actual heads and materialize necessary corrections
+   before readiness or P0 promotion. Julian owns upstream beads merges. No further
+   authorization vote is implied, and this packet itself grants no merge. This isolated
+   decision-document fold does not itself edit normative/schema/runtime artifacts. Apply protocol text,
    both bundle shapes, problem rows, matrices and illustrative fixtures together,
    including the required RU restore exception and H11 context/erasure fan-out.
    Preserve compatibility cases, delegated choices and explicit deferrals; metadata
@@ -1191,6 +1222,10 @@ selected semantics.
   `297465d` with no findings; the later Claude report returned 1 High, 2 Medium
   and 3 Low. The review record contains their bounded scopes and six dispositions.
   The sixteen-answer fold was saved at `2774ff4`; this subsequent 38-answer
-  documentation fold requires its own review at its actual saved head.
-  No completed review clears later edits or supplies an operator ruling. No History tests, harness
-  trial, or conformance run is claimed by this document.
+  documentation fold was reviewed at `143832b8`: native Codex reported zero,
+  Gemini one Low, and Claude three Medium and four Low. The seven unique findings
+  and their bounded clarifications are recorded in the review addendum; Gemini’s
+  finding duplicates Claude’s participation-count finding. This successor requires
+  its own final-head review. No completed review clears later edits or supplies an
+  operator ruling. No History tests, harness trial, or conformance run is claimed
+  by this document.

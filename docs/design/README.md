@@ -32,6 +32,7 @@ their review findings have been addressed.
   History answer units, their normative/wire materialization work and explicit
   deferred extensions. Semantic ballot closure is separate from implementation
   and conformance.
-  Its [review record](./history-profile-review.md) records source checks, findings
-  and the remaining review gate. Both are non-normative and claim no History
+  Its [review record](./history-profile-review.md) records the completed `143832b8`
+  council, seven bounded clarifications, and the successor’s remaining final-head
+  review gate. Both are non-normative and claim no History
   implementation or conformance.

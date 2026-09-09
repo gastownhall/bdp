@@ -1,6 +1,6 @@
 # History packet review record
 
-Status: all 38 presented History answer units are ACKed. The consolidated decision-document fold requires its own review; normative/wire/runtime materialization remains pending. Non-normative; no implementation or conformance claim.
+Status: all 38 presented History answer units are ACKed. Council on `143832b8` completed; seven bounded clarifications are recorded below and this successor still requires final-head review. Normative/wire/runtime materialization remains pending. Non-normative; no implementation or conformance claim.
 Initial review date: 2026-09-08. Initial reviewed head: `02c598aa48630a41b2d9cf9d5b08b42878e1a9d9`.
 Full branch scope: `history-profile-packet.md`, this `history-profile-review.md`,
 `docs/design/README.md`, and the pinned authority inputs. Earlier two-file write-scope
@@ -526,3 +526,40 @@ is authorized to commit the decision-document fold locally; no push or merge is
 part of the task. A separate scratch fan-out map identifies later integrated-base
 materialization targets and validation slices without modifying those targets.
 Historical reviews remain tied to their original heads and do not clear this fold.
+
+
+## 2026-09-09 — complete-ballot council on 143832b8 and bounded clarification fold
+
+Frozen reviewed head: `143832b8db7fbe11551ccf64ddc948a0d941d031`, based on
+`2774ff4d1d4ab82e921d9de0311186e79cc21aaf`. Native Codex reported **0 Critical,
+0 High, 0 Medium, 0 Low**; Gemini reported **1 Low**; Claude reported **0 Critical,
+0 High, 3 Medium, 4 Low**. Gemini’s sole finding corroborates Claude finding 1,
+so there are seven unique findings, not eight independent defects. All seats
+confirmed the 38 selected outcomes. External seats reviewed the supplied snapshot
+and ballot only; their pinned-link targets were not independently verified. Native
+Codex inspected the exact local tree and approved pinned ballot. These raw counts
+belong to that frozen head and do not clear this successor.
+
+Parent adjudication authorizes only the following clarifications. No alternative
+is newly selected and no deferred scope is expanded.
+
+| Finding | Disposition and correction |
+| --- | --- |
+| Claude 1 Medium / Gemini 1 Low — HR01 participation alternative | Accepted Medium. HR01 now requires omission of aggregate participation counts and coverage classes, matching unit 8 A; it does not offer the unselected coverage-class alternative as passing proof. |
+| Claude 2 Medium — relation targets versus omitted rows | Accepted clarification. Independently authorized truthful target identities need not be page members. Identity and whole-row gates remain separate; no hidden metadata/count, forced context disclosure, invented relation, or target-body grant follows. Relation presence is neither membership nor a count. |
+| Claude 3 Medium — incomplete execution-authority constraints | Accepted Low clarification. Pin the fourteen-item ballot at `4fd57836`; preserve every ruling, full BDP readiness/merge gates, #24 ancestry, BOTH #19/#20 and Jim-versioning alignment for #6154/#6422, actual-head verification, and Julian’s upstream beads merge ownership. The packet grants no merge itself. |
+| Claude 4 Low — current eight-core summary | Accepted. Current prose says all 38 selected answer units; dated historical review findings retain their original state. |
+| Claude 5 Low — apparently exhaustive deferral list | Accepted. The list now says “include”; it neither claims completeness nor promotes unselected extensions into roadmap commitments. |
+| Claude 6 Low — temporary snapshot service failure | Accepted. Temporary inability to serve a valid unexpired enumeration snapshot remains ordinary service failure. Actual expiry remains permitted with no minimum lifetime or added availability promise. |
+| Claude 7 Low — complete stored record versus serviceability | Accepted distinction; rejected the requested newly selected third public state. A retained complete stored record stays retained/complete even when positively unrepresentable. Complete does not promise successful service; exact-address resolution applies unit 18’s 409 and current authorization/erasure/service gates. Unit 21’s equivalent encoding remains delegated. |
+
+The [consolidated ACK](https://github.com/donnabox/agent-coordination/blob/4fd57836ae052dec41b66493b88954bdabbb4d0f/context/janet/history-tx-complete-ballot-20260909.md)
+and [conditional execution ballot](https://github.com/donnabox/agent-coordination/blob/4fd57836ae052dec41b66493b88954bdabbb4d0f/context/janet/pr-materialization-ballot-20260909.md)
+remain the owning operator records. The 22 consolidated answer rows, earlier sixteen
+selections, twelve H sections and fifteen proposed HR cases are preserved. The
+clarification author checked those choices against the pinned ballot, local Markdown
+references and locally available pinned source paths/ranges, diff whitespace, and
+the three-document scope. No normative, schema, catalog, runtime or evidence bytes
+change. No tests, dependencies, external reviewers, posts, push or merge were run
+for this documentation-only correction. Local commit is authorized; parent inspection
+and final-head review remain required before publication or any further claim.
