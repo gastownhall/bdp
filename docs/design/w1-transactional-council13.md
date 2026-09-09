@@ -343,3 +343,64 @@ typecheck, lint/format, strict 138-definition compilation and 274-body
 validation also passed. Schema bytes and artifact counts are unchanged.
 A new independent review is still owed; the prior ACK head's Claude seat
 was still running when this correction was prepared in its separate tree.
+
+## ACK review followup — 2026-09-08
+
+Claude's review of frozen `267f79d` returned no Critical or High findings,
+four Medium and three Low. The alias spelling correction and definition
+count correction were already folded at `dd4f4fd`; this followup was prepared
+in a new isolated tree from that head. The dispositions are:
+
+| Finding | Disposition |
+| --- | --- |
+| M1, alias references | Already corrected at `dd4f4fd`; direct Scope resolution and its positive/negative probes are preserved. |
+| M2, alias receipt retention | Accepted. The four available alias receipts now expire seven days after their explicitly narrated terminal instants, matching discovery's `P7D` floor. `terminalAt` is fixture metadata, never a request/response member. A focused assertion binds each expiry to that instant and advertised retention. |
+| M3, per-view erasure publication | Accepted. T64's live eligibility, queue fence and backpressure closure now explicitly apply within views receiving the erasure record. Views that never received it retain their checkpoints and receive the identifier-free projection advance, with no erasure-triggered closure. The existing view-b illustration is checked against the same publication position and retains empty changes, erasures and Events. |
+| M4, automatic SSE resume | Partly accepted as a derived client clarification; rejected as a new operator-choice gap. Reconnect through either carrier must use the durable applied checkpoint already required by T64. Header precedence and server expiry/exclusive replay are unchanged; no acknowledgement, ledger replay or EventSource ban is introduced. |
+| L5, Event transaction blocks | Accepted. The page assertion closes each transaction token when its contiguous block ends and rejects a later revisit. The same-source multi-transaction positive case preserves ordinals `0,2,4,1,3`; interleaving and within-block descending order are rejected. Opaque tokens are never ordered, so this check alone cannot detect reversal of whole transaction blocks without a Scope-order oracle. |
+| L6, definition inventory | The count was already corrected to 55 at `dd4f4fd`. The inventory now also names the sequence envelope, member-problem and allocated-identity definitions that account for the three formerly omitted definitions. |
+| L7, expired alias sequence | Accepted. “Resource creation” explicitly means allocation of a Resource identity and excludes alias put even when its result says `created`. An expired alias sequence illustration has an `idempotency-expired` member with no `allocated`, checked with the unchanged schema. |
+
+The M4 browser fact follows the [WHATWG event-stream interpretation](https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation):
+the UA remembers the event ID before queuing dispatch, independently of durable
+application. A narrated dispatched-but-unapplied case therefore distinguishes
+transport checkpoint `ckpt-44` from durable checkpoint `ckpt-43`. Correct resume
+uses the latter and reaches existing expiry/resnapshot recovery; allowing the
+unapplied UA ID to override it is marked a nonconforming client resume.
+Assertions validate this illustration's metadata, not an executed browser,
+SSE scheduler or Transactional runtime. This clarification is derived from
+T64 and does not create another ruling or decision queue item.
+
+The current corpus has twelve Transactional fixture files, eleven exchange
+fixtures, 56 exchanges, 83 schema-validated exchange bodies, one intentionally
+malformed parsed request, two raw I-JSON request texts, four separately
+validated committed groups, two narrated live schedules and eight digest
+vectors. The schemas remain byte-identical to `dd4f4fd`: 138 definitions,
+including 55 Transactional and 83 inherited definitions. Catalog membership
+remains 121 unclaimed rows with twelve retirements; only affected citations
+and the live-publication title changed. Earlier counts in this record describe
+their historical heads.
+
+Focused verification under Node 24.16.0: 293 tests across Transactional wire,
+Read+Update wire, schema-bundle and Transactional catalog suites. Typecheck,
+lint, format, dependency boundaries and `git diff --check` pass. Strict Ajv
+compiles all 138 definitions and validates 276 tagged bodies with zero failures.
+The driver owns full-suite gates and the next review; no new implementation or
+conformance evidence is claimed. T49/T63/T64 remain selected, T62's observable
+duplicate/retry contract remains OPEN, and T50–T61 remain provisional.
+
+
+Root full validation for this follow-up: **1,570 tests passed in 48 files**
+(one skipped, 35.26 seconds), build passed, and the historical Read evidence
+verifier still reports 74 target-row instances. Focused checks passed 293 tests;
+strict Ajv compiled 138 definitions and validated 276 tagged bodies. Schema
+bytes are unchanged from dd4f4fd. This establishes artifact/unit consistency,
+not a write-runtime or browser/SSE conformance claim. Fresh independent review
+of this follow-up remains pending.
+
+Codex's full dd4f4fd recheck returned zero new findings. Gemini at that same
+head alleged that the T56 string/object carrier sentence was missing and its
+catalog citation broken. Root checked the actual source: the exact sentence
+is present at lines1890–1893, with numeric refusal separately directed to
+Revisions; citation gates pass. That submitted High is disproved and requires
+no source edit. Neither older result clears this later follow-up.

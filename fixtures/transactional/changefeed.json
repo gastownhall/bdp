@@ -681,7 +681,7 @@
   "livePublicationExamples": [
     {
       "id": "caught-up-erasure-publication",
-      "condition": "Existing admitted stream emitted every complete group through ckpt-43 before the atomic publication/fence at pos-44; not a new HTTP request.",
+      "condition": "In view-a, which receives the erasure record, the existing admitted stream emitted every complete group through ckpt-43 before the atomic publication/fence at pos-44; not a new HTTP request.",
       "lastEmittedCheckpoint": "ckpt-43",
       "publicationGroup": "after-ckpt-43-historical-erasure-committed-group",
       "sse": {
@@ -724,11 +724,27 @@
           "reconnect": "exclusive-after-checkpoint",
           "recovery": "ordinary-replay"
         }
-      ]
+      ],
+      "dispatchedButUnapplied": {
+        "condition": "The UA dispatched the group at ckpt-44, but atomic application failed before durable checkpoint advancement and the connection then failed. This is narrated metadata, not an executed browser conformance test.",
+        "transportLastEventId": "ckpt-44",
+        "durableCheckpoint": "ckpt-43",
+        "conformingReconnect": {
+          "after": "ckpt-43",
+          "lastEventId": null,
+          "responseCode": "cursor-expired",
+          "recovery": "fresh-snapshot"
+        },
+        "uncheckedAutomaticReconnect": {
+          "lastEventId": "ckpt-44",
+          "clientConforming": false,
+          "reason": "unapplied-checkpoint"
+        }
+      }
     },
     {
       "id": "lagging-stream-fenced",
-      "condition": "Existing admitted stream still needs the group at pos-43 when the erasure publication at pos-44 fences prior history.",
+      "condition": "In view-a, which receives the erasure record, the existing admitted stream still needs the group at pos-43 when the erasure publication at pos-44 fences prior history.",
       "lastEmittedCheckpoint": "ckpt-42",
       "publicationGroup": "after-ckpt-43-historical-erasure-committed-group",
       "sse": null,

@@ -880,7 +880,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
-          "selectedText": "a receipt whose detail expired projects as an `idempotency-expired` member problem carrying, for a `completed` creation, the extension member `allocated`"
+          "selectedText": "a receipt whose detail expired projects as an `idempotency-expired` member problem carrying, for a `completed` Resource creation, the extension member `allocated`"
         }
       ]
     },
@@ -1698,7 +1698,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
-          "selectedText": "A completed creation's expired projection MUST carry exactly one of these\nforms; a non-creation projection MUST omit `allocated`"
+          "selectedText": "A completed Resource creation's expired projection MUST carry exactly one of\nthese forms; every other operation's expired projection MUST omit `allocated`"
         }
       ]
     },
@@ -1717,14 +1717,14 @@
     },
     {
       "id": "transactional.erasure.live-publication",
-      "title": "Only already admitted caught-up streams cross the atomic erasure publication fence",
+      "title": "Only already admitted caught-up streams in views receiving the erasure cross its atomic publication fence",
       "kind": "normative",
       "requiredProfile": "transactional",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#version-erasure",
-          "selectedText": "Only such caught-up streams receive the\ncomplete group at P; their server-side stream position then advances to P."
+          "selectedText": "Only such caught-up streams in a view receiving the erasure record receive the\ncomplete group at P; their server-side stream position then advances to P."
         }
       ]
     },

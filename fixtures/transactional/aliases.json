@@ -6,7 +6,7 @@
   "exchanges": [
     {
       "id": "put-alias-receipt",
-      "condition": "The caller is authorized for this alias operation. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head.",
+      "condition": "The caller is authorized for this alias operation. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
       "request": {
         "method": "POST",
         "target": "operations/put-alias",
@@ -49,13 +49,14 @@
             }
           ],
           "next": null,
-          "expiresAt": "2026-09-09T12:00:00Z"
+          "expiresAt": "2026-09-15T19:05:00Z"
         }
-      }
+      },
+      "terminalAt": "2026-09-08T19:05:00Z"
     },
     {
       "id": "put-alias-retry",
-      "condition": "The same principal retries the identical request while its receipt detail remains available; no alias transition executes again.",
+      "condition": "The same principal retries the identical request while its receipt detail remains available; no alias transition executes again. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
       "request": {
         "method": "POST",
         "target": "operations/put-alias",
@@ -98,14 +99,15 @@
             }
           ],
           "next": null,
-          "expiresAt": "2026-09-09T12:00:00Z"
+          "expiresAt": "2026-09-15T19:05:00Z"
         }
       },
-      "sameReceiptAs": "put-alias-receipt"
+      "sameReceiptAs": "put-alias-receipt",
+      "terminalAt": "2026-09-08T19:05:00Z"
     },
     {
       "id": "delete-alias-receipt",
-      "condition": "The caller is authorized for this alias operation. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head.",
+      "condition": "The caller is authorized for this alias operation. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
       "request": {
         "method": "POST",
         "target": "operations/delete-alias",
@@ -146,13 +148,14 @@
             }
           ],
           "next": null,
-          "expiresAt": "2026-09-09T12:00:00Z"
+          "expiresAt": "2026-09-15T19:06:00Z"
         }
-      }
+      },
+      "terminalAt": "2026-09-08T19:06:00Z"
     },
     {
       "id": "delete-alias-retry",
-      "condition": "The same principal retries the identical request while its receipt detail remains available; no alias transition executes again.",
+      "condition": "The same principal retries the identical request while its receipt detail remains available; no alias transition executes again. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
       "request": {
         "method": "POST",
         "target": "operations/delete-alias",
@@ -193,14 +196,15 @@
             }
           ],
           "next": null,
-          "expiresAt": "2026-09-09T12:00:00Z"
+          "expiresAt": "2026-09-15T19:06:00Z"
         }
       },
-      "sameReceiptAs": "delete-alias-receipt"
+      "sameReceiptAs": "delete-alias-receipt",
+      "terminalAt": "2026-09-08T19:06:00Z"
     },
     {
       "id": "put-alias-expired",
-      "condition": "The same principal retries after the completed alias receipt detail expires. The compact retained disposition suppresses re-execution and allocated is empty because aliases allocate no Resource identity.",
+      "condition": "The same principal retries after the completed alias receipt detail expires. The compact retained disposition suppresses re-execution and allocated is empty because aliases allocate no Resource identity. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
       "request": {
         "method": "POST",
         "target": "operations/put-alias",
@@ -236,11 +240,12 @@
           "detail": "expired",
           "allocated": []
         }
-      }
+      },
+      "terminalAt": "2026-09-08T19:05:00Z"
     },
     {
       "id": "delete-alias-expired",
-      "condition": "The same principal retries after the completed alias receipt detail expires. The compact retained disposition suppresses re-execution and allocated is empty because aliases allocate no Resource identity.",
+      "condition": "The same principal retries after the completed alias receipt detail expires. The compact retained disposition suppresses re-execution and allocated is empty because aliases allocate no Resource identity. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
       "request": {
         "method": "POST",
         "target": "operations/delete-alias",
@@ -275,11 +280,12 @@
           "detail": "expired",
           "allocated": []
         }
-      }
+      },
+      "terminalAt": "2026-09-08T19:06:00Z"
     },
     {
       "id": "put-alias-sequence-replay",
-      "condition": "The same principal and key replay the already completed alias put through a one-member sequence. The carrier-neutral receipt projects its alias result in the inherited sequence shape; the locator transition does not execute again.",
+      "condition": "The same principal and key replay the already completed alias put through a one-member sequence. The carrier-neutral receipt projects its alias result in the inherited sequence shape; the locator transition does not execute again. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
       "request": {
         "method": "POST",
         "target": "operations/sequence",
@@ -316,6 +322,51 @@
               "outcome": "created",
               "alias": "https://beads.example/acme/alias/release/latest",
               "target": "https://beads.example/acme/beads/task-42"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "put-alias-sequence-expired",
+      "condition": "The same alias key is replayed through sequence after its completed receipt detail expired. The alias put allocated no Resource identity despite its original created outcome, so the idempotency-expired member omits allocated.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "putAlias",
+              "idempotencyKey": "w1-put-alias",
+              "alias": "alias/release/latest",
+              "target": "beads/task-42"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/transactionalSequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "type": "https://github.com/gastownhall/bdp/problems/gone",
+              "code": "idempotency-expired",
+              "status": 410,
+              "retry": "never"
             }
           ]
         }

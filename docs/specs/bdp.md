@@ -1280,8 +1280,12 @@ entry, and it adds no receipt member. The bundle's
 only on `idempotency-expired`, is `sequenceAllocatedIdentity`: exactly
 `{ id, type }` when the identity is disclosed or `{ withheld: true }` when
 it is withheld, distinct from a receipt's indexed `allocated` array.
-A completed creation's expired projection MUST carry exactly one of these
-forms; a non-creation projection MUST omit `allocated` (ruled 2026-09-08, T63). `resource-erased` member problems reject
+A completed Resource creation's expired projection MUST carry exactly one of
+these forms; every other operation's expired projection MUST omit `allocated`
+(ruled 2026-09-08, T63). Here a Resource creation is an operation that
+allocated a Resource identity. An alias put is not one even when its alias
+result says `created`; its expired sequence projection omits `allocated`.
+`resource-erased` member problems reject
 `pointer` just as direct problems do (amended 2026-09-08, council 13).
 A member newly admitted by this carrier executes under its own pending
 receipt and exclusive ownership; the in-flight projection below applies only
@@ -1306,7 +1310,7 @@ not resolve the dependent-identity transition left open in T62 (amended
   executes nothing for the member, and retains nothing, and the pending
   receipt continues to be the key's state;
 - a receipt whose detail expired projects as an `idempotency-expired`
-  member problem carrying, for a `completed` creation, the extension
+  member problem carrying, for a `completed` Resource creation, the extension
   member `allocated` — the disclosed `id` and `type`, or exactly
   `{ withheld: true }`, projected from the receipt under
   [Mutation Receipt responses](#mutation-receipt-responses); and
@@ -5128,22 +5132,26 @@ rather than replaying the groups that carried it, and no group that
 predates an erasure it must apply is ever served to it again. Within a view
 that never received the record nothing expires.
 
-An already admitted SSE stream that has emitted every complete group through
-the head immediately preceding P may cross the erasure fence at P. The
-authority MUST serialize that eligibility check, the advance of
+In each view that receives the erasure record, an already admitted SSE stream
+that has emitted every complete group through the head immediately preceding P
+may cross the erasure fence at P. The authority MUST serialize that eligibility check, the advance of
 `minimumReplayPosition`, and publication of the complete erasure group as
-one ordered publication step. Only such caught-up streams receive the
-complete group at P; their server-side stream position then advances to P.
+one ordered publication step. Only such caught-up streams in a view receiving
+the erasure record receive the complete group at P; their server-side stream
+position then advances to P.
 No queued, not-yet-published pre-P group may be handed to the transport
 after this step. Publication orders complete frames at the authority
 boundary; it does not make network delivery instantaneous or revoke bytes
-already handed to the transport. A stream still needing any
+already handed to the transport. A stream in such a view still needing any
 pre-P group is fenced and closed, and its client must acquire a fresh
 snapshot. This exception belongs to the existing admitted stream, never to
 a new finite read, stream admission, or reconnect (ruled 2026-09-08, T64).
 
 Backpressure does not permit holding the fence open while an old queue
-drains: a stream needing unpublished pre-P content is closed instead.
+drains: a stream in a view receiving the erasure record that needs unpublished
+pre-P content is closed instead. Views that never received the record retain
+their checkpoints and see only the identifier-free projection advance; this
+publication rule introduces no erasure-triggered closure in those views.
 Frames already handed to the transport remain ordered before P, and the
 receiver applies erasure cleanup to any retained earlier content.
 A publication is one complete SSE message, not an acknowledgement that a
@@ -5325,7 +5333,12 @@ group.
 Accepting `text/event-stream` on the same Resource delivers one complete group
 per SSE message. The SSE `id` is the group's checkpoint, `event` is
 `change-group`, and `data` is the complete JSON group. On automatic reconnect,
-`Last-Event-ID` overrides the original `after` value. A stale, unavailable,
+`Last-Event-ID` overrides the original `after` value. A checkpoint supplied
+for changefeed reconnect, whether through `Last-Event-ID` or `after`, MUST
+be the client's durable checkpoint under the atomic-application rule above.
+An SSE implementation's remembered last-event ID records transport progress,
+not durable application; the client MUST NOT let an unapplied last-event ID
+override its durable checkpoint on reconnect. A stale, unavailable,
 foreign-epoch, or foreign-view checkpoint fails explicitly and requires a new
 snapshot. The authority never advances it silently to
 `minimumReplayPosition`. Existing caught-up streams cross an erasure
@@ -5767,7 +5780,7 @@ profile-specific response vehicle.
 | `transactional.alias.no-batch` | Alias operations are excluded from atomic batch membership |
 | `transactional.sequence.withheld-allocation` | An expired creation projects the disclosed identity or exactly withheld true |
 | `transactional.sequence.withheld-binding` | Withheld allocation preserves internal binding and independently authorizes every dependent |
-| `transactional.erasure.live-publication` | Only already admitted caught-up streams cross the atomic erasure publication fence |
+| `transactional.erasure.live-publication` | Only already admitted caught-up streams in views receiving the erasure cross its atomic publication fence |
 | `transactional.erasure.disconnect-race` | Reconnect uses the atomically applied durable checkpoint and resnapshots when it precedes erasure |
 
 ### Open protocol questions
@@ -5880,8 +5893,9 @@ protocol-identifier prefix, with the release-stability rule stated above.
    2026-09-08 (Transactional apply):** the bundle carries the Event
    surface, the batch envelope and its eight operation records, the
    set-operation bodies, Mutation Receipts and their pages, the
-   Transactional problem shapes, change groups, changefeed pages, snapshot
-   manifests, and the Transactional discovery document and Operation
+   Transactional problem shapes, the sequence envelope and its member-problem
+   and allocated-identity specializations, change groups, changefeed pages,
+   snapshot manifests, and the Transactional discovery document and Operation
    Directory — 55 definitions — pending review, with the judgments they
    rest on recorded in `docs/design/w1-transactional-packet.md` (T1–T48
    ruled or ratified; T49/T63/T64 ruled 2026-09-08; T62 direction selected,

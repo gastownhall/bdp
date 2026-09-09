@@ -7618,3 +7618,25 @@ lint and format, strict compilation of all 138 definitions and validation of
 and the existing 74-row Read evidence verifier. Duplicate-preserving parsing
 found no repeated schema keys. Independent review of this new head remains
 pending; no exact-head clearance is claimed by this record.
+
+
+### Post-ACK review follow-up
+
+The alias-reference and retention corrections and the expired-alias sequence
+example bring the current corpus to 56 exchanges in eleven exchange fixtures
+(twelve JSON files overall), 83 validated Transactional exchange bodies,
+four committed-group examples, two narrated live schedules and eight digest
+vectors. The 138 definitions, 121 unclaimed rows and twelve retirements are
+unchanged. The earlier 81-body count describes the initial ACK materialization.
+
+The live-erasure text explicitly retains its per-view boundary and ties both
+reconnect carriers to the already ruled durable applied checkpoint. Resource
+creation is distinguished from alias creation for allocation projection.
+Event-page checks retain per-transaction ordinals and reject interleaved
+transaction blocks. These are reviewed-law corrections, not new choices.
+
+Root validation: 1,570 tests pass across 48 files (one skipped), with build,
+focused 293 tests, typecheck/lint/format/boundaries, strict 138-definition /
+276-body validation and historical 74-row Read evidence verification passing.
+The new head still needs independent review. T62 observable comparison remains
+open, T50–T61 provisional, and no write-runtime conformance is claimed.

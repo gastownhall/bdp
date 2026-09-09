@@ -58,6 +58,8 @@ interface FixtureExchange {
   readonly id: string;
   /** A narrated precondition — an assumption the example rests on, never an observation. */
   readonly condition?: string;
+  /** Narrated execution time for retention checks; never a response member. */
+  readonly terminalAt?: string;
   /** An exchange in this fixture whose response body this one repeats byte for byte. */
   readonly sameReceiptAs?: string;
   /** Explicit before-state oracle for a semantic no-op. */
@@ -420,7 +422,10 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
       expect(compiledDefinition("#/$defs/batchOperation")(operation)).toBe(false);
     const fixture = fixtures.find(({ id }) => id === "transactional-aliases");
     for (const exchange of fixture?.exchanges ?? []) {
-      if (exchange.response.schema === "#/$defs/transactionalSequenceResponse") {
+      if (
+        exchange.response.schema === "#/$defs/transactionalSequenceResponse" &&
+        (exchange.response.body.results as JsonRecord[]).every((entry) => "outcome" in entry)
+      ) {
         expectEntriesCorrespond(
           exchange.response.body.results as JsonRecord[],
           exchange.request.body?.operations as JsonRecord[],
@@ -494,6 +499,49 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
     }
   });
 
+  it("binds alias receipt expiry to its narrated terminal instant and advertised retention", () => {
+    const fixture = fixtures.find(
+      ({ id }) => id === "transactional-aliases",
+    ) as TransactionalFixture;
+    const discovery = fixtures
+      .filter((candidate) => candidate.scope === fixture.scope)
+      .flatMap(({ exchanges }) => exchanges)
+      .find(({ response }) => response.schema === "#/$defs/transactionalDiscovery");
+    if (!discovery) throw new Error("missing Transactional discovery illustration");
+    const retention = ((discovery.response.body.limits as JsonRecord).retention as JsonRecord)
+      .receipt;
+    // This fixture advertises whole-day retention; no general duration parser
+    // or terminalAt wire extension is implied by this illustration check.
+    expect(retention).toBe("P7D");
+    const available = fixture.exchanges.filter(
+      ({ response }) =>
+        response.schema === "#/$defs/mutationReceipt" && response.body.detail === "available",
+    );
+    expect(available).toHaveLength(4);
+    for (const exchange of available) {
+      expect(isJsonSchemaDateTime(exchange.terminalAt as string)).toBe(true);
+      expect(Date.parse(exchange.response.body.expiresAt as string)).toBeGreaterThanOrEqual(
+        Date.parse(exchange.terminalAt as string) + 7 * 24 * 60 * 60 * 1000,
+      );
+      expect(exchange.response.body.terminalAt).toBeUndefined();
+    }
+  });
+
+  it("projects an expired alias sequence member without a Resource allocation", () => {
+    const fixture = fixtures.find(({ id }) => id === "transactional-aliases");
+    const exchange = fixture?.exchanges.find(({ id }) => id === "put-alias-sequence-expired");
+    expect(exchange).toBeDefined();
+    expect(exchange?.response.body.results).toEqual([
+      {
+        operationIndex: 0,
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
+        code: "idempotency-expired",
+        status: 410,
+        retry: "never",
+      },
+    ]);
+  });
+
   it("ties the narrated live publication to one complete committed group and both disconnect outcomes", () => {
     const fixture = fixtureFiles.find(({ id }) => id === "transactional-changefeed") as JsonRecord;
     const examples = fixture.livePublicationExamples as JsonRecord[];
@@ -522,8 +570,36 @@ describe("operator-ruled alias and live-erasure illustrations", () => {
         recovery: "ordinary-replay",
       },
     ]);
+    const unapplied = caughtUp.dispatchedButUnapplied as JsonRecord;
+    expect(unapplied.transportLastEventId).toBe(group.checkpoint);
+    expect(unapplied.durableCheckpoint).toBe(caughtUp.lastEmittedCheckpoint);
+    expect(unapplied.conformingReconnect).toEqual({
+      after: caughtUp.lastEmittedCheckpoint,
+      lastEventId: null,
+      responseCode: "cursor-expired",
+      recovery: "fresh-snapshot",
+    });
+    expect(unapplied.uncheckedAutomaticReconnect).toEqual({
+      lastEventId: group.checkpoint,
+      clientConforming: false,
+      reason: "unapplied-checkpoint",
+    });
     expect(lagging.sse).toBeNull();
     expect(lagging.minimumReplayPosition).toBe(group.position);
+    const unaffected = fixtures
+      .find(({ id }) => id === "transactional-changefeed")
+      ?.exchanges.find(({ id }) => id === "view-b-projection-advance");
+    if (!unaffected) throw new Error("missing unaffected-view projection illustration");
+    expect(unaffected.response.status).toBe(200);
+    expect(unaffected.response.body.after).toBe(caughtUp.lastEmittedCheckpoint);
+    expect(unaffected.response.body.authorizationView).toBe("view-b");
+    const advance = (unaffected.response.body.groups as JsonRecord[])[0] as JsonRecord;
+    expect(advance.position).toBe(group.position);
+    expect(advance.projectionAdvance).toBe(true);
+    expect(advance.erasures).toEqual([]);
+    expect(advance.changes).toEqual([]);
+    expect(advance.events).toEqual([]);
+    expect(advance.transaction).toBeUndefined();
     // The finite replay examples remain fenced; this is a narrated live
     // schedule, not a scheduler implementation or conformance observation.
   });
@@ -1699,15 +1775,21 @@ function expectChangeGroup(group: JsonRecord, label: string): void {
 }
 
 function expectOrdinalsIncrease(events: readonly JsonRecord[], label: string): void {
-  // Ordinals belong to authority transaction groups. An Event Source page
-  // can span several groups, each retaining its own projected ordinal gaps.
-  const lastByTransaction = new Map<string, number>();
+  // Group ordinals restart between contiguous transaction blocks. Opaque
+  // transaction tokens cannot establish chronological order between blocks.
+  const closed = new Set<string>();
+  let transaction: string | undefined;
+  let last = -1;
   for (const event of events) {
-    const transaction = event.transaction as string;
-    expect(event.ordinal as number, label).toBeGreaterThan(
-      lastByTransaction.get(transaction) ?? -1,
-    );
-    lastByTransaction.set(transaction, event.ordinal as number);
+    const nextTransaction = event.transaction as string;
+    if (nextTransaction !== transaction) {
+      if (transaction !== undefined) closed.add(transaction);
+      expect(closed.has(nextTransaction), `${label}: revisited transaction`).toBe(false);
+      transaction = nextTransaction;
+      last = -1;
+    }
+    expect(event.ordinal as number, label).toBeGreaterThan(last);
+    last = event.ordinal as number;
   }
 }
 
@@ -1862,6 +1944,8 @@ describe("Transactional correction regression probes", () => {
     expect(new Set(events.map(({ source }) => source))).toEqual(new Set([creation.source]));
     expect(new Set(events.map(({ transaction }) => transaction)).size).toBe(2);
     expectOrdinalsIncrease(events, "same-source multi-transaction history");
+    const interleaved = [events[0], events[3], events[1], events[2], events[4]] as JsonRecord[];
+    expect(() => expectOrdinalsIncrease(interleaved, "interleaved transaction blocks")).toThrow();
     const reversedWithinTransaction = [...events];
     [reversedWithinTransaction[3], reversedWithinTransaction[4]] = [
       events[4] as JsonRecord,
