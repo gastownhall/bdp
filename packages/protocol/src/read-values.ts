@@ -25,6 +25,26 @@ const TYPE_VALUE_MAX_NODES = 100_000;
 const TYPE_VALUE_MAX_CONTAINER_ENTRIES = 10_000;
 const CANONICAL_SCHEMA_URL = new URL("../schemas/bdp-v0.schema.json", import.meta.url);
 
+/**
+ * The Read envelopes this package parses through the canonical schema bundle,
+ * by bundle-local `$defs` reference. This is the normative Read parse surface.
+ * The Read evidence gate derives the Read schema projection's envelope roots
+ * from it together with the bound manifest's `json-schema` assertions
+ * (D29 = C): adding a Read envelope here widens the projection and is itself a
+ * Read change that closes the sealed cohort until it is re-sealed.
+ */
+export const READ_VALUE_SCHEMA_REFS = Object.freeze({
+  summary: "#/$defs/typeSummary",
+  descriptor: "#/$defs/typeDescriptor",
+  discovery: "#/$defs/readDiscovery",
+  problem: "#/$defs/readProblem",
+  beadRecord: "#/$defs/beadRecord",
+  linkRecord: "#/$defs/linkRecord",
+  beadCollection: "#/$defs/beadCollection",
+  linkCollection: "#/$defs/linkCollection",
+  typesInventory: "#/$defs/typesInventory",
+} as const);
+
 interface ProtocolValueValidators {
   readonly summary: ValidateFunction;
   readonly descriptor: ValidateFunction;
@@ -261,52 +281,18 @@ function getProtocolValueValidators(): ProtocolValueValidators {
     canonicalSchemaBundle as unknown as JSONSchemaType<unknown>,
     canonicalSchemaBundle.$id,
   );
+  const validatorFor = (schemaRef: string): ValidateFunction =>
+    requireSchemaValidator(schemaValidator, canonicalSchemaBundle.$id, schemaRef);
   protocolValueValidators = Object.freeze({
-    summary: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/typeSummary",
-    ),
-    descriptor: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/typeDescriptor",
-    ),
-    discovery: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/readDiscovery",
-    ),
-    problem: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/readProblem",
-    ),
-    beadRecord: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/beadRecord",
-    ),
-    linkRecord: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/linkRecord",
-    ),
-    beadCollection: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/beadCollection",
-    ),
-    linkCollection: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/linkCollection",
-    ),
-    typesInventory: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/typesInventory",
-    ),
+    summary: validatorFor(READ_VALUE_SCHEMA_REFS.summary),
+    descriptor: validatorFor(READ_VALUE_SCHEMA_REFS.descriptor),
+    discovery: validatorFor(READ_VALUE_SCHEMA_REFS.discovery),
+    problem: validatorFor(READ_VALUE_SCHEMA_REFS.problem),
+    beadRecord: validatorFor(READ_VALUE_SCHEMA_REFS.beadRecord),
+    linkRecord: validatorFor(READ_VALUE_SCHEMA_REFS.linkRecord),
+    beadCollection: validatorFor(READ_VALUE_SCHEMA_REFS.beadCollection),
+    linkCollection: validatorFor(READ_VALUE_SCHEMA_REFS.linkCollection),
+    typesInventory: validatorFor(READ_VALUE_SCHEMA_REFS.typesInventory),
   });
   return protocolValueValidators;
 }

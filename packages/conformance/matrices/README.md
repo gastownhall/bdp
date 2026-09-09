@@ -449,7 +449,10 @@ self-certified in-process run — so each run declares the rows it carries, and,
 for each target, their union must be exactly the required set minus that
 target's derived not-applicable rows (the honest-absence rule below), with
 every carried row attributed to exactly one run. The cohort must bind the catalog, manifest, fixture,
-canonical schema, validator, runner, harness, executor, installed payload,
+canonical schema (its whole-bundle digest, recorded as provenance, and its
+Read schema projection — the sealed definition set — which the gate
+recomputes; see the projection rule below), validator, runner, harness,
+executor, installed payload,
 launched target process, fixture/workspace, and—for `bdpbd`—the actual `bd`
 executable. A missing, failing, or mismatched target closes the cohort for
 both targets. The fixture binding is per-realization — `read-reference-v1`
@@ -553,8 +556,9 @@ and admission stays fail-closed, which is a passing state. The moment anything
 claims evidence, including a bare well-formed constant with no artifact behind
 it, the gate demands the full proof: canonical artifact bytes digesting to the
 recorded constant for both targets, per-row provenance with the self-certifiable
-set re-derived from the bound manifest, run-head ancestry, and delta
-confinement. This ordering is deliberate: the gate landed before any bootstrap
+set re-derived from the bound manifest, the Read schema projection recomputed
+from the committed bundle, run-head ancestry, and delta confinement. This
+ordering is deliberate: the gate landed before any bootstrap
 constant so that no window ever exists in which a fabricated value admits the
 server unchallenged.
 
@@ -577,3 +581,74 @@ also claimed, or whose scores count an inapplicable row as pass. Honest
 absence is not coverage: a capability-gated row proves nothing about the
 target that lacks the capability, and the artifact says so instead of
 hiding it.
+
+### Read schema projection: what the seal binds (D29 = C and RP1, 2026-09-08)
+
+The bundle at `schemas/bdp-v0.schema.json` is one file for every profile. A
+seal that bound its whole-file digest and recomputed it would close the Read
+cohort every time a later profile added a definition Read never reaches; a
+seal that bound it without recomputing it — the state before this ruling —
+let a Read-facing definition change ship on evidence sealed against the old
+definition. Ruled 2026-09-08 (D29 = C): the cohort binds the digest of a
+**projection** of the bundle, and the gate recomputes it. Ruled the same day
+(RP1, option a): the projection is the **sealed definition set, by name** —
+not the closure reachable from the Read roots, which review found held 25 of
+the 26 definitions the seal covers.
+
+- **Projection.** The `$defs` the bundle carried at the seal commit
+  `0b7d86e7cfec47f88cd1ec22314a73f39763bcf8`, named in a checked-in list in
+  sealed order — `READ_SCHEMA_SEALED_DEFINITIONS` in
+  `packages/conformance/src/schema-read-projection.ts`, 26 names,
+  `protocolProfile` included — serialized as the JSON array of
+  `[name, definition]` pairs in that order, canonicalized under RFC 8785
+  (JCS) so member order and whitespace cannot move it, and digested with
+  SHA-256. Only the text of those definitions is inside the digest; a
+  definition's own prose is part of its text. Top-level bundle metadata —
+  `$schema`, `$id`, `title`, `description`, anything outside `$defs` — is
+  outside it, as is every definition the list does not name and whether a
+  sealed definition happens to be reachable from Read.
+- **Why by name.** A name list cannot drift silently: every listed name must
+  be present in the bundle or the projection fails, and any edit to the list
+  moves the digest. Reachability can: the closure from the Read roots held 25
+  definitions because nothing in Read references `protocolProfile`
+  (`readDiscovery.profile` is the constant `read`), so a token added to that
+  enum would have shipped on evidence sealed against the old enum with
+  nothing in the tree saying so, and the closure moves with edits that are
+  not Read changes.
+- **Roots, derived — the coverage check.** The union of the definitions the
+  bound manifest's `json-schema` assertions name (at every request and action
+  assertion site) and the definitions `@bdp/protocol` parses Read values
+  through (`READ_VALUE_SCHEMA_REFS`), never hand-listed. They select nothing.
+  The projection walks the bundle from them and fails if any definition Read
+  reaches is not sealed, so the Read surface cannot widen onto a definition
+  the seal does not cover — a new root, or a new reference from a sealed
+  definition — without the gate saying so; the fix is to extend the sealed
+  list in that Read change, before the run head, and re-seal. At the ruling
+  the roots are `beadCollection`, `beadRecord`, `linkCollection`,
+  `linkRecord`, `properties`, `readDiscovery`, `readProblem`,
+  `typeDescriptor`, `typeSummary`, and `typesInventory`, reaching 25 of the
+  26 sealed definitions. The walk fails closed: a reference it cannot follow,
+  a dangling reference, a root the bundle does not define, or an empty root
+  set is an error, never a narrower check.
+- **Binding.** Every segment records `bindings.schemaReadProjection`, the
+  projection digest of the bundle at the seal; the generator computes it.
+  `bindings.schema`, the whole-bundle digest, stays recorded as provenance
+  and is checked for format only, because later-profile definitions and
+  top-level metadata legitimately move it.
+- **Re-seal trigger.** `pnpm evidence:verify` recomputes the projection from
+  the committed bundle and fails with
+  `Read schema projection drift: re-seal required` when any segment binds a
+  different value. A change to the text of any sealed definition — reachable
+  from Read or not — or to the sealed list therefore forces
+  `pnpm evidence:generate`; a definition the seal does not name, a
+  metadata edit, or a reordering does not. A sealed definition missing from
+  the bundle, or a definition Read reaches that is not sealed, fails the gate
+  outright rather than projecting a narrower set.
+
+The sealed artifact predated the binding and was migrated to carry it, and
+migrated again when RP1 fixed the projection's value;
+[`docs/design/read-projection-gate.md`](../../../docs/design/read-projection-gate.md)
+records the decisions and the migration procedure. Each migration changed
+the artifact's bytes and therefore the evidence constant, but the value it
+wrote is a pure function of the bundle bytes the seal already pinned: a
+binding-format migration, not new evidence and not a re-seal of observations.

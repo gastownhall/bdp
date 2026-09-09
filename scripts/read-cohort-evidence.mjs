@@ -26,16 +26,19 @@ export const ALLOWED_EVIDENCE_DELTA_PATHS = Object.freeze([
 
 const CATALOG_PATH = "packages/conformance/catalog/read-v1.json";
 const MANIFEST_PATH = "packages/conformance/matrices/read-v1.json";
+const SCHEMA_BUNDLE_PATH = "schemas/bdp-v0.schema.json";
 
 /**
  * Everything verification reads from the working tree must be committed state:
- * the evidence paths, and the catalog/manifest the derivations come from. A
- * dirty input would let a local run verify against bytes no commit describes.
+ * the evidence paths, the catalog/manifest the derivations come from, and the
+ * schema bundle the Read projection is recomputed from. A dirty input would
+ * let a local run verify against bytes no commit describes.
  */
 export const VERIFICATION_INPUT_PATHS = Object.freeze([
   ...ALLOWED_EVIDENCE_DELTA_PATHS,
   CATALOG_PATH,
   MANIFEST_PATH,
+  SCHEMA_BUNDLE_PATH,
 ]);
 
 export class EvidenceGateError extends Error {
@@ -168,6 +171,7 @@ export function assembleVerificationInput({
   requiredScenarioIds,
   derivedNotApplicableByTarget,
   derivedSelfCertifiable,
+  derivedSchemaReadProjection,
   expectedBdIdentity,
   gitFacts,
 }) {
@@ -177,6 +181,7 @@ export function assembleVerificationInput({
     requiredScenarioIds,
     derivedNotApplicableByTarget,
     derivedSelfCertifiable,
+    derivedSchemaReadProjection,
     expectedBdIdentity,
     runHeadIsAncestor: gitFacts.runHeadIsAncestor,
     changedPathsSinceRunHead: gitFacts.changedPathsSinceRunHead,
@@ -284,6 +289,30 @@ export async function main() {
         fixtureCapabilitiesFor("packages/conformance/fixtures/read-bdpbd-v1.json"),
       ),
     };
+    // D29 = C / RP1: recompute the Read schema projection of the committed
+    // bundle — the sealed definition set, by name (READ_SCHEMA_SEALED_DEFINITIONS
+    // in @bdp/conformance), in sealed order. The Read roots, derived from the
+    // committed manifest and the protocol parse table, select nothing: the
+    // projection checks that every definition Read reaches is sealed and fails
+    // otherwise. Every segment must bind exactly this digest, and drift closes
+    // the cohort until it is re-sealed. The whole-bundle digest each segment
+    // also records is provenance only and is not recomputed.
+    let schemaBundle;
+    try {
+      schemaBundle = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(
+          readFileSync(path.join(root, SCHEMA_BUNDLE_PATH)),
+        ),
+      );
+    } catch (cause) {
+      throw new EvidenceGateError("the committed schema bundle is not valid UTF-8 JSON", {
+        cause,
+      });
+    }
+    const schemaReadProjection = conformance.projectReadSchemaBundle(
+      schemaBundle,
+      conformance.deriveReadSchemaProjectionRoots(manifest),
+    );
     // D4: recompute the bd identity pin from the committed baseline
     // observations (pure bytes, no bd on PATH needed); the verifier requires
     // every bdpbd segment to record exactly this identity.
@@ -306,6 +335,7 @@ export async function main() {
       requiredScenarioIds,
       derivedNotApplicableByTarget,
       derivedSelfCertifiable,
+      derivedSchemaReadProjection: schemaReadProjection.digest,
       expectedBdIdentity,
       gitFacts,
     });
@@ -316,6 +346,9 @@ export async function main() {
       constant: conformance.readCohortEvidenceConstant(artifactBytes),
       runHead: recordedRunHead,
       evidenceCommit: gitFacts.evidenceCommit,
+      schemaReadProjection: schemaReadProjection.digest,
+      schemaReadProjectionDefinitions: schemaReadProjection.definitions.length,
+      schemaReadProjectionReachable: schemaReadProjection.reachable.length,
       rows: (artifact.targets ?? []).reduce(
         (total, target) =>
           total +

@@ -26,6 +26,7 @@ const baseBindings = {
   manifest: digest("d2"),
   fixture: digest("e3"),
   schema: digest("11"),
+  schemaReadProjection: digest("12"),
   validator: digest("22"),
   runner: digest("33"),
   harness: digest("44"),
@@ -106,6 +107,7 @@ function inputFor(
     requiredScenarioIds: REQUIRED,
     derivedNotApplicableByTarget: { bdptest: [], bdpbd: [] },
     derivedSelfCertifiable: SELF_CERTIFIABLE,
+    derivedSchemaReadProjection: digest("12"),
     expectedBdIdentity: bdIdentity,
     runHeadIsAncestor: true,
     changedPathsSinceRunHead: [ARTIFACT_PATH, CONSTANT_PATH],
@@ -226,6 +228,45 @@ describe("read cohort evidence verification", () => {
     expect(() => verifyReadCohortEvidence(inputFor(forged))).toThrow(
       /row 'read.b' admission disagrees with its segment/,
     );
+  });
+
+  // D29 = C / RP1: the Read schema projection — the sealed definition set — is
+  // recomputed from the committed bundle. A segment binding any other value is
+  // evidence about a different Read surface, however well-formed the recorded
+  // digest is.
+  it("refuses Read schema projection drift: every segment must bind the recomputed projection", () => {
+    expect(() =>
+      verifyReadCohortEvidence(inputFor(artifact(), { derivedSchemaReadProjection: digest("13") })),
+    ).toThrow(/Read schema projection drift: re-seal required/);
+  });
+
+  it("refuses a segment that does not bind the Read schema projection", () => {
+    const forged = withTarget("bdptest", (entry) => {
+      const packaged = at(entry.segments, 0);
+      const bindings = { ...(packaged.bindings as Record<string, unknown>) };
+      delete bindings.schemaReadProjection;
+      packaged.bindings = bindings;
+    });
+    expect(() => verifyReadCohortEvidence(inputFor(forged))).toThrow(
+      /binding 'schemaReadProjection' must be a sha-256 hex digest/,
+    );
+  });
+
+  it("fails closed when the gate derived no Read schema projection", () => {
+    expect(() =>
+      verifyReadCohortEvidence(inputFor(artifact(), { derivedSchemaReadProjection: "" })),
+    ).toThrow(/no derived Read schema projection digest/);
+  });
+
+  // The whole-bundle digest is recorded provenance: later-profile definitions
+  // legitimately move it, so it is checked for format only and never recomputed.
+  it("keeps the whole-bundle schema digest informational", () => {
+    const moved = withTarget("bdptest", (entry) => {
+      for (const seg of entry.segments as Record<string, unknown>[]) {
+        seg.bindings = { ...(seg.bindings as Record<string, unknown>), schema: digest("99") };
+      }
+    });
+    expect(() => verifyReadCohortEvidence(inputFor(moved))).not.toThrow();
   });
 
   it("refuses a packaged segment stripped of its packaged bindings", () => {

@@ -21,7 +21,9 @@ import {
   deriveReadCohortNotApplicableRows,
   deriveReadCohortRequiredScenarioIds,
   deriveReadCohortSelfCertifiableIds,
+  deriveReadSchemaProjectionRoots,
   type ExecutableScenario,
+  projectReadSchemaBundle,
   READ_COHORT_TARGETS,
   type ReadCohortBindings,
   type ReadCohortTarget,
@@ -309,9 +311,13 @@ function loadBundle(fixtureRelativePath: string): ConformanceArtifactBundle {
 }
 
 /**
- * Binding digest conventions. The verifier does not recompute these; they are
- * recorded provenance, and each names the exact committed byte source that
+ * Binding digest conventions. Each names the exact committed byte source that
  * played the role, so a reviewer can re-derive every value from the run head.
+ * The verifier recomputes only `schemaReadProjection` (D29 = C / RP1, computed
+ * below from the bundle at `schema` over the sealed definition set by name,
+ * with the Read roots derived from the bound manifest as the coverage check);
+ * the rest, including the whole-bundle `schema` digest, are recorded
+ * provenance checked for format alone.
  */
 const BINDING_SOURCES = {
   schema: "schemas/bdp-v0.schema.json",
@@ -552,6 +558,10 @@ describe("packaged Read cohort generation", () => {
       // values, cross-checked by createReadCohortArtifact itself.
       const shared = {
         schema: sha256(readRepoBytes(BINDING_SOURCES.schema)),
+        schemaReadProjection: projectReadSchemaBundle(
+          JSON.parse(new TextDecoder().decode(readRepoBytes(BINDING_SOURCES.schema))),
+          deriveReadSchemaProjectionRoots(referenceBundle.manifest),
+        ).digest,
         validator: sha256(readRepoBytes(BINDING_SOURCES.validator)),
         runner: sha256(readRepoBytes(BINDING_SOURCES.runner)),
         executor: executorDigest(),

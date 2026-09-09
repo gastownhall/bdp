@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { canonicalJson, compareCodeUnits } from "./canonical-json.js";
 import type { ScenarioCatalog } from "./catalog.js";
 import type { ExecutableScenarioManifest } from "./executable-manifest.js";
 import type { ConformanceRunResult, ScenarioRunResult } from "./runner.js";
@@ -76,7 +77,21 @@ export interface ReadCohortBindings {
   readonly catalog: string;
   readonly manifest: string;
   readonly fixture: string;
+  /**
+   * SHA-256 of the whole normative schema bundle at the seal. Recorded
+   * provenance only: the bundle is one file for every profile, so a later
+   * profile's definitions legitimately move this digest, and the verifier
+   * checks it for format alone.
+   */
   readonly schema: string;
+  /**
+   * D29 = C, projection rule RP1: SHA-256 of the Read schema projection of
+   * that bundle — the sealed definition set, by name, in sealed order, as the
+   * RFC 8785 text of its `[name, definition]` pairs. This is the binding the
+   * verifier recomputes from the committed bundle; drift here means the text
+   * of a sealed definition changed and a re-seal is due.
+   */
+  readonly schemaReadProjection: string;
   readonly validator: string;
   readonly runner: string;
   readonly harness: string;
@@ -99,6 +114,7 @@ const ALWAYS_REQUIRED_BINDING_KEYS = Object.freeze([
   "manifest",
   "fixture",
   "schema",
+  "schemaReadProjection",
   "validator",
   "runner",
   "harness",
@@ -717,13 +733,10 @@ function allowlistHeaderNames(headers: Readonly<Record<string, string>>): readon
   return Object.freeze([...names].sort(compareCodeUnits));
 }
 
-function compareCodeUnits(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
-}
-
 /**
- * Canonical bytes for the artifact: keys sorted by code unit, no insignificant
- * whitespace, one trailing newline so the file is a well-formed text file.
+ * Canonical bytes for the artifact: RFC 8785 JCS (keys sorted by code unit, no
+ * insignificant whitespace) plus one trailing newline so the file is a
+ * well-formed text file.
  *
  * The evidence constant is a digest over the *committed* bytes, so serialization
  * has to be the only way to produce them — otherwise a reformat would silently
@@ -732,26 +745,6 @@ function compareCodeUnits(left: string, right: string): number {
  */
 export function serializeReadCohortArtifact(artifact: ReadCohortArtifact): Uint8Array {
   return new TextEncoder().encode(`${canonicalJson(artifact)}\n`);
-}
-
-function canonicalJson(value: unknown): string {
-  if (value === null) return "null";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new ReadCohortArtifactError("cohort artifact numbers must be finite");
-    }
-    return JSON.stringify(value);
-  }
-  if (typeof value === "string") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, entry]) => entry !== undefined)
-      .sort(([left], [right]) => compareCodeUnits(left, right));
-    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
-  }
-  throw new ReadCohortArtifactError(`cohort artifact cannot serialize ${typeof value}`);
 }
 
 /** SHA-256 over exact artifact bytes. */
