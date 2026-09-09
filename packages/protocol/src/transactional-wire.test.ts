@@ -228,6 +228,7 @@ describe("Transactional problem rows", () => {
 describe("Transactional wire fixtures", () => {
   it("cover discovery, batch, receipts, the set targets, direct problems, sequence, Events, the changefeed, and snapshots", () => {
     expect(fixtures.map(({ id }) => id)).toEqual([
+      "transactional-aliases",
       "transactional-batch",
       "transactional-changefeed",
       "transactional-direct-problems",
@@ -253,7 +254,9 @@ describe("Transactional wire fixtures", () => {
       "changes/?after=ckpt-46",
       "operations/",
       "operations/batch",
+      "operations/delete-alias",
       "operations/delete-where",
+      "operations/put-alias",
       "operations/sequence",
       "operations/update-bead-properties",
       "operations/update-where",
@@ -390,6 +393,74 @@ describe("Transactional wire fixtures", () => {
   }
 });
 
+describe("operator-ruled alias and live-erasure illustrations", () => {
+  it("keeps alias results closed and excludes alias batch members", () => {
+    const put = {
+      operationIndex: 0,
+      outcome: "created",
+      alias: `${SCOPE}alias/release/latest`,
+      target: `${SCOPE}beads/task-42`,
+    };
+    const deleted = { operationIndex: 0, outcome: "deleted", alias: put.alias };
+    for (const entry of [put, { ...put, outcome: "updated" }, deleted])
+      expectValid("#/$defs/receiptResult", entry, "alias result");
+    for (const entry of [
+      { ...put, operationIndex: 1 },
+      { ...put, operationName: "alias" },
+      { ...put, resource: {} },
+      { ...deleted, target: put.target },
+      { ...deleted, outcome: "created" },
+      { ...put, outcome: "matched", count: 1 },
+    ])
+      expect(compiledDefinition("#/$defs/receiptResult")(entry), JSON.stringify(entry)).toBe(false);
+    for (const operation of [
+      { operation: "putAlias", alias: "release/latest", target: "beads/task-42" },
+      { operation: "deleteAlias", alias: "release/latest" },
+    ])
+      expect(compiledDefinition("#/$defs/batchOperation")(operation)).toBe(false);
+    const fixture = fixtures.find(({ id }) => id === "transactional-aliases");
+    for (const exchange of fixture?.exchanges ?? []) {
+      if (exchange.response.schema !== "#/$defs/mutationReceipt") continue;
+      expect(exchange.response.body.effectPosition).toBeUndefined();
+      expect(exchange.response.body.requiredPosition).toBe("pos-49");
+    }
+  });
+
+  it("ties the narrated live publication to one complete committed group and both disconnect outcomes", () => {
+    const fixture = fixtureFiles.find(({ id }) => id === "transactional-changefeed") as JsonRecord;
+    const examples = fixture.livePublicationExamples as JsonRecord[];
+    expect(examples.length).toBe(2);
+    const caughtUp = examples[0] as JsonRecord;
+    const lagging = examples[1] as JsonRecord;
+    const group = (fixture.groupExamples as JsonRecord[]).find(
+      ({ id }) => id === caughtUp.publicationGroup,
+    )?.body as JsonRecord;
+    const sse = caughtUp.sse as JsonRecord;
+    expectValid("#/$defs/changeGroup", sse.data, "live erasure publication");
+    expect(sse).toEqual({ id: group.checkpoint, event: "change-group", data: group });
+    expect((group.erasures as unknown[]).length).toBeGreaterThan(0);
+    expect(caughtUp.minimumReplayPosition).toBe(group.position);
+    expect(caughtUp.disconnectCases).toEqual([
+      {
+        id: "disconnect-before-complete-application",
+        durableCheckpoint: caughtUp.lastEmittedCheckpoint,
+        reconnect: "cursor-expired",
+        recovery: "fresh-snapshot",
+      },
+      {
+        id: "disconnect-after-complete-application",
+        durableCheckpoint: group.checkpoint,
+        reconnect: "exclusive-after-checkpoint",
+        recovery: "ordinary-replay",
+      },
+    ]);
+    expect(lagging.sse).toBeNull();
+    expect(lagging.minimumReplayPosition).toBe(group.position);
+    // The finite replay examples remain fenced; this is a narrated live
+    // schedule, not a scheduler implementation or conformance observation.
+  });
+});
+
 describe("Transactional sequence problem extensions", () => {
   const expired = {
     type: `${BDP_PROBLEM_FAMILY_PREFIX}gone`,
@@ -399,14 +470,17 @@ describe("Transactional sequence problem extensions", () => {
     operationIndex: 0,
   };
 
-  it.each([42, {}, { id: "not-a-url", type: 7 }])(
-    "rejects malformed allocated identity %j",
-    (allocated) => {
-      expect(
-        compiledDefinition("#/$defs/transactionalSequenceMemberProblem")({ ...expired, allocated }),
-      ).toBe(false);
-    },
-  );
+  it.each([
+    42,
+    {},
+    { id: "not-a-url", type: 7 },
+    { withheld: false },
+    { withheld: true, id: `${SCOPE}beads/task-42`, type: "https://work.example/types/task" },
+  ])("rejects malformed allocated identity %j", (allocated) => {
+    expect(
+      compiledDefinition("#/$defs/transactionalSequenceMemberProblem")({ ...expired, allocated }),
+    ).toBe(false);
+  });
 
   it("permits the disclosed expired-creation identity and keeps it out of other codes", () => {
     const allocated = { id: `${SCOPE}beads/task-42`, type: "https://work.example/types/task" };
@@ -426,6 +500,47 @@ describe("Transactional sequence problem extensions", () => {
     expect(
       compiledDefinition("#/$defs/transactionalSequenceMemberProblem")({ ...forbidden, allocated }),
     ).toBe(false);
+  });
+
+  it("accepts only the closed withheld allocation on an expired projection", () => {
+    expectValid(
+      "#/$defs/transactionalSequenceMemberProblem",
+      { ...expired, allocated: { withheld: true } },
+      "withheld allocation",
+    );
+    expect(
+      compiledDefinition("#/$defs/transactionalSequenceMemberProblem")({
+        ...expired,
+        code: "resource-erased",
+        allocated: { withheld: true },
+      }),
+    ).toBe(false);
+  });
+
+  it("illustrates re-authorization without changing retained keys or disclosing an unauthorized dependent", () => {
+    const fixture = fixtures.find(({ id }) => id === "transactional-sequence");
+    const revoked = fixture?.exchanges.find(({ id }) => id === "expired-allocation-view-revoked");
+    const granted = fixture?.exchanges.find(({ id }) => id === "expired-allocation-view-granted");
+    expect(revoked).toBeDefined();
+    expect(granted).toBeDefined();
+    expect(revoked?.request.body).toEqual(granted?.request.body);
+    const revokedResults = revoked?.response.body.results as JsonRecord[];
+    const grantedResults = granted?.response.body.results as JsonRecord[];
+    expect(revokedResults[0]?.allocated).toEqual({ withheld: true });
+    expect(grantedResults[0]?.allocated).toEqual({
+      id: `${SCOPE}beads/task-77`,
+      type: "https://work.example/types/task",
+    });
+    for (const results of [revokedResults, grantedResults]) {
+      expect(results[1]).toEqual({
+        operationIndex: 1,
+        type: `${BDP_PROBLEM_FAMILY_PREFIX}authorization`,
+        code: "forbidden",
+        status: 403,
+        retry: "after-state-change",
+      });
+    }
+    expect(JSON.stringify(revoked?.response.body)).not.toContain(`${SCOPE}beads/task-77`);
   });
 
   it("rejects an erasure pointer in the sequence path", () => {
@@ -1129,6 +1244,8 @@ const SINGLETON_OPERATIONS: ReadonlyMap<string, string> = new Map([
   ["operations/delete-link", "deleteLink"],
   ["operations/update-where", "updateWhere"],
   ["operations/delete-where", "deleteWhere"],
+  ["operations/put-alias", "putAlias"],
+  ["operations/delete-alias", "deleteAlias"],
 ]);
 
 function isDirectProblem(exchange: FixtureExchange): boolean {
@@ -1342,6 +1459,19 @@ function expectEntriesCorrespond(
       }
       continue;
     }
+    if (kind === "putAlias" || kind === "deleteAlias") {
+      expect(entry.alias, entryLabel).toBe(new URL(`alias/${operation.alias}`, scope).href);
+      expect(entry.resource, entryLabel).toBeUndefined();
+      expect(entry.deleted, entryLabel).toBeUndefined();
+      if (kind === "putAlias") {
+        expect(["created", "updated"], entryLabel).toContain(entry.outcome);
+        expect(entry.target, entryLabel).toBe(new URL(operation.target as string, scope).href);
+      } else {
+        expect(entry.outcome, entryLabel).toBe("deleted");
+        expect(entry.target, entryLabel).toBeUndefined();
+      }
+      continue;
+    }
     if (kind.startsWith("delete")) {
       expect(entry.outcome, entryLabel).toBe("deleted");
       const deleted = entry.deleted as JsonRecord;
@@ -1499,10 +1629,15 @@ function expectChangeGroup(group: JsonRecord, label: string): void {
 }
 
 function expectOrdinalsIncrease(events: readonly JsonRecord[], label: string): void {
-  let last = -1;
+  // Ordinals belong to authority transaction groups. An Event Source page
+  // can span several groups, each retaining its own projected ordinal gaps.
+  const lastByTransaction = new Map<string, number>();
   for (const event of events) {
-    expect(event.ordinal as number, label).toBeGreaterThan(last);
-    last = event.ordinal as number;
+    const transaction = event.transaction as string;
+    expect(event.ordinal as number, label).toBeGreaterThan(
+      lastByTransaction.get(transaction) ?? -1,
+    );
+    lastByTransaction.set(transaction, event.ordinal as number);
   }
 }
 
@@ -1644,6 +1779,29 @@ function problemTableRows(section: string): readonly (readonly [string, string, 
 }
 
 describe("Transactional correction regression probes", () => {
+  it("accepts a same-source Event page whose ordinals restart in the next transaction", () => {
+    const fixture = fixtures.find(({ id }) => id === "transactional-events");
+    const creation = fixture?.exchanges.find(({ id }) => id === "dec-9-after-owned-link-created")
+      ?.response.body as JsonRecord;
+    const deletion = fixture?.exchanges.find(({ id }) => id === "dec-9-after-owned-link-deleted")
+      ?.response.body as JsonRecord;
+    const events = [...(creation.events as JsonRecord[]), ...(deletion.events as JsonRecord[])];
+    const page = { ...deletion, events };
+    expectValid("#/$defs/eventPage", page, "same-source multi-transaction history");
+    expect(events.map(({ ordinal }) => ordinal)).toEqual([0, 2, 4, 1, 3]);
+    expect(new Set(events.map(({ source }) => source))).toEqual(new Set([creation.source]));
+    expect(new Set(events.map(({ transaction }) => transaction)).size).toBe(2);
+    expectOrdinalsIncrease(events, "same-source multi-transaction history");
+    const reversedWithinTransaction = [...events];
+    [reversedWithinTransaction[3], reversedWithinTransaction[4]] = [
+      events[4] as JsonRecord,
+      events[3] as JsonRecord,
+    ];
+    expect(() =>
+      expectOrdinalsIncrease(reversedWithinTransaction, "reversed deletion ordinals"),
+    ).toThrow();
+  });
+
   it.each(TRANSACTIONAL_PROBLEM_ROWS)(
     "rejects validation diagnostics on %s",
     (code, family, status, retry) => {

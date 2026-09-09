@@ -1102,7 +1102,10 @@ Resource URLs while rejecting every history-dependent token from the prior
 epoch.
 
 Within one epoch, every effectful committed Mutation Transaction occupies
-one opaque **Scope position** in one total order that the authority defines.
+one opaque **Scope position** in one total order that the authority defines,
+except the locator-only alias mutations defined under
+[Transactional alias mutations](#transactional-alias-mutations), which
+occupy no position (ruled 2026-09-08, T49).
 A position is unique within its epoch, and clients compare it only for
 equality. Clients must not perform arithmetic or lexical ordering on its
 spelling. Each epoch has a distinguished genesis position. Every later
@@ -1274,11 +1277,11 @@ terminal receipt. The envelope projects each member's receipt into one
 entry, and it adds no receipt member. The bundle's
 `transactionalSequenceResponse` specializes the shared envelope with
 `transactionalSequenceMemberProblem`: its `allocated` extension, permitted
-only on `idempotency-expired`, is `sequenceAllocatedIdentity`, a closed
-`{ id, type }` object, distinct from a receipt's indexed `allocated` array.
-A creation's expired projection requires that identity when it is disclosed;
-non-creation projections omit it. The projection when that identity is
-withheld remains OPEN as T63. `resource-erased` member problems reject
+only on `idempotency-expired`, is `sequenceAllocatedIdentity`: exactly
+`{ id, type }` when the identity is disclosed or `{ withheld: true }` when
+it is withheld, distinct from a receipt's indexed `allocated` array.
+A completed creation's expired projection MUST carry exactly one of these
+forms; a non-creation projection MUST omit `allocated` (ruled 2026-09-08, T63). `resource-erased` member problems reject
 `pointer` just as direct problems do (amended 2026-09-08, council 13).
 A member newly admitted by this carrier executes under its own pending
 receipt and exclusive ownership; the in-flight projection below applies only
@@ -1304,9 +1307,9 @@ not resolve the dependent-identity transition left open in T62 (amended
   receipt continues to be the key's state;
 - a receipt whose detail expired projects as an `idempotency-expired`
   member problem carrying, for a `completed` creation, the extension
-  member `allocated` — the `id` and `type` the receipt retains under
-  [Mutation Receipt responses](#mutation-receipt-responses) — so that the
-  member's disposition and identity are never lost to the envelope; and
+  member `allocated` — the disclosed `id` and `type`, or exactly
+  `{ withheld: true }`, projected from the receipt under
+  [Mutation Receipt responses](#mutation-receipt-responses); and
 - a member whose `@name` creator's receipt is `failed` fails with
   `binding-unavailable` in its own `failed` receipt, retained as every
   failed receipt is; a member whose creator's receipt is `pending`, or
@@ -1318,6 +1321,20 @@ not resolve the dependent-identity transition left open in T62 (amended
   a member whose creator's receipt has expired resolves the binding
   through the receipt's `allocated` identity.
 
+The withheld allocation form hides response data, not the retained creation
+binding. The authority resolves a dependent's `@name` internally from its
+retained execution identity even when the creator projects
+`allocated: { withheld: true }`. Each dependent still undergoes ordinary
+current authorization independently. An unauthorized dependent returns the
+ordinary `forbidden` projection and discloses no hidden identity through its
+result or problem extensions. It is not skipped merely because the creator's
+identity is withheld. Every retry and every carrier re-authorizes disclosure
+against its serving view: a revoked view receives the withheld form; a newly
+granted view may receive `{ id, type }`. Neither response changes the retained
+identity or permits the creation to execute again. These disclosure rules do
+not choose the unresolved-admission or duplicate-response contract still
+pending under T62 (ruled 2026-09-08, T63).
+
 The Read+Update dispositions therefore keep their meanings inside the
 sequence envelope and lose their direct forms: on a Transactional Scope a
 pending key is joined rather than refused, an expired key returns its
@@ -1326,6 +1343,34 @@ with a URL of its own, retained for at least `retention.receipt`, rather
 than an inline disposition. The conformance rows those direct forms bind
 are retired for a Transactional Scope under
 [Transactional conformance rows](#transactional-conformance-rows).
+
+### Transactional alias mutations
+
+A singleton `put-alias` or `delete-alias` on a Transactional Scope is a
+one-operation Mutation Transaction. It requires `Idempotency-Key` and uses
+the same principal/Scope/epoch namespace, admission, durable receipt,
+concurrent-join, retention, and replay rules as other singleton mutations.
+An alias receipt's available `results` contains exactly one alias result:
+`operationIndex` `0`, `outcome`, `alias`, and, for a put, `target`, using
+[Alias targets](#alias-targets)' existing result vocabulary. It carries no
+Resource postimage, deleted Resource identity, or `operationName`. A sequence
+projects this result in the existing Read+Update alias member shape, with
+the present member's `operationIndex`. Existing alias authorization, conflict
+and path rules apply unchanged (ruled 2026-09-08, T49).
+
+Alias mutations occupy no Scope position, induce no Event, and appear in
+no change group or snapshot. This is an explicit exception to the Scope
+position rule for effectful Mutation Transactions: an alias put or delete
+may change locator state while its receipt omits `effectPosition`.
+`requiredPosition` remains the ordinary serving-view observation barrier;
+it does not certify replication of the alias effect. A completed alias
+receipt still protects that committed effect exactly once and, after detail
+expiry, carries `allocated: []` because no Resource identity was created.
+The alias table remains authority locator state outside Resource history.
+A replica resolves an alias through the authority's redirect, not a mirrored
+table; offline alias resolution is unavailable. `batch` admits no alias
+operation, so atomic create-plus-alias is unavailable. Separate sequence
+members retain their separate commitment and lack of isolation.
 
 ### Set mutation
 
@@ -3777,10 +3822,9 @@ is closed. A body-level `idempotencyKey`, a per-operation `idempotencyKey`,
 or any other undefined member makes the request malformed. The
 `Idempotency-Key` HTTP field is required and follows
 [Idempotency keys](#idempotency-keys); a request that carries no such
-field, more than one, or a value outside the grammar is malformed. Whether
-`batch` admits the alias records of [Alias targets](#alias-targets) is
-open (decision T49 in `docs/design/w1-transactional-packet.md`); the union
-above does not admit them.
+field, more than one, or a value outside the grammar is malformed. `batch` does not admit `putAlias` or `deleteAlias`: alias mutations are
+locator-only singleton transactions, including when carried as separate
+sequence members (ruled 2026-09-08, T49).
 
 Reference members of operation records take the Read+Update reference
 definitions: `bead` and `link` are `resourceReference` — a canonical local
@@ -3879,10 +3923,11 @@ operation's members without `operation` and `name`, rejecting `@label` in
 bare and pinned forms — and, for the two set targets, `updateWhereRequest`
 and `deleteWhereRequest`, the set-operation members without `operation`;
 each executes as a one-operation Mutation Transaction and returns its
-receipt. The alias targets `put-alias` and `delete-alias`, which the
-profile inherits under [Alias targets](#alias-targets), are outside these
-rules and the matrix below until their Transactional contract is defined
-(decision T49 in `docs/design/w1-transactional-packet.md`).
+receipt. The alias targets `put-alias` and `delete-alias` use the same receipt
+response and status rules; their bodies remain `putAliasRequest` and
+`deleteAliasRequest`. Their locator-only effects are defined under
+[Transactional alias mutations](#transactional-alias-mutations)
+(ruled 2026-09-08, T49).
 
 The Transactional mutation surface answers as follows; a row's statuses are
 exhaustive for that target and method, apart from the bodyless `500` an
@@ -3890,7 +3935,7 @@ unexpected internal fault produces anywhere.
 
 | Target | Method | Response |
 | --- | --- | --- |
-| `batch`, the six Resource singleton targets, and the two set targets | `POST` | `200` terminal receipt; `202` pending receipt; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503` |
+| `batch`, the six Resource singleton targets, the two set targets, and the two alias targets | `POST` | `200` terminal receipt; `202` pending receipt; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503` |
 | `sequence` | `POST` | `200` envelope of [Sequence response envelope](#sequence-response-envelope), pending members included as problems; direct `400`, `401`, `403`, `413`, `415`, `429`, `503`; never a sequence-level `202` receipt (amended 2026-09-08, council 13) |
 | the same targets | any other method | `405`, `Allow: POST` — plus `OPTIONS` when cross-origin access is enabled, in which case `OPTIONS` is answered by the CORS rules rather than `405` — and no BDP Problem body |
 | `operations/` | `GET`, `HEAD` | `200` Operation Directory; `401`, `403`, `429`, `503` |
@@ -4340,6 +4385,7 @@ per selected Resource, in declaration order:
 }
 ```
 
+For Resource operations:
 Created and updated results carry complete postimages — the full Resource
 state after the change — and revisions. Deleted results carry the deleted
 canonical identity. An admitted no-effect mutation reports the current
@@ -4429,7 +4475,8 @@ nothing durable — and MAY retain it longer; a failed receipt never enters
 under [Mutation Transactions](#mutation-transactions).
 
 `results` is an ordered array of result entries in the vocabulary of
-[Mutation results](#mutation-results). Each entry carries the zero-based
+[Mutation results](#mutation-results), with singleton alias results under
+[Transactional alias mutations](#transactional-alias-mutations). Each entry carries the zero-based
 `operationIndex` of the operation that produced it and, when that operation
 declared one, its `operationName`. A single-Resource operation produces
 exactly one entry: `created` or `updated`, carrying `resource`, the
@@ -4480,7 +4527,9 @@ is re-authorized the same way and carries `withheld` `true` in place of its
 identity. Entries that carry no record — `matched` counts, `deleted` and
 `erased` identities, and `withheld` entries — and a `failed` receipt's
 `problem` are the transaction's own execution facts, disclosed to the
-principal when it executed, and are served as retained. When a `completed`
+principal when it executed, and are served as retained. Alias result entries
+are non-Resource execution facts under this same rule (ruled 2026-09-08, T49).
+When a `completed`
 receipt's every entry is withheld, the receipt carries `detail` `withheld`
 and neither `results`, `next`, nor `allocated`; a `failed` receipt is never
 `withheld`. The disposition, `requiredPosition`, and `effectPosition` are
@@ -4750,12 +4799,10 @@ one-element `results` array (amended 2026-09-08, council 12); the two set
 targets `update-where` and `delete-where` return it with a `matched` entry
 followed by one entry per selected Resource, under
 [Mutation Receipt responses](#mutation-receipt-responses) (amended
-2026-09-08, Transactional apply). The alias
-targets' Transactional contract — receipt, Scope history, changefeed
-appearance, and whether `batch` admits alias members — is defined with
-the Transactional profile; it is teed up as decision T49 in
-`docs/design/w1-transactional-packet.md` and remains open (amended
-2026-09-08, Transactional apply). Transactional singleton requests require
+2026-09-08, Transactional apply). The alias targets return a one-entry Mutation Receipt under
+[Transactional alias mutations](#transactional-alias-mutations), without
+Scope history or replicated alias state (ruled 2026-09-08, T49).
+Transactional singleton requests require
 `Idempotency-Key` and cannot use `@label` references.
 
 Within the Transactional profile, the singleton and batch forms have identical
@@ -5081,6 +5128,34 @@ rather than replaying the groups that carried it, and no group that
 predates an erasure it must apply is ever served to it again. Within a view
 that never received the record nothing expires.
 
+An already admitted SSE stream that has emitted every complete group through
+the head immediately preceding P may cross the erasure fence at P. The
+authority MUST serialize that eligibility check, the advance of
+`minimumReplayPosition`, and publication of the complete erasure group as
+one ordered publication step. Only such caught-up streams receive the
+complete group at P; their server-side stream position then advances to P.
+No queued, not-yet-published pre-P group may be handed to the transport
+after this step. Publication orders complete frames at the authority
+boundary; it does not make network delivery instantaneous or revoke bytes
+already handed to the transport. A stream still needing any
+pre-P group is fenced and closed, and its client must acquire a fresh
+snapshot. This exception belongs to the existing admitted stream, never to
+a new finite read, stream admission, or reconnect (ruled 2026-09-08, T64).
+
+Backpressure does not permit holding the fence open while an old queue
+drains: a stream needing unpublished pre-P content is closed instead.
+Frames already handed to the transport remain ordered before P, and the
+receiver applies erasure cleanup to any retained earlier content.
+A publication is one complete SSE message, not an acknowledgement that a
+client received or applied it. The client advances its durable checkpoint
+only after atomically applying the complete group. If disconnection races
+publication or application, reconnect uses that durable checkpoint: one
+before P is expired and requires resnapshot; one at or after P follows
+ordinary exclusive replay. The authority MUST NOT infer application from a
+socket write, skip the erasure on the client's behalf, or replay pre-P
+content. Partial transmission never authorizes partial application. Thus
+finite reads and reconnects retain T28's fence in both race outcomes.
+
 Erasure records are identity-level state, outside fenced history. The
 authority keeps every erasure record it has committed — the **erasure
 ledger** — for the lifetime of the logical Scope, exactly as it keeps the
@@ -5253,7 +5328,10 @@ per SSE message. The SSE `id` is the group's checkpoint, `event` is
 `Last-Event-ID` overrides the original `after` value. A stale, unavailable,
 foreign-epoch, or foreign-view checkpoint fails explicitly and requires a new
 snapshot. The authority never advances it silently to
-`minimumReplayPosition`.
+`minimumReplayPosition`. Existing caught-up streams cross an erasure
+publication only under [Version erasure](#version-erasure);
+reconnections retain the expiry rule even if the interrupted stream had
+been eligible (ruled 2026-09-08, T64).
 
 ### Event replay and live observation
 
@@ -5563,9 +5641,10 @@ the bodyless internal-fault response while rejecting the Read+Update-only
 direct-disposition and immediate claim-clearing obligations (amended
 2026-09-08, council 13).
 
-The alias targets `put-alias` and `delete-alias` have no Transactional row
-until their Transactional contract is defined (decision T49 in the packet,
-open); no row below claims or retires an alias obligation.
+The alias rows below bind the locator-only Transactional receipt contract
+ruled in T49. The Read+Update alias path and operation semantics remain
+inherited; the general singleton receipt retirement already replaces their
+profile-specific response vehicle.
 
 | Row | Obligation |
 | --- | --- |
@@ -5683,6 +5762,13 @@ open); no row below claims or retires an alias obligation.
 | `transactional.http.token-profile` | Epochs, view tokens, positions, transaction ids, receipt tokens, and keys use the checkpoint character profile; revisions do not |
 | `transactional.restore.epoch-fence` | A restore keeps canonical URLs and fences every prior-epoch token |
 | `transactional.restore.key-namespace` | A prior-epoch key is unbound under the new epoch and executes anew, never as a replay |
+| `transactional.alias.receipt` | Alias singletons use durable one-entry receipts with the ordinary key and replay rules |
+| `transactional.alias.locator-only` | Alias changes occupy no Scope position and appear in no Event, change group or snapshot |
+| `transactional.alias.no-batch` | Alias operations are excluded from atomic batch membership |
+| `transactional.sequence.withheld-allocation` | An expired creation projects the disclosed identity or exactly withheld true |
+| `transactional.sequence.withheld-binding` | Withheld allocation preserves internal binding and independently authorizes every dependent |
+| `transactional.erasure.live-publication` | Only already admitted caught-up streams cross the atomic erasure publication fence |
+| `transactional.erasure.disconnect-race` | Reconnect uses the atomically applied durable checkpoint and resnapshots when it precedes erasure |
 
 ### Open protocol questions
 
@@ -5798,7 +5884,8 @@ protocol-identifier prefix, with the release-stability rule stated above.
    manifests, and the Transactional discovery document and Operation
    Directory — 52 definitions — pending review, with the judgments they
    rest on recorded in `docs/design/w1-transactional-packet.md` (T1–T48
-   ruled or ratified; T49 open).
+   ruled or ratified; T49/T63/T64 ruled 2026-09-08; T62 direction selected,
+   observable retry contract still open).
    Later-profile definitions gate their corresponding waves. This question
    closes when the complete reviewed bundle exists.
 6. **Read table recorded 2026-08-12; later-profile rows pending:** BDP uses a

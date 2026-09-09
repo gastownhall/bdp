@@ -1649,6 +1649,97 @@
         }
       ],
       "retires": ["read-update.idempotency.restore"]
+    },
+    {
+      "id": "transactional.alias.receipt",
+      "title": "Alias singletons use durable one-entry receipts with the ordinary key and replay rules",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-alias-mutations",
+          "selectedText": "A singleton `put-alias` or `delete-alias` on a Transactional Scope is a\none-operation Mutation Transaction."
+        }
+      ]
+    },
+    {
+      "id": "transactional.alias.locator-only",
+      "title": "Alias changes occupy no Scope position and appear in no Event, change group or snapshot",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-alias-mutations",
+          "selectedText": "Alias mutations occupy no Scope position, induce no Event, and appear in\nno change group or snapshot."
+        }
+      ]
+    },
+    {
+      "id": "transactional.alias.no-batch",
+      "title": "Alias operations are excluded from atomic batch membership",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-alias-mutations",
+          "selectedText": "`batch` admits no alias\noperation, so atomic create-plus-alias is unavailable."
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.withheld-allocation",
+      "title": "An expired creation projects the disclosed identity or exactly withheld true",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A completed creation's expired projection MUST carry exactly one of these\nforms; a non-creation projection MUST omit `allocated`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.withheld-binding",
+      "title": "Withheld allocation preserves internal binding and independently authorizes every dependent",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Each dependent still undergoes ordinary\ncurrent authorization independently."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.live-publication",
+      "title": "Only already admitted caught-up streams cross the atomic erasure publication fence",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "Only such caught-up streams receive the\ncomplete group at P; their server-side stream position then advances to P."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.disconnect-race",
+      "title": "Reconnect uses the atomically applied durable checkpoint and resnapshots when it precedes erasure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "The client advances its durable checkpoint\nonly after atomically applying the complete group."
+        }
+      ]
     }
   ]
 }

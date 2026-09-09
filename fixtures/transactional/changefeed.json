@@ -677,5 +677,70 @@
       },
       "scope": "https://beads.example/owned-erasure/"
     }
+  ],
+  "livePublicationExamples": [
+    {
+      "id": "caught-up-erasure-publication",
+      "condition": "Existing admitted stream emitted every complete group through ckpt-43 before the atomic publication/fence at pos-44; not a new HTTP request.",
+      "lastEmittedCheckpoint": "ckpt-43",
+      "publicationGroup": "after-ckpt-43-historical-erasure-committed-group",
+      "sse": {
+        "id": "ckpt-44",
+        "event": "change-group",
+        "data": {
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "checkpoint": "ckpt-44",
+          "position": "pos-44",
+          "previousPosition": "pos-43",
+          "projectionAdvance": false,
+          "transaction": "adm-e1",
+          "eventCount": 0,
+          "changes": [],
+          "erasures": [
+            {
+              "subject": "https://beads.example/acme/beads/task-42",
+              "revision": "task-42-r7",
+              "digest": {
+                "scheme": "sha-256-jcs",
+                "value": "5c9db2f807bbed90617ec1a01f3c4c86e44967c703bf6e480ca97c2ce4fae832"
+              }
+            }
+          ],
+          "events": []
+        }
+      },
+      "minimumReplayPosition": "pos-44",
+      "disconnectCases": [
+        {
+          "id": "disconnect-before-complete-application",
+          "durableCheckpoint": "ckpt-43",
+          "reconnect": "cursor-expired",
+          "recovery": "fresh-snapshot"
+        },
+        {
+          "id": "disconnect-after-complete-application",
+          "durableCheckpoint": "ckpt-44",
+          "reconnect": "exclusive-after-checkpoint",
+          "recovery": "ordinary-replay"
+        }
+      ]
+    },
+    {
+      "id": "lagging-stream-fenced",
+      "condition": "Existing admitted stream still needs the group at pos-43 when the erasure publication at pos-44 fences prior history.",
+      "lastEmittedCheckpoint": "ckpt-42",
+      "publicationGroup": "after-ckpt-43-historical-erasure-committed-group",
+      "sse": null,
+      "minimumReplayPosition": "pos-44",
+      "disconnectCases": [
+        {
+          "id": "lagging-or-reconnect",
+          "durableCheckpoint": "ckpt-42",
+          "reconnect": "cursor-expired",
+          "recovery": "fresh-snapshot"
+        }
+      ]
+    }
   ]
 }

@@ -44,12 +44,15 @@ waves are internal sequencing labels, not protocol concepts.
   was applied the same day to the specification, the bundle,
   `fixtures/transactional/`, and `packages/conformance/catalog/transactional-v1.json`;
   its apply record lists what landed where, the ruled sentences it
-  amended, T49 (the alias targets' Transactional contract, open and teed
-  up for the operator), and the apply-time judgment calls T50–T61,
-  applied provisionally. Council 13 adds open T62–T64 for admission identity,
+  amended, T49 (locator-only alias receipt contract, ruled option 1), and the apply-time judgment calls T50–T61,
+  applied provisionally. Council 13 exposed T62–T64 for admission identity,
   withheld allocation projection, and live erasure delivery.
 
-- [`w1-transactional-council13.md`](w1-transactional-council13.md) — three-seat apply review, verified finding dispositions and correction-pass validation. T49 and T62–T64 are OPEN; T50–T61 remain provisional, with T56 amended. No merge clearance.
+- [`w1-transactional-council13.md`](w1-transactional-council13.md) — three-seat apply review, verified finding dispositions and correction-pass validation. T49/T63/T64 are ACKed and materialized; T62 direction is selected with its observable retry contract OPEN; T50–T61 remain provisional, with T56 amended. No merge clearance.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.
+
+Operator ACK update 2026-09-08: the Transactional packet records T49 option 1,
+T63(a) and T64(a) applied; T50–T61 remain provisional, and T62 still needs its
+observable duplicate-response contract after the PostgreSQL feasibility check.

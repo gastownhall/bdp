@@ -1,8 +1,10 @@
 # W1 Transactional packet: wire artifacts for the Transactional profile
 
 Status: **applied 2026-09-08** — decisions T1–T48 and X1–X4 ruled or
-ratified, T49 open and teed up for the operator, T50–T61 applied
-provisionally; see [Apply record (2026-09-08)](#apply-record-2026-09-08).
+ratified; T49 option 1, T63(a) and T64(a) ACKed and materialized; T62
+direction selected with its observable retry contract still OPEN; T50–T61
+applied provisionally. See [Operator ACK materialization](#operator-ack-materialization--2026-09-08)
+and the historical [Apply record (2026-09-08)](#apply-record-2026-09-08).
 The proposals below are kept as written for the record; where a ruling
 departed from them, the ruling is what landed. Originally: design packet,
 non-normative until applied. Workstream W1, second
@@ -6752,7 +6754,7 @@ An implementer who has this packet, ruled, still lacks:
 | X2 | `retention.idempotency` is Read+Update-only; Transactional discovery MUST NOT advertise it; recommend for both. |
 | X3 | One sentence: Read+Update refuses a concurrent duplicate because it has no receipt to hand it; Transactional joins; recommend for both. |
 | X4 | `source` beside `sourceRevision` on every owned-Link result in both profiles; recommend for both. **RULED A 2026-09-08; applied.** |
-| T49 | Alias targets on a Transactional Scope: receipt, history, changefeed, and `batch` membership; recommend the minimal contract (option 1) with the `batch` fork recorded. **Open, teed up for the operator; applied nowhere.** |
+| T49 | Alias targets on a Transactional Scope: locator-only singleton receipts; no Scope position, Events, replicated alias state or batch membership. **RULED option 1 and materialized 2026-09-08.** |
 | T50 | Receipt entries spell `deleted` as `deletedIdentity`; `erased` and the owned-Link `deleted` transition keep `resourceIdentity`. **Applied provisionally (apply record).** |
 | T51 | `alias-path-taken` joins the receipt context. **Applied provisionally.** |
 | T52 | `transactionalAdvertisedLimits` is a closed definition of its own carrying `validation` and rejecting `retention.idempotency`. **Applied provisionally.** |
@@ -7158,9 +7160,12 @@ specification.
   Read or Read+Update sentence are untouched; the Event-ID profile
   paragraph is appended, scoped to the Transactional profile (T60).
 
-### T49 — Alias targets on a Transactional Scope (open, teed up for the operator)
+### T49 — Alias targets on a Transactional Scope (RULED option 1, 2026-09-08)
 
-**Status: open; applied nowhere.** The Transactional profile inherits the
+**Status: option 1 ACKed and materialized 2026-09-08.** The context and
+options below preserve the pre-ruling review record; the owning contract is
+[Transactional alias mutations](../specs/bdp.md#transactional-alias-mutations).
+The Transactional profile inherits the
 two alias targets under [Alias targets](../specs/bdp.md#alias-targets),
 and #19's text defers their Transactional contract — receipt, Scope
 history, changefeed appearance, and whether `batch` admits alias members —
@@ -7381,7 +7386,19 @@ Corrections to ruled sentences carry dated council-13 markers. T49 and
 T50–T61 remain open/provisional as recorded above; T56 now includes the
 restored string/object admission law. New T62 below is unapplied.
 
-### T62 — Sequence dependency identity at atomic admission (OPEN)
+### T62 — Sequence dependency identity at atomic admission (direction ACKed; observable contract OPEN)
+
+**Status 2026-09-08.** Option 1 selected at the design level. The operator's
+condition that it be reasonably implementable with PostgreSQL is satisfied
+by the separate feasibility review: unique constraints, short admission
+transactions, row locks and attempt fencing require neither two-phase
+commit nor a transaction held open for an entire sequence. This selects
+durable unresolved reservations, not the missing duplicate-response law.
+Canonical singleton retry before binding, bounded wait/timeout and static
+mismatch precedence remain to be ruled; failed creators must retain an
+immutable attempt identity so key reuse cannot rebind an old dependent.
+Matching sequence pending projection remains the already ruled nonwaiting
+projection. No incomplete admission state machine is claimed here.
 
 **Context.** D26 requires one linearizable admission that claims all unknown
 member keys before execution. The Transactional text durably records every
@@ -7423,7 +7440,14 @@ and idempotency; corresponding catalog obligations and future executable
 sequence-admission tests. No wire or normative change is applied for T62 yet.
 
 
-### T63 — Withheld allocation in a sequence projection (OPEN)
+### T63 — Withheld allocation in a sequence projection (RULED a, 2026-09-08)
+
+**Status 2026-09-08.** Option (a) ACKed and materialized in Mutation
+Transactions, both schema mirrors, the sequence illustrations and the
+withheld-allocation/binding catalog rows. Granted/revoked views reproject
+disclosure on every delivery; an independently unauthorized dependent is
+forbidden without identity leakage. T62 remains the separate admission and
+retry closure blocker. The following options record the pre-ruling choice.
 
 **Context.** A completed creation's compact receipt retains its committed
 identity, including a client-supplied ID. A current view can receive that
@@ -7450,7 +7474,14 @@ and retry behavior with T62. The complete ruling must cover granted/revoked
 views, retries from other carriers, and a dependent that is independently
 unauthorized. No withheld allocation shape is applied yet.
 
-### T64 — Erasure delivery to an already connected stream (OPEN)
+### T64 — Erasure delivery to an already connected stream (RULED a, 2026-09-08)
+
+**Status 2026-09-08.** Option (a) ACKed and materialized in Version erasure
+and Scope changefeed: atomic eligibility/fence/publication, caught-up live
+streams only, lagging-stream closure and durable-checkpoint disconnect
+recovery. Finite replay and reconnect keep the T28 fence. The two narrated
+live schedules are illustrative, not scheduler or conformance evidence.
+The following options record the pre-ruling choice.
 
 **Context.** Ruled T28 expires every checkpoint/snapshot before erasure position
 P. Finite reads and reconnects from older checkpoints therefore recover through
@@ -7534,3 +7565,56 @@ During #19 integration, audit each cited obligation and reconcile actual
 semantic drift; separately decide whether to adopt exact title equality
 as the RU authoring convention. No inherited catalog, definition, or ruling
 was changed by this Transactional correction.
+
+
+## Operator ACK materialization — 2026-09-08
+
+T49 option 1, T63(a) and T64(a) are now applied in the canonical specification,
+both schema mirrors, the owning wire illustrations and catalog. Historical
+apply/council statements above saying those choices were open describe their
+then-current heads and are superseded by this dated record. T50–T61 remain
+provisional. T62's PostgreSQL-feasible direction is selected, but its missing
+observable retry contract remains OPEN and blocks completion.
+
+- **T49:** `receiptResult` accepts a closed alias result at operation index 0;
+  it reuses the unchanged Read+Update alias vocabulary, forbids mixed Resource
+  fields and labels, and leaves the eight-record batch union unchanged. Alias
+  receipts omit effectPosition; compact expiry retains no allocated Resource.
+  `aliases.json` illustrates put/delete, identical replay, expired compact
+  receipts, and sequence replay. Sequence aliases
+  retain their inherited member result projection.
+- **T63:** `sequenceAllocatedIdentity` is the disjoint closed union of
+  `{ id, type }` and `{ withheld: true }`, only under idempotency-expired.
+  The sequence fixture shows the same retained binding under revoked/granted
+  views and an independently unauthorized dependent. Its keys are already
+  bound to terminal executions, avoiding any invented T62 admission behavior.
+- **T64:** the changefeed fixture retains finite replay rejection and adds two
+  named live publication schedules, tying a complete SSE frame to its committed
+  erasure group and distinguishing disconnection before/after complete client
+  application. Lagging streams are fenced. No runtime scheduler is implemented.
+
+The catalog has 121 unclaimed rows (seven added), with the existing twelve
+retirements unchanged. The schemas still contain 138 definitions, 55 specific
+to this Transactional draft; only receiptResult and sequenceAllocatedIdentity
+changed in this unit. The 83 inherited definition lexemes remain unchanged.
+There are twelve illustrative fixture files, eleven with 55 exchanges and
+81 schema-validated exchange bodies (plus one intentionally malformed
+parsed request and two raw I-JSON request texts), and the
+existing eight digest vectors and four committed-group examples remain.
+No write-profile implementation, executable manifest, conformance observation,
+readiness transition or merge follows from this materialization.
+
+
+Validation for this materialization: 289 focused tests passed across
+Transactional wire (143), inherited Read+Update wire (127), schema inventory
+(11), and Transactional catalog citations (8). Typecheck, lint, format,
+dependency boundaries and diff checks passed under Node 24.16.0. Both schema
+mirrors are equal; a source-lexeme comparison against #19 confirms all 83
+inherited definitions unchanged, including the 26 sealed Read definitions.
+Only the two Transactional definitions named above changed. Root validation also
+passed: 1,566 tests across 48 files (one skipped, 34.71 seconds), build, full
+lint and format, strict compilation of all 138 definitions and validation of
+274 fixture/example bodies (189 inherited + 81 Transactional + four groups),
+and the existing 74-row Read evidence verifier. Duplicate-preserving parsing
+found no repeated schema keys. Independent review of this new head remains
+pending; no exact-head clearance is claimed by this record.

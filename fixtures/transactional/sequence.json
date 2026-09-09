@@ -114,6 +114,151 @@
           ]
         }
       }
+    },
+    {
+      "id": "expired-allocation-view-revoked",
+      "condition": "The creator and dependent keys are already bound to terminal retained executions; no unresolved admission or before-binding duplicate is illustrated. Creation detail has expired. The serving view no longer discloses its retained identity. The dependent is independently unauthorized, so its forbidden projection exposes no Resource identity. Internal label resolution uses the retained creation binding regardless of disclosure.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-task-77-create",
+              "operation": "createBead",
+              "name": "task",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Draft the sequence projection",
+                "status": "open"
+              }
+            },
+            {
+              "operation": "updateBeadProperties",
+              "idempotencyKey": "w1-task-77-dependent",
+              "bead": "@task",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "closed"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-revoked",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/transactionalSequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "task",
+              "type": "https://github.com/gastownhall/bdp/problems/gone",
+              "code": "idempotency-expired",
+              "status": 410,
+              "retry": "never",
+              "allocated": {
+                "withheld": true
+              }
+            },
+            {
+              "operationIndex": 1,
+              "type": "https://github.com/gastownhall/bdp/problems/authorization",
+              "code": "forbidden",
+              "status": 403,
+              "retry": "after-state-change"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "expired-allocation-view-granted",
+      "condition": "The creator and dependent keys are already bound to terminal retained executions; no unresolved admission or before-binding duplicate is illustrated. Creation detail has expired. The serving view now discloses its retained identity. The dependent is independently unauthorized, so its forbidden projection exposes no Resource identity. Internal label resolution uses the retained creation binding regardless of disclosure.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-task-77-create",
+              "operation": "createBead",
+              "name": "task",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Draft the sequence projection",
+                "status": "open"
+              }
+            },
+            {
+              "operation": "updateBeadProperties",
+              "idempotencyKey": "w1-task-77-dependent",
+              "bead": "@task",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "closed"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-granted",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/transactionalSequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "task",
+              "type": "https://github.com/gastownhall/bdp/problems/gone",
+              "code": "idempotency-expired",
+              "status": 410,
+              "retry": "never",
+              "allocated": {
+                "id": "https://beads.example/acme/beads/task-77",
+                "type": "https://work.example/types/task"
+              }
+            },
+            {
+              "operationIndex": 1,
+              "type": "https://github.com/gastownhall/bdp/problems/authorization",
+              "code": "forbidden",
+              "status": 403,
+              "retry": "after-state-change"
+            }
+          ]
+        }
+      }
     }
   ]
 }

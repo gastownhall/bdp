@@ -265,3 +265,35 @@ eight vectors independently match PR24's existing canonical serializer and
 SHA-256, including both rewritten Scope identities. Final correction-head
 reviews are still required. Claude is unavailable until its reported 21:30
 Buenos Aires session reset; the missing review is not a clean seat.
+
+
+## Operator ACK materialization (2026-09-08)
+
+The earlier OPEN dispositions are historical. T49 option 1, T63(a) and T64(a)
+are now selected and materialized in the canonical specification, mirrored
+schemas, wire examples and seven additional catalog obligations. T62 option 1
+was selected conditional on PostgreSQL feasibility; that condition is met,
+but the observable duplicate/retry contract still needs a ruling. T50–T61
+remain provisional. The packet's dated operator ACK record owns the inventory
+and remaining choices. These edits require new validation/review; the frozen
+77bd19c council does not clear the amended head.
+
+
+Codex's completed CLI review of frozen `77bd19c` reported one Low finding:
+the illustrative Event-page helper compared ordinals across an entire page,
+although ordinals belong to each authority transaction group. The correction
+tracks the last ordinal per transaction. A same-source page composed from the
+existing dec-9 creation and deletion examples validates with ordinals
+`0,2,4,1,3`; the regression failed before the helper fix and now passes, while
+reversing ordinals inside the deletion transaction still fails. This changes
+only example validation, not Event ordering law or runtime behavior. The
+operator ACK tree incorporates this correction; the frozen review does not
+clear its other newly materialized decisions.
+
+
+Final pre-ACK Codex CLI review at77bd19c completed after the operator's account
+switch: 0 Critical / 0 High / 0 Medium / 1 Low. The per-transaction Event-page
+ordinal correction above resolves that Low. Gemini's alleged duplicate schema
+definitions and sixth receipt branch were disproved against its exact staged
+bytes: no duplicate keys, 138 definitions and five receipt branches. The new
+ACK materialization still requires its own frozen-head independent review.

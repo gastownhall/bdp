@@ -3123,6 +3123,12 @@
         "count": {
           "type": "integer",
           "minimum": 0
+        },
+        "alias": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "target": {
+          "$ref": "#/$defs/absoluteHttpUrl"
         }
       },
       "allOf": [
@@ -3133,7 +3139,11 @@
                 "enum": ["created", "updated"]
               }
             },
-            "required": ["outcome"]
+            "required": ["outcome"],
+            "not": {
+              "properties": { "alias": true },
+              "required": ["alias"]
+            }
           },
           "then": {
             "required": ["resource"],
@@ -3152,7 +3162,11 @@
                 "const": "deleted"
               }
             },
-            "required": ["outcome"]
+            "required": ["outcome"],
+            "not": {
+              "properties": { "alias": true },
+              "required": ["alias"]
+            }
           },
           "then": {
             "required": ["deleted"],
@@ -3260,6 +3274,35 @@
             "properties": {
               "source": false,
               "sourceRevision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["alias"]
+          },
+          "then": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/aliasResultMembers"
+              }
+            ],
+            "properties": {
+              "operationIndex": {
+                "const": 0
+              },
+              "operationName": false,
+              "resource": false,
+              "deleted": false,
+              "erased": false,
+              "source": false,
+              "sourceRevision": false,
+              "count": false
+            }
+          },
+          "else": {
+            "properties": {
+              "target": false
             }
           }
         }
@@ -4527,18 +4570,32 @@
       "additionalProperties": false
     },
     "sequenceAllocatedIdentity": {
-      "title": "BDP sequence expired-creation identity",
-      "type": "object",
-      "required": ["id", "type"],
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+      "title": "BDP sequence expired-creation identity projection",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["id", "type"],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            "type": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            }
+          },
+          "additionalProperties": false
         },
-        "type": {
-          "$ref": "#/$defs/absoluteHttpUrl"
+        {
+          "type": "object",
+          "required": ["withheld"],
+          "properties": {
+            "withheld": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
         }
-      },
-      "additionalProperties": false
+      ]
     },
     "transactionalSequenceMemberProblem": {
       "title": "BDP Transactional sequence member problem",

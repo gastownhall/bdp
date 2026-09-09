@@ -61,7 +61,7 @@ describe("draft Transactional catalog", () => {
 
   it("strictly parses and binds every citation to the current specification text", () => {
     expect(catalog.catalogVersion).toBe(1);
-    expect(catalog.scenarios.length).toBe(114);
+    expect(catalog.scenarios.length).toBe(121);
     validateCatalogCitations(catalog, (source) => readText(source), "transactional-v1.json");
   });
 
@@ -83,6 +83,7 @@ describe("draft Transactional catalog", () => {
       );
     }
     expect([...areas].sort()).toEqual([
+      "alias",
       "batch",
       "changefeed",
       "discovery",
