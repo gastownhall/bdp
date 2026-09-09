@@ -6,8 +6,11 @@ not a conformance target.
 | Surface | Specified | Validated |
 | --- | --- | --- |
 | Read profile | Wildcard ownership, numeric model, named schema projection and erasure-pointer correction are being integrated | Historical two-target cohort retained in Git; the changed Read contract requires genuine successor observations before a current conformance claim |
-| Read+Update profile | Ruled wire artifacts on PR #19, not yet integrated here | Runtime not yet realized |
+| Read+Update profile | PR #19 wire artifacts integrated locally: singleton/sequence/alias/idempotency contracts, schemas, fixtures and78 unclaimed catalog rows; D1–D40 ruled | Runtime not yet realized |
 | Transactional profile | Ruled wire artifacts on PR #20; approved gap closure in progress | Runtime not yet realized |
+
+This is a preparatory write/History integration branch; its foundation cohort
+still awaits fresh observations and reviewed release. No main merge is implied.
 
 The foundation integration combines PRs #22, #23, #24, #26 and #27. All
 source ancestry is preserved, including #24's evidence-only migration branch.

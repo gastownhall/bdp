@@ -1,0 +1,437 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-sequence-dependent-bindings",
+  "description": "Dependency normalization for @name references. A member whose creating member ended transiently is itself transient: it fails with idempotency-in-progress, retains nothing, and releases its claim, so a retry executes the creator and its dependent. An expired creator still binds its dependent: the tombstone keeps the allocated identity and kind, so the dependent's identity uses the resolved binding and its retained disposition answers unchanged. A permanently failed creator makes its dependent's binding permanently unavailable, and both retained failures answer a retry exactly as successes would. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "creator-ends-transiently-dependent-is-not-claimed",
+      "condition": "The authority answers member 0 with temporarily-unavailable: the create was not executed and its claim is released. Member 1 references @memo, so it is transient too and its claim is released as well. Member 2 is unrelated and runs.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-memo-create",
+              "operation": "createBead",
+              "name": "memo",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Memo: dependency normalization",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-memo-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@memo",
+              "target": "https://github.example/issues/140",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-task-11-priority",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-11",
+              "change": [{ "op": "add", "path": "/priority", "value": 3 }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/unavailable",
+              "code": "temporarily-unavailable",
+              "status": 503,
+              "retry": "after-delay",
+              "operationIndex": 0,
+              "operationName": "memo",
+              "detail": "the authority could not execute the member; retry after the delay"
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-in-progress",
+              "status": 409,
+              "retry": "after-delay",
+              "operationIndex": 1,
+              "detail": "@memo's creating member ended transiently; the claim on w1-memo-cite is released"
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-11",
+                "type": "https://work.example/types/task",
+                "revision": "task-11-r3",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Tidy the fixture world",
+                  "status": "closed",
+                  "priority": 3
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "retry-executes-the-creator-and-its-dependent",
+      "condition": "After the delay. Neither w1-memo-create nor w1-memo-cite was claimed, so both execute; w1-task-11-priority answers from its retained disposition.",
+      "retained": [
+        { "from": "creator-ends-transiently-dependent-is-not-claimed", "index": 2, "at": 2 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-memo-create",
+              "operation": "createBead",
+              "name": "memo",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Memo: dependency normalization",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-memo-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@memo",
+              "target": "https://github.example/issues/140",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-task-11-priority",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-11",
+              "change": [{ "op": "add", "path": "/priority", "value": 3 }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "memo",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-112",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-112-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Memo: dependency normalization",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-113",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-113-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-112",
+                "target": "https://github.example/issues/140",
+                "properties": {}
+              },
+              "source": "https://beads.example/acme/beads/decision-112",
+              "sourceRevision": "decision-112-r2"
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-11",
+                "type": "https://work.example/types/task",
+                "revision": "task-11-r3",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Tidy the fixture world",
+                  "status": "closed",
+                  "priority": 3
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "expired-creator-still-binds-its-dependent",
+      "condition": "Much later. w1-memo-create's disposition was discarded by controlled eviction while w1-memo-cite's remains retained. The creator's tombstone keeps the identity it allocated and its kind, so @memo resolves to beads/decision-112 and the dependent's semantic identity matches its retained one.",
+      "retained": [{ "from": "retry-executes-the-creator-and-its-dependent", "index": 1, "at": 1 }],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-memo-create",
+              "operation": "createBead",
+              "name": "memo",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Memo: dependency normalization",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-memo-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@memo",
+              "target": "https://github.example/issues/140",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/gone",
+              "code": "idempotency-expired",
+              "status": 410,
+              "retry": "never",
+              "operationIndex": 0,
+              "operationName": "memo",
+              "detail": "the outcome retained under w1-memo-create was discarded after the retention interval"
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-113",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-113-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-112",
+                "target": "https://github.example/issues/140",
+                "properties": {}
+              },
+              "source": "https://beads.example/acme/beads/decision-112",
+              "sourceRevision": "decision-112-r2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "creator-fails-permanently-dependent-is-binding-unavailable",
+      "condition": "Member 0 fails its effective Type contract, a terminal failure that is retained. Member 1 references a binding that allocated nothing, so it fails permanently too, and that failure is retained as well.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-bad-memo-create",
+              "operation": "createBead",
+              "name": "bad",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Memo with an inadmissible status",
+                "status": "unknown-state"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-bad-memo-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@bad",
+              "target": "https://github.example/issues/141",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/validation",
+              "code": "validation-failed",
+              "status": 422,
+              "retry": "never",
+              "operationIndex": 0,
+              "operationName": "bad",
+              "detail": "properties do not satisfy the effective Type contract",
+              "diagnostics": [
+                {
+                  "type": "https://work.example/types/work-item",
+                  "schemaLocation": "https://work.example/schemas/work-item-properties-v1#/properties/status/enum",
+                  "instanceLocation": "/status",
+                  "message": "must be one of proposed, accepted, superseded"
+                }
+              ]
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/request",
+              "code": "binding-unavailable",
+              "status": 400,
+              "retry": "never",
+              "operationIndex": 1,
+              "detail": "@bad is bound to a creation that failed"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "retained-failures-answer-a-retry-unchanged",
+      "condition": "A retry under the same keys: both retained failures are returned without re-execution, exactly as retained successes would be. A client that has fixed its request presents new keys.",
+      "retained": [
+        {
+          "from": "creator-fails-permanently-dependent-is-binding-unavailable",
+          "index": 0,
+          "at": 0
+        },
+        {
+          "from": "creator-fails-permanently-dependent-is-binding-unavailable",
+          "index": 1,
+          "at": 1
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-bad-memo-create",
+              "operation": "createBead",
+              "name": "bad",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Memo with an inadmissible status",
+                "status": "unknown-state"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-bad-memo-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@bad",
+              "target": "https://github.example/issues/141",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/validation",
+              "code": "validation-failed",
+              "status": 422,
+              "retry": "never",
+              "operationIndex": 0,
+              "operationName": "bad",
+              "detail": "properties do not satisfy the effective Type contract",
+              "diagnostics": [
+                {
+                  "type": "https://work.example/types/work-item",
+                  "schemaLocation": "https://work.example/schemas/work-item-properties-v1#/properties/status/enum",
+                  "instanceLocation": "/status",
+                  "message": "must be one of proposed, accepted, superseded"
+                }
+              ]
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/request",
+              "code": "binding-unavailable",
+              "status": 400,
+              "retry": "never",
+              "operationIndex": 1,
+              "detail": "@bad is bound to a creation that failed"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -40,35 +40,92 @@ describe("BDP v0 schema bundle", () => {
     expect(packagedSchemaText).toBe(schemaText);
   });
 
-  it("contains the initial discovery and Read definitions", () => {
+  it("contains the discovery, Read, and drafted Read+Update definitions", () => {
     expect(Object.keys(defs()).sort()).toEqual([
       "absoluteHttpUrl",
       "absoluteUri",
       "advertisedLimits",
+      "aliasResult",
+      "aliasResultMembers",
       "attribution",
       "bdpVersion",
       "beadCollection",
       "beadRecord",
+      "createBeadMembers",
+      "createBeadRequest",
+      "createLinkMembers",
+      "createLinkRequest",
+      "deleteAliasMembers",
+      "deleteAliasRequest",
+      "deleteBeadMembers",
+      "deleteBeadRequest",
+      "deleteLinkMembers",
+      "deleteLinkRequest",
+      "deletedIdentity",
+      "durableInputPinnedReference",
+      "durableInputReference",
+      "durableResourceReference",
       "endpointConstraint",
+      "expectedRevision",
+      "idempotencyKey",
+      "inputPinnedReference",
+      "inputReference",
       "iso8601Duration",
+      "jsonPointer",
       "linkCollection",
       "linkRecord",
+      "localBindingReference",
+      "localName",
       "maximumEndpointMultiplicityPolicy",
+      "mutationOutcome",
+      "mutationResult",
+      "mutationResultMembers",
       "ownedLinkDeclaration",
       "ownedWildcardDeclaration",
       "pinnedReference",
       "positiveInteger",
       "properties",
+      "propertyChange",
       "protocolProfile",
+      "putAliasMembers",
+      "putAliasRequest",
       "readDiscovery",
       "readProblem",
       "readProblemCode",
+      "readUpdateAdvertisedLimits",
+      "readUpdateDiscovery",
+      "readUpdateOperationDirectory",
+      "readUpdateProblem",
+      "readUpdateProblemCode",
       "reference",
+      "resourceIdentity",
+      "resourceKind",
+      "resourceReference",
       "retryDisposition",
+      "sequenceCreateBead",
+      "sequenceCreateLink",
+      "sequenceDeleteAlias",
+      "sequenceDeleteBead",
+      "sequenceDeleteLink",
+      "sequenceMember",
+      "sequenceMemberAliasResult",
+      "sequenceMemberProblem",
+      "sequenceMemberResult",
+      "sequencePutAlias",
+      "sequenceRequest",
+      "sequenceResponse",
+      "sequenceUpdateBeadProperties",
+      "sequenceUpdateLinkProperties",
       "typeDescriptor",
       "typeIdArray",
       "typeSummary",
       "typesInventory",
+      "updateBeadPropertiesMembers",
+      "updateBeadPropertiesRequest",
+      "updateLinkPropertiesMembers",
+      "updateLinkPropertiesRequest",
+      "validationDiagnostic",
+      "validationDiagnostics",
     ]);
   });
 
@@ -99,8 +156,16 @@ describe("BDP v0 schema bundle", () => {
     expect(nullableOneOfRefs("linkCollection", "next")).toContain("#/$defs/absoluteHttpUrl");
   });
 
-  it("defines the current discovery schema as Read-only until later profiles land", () => {
+  it("pins each discovery definition to its own profile", () => {
     expect(propertiesOf("readDiscovery").profile).toEqual({ const: "read" });
+    expect(propertiesOf("readUpdateDiscovery").profile).toEqual({ const: "read-update" });
+    // Read+Update offers the alias targets, so it serves alias resolution and
+    // must advertise `aliases`; Read keeps the member optional (D37, option 2).
+    expect(def("readUpdateDiscovery").required).toEqual([
+      ...(def("readDiscovery").required as readonly string[]),
+      "operations",
+      "aliases",
+    ]);
     expect(def("protocolProfile")).toEqual({ enum: PROTOCOL_PROFILES });
   });
 

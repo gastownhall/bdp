@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json",
   "title": "BDP v0 schema bundle",
-  "description": "Normative JSON Schema 2020-12 bundle for the BDP v0 discovery and Read surface. Later-profile definitions are added to this same bundle before their implementation waves.",
+  "description": "Normative JSON Schema 2020-12 bundle for the BDP v0 discovery, Read, and Read+Update surface. The Read+Update definitions are drafted pending review; Transactional definitions are added to this same bundle before their implementation wave.",
   "$defs": {
     "absoluteHttpUrl": {
       "type": "string",
@@ -955,6 +955,1488 @@
         "status": {
           "type": "string",
           "enum": ["claimed", "unknown"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,256}$"
+    },
+    "localName": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+    },
+    "resourceReference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        {
+          "$ref": "#/$defs/localBindingReference"
+        }
+      ]
+    },
+    "durableResourceReference": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^@]"
+    },
+    "localBindingReference": {
+      "type": "string",
+      "pattern": "^@[A-Za-z][A-Za-z0-9_-]*$"
+    },
+    "inputPinnedReference": {
+      "type": "object",
+      "required": ["uri", "revision"],
+      "properties": {
+        "uri": {
+          "$ref": "#/$defs/resourceReference"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "inputReference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/resourceReference"
+        },
+        {
+          "$ref": "#/$defs/inputPinnedReference"
+        }
+      ]
+    },
+    "durableInputPinnedReference": {
+      "type": "object",
+      "required": ["uri", "revision"],
+      "properties": {
+        "uri": {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "durableInputReference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        {
+          "$ref": "#/$defs/durableInputPinnedReference"
+        }
+      ]
+    },
+    "expectedRevision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "jsonPointer": {
+      "type": "string",
+      "pattern": "^(/([^/~]|~[01])*)*$"
+    },
+    "propertyChange": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["op", "path", "value"],
+            "properties": {
+              "op": {
+                "enum": ["add", "replace"]
+              },
+              "path": {
+                "$ref": "#/$defs/jsonPointer"
+              },
+              "value": true
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["op", "path"],
+            "properties": {
+              "op": {
+                "const": "remove"
+              },
+              "path": {
+                "$ref": "#/$defs/jsonPointer"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "createBeadMembers": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        }
+      }
+    },
+    "updateBeadPropertiesMembers": {
+      "type": "object",
+      "required": ["bead", "change"],
+      "properties": {
+        "bead": {
+          "$ref": "#/$defs/resourceReference"
+        },
+        "change": {
+          "$ref": "#/$defs/propertyChange"
+        },
+        "expectedRevision": {
+          "$ref": "#/$defs/expectedRevision"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        }
+      }
+    },
+    "deleteBeadMembers": {
+      "type": "object",
+      "required": ["bead"],
+      "properties": {
+        "bead": {
+          "$ref": "#/$defs/resourceReference"
+        },
+        "expectedRevision": {
+          "$ref": "#/$defs/expectedRevision"
+        }
+      }
+    },
+    "createLinkMembers": {
+      "type": "object",
+      "required": ["type", "source", "target"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "source": {
+          "$ref": "#/$defs/inputReference"
+        },
+        "target": {
+          "$ref": "#/$defs/inputReference"
+        },
+        "properties": {
+          "$ref": "#/$defs/properties"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        }
+      }
+    },
+    "updateLinkPropertiesMembers": {
+      "type": "object",
+      "required": ["link", "change"],
+      "properties": {
+        "link": {
+          "$ref": "#/$defs/resourceReference"
+        },
+        "change": {
+          "$ref": "#/$defs/propertyChange"
+        },
+        "expectedRevision": {
+          "$ref": "#/$defs/expectedRevision"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        }
+      }
+    },
+    "deleteLinkMembers": {
+      "type": "object",
+      "required": ["link"],
+      "properties": {
+        "link": {
+          "$ref": "#/$defs/resourceReference"
+        },
+        "expectedRevision": {
+          "$ref": "#/$defs/expectedRevision"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        }
+      }
+    },
+    "putAliasMembers": {
+      "type": "object",
+      "required": ["alias", "target"],
+      "properties": {
+        "alias": {
+          "$ref": "#/$defs/durableResourceReference"
+        },
+        "target": {
+          "$ref": "#/$defs/resourceReference"
+        }
+      }
+    },
+    "deleteAliasMembers": {
+      "type": "object",
+      "required": ["alias"],
+      "properties": {
+        "alias": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      }
+    },
+    "createBeadRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/createBeadMembers"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "updateBeadPropertiesRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/updateBeadPropertiesMembers"
+        }
+      ],
+      "properties": {
+        "bead": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "deleteBeadRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteBeadMembers"
+        }
+      ],
+      "properties": {
+        "bead": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "createLinkRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/createLinkMembers"
+        }
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/durableInputReference"
+        },
+        "target": {
+          "$ref": "#/$defs/durableInputReference"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "updateLinkPropertiesRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/updateLinkPropertiesMembers"
+        }
+      ],
+      "properties": {
+        "link": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "deleteLinkRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteLinkMembers"
+        }
+      ],
+      "properties": {
+        "link": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "putAliasRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/putAliasMembers"
+        }
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/durableResourceReference"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "deleteAliasRequest": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteAliasMembers"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "sequenceCreateBead": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/createBeadMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "createBead"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        },
+        "name": {
+          "$ref": "#/$defs/localName"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequenceUpdateBeadProperties": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/updateBeadPropertiesMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "updateBeadProperties"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequenceDeleteBead": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteBeadMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteBead"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequenceCreateLink": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/createLinkMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "createLink"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        },
+        "name": {
+          "$ref": "#/$defs/localName"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequenceUpdateLinkProperties": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/updateLinkPropertiesMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "updateLinkProperties"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequenceDeleteLink": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteLinkMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteLink"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequencePutAlias": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/putAliasMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "putAlias"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequenceDeleteAlias": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/deleteAliasMembers"
+        }
+      ],
+      "properties": {
+        "operation": {
+          "const": "deleteAlias"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/idempotencyKey"
+        }
+      },
+      "required": ["operation", "idempotencyKey"],
+      "unevaluatedProperties": false
+    },
+    "sequenceMember": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sequenceCreateBead"
+        },
+        {
+          "$ref": "#/$defs/sequenceUpdateBeadProperties"
+        },
+        {
+          "$ref": "#/$defs/sequenceDeleteBead"
+        },
+        {
+          "$ref": "#/$defs/sequenceCreateLink"
+        },
+        {
+          "$ref": "#/$defs/sequenceUpdateLinkProperties"
+        },
+        {
+          "$ref": "#/$defs/sequenceDeleteLink"
+        },
+        {
+          "$ref": "#/$defs/sequencePutAlias"
+        },
+        {
+          "$ref": "#/$defs/sequenceDeleteAlias"
+        }
+      ]
+    },
+    "sequenceRequest": {
+      "title": "BDP Read+Update sequence request",
+      "type": "object",
+      "required": ["operations"],
+      "properties": {
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sequenceMember"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "mutationOutcome": {
+      "enum": ["created", "updated", "deleted"]
+    },
+    "resourceKind": {
+      "enum": ["bead", "link"]
+    },
+    "resourceIdentity": {
+      "type": "object",
+      "required": ["id", "type", "revision"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "deletedIdentity": {
+      "type": "object",
+      "required": ["resourceKind", "resource"],
+      "properties": {
+        "resourceKind": {
+          "$ref": "#/$defs/resourceKind"
+        },
+        "resource": {
+          "$ref": "#/$defs/resourceIdentity"
+        }
+      },
+      "additionalProperties": false
+    },
+    "mutationResultMembers": {
+      "type": "object",
+      "required": ["outcome"],
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/mutationOutcome"
+        },
+        "resource": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/beadRecord"
+            },
+            {
+              "$ref": "#/$defs/linkRecord"
+            }
+          ]
+        },
+        "deleted": {
+          "$ref": "#/$defs/deletedIdentity"
+        },
+        "source": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "sourceRevision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "deleted"
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "required": ["deleted"],
+            "properties": {
+              "deleted": {
+                "$ref": "#/$defs/deletedIdentity"
+              },
+              "resource": false
+            }
+          },
+          "else": {
+            "required": ["resource"],
+            "properties": {
+              "resource": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/beadRecord"
+                  },
+                  {
+                    "$ref": "#/$defs/linkRecord"
+                  }
+                ]
+              },
+              "deleted": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["resource"],
+            "properties": {
+              "resource": {
+                "$ref": "#/$defs/beadRecord"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source": false,
+              "sourceRevision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["deleted"],
+            "properties": {
+              "deleted": {
+                "type": "object",
+                "required": ["resourceKind"],
+                "properties": {
+                  "resourceKind": {
+                    "const": "bead"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source": false,
+              "sourceRevision": false
+            }
+          }
+        }
+      ],
+      "dependentRequired": {
+        "source": ["sourceRevision"],
+        "sourceRevision": ["source"]
+      }
+    },
+    "mutationResult": {
+      "title": "BDP Read+Update mutation result",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/mutationResultMembers"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "aliasResultMembers": {
+      "type": "object",
+      "required": ["outcome", "alias"],
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/mutationOutcome"
+        },
+        "alias": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "target": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "deleted"
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "target": false
+            }
+          },
+          "else": {
+            "required": ["target"]
+          }
+        }
+      ]
+    },
+    "aliasResult": {
+      "title": "BDP Read+Update alias result",
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/aliasResultMembers"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "sequenceMemberResult": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/mutationResultMembers"
+        }
+      ],
+      "properties": {
+        "operationIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operationName": {
+          "$ref": "#/$defs/localName"
+        }
+      },
+      "required": ["operationIndex"],
+      "unevaluatedProperties": false
+    },
+    "sequenceMemberAliasResult": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/aliasResultMembers"
+        }
+      ],
+      "properties": {
+        "operationIndex": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["operationIndex"],
+      "unevaluatedProperties": false
+    },
+    "readUpdateProblemCode": {
+      "enum": [
+        "malformed-request",
+        "invalid-parameter",
+        "unauthenticated",
+        "forbidden",
+        "resource-not-found",
+        "resource-pruned",
+        "resource-erased",
+        "foreign-view",
+        "cursor-expired",
+        "request-too-large",
+        "limit-exceeded",
+        "rate-limited",
+        "temporarily-unavailable",
+        "unsupported-media-type",
+        "binding-unavailable",
+        "validation-failed",
+        "type-not-installed",
+        "identity-taken",
+        "alias-path-taken",
+        "revision-mismatch",
+        "incident-links-exist",
+        "aggregate-constraint-violation",
+        "idempotency-conflict",
+        "idempotency-in-progress",
+        "idempotency-expired"
+      ]
+    },
+    "validationDiagnostic": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "schemaLocation": {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        "instanceLocation": {
+          "$ref": "#/$defs/jsonPointer"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false,
+      "dependentRequired": {
+        "type": ["schemaLocation"],
+        "schemaLocation": ["type"]
+      }
+    },
+    "validationDiagnostics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/validationDiagnostic"
+      }
+    },
+    "readUpdateProblem": {
+      "title": "BDP Read+Update Problem Details",
+      "type": "object",
+      "required": ["type", "code", "retry"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "enum": [400, 401, 403, 404, 409, 410, 413, 415, 422, 429, 503]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "$ref": "#/$defs/absoluteUri"
+        },
+        "code": {
+          "$ref": "#/$defs/readUpdateProblemCode"
+        },
+        "retry": {
+          "$ref": "#/$defs/retryDisposition"
+        },
+        "retryAfter": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/validationDiagnostics"
+        },
+        "diagnosticsTruncated": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "$ref": "#/$defs/readProblemCode"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "$ref": "#/$defs/readProblem"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "unsupported-media-type"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/request"
+              },
+              "status": {
+                "const": 415
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "binding-unavailable"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/request"
+              },
+              "status": {
+                "const": 400
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "validation-failed"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/validation"
+              },
+              "status": {
+                "const": 422
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "type-not-installed"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/validation"
+              },
+              "status": {
+                "const": 422
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "identity-taken"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "alias-path-taken"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-mismatch"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "incident-links-exist"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "aggregate-constraint-violation"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "idempotency-conflict"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "idempotency-in-progress"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-delay"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "idempotency-expired"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "validation-failed"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "required": ["diagnostics"],
+            "properties": {
+              "diagnostics": {
+                "$ref": "#/$defs/validationDiagnostics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "code": {
+                  "const": "validation-failed"
+                }
+              },
+              "required": ["code"]
+            }
+          },
+          "then": {
+            "properties": {
+              "diagnostics": false,
+              "diagnosticsTruncated": false
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "code": {
+                  "const": "resource-pruned"
+                }
+              },
+              "required": ["code"]
+            }
+          },
+          "then": {
+            "properties": {
+              "archivedAt": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "retry": {
+                "const": "after-delay"
+              }
+            },
+            "required": ["retry"]
+          },
+          "else": {
+            "properties": {
+              "retryAfter": false
+            }
+          }
+        }
+      ]
+    },
+    "sequenceMemberProblem": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/readUpdateProblem"
+        }
+      ],
+      "required": ["status", "operationIndex"],
+      "properties": {
+        "status": {
+          "type": "integer"
+        },
+        "operationIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operationName": {
+          "$ref": "#/$defs/localName"
+        },
+        "outcome": false
+      }
+    },
+    "sequenceResponse": {
+      "title": "BDP Read+Update sequence response",
+      "type": "object",
+      "required": ["results"],
+      "properties": {
+        "results": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/sequenceMemberResult"
+              },
+              {
+                "$ref": "#/$defs/sequenceMemberAliasResult"
+              },
+              {
+                "$ref": "#/$defs/sequenceMemberProblem"
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "readUpdateAdvertisedLimits": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "object",
+          "properties": {
+            "defaultItems": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "maximumItems": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "targetBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "bodyBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "resource": {
+          "type": "object",
+          "properties": {
+            "representationBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "propertiesBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "selector": {
+          "type": "object",
+          "properties": {
+            "bytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "depth": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "nodes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "patch": {
+          "type": "object",
+          "properties": {
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "pathDepth": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "sequence": {
+          "type": "object",
+          "properties": {
+            "operations": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "diagnostics": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "diagnosticBytes": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false
+        },
+        "retention": {
+          "type": "object",
+          "properties": {
+            "idempotency": {
+              "$ref": "#/$defs/iso8601Duration"
+            },
+            "maximumSnapshotLifetime": {
+              "$ref": "#/$defs/iso8601Duration"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "readUpdateDiscovery": {
+      "type": "object",
+      "required": [
+        "bdpVersion",
+        "profile",
+        "scope",
+        "beads",
+        "links",
+        "types",
+        "operations",
+        "aliases"
+      ],
+      "properties": {
+        "bdpVersion": {
+          "$ref": "#/$defs/bdpVersion"
+        },
+        "profile": {
+          "const": "read-update"
+        },
+        "scope": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "beads": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "links": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "types": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "operations": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "aliases": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "order": {
+          "enum": ["canonical-uri"]
+        },
+        "limits": {
+          "$ref": "#/$defs/readUpdateAdvertisedLimits"
+        },
+        "maximumEndpointMultiplicity": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "readUpdateOperationDirectory": {
+      "type": "object",
+      "required": [
+        "createBead",
+        "updateBeadProperties",
+        "deleteBead",
+        "createLink",
+        "updateLinkProperties",
+        "deleteLink",
+        "putAlias",
+        "deleteAlias",
+        "sequence"
+      ],
+      "properties": {
+        "createBead": {
+          "const": "create-bead"
+        },
+        "updateBeadProperties": {
+          "const": "update-bead-properties"
+        },
+        "deleteBead": {
+          "const": "delete-bead"
+        },
+        "createLink": {
+          "const": "create-link"
+        },
+        "updateLinkProperties": {
+          "const": "update-link-properties"
+        },
+        "deleteLink": {
+          "const": "delete-link"
+        },
+        "putAlias": {
+          "const": "put-alias"
+        },
+        "deleteAlias": {
+          "const": "delete-alias"
+        },
+        "sequence": {
+          "const": "sequence"
         }
       },
       "additionalProperties": false
