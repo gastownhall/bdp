@@ -666,6 +666,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
           "selectedText": "Concurrent requests with the same key and the same semantic request join one execution. A duplicate may wait for the terminal response or receive the same pending receipt. Either way, it never executes again."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "For direct carriers, handing a duplicate a receipt presupposes established semantic equality. A request that encounters an unresolved reservation follows the bounded comparison rules below."
         }
       ],
       "retires": ["read-update.idempotency.in-progress"]
@@ -1791,6 +1796,21 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
           "selectedText": "Atomic admission does not combine the sequence's separately committing member executions into one transaction."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "When its creator commits, the authority atomically records the binding fact with the creator's effects and terminal disposition; a dependent resolves only against that pinned fact."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "On a later presentation of the dependent, a successful new creator supplies an identity that conflicts with the retained unbound marker; another permanent creator failure normalizes to the same unbound marker when the remaining fields match."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Binding, retraction, and commit check the same exclusive attempt ownership; a stale execution cannot resolve or commit a replacement attempt's work"
         }
       ]
     },
@@ -1808,7 +1828,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
-          "selectedText": "Otherwise it MUST wait outside a database transaction for comparison to become possible, within one finite authority-selected comparison budget."
+          "selectedText": "Otherwise it MUST wait for comparison to become possible, within one finite authority-selected comparison budget."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1824,6 +1844,16 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
           "selectedText": "If comparison remains unresolved at the deadline, return direct `503` `temporarily-unavailable` with `retry: after-delay`; the response SHOULD carry `Retry-After` when a useful delay is known."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Once the reservation resolves, ordinary canonical comparison returns the existing receipt or the conflict."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting comparison or admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
         }
       ]
     },
@@ -1851,7 +1881,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-transactions",
-          "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
+          "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting comparison or admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
         }
       ]
     },

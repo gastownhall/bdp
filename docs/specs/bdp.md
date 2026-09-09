@@ -1167,10 +1167,13 @@ fingerprint; BDP does not require a public request-hash algorithm.
 
 Concurrent requests with the same key and the same semantic request join one
 execution. A duplicate may wait for the terminal response or receive the same
-pending receipt. Either way, it never executes again. Reusing the key for a
-different semantic request is an idempotency conflict. Once a mutation is
-admitted, client disconnection does not decide the outcome. The authority
-commits or rolls back, and it records one terminal receipt. Retrying returns
+pending receipt. Either way, it never executes again. For direct carriers,
+handing a duplicate a receipt presupposes established semantic equality. A
+request that encounters an unresolved reservation follows the bounded
+comparison rules below. Reusing the key for a different semantic request is
+an idempotency conflict. Once a mutation is admitted, client disconnection
+does not decide the outcome. The authority commits or rolls back, and it
+records one terminal receipt. Retrying returns
 that same outcome, including authority-allocated IDs.
 
 An idempotency key is the token defined under
@@ -1276,12 +1279,12 @@ or commit a replacement attempt's work (T62 option 1, materialized 2026-09-09).
 
 A direct singleton or batch that encounters an unresolved reservation MUST
 reject an already provable semantic mismatch with `409` `idempotency-conflict`.
-Otherwise it MUST wait outside a database transaction for comparison to become
-possible, within one finite authority-selected comparison budget. This budget
-is separate from `transaction.duration`, which bounds admitted execution;
-it adds no discovery member. Once the reservation resolves, ordinary canonical
-comparison returns the existing receipt or the conflict. Until equality is
-established, this caller MUST NOT receive the owner's pending receipt, execute
+Otherwise it MUST wait for comparison to become possible, within one finite
+authority-selected comparison budget. The wait MUST NOT hold a database
+transaction open. This budget is separate from `transaction.duration`, which
+bounds admitted execution; it adds no discovery member. Once the reservation
+resolves, ordinary canonical comparison returns the existing receipt or the
+conflict. Until equality is established, this caller MUST NOT receive the owner's pending receipt, execute
 a second mutation, or retract the owner's reservation. If comparison remains
 unresolved at the deadline, return direct `503` `temporarily-unavailable` with
 `retry: after-delay`; the response SHOULD carry `Retry-After` when a useful
@@ -1299,10 +1302,10 @@ unresolved dependency form. Another winner returns it to ordinary comparison.
 Retraction or a change of owner MUST NOT reset the deadline. Deadline exhaustion
 returns the same direct `503` `temporarily-unavailable`, `retry: after-delay`,
 with the same `Retry-After` guidance. If the Scope epoch changes,
-the authority MUST stop this waiting admission attempt with that same `503`;
-the client must refresh Scope discovery and present a fresh request before
-competing in the new epoch. This permission applies only to a still-present
-explicit request that has not joined a proven-equal execution. It neither
+the authority MUST stop this waiting comparison or admission attempt with
+that same `503`; the client must refresh Scope discovery and present a fresh
+request before competing in the new epoch. This permission applies only to a
+still-present explicit request that has not joined a proven-equal execution. It neither
 resumes an abandoned sequence tail nor changes the direct transient-abort
 response to an already admitted execution and its joined duplicates
 (T62b = A, ruled 2026-09-09).
@@ -1351,7 +1354,9 @@ result says `created`; its expired sequence projection omits `allocated`.
 A member newly admitted by this carrier executes under its own pending
 receipt and exclusive ownership; the in-flight projection below applies only
 to an execution this carrier did not admit. The unresolved admission and
-direct-carrier comparison rules above preserve this ownership distinction. The projections are:
+direct-carrier comparison rules above preserve this ownership distinction
+(amended 2026-09-08, council 13; T62 materialized 2026-09-09). The projections
+are:
 
 - a `completed` receipt with its detail available projects the receipt's
   one result entry in the shape of
@@ -1408,7 +1413,8 @@ identity is withheld. Every retry and every carrier re-authorizes disclosure
 against its serving view: a revoked view receives the withheld form; a newly
 granted view may receive `{ id, type }`. Neither response changes the retained
 identity or permits the creation to execute again. These disclosure rules
-preserve the unresolved-admission and duplicate-response contract above without changing its semantic identity (T63; T62 materialized
+preserve the unresolved-admission and duplicate-response contract above without
+changing its semantic identity (ruled 2026-09-08, T63; T62 materialized
 2026-09-09).
 
 The Read+Update dispositions therefore keep their meanings inside the
@@ -5534,9 +5540,10 @@ integrate the existing Scope changefeed and snapshot erasure ledger as its
 supported acquisition and reconciliation route. It applies projected erasure
 records to its retained copies and, for this changefeed/ledger integration,
 follows the existing durable-checkpoint, disconnect, replay-expiry, and
-Authorization View recovery rules, including a fresh snapshot and its ledger when required. Event delivery alone is not that
-claim. This requirement scopes the supported erasure-handling claim; it neither
-prohibits other storage deployments nor exempts any store, cache, or replica
+Authorization View recovery rules, including a fresh snapshot and its ledger
+when required. Event delivery alone is not that claim. This requirement scopes
+the supported erasure-handling claim; it neither prohibits other storage
+deployments nor exempts any store, cache, or replica
 from the every-store erasure duty. It adds no erasure Event, discovery member,
 or subscription API. History capability and lifecycle choices remain separate
 (T65 = A, ruled 2026-09-09).

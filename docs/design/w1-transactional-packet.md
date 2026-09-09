@@ -5656,7 +5656,15 @@ inheritance as is and let a Transactional claim fail the retired rows
         "source": "docs/specs/bdp.md",
         "anchor": "#mutation-transactions",
         "selectedText": "Concurrent requests with the same key and the same semantic request join one execution. A duplicate may wait for the terminal response or receive the same pending receipt. Either way, it never executes again."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "For direct carriers, handing a duplicate a receipt presupposes established semantic equality. A request that encounters an unresolved reservation follows the bounded comparison rules below."
       }
+    ],
+    "retires": [
+      "read-update.idempotency.in-progress"
     ]
   },
   {
@@ -5951,6 +5959,21 @@ inheritance as is and let a Transactional claim fail the retired rows
         "source": "docs/specs/bdp.md",
         "anchor": "#mutation-transactions",
         "selectedText": "Atomic admission does not combine the sequence's separately committing member executions into one transaction."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "When its creator commits, the authority atomically records the binding fact with the creator's effects and terminal disposition; a dependent resolves only against that pinned fact."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "On a later presentation of the dependent, a successful new creator supplies an identity that conflicts with the retained unbound marker; another permanent creator failure normalizes to the same unbound marker when the remaining fields match."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "Binding, retraction, and commit check the same exclusive attempt ownership; a stale execution cannot resolve or commit a replacement attempt's work"
       }
     ]
   },
@@ -5968,7 +5991,7 @@ inheritance as is and let a Transactional claim fail the retired rows
       {
         "source": "docs/specs/bdp.md",
         "anchor": "#mutation-transactions",
-        "selectedText": "Otherwise it MUST wait outside a database transaction for comparison to become possible, within one finite authority-selected comparison budget."
+        "selectedText": "Otherwise it MUST wait for comparison to become possible, within one finite authority-selected comparison budget."
       },
       {
         "source": "docs/specs/bdp.md",
@@ -5984,6 +6007,16 @@ inheritance as is and let a Transactional claim fail the retired rows
         "source": "docs/specs/bdp.md",
         "anchor": "#mutation-transactions",
         "selectedText": "If comparison remains unresolved at the deadline, return direct `503` `temporarily-unavailable` with `retry: after-delay`; the response SHOULD carry `Retry-After` when a useful delay is known."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "Once the reservation resolves, ordinary canonical comparison returns the existing receipt or the conflict."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#mutation-transactions",
+        "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting comparison or admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
       }
     ]
   },
@@ -6011,7 +6044,7 @@ inheritance as is and let a Transactional claim fail the retired rows
       {
         "source": "docs/specs/bdp.md",
         "anchor": "#mutation-transactions",
-        "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
+        "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting comparison or admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
       }
     ]
   }
@@ -7997,3 +8030,59 @@ found **0 Critical / 0 High / 0 Medium / 0 Low**. The parent restored literal
 punctuation in unchanged catalog citations and proved the parsed JSON unchanged;
 the final nine-test catalog/citation suite and formatting check passed. This is
 bounded source review, not a three-seat council on the new head or runtime proof.
+
+
+### Post-ratification council corrections (2026-09-09)
+
+The fresh panel reviewed frozen `5c3f3b10a2edbb77d914b7260cdf035008fc34c7`.
+Claude reported **0 Critical / 0 High / 2 Medium / 5 Low**; Gemini reported
+**zero findings**. The independent native Codex seat also reported **zero
+findings**, transparently combining its prior full review with exact final-delta
+fingerprint and parsed-JSON verification. Those reports are historical findings
+at that frozen head, not reviews of this successor correction.
+
+Adjudication retained **one Medium and four Low corrective findings**; the
+remaining two suggestions were optional observability clarification and prose
+wrapping. Donna's subsequent ACK authorized mechanical council corrections
+that preserve the existing rulings. This successor applies the following:
+
+- Clarify that a direct duplicate receives a receipt only after semantic equality
+  is established. The unresolved comparison rule was already explicit; neither
+  the joining guarantee for known-equal requests nor the twelve retirement
+  decisions changes.
+- Bind the atomic creator binding/effect/disposition rule, later comparison after
+  creator-key reuse, and the binding ownership fence in the existing
+  `transactional.idempotency.unresolved-admission` row. Its title and the older
+  commit-fencing row remain unchanged.
+- Make the epoch-change stop explicitly cover both comparison and admission
+  waits, preserving the same 503, fresh discovery/presentation, and overall
+  finite deadline. Both relevant rows cite the rule.
+- Bind the resolved receipt/conflict outcome in the unresolved-comparison row.
+- Restore the historical council-13/T63 dates alongside T62's materialization
+  date, and reflow the affected prose.
+- Separate the finite comparison-wait sentence from the unchanged prohibition
+  on holding a database transaction open. The row cites the observable wait;
+  the internal implementation obligation still stands. This is not evidence
+  that a black-box observation can inspect database transaction state.
+
+The four affected catalog objects are mirrored in the maintained packet blocks.
+All **125 rows** remain unclaimed, with **twelve retirements** and unchanged IDs,
+titles and profile selection. No schema, fixture, runtime, manifest, historical
+evidence or capability constant changes. These corrections select none of the
+separately proposed, unACKed gap decisions. T57's regression implementation using
+#24's existing canonicalizer, authorized integration, genuine successor evidence
+and the remaining realization/review work stay separate. This correction claims
+no execution of the new concurrency or persistent-consumer behavior.
+
+**Successor validation (2026-09-09).** Node 24.16.0 / pnpm 11.20.0 with an
+offline frozen-lockfile install into this worktree's own dependency directory:
+**158 focused tests** and the post-build full suite's **1,574 tests in 48 files,
+zero skipped**, including the required isolated Read matrix with accepted
+`bd` 1.0.5 (Homebrew). Build, typecheck, lint, formatting, dependency boundaries
+and diff whitespace checks pass. The historical **74-row Read evidence**
+verifier passes without new evidence. A separate source probe confirms all four
+changed packet objects equal the canonical rows; all IDs, titles, profile
+selection and retirement metadata remain identical. No schema, fixture or
+runtime tests were changed. These checks validate this correction's source and
+metadata consistency, not execution of the newly specified TX behavior; review
+of the successor remains separate from the frozen-head panel above.
