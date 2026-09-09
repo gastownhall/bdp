@@ -41,6 +41,7 @@ import {
   runBdWorkspaceCommand,
   seedBdWorkspace,
   startControlledTypeDescriptorPublisher,
+  successorDescriptorBodies,
 } from "@bdp/conformance/testing";
 
 /**
@@ -236,7 +237,10 @@ async function runPackagedTarget(
   );
   const descriptors = fixture.typeDescriptors;
   if (!Array.isArray(descriptors)) throw new Error("fixture Type Descriptors are required");
-  const publisher = await startControlledTypeDescriptorPublisher(descriptors);
+  const publisher = await startControlledTypeDescriptorPublisher([
+    ...descriptors,
+    ...successorDescriptorBodies(fixture),
+  ]);
   const scenarioTarget = createRawHttpScenarioTarget(async (scenario) => {
     const fault = scenario.setup.requires.includes(INTERNAL_FAULT_CAPABILITY);
     const server = await startPackagedServer(

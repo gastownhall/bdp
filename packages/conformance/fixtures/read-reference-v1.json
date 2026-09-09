@@ -20,7 +20,8 @@
     "disclosure-v1",
     "owned-links-v1",
     "attribution-links-v1",
-    "attribution-v1"
+    "attribution-v1",
+    "owned-wildcard-v1"
   ],
   "bindings": {
     "bead.demo-a": "beads/demo-a",
@@ -406,7 +407,14 @@
           "",
           "external:beads:mol-run-assignee",
           "  Cited-9F2c — α/β (draft) Å\t",
-          {}
+          {
+            "label": "opaque authored label",
+            "source": {
+              "ownedLinks": {
+                "*": ["opaque authored value"]
+              }
+            }
+          }
         ],
         [
           "links/external-source",
@@ -476,9 +484,9 @@
       ]
     },
     "structural-predicates": {
-      "beads-type": ["A", "B", "C", "D", "I", "J", "K"],
+      "beads-type": ["A", "B", "D", "I", "J", "K"],
       "beads-type-is-exact": [],
-      "beads-conforms-to-declared-type": ["A", "B", "C", "D", "I", "J", "K"],
+      "beads-conforms-to-declared-type": ["A", "B", "D", "I", "J", "K"],
       "beads-conforms-to": ["A", "B", "C", "D", "E", "I", "J", "K"],
       "beads-predicates-and": [],
       "links-source-local": ["links/demo-a-c"],
@@ -654,6 +662,39 @@
             },
             "properties": {}
           }
+        ],
+        "https://work.example/types/relates": [],
+        "https://work.example/types/blocks": [
+          {
+            "type": "https://work.example/types/blocks",
+            "revision": "1",
+            "source": "https://scope.example/acme/beads/demo-f",
+            "target": "https://scope.example/acme/beads/demo-e",
+            "properties": {},
+            "id": "https://scope.example/acme/links/demo-f-e"
+          },
+          {
+            "type": "https://work.example/types/blocks",
+            "revision": "1",
+            "source": "https://scope.example/acme/beads/demo-f",
+            "target": {
+              "uri": "external:beads:mol-run-assignee",
+              "revision": "  Cited-9F2c — α/β (draft) Å\t"
+            },
+            "properties": {
+              "label": "opaque authored label",
+              "source": {
+                "ownedLinks": {
+                  "*": ["opaque authored value"]
+                }
+              }
+            },
+            "id": "https://scope.example/acme/links/external-target",
+            "attribution": {
+              "principal": "agent:reference-wildcard",
+              "status": "claimed"
+            }
+          }
         ]
       }
     },
@@ -665,6 +706,354 @@
       "link": {
         "principal": "svc:reference-realization",
         "status": "unknown"
+      }
+    },
+    "wildcard-descriptors": {
+      "declaration": {
+        "input": {
+          "ids": [
+            "https://work.example/types/wildcard-probe-only",
+            "https://work.example/types/wildcard-probe-mixed",
+            "https://work.example/types/wildcard-probe-link"
+          ]
+        },
+        "descriptors": [
+          {
+            "id": "https://work.example/types/wildcard-probe-only",
+            "name": "only",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-mixed",
+            "name": "mixed",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              },
+              "https://work.example/types/cites": {
+                "max": 2
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-link",
+            "name": "link",
+            "describes": "link",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              }
+            },
+            "source": {
+              "conformsTo": []
+            },
+            "target": {
+              "conformsTo": []
+            }
+          }
+        ],
+        "rows": [
+          {
+            "id": "https://work.example/types/wildcard-probe-only",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-only",
+              "name": "only",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 3
+                }
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-mixed",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-mixed",
+              "name": "mixed",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 3
+                },
+                "https://work.example/types/cites": {
+                  "max": 2
+                }
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-link",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          }
+        ]
+      },
+      "max-required": {
+        "input": {
+          "ids": [
+            "https://work.example/types/wildcard-probe-missing",
+            "https://work.example/types/wildcard-probe-label",
+            "https://work.example/types/wildcard-probe-unknown",
+            "https://work.example/types/wildcard-probe-zero",
+            "https://work.example/types/wildcard-probe-negative",
+            "https://work.example/types/wildcard-probe-fraction"
+          ]
+        },
+        "descriptors": [
+          {
+            "id": "https://work.example/types/wildcard-probe-missing",
+            "name": "missing",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {}
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-label",
+            "name": "label",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3,
+                "label": "no"
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-unknown",
+            "name": "unknown",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3,
+                "extra": true
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-zero",
+            "name": "zero",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 0
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-negative",
+            "name": "negative",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": -1
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-fraction",
+            "name": "fraction",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 1.5
+              }
+            }
+          }
+        ],
+        "rows": [
+          {
+            "id": "https://work.example/types/wildcard-probe-missing",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-label",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-unknown",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-zero",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-negative",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-fraction",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          }
+        ]
+      },
+      "explicit-max-bounded": {
+        "input": {
+          "ids": [
+            "https://work.example/types/wildcard-probe-below",
+            "https://work.example/types/wildcard-probe-equal",
+            "https://work.example/types/wildcard-probe-above"
+          ]
+        },
+        "descriptors": [
+          {
+            "id": "https://work.example/types/wildcard-probe-below",
+            "name": "below",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              },
+              "https://work.example/types/cites": {
+                "max": 2
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-equal",
+            "name": "equal",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              },
+              "https://work.example/types/cites": {
+                "max": 3
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-above",
+            "name": "above",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              },
+              "https://work.example/types/cites": {
+                "max": 4
+              }
+            }
+          }
+        ],
+        "rows": [
+          {
+            "id": "https://work.example/types/wildcard-probe-below",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-below",
+              "name": "below",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 3
+                },
+                "https://work.example/types/cites": {
+                  "max": 2
+                }
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-equal",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-equal",
+              "name": "equal",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 3
+                },
+                "https://work.example/types/cites": {
+                  "max": 3
+                }
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-above",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          }
+        ]
+      }
+    },
+    "ownership-inventory": {
+      "ownedTypes": 2,
+      "beadsWithOwnership": 2,
+      "input": {
+        "ids": [
+          "https://work.example/types/tracked-item",
+          "https://work.example/types/work-item",
+          "https://work.example/types/task",
+          "https://work.example/types/bug",
+          "https://work.example/types/feature",
+          "https://work.example/types/chore",
+          "https://work.example/types/epic",
+          "https://work.example/types/decision",
+          "https://work.example/types/relationship",
+          "https://work.example/types/dependency",
+          "https://work.example/types/blocks",
+          "https://work.example/types/relates",
+          "https://work.example/types/cites"
+        ]
+      }
+    },
+    "numeric-model": {
+      "declaration": {
+        "name": "bdptest-fixture-literal-v1",
+        "numberModel": "not-content-derived",
+        "source": "packages/adapter-in-memory/README.md",
+        "description": "bdptest-fixture-literal-v1 uses fixture-authored opaque revision strings. It does not derive revisions from properties or any numeric serialization. The packaged reference fixture and its portable realization carry the same literal revisions. The conditional content-derived numeric-revision obligation is not applicable to this discipline."
+      },
+      "input": {
+        "ids": ["beads/demo-a", "beads/demo-c", "links/demo-b-a"],
+        "numberModel": "IEEE-754-binary64-ECMAScript-JSON"
+      }
+    },
+    "wildcard-present": {
+      "input": {
+        "owner": "beads/demo-f",
+        "empty": "beads/demo-c",
+        "nonowner": "beads/demo-a",
+        "groups": {
+          "https://work.example/types/blocks": ["links/demo-f-e", "links/external-target"],
+          "https://work.example/types/cites": ["links/cites-local", "links/cites-witness"],
+          "https://work.example/types/relates": []
+        }
       }
     }
   },
@@ -732,14 +1121,14 @@
     },
     {
       "localId": "beads/demo-c",
-      "type": "https://work.example/types/task",
+      "type": "https://work.example/types/feature",
       "revision": "1",
       "properties": {
         "id": "demo-c",
         "title": "C",
         "status": "closed",
         "priority": 2,
-        "issue_type": "task",
+        "issue_type": "feature",
         "created_at": "2026-08-08T23:33:33Z",
         "created_by": "bdp-conformance",
         "updated_at": "2026-08-08T23:33:33Z",
@@ -1005,7 +1394,18 @@
         "uri": "external:beads:mol-run-assignee",
         "revision": "  Cited-9F2c — α/β (draft) Å\t"
       },
-      "properties": {}
+      "properties": {
+        "label": "opaque authored label",
+        "source": {
+          "ownedLinks": {
+            "*": ["opaque authored value"]
+          }
+        }
+      },
+      "attribution": {
+        "principal": "agent:reference-wildcard",
+        "status": "claimed"
+      }
     },
     {
       "localId": "links/external-source",
@@ -1150,7 +1550,12 @@
       "id": "https://work.example/types/feature",
       "name": "Feature",
       "describes": "bead",
-      "conformsTo": ["https://work.example/types/work-item"]
+      "conformsTo": ["https://work.example/types/work-item"],
+      "ownsOutgoing": {
+        "*": {
+          "max": 8
+        }
+      }
     },
     {
       "id": "https://work.example/types/chore",
@@ -1170,9 +1575,15 @@
       "describes": "bead",
       "conformsTo": [],
       "ownsOutgoing": {
+        "*": {
+          "max": 8
+        },
         "https://work.example/types/cites": {
           "label": "cites",
           "max": 8
+        },
+        "https://work.example/types/relates": {
+          "max": 1
         }
       }
     },

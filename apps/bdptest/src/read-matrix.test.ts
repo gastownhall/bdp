@@ -33,6 +33,7 @@ import {
   createControlledReadActionExecutor,
   emitMatrixRunForCohort,
   startControlledTypeDescriptorPublisher,
+  successorDescriptorBodies,
 } from "@bdp/conformance/testing";
 import {
   admitReadServerProfile,
@@ -226,9 +227,10 @@ describe("bdptest reference target Read matrix", () => {
         !artifactBundle.fixture.capabilities.includes(controlledReadExternalTypePublisherCapability)
       )
         throw new Error("reference fixture does not admit the controlled external publisher");
-      descriptorPublisher = await startControlledTypeDescriptorPublisher(
-        requireTypeDescriptors(artifactBundle.fixture),
-      );
+      descriptorPublisher = await startControlledTypeDescriptorPublisher([
+        ...requireTypeDescriptors(artifactBundle.fixture),
+        ...successorDescriptorBodies(artifactBundle.fixture),
+      ]);
       const clientActions = createBdpClientScenarioActionExecutor({
         fetchImplementation: scenarioTarget.fetch,
         externalTypeDescriptorFetchImplementation: descriptorPublisher.fetch,

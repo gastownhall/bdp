@@ -5635,6 +5635,36 @@
               "fixturePointer": "/oracles/owned-links/ownedLinks"
             }
           ]
+        },
+        {
+          "id": "ownership-inventory",
+          "family": "client",
+          "operation": "ownership-inventory",
+          "captures": [],
+          "assertions": [
+            {
+              "id": "success",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "success"
+            },
+            {
+              "id": "ownedtypes",
+              "kind": "json-pointer",
+              "pointer": "/ownedTypes",
+              "exists": true,
+              "fixturePointer": "/oracles/ownership-inventory/ownedTypes"
+            },
+            {
+              "id": "beadswithownership",
+              "kind": "json-pointer",
+              "pointer": "/beadsWithOwnership",
+              "exists": true,
+              "fixturePointer": "/oracles/ownership-inventory/beadsWithOwnership"
+            }
+          ],
+          "inputFixturePointer": "/oracles/ownership-inventory/input"
         }
       ],
       "cleanup": {
@@ -6627,6 +6657,531 @@
               "exists": false
             }
           ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.owned-wildcard.declaration",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http", "controlled-external-type-publisher-v1"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "wildcard-descriptors",
+          "family": "client",
+          "operation": "wildcard-descriptors",
+          "captures": [],
+          "assertions": [
+            {
+              "id": "exact-client-outcomes",
+              "kind": "json-pointer",
+              "pointer": "/rows",
+              "exists": true,
+              "fixturePointer": "/oracles/wildcard-descriptors/declaration/rows"
+            }
+          ],
+          "inputFixturePointer": "/oracles/wildcard-descriptors/declaration/input"
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.owned-wildcard.max-required",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http", "controlled-external-type-publisher-v1"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "wildcard-descriptors",
+          "family": "client",
+          "operation": "wildcard-descriptors",
+          "captures": [],
+          "assertions": [
+            {
+              "id": "exact-client-outcomes",
+              "kind": "json-pointer",
+              "pointer": "/rows",
+              "exists": true,
+              "fixturePointer": "/oracles/wildcard-descriptors/max-required/rows"
+            }
+          ],
+          "inputFixturePointer": "/oracles/wildcard-descriptors/max-required/input"
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.owned-wildcard.explicit-max-bounded",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http", "controlled-external-type-publisher-v1"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "wildcard-descriptors",
+          "family": "client",
+          "operation": "wildcard-descriptors",
+          "captures": [],
+          "assertions": [
+            {
+              "id": "exact-client-outcomes",
+              "kind": "json-pointer",
+              "pointer": "/rows",
+              "exists": true,
+              "fixturePointer": "/oracles/wildcard-descriptors/explicit-max-bounded/rows"
+            }
+          ],
+          "inputFixturePointer": "/oracles/wildcard-descriptors/explicit-max-bounded/input"
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.owned-wildcard.present-entries",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": ["owned-wildcard-v1"]
+      },
+      "actions": [
+        {
+          "id": "wildcard-present",
+          "family": "client",
+          "operation": "wildcard-present",
+          "captures": [],
+          "assertions": [
+            {
+              "id": "success",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "success"
+            },
+            {
+              "id": "complete-inline-plane",
+              "kind": "json-pointer",
+              "pointer": "/exactGroups",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "first-class-equality",
+              "kind": "json-pointer",
+              "pointer": "/firstClassEqual",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "empty-wildcard-owner",
+              "kind": "json-pointer",
+              "pointer": "/empty",
+              "exists": true,
+              "equals": {}
+            },
+            {
+              "id": "nonowner-absence",
+              "kind": "json-pointer",
+              "pointer": "/nonownerAbsent",
+              "exists": true,
+              "equals": true
+            }
+          ],
+          "inputFixturePointer": "/oracles/wildcard-present/input"
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.owned-wildcard.closure",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": [
+          "public-http",
+          "controlled-read-pagination-v1",
+          "controlled-external-type-publisher-v1"
+        ]
+      },
+      "applicability": {
+        "requires": ["owned-wildcard-v1"]
+      },
+      "actions": [
+        {
+          "id": "owned-closure",
+          "family": "lifecycle",
+          "operation": "owned-closure",
+          "input": {
+            "source": "beads/demo-f",
+            "target": "beads/demo-e",
+            "link": "links/demo-f-e",
+            "control": "beads/demo-c",
+            "unknown": "beads/never-existed-closure",
+            "view": "owned-closure-view",
+            "epoch": "owned-closure-epoch",
+            "unknownLink": "links/never-existed-closure",
+            "wildcardOnly": true,
+            "payloadWitness": "opaque authored value"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "success",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "success"
+            },
+            {
+              "id": "source-live-before",
+              "kind": "json-pointer",
+              "pointer": "/sourceLiveBefore",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "target-live-before",
+              "kind": "json-pointer",
+              "pointer": "/targetLiveBefore",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "owned-links-served-before",
+              "kind": "json-pointer",
+              "pointer": "/ownedLinksServedBefore",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "hidden-target-three-view",
+              "kind": "json-pointer",
+              "pointer": "/target",
+              "exists": true,
+              "equals": {
+                "probeCount": 3,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "links",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "hidden-source-three-view",
+              "kind": "json-pointer",
+              "pointer": "/source",
+              "exists": true,
+              "equals": {
+                "probeCount": 3,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "links",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "hidden-link-two-view",
+              "kind": "json-pointer",
+              "pointer": "/link",
+              "exists": true,
+              "equals": {
+                "probeCount": 2,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "unknown-three-view",
+              "kind": "json-pointer",
+              "pointer": "/unknown",
+              "exists": true,
+              "equals": {
+                "probeCount": 3,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "links",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "unknown-link-two-view",
+              "kind": "json-pointer",
+              "pointer": "/unknownLink",
+              "exists": true,
+              "equals": {
+                "probeCount": 2,
+                "probes": [
+                  {
+                    "variant": "resource",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  },
+                  {
+                    "variant": "properties",
+                    "status": 404,
+                    "code": "resource-not-found",
+                    "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                    "retry": "after-state-change",
+                    "mediaType": "application/problem+json",
+                    "schemaValid": true,
+                    "cachePrivateNoStore": true
+                  }
+                ]
+              }
+            },
+            {
+              "id": "all-nondisclosure-bodies-byte-identical",
+              "kind": "json-pointer",
+              "pointer": "/rawBodyEvidence/byteIdentical",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "control-live-after",
+              "kind": "json-pointer",
+              "pointer": "/controlLiveAfter",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "source-absent-from-collection",
+              "kind": "json-pointer",
+              "pointer": "/sourceAbsentFromCollection",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "target-absent-from-collection",
+              "kind": "json-pointer",
+              "pointer": "/targetAbsentFromCollection",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "link-absent-from-collection",
+              "kind": "json-pointer",
+              "pointer": "/linkAbsentFromCollection",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "wildcard-only-link",
+              "kind": "json-pointer",
+              "pointer": "/wildcardOnly",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "control-unchanged",
+              "kind": "json-pointer",
+              "pointer": "/controlUnchanged",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "hidden-payload-absent",
+              "kind": "json-pointer",
+              "pointer": "/payloadAbsent",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.numeric-model.declared-token-model",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": ["content-derived-revisions-v1"]
+      },
+      "actions": [
+        {
+          "id": "numeric-token-model",
+          "family": "client",
+          "operation": "numeric-token-model",
+          "captures": [],
+          "assertions": [
+            {
+              "id": "success",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "success"
+            },
+            {
+              "id": "independent-token-match",
+              "kind": "json-pointer",
+              "pointer": "/tokensMatch",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "public-numbers-observed",
+              "kind": "json-pointer",
+              "pointer": "/hasNumbers",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "both-resource-kinds",
+              "kind": "json-pointer",
+              "pointer": "/bothKinds",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "declared-number-model",
+              "kind": "json-pointer",
+              "pointer": "/numberModel",
+              "exists": true,
+              "equals": "IEEE-754-binary64-ECMAScript-JSON"
+            }
+          ],
+          "inputFixturePointer": "/oracles/numeric-model/input"
         }
       ],
       "cleanup": {

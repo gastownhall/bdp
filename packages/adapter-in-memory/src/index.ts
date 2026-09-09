@@ -362,7 +362,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   const beads: BeadRecord[] = [
     ["demo-a", "A", "open", "Task"],
     ["demo-b", "B", "open", "Task"],
-    ["demo-c", "C", "closed", "Task"],
+    ["demo-c", "C", "closed", "Feature"],
     ["demo-d", "D", "open", "Task"],
     ["demo-e", "E", "deferred", "Bug"],
     ["demo-f", "F", "open", "Decision"],
@@ -474,11 +474,13 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       type,
       revision: "1",
       // demo-j-k carries `unknown`-status attribution (lockstep with the
-      // portable fixture), exercising the second status; no other reference
-      // Link records any.
+      // portable fixture), while external-target carries claimed attribution
+      // through both the first-class and wildcard-owned inline planes.
       ...(localId === "demo-j-k"
         ? { attribution: { principal: "svc:reference-realization", status: "unknown" as const } }
-        : {}),
+        : localId === "external-target"
+          ? { attribution: { principal: "agent:reference-wildcard", status: "claimed" as const } }
+          : {}),
       source: resolveEndpoint(String(source)),
       target: resolveEndpoint(String(target)),
       properties: parsePropertiesRecord(
@@ -486,7 +488,12 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
           ? { constraint: "hard", extension: "retained" }
           : localId === "demo-e-f"
             ? { context: "reference", extension: "retained" }
-            : {},
+            : localId === "external-target"
+              ? {
+                  label: "opaque authored label",
+                  source: { ownedLinks: { "*": ["opaque authored value"] } },
+                }
+              : {},
       ),
     };
   });
