@@ -65,7 +65,7 @@ here rather than being invented by an implementation.
   canonical Bead URL only, never another alias. An unknown alias returns
   the same `404` `resource-not-found` as an unknown Resource. An authority
   without aliases omits the `aliases` discovery member.
-- **PROTO-013**: The disclosure vocabulary is three sibling `410`
+- **PROTO-013**: The ordinary disclosure vocabulary is three sibling `410`
   conditions — `event-history-expired`, `resource-pruned`, and
   `resource-erased` — gated on the single retained-history authorization.
   A `resource-pruned` problem MAY carry one `archivedAt` Reference,
@@ -75,6 +75,16 @@ here rather than being invented by an implementation.
   `404` `resource-not-found`. Erasures MUST propagate through the
   changefeed as erasure records carrying a `{scheme, value}` digest of
   the erased version; retention removals MUST NOT propagate.
+  **History amendment, 2026-09-09:** the optional all-profile History surface
+  additionally uses the five subject-history-gated diagnoses under
+  [Historical resolution](../specs/bdp.md#historical-resolution), required
+  Gone-with-reason for removed cited versions, and authorized deleted-subject
+  versions pages. Ordinary non-History disclosure remains discretionary.
+  Historical whole-record success and missing-state refusal have their distinct
+  authorization gates; neither permits partial content or weakens current-plane
+  owned closure. Every controlled History copy and context obeys applicable
+  erasure before serving, including local recovery and positive-evidence imports;
+  Read-only capability is no generic consumer-acquisition guarantee.
 - **PROTO-014**: Bead and Link records MAY carry a common `attribution`
   member — `{ principal, status }` with `status` one of `claimed`,
   `unknown` — that is carried per version and never attested: the
@@ -276,3 +286,16 @@ stable afterward, even if the repository moves.
 
 These decisions are resolved explicitly and recorded rather than silently
 chosen in code.
+
+## History wire materialization — 2026-09-09
+
+The 38 selected answer units now have owning draft prose, mirrored wire schemas,
+illustrative fixtures and unbound catalog rows. The protocol package parses the
+new shapes; it does not implement retained storage, serving or capability admission.
+Implementers must preserve complete exact-address reads, stable authorized versions
+pages, immutable operation context and the restore/erasure/allocation distinctions
+under the owning specification. No fourth profile or deferred witness/lifecycle
+feature is added. The next implementation must add server/client/ScopePort/adapter
+behavior, positive and adversarial runtime tests, accurate parser-root coverage,
+and reviewed successor evidence before support is advertised. Existing non-History
+compatibility examples and sealed Read evidence remain historical, not new proof.

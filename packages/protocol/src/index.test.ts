@@ -53,7 +53,7 @@ describe("Read problem definitions", () => {
     expect(BDP_PROBLEM_FAMILY_PREFIX).toBe("https://github.com/gastownhall/bdp/problems/");
   });
 
-  it("enumerates the accepted Gate 0 Read problem table exactly", () => {
+  it("enumerates the Read problem table with History diagnoses exactly", () => {
     expect(READ_PROBLEM_DEFINITIONS).toEqual([
       {
         code: "malformed-request",
@@ -145,6 +145,41 @@ describe("Read problem definitions", () => {
         type: "https://github.com/gastownhall/bdp/problems/unavailable",
         status: 503,
         retry: "after-delay",
+      },
+      {
+        code: "revision-unknown",
+        family: "not-found",
+        type: "https://github.com/gastownhall/bdp/problems/not-found",
+        status: 404,
+        retry: "after-state-change",
+      },
+      {
+        code: "revision-unretained",
+        family: "conflict",
+        type: "https://github.com/gastownhall/bdp/problems/conflict",
+        status: 409,
+        retry: "after-state-change",
+      },
+      {
+        code: "revision-reorganized",
+        family: "gone",
+        type: "https://github.com/gastownhall/bdp/problems/gone",
+        status: 410,
+        retry: "after-state-change",
+      },
+      {
+        code: "revision-not-tracked",
+        family: "conflict",
+        type: "https://github.com/gastownhall/bdp/problems/conflict",
+        status: 409,
+        retry: "after-state-change",
+      },
+      {
+        code: "revision-unrepresentable",
+        family: "conflict",
+        type: "https://github.com/gastownhall/bdp/problems/conflict",
+        status: 409,
+        retry: "after-state-change",
       },
     ]);
   });

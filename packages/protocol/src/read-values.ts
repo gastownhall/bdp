@@ -1,9 +1,11 @@
+import { ProtocolArtifactValidationError } from "./protocol-errors.js";
+export { ProtocolArtifactValidationError } from "./protocol-errors.js";
 import { readFileSync } from "node:fs";
 
 // These ESM deep entries are guarded by exact dependency pins and installed-package smoke tests.
 import { Ajv2020, type JSONSchemaType, type ValidateFunction } from "ajv/dist/2020.js";
 
-import { isJsonSchemaUri } from "./schema-formats.js";
+import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
 import { compareCanonicalIds, referenceUri } from "./index.js";
 import type {
   AbsoluteHttpUrl,
@@ -59,13 +61,6 @@ interface ProtocolValueValidators {
 }
 
 let protocolValueValidators: ProtocolValueValidators | undefined;
-
-export class ProtocolArtifactValidationError extends Error {
-  constructor(message: string, options: ErrorOptions = {}) {
-    super(message, options);
-    this.name = "ProtocolArtifactValidationError";
-  }
-}
 
 /** Parse and close a Type inventory entry at a trusted protocol boundary. */
 export function parseTypeSummary(value: unknown, path = "Type summary"): TypeSummary {
@@ -292,6 +287,7 @@ function getProtocolValueValidators(): ProtocolValueValidators {
   const canonicalSchemaBundle = readCanonicalSchemaBundle();
   const schemaValidator = new Ajv2020({ allErrors: false, strict: true });
   schemaValidator.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+  schemaValidator.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
   schemaValidator.addSchema(
     canonicalSchemaBundle as unknown as JSONSchemaType<unknown>,
     canonicalSchemaBundle.$id,
@@ -455,7 +451,10 @@ function readRecord(value: unknown, path: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function snapshotProtocolRecord(value: unknown, path: string): Readonly<Record<string, unknown>> {
+export function snapshotProtocolRecord(
+  value: unknown,
+  path: string,
+): Readonly<Record<string, unknown>> {
   let nodes = 0;
   const active = new WeakSet<object>();
 

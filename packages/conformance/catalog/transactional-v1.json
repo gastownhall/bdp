@@ -1650,14 +1650,14 @@
     },
     {
       "id": "transactional.restore.epoch-fence",
-      "title": "A restore keeps canonical URLs and fences every prior-epoch token",
+      "title": "A restore keeps canonical URLs and surviving retained Resource-version addresses; all other prior-epoch token classes retain their individual epoch-fence handling",
       "kind": "normative",
       "requiredProfile": "transactional",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-history",
-          "selectedText": "Restoring the same logical Scope therefore preserves its canonical Scope and Resource URLs while rejecting every history-dependent token from the prior epoch."
+          "selectedText": "Retained Resource-version addresses follow [Revisions](#revisions)."
         }
       ]
     },

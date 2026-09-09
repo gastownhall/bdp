@@ -122,3 +122,11 @@ the new catalog obligations are unclaimed, with no runtime or merge grant.
   council, seven bounded clarifications, and the successor’s remaining final-head
   review gate. Both are non-normative and claim no History
   implementation or conformance.
+
+History wire update, 2026-09-09: all 38 selected answer units have owning draft
+text under [Historical resolution](../specs/bdp.md#historical-resolution), mirrored
+schemas, protocol parsers, [illustrative fixtures](../../fixtures/history/README.md)
+and unbound `history-v1` catalog rows. The decision packet remains historical
+selection provenance. Server/client/adapter implementation, capability admission,
+projection coverage integration and genuine successor evidence remain required;
+this fold advertises no History support or full Memory compatibility.

@@ -1,0 +1,209 @@
+{
+  "fixtureVersion": 1,
+  "description": "Narrated HTTP parity and wire examples; not server execution or conformance evidence.",
+  "exchanges": [
+    {
+      "id": "get-exact",
+      "condition": "Assumed authorized retained Link; this authority uses the same quoted ASCII revision validator on current and historical records. No universal ETag encoding is selected.",
+      "request": {
+        "method": "GET",
+        "target": "https://work.example/scope/links/citation?revision=link-old"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "ETag": "\"link-old\"",
+          "BDP-History-Lineage": "replaced",
+          "Link": "<https://work.example/scope/links/citation?view=versions>; rel=\"version-history\""
+        },
+        "schema": "#/$defs/historicalLinkRecord",
+        "body": {
+          "id": "https://work.example/scope/links/citation",
+          "type": "https://work.example/types/cites",
+          "revision": "link-old",
+          "source": "https://work.example/scope/beads/decision",
+          "target": {
+            "uri": "https://work.example/scope/beads/target",
+            "revision": "target%2Fold"
+          },
+          "properties": {
+            "opaque": {
+              "$ref": "not-a-protocol-reference"
+            }
+          },
+          "attribution": {
+            "principal": "donna",
+            "status": "claimed"
+          },
+          "changeContext": {
+            "committedAt": {
+              "state": "present",
+              "value": "2026-09-09T14:00:00Z"
+            },
+            "agent": {
+              "state": "present",
+              "value": "assistant-a"
+            },
+            "message": {
+              "state": "absent"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "head-exact",
+      "condition": "Same decision and headers as get-exact; no body.",
+      "request": {
+        "method": "HEAD",
+        "target": "https://work.example/scope/links/citation?revision=link-old"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store",
+          "ETag": "\"link-old\"",
+          "BDP-History-Lineage": "replaced",
+          "Link": "<https://work.example/scope/links/citation?view=versions>; rel=\"version-history\""
+        }
+      }
+    },
+    {
+      "id": "get-unretained",
+      "condition": "Positive incomplete-version evidence, subject-history authorized despite absent reconstruction pieces.",
+      "request": {
+        "method": "GET",
+        "target": "https://work.example/scope/beads/decision?revision=r2"
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "Content-Type": "application/problem+json",
+          "Cache-Control": "private, no-store"
+        },
+        "schema": "#/$defs/readProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "revision-unretained",
+          "status": 409,
+          "retry": "after-state-change",
+          "missing": {
+            "complete": false,
+            "items": [
+              {
+                "kind": "property",
+                "pointer": "/properties/title"
+              },
+              {
+                "kind": "owned-links",
+                "type": "https://work.example/types/cites"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "head-unretained",
+      "condition": "Same decision and headers as get-unretained; status alone is not typed diagnosis.",
+      "request": {
+        "method": "HEAD",
+        "target": "https://work.example/scope/beads/decision?revision=r2"
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "Content-Type": "application/problem+json",
+          "Cache-Control": "private, no-store"
+        }
+      }
+    },
+    {
+      "id": "ru-reorganized",
+      "condition": "Read+Update advertises History; positive replacement-loss evidence and subject-history permission. Same canonical URL, no exposed epoch.",
+      "request": {
+        "method": "GET",
+        "target": "https://work.example/scope/beads/decision?revision=lost"
+      },
+      "response": {
+        "status": 410,
+        "headers": {
+          "Content-Type": "application/problem+json",
+          "Cache-Control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/gone",
+          "code": "revision-reorganized",
+          "status": 410,
+          "retry": "after-state-change"
+        }
+      }
+    },
+    {
+      "id": "versions",
+      "condition": "Authorized all-retained enumeration includes replaced and incomplete rows; no metadata counts leak omitted rows.",
+      "request": {
+        "method": "GET",
+        "target": "https://work.example/scope/beads/decision?view=versions"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store"
+        },
+        "schema": "#/$defs/historyVersionsPage",
+        "body": {
+          "subject": "https://work.example/scope/beads/decision",
+          "population": "all-retained",
+          "participation": "tracked",
+          "window": {
+            "newest": "r4",
+            "oldest": "r1",
+            "complete": true
+          },
+          "items": [
+            {
+              "revision": "r4",
+              "lineage": "current",
+              "body": "complete",
+              "changeContext": {
+                "committedAt": {
+                  "state": "present",
+                  "value": "2026-09-09T14:00:00Z"
+                },
+                "agent": {
+                  "state": "present",
+                  "value": "assistant-a"
+                },
+                "message": {
+                  "state": "absent"
+                }
+              }
+            },
+            {
+              "revision": "r3",
+              "lineage": "replaced",
+              "body": "complete"
+            },
+            {
+              "revision": "r2",
+              "lineage": "replaced",
+              "body": "incomplete"
+            },
+            {
+              "revision": "r1",
+              "lineage": "current",
+              "body": "complete"
+            }
+          ],
+          "next": null
+        }
+      }
+    }
+  ]
+}

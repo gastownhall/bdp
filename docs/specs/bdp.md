@@ -127,6 +127,10 @@ The Read profile exposes no BDP mutation target. It also does not inherit
 transaction, receipt, snapshot, changefeed, or replication obligations merely
 because those facilities exist in a higher profile.
 
+The optional complete [History capability](#historical-resolution) is available
+on every profile; it changes no profile enum and adds no mutation or replication
+requirement to Read. Its obligations apply only when advertised.
+
 The minimum Read profile consists of:
 
 - the canonical Scope response and its `service-desc` discovery document;
@@ -750,6 +754,30 @@ mutation can intervene before commit.
 
 The protocol projection may represent revisions as HTTP entity tags.
 
+**Retained-address amendment, 2026-09-09 (all profiles).** Whenever a store
+retains a Resource version across restore, destructive reinitialization or
+authority replacement, its existing address remains bound to exactly that state.
+An advertised History resolver MUST serve the requested token unchanged when
+that state is authorized and serviceable. No exposed Scope epoch is needed for
+this law. Token-scheme changes and internal mappings MUST NOT rebind an old
+address or silently return a new revision. Lack of disposition evidence means
+unknown, not loss inferred from token spelling. Retained-address survival grants
+neither current write authority nor a valid current `expectedRevision` guard.
+Erased content is not eligible for successful resolution.
+
+Allocation MUST NOT bind an existing retained address to different state. No
+mandatory registry or lifetime-unique-token construction is prescribed: a
+content-derived scheme may reuse a token for the same state consistently with
+the existing revision laws. An ordinary collision may be solved with a safe
+alternative candidate. Positive persistent, repair-required allocation failure
+uses write-only `revision-allocation-unsafe` / conflict / 409 / after-state-change;
+transient inability to inspect safety uses existing 503 / unavailable /
+after-delay. Before admission the failure is direct; after admission it follows
+the selected profile's permanent member/transaction failure, rollback and retained-
+failure rules. Do not re-execute retained duplicates, reset deadlines, disable
+otherwise available reads or fabricate pruning of retained state. No condition-
+specific identity information is disclosed by the allocation problem.
+
 ### Selection
 
 BDP selection operates over exactly one collection in one Scope:
@@ -815,6 +843,9 @@ Resources satisfy a Selector.
 
 ### Actor attribution
 
+[Immutable change context](#immutable-change-context) adds capability-scoped
+metadata beside carried attribution; neither envelope is an authentication claim.
+
 BDP v0 does not expose an authority-attested actor in Resources, mutation
 results, receipts, Events, or change groups. The authenticated principal is
 an input to authorization, not protocol data. An implementation may retain
@@ -871,6 +902,12 @@ accounts coexist without a global identity system; BDP mandates no
 namespace and compares principals only for byte equality.
 
 ### Authorization views
+
+**History amendment, 2026-09-09.** Historical success uses the current
+whole-record/owned-state permission rule under [Historical resolution](#historical-resolution);
+its missing-state refusals use subject-history authorization independently of
+reconstruction. Historical identity/relationship permission grants no target
+body access and does not relax the current-plane closure below.
 
 For every request, the authority binds the authenticated principal, or an
 anonymous principal, to exactly one opaque **Authorization View** of the
@@ -1173,15 +1210,22 @@ snapshot and changefeed into a cache or materialized replica. It does not
 mean independently writable replicas, offline divergent histories, or
 multi-authority merge.
 
-Each Scope history has an opaque, unguessable **Scope epoch**. The epoch
-remains stable across ordinary restart and failover that preserve identical
-committed history. It changes whenever restore, destructive
-reinitialization, or authority replacement may discard, rewrite, or replace
-history. The epoch fences revisions, positions, snapshots, cursors, and
-receipts, but it is not part of canonical Scope or Resource identity.
-Restoring the same logical Scope therefore preserves its canonical Scope and
-Resource URLs while rejecting every history-dependent token from the prior
-epoch.
+**Retained-address amendment, 2026-09-09.** Each Scope history has an opaque,
+unguessable **Scope epoch**. The epoch remains stable across ordinary restart
+and failover that preserve identical committed history. It changes whenever
+restore, destructive reinitialization, or authority replacement may discard,
+rewrite, or replace history. The epoch is not part of canonical Scope or
+Resource identity. Retained Resource-version addresses follow [Revisions](#revisions).
+Every other history-dependent token remains fenced by that epoch, including
+Scope positions, transaction identifiers, snapshots and handles, read and Event
+cursors, changefeed checkpoints, minimum-read barriers, receipts, and the
+idempotency-key namespace and its bound dispositions. Individual token contracts
+still apply. Cached representations retain their epoch and Authorization View
+bindings under Authorization views. An epoch change in the same logical Scope
+preserves canonical Scope and Resource URLs. Prior-epoch uses retain their own
+handling: a prior-epoch idempotency key is unbound in the new namespace, so a
+submission under the new epoch executes anew rather than replaying its prior
+disposition. Read/Read+Update do not gain exposed epoch fields.
 
 Within one epoch, every effectful committed Mutation Transaction occupies
 one opaque **Scope position** in one total order that the authority defines,
@@ -2065,6 +2109,13 @@ RFC 3339 permits.
 
 ### Scope discovery and human documentation
 
+**History amendment, 2026-09-09.** All three discovery definitions optionally
+admit the closed `historicalResolution: { "version": 1 }` member. It describes
+[Historical resolution](#historical-resolution), distinct from the Transactional
+`history` Scope-history member. Absence means no advertised History capability.
+No retention/participation advertisement is added; existing page limits apply
+to versions pages and the fixed 64-item diagnostic bound is defined there.
+
 Every BDP Scope has one absolute canonical Scope URL ending in `/`. That URI
 is the base for resolving local IDs and durable relative references. This
 holds even when a request reached the Scope through an alias or redirect. An
@@ -2411,6 +2462,11 @@ profile uses this closed table:
 | `limit-exceeded` | `size` | 413 | `never` |
 | `rate-limited` | `rate-limit` | 429 | `after-delay` |
 | `temporarily-unavailable` | `unavailable` | 503 | `after-delay` |
+| `revision-unknown` | `not-found` | 404 | `after-state-change` |
+| `revision-unretained` | `conflict` | 409 | `after-state-change` |
+| `revision-reorganized` | `gone` | 410 | `after-state-change` |
+| `revision-not-tracked` | `conflict` | 409 | `after-state-change` |
+| `revision-unrepresentable` | `conflict` | 409 | `after-state-change` |
 
 Problem `type` is the BDP v0 problem-family prefix
 `https://github.com/gastownhall/bdp/problems/` followed by the table's family
@@ -2448,6 +2504,13 @@ retry dispositions are the Read profile's:
 | `idempotency-conflict` | `conflict` | 409 | `never` |
 | `idempotency-in-progress` | `conflict` | 409 | `after-delay` |
 | `idempotency-expired` | `gone` | 410 | `never` |
+| `revision-allocation-unsafe` | `conflict` | 409 | `after-state-change` |
+
+The new History Read rows have the evidence, missing-state and authorization
+contracts in [Historical diagnoses and missing state](#historical-diagnoses-and-missing-state).
+They are not receipt-only failures. `revision-allocation-unsafe` is write-only,
+as defined under [Revisions](#revisions), including direct pre-admission and
+permanent admitted failures; it supplies no History read diagnosis.
 
 The Read+Update rows mean:
 
@@ -2876,6 +2939,12 @@ Scope-history tokens.
 
 ### Resource views
 
+**History amendment, 2026-09-09.** The optional capability adds full-record
+`revision` retrieval and the separate `view=versions` operation on canonical
+Bead and Link URLs, with exactly the query combinations defined under
+[Historical resolution](#historical-resolution). Neither operation adds alias
+query semantics or a historical `include=links` aggregate.
+
 The default `GET` of a Bead or Link URL returns its complete Resource record.
 BDP-owned query parameters select a derived view, or request one bounded
 aggregate anchored at that same Resource URL:
@@ -2977,6 +3046,13 @@ target's readability.
 
 ### Reads after deletion
 
+**History amendment, 2026-09-09.** Ordinary non-History reads retain the
+discretionary disclosure below. The advertised History surface instead applies
+[Historical resolution](#historical-resolution): mandatory substantiated
+Gone-with-reason for removed cited versions, the five subject-history-gated
+Read diagnoses, and authorized deleted-subject versions pages. It preserves
+uniform unauthorized 404 and creates no partial/current Resource success.
+
 After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a
 Bead, `view=links` return the same `404` `resource-not-found` problem used for
 an unknown or non-visible identity. BDP does not require an authority to reveal
@@ -3012,6 +3088,279 @@ identities outside the caller's authorization projection always return the
 same `404` `resource-not-found`. `410` is therefore not an
 identity-enumeration oracle: a caller cannot use it to probe which identities
 exist.
+
+### Historical resolution
+
+**History amendment, 2026-09-09 (38 selected answer units).** History is an
+optional complete capability on each of `read`, `read-update`, and
+`transactional`, not a fourth profile. Discovery advertises it only as
+`historicalResolution: { "version": 1 }`, the closed `historyCapability`
+definition. Absence means it is not advertised. An authority MUST implement
+all applicable requirements in this section before advertising it, for both
+canonical Bead and Link URLs. A profile, a retained store, or a schema parser
+alone supplies no capability claim. No advance age/count retention guarantee,
+aggregate participation count/class, retention hold, or generic persistent-
+consumer erasure acquisition is advertised by this member.
+
+#### Exact historical reads
+
+`GET` or `HEAD canonical-resource?revision=token` selects exactly one
+nonempty opaque revision. Decode query data once; percent-encoded reserved
+characters and Unicode are data, not checkpoint-token syntax. Repeated or
+empty `revision`, any additional query member (including `view`, `include`,
+selection or pagination), and unsupported History queries on a non-advertising
+authority fail as `invalid-parameter`. Alias queries retain uniform
+`resource-not-found` / 404 and gain no History semantics. Normal authentication
+and non-disclosure precedence applies before condition-specific disclosure.
+
+A successful exact read returns the ordinary complete Resource record with
+exactly the requested `id` and `revision`, carried attribution and change
+context when recorded, and the complete historical owned-Link state. Use
+`historicalBeadRecord` or `historicalLinkRecord`; the Bead shape excludes the
+`links` aggregate. Never substitute current/nearest state, load inline Links
+from today's graph, fill missing values from another revision, or rewrite
+bound values under an old token. A historical owned Link and its source
+retain their separate revision addresses. No witness envelope, new digest
+scheme or extra current-scheme mapping is part of this capability.
+
+Success requires current permission to disclose the whole requested historical
+record, including its complete owned state. Historical target closure requires
+current target visibility OR explicit current permission to disclose that
+historical target identity and relationship. Source access alone supplies
+neither permission, and disclosure of an identity/relationship grants no target
+body access. Failed success authorization returns uniform `resource-not-found`,
+not a partial record or invented retention diagnosis. A deleted subject may
+have authorized retained history; historical permission does not restore its
+current visibility. Current-plane owned-source/hidden-target closure and the
+incident-Link deletion refusal remain unchanged. The alternative Memory
+surviving-citation lifecycle is deferred.
+
+#### Historical diagnoses and missing state
+
+The five `revision-*` Read diagnoses in [Problem details](#problem-details)
+apply only to History requests and require current subject-history authorization.
+Unauthorized callers receive uniform `resource-not-found`, without evidence,
+window or participation disclosure. In particular, the Bead-history gate for
+`revision-unretained` MUST NOT depend on reconstructing the absent owned state.
+Permission denial is never evidence of incompleteness. These gates also apply
+to independent Link history under the selected complete Resource capability.
+
+- `revision-unknown`: no retained state or substantiated disposition for this
+  syntactically valid requested token. It is responder-relative uncertainty,
+  not evidence of tampering, pruning or guaranteed synchronization repair.
+- `revision-unretained`: positive version knowledge but missing reconstruction
+  pieces. It carries required `missing`, a `historyMissing` object with `items`
+  and `complete`. No Resource or partial Resource accompanies it.
+- `revision-reorganized`: positive evidence that history replacement lost this
+  address; epoch mismatch or unfamiliar token spelling alone is insufficient.
+- `revision-not-tracked`: positive evidence of subject non-participation;
+  absence of records or an expired participation marker is insufficient.
+- `revision-unrepresentable`: positive knowledge that an existing bound BDP
+  value cannot be faithfully served under its declared representation/numeric
+  contract. Missing bytes, unknown provenance, private-tool limitations and
+  backend outage are insufficient. No condition-specific payload is added.
+  Missing reconstruction remains Unretained; erasure and non-disclosure take
+  precedence; temporary I/O remains ordinary service failure. Repair may make
+  the original valid representation serviceable, never change that version's
+  values under the same address.
+
+A missing item is exactly one of `{ "kind": "record" }` for an unavailable
+whole record, `{ "kind": "property", "pointer": "/properties/name" }`
+for a missing property location (JSON Pointer in the complete Resource record),
+or `{ "kind": "owned-links", "type": "https://example.test/types/cites" }`
+for a missing owned-Type set. Omitting `type` in the last form identifies the
+whole unavailable owned plane. A property pointer may instead locate properties
+inside a historical inline Link. Do not invent nested locations when the whole
+component is unavailable. No item contains missing content values. Missing
+items are unique and limited to 64 per response. `complete: false` explicitly
+means a bounded or not fully established inventory; an omitted location is not
+thereby present. A complete inventory must contain at least one item. An empty,
+incomplete inventory is permitted when the remaining locations cannot be
+established; that persistent uncertainty is not automatically a temporary error.
+
+On this History surface, removal of a cited historical version MUST leave its
+address answering Gone with its substantiated reason to a history-authorized
+caller: existing `resource-pruned` / `resource-erased`, or `revision-reorganized`
+for positively evidenced replacement loss. Preserve sufficient positive
+disposition evidence to fulfill that duty; no expiry exception was selected.
+Existing pruning/erasure status and retry rules and optional `archivedAt` remain
+unchanged. Ordinary non-History Read retains [Reads after deletion](#reads-after-deletion)'s
+separate discretionary disclosure. Do not derive pruning from missing evidence
+or expire required Gone evidence with participation knowledge.
+
+No History refusal carries a window or `mayChangeAfterSync`; clients use the
+versions operation for a retained window. `resource-erased` retains its prohibition
+on condition-specific extensions. The new diagnoses' `after-state-change` advice
+requires changed state or a newly constructed request, not endless polling, a
+sync promise or a promised repair mechanism. Temporary service failures remain
+`temporarily-unavailable` / 503 / `after-delay`.
+
+#### Retained versions pages
+
+`GET canonical-resource?view=versions` returns `historyVersionsPage`. `HEAD`
+has the corresponding GET status and headers without a body. Permitted query
+members are one each of `view=versions`, optional positive integer `limit`, and
+optional nonempty opaque `cursor`; other/repeated members are `invalid-parameter`.
+Use the existing advertised `limits.page` defaults and maximum; without them the
+initial default is 100 items and maximum is 1000. A requested limit above the
+applicable maximum follows the existing `limit-exceeded` rule. Limits bound
+pages, never retention. Continuations are absolute same-subject URLs carrying
+`view=versions` and `cursor`, with any applicable `limit` preserved.
+
+The page contains `subject` (the canonical Resource URL), `population` fixed to
+`all-retained`, `participation` (`tracked`, `not-tracked`, or `undetermined`),
+`window`, `items`, and `next` (an absolute continuation URL or null). Each row
+contains opaque `revision`, `lineage` (`current` or `replaced`), stored `body`
+state (`complete` or `incomplete`), and the actual retained `attribution` and
+`changeContext` when recorded. Rows contain no properties, owned payload, timestamp-
+order claim or protocol position. Metadata absence is truthful legacy absence,
+not redaction of known metadata into unknown. Authorize the subject-history
+surface and every whole row's revision, attribution and context before including
+it; otherwise omit that row. Row permission grants no Resource body permission.
+
+`window` contains `newest` and `oldest` revision bounds (both null for an empty
+window) and `complete`. Bounds refer to the selected enumeration snapshot, not
+merely this page. `complete: true` asserts positive knowledge that the window
+covers the responder's entire authorized retained population at that snapshot;
+false makes no such assertion. Every bound, completeness claim, continuation
+and other metadata is authorization-relative and reveals no omitted-row count.
+Positive retained state establishes `tracked`. `not-tracked` requires positive
+non-participation evidence; lacking such evidence is `undetermined`. The latter
+two states have no rows, null bounds and no continuation. There is no permanent
+participation-marker promise; required Gone and erasure evidence is unaffected.
+
+Enumerate every version in the selected retained window, newest authority-order
+first, including retained replaced versions and positively evidenced non-erased
+incomplete versions. Establish a stable authority order before the snapshot,
+including restore/import cases; never derive it from token spelling, claimed
+time or an exposed store ordinal. Replaced and current membership is explicit,
+not ancestry inferred from display order. Omit erased versions and records that
+are only pruning/reorganization disposition evidence. A complete stored record
+that is unrepresentable remains a complete retained member: stored completeness
+does not promise successful serviceability. Listing any version promises neither
+future body availability nor permission to read its body. Authorized deleted-
+subject enumeration remains available without reviving the subject.
+
+Pagination continues one stable enumeration snapshot under the existing profile,
+authorization and erasure fences. A continuation must make meaningful progress;
+it cannot silently select a newer snapshot. There is no minimum cursor lifetime.
+Actual expiry uses `cursor-expired`; temporary failure serving a valid unexpired
+snapshot is ordinary service failure. Neither a cursor nor enumeration holds
+Resource bodies in retention.
+
+#### Historical HTTP metadata
+
+Historical responses remain `Cache-Control: private, no-store`. A successful
+exact Resource response uses the authority's existing Resource-revision ETag
+projection, including its collision-safe encoding for opaque tokens, rather
+than assuming that every token can simply be quoted. No universal new validator
+encoding is selected here. [Conditional reads and HEAD](#conditional-reads-and-head)
+continues to apply; authorization precedes evaluation, and conditional responses
+retain applicable navigation metadata. HEAD performs GET's complete decision and
+returns no body; use GET to distinguish the typed diagnoses that share a status.
+No diagnostic response headers or bulk-check endpoint are introduced.
+
+On exact historical success, `BDP-History-Lineage` is `current` or `replaced`,
+identifying this version's membership in the responder's recorded lineage.
+The `version-history` Link relation targets that subject's `view=versions`
+operation whose population is explicitly `all-retained`. Preserve authorized,
+known direct `predecessor-version` and `successor-version` relations within each
+recorded lineage, including retained replaced records. Multiple direct targets
+are permitted. `latest-version` may name the authorized current authority version.
+Omit any relation for which no truthful authorized target is known. Never link
+r3 directly to r4 merely because r1→r2→r3 was restored to r1 and r4 was then
+minted; never call the next surviving entry a direct successor through a gap.
+The relations state local knowledge, not global freshness or a notification SLA.
+
+Relation identity disclosure is authorized independently of whole-row metadata;
+a truthful authorized target may be absent from the page because its whole row
+cannot be shown. Relation presence implies neither membership/count nor target
+body permission. No current target is invented for a deleted or undisclosable
+current Resource. The History lineage header and these Link values follow the
+same authorization and HEAD/conditional metadata rules; browser-serving authorities
+expose the History header alongside the existing allowed response headers.
+
+#### History recovery, imports and assurance
+
+Every History implementation on all three profiles enforces applicable erasure
+decisions on every controlled retained copy before further serving and preserves
+required erasure evidence across local recovery. This includes context, inline
+owned content, old groups, Events, receipt postimages, indexes and caches. Where
+Transactional erasure applies, its permanent projected ledger, containing-version
+erasure, same-group live successor/tombstone, pre-erasure checkpoint expiry and
+snapshot recovery rules remain mandatory. Retaining an old address never permits
+serving erased content. A non-owning reference is not embedded target content;
+no new retention propagation, target rewrite or wire hold follows.
+
+Before importing a retained copy into visibility, positively establish its
+origin/version identity and erasure status from authoritative evidence appropriate
+to that origin, and apply known erasures. Unestablishable status requires rejection
+or discard, not publication, identity laundering or permanent unmanaged quarantine.
+Restored local copies obey the same cleanup duty. No new HTTP import endpoint or
+extra import provenance fields are defined. Realizations must make their proof
+mechanism reviewable and test it through controlled admission/recovery/read cases.
+
+Plain History claims the responder's behavior, not erasure delivery to arbitrary
+downloaded copies. A deployment may document and test a specific consumer
+acquisition/recovery route and claim only that scoped assurance, proving controlled-
+copy cleanup before further publication. This does not exempt any obligated store
+or advertise generic BDP replication; where TX/T65 applies, its existing changefeed/
+snapshot-ledger route remains required. Generic pre-removal administrative reports,
+preview endpoints, minimum retention promises, exact-byte witnesses, sync hints,
+extra scheme mappings, erased-row enumeration, bulk checks and the alternative
+surviving-citation lifecycle remain deferred. Local policy/tooling is allowed;
+none weakens required Gone evidence, erasure or incident-Link refusal.
+
+### Immutable change context
+
+**History amendment, 2026-09-09.** `changeContext` is a distinct immutable
+version envelope, separate from `attribution` and `properties`. The responsible
+actor remains the existing carried attribution, including truthful absence and
+`claimed|unknown`; context never supplies a competing actor or authentication/
+authorization claim. Shared record schemas permit absent context for legacy and
+non-History versions. Native versions minted under advertised History MUST carry
+it wherever their complete version record is returned: current and historical
+reads, mutation postimages, retained receipt postimages and retained history rows.
+Created/updated Event data, including an updated owned-Link delta, carries the
+context of the version it names. No context is synthesized on tombstones, deleted identities, aliases, References or properties
+views. These metadata requirements do not establish full Memory compatibility.
+
+The closed envelope has `committedAt`, `agent`, and `message`. `committedAt` is
+`{ "state": "present", "value": <RFC 3339 date-time> }` or
+`{ "state": "undetermined" }`. Agent and message are each a closed
+`{ "state": "present", "value": <string> }` or
+`{ "state": "absent" }` or `{ "state": "undetermined" }`; a present agent
+identity is nonempty, while an intentionally empty message is valid. Absence,
+uncertainty and a recorded value are distinct; never fabricate legacy metadata.
+
+For native versions, commit time is the authority-observed mutation commit instant,
+not admission, import or editable Inception time. Every version in one atomic
+transaction shares that instant; independently committed sequence members carry
+their respective commit instants. Imported original time is present only with
+available provenance; otherwise it is undetermined. This promises neither an
+accurate/authenticated clock nor global chronology, and does not alter Event-time
+meaning. Extra import provenance stays internal, not a second protocol envelope.
+
+Each version-minting operation may carry optional `changeContext` input, the
+closed `changeContextInput` object with optional `agent` (nonempty string or null)
+and `message` (string or null). Omitted members mean undetermined; null explicitly
+records known absence. Callers supply no timestamp or responsible-actor override.
+The member appears on create/update Bead and Link, owned-capable deleteLink,
+updateWhere and deleteWhere inputs, including their sequence/batch forms; alias
+operations and deleteBead, which mint no version, gain no input. It is operation-
+local, never a shared carrier-wide override. Preserve it in semantic mutation
+identity so different recorded inputs cannot replay as the same request. Apply
+the existing protocol-default normalization: an omitted input and an empty object
+both mean undetermined agent and message; explicit null remains distinct. Context
+remains excluded from Resource no-op comparison.
+
+Copy the originating operation's agent/message states to every version it actually
+mints, including owned Link and source and set fan-out. Batch/sequence operations
+may have distinct inputs; atomic time is shared, independent commits are separate.
+Changing only context never creates a version. No-ops retain the old revision and
+context; deletion without a minted version creates no context-only record. An owned
+Link deletion records new context on its newly versioned source only. Existing
+attribution fan-out and all authorization, erasure and retained-copy duties apply.
 
 ### Types and Type Descriptors
 
@@ -3937,7 +4286,11 @@ tombstones creates a different logical Scope under the rule in that
 section. Read+Update exposes no epoch: a client cannot detect a restore
 except through a changed canonical Scope URL, and the profile offers no
 restore signal beyond `resource-not-found`, `revision-mismatch`, and
-`idempotency-expired`.
+`idempotency-expired` in its base surface. **History exception, 2026-09-09:**
+when `historicalResolution` is advertised, the History surface additionally
+reports positively evidenced `revision-reorganized` under its subject-history
+gate and preserves retained old addresses. This is not an exposed epoch and
+does not weaken logical-Scope identity/tombstone preservation.
 
 #### Durability and recovery
 
@@ -4205,6 +4558,11 @@ returns `410` `cursor-expired`; a failed catch-up wait returns `503`
 let a caller who may not see the receipt learn about its pages or history
 (amended 2026-09-08, council 13).
 ### Operation record schema
+
+**History amendment, 2026-09-09.** Version-minting operation inputs additionally
+accept operation-local `changeContextInput` as the `changeContext` member under
+[Immutable change context](#immutable-change-context). This applies equally to
+singleton, sequence, set and batch compositions, never carrier-wide context.
 
 > **Transactional/Replication constructs within this section.**
 >
@@ -5251,6 +5609,12 @@ the manifest as `snapshotManifest`.
 
 ### Version erasure
 
+**History amendment, 2026-09-09.** Version content includes its retained
+`changeContext`, including every returned row, Event or receipt copy that
+carries it. [History recovery, imports and assurance](#history-recovery-imports-and-assurance)
+binds all History profiles; the Transactional rules below remain independently
+mandatory where applicable.
+
 Retention removals and erasures replicate oppositely, by nature. A store
 aging history out of its advertised retention window is a per-store fact: a
 replica with a longer window legitimately keeps what the authority dropped,
@@ -5866,6 +6230,40 @@ rows describe. The rows become claimable only under the evidence law in
 | `read-update.numeric-model.nested-refusal` | The refusal applies at any depth within `properties`, whether the document is supplied whole or as a Property Change `value`, and the diagnostic names the nested member by its JSON Pointer within `properties` |
 | `read.numeric-model.declared-token-model` | A revision-token scheme that derives tokens from content declares its number model by name; a target declaring `sha256-jcs` produces one token for every admissible spelling of the same value, over RFC 8785 bytes with numbers as binary64; honestly not applicable to a target declaring no content-derived scheme |
 
+#### History conformance rows
+
+These rows apply only to the complete optional `historicalResolution` capability,
+with the minimum profile shown by `history-v1.json`. A future executable manifest
+must gate them on that actual target capability and preserve cumulative profile
+obligations. They are metadata now: no History manifest, runner realization or
+observations are supplied by these rows. The original Read catalog and historical
+evidence are unchanged. Changing reachable Read schemas requires the reviewed
+projection/coverage transition and new observations before a claim.
+
+| Scenario | Required behavior |
+| --- | --- |
+| `history.discovery` | Complete optional History on all three profiles |
+| `history.exact` | Exact Bead and Link records preserve the requested revision and complete owned state |
+| `history.query` | Opaque once-decoded revisions and rejected mixtures |
+| `history.authorization` | Whole-record authorization and independent subject-history refusal gate |
+| `history.diagnoses` | Five evidence-gated read diagnoses and bounded missing-state details |
+| `history.gone` | Required Gone reasons survive removal without weakening non-History Read |
+| `history.missing` | Bounded diagnostic inventory never returns partial content |
+| `history.enumeration` | All retained current and replaced versions, newest authority order first |
+| `history.row-authorization` | Whole-row context authorization and no hidden counts |
+| `history.cursors` | Stable bounded progress, true expiry and temporary failure are distinct |
+| `history.navigation` | Truthful authorized multiple direct relations, no invented replacement adjacency |
+| `history.http` | Private no-store, existing validators and HEAD decision parity |
+| `history.retained-address` | Restore preserves surviving retained addresses and independent token fences |
+| `history.allocation` | Persistent allocation conflict409 versus transient503 and admitted failure rules |
+| `history.context` | Immutable context and truthful legacy metadata across all copies |
+| `history.context-time` | Authority commit time, atomic/shared and sequence/independent instants |
+| `history.context-inputs` | Optional per-operation context with no timestamp or actor override |
+| `history.context-fanout` | Fan-out to actual minted versions without context-only transitions |
+| `history.erasure` | Every controlled copy and retained context obey erasure before further serving |
+| `history.imports` | Positive authoritative erasure status before import visibility |
+| `history.assurance` | Scoped tested consumer routes without generic acquisition claims |
+
 #### Read+Update conformance rows
 
 The Read+Update rows below were drafted with the profile's wire artifacts.
@@ -6128,7 +6526,7 @@ profile-specific response vehicle.
 | `transactional.http.timestamps` | Every emitted instant is a valid RFC 3339 date-time with uppercase T and Z |
 | `transactional.http.ijson-strings-objects` | Unicode scalar strings and unique decoded member names are checked as carrier syntax before execution |
 | `transactional.http.token-profile` | Epochs, view tokens, positions, transaction ids, receipt tokens, and keys use the checkpoint character profile; revisions do not |
-| `transactional.restore.epoch-fence` | A restore keeps canonical URLs and fences every prior-epoch token |
+| `transactional.restore.epoch-fence` | A restore keeps canonical URLs and surviving retained Resource-version addresses; all other prior-epoch token classes retain their individual epoch-fence handling |
 | `transactional.restore.key-namespace` | A prior-epoch key is unbound under the new epoch and executes anew, never as a replay |
 | `transactional.alias.receipt` | Alias singletons use durable one-entry receipts with the ordinary key and replay rules |
 | `transactional.alias.locator-only` | Alias changes occupy no Scope position and appear in no Event, change group or snapshot |
@@ -6151,6 +6549,16 @@ profile-specific response vehicle.
 | `transactional.http.head-parity` | HEAD preserves GET decisions and required metadata and ends without bodies or SSE frames |
 
 ### Open protocol questions
+
+**History update, 2026-09-09.** The 38 selected History answer units are
+materialized in [Historical resolution](#historical-resolution), [Immutable
+change context](#immutable-change-context), [Revisions](#revisions), all three
+discovery shapes, problem rows and the required RU restore exception. This
+amends the scope of items 1/3/4/6 below without rewriting their dated records.
+Exact schemas, illustrative fixtures and unbound History catalog metadata exist;
+server/client/adapter behavior, capability admission, executable applicability
+and new Read projection/evidence remain implementation work. No current target
+advertises History on this basis. Explicitly deferred extensions remain deferred.
 
 This ledger records the protocol questions raised against the draft and their
 current state, in dependency order. The 17 questions below carry recorded

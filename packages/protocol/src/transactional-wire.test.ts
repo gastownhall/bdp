@@ -40,7 +40,7 @@ const TRANSACTIONAL_PROBLEM_ROWS: readonly (readonly [string, string, number, st
   ["catch-up-timeout", "unavailable", 503, "after-delay"],
 ];
 /** The Read+Update rows precede these in the table; the Read+Update lockstep test owns them. */
-const READ_UPDATE_ROW_COUNT = 12;
+const READ_UPDATE_ROW_COUNT = 13;
 
 const WIRE_TOKEN = /^[A-Za-z0-9_-]{1,256}$/;
 const HEX_DIGEST = /^[0-9a-f]{64}$/;
@@ -196,11 +196,12 @@ describe("Transactional problem rows", () => {
     );
     // The receipt context reuses exactly three Read codes and the Read+Update
     // rows a failed transaction can carry; the transient and key-disposition
-    // codes never enter a receipt, and the receipt codes are never direct.
+    // codes never enter a receipt. Allocation safety is both direct and admitted.
     expect(direct.filter((code) => receipt.includes(code)).sort()).toEqual([
       "forbidden",
       "limit-exceeded",
       "resource-not-found",
+      "revision-allocation-unsafe",
     ]);
     for (const code of ["temporarily-unavailable", "idempotency-conflict", "rate-limited"]) {
       expect(receipt, code).not.toContain(code);

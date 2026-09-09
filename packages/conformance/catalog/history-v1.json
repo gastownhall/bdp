@@ -1,0 +1,278 @@
+{
+  "catalogVersion": 1,
+  "scenarios": [
+    {
+      "id": "history.discovery",
+      "title": "Complete optional History on all three profiles",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#historical-resolution",
+          "selectedText": "**History amendment, 2026-09-09 (38 selected answer units).** History is an\noptional complete capability on each of `read`, `read-update`, and\n`transactional`, not a fourth profile. Discovery advertises it only as\n`historicalResolution: { \"version\": 1 }`, the closed `historyCapability`\ndefinition. Absence means it is not advertised. An authority MUST implement\nall applicable requirements in this section before advertising it, for both\ncanonical Bead and Link URLs. A profile, a retained store, or a schema parser\nalone supplies no capability claim. No advance age/count retention guarantee,\naggregate participation count/class, retention hold, or generic persistent-\nconsumer erasure acquisition is advertised by this member."
+        }
+      ]
+    },
+    {
+      "id": "history.exact",
+      "title": "Exact Bead and Link records preserve the requested revision and complete owned state",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#exact-historical-reads",
+          "selectedText": "A successful exact read returns the ordinary complete Resource record with\nexactly the requested `id` and `revision`, carried attribution and change\ncontext when recorded, and the complete historical owned-Link state. Use\n`historicalBeadRecord` or `historicalLinkRecord`; the Bead shape excludes the\n`links` aggregate. Never substitute current/nearest state, load inline Links\nfrom today's graph, fill missing values from another revision, or rewrite\nbound values under an old token. A historical owned Link and its source\nretain their separate revision addresses. No witness envelope, new digest\nscheme or extra current-scheme mapping is part of this capability."
+        }
+      ]
+    },
+    {
+      "id": "history.query",
+      "title": "Opaque once-decoded revisions and rejected mixtures",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#exact-historical-reads",
+          "selectedText": "`GET` or `HEAD canonical-resource?revision=token` selects exactly one\nnonempty opaque revision. Decode query data once; percent-encoded reserved\ncharacters and Unicode are data, not checkpoint-token syntax. Repeated or\nempty `revision`, any additional query member (including `view`, `include`,\nselection or pagination), and unsupported History queries on a non-advertising\nauthority fail as `invalid-parameter`. Alias queries retain uniform\n`resource-not-found` / 404 and gain no History semantics. Normal authentication\nand non-disclosure precedence applies before condition-specific disclosure."
+        }
+      ]
+    },
+    {
+      "id": "history.authorization",
+      "title": "Whole-record authorization and independent subject-history refusal gate",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#exact-historical-reads",
+          "selectedText": "Success requires current permission to disclose the whole requested historical\nrecord, including its complete owned state. Historical target closure requires\ncurrent target visibility OR explicit current permission to disclose that\nhistorical target identity and relationship. Source access alone supplies\nneither permission, and disclosure of an identity/relationship grants no target\nbody access. Failed success authorization returns uniform `resource-not-found`,\nnot a partial record or invented retention diagnosis. A deleted subject may\nhave authorized retained history; historical permission does not restore its\ncurrent visibility. Current-plane owned-source/hidden-target closure and the\nincident-Link deletion refusal remain unchanged. The alternative Memory\nsurviving-citation lifecycle is deferred."
+        }
+      ]
+    },
+    {
+      "id": "history.diagnoses",
+      "title": "Five evidence-gated read diagnoses and bounded missing-state details",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#historical-diagnoses-and-missing-state",
+          "selectedText": "The five `revision-*` Read diagnoses in [Problem details](#problem-details)\napply only to History requests and require current subject-history authorization.\nUnauthorized callers receive uniform `resource-not-found`, without evidence,\nwindow or participation disclosure. In particular, the Bead-history gate for\n`revision-unretained` MUST NOT depend on reconstructing the absent owned state.\nPermission denial is never evidence of incompleteness. These gates also apply\nto independent Link history under the selected complete Resource capability."
+        }
+      ]
+    },
+    {
+      "id": "history.gone",
+      "title": "Required Gone reasons survive removal without weakening non-History Read",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#historical-diagnoses-and-missing-state",
+          "selectedText": "On this History surface, removal of a cited historical version MUST leave its\naddress answering Gone with its substantiated reason to a history-authorized\ncaller: existing `resource-pruned` / `resource-erased`, or `revision-reorganized`\nfor positively evidenced replacement loss. Preserve sufficient positive\ndisposition evidence to fulfill that duty; no expiry exception was selected.\nExisting pruning/erasure status and retry rules and optional `archivedAt` remain\nunchanged. Ordinary non-History Read retains [Reads after deletion](#reads-after-deletion)'s\nseparate discretionary disclosure. Do not derive pruning from missing evidence\nor expire required Gone evidence with participation knowledge."
+        }
+      ]
+    },
+    {
+      "id": "history.missing",
+      "title": "Bounded diagnostic inventory never returns partial content",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#historical-diagnoses-and-missing-state",
+          "selectedText": "A missing item is exactly one of `{ \"kind\": \"record\" }` for an unavailable\nwhole record, `{ \"kind\": \"property\", \"pointer\": \"/properties/name\" }`\nfor a missing property location (JSON Pointer in the complete Resource record),\nor `{ \"kind\": \"owned-links\", \"type\": \"https://example.test/types/cites\" }`\nfor a missing owned-Type set. Omitting `type` in the last form identifies the\nwhole unavailable owned plane. A property pointer may instead locate properties\ninside a historical inline Link. Do not invent nested locations when the whole\ncomponent is unavailable. No item contains missing content values. Missing\nitems are unique and limited to 64 per response. `complete: false` explicitly\nmeans a bounded or not fully established inventory; an omitted location is not\nthereby present. A complete inventory must contain at least one item. An empty,\nincomplete inventory is permitted when the remaining locations cannot be\nestablished; that persistent uncertainty is not automatically a temporary error."
+        }
+      ]
+    },
+    {
+      "id": "history.enumeration",
+      "title": "All retained current and replaced versions, newest authority order first",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#retained-versions-pages",
+          "selectedText": "Enumerate every version in the selected retained window, newest authority-order\nfirst, including retained replaced versions and positively evidenced non-erased\nincomplete versions. Establish a stable authority order before the snapshot,\nincluding restore/import cases; never derive it from token spelling, claimed\ntime or an exposed store ordinal. Replaced and current membership is explicit,\nnot ancestry inferred from display order. Omit erased versions and records that\nare only pruning/reorganization disposition evidence. A complete stored record\nthat is unrepresentable remains a complete retained member: stored completeness\ndoes not promise successful serviceability. Listing any version promises neither\nfuture body availability nor permission to read its body. Authorized deleted-\nsubject enumeration remains available without reviving the subject."
+        }
+      ]
+    },
+    {
+      "id": "history.row-authorization",
+      "title": "Whole-row context authorization and no hidden counts",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#retained-versions-pages",
+          "selectedText": "`window` contains `newest` and `oldest` revision bounds (both null for an empty\nwindow) and `complete`. Bounds refer to the selected enumeration snapshot, not\nmerely this page. `complete: true` asserts positive knowledge that the window\ncovers the responder's entire authorized retained population at that snapshot;\nfalse makes no such assertion. Every bound, completeness claim, continuation\nand other metadata is authorization-relative and reveals no omitted-row count.\nPositive retained state establishes `tracked`. `not-tracked` requires positive\nnon-participation evidence; lacking such evidence is `undetermined`. The latter\ntwo states have no rows, null bounds and no continuation. There is no permanent\nparticipation-marker promise; required Gone and erasure evidence is unaffected."
+        }
+      ]
+    },
+    {
+      "id": "history.cursors",
+      "title": "Stable bounded progress, true expiry and temporary failure are distinct",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#retained-versions-pages",
+          "selectedText": "Pagination continues one stable enumeration snapshot under the existing profile,\nauthorization and erasure fences. A continuation must make meaningful progress;\nit cannot silently select a newer snapshot. There is no minimum cursor lifetime.\nActual expiry uses `cursor-expired`; temporary failure serving a valid unexpired\nsnapshot is ordinary service failure. Neither a cursor nor enumeration holds\nResource bodies in retention."
+        }
+      ]
+    },
+    {
+      "id": "history.navigation",
+      "title": "Truthful authorized multiple direct relations, no invented replacement adjacency",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#historical-http-metadata",
+          "selectedText": "On exact historical success, `BDP-History-Lineage` is `current` or `replaced`,\nidentifying this version's membership in the responder's recorded lineage.\nThe `version-history` Link relation targets that subject's `view=versions`\noperation whose population is explicitly `all-retained`. Preserve authorized,\nknown direct `predecessor-version` and `successor-version` relations within each\nrecorded lineage, including retained replaced records. Multiple direct targets\nare permitted. `latest-version` may name the authorized current authority version.\nOmit any relation for which no truthful authorized target is known. Never link\nr3 directly to r4 merely because r1\u2192r2\u2192r3 was restored to r1 and r4 was then\nminted; never call the next surviving entry a direct successor through a gap.\nThe relations state local knowledge, not global freshness or a notification SLA."
+        }
+      ]
+    },
+    {
+      "id": "history.http",
+      "title": "Private no-store, existing validators and HEAD decision parity",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#historical-http-metadata",
+          "selectedText": "Historical responses remain `Cache-Control: private, no-store`. A successful\nexact Resource response uses the authority's existing Resource-revision ETag\nprojection, including its collision-safe encoding for opaque tokens, rather\nthan assuming that every token can simply be quoted. No universal new validator\nencoding is selected here. [Conditional reads and HEAD](#conditional-reads-and-head)\ncontinues to apply; authorization precedes evaluation, and conditional responses\nretain applicable navigation metadata. HEAD performs GET's complete decision and\nreturns no body; use GET to distinguish the typed diagnoses that share a status.\nNo diagnostic response headers or bulk-check endpoint are introduced."
+        }
+      ]
+    },
+    {
+      "id": "history.retained-address",
+      "title": "Restore preserves surviving retained addresses and independent token fences",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "**Retained-address amendment, 2026-09-09 (all profiles).** Whenever a store\nretains a Resource version across restore, destructive reinitialization or\nauthority replacement, its existing address remains bound to exactly that state.\nAn advertised History resolver MUST serve the requested token unchanged when\nthat state is authorized and serviceable. No exposed Scope epoch is needed for\nthis law. Token-scheme changes and internal mappings MUST NOT rebind an old\naddress or silently return a new revision. Lack of disposition evidence means\nunknown, not loss inferred from token spelling. Retained-address survival grants\nneither current write authority nor a valid current `expectedRevision` guard.\nErased content is not eligible for successful resolution."
+        }
+      ]
+    },
+    {
+      "id": "history.allocation",
+      "title": "Persistent allocation conflict409 versus transient503 and admitted failure rules",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "Allocation MUST NOT bind an existing retained address to different state. No\nmandatory registry or lifetime-unique-token construction is prescribed: a\ncontent-derived scheme may reuse a token for the same state consistently with\nthe existing revision laws. An ordinary collision may be solved with a safe\nalternative candidate. Positive persistent, repair-required allocation failure\nuses write-only `revision-allocation-unsafe` / conflict / 409 / after-state-change;\ntransient inability to inspect safety uses existing 503 / unavailable /\nafter-delay. Before admission the failure is direct; after admission it follows\nthe selected profile's permanent member/transaction failure, rollback and retained-\nfailure rules. Do not re-execute retained duplicates, reset deadlines, disable\notherwise available reads or fabricate pruning of retained state. No condition-\nspecific identity information is disclosed by the allocation problem."
+        }
+      ]
+    },
+    {
+      "id": "history.context",
+      "title": "Immutable context and truthful legacy metadata across all copies",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#immutable-change-context",
+          "selectedText": "**History amendment, 2026-09-09.** `changeContext` is a distinct immutable\nversion envelope, separate from `attribution` and `properties`. The responsible\nactor remains the existing carried attribution, including truthful absence and\n`claimed|unknown`; context never supplies a competing actor or authentication/\nauthorization claim. Shared record schemas permit absent context for legacy and\nnon-History versions. Native versions minted under advertised History MUST carry\nit wherever their complete version record is returned: current and historical\nreads, mutation postimages, retained receipt postimages and retained history rows.\nCreated/updated Event data, including an updated owned-Link delta, carries the\ncontext of the version it names. No context is synthesized on tombstones, deleted identities, aliases, References or properties\nviews. These metadata requirements do not establish full Memory compatibility."
+        }
+      ]
+    },
+    {
+      "id": "history.context-time",
+      "title": "Authority commit time, atomic/shared and sequence/independent instants",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#immutable-change-context",
+          "selectedText": "For native versions, commit time is the authority-observed mutation commit instant,\nnot admission, import or editable Inception time. Every version in one atomic\ntransaction shares that instant; independently committed sequence members carry\ntheir respective commit instants. Imported original time is present only with\navailable provenance; otherwise it is undetermined. This promises neither an\naccurate/authenticated clock nor global chronology, and does not alter Event-time\nmeaning. Extra import provenance stays internal, not a second protocol envelope."
+        }
+      ]
+    },
+    {
+      "id": "history.context-inputs",
+      "title": "Optional per-operation context with no timestamp or actor override",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#immutable-change-context",
+          "selectedText": "Each version-minting operation may carry optional `changeContext` input, the\nclosed `changeContextInput` object with optional `agent` (nonempty string or null)\nand `message` (string or null). Omitted members mean undetermined; null explicitly\nrecords known absence. Callers supply no timestamp or responsible-actor override.\nThe member appears on create/update Bead and Link, owned-capable deleteLink,\nupdateWhere and deleteWhere inputs, including their sequence/batch forms; alias\noperations and deleteBead, which mint no version, gain no input. It is operation-\nlocal, never a shared carrier-wide override. Preserve it in semantic mutation\nidentity so different recorded inputs cannot replay as the same request. Apply\nthe existing protocol-default normalization: an omitted input and an empty object\nboth mean undetermined agent and message; explicit null remains distinct. Context\nremains excluded from Resource no-op comparison."
+        }
+      ]
+    },
+    {
+      "id": "history.context-fanout",
+      "title": "Fan-out to actual minted versions without context-only transitions",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#immutable-change-context",
+          "selectedText": "Copy the originating operation's agent/message states to every version it actually\nmints, including owned Link and source and set fan-out. Batch/sequence operations\nmay have distinct inputs; atomic time is shared, independent commits are separate.\nChanging only context never creates a version. No-ops retain the old revision and\ncontext; deletion without a minted version creates no context-only record. An owned\nLink deletion records new context on its newly versioned source only. Existing\nattribution fan-out and all authorization, erasure and retained-copy duties apply."
+        }
+      ]
+    },
+    {
+      "id": "history.erasure",
+      "title": "Every controlled copy and retained context obey erasure before further serving",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#history-recovery-imports-and-assurance",
+          "selectedText": "Every History implementation on all three profiles enforces applicable erasure\ndecisions on every controlled retained copy before further serving and preserves\nrequired erasure evidence across local recovery. This includes context, inline\nowned content, old groups, Events, receipt postimages, indexes and caches. Where\nTransactional erasure applies, its permanent projected ledger, containing-version\nerasure, same-group live successor/tombstone, pre-erasure checkpoint expiry and\nsnapshot recovery rules remain mandatory. Retaining an old address never permits\nserving erased content. A non-owning reference is not embedded target content;\nno new retention propagation, target rewrite or wire hold follows."
+        }
+      ]
+    },
+    {
+      "id": "history.imports",
+      "title": "Positive authoritative erasure status before import visibility",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#history-recovery-imports-and-assurance",
+          "selectedText": "Before importing a retained copy into visibility, positively establish its\norigin/version identity and erasure status from authoritative evidence appropriate\nto that origin, and apply known erasures. Unestablishable status requires rejection\nor discard, not publication, identity laundering or permanent unmanaged quarantine.\nRestored local copies obey the same cleanup duty. No new HTTP import endpoint or\nextra import provenance fields are defined. Realizations must make their proof\nmechanism reviewable and test it through controlled admission/recovery/read cases."
+        }
+      ]
+    },
+    {
+      "id": "history.assurance",
+      "title": "Scoped tested consumer routes without generic acquisition claims",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#history-recovery-imports-and-assurance",
+          "selectedText": "Plain History claims the responder's behavior, not erasure delivery to arbitrary\ndownloaded copies. A deployment may document and test a specific consumer\nacquisition/recovery route and claim only that scoped assurance, proving controlled-\ncopy cleanup before further publication. This does not exempt any obligated store\nor advertise generic BDP replication; where TX/T65 applies, its existing changefeed/\nsnapshot-ledger route remains required. Generic pre-removal administrative reports,\npreview endpoints, minimum retention promises, exact-byte witnesses, sync hints,\nextra scheme mappings, erased-row enumeration, bulk checks and the alternative\nsurviving-citation lifecycle remain deferred. Local policy/tooling is allowed;\nnone weakens required Gone evidence, erasure or incident-Link refusal."
+        }
+      ]
+    }
+  ]
+}
