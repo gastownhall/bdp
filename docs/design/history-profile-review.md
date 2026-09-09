@@ -1,8 +1,11 @@
 # History packet review record
 
-Status: all seats completed on `9c93b0e`; subsequent author fold awaits final-head review; no full-panel clearance. Non-normative.
+Status: all seats returned on `195071d`; subsequent source-checked author fold awaits final-head review; no clearance for this fold. Non-normative.
 Initial review date: 2026-09-08. Initial reviewed head: `02c598aa48630a41b2d9cf9d5b08b42878e1a9d9`.
-Scope: `history-profile-packet.md` and its pinned authority snapshot.
+Full branch scope: `history-profile-packet.md`, this `history-profile-review.md`,
+`docs/design/README.md`, and the pinned authority inputs. Earlier two-file write-scope
+statements describe those individual folds, not the complete branch. Future final-head
+snapshots/reviews must include all three documents.
 The TX apply checkout, branch and packet were excluded from every initial seat.
 The later source reconciliation below is separate from those reviews.
 
@@ -80,7 +83,7 @@ full-panel review. Source anchors and ruling links are recorded in the packet’
 
 All H1–H12 remain OPEN, all HR01–HR15 remain proposed cases, and no runtime or
 conformance result is claimed. Only the two History design documents were edited.
-Validation: inspected pinned source paragraphs and recorded T19/T25–T29 rulings;
+Validation: inspected pinned source paragraphs and recorded T19/T25–T31 rulings;
 read back the primary Memory-compat item 4 and original erasure-question comments;
 checked diff whitespace and local Markdown links. No runtime tests, commit, push,
 or external post were performed by this reconciliation worker. The parent must
@@ -183,7 +186,7 @@ H1–H12 remain OPEN, with H1a/H1b sequenced as subparts rather than new decisio
 | --- | --- |
 | 1 High — retained-address destination excludes Read/RU | Accepted. H1/H9 explicitly state those profiles expose no TX epoch. H9 queues one profile-neutral owning home for retained-address law and a separate Transactional fencing amendment, without requiring new epoch fields on read-only resolvers. HR11 covers every advertised History profile. |
 | 2 High — proposed fencing sentence narrows tokens/triggers | Accepted. H9 now explicitly replaces the offending TX sentence, preserves restore/destructive-reinitialization/authority-replacement triggers, all existing non-revision history-token classes, epoch/view-bound cached representations, and refusal behavior. It retains independent Read/RU continuation rules and removes only blanket invalidation of surviving version addresses. |
-| 3 High — deletion alternatives omit closure/snapshot consequences | Accepted as missing consequences; the universal invalid-snapshot claim is too broad. Hiding the source and its Link consistently can preserve projection validity, but defeats the intended readable surviving citation. H12 now blocks either non-default alternative on an explicit endpoint/visibility model and names Authorization views, Owned Links, PROTO-011, endpoint liveness/DeleteBead, snapshot/group agreement, and live-erasure validity as potential amendment destinations. It permits no invisible reinterpretation of in-Scope references and selects no deletion model or weakening of T19/T25–T30. |
+| 3 High — deletion alternatives omit closure/snapshot consequences | Accepted as missing consequences; the universal invalid-snapshot claim is too broad. Hiding the source and its Link consistently can preserve projection validity, but defeats the intended readable surviving citation. H12 now blocks either non-default alternative on an explicit endpoint/visibility model and names Authorization views, Owned Links, PROTO-011, endpoint liveness/DeleteBead, snapshot/group agreement, and live-erasure validity as potential amendment destinations. It permits no invisible reinterpretation of in-Scope references and selects no deletion model or weakening of T19/T25–T31. |
 | 4 Medium — disclosure amendments apply beyond fourth 410 | Accepted. H5 lists all four proposed wire rows’ effects on PROTO-013, Reads after deletion, the problem table, and applicable code/problem definitions, including authorized 404/409 distinctions. The trigger is any materialized new disclosure row, not only revision-reorganized. |
 | 5 Medium — include=links combination missing | Accepted. H3 explicitly recommends refusal of `revision` plus `include`, including `include=links`, under canonical-Resource invalid-parameter. HR07 names the combination; historical incident-Link aggregate/ETag semantics require a later explicit contract. |
 | 6 Medium — H1/H7 dependency cycle | Accepted. First batch contains H1a placement plus H2/H3/H4; H1b advertised shape/retention returns after H2–H9. H7 costs the chosen placement and supplies input to H1b. No complete H1 ruling is implied by batch one. |
@@ -210,3 +213,71 @@ No normative/schema/catalog/runtime/fixture/evidence edits, tests, review CLIs,
 agents, commit, push, or external posts were performed by this fold worker.
 Parent inspection and final-head review remain owed; this record grants neither
 readiness nor a merge transition.
+
+
+## 2026-09-08 — completed seats on 195071d and third author fold
+
+Reviewed input head: `195071dff40c2fe0058ec9b06d040dc8a30ce9f1`. Native Codex
+and Gemini returned 0 Critical, 0 High, 0 Medium and 0 Low. Claude subsequently
+returned 0 Critical, 2 High, 10 Medium and 5 Low. The seventeen report labels
+below are Claude’s counts, not seventeen selected policies or an independent
+clearance of the edits. This native seat checked the full packet and each claim
+against local pinned sources, then authored the bounded correction in a separate
+worktree based on that input head. The original review tree remained unchanged.
+
+**Queue-state supersession.** The earlier T49/T62–T64 OPEN descriptions are
+historical at their named heads. [Operator ACK at `267f79d`](https://github.com/gastownhall/bdp/blob/267f79d44d5883f70b0310378719ae0303b5445f/docs/design/w1-transactional-packet.md#L7570-L7595)
+materializes T49 option 1, T63(a), and T64(a). T62 selects the PostgreSQL-feasible
+unresolved-reservation direction; canonical singleton retry before binding,
+bounded wait/timeout and static mismatch precedence remain unruled. T50–T61 remain
+provisional. H4/H12/HR13 and the packet’s source map now reflect those distinctions.
+T64’s illustrative schedules are not executed replication evidence. No History
+choice was closed by these separate TX rulings.
+
+| Claude label / severity | Independent disposition and concrete correction |
+| --- | --- |
+| H1 — High: omitted key namespace and transaction identifiers | Accepted as a faulty completeness claim in proposed wording. H9 now includes both classes, keeps the list non-exhaustive, and explicitly preserves the key-specific new-epoch outcome: unbound and executed anew, not uniformly rejected or replayed. HR11 names that distinction. No token fence was newly invented. |
+| H2 — High: RU restore-signal conflict | Accepted conditionally: H1a plus the proposed reorganization signal would conflict with the closed RU list; neither option is selected, and not every H5 code signals a restore. H1a/H5/H9 now name the amendment and the alternatives of withholding that signal on RU or excluding RU from History placement. No RU epoch or new disclosure is imposed. |
+| M1 — Medium: undefined H9 replacement range | Accepted. H9 replaces exactly TX 1094–1102 as one paragraph, reproduces the definition, unguessability, stability and trigger sentences, preserves canonical identity within a logical Scope, and delegates token-specific handling to its existing contracts. This avoids duplicate triggers and accidental loss of the definition. |
+| M2 — Medium: normative matrix destinations | Accepted as missing destinations. H9 explicitly names `transactional.restore.epoch-fence`, preserves key-namespace/token-profile rows, and pins their locations at both inspected TX heads. The conformance plan names the baseline normative coverage categories and capability applicability as materialization destinations. The current generic categories do not independently prove History conformance, nor does a proposal already invalidate the matrix. |
+| M3 — Medium: per-profile schemas | Accepted. H1b lists all three distinct discovery/limits pairs; H5 lists Read/RU code and problem definitions plus `directProblemCode`, `transactionalProblemCode` and `transactionalProblem`, with composition/context audits in both mirrors. Only changes within the sealed Read projection move that digest. There is no definition named `directProblem`; the actual TX response definition was checked. Receipt contexts must not gain new read codes accidentally. |
+| M4 — Medium: query vocabulary and non-advertising authority | Accepted as an omitted destination/case. H3/H7 name Resource views and capability-scoped query registration. H3 recommends existing `invalid-parameter` handling for unsupported revision requests and HR07 tests the selected contract. This is proposed History materialization, not a claim that the baseline already recognizes the new operation. Alias-query 404 remains fixed. |
+| M5 — Medium: dated ledger destinations | Accepted as amendment bookkeeping. H1 names profile/vocabulary/limits summaries and H5 names problem/disclosure summaries in the spec ledger and requirements blockers, with dated amendments as applicable. Fixed vocabulary means changes need definition; it does not mean a future ruled extension is impossible. A closed problem table must remain closed after explicit expansion. |
+| M6 — Medium: witness `revision-mismatch` collision | Accepted. H10 and HR12 retain the already ruled RU 409 expected-revision meaning and queue a distinct optional witness-failure name/tuple. Reuse at 412 cannot happen silently; it would require an explicit amendment of the existing contexts and dependent rows. No witness shape or code is selected. |
+| M7 — Medium: literal revision-to-ETag claim | Partly accepted. Literal quote wrapping was overbroad, but the report’s optional/absent-ETag inference overlooks baseline HTTP consistency, which already uses ETags for Resource revisions. Baseline server code also implements a strong, collision-safe projection for non-quotable strings. H6 separates that implementation from the general wire-encoding materialization, keeps revision strings opaque, and queues mapping adoption versus delegation to the separate rule with History parity. It does not offer an optional-ETag exception or restrict the revision alphabet. |
+| M8 — Medium: imported out-of-contract values | Partly accepted as an integration boundary/case. T56 remains provisional; product writer rounding does not prove an existing BDP historical record is being changed. H10 distinguishes a mapping before BDP identity allocation from value changes under an already bound address; the latter cannot claim complete unchanged state. Exact refusal/diagnostic handling remains open. HR02/HR12 cover the boundary without treating every serialization change as a value change or forcing generic exact-byte witnesses into tranche A. |
+| M9 — Medium: dual-token disclosure | Partly accepted: the input’s extra current-address disclosure was missing; the report incorrectly calls the packet recommendation a selection. H9 now records requested-token-only versus additional current-address disclosure and requires record revision, validator, equality, navigation and write-guard semantics before choosing. Item 4’s non-rebinding law stays fixed. |
+| M10 — Medium: refusal windows | Accepted as a dropped input choice. H5 queues no refusal-body window versus a bounded, authorized, explicitly specified window, coordinates its completeness/snapshot/size with H7, and names the pruned `archivedAt` rule as an amendment destination. Erased refusals gain no condition-specific extension either way. HR06 covers the chosen outcome. |
+| L1 — Low: incomplete erasure ruling range | Accepted citation correction. References consistently identify T19/T25–T31, and H12 directly links T31’s already ruled administrative deletion path. Neither tombstone safety nor containing-version erasure is reopened. |
+| L2 — Low: BDBD requirement ID | Accepted. Implementation step 3 separately preserves BDBD-003 honest advertisement and BDBD-001 supported CLI/documented output. |
+| L3 — Low: unpinned product/topology evidence | Partly accepted. The harness pin now has a link and is explicitly reported, uninspected in this pass; no harness run is claimed. Q30/A10 is independently found in pinned coordination ledger ee0c6b3 line 684 and linked as an operator record. Harness compatibility with that graph contract still needs verification. |
+| L4 — Low: baseline law cited through draft heads | Citation improvement accepted; the stronger claim that a draft-head citation makes identical law conditional on merge is not warranted. Alias resolution, Reads after deletion, discovery and PROTO-011/013 now cite main 0b7d86e7; TX-specific amendments remain pinned to TX. |
+| L5 — Low: omitted design index scope | Accepted for complete-branch accounting. Scope now names all three files and requires all three in the next review snapshot. Historical two-file fold scopes remain accurate as historical writes. The existing index entry was inspected and gains a direct review-record link; it carries no readiness claim. |
+
+The preserved operator queue is H1–H12, all OPEN: placement and later advertised
+shape; Resource coverage; method/query/refusal details; whole-record historical
+authorization; exact refusal tuples/evidence/windows; currency and validator
+materialization; enumeration/membership/lifetime; HEAD/bulk details; retained-address
+home, mapping and safe-allocation proof; optional verification and stored-value
+integration; first-release Memory change context; and History erasure applicability,
+stale imports and incident-Link lifecycle. Ruled `?revision=` addressing,
+`revision-unknown` naming, complete-or-refuse, retained-address non-rebinding,
+opaque properties, numeric equality, attribution and the TX erasure constraints
+remain fixed. No durable registry, lifetime token uniqueness, fourth profile,
+window shape or new witness failure is prescribed.
+
+Source validation used local git objects: main `0b7d86e7`, RU `06ebabd`, TX
+`1eef4e4` and ACK `267f79d`, numeric `2c537a6`, wildcard `c201cc2`, and RP1
+`87de37f`. The full baseline HTTP consistency/Resource views/deletion sections,
+server validator projection, per-profile bundle definitions, TX restore/key namespace,
+T15/T31/T56 and later ACK sections were inspected. Revision-2 window/witness/mapping
+input was read from the supplied primary-comment snapshot; the coordination Q30
+record was read from ee0c6b3 locally. No network lookups, messages to outside parties,
+review CLIs, subagents, runtime tests, harness execution, commit or push were used.
+
+Validation for this fold: diff whitespace; Markdown local paths/anchors; locally
+available pinned GitHub source paths and line ranges; twelve H headings, fifteen HR
+proposal rows, both unchanged schema mirrors and the three-file branch scope.
+External comment bodies and the reported harness tree were not independently
+refetched, and link syntax/local object checks are not live URL checks. This is an
+author fold and must receive fresh independent final-head review before clearance.

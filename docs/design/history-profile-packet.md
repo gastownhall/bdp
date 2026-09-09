@@ -24,11 +24,14 @@ Its canonical bundle has 26 definitions, a closed `readDiscovery`, a closed
 `revision`. There is no historical-resolution discovery member or History wire
 bundle. The existing Read surface and its sealed evidence are not a History claim.
 
-Pending changes were checked against their remote heads:
+Pending changes were checked against the following pinned heads. The later #20
+ACK record supersedes the earlier queue state; earlier source citations remain
+explicitly pinned and do not imply those drafts have merged:
 
 | Input | Head | Relevance |
 | --- | --- | --- |
-| BDP #20 | `1eef4e439629e247e9055ef8e42045acbea66b75` | Ruled TX erasure constraints, checked in the dated reconciliation below; open T49/T62–T64 and provisional T50–T61 remain unselected |
+| BDP #20, initial reconciliation | `1eef4e439629e247e9055ef8e42045acbea66b75` | Ruled TX erasure constraints; its then-open queue is historical |
+| BDP #20, later operator ACK | `267f79d44d5883f70b0310378719ae0303b5445f` | T49 option 1, T63(a), T64(a) ruled and materialized; T62 direction selected but observable retry contract open; T50–T61 provisional |
 | BDP #19 | `06ebabdb391d8ea730295f4e01ed00bc1206fe38` | Ruled Read+Update wire decisions; no write implementation claim |
 | BDP #22 | `c201cc28f74c6f71212aaf7f25966aabf55fb97e` | Wildcard ownership and opaque properties |
 | BDP #23 | `2c537a6f8a4f42e4fef0fa5d47439bcb25d2efe7` | Exact-decimal equality, admission, named numeric models |
@@ -64,7 +67,7 @@ Primary records:
 | Whole-set wildcard ownership and opaque properties (item 5, amended) | Owned Links are graph state; `properties` values are never reference-typed protocol edges. No new property-reference annotation mechanism. |
 | Attribution `claimed` or `unknown` | Carry the version’s existing attribution, including absence. Do not introduce `verified`, infer an actor, or promote import provenance into authentication. |
 | Exact-decimal equality and admission (#21) | Preserve the ruling. Issue-plane JCS storage is evidence of one declared serialization discipline, not a mandate to make generic graph equality binary64. |
-| Erasure propagates; retention does not | T19/T25–T29 now fix containing-version erasure, copy cleanup, pre-erasure token expiry, and the permanent projected ledger. History capability applicability, stale-import admission, and the exact externally claimable promise remain open; resolution alone proves none of them. |
+| Erasure propagates; retention does not | T19/T25–T31 fix containing-version erasure, copy cleanup, pre-erasure token expiry, the permanent projected ledger, agreement, and administrative tombstone deletion. History capability applicability, stale-import admission, and the exact externally claimable promise remain open; resolution alone proves none of them. |
 
 The baseline’s Scope-history paragraph still says all prior-epoch history tokens,
 including revisions, are rejected. The pinned TX head retains that paragraph too
@@ -108,6 +111,10 @@ read-only resolvers.
 **Recommendation: A.** Proposed discovery member `historicalResolution`, with its
 closed shape selected after H2–H9. No new `profile` enum value. Absence means the
 capability is not advertised; clients must not infer support from the profile.
+The Read+Update leg is conditional on reconciling its closed restore-signal list
+with any new History restore disclosure (H5/H9). An alternative placement subchoice
+is to exclude Read+Update until that amendment is ruled, allowing History on Read
+and Transactional only. Neither placement nor amendment is selected here.
 
 **Proposed wording:** “Historical resolution is an optional advertised capability.
 An authority advertises it only when it implements its complete required surface.
@@ -134,6 +141,15 @@ shipping that change. The sealed `advertisedLimits.retention` is also closed, wi
 only `idempotency`, `receipt`, `maximumSnapshotLifetime`, and `replay`; extending it
 for History bounds would independently change the Read projection and require a
 reseal. A documentation-only packet changes neither definition.
+For each profile selected by H1a, define any selected advertisement or limit
+members in that profile’s own closed definitions in **both** bundle copies: `readDiscovery` / `advertisedLimits`,
+`readUpdateDiscovery` / `readUpdateAdvertisedLimits`, and
+`transactionalDiscovery` / `transactionalAdvertisedLimits`. These are distinct
+definitions at #20, not inherited fields. Only definitions included in the sealed
+Read projection affect that digest; changing an unsealed later-profile definition
+alone does not. Reconcile the baseline spec’s [question ledger](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/specs/bdp.md#L3599-L3658)
+entries 1/3/4 (profile, vocabulary, limits) and corresponding requirements blockers
+1/3/4 with dated amendments where the selected capability changes their scope.
 
 ### H2 — Which Resources can be resolved
 
@@ -176,7 +192,7 @@ or pagination on this operation;
 malformed query use on canonical Resource URLs. Alias URLs gain no query semantics:
 any alias URL carrying `revision` retains the ruled `404` `resource-not-found`,
 under the ordinary authorization projection, just like every alias query
-([Alias resolution, #19](https://github.com/gastownhall/bdp/blob/06ebabdb391d8ea730295f4e01ed00bc1206fe38/docs/specs/bdp.md#L2300-L2317)). Revisions are decoded once
+([Alias resolution, baseline](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/specs/bdp.md#L2069-L2087)). Revisions are decoded once
 as query data and remain opaque; do not impose checkpoint-token grammar on existing
 opaque revisions. A later advertised verification scheme may select its own explicit
 token grammar under H10 without narrowing the tokens already admitted by Read.
@@ -186,7 +202,12 @@ token grammar under H10 without narrowing the tokens already admitted by Read.
 request for the nearest state. Unsupported or repeated query members are refused.”
 
 **Consequences.** Resource routing, query parser, client escaping, invalid-parameter
-fixtures. Positive test: a revision containing reserved URL characters round-trips;
+fixtures, and the [Resource views](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/specs/bdp.md#L1987-L2068)
+query vocabulary. Add and capability-scope `revision` there when materializing the
+ruled address. Recommend that a non-advertising authority refuse the unsupported
+parameter as `invalid-parameter`, consistent with the existing unsupported-query
+rule, rather than ignore it and return current state; H3 must state this case in
+its final contract. Positive test: a revision containing reserved URL characters round-trips;
 negative tests: a twice-encoded spelling never aliases a different token, and
 `?revision=r&include=links` refuses rather than mixing historical state with a
 current incident-Link page. The current [aggregate and its ETag contract](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L2635-L2678)
@@ -215,10 +236,10 @@ that complete record receives the uniform resource-not-found result, without his
 window, gap, or currency disclosures.”
 
 **Consequences.** Owning text: Authorization views, owned Links, historical reads,
-and [Reads after deletion](https://github.com/gastownhall/bdp/blob/06ebabdb391d8ea730295f4e01ed00bc1206fe38/docs/specs/bdp.md#L2319-L2354), including its dated amendment for History surfaces. Schema success remains whole.
+and [Reads after deletion](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/specs/bdp.md#L2088-L2125), including its dated amendment for History surfaces. Schema success remains whole.
 Required cases include revocation,
 deleted subject, a target hidden after citation, and an owned Link no longer live.
-[T49 — Transactional alias targets](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L7161-L7220) is OPEN, and the incident-Link deletion proposal is separately open;
+[T49 — Transactional alias targets](https://github.com/gastownhall/bdp/blob/267f79d44d5883f70b0310378719ae0303b5445f/docs/design/w1-transactional-packet.md#L7163-L7178) is now ruled as locator-only singleton receipts, while the incident-Link deletion proposal remains open;
 this decision does not authorize dangling live Links or change DeleteBead.
 
 ### H5 — Typed refusal vocabulary and evidence for each answer
@@ -270,6 +291,17 @@ proof of pruning, and a retained record cannot be called pruned merely because t
 allocation after recovery is uncertain (H9). The permanent TX erasure ledger is not
 subject to a proposed shorter disposition lifetime.
 
+**Refusal-window subchoice (OPEN).** The revision-2 input proposes a retained
+window in `resource-pruned`, `revision-reorganized`, and `revision-unretained`
+responses. Choose (a) no window in refusal bodies, with authorized enumeration
+available only if H7 selects it, or (b) an explicitly bounded window disclosure.
+Option (b) must define its exact members, size, snapshot/completeness meaning and
+H4 authorization, coordinate with H7 so it is not an unspecified second enumeration
+surface, and amend the existing `resource-pruned` condition-specific `archivedAt`
+rule before adding a window there. H1b advertisement is a separate choice.
+`resource-erased` gains no window or other condition-specific extension under
+either option. No window policy is selected by carrying this input forward.
+
 **Proposed wording:** “A resolver reports only dispositions it can substantiate.
 Incomplete reconstruction is a refusal with no Resource record. Authorization is
 checked before disclosing whether a revision is known, missing members, or untracked.”
@@ -277,18 +309,29 @@ checked before disclosing whether a revision is known, missing members, or untra
 **Consequences.** Problem table, closed code schemas, diagnostic shapes, client
 classification, fixtures, and durable disposition storage. Materializing any of the
 four history-authorization-gated rows requires amending the disclosure vocabulary in
-[Reads after deletion](https://github.com/gastownhall/bdp/blob/06ebabdb391d8ea730295f4e01ed00bc1206fe38/docs/specs/bdp.md#L2319-L2354) and
-[requirements PROTO-013](https://github.com/gastownhall/bdp/blob/06ebabdb391d8ea730295f4e01ed00bc1206fe38/docs/design/requirements.md#L68-L78)
+[Reads after deletion](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/specs/bdp.md#L2088-L2125) and
+[requirements PROTO-013](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/design/requirements.md#L68-L78)
 with dated markers alongside the problem table. Per row: `revision-unknown` adds
 the authorized 404 distinction under its already fixed name; `revision-unretained`
 adds the 409 missing-state diagnosis; `revision-not-tracked` adds the 409 participation
 disclosure; `revision-reorganized` adds the 410 removal reason and selected retry
 advice. Each row touches those two disclosure homes, the problem table, and the
-applicable `readProblemCode`/`readProblem` definitions. Expanding either sealed
+applicable problem definitions. For every selected profile, audit `readProblemCode`
+and `readProblem`, `readUpdateProblemCode` and `readUpdateProblem`, and
+`directProblemCode`, `transactionalProblemCode` and `transactionalProblem` in both
+bundle copies, including family/status/retry branches and composed response
+contexts. The `readUpdateProblemCode` and `directProblemCode` enums repeat Read
+names; changing `readProblemCode` alone does not extend them. Do not widen receipt-only codes merely
+because a new read failure exists. Expanding either sealed Read
 definition changes the Read projection digest and requires a reseal; the names are
 already in RP1’s sealed set, so this does not itself require a list change. New
 supporting definitions would need the separate projection/coverage audit. Missing-set
 names and JSON Pointer escaping need exact bundle definitions before implementation. No implementation starts with prose alone.
+Also reconcile spec question-ledger entries 6/9 and [requirements blockers 6/9](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/design/requirements.md#L208-L243)
+with dated amendments; their closed table and ordinary-read non-disclosure summaries
+must distinguish the selected History surface. A new `revision-reorganized` signal
+on Read+Update specifically requires H9’s restore-signal amendment; not every new
+H5 code is itself evidence of a restore.
 
 ### H6 — Currency relations and caching
 
@@ -311,14 +354,28 @@ limited to authorized targets known to the responder.”
 
 **Consequences.** Historical Resource response navigation, HTTP `Link` construction,
 conditional responses and HEAD parity, client currency display, revoked-access and
-stale-replica cases. ETag remains the
-quoted Resource revision; conditional handling must not skip authorization or erase
+stale-replica cases. ETag represents the Resource revision under the HTTP validator
+projection; it is not necessarily the revision surrounded by quote characters.
+Conditional handling must not skip authorization or erase
 required navigation metadata. These registered relations describe Resource-version
 navigation; they do not replace the Scope response’s `service-desc` machine entry
 or invent BDP-specific duplicates of discovery navigation. The
-[existing discovery paragraph](https://github.com/gastownhall/bdp/blob/06ebabdb391d8ea730295f4e01ed00bc1206fe38/docs/specs/bdp.md#L1747-L1756)
+[existing discovery paragraph](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/specs/bdp.md#L1688-L1698)
 does not close all Resource response relations. RFC 5829 defines navigation, not a
 notification SLA.
+
+**Validator encoding boundary (OPEN materialization).** The baseline [HTTP
+consistency section](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/specs/bdp.md#L1846-L1853)
+already assigns Resource ETags; T15’s separate validator-encoding rule does not
+make those optional or restrict opaque revision strings. The baseline
+[server projection](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/packages/server/src/index.ts#L877-L916)
+already emits strong tags, with collision-safe encoding for revisions that cannot
+be quoted directly. That is implementation evidence, not a universally selected
+wire encoding. H6 must either adopt that mapping through the owning HTTP rule or
+leave the general mapping to its separate materialization while specifying History
+parity against the authority’s existing validator projection. Preserve the opaque
+revision and test reserved characters, quotes and non-ASCII, including encoding
+marker collisions; History must not invent an optional-ETag exemption.
 
 ### H7 — Retained-version enumeration
 
@@ -373,7 +430,8 @@ just because a storage ordinal is larger. All options preserve Memory-compat
 item 4’s retained-address law and H12’s permanent erasure obligations.
 
 **Consequences.** New page definitions, page/cursor fixtures, participation retention
-budget, client iteration, and a dated [Reads after deletion](https://github.com/gastownhall/bdp/blob/06ebabdb391d8ea730295f4e01ed00bc1206fe38/docs/specs/bdp.md#L2319-L2354)
+budget, client iteration, `view=versions` and its capability restriction in
+Resource views (the H3 destination), and a dated [Reads after deletion](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/specs/bdp.md#L2088-L2125)
 amendment specifying deleted-subject enumeration. Coverage counts must be
 authorization-relative and observed
 consistently or omitted; global hidden-resource counts would leak information.
@@ -416,7 +474,7 @@ an erased version is not a surviving retained state eligible for successful reso
 (a) Revisions, referenced by the History capability, or (b) the History capability’s
 own common contract, referenced from Revisions. This is a materialization choice,
 not a new wire epoch for Read/Read+Update. Separately replace the Transactional
-Scope-history fencing sentence with a dated amendment that distinguishes Resource-state
+Scope-history epoch paragraph with a dated amendment that distinguishes Resource-state
 addresses from every other history-dependent token. Preserve exact old-address resolution for
 surviving states; any internal mapping must preserve the requested revision externally,
 not quietly return a newly minted revision. Keep graph `authority_epoch` separate from
@@ -428,25 +486,66 @@ continues to resolve to exactly that state. No exposed Scope epoch is required t
 preserve that address. A resolver that lacks proof of an opaque revision’s disposition
 reports unknown rather than deriving loss from token spelling.”
 
-**Proposed Transactional replacement:** Replace, rather than supplement, the current
-sentence fencing revisions and its blanket prior-epoch rejection, with a dated marker:
-“The Scope epoch changes whenever restore, destructive reinitialization, or authority
-replacement may discard, rewrite, or replace history. Every other history-dependent
-token remains fenced by that epoch: Scope positions, snapshots and their handles,
-read and Event cursors, changefeed checkpoints, minimum-read barriers, and receipts.
-Cached representations remain bound to the epoch and Authorization View under
-Authorization views. The replacement preserves canonical Scope and Resource URLs
-and rejects prior-epoch uses of those fenced tokens; retained Resource-version
-addresses follow the common retained-address rule.” This preserves the existing
-triggers, bindings, and refusal behavior; it removes only blanket rejection of a
-surviving version address. Read/Read+Update retain their own continuation rules and
-do not acquire Transactional epoch fields. The [existing bindings](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L792-L823)
-and [Transactional Scope-history trigger](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L1079-L1102)
-are the amendment inputs.
+**Proposed Transactional replacement (OPEN wording).** Replace the entire
+[Scope-epoch paragraph, TX lines 1094–1102](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L1094-L1102),
+from “Each Scope history” through “epoch.”, with a dated amendment. The following
+retains its epoch definition, restart/failover stability and trigger sentences:
+
+> Each Scope history has an opaque, unguessable **Scope epoch**. The epoch
+> remains stable across ordinary restart and failover that preserve identical
+> committed history. It changes whenever restore, destructive
+> reinitialization, or authority replacement may discard, rewrite, or replace
+> history. The epoch is not part of canonical Scope or Resource identity.
+> Retained Resource-version addresses follow the common retained-address rule.
+> Every other history-dependent token remains fenced by that epoch, including
+> Scope positions, transaction identifiers, snapshots and their handles, read and
+> Event cursors, changefeed checkpoints, minimum-read barriers, receipts, and the
+> idempotency-key namespace and its bound dispositions. This list does not replace
+> the individual token contracts. Cached representations retain their epoch and
+> Authorization View bindings under Authorization views. An epoch change within
+> the same logical Scope preserves its canonical Scope and Resource URLs.
+> Prior-epoch uses retain each token class’s existing handling: in particular,
+> a prior-epoch idempotency key is unbound in the new namespace, so submission
+> under the new epoch executes anew rather than replaying a prior disposition.
+
+This narrows only blanket rejection of surviving Resource-version addresses;
+it does not turn every prior-epoch token use into the same refusal. Preserve the
+[Mutation Transactions key-namespace rule](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L1210-L1220),
+T15’s transaction-identifier class, and the individual token bindings/refusals.
+Read/Read+Update retain their own continuation rules and do not acquire
+Transactional epoch fields. The [existing view bindings](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L792-L823)
+are additional amendment inputs. Reconcile the normative matrix’s
+[`transactional.restore.epoch-fence`](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L5682-L5684)
+with the retained-address exception; retain `transactional.restore.key-namespace`
+and `transactional.http.token-profile`. The successor #20 ACK head still carries
+[those rows](https://github.com/gastownhall/bdp/blob/267f79d44d5883f70b0310378719ae0303b5445f/docs/specs/bdp.md#L5762-L5764),
+so a future apply must locate them by row ID rather than stale line number.
+
+**Read+Update restore-signal fork (OPEN).** Its [closed restore description](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L3644-L3649)
+says there is no exposed epoch and no restore signal beyond `resource-not-found`,
+`revision-mismatch`, and `idempotency-expired`. H1a’s all-profile option plus H5’s
+`revision-reorganized` would conflict with that list. Choose an explicit dated
+History-capability exception there, or keep that disclosure unavailable on
+Read+Update (including H1a’s placement alternative). Retained-address survival
+does not itself require a new restore signal, and none of these options changes
+Read+Update’s logical-Scope/identity-preservation rule.
 
 **Alternative.** Introduce a new client-visible History epoch and token provenance
 mechanism now. More disclosure and schema work; not needed to preserve retained
 addresses. A `revisionScheme` change cannot silently rebind an old address.
+
+**Scheme-change disclosure subchoice (OPEN).** Revision-2 also proposes a retained
+mapping that reports the current-scheme address. Preserve that input explicitly:
+(a) serve the requested-token record without extra scheme-mapping disclosure, or
+(b) additionally disclose a current-scheme address in a separately defined carrier.
+The recommendation above favors the requested revision in the historical record;
+it is not a ruling that forbids option (b). Before selecting either, specify the
+record’s `revision`, its validator projection, whether two tokens identify one
+state versus one revision identity, H6 navigation, and the boundary with write
+`expectedRevision`. A current token must not silently replace the requested token
+or authorize a current write merely because an old address resolves. Any different
+record-token contract needs an explicit representation/amendment decision consistent
+with item 4; dual reporting alone does not settle these equality semantics.
 
 **Recovery/allocation proof subchoice (OPEN).** A post-restore mint must not bind an
 existing retained address to different state. This is already required by item 4,
@@ -464,6 +563,8 @@ profiles; historical reads must still resolve the retained state under item 4.
 **Consequences.** Common retained-address text in the selected profile-neutral home,
 a dated replacement in Transactional Scope history, and historical-resolution cases for
 retained/lost/unknown versions across restore, mixed old/new addressing, and cursors.
+Include both normative restore rows, transaction identifiers, key reuse as a new
+execution, and the selected scheme-mapping record/validator/navigation behavior.
 Include an erased version whose address survives as lineage but whose content must
 remain unavailable after restore; apply the permanent ledger to old retained copies.
 The after-restore write-guard treatment of an old revision needs an explicit boundary
@@ -509,6 +610,28 @@ the first cut. It delays independently verifiable citation bytes; state that cos
 Memory consumers. The following tranche must settle self-token exclusion/envelope,
 content encoding, Authorization View binding, parents/serialization version, witness
 placement, erasure digest linkage and multi-replica tests before its implementation.
+The input’s optional witness-failure name `revision-mismatch` at 412 collides with
+[the ruled Read+Update 409 code](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L2227-L2240)
+for an `expectedRevision` conflict. Queue a distinct witness-failure name and exact
+wire tuple; do not silently reuse that name, reclassify write conflicts, or widen
+Read status enums before the witness tranche is ruled. Reusing it would require an
+explicit amendment of the existing code’s contexts and dependent conformance rows.
+
+**Stored-value boundary (OPEN integration contract).** #23’s numeric refusal is a
+mutation-admission rule, not proof that every imported historical store was admitted
+under it. [T56](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L7285-L7299)
+provisionally says adapters map or refuse out-of-contract stored values. That input
+cannot authorize rounding, dropping or substituting an already version-addressed
+BDP record while claiming the same historical state or witness. H2/H10 must identify
+the original BDP representation and selected numeric scheme, then define the refusal
+and diagnostic path if it cannot be served faithfully. A product-to-BDP mapping
+established before allocating the BDP revision is a different boundary; product JCS
+writer rounding does not prove a generic historical resolver changes BDP state.
+If a realization needs such a mapping, define its identity/provenance before claiming
+History. Otherwise refuse an unservable version; the exact wire outcome remains
+open, and is not automatically `revision-unretained`, pruning, or erasure.
+A value-preserving serialization change is not the same as a value-changing map;
+any exact-byte witness must separately cover the representation it actually names.
 
 ### H11 — Change context beyond existing attribution
 
@@ -547,7 +670,7 @@ write-input, Event and history-list fan-out. Existing `claimed|unknown` is not r
 **Context.** Ordinary deletion, retention, and erasure remain different operations.
 The input’s surviving-citation requirement cannot by itself change the refusal to
 delete a Bead with live incident Links. The TX reconciliation now removes choices
-that T19/T25–T29 already settled; H12 remains OPEN for the History-specific boundary
+that T19/T25–T31 already settled; H12 remains OPEN for the History-specific boundary
 and incident-Link lifecycle, not for a second erasure mechanism.
 
 **Fixed TX constraints.** Erasing an owned Link revision erases every source version
@@ -579,8 +702,11 @@ and select what conformance actually proves across supported reads, cooperating
 replicas/caches, and provider history. The existing store obligations must remain
 intact within their applicable scope. Do not reinterpret an open assurance or
 capability boundary as permission for an obligated store to retain erased content.
-The exact behavior of a caught-up live stream crossing P is separately OPEN as TX
-T64; History cannot select that behavior or reopen T28’s finite/reconnect fence.
+[T64(a)](https://github.com/gastownhall/bdp/blob/267f79d44d5883f70b0310378719ae0303b5445f/docs/design/w1-transactional-packet.md#L7477-L7506)
+now fixes caught-up live-stream delivery through atomic eligibility/fence/publication;
+lagging streams and finite/reconnect requests retain T28’s fence. Its normative
+[Version erasure rule](https://github.com/gastownhall/bdp/blob/267f79d44d5883f70b0310378719ae0303b5445f/docs/specs/bdp.md#L5128-L5150)
+is a constraint where applicable, not a History choice or a runtime delivery proof.
 
 **Incident-Link alternatives.** Whether and how a live citation can survive target
 deletion without changing its source’s owned state or violating endpoint liveness
@@ -611,10 +737,11 @@ reinterpreting an in-Scope URL as an opaque external reference by implementation
 policy. The chosen model must supply one consistent rule for Resource reads,
 owned-state projection, snapshots, and groups; simply omitting an endpoint from a
 snapshot is not a valid solution. Required amendment destinations, if changed, are
-Authorization views, Owned Links, [requirements PROTO-011](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/requirements.md#L51-L60), endpoint liveness and
+Authorization views, Owned Links, [requirements PROTO-011](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/design/requirements.md#L51-L60), endpoint liveness and
 DeleteBead, Scope snapshots/group agreement, and the
 [live-erasure validity rule](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L5017-L5032).
-T19/T25–T30 remain fixed until any explicit dated amendment is ruled; ordinary
+[T31’s administrative deletion rule](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4826-L4837)
+is included in the fixed T19/T25–T31 set; none is changed without an explicit dated ruling; ordinary
 retention or target deletion does not authorize an erasure exception. Conformance
 must exercise a still-visible source with a deleted target, hidden-source closure,
 and snapshot/group agreement under the selected model. Preserving the current
@@ -624,7 +751,10 @@ refusal requires no such lifecycle amendment and preserves the stated Memory cos
 History assurance/applicability, stale-import, and incident-Link questions explicitly.
 No incident-Link alternative is selected by this packet. A historical success or a
 `resource-erased` refusal alone proves neither erasure recovery nor physical purge.
-T49/T62–T64 and T50–T61 remain on their own TX ruling/ratification queue.
+The [later operator ACK record](https://github.com/gastownhall/bdp/blob/267f79d44d5883f70b0310378719ae0303b5445f/docs/design/w1-transactional-packet.md#L7570-L7595)
+closes T49/T63/T64. T62’s PostgreSQL-feasible reservation direction is selected;
+canonical singleton retry before binding, bounded wait/timeout and static mismatch
+precedence remain open. T50–T61 remain provisional. None supplies History defaults.
 
 **First adversarial case.** Disconnect a Transactional consumer; erase a version;
 expire its checkpoint; reconnect via a fresh snapshot; check the ledger against all
@@ -639,22 +769,27 @@ No scenario here is claim-eligible. After rulings, assign stable catalog IDs, ex
 schema assertions, applicable capability rules and fixtures; create the manifest,
 runner realization and packaged evidence before advertising support. The following
 observable cases are the minimum review checklist, not a hand-maintained required set.
+Materialization must also amend the baseline [Normative conformance matrix](https://github.com/gastownhall/bdp/blob/0b7d86e7cfec47f88cd1ec22314a73f39763bcf8/docs/specs/bdp.md#L3563-L3588)
+coverage categories and profile/capability applicability, alongside the stable
+catalog rows. Update H9’s contradictory restore row rather than leaving prose and
+matrix expectations opposed. This packet supplies neither normative categories
+nor executable acceptance evidence.
 
 | Case | Positive proof | Refusal or adversarial proof |
 | --- | --- | --- |
 | HR01 negotiation | Complete capability discovered at allowed profiles | Absent/partial capability never advertised or guessed |
-| HR02 exact resolution | Bead and Link old revisions return complete selected records | Current/nearest substitution rejected |
+| HR02 exact resolution | Bead and Link old revisions return complete selected records | Current/nearest substitution and value-changing mapping under an already bound revision rejected; unservable imported values follow the selected explicit refusal |
 | HR03 owned state | Old source includes its historical owned records | Missing owned set refuses whole answer; current Link lookup caught |
 | HR04 attribution | Historical claimed/unknown/absence preserved | Current writer and fabricated verification status rejected |
 | HR05 authorization | Authorized deleted-subject history can resolve | Revoked/hidden closure gets uniform 404 with no navigation/gap leak |
-| HR06 dispositions | Selected durable evidence substantiates pruned/erased/unknown/unretained outcomes for its stated lifetime | Mere absence never proves pruning; expired diagnosis becomes unknown only when state and evidence are absent; storage timeout and unsafe allocation never fabricate loss |
-| HR07 addressing | Escaped opaque token resolves exactly | Malformed/repeated/mixed revision, including include=links, on a canonical Resource gives invalid-parameter; an alias revision query gives the ruled 404 resource-not-found |
-| HR08 HEAD | Status and permitted headers match GET; body empty | Client never treats status alone as a full typed absence diagnosis |
+| HR06 dispositions | Selected durable evidence substantiates pruned/erased/unknown/unretained outcomes for its stated lifetime | Mere absence never proves pruning; expired diagnosis becomes unknown only when state and evidence are absent; storage timeout and unsafe allocation never fabricate loss; refusal windows follow H5’s selected bounds/authorization, with none on erased refusals |
+| HR07 addressing | Escaped opaque token resolves exactly | Malformed/repeated/mixed revision, including include=links, on a canonical Resource gives invalid-parameter; an alias revision query gives the ruled 404 resource-not-found; non-advertising authority exercises the selected unsupported-query refusal |
+| HR08 HEAD | Status and permitted headers, including the authority’s projected revision validator, match GET; body empty | Client never treats status alone as a full typed absence diagnosis |
 | HR09 enumeration | Stable paginated window, declared order and explicit current-lineage/all-retained membership after history replacement | Restore r1 after r1→r2→r3, retain r2/r3, mint r4; verify selected membership/completeness and deleted-subject enumeration under authorization; concurrent pruning yields selected refusal and no retention hold |
 | HR10 currency | All four authorized responder-relative relations honor the selected replacement boundary and disclosure carrier | No undisclosed version-history membership gap, invented latest target/global freshness, or false direct r3→r4 relation after restoration |
-| HR11 restore | Surviving unerased old address resolves unchanged on every advertised History profile without adding epoch fields to Read/RU; permanent ledger still applies to obligated old copies | Post-restore ordinal reuse attempting to bind a retained token to different state is refused without rebinding or fabricated loss; all existing TX history-token classes remain fenced at existing restore/reinitialization/replacement triggers; erased content stays erased; loss requires evidence |
-| HR12 numeric/token boundary | Declared revision-token scheme (including sha256-jcs when selected) and admitted values honored | Issue/graph serialization or ordinal mistaken for identity detected; revision scheme name never substituted for TX erasure digest.scheme |
-| HR13 erasure recovery | For a Transactional consumer, T28 resnapshot and T29 projected-ledger cleanup cover old copies across restore/view rotation before publication | Pre-P checkpoint/snapshot refused; unestablishable retained content discarded; stale-import admission and History-only applicability remain unruled |
+| HR11 restore | Surviving unerased old address resolves unchanged on every advertised History profile without adding epoch fields to Read/RU; permanent ledger still applies to obligated old copies | Post-restore ordinal reuse attempting to bind a retained token to different state is refused without rebinding or fabricated loss; all existing TX history-token classes remain fenced at existing restore/reinitialization/replacement triggers, including transaction identifiers and new-epoch key execution rather than replay; dual-address disclosure and record/ETag identity follow the selected scheme mapping; erased content stays erased; loss requires evidence |
+| HR12 numeric/token boundary | Declared revision-token scheme (including sha256-jcs when selected) and admitted values honored | Issue/graph serialization or ordinal mistaken for identity detected; revision scheme name never substituted for TX erasure digest.scheme; out-of-contract historical values are not rounded under their old identity; witness mismatch never silently redefines the existing 409 revision-mismatch |
+| HR13 erasure recovery | For a Transactional consumer, T28 resnapshot and T29 projected-ledger cleanup cover old copies across restore/view rotation before publication; T64(a) governs eligible caught-up live delivery | Pre-P checkpoint/snapshot and lagging-stream continuation refused; live/disconnect races follow T64(a), not a finite-replay exemption; unestablishable retained content discarded; stale-import admission and History-only applicability remain unruled |
 | HR14 product differential | Memory behavior compared through its public interface | A product-only harness result is never counted as BDP HTTP conformance |
 | HR15 embedded erasure | T19 emits a same-group erasure record for the Link revision and every source version embedding it; T18 uses sha-256-jcs over each complete erased record; T25/T26 cleanup and authorization apply | Probe all historical and retained copy paths, including receipts and snapshots; no erased bytes, partial success, or old-token rebinding; any affected live version gets a valid successor or tombstone |
 
@@ -667,7 +802,8 @@ These sources establish those standards’ rules, not this packet’s unruled BD
 This is a source reconciliation after release of the initial exclusion, not a new
 ruling or council clearance. H1–H12 all remain OPEN. The initial review record is
 preserved, with its containing-version fork superseded by the verified T19 ruling.
-Only this packet and its review record change; no normative, schema, catalog,
+That reconciliation edited only this packet and its review record; the complete
+branch also includes their design-index entry. No normative, schema, catalog,
 implementation, fixture, or evidence artifact changes.
 
 The following anchors pin the inspected #20 head, not a moving branch. The
@@ -678,7 +814,7 @@ ruling behind it. They do not promote the design packet into normative authority
 | --- | --- | --- |
 | Owned-Link erasure reaches containing source versions; live versions need valid successors/tombstones | [Version erasure, lines 4982–5032](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L4982-L5032) | [T19, lines 4685–4702](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4685-L4702); H12/HR15 no longer reopen containing-version disposition |
 | Content and copy-path obligations, with authorized disclosures | [Version erasure, lines 4976–4980](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L4976-L4980) and [lines 5034–5071](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L5034-L5071) | [T25/T26, lines 4717–4747](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4717-L4747); HR13/HR15 cover held copies without inventing a weaker History default |
-| Pre-P checkpoint/snapshot expiry and fresh bootstrap | [Version erasure, lines 5073–5082](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L5073-L5082) | [T28, lines 4763–4789](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4763-L4789); HR13 recovery expectations fixed, live-delivery T64 remains open |
+| Pre-P checkpoint/snapshot expiry and fresh bootstrap | [Version erasure, lines 5073–5082](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L5073-L5082) | [T28, lines 4763–4789](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4763-L4789); HR13 recovery expectations fixed; live-delivery T64 was open at this pin and is superseded by the later ACK record |
 | Permanent ledger, old-copy cleanup, restore re-emission, discard if status cannot be established | [Version erasure, lines 5084–5100](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L5084-L5100) | [T29, lines 4791–4810](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4791-L4810); H9/HR11 distinguish surviving address from erased content |
 | Distinct revision-token and erasure-digest contexts | [TX digest, lines 4957–4974](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L4957-L4974) and [#23 revision scheme, lines 656–661](https://github.com/gastownhall/bdp/blob/2c537a6f8a4f42e4fef0fa5d47439bcb25d2efe7/docs/specs/bdp.md#L656-L661) | [T18, RATIFIED](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/design/w1-transactional-packet.md#L4671-L4683): erasure uses `sha-256-jcs`; #21/#23 revision-token context uses `sha256-jcs`; H10/HR12/HR15 keep the input domains and wire names distinct |
 | Retained addresses survive epochs, while current text still fences revisions | [Scope history, lines 1094–1115](https://github.com/gastownhall/bdp/blob/1eef4e439629e247e9055ef8e42045acbea66b75/docs/specs/bdp.md#L1094-L1115) | [Memory-compat item 4](https://github.com/gastownhall/bdp/issues/1#issuecomment-5586084982); H9 retains the dated-amendment obligation and opaque-token loss-evidence question |
@@ -701,12 +837,16 @@ No expected result for those remaining choices is inferred from the reference ru
    retain versions in the in-memory adapter. No new HTTP-shaped adapter interface.
 3. Give each other realization an honest capability boundary. Jim’s issue writer,
    graph P0, and `bdpbd` do not automatically satisfy Resource History. Preserve
-   BDBD-003; the bd adapter stays on public CLI behavior, not private database reads.
-4. Use Steph’s adoption harness as external product differential evidence. Verified
-   input: `sjarmak/mem`, `adoption-harness-share`,
-   `19763909b5a212922730f2273f77b8a09535bd7f`, `docs/adoption-harness/`.
-   Its embed-and-isolate deployment must remain covered by the already ruled solo
-   graph topology; do not turn that into permission for embedded BDP serving.
+   BDBD-003 (advertise only guarantees preservable over `bd`) and BDBD-001
+   (use the supported public CLI and documented output, not private database reads).
+4. Use Steph’s adoption harness as external product differential evidence. Reported
+   input, source tree not independently inspected in this pass:
+   [`sjarmak/mem`, `docs/adoption-harness/` at `19763909b5a212922730f2273f77b8a09535bd7f`](https://github.com/sjarmak/mem/tree/19763909b5a212922730f2273f77b8a09535bd7f/docs/adoption-harness),
+   reportedly on `adoption-harness-share`. Verify that pin and interface before use.
+   The [recorded Q30/A10 solo-topology ruling](https://github.com/donnabox/agent-coordination/blob/ee0c6b32f06f5960c6d74dfc5a5cfb20ce42e368/context/janet/beads-workstream-state.md#L684)
+   is verified as an operator record. Check the harness’s reported embed-and-isolate
+   deployment against the actual graph contract; this is not an authorization for
+   embedded BDP serving or a claim that the uninspected harness satisfies A10.
    Capture target heads, commands, fixtures and outputs when it is actually run.
 5. Reseal when sealed Read definitions, Read catalog/manifest, or bound verification
    inputs change. The current #24 seal does not preapprove a new History schema.
@@ -730,6 +870,8 @@ No expected result for those remaining choices is inferred from the reference ru
   findings, and a completed Claude review reporting 1 High, 7 Medium, and 5 Low.
   At the next head, `9c93b0e`, native Codex and Gemini again reported no findings;
   Claude returned 3 High, 5 Medium, and 4 Low. The subsequent author fold records
-  all twelve dispositions and needs review at its final head. Neither completed
-  review pass is clearance for later edits or a ruling. No History tests, harness
+  all twelve dispositions. At `195071d`, Claude returned 2 High, 10 Medium and
+  5 Low; this subsequent source-checked fold records all seventeen, including
+  partially accepted claims. It requires a fresh review of the complete three-file
+  branch at the final head. No completed review clears later edits or supplies a ruling. No History tests, harness
   trial, or conformance run is claimed by this document.

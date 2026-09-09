@@ -30,4 +30,6 @@ their review findings have been addressed.
 
 - [History resolution packet](./history-profile-packet.md) separates existing rulings
   from the open historical-read wire, capability, retention and verification choices.
-  It is non-normative and claims no History implementation or conformance.
+  Its [review record](./history-profile-review.md) records source checks, findings
+  and the remaining review gate. Both are non-normative and claim no History
+  implementation or conformance.
