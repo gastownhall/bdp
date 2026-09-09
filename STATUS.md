@@ -15,16 +15,9 @@ artifact (`docs/design/evidence/read-cohort/read-v1.json`; law in
 evidence:verify`. Runner reports keep `claimEligible` false by construction.
 New semantics enter the contract with conformance rows, or they don't enter.
 
-Known gap (OW7 in `docs/design/owned-wildcard-decisions.md`; the condition
-PR #19's D29 records): the owned-Link wildcard entry changed the schema
-bundle after the Read cohort was sealed at `0b7d86e7`, so the cohort's
-`bindings.schema` digest no longer matches the current bundle and the
-evidence gate checks that binding's shape without recomputing it — the
-cohort proves the Read surface against the bundle it was sealed with, and
-re-sealing is the operator's call. The wildcard's seven conformance rows
-(`packages/conformance/catalog/owned-wildcard-v1.json`) are unclaimed
-metadata bound to the specification text: no manifest, fixture realization,
-runner, or evidence exists for them.
-
-Open protocol questions are tracked in the specification's "Open protocol
-questions" section; contributions there are welcome.
+The numeric model ruled 2026-09-08 (gastownhall/bdp#21) enters as four
+unclaimed metadata rows (`packages/conformance/catalog/numeric-model-v1.json`)
+plus vectors in `fixtures/numeric-model/`; it changes no bundle definition,
+and the sealed Read cohort is untouched — a lockstep test finds no
+non-round-tripping number literal in any sealed Read artifact (NM8 in
+`docs/design/numeric-model-decisions.md`).

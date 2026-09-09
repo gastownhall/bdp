@@ -1,0 +1,120 @@
+{
+  "fixtureVersion": 1,
+  "id": "numeric-model",
+  "description": "Conformance vectors for the numeric model ruled 2026-09-08 (gastownhall/bdp#21): groups of admissible spellings that denote one exact decimal value and therefore compare equal under the no-op law, with the RFC 8785 serialization every member of a group shares; admissible boundary literals; literals refused at admission because their exact decimal value does not round-trip through binary64, each with the shortest form the nearest binary64 serializes to; and three properties documents — two admissible respellings of one value with the sha256-jcs digest they share, and one refused at a nested member. Literals are carried as JSON strings so their spellings survive parsing. Illustrative vectors; not evidence.",
+  "ruling": "https://github.com/gastownhall/bdp/issues/21#issuecomment-5586406564",
+  "rule": "A number literal is admissible if and only if converting its exact decimal value to the nearest IEEE 754 binary64 value and serializing that value back in its shortest round-trip form (ECMAScript Number::toString, RFC 8785 Section 3.2.2.3) yields a literal denoting the same exact decimal value. Two admissible literals are the same value if and only if their exact decimal values are equal.",
+  "sameValue": [
+    {
+      "id": "one",
+      "spellings": ["1.0", "1", "1e0"],
+      "serialized": "1"
+    },
+    {
+      "id": "zero",
+      "spellings": ["-0.0", "0", "0.0", "-0"],
+      "serialized": "0",
+      "note": "Exact decimal values have no signed zero: -0.0 denotes zero, converts to binary64 negative zero, and serializes as 0 (RFC 8785 Appendix B, minus zero) — the same value as 0 (NM1)."
+    },
+    {
+      "id": "ten-to-the-300",
+      "spellings": [
+        "1e300",
+        "1E300",
+        "1e+300",
+        "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "serialized": "1e+300",
+      "note": "The exponent respellings and the expanded 301-digit form gastownhall/bdp#21 asked about are one value."
+    }
+  ],
+  "admitted": [
+    {
+      "literal": "9007199254740992",
+      "serialized": "9007199254740992",
+      "note": "2^53 itself is representable: the boundary is representability, not magnitude."
+    },
+    {
+      "literal": "9007199254740994",
+      "serialized": "9007199254740994",
+      "note": "2^53 + 2 is representable; only the odd integers past 2^53 are not."
+    },
+    {
+      "literal": "0.1",
+      "serialized": "0.1",
+      "note": "Not exactly representable in binary64, yet admissible: the nearest binary64 serializes back to 0.1."
+    },
+    {
+      "literal": "5e-324",
+      "serialized": "5e-324",
+      "note": "The smallest positive binary64 (RFC 8785 Appendix B)."
+    },
+    {
+      "literal": "1.7976931348623157e308",
+      "serialized": "1.7976931348623157e+308",
+      "note": "The largest binary64 (RFC 8785 Appendix B); the exponent respelling denotes the same value."
+    }
+  ],
+  "refused": [
+    {
+      "literal": "9007199254740993",
+      "nearestSerialized": "9007199254740992",
+      "reason": "An integer past 2^53: the nearest binary64 is 2^53, which serializes back to a different exact value."
+    },
+    {
+      "literal": "1.2345678901234567891",
+      "nearestSerialized": "1.2345678901234567",
+      "reason": "Twenty significant digits: no binary64 serializes back to them."
+    },
+    {
+      "literal": "0.10000000000000000555",
+      "nearestSerialized": "0.1",
+      "reason": "Twenty significant digits spelling the binary64 nearest 0.1 more exactly than 0.1 does; that binary64's shortest round-trip form is still 0.1, a different exact value."
+    },
+    {
+      "literal": "18446744073709551615",
+      "nearestSerialized": "18446744073709552000",
+      "reason": "2^64 - 1, the integer RFC 7493 Section 2.2 recommends carrying as a JSON string."
+    },
+    {
+      "literal": "1e400",
+      "nearestSerialized": null,
+      "reason": "Beyond binary64 magnitude — RFC 7493 Section 2.2's own example — so there is no finite binary64 to serialize."
+    },
+    {
+      "literal": "3.141592653589793238462643383279",
+      "nearestSerialized": "3.141592653589793",
+      "reason": "RFC 7493 Section 2.2's own precision example."
+    }
+  ],
+  "documents": [
+    {
+      "id": "admitted-document",
+      "properties": "{\"estimate\": 1.0, \"weights\": [-0.0, 1e300, 0.1], \"history\": {\"count\": 9007199254740992}}",
+      "disposition": "admitted",
+      "jcs": "{\"estimate\":1,\"history\":{\"count\":9007199254740992},\"weights\":[0,1e+300,0.1]}",
+      "sha256Jcs": "568aed678286bda489e6e819595bdbde671e32c1a709fcbdc40c9ad00f8d8ef0",
+      "note": "Every literal is admissible. jcs is the RFC 8785 serialization of the document; sha256Jcs is the lowercase hex SHA-256 of those UTF-8 bytes — what a scheme named sha256-jcs digests. The token encoding a scheme applies to that digest is the scheme's own."
+    },
+    {
+      "id": "respelled-document",
+      "properties": "{\"history\": {\"count\": 9007199254740992.0}, \"weights\": [0, 1E300, 0.1], \"estimate\": 1}",
+      "disposition": "admitted",
+      "jcs": "{\"estimate\":1,\"history\":{\"count\":9007199254740992},\"weights\":[0,1e+300,0.1]}",
+      "sha256Jcs": "568aed678286bda489e6e819595bdbde671e32c1a709fcbdc40c9ad00f8d8ef0",
+      "note": "admitted-document with every number respelled as another admissible spelling of the same value and its members reordered: the same exact values, the same RFC 8785 bytes, the same sha256-jcs digest — written over admitted-document, a no-op."
+    },
+    {
+      "id": "nested-refusal",
+      "properties": "{\"estimate\": 1.0, \"history\": [{\"count\": 9007199254740993}]}",
+      "disposition": "refused",
+      "offending": [
+        {
+          "pointer": "/history/0/count",
+          "literal": "9007199254740993"
+        }
+      ],
+      "note": "Refused at admission for the one inadmissible literal, at depth; pointer is the JSON Pointer of the offending member within properties, which the write profiles' diagnostic names. Nothing changes."
+    }
+  ]
+}
