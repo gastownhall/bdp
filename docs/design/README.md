@@ -27,3 +27,12 @@ waves are internal sequencing labels, not protocol concepts.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.
+
+- [History resolution packet](./history-profile-packet.md) records all 38 ACKed
+  History answer units, their normative/wire materialization work and explicit
+  deferred extensions. Semantic ballot closure is separate from implementation
+  and conformance.
+  Its [review record](./history-profile-review.md) records the completed `143832b8`
+  council, seven bounded clarifications, and the successor’s remaining final-head
+  review gate. Both are non-normative and claim no History
+  implementation or conformance.
