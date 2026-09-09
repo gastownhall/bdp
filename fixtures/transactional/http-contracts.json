@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "transactional-http-contracts",
-  "description": "G1\u2013G5 and existing HEAD law: narrated HTTP decisions and retained-handle illustrations, not server observations or executable conformance. Source references identify the existing schema/body seed; retained-handle cases compare exact originals, while Scope Event examples explicitly use an independent empty Scope; bodyOmittedFromIllustration marks ordinary failure bodies checked by the existing problem fixtures. Context/effects/ended are test metadata, never wire members. Each case is independent; opaque tokens imply no lexical ordering.",
+  "description": "G1\u2013G5 and existing HEAD law: narrated HTTP decisions and retained-handle illustrations, not server observations or executable conformance. Source references identify the existing schema/body seed; retained-handle cases compare exact originals, while Scope Event examples explicitly use an independent empty Scope; bodyOmittedFromIllustration marks ordinary failure bodies checked by the existing problem fixtures. Context/effects/ended are test metadata, never wire members. Each case is independent; opaque tokens imply no lexical ordering. Mutation admission starts independently from the referenced valid request seed. Minimum-position ordering and wait exhaustion are explicit narrated premises, not computed from opaque token spelling or observed server execution; erasure fences identify a version actually embedded in the referenced snapshot. The mutation refusal uses the seed\u2019s initial state and discovery position before submission, not the seed\u2019s original execution outcome.",
   "cases": [
     {
       "id": "read-unacceptable",
@@ -79,19 +79,54 @@
       "kind": "mutation",
       "source": {
         "file": "receipt-pagination.json",
-        "exchange": "receipt-9-page-2"
+        "exchange": "pagination-batch-original"
       },
       "context": {
         "ordinaryStatus": 200,
         "supportedMedia": ["application/json"],
         "entityTagAvailable": false,
-        "modificationDateAvailable": false
+        "modificationDateAvailable": false,
+        "independentAdmissionSeed": true
       },
       "request": {
         "method": "POST",
-        "target": "receipts/rcpt-9?page=2",
+        "target": "operations/batch",
         "headers": {
-          "Accept": "image/png"
+          "Content-Type": "application/json",
+          "Accept": "image/png",
+          "Idempotency-Key": "client-key-0003"
+        },
+        "schema": "#/$defs/batchRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "deleteWhere",
+              "collection": "links",
+              "selector": "$[?@.source == \"https://beads.example/receipt-pagination/beads/task-42\" || @.target == \"https://beads.example/receipt-pagination/beads/task-42\"]",
+              "cardinality": {
+                "max": 1000
+              },
+              "attribution": {
+                "principal": "human:donna",
+                "status": "claimed"
+              }
+            },
+            {
+              "operation": "deleteBead",
+              "bead": "beads/task-42",
+              "expectedRevision": "task-42-r9"
+            },
+            {
+              "operation": "createLink",
+              "type": "https://work.example/types/relates",
+              "source": "beads/task-43",
+              "target": {
+                "uri": "https://github.example/issues/123",
+                "revision": "8f0e2b"
+              },
+              "properties": {}
+            }
+          ]
         }
       },
       "response": {
@@ -100,7 +135,7 @@
           "Cache-Control": "private, no-store",
           "BDP-Scope-Epoch": "epoch-pagination",
           "BDP-Authorization-View": "view-pagination",
-          "BDP-Scope-Position": "pagination-commit"
+          "BDP-Scope-Position": "pagination-initial"
         },
         "ended": true
       },
@@ -3132,14 +3167,19 @@
         "supportedMedia": ["application/json"],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
-        "ordinaryRefusal": "foreign-view"
+        "ordinaryRefusal": "foreign-view",
+        "receiptIdentityEpoch": "epoch-pagination",
+        "receiptVisibleToPrincipal": true
       },
       "request": {
         "method": "GET",
         "target": "receipts/rcpt-9?page=2",
         "headers": {
           "If-None-Match": "*",
-          "Accept": "image/png"
+          "Accept": "image/png",
+          "BDP-Minimum-Scope-Position": "pagination-initial",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination-old"
         }
       },
       "response": {
@@ -3174,14 +3214,19 @@
         "supportedMedia": ["application/json"],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
-        "ordinaryRefusal": "expired-epoch"
+        "ordinaryRefusal": "expired-epoch",
+        "receiptIdentityEpoch": "epoch-pagination",
+        "receiptVisibleToPrincipal": true
       },
       "request": {
         "method": "GET",
         "target": "receipts/rcpt-9?page=2",
         "headers": {
           "If-None-Match": "*",
-          "Accept": "image/png"
+          "Accept": "image/png",
+          "BDP-Minimum-Scope-Position": "pagination-initial",
+          "BDP-Scope-Epoch": "epoch-pagination-old",
+          "BDP-Authorization-View": "view-pagination"
         }
       },
       "response": {
@@ -3248,21 +3293,30 @@
     {
       "id": "refusal-before-conditional-erasure-expiry",
       "profile": "transactional",
-      "kind": "receipt-page",
+      "kind": "snapshot",
       "source": {
-        "file": "receipt-pagination.json",
-        "exchange": "receipt-9-page-2"
+        "file": "snapshots.json",
+        "exchange": "snapshot-at-pos-42"
       },
       "context": {
         "ordinaryStatus": 410,
         "supportedMedia": ["application/json"],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
-        "ordinaryRefusal": "erasure-expiry"
+        "ordinaryRefusal": "erasure-expiry",
+        "erasureFence": {
+          "snapshot": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+          "erasedVersion": {
+            "id": "https://beads.example/acme/beads/task-41",
+            "revision": "task-41-r3"
+          },
+          "erasureAt": "2026-09-07T19:21:00Z",
+          "requestAt": "2026-09-07T19:21:30Z"
+        }
       },
       "request": {
         "method": "GET",
-        "target": "receipts/rcpt-9?page=2",
+        "target": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
         "headers": {
           "If-None-Match": "*",
           "Accept": "image/png"
@@ -3273,9 +3327,9 @@
         "headers": {
           "Content-Type": "application/json",
           "Cache-Control": "private, no-store",
-          "BDP-Scope-Epoch": "epoch-pagination",
-          "BDP-Authorization-View": "view-pagination",
-          "BDP-Scope-Position": "pagination-commit"
+          "BDP-Scope-Epoch": "epoch-1",
+          "BDP-Authorization-View": "view-a",
+          "BDP-Scope-Position": "pos-42"
         },
         "ended": true,
         "bodyOmittedFromIllustration": true
@@ -3300,14 +3354,26 @@
         "supportedMedia": ["application/json"],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
-        "ordinaryRefusal": "catch-up-timeout"
+        "ordinaryRefusal": "catch-up-timeout",
+        "receiptIdentityEpoch": "epoch-pagination",
+        "receiptVisibleToPrincipal": true,
+        "minimumPositionWait": {
+          "observedPosition": "pagination-commit",
+          "requiredPosition": "pagination-required-later",
+          "observedPrecedesRequired": true,
+          "waitBudgetExhausted": true,
+          "eligibleReplicaReachedMinimum": false
+        }
       },
       "request": {
         "method": "GET",
         "target": "receipts/rcpt-9?page=2",
         "headers": {
           "If-None-Match": "*",
-          "Accept": "image/png"
+          "Accept": "image/png",
+          "BDP-Scope-Epoch": "epoch-pagination",
+          "BDP-Authorization-View": "view-pagination",
+          "BDP-Minimum-Scope-Position": "pagination-required-later"
         }
       },
       "response": {
@@ -3548,7 +3614,16 @@
         "supportedMedia": ["application/json"],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
-        "ordinaryRefusal": "erasure-expiry"
+        "ordinaryRefusal": "erasure-expiry",
+        "erasureFence": {
+          "snapshot": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+          "erasedVersion": {
+            "id": "https://beads.example/acme/beads/task-41",
+            "revision": "task-41-r3"
+          },
+          "erasureAt": "2026-09-07T19:21:00Z",
+          "requestAt": "2026-09-07T19:21:30Z"
+        }
       },
       "request": {
         "method": "GET",
@@ -4184,7 +4259,9 @@
         "supportedMedia": ["application/json"],
         "entityTagAvailable": false,
         "modificationDateAvailable": false,
-        "ordinaryRefusal": "prior-epoch-receipt"
+        "ordinaryRefusal": "prior-epoch-receipt",
+        "receiptIdentityEpoch": "epoch-pagination-prior",
+        "receiptVisibleToPrincipal": true
       },
       "request": {
         "method": "GET",

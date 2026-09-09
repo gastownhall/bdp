@@ -8284,3 +8284,31 @@ HTTP behavior observation. No external council has reviewed this successor
 by this record, and no runtime, feature grant, readiness, or merge claim is
 made. The five approved gaps are materialized in the draft; implementation,
 successor Read adoption and fresh exact-head review remain integration work.
+
+## HTTP illustration premise corrections — 2026-09-09
+
+Native Codex reviewed frozen `0eb90f89824baf771ba87dd5590925ed9849ad23`
+and returned two Low illustration defects, with no Critical, High or Medium.
+Gemini reported zero findings. Those reports concern that frozen head; the
+coordinator owns the separate Claude seat and final successor review.
+
+Both native findings are accepted. The Transactional 406 example now copies
+an admissible batch POST body and key from the existing pagination fixture’s
+independent initial state and uses its pre-admission discovery position.
+It cannot pass with a receipt-page target or a wrong method. Receipt 409/410/
+503 consistency examples now carry actual minimum-position epoch/view/position
+fields and distinguish the receipt’s current epoch from an expired request
+context. Catch-up timeout includes explicit ordering and exhausted-wait premises;
+opaque token spelling establishes no ordering. A prior-epoch receipt remains
+uniform 404. Erasure-expiry examples now target a snapshot containing the erased
+version, with an erasure fence before its timed expiry; retained receipt pages
+continue to use the existing erased/withheld projection examples.
+
+The bounded checker verifies those premises and rejects their corruption.
+The corpus remains 68 narrated cases with 22 schema-validated response bodies;
+one case now also carries a validated request body. The focused run passed
+269 tests. Build, typecheck, lint, formatting, dependency boundaries and diff
+whitespace passed with Node 24.16.0 and an offline frozen install. The spec,
+both schema mirrors, all catalog rows and evidence remain unchanged. These
+are fixture corrections, not server observations, new semantics, execution
+conformance or clearance of the corrected head.

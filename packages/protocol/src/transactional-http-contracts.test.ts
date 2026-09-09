@@ -21,6 +21,22 @@ interface Example {
   context: {
     ordinaryStatus: number;
     ordinaryRefusal?: string;
+    independentAdmissionSeed?: boolean;
+    receiptIdentityEpoch?: string;
+    receiptVisibleToPrincipal?: boolean;
+    minimumPositionWait?: {
+      observedPosition: string;
+      requiredPosition: string;
+      observedPrecedesRequired: boolean;
+      waitBudgetExhausted: boolean;
+      eligibleReplicaReachedMinimum: boolean;
+    };
+    erasureFence?: {
+      snapshot: string;
+      erasedVersion: { id: string; revision: string };
+      erasureAt: string;
+      requestAt: string;
+    };
     supportedMedia: string[];
     entityTagAvailable: boolean;
     modificationDateAvailable: boolean;
@@ -36,7 +52,13 @@ interface Example {
     withheldIndexes?: number[];
     erasedIndexes?: number[];
   };
-  request: { method: string; target: string; headers: Record<string, string> };
+  request: {
+    method: string;
+    target: string;
+    headers: Record<string, string>;
+    schema?: string;
+    body?: Body;
+  };
   response: {
     status: number;
     headers: Record<string, string>;
@@ -62,12 +84,23 @@ ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
 ajv.addSchema(JSON.parse(read("schemas/bdp-v0.schema.json")));
 const sourceExchangeFor = (example: Example) => {
   const source = JSON.parse(read(`fixtures/transactional/${example.source.file}`)) as {
-    exchanges: { id: string; request: { target: string }; response: Example["response"] }[];
+    scope: string;
+    exchanges: {
+      id: string;
+      condition?: string;
+      request: Example["request"];
+      response: Example["response"];
+    }[];
   };
   const exchange = source.exchanges.find(({ id }) => id === example.source.exchange);
   expect(exchange, example.source.exchange).toBeDefined();
   if (exchange === undefined) throw new Error("Missing source exchange");
-  return exchange;
+  return {
+    ...exchange,
+    scope: source.scope,
+    discovery: source.exchanges.find((candidate) => candidate.request.target === "bdp.json")
+      ?.response,
+  };
 };
 
 const sourceFor = (example: Example): Example["response"] => sourceExchangeFor(example).response;
@@ -89,7 +122,112 @@ function quality(accept: string | undefined, media: string): number {
   matches.sort((a, b) => b.specificity - a.specificity);
   return matches[0]?.q ?? 0;
 }
+const header = (headers: Record<string, string>, name: string): string | undefined =>
+  Object.entries(headers).find(([field]) => field.toLowerCase() === name.toLowerCase())?.[1];
+
+/** Check the concrete request/retained-source premises before considering labels.
+ * Ordering below is an explicit example premise, never lexical token comparison.
+ */
+function checkPremises(example: Example): void {
+  const { request, response, context } = example;
+  const source = sourceExchangeFor(example);
+  const target = new URL(request.target, context.independentEmptyScope ?? source.scope);
+  const scope = new URL(context.independentEmptyScope ?? source.scope);
+  expect(target.origin).toBe(scope.origin);
+  expect(target.pathname.startsWith(scope.pathname)).toBe(true);
+  const relative = target.pathname.slice(scope.pathname.length);
+  if (example.kind === "mutation") {
+    expect(request.method).toBe("POST");
+    expect(relative).toMatch(
+      /^operations\/(batch|sequence|create-bead|update-bead-properties|delete-bead|create-link|update-link-properties|delete-link|update-where|delete-where|put-alias|delete-alias)$/,
+    );
+  } else {
+    expect(["GET", "HEAD"]).toContain(request.method);
+  }
+  if (["receipt", "receipt-page"].includes(example.kind)) {
+    expect(relative).toMatch(/^receipts\/[^/]+$/);
+  }
+  if (context.independentAdmissionSeed !== undefined) {
+    expect(example.profile).toBe("transactional");
+    expect(context.independentAdmissionSeed).toBe(true);
+    expect(source.condition).toBeTruthy();
+    expect(source.discovery).toBeDefined();
+    expect(response.headers["BDP-Scope-Position"]).toBe(
+      source.discovery?.headers["bdp-scope-position"],
+    );
+    expect(request.method).toBe(source.request.method);
+    expect(request.target).toBe(source.request.target);
+    expect(request.body).toEqual(source.request.body);
+    expect(request.schema).toBe(source.request.schema);
+    for (const [name, value] of Object.entries(source.request.headers)) {
+      if (name.toLowerCase() !== "accept") expect(header(request.headers, name)).toBe(value);
+    }
+    const validate = ajv.getSchema(`${BDP_V0_SCHEMA_ID}${request.schema}`);
+    expect(validate).toBeDefined();
+    expect(validate?.(request.body), JSON.stringify(validate?.errors)).toBe(true);
+  }
+  if (
+    example.profile === "transactional" &&
+    example.kind === "mutation" &&
+    context.ordinaryStatus === 200
+  ) {
+    expect(context.independentAdmissionSeed).toBeTruthy();
+  }
+  const refusal = context.ordinaryRefusal;
+  if (["foreign-view", "expired-epoch", "catch-up-timeout"].includes(refusal ?? "")) {
+    expect(example.kind).toBe("receipt-page");
+    expect(context.receiptVisibleToPrincipal).toBe(true);
+    expect(context.receiptIdentityEpoch).toBe(response.headers["BDP-Scope-Epoch"]);
+    const epoch = header(request.headers, "BDP-Scope-Epoch");
+    const view = header(request.headers, "BDP-Authorization-View");
+    const minimum = header(request.headers, "BDP-Minimum-Scope-Position");
+    for (const token of [epoch, view, minimum]) expect(token).toMatch(/^[A-Za-z0-9_-]{1,256}$/);
+    if (refusal === "expired-epoch") expect(epoch).not.toBe(context.receiptIdentityEpoch);
+    else expect(epoch).toBe(context.receiptIdentityEpoch);
+    if (refusal === "foreign-view")
+      expect(view).not.toBe(response.headers["BDP-Authorization-View"]);
+    else expect(view).toBe(response.headers["BDP-Authorization-View"]);
+    if (refusal === "catch-up-timeout") {
+      expect(context.minimumPositionWait).toEqual({
+        observedPosition: response.headers["BDP-Scope-Position"],
+        requiredPosition: minimum,
+        observedPrecedesRequired: true,
+        waitBudgetExhausted: true,
+        eligibleReplicaReachedMinimum: false,
+      });
+      expect(minimum).not.toBe(response.headers["BDP-Scope-Position"]);
+    }
+  }
+  if (refusal === "prior-epoch-receipt") {
+    expect(example.kind).toBe("receipt-page");
+    expect(context.receiptIdentityEpoch).toBeTruthy();
+    expect(context.receiptIdentityEpoch).not.toBe(response.headers["BDP-Scope-Epoch"]);
+    expect(context.ordinaryStatus).toBe(404);
+  }
+  if (refusal === "erasure-expiry") {
+    expect(example.kind).toBe("snapshot");
+    const manifest = requiredBody(source.response);
+    expect(request.target).toBe(manifest.id);
+    expect(context.erasureFence?.snapshot).toBe(manifest.id);
+    const retained = [
+      ...((manifest.beads as Body).items as Body[]),
+      ...((manifest.links as Body).items as Body[]),
+    ];
+    expect(
+      retained.some(
+        (record) =>
+          record.id === context.erasureFence?.erasedVersion.id &&
+          record.revision === context.erasureFence?.erasedVersion.revision,
+      ),
+    ).toBe(true);
+    const erasedAt = Date.parse(context.erasureFence?.erasureAt ?? "");
+    const requestedAt = Date.parse(context.erasureFence?.requestAt ?? "");
+    expect(erasedAt).toBeLessThanOrEqual(requestedAt);
+    expect(requestedAt).toBeLessThan(Date.parse(manifest.expiresAt as string));
+  }
+}
 function expectedStatus(example: Example): number {
+  checkPremises(example);
   const { context, request } = example;
   if (context.ordinaryStatus !== 200) {
     const refusals: Record<string, number> = {
@@ -293,6 +431,59 @@ describe("draft HTTP and retained-handle illustrations (not runtime conformance)
       fixture.cases.find((candidate) => candidate.response.status === status),
     ) as Example;
     row.response.body = { code: "invented-native-code" };
+    expect(() => check(row)).toThrow();
+  });
+  it.each(["receipts/rcpt-9?page=2", "operations/not-an-operation"])(
+    "rejects a mutation-negotiation request at %s",
+    (target) => {
+      const row = example("transactional-unacceptable");
+      row.request.target = target;
+      expect(() => check(row)).toThrow();
+    },
+  );
+  it("rejects GET on the POST-only mutation negotiation seed", () => {
+    const row = example("transactional-unacceptable");
+    row.request.method = "GET";
+    expect(() => check(row)).toThrow();
+  });
+  it.each(["BDP-Scope-Epoch", "BDP-Authorization-View", "BDP-Minimum-Scope-Position"])(
+    "requires the consistency refusal premise %s",
+    (name) => {
+      for (const reason of ["foreign-view", "expired-epoch", "catch-up-timeout"]) {
+        const row = example(`refusal-before-conditional-${reason}`);
+        delete row.request.headers[name];
+        expect(() => check(row)).toThrow();
+      }
+    },
+  );
+  it("rejects foreign-view when the requested view equals the serving view", () => {
+    const row = example("refusal-before-conditional-foreign-view");
+    row.request.headers["BDP-Authorization-View"] = row.response.headers[
+      "BDP-Authorization-View"
+    ] as string;
+    expect(() => check(row)).toThrow();
+  });
+  it("distinguishes an expired minimum context from a prior-epoch receipt", () => {
+    const row = example("refusal-before-conditional-expired-epoch");
+    row.context.receiptIdentityEpoch = row.request.headers["BDP-Scope-Epoch"] as string;
+    expect(() => check(row)).toThrow();
+  });
+  it("rejects a catch-up timeout after an eligible replica reached the minimum", () => {
+    const row = example("refusal-before-conditional-catch-up-timeout");
+    if (row.context.minimumPositionWait === undefined) throw new Error("Missing wait premise");
+    row.context.minimumPositionWait.eligibleReplicaReachedMinimum = true;
+    expect(() => check(row)).toThrow();
+  });
+  it("rejects applying a snapshot erasure fence to a retained receipt page", () => {
+    const row = example("refusal-before-conditional-erasure-expiry");
+    row.kind = "receipt-page";
+    row.request.target = "receipts/rcpt-9?page=2";
+    expect(() => check(row)).toThrow();
+  });
+  it("requires the erased version to belong to the fenced snapshot", () => {
+    const row = example("manifest-erasure-expiry");
+    if (row.context.erasureFence === undefined) throw new Error("Missing erasure premise");
+    row.context.erasureFence.erasedVersion.revision = "unrelated-version";
     expect(() => check(row)).toThrow();
   });
   it("rejects mutation admission on unacceptable response media", () => {
