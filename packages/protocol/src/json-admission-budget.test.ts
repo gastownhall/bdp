@@ -153,6 +153,62 @@ describe("lazy numeric pointers and caller-owned diagnostic budgets", () => {
     if (!result.ok) expect(result.diagnostics).toHaveLength(101);
   });
 
+  it("snapshots both limits before a formatter mutates the caller-owned policy", () => {
+    const budget = {
+      diagnostics: 1,
+      diagnosticBytes: 60,
+      diagnostic: ({ pointer }: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
+        budget.diagnostics = 10;
+        budget.diagnosticBytes = 1_000;
+        return { instanceLocation: pointer, message: "bad" };
+      },
+    };
+    const result = admitJsonNumbers(decodeJsonDocument("[1e999,1e999,1e999]"), budget);
+    expect(result).toMatchObject({ ok: false, diagnosticsTruncated: true });
+    if (result.ok) return;
+    expect(result.diagnostics).toEqual([{ instanceLocation: "/0", message: "bad" }]);
+    expect(result.offending).toEqual([{ pointer: "/0", literal: "1e999" }]);
+    expect(byteLength(result.diagnostics)).toBeLessThanOrEqual(60);
+    expect(result).not.toHaveProperty("value");
+    expect(budget.diagnostics).toBe(10);
+    expect(budget.diagnosticBytes).toBe(1_000);
+    expect(Object.isFrozen(budget)).toBe(false);
+  });
+
+  it("keeps the original byte bound when count remains unbounded", () => {
+    const budget = {
+      diagnosticBytes: 60,
+      diagnostic: ({ pointer }: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
+        budget.diagnosticBytes = 1_000;
+        return { instanceLocation: pointer, message: "bad" };
+      },
+    };
+    const result = admitJsonNumbers(decodeJsonDocument("[1e999,1e999,1e999]"), budget);
+    expect(result).toMatchObject({ ok: false, diagnosticsTruncated: true });
+    if (result.ok) return;
+    expect(result.diagnostics).toHaveLength(1);
+    expect(byteLength(result.diagnostics)).toBeLessThanOrEqual(60);
+  });
+
+  it("uses the captured formatter for all retained entries", () => {
+    const replacement = vi.fn(() => ({ message: "replacement" }));
+    const budget = {
+      diagnostics: 2,
+      diagnostic: (_occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
+        budget.diagnostic = replacement;
+        return { message: "original" };
+      },
+    };
+    const result = admitJsonNumbers(decodeJsonDocument("[1e999,1e999]"), budget);
+    expect(result).toMatchObject({
+      ok: false,
+      diagnosticsTruncated: false,
+      diagnostics: [{ message: "original" }, { message: "original" }],
+    });
+    expect(replacement).not.toHaveBeenCalled();
+    expect(budget.diagnostic).toBe(replacement);
+  });
+
   it("copies the caller's measured entry so later mutation cannot exceed the bound", () => {
     const entry = { message: "number" };
     const result = admitJsonNumbers(decodeJsonDocument("1e999"), {
