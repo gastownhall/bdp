@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "transactional-erasure-digest-vectors",
-  "description": "Interoperability vectors for the sha-256-jcs erasure digest, recorded from the packet's sanity script: each vector gives a served version record, its RFC 8785 (JCS) serialization — member names in UTF-16 code-unit order, numbers in ES6 form, non-ASCII characters literal, control characters escaped — and the SHA-256 of that serialization. The protocol lockstep test preserves the recorded-serialization and digest checks. The conformance regression also runs every record through the shared #24 canonicalJson implementation and compares its output and digest with these independent expected vectors, including recursively reordered object members. Illustrative vectors; not evidence.",
+  "description": "Interoperability vectors for the sha-256-jcs erasure digest, recorded from the packet's sanity script: each vector gives a served version record, its recorded RFC 8785 (JCS) serialization, and its SHA-256. Expected records, bytes and digests are independent constants. These examples include Unicode and numbers, but do not distinguish UTF-16 ordering from code-point ordering or exercise multi-element array order. The negativeZero member contains positive zero because these records preserve the JSON round-trip invariant; it is not a negative-zero test. Illustrative vectors; not evidence.",
   "vectors": [
     {
       "label": "task-42-r7",

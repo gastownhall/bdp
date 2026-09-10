@@ -6809,6 +6809,8 @@ inheritance as is and let a Transactional claim fail the retired rows
 
 ## 7. What is still not enough
 
+**Update 2026-09-10:** this historical limitation is superseded by the [T57 regression materialization](#t57-canonicalization-regression-materialized-2026-09-10) below.
+
 *Apply note (2026-09-08).* The first three residuals below are resolved by
 the apply pass: X1 is ruled B and applied on both sides (`deletedIdentity`),
 the `retires` member and selection rule exist (T48), and `date-time` is
@@ -7504,6 +7506,8 @@ violations `malformed-request`; inadmissible numbers remain
 stored values before serving them. This corrects the dropped portion of
 ratified T44 rather than introducing a second numeric model. Ratification
 of the amended T56 remains pending.
+
+**Update 2026-09-10:** this historical limitation is superseded by the [T57 regression materialization](#t57-canonicalization-regression-materialized-2026-09-10) below.
 
 **T57 — Digest vectors without an RFC 8785 serializer.** No JCS
 implementation exists in the repository or its installed `node_modules`,
@@ -8397,7 +8401,10 @@ The authorized integration now includes #24's existing `canonicalJson` in the
 conformance package. `transactional-digest-vectors.test.ts` runs all eight
 Transactional erasure records through it and compares the produced bytes and
 SHA-256 with the unchanged independent expected vectors. Recursively reversed
-object insertion order must produce those same bytes; array order is retained.
+object insertion order must visibly change the input serialization and still produce
+those same bytes. Separate independent examples exercise multi-element array order,
+UTF-16 versus code-point member order, and actual negative-zero normalization; the
+eight immutable vectors alone do not discriminate those cases.
 The original protocol serialization, digest, sorting and served-record checks
 remain in place. No second serializer or protocol dependency on conformance
 is introduced. Earlier T57 unimplemented notes describe their dated heads and
@@ -8405,3 +8412,17 @@ are superseded by this bounded regression closure.
 
 These are regression tests over illustrative vectors. They do not establish
 Transactional runtime behavior, current executable conformance or readiness.
+
+### T57 final council fold (2026-09-10)
+
+The final council reviewed `62a2b9d`: native Codex found no issues; Claude
+reported four Medium and five Low observations; Gemini's one Low described
+acceptable strictness without requesting a change. The four Medium findings are
+closed by an observable insertion-order perturbation and separate literal expected
+outputs for array order, UTF-16 ordering and negative zero. All eight recorded
+records, serializations and digests remain unchanged. Wording scopes reuse to the
+conformance package, points the protocol comment to its actual test consumer, and
+anchors historical limitations to the dated closure. The intentionally duplicated
+label inventory is retained and named explicitly; the redundant digest assertion
+is retained for legibility. Neither establishes an additional independent oracle.
+These corrections add no serializer, protocol semantics, runtime or evidence claim.

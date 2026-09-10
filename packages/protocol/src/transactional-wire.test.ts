@@ -778,8 +778,8 @@ describe("erasure digest vectors", () => {
   for (const vector of vectors) {
     it(`reproduces the ${vector.label} digest from its recorded RFC 8785 serialization`, () => {
       // Preserve the packet's independent serialization/digest checks.
-      // The conformance package separately exercises its shared canonicalJson
-      // implementation against these expected bytes (T57).
+      // packages/conformance/src/transactional-digest-vectors.test.ts also
+      // exercises that package's canonicalJson against these expected bytes (T57).
       expect(JSON.parse(vector.jcs)).toEqual(vector.record);
       expect(createHash("sha256").update(vector.jcs, "utf8").digest("hex")).toBe(vector.sha256);
       expect(vector.sha256).toMatch(HEX_DIGEST);

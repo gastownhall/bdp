@@ -30,8 +30,8 @@ function reverseMemberInsertion(value: unknown): unknown {
   return value;
 }
 
-describe("T57 Transactional erasure vectors through the shared JCS implementation", () => {
-  it("retains all eight independent expected vectors", () => {
+describe("T57 Transactional erasure vectors through the conformance JCS implementation", () => {
+  it("pins the same eight vector labels as the protocol lockstep suite", () => {
     expect(vectors.map(({ label }) => label)).toEqual([
       "task-42-r7",
       "task-42-r8",
@@ -44,12 +44,30 @@ describe("T57 Transactional erasure vectors through the shared JCS implementatio
     ]);
   });
 
+  it("preserves nontrivial array order while perturbing nested object members", () => {
+    const value = { z: [3, { z: 2, a: 1 }, 1], a: 0 };
+    const perturbed = reverseMemberInsertion(value);
+    expect(JSON.stringify(perturbed)).not.toBe(JSON.stringify(value));
+    expect(canonicalJson(value)).toBe('{"a":0,"z":[3,{"a":1,"z":2},1]}');
+    expect(canonicalJson(perturbed)).toBe('{"a":0,"z":[3,{"a":1,"z":2},1]}');
+  });
+
+  it("distinguishes UTF-16 member ordering from Unicode code-point ordering", () => {
+    expect(canonicalJson({ "\uFFFD": 2, "😀": 1 })).toBe('{"😀":1,"\uFFFD":2}');
+  });
+
+  it("normalizes a real negative zero independently of the JSON round-trip vectors", () => {
+    expect(canonicalJson({ negativeZero: -0 })).toBe('{"negativeZero":0}');
+  });
+
   for (const vector of vectors) {
     it(`canonicalizes ${vector.label} to its independent bytes and digest`, () => {
       const canonical = canonicalJson(vector.record);
       expect(canonical).toBe(vector.jcs);
       expect(createHash("sha256").update(canonical, "utf8").digest("hex")).toBe(vector.sha256);
-      expect(canonicalJson(reverseMemberInsertion(vector.record))).toBe(vector.jcs);
+      const perturbed = reverseMemberInsertion(vector.record);
+      expect(JSON.stringify(perturbed)).not.toBe(JSON.stringify(vector.record));
+      expect(canonicalJson(perturbed)).toBe(vector.jcs);
     });
   }
 });
