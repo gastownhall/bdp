@@ -1,4 +1,8 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { openRecoveryStore, type StoredResource } from "./recovery-store.js";
 import {
   admitReadUpdateOperationNumbers,
   parseReadUpdateRequest,
@@ -938,5 +942,206 @@ describe("native S2 council corrections", () => {
       failure(result, "validation-failed");
       expect(f.records.get("beads/a")?.bodyJson).toBe(before);
     }
+  });
+});
+
+describe("allocator faults inside the durable owned-member boundary", () => {
+  it.each([
+    "committed-id",
+    "alias-id",
+    "empty-id",
+    "unsafe-id-tag",
+    "nonstring-id",
+    "empty-revision",
+    "null-revision",
+    "unknown-revision-tag",
+    "nonstring-revision",
+    "established-revision-conflict",
+  ])("rolls back effects and allocations for %s and preserves the correct disposition", (fault) => {
+    const directory = mkdtempSync(path.join(tmpdir(), "bdp-s2-allocator-"));
+    const configuration = {
+      directory,
+      scope,
+      installationId: "s2-allocator-test",
+      lineageId: "s2-allocator-lineage",
+    };
+    const seed: StoredResource = {
+      id: "beads/existing",
+      kind: "bead",
+      bodyJson: JSON.stringify({
+        id: `${scope}beads/existing`,
+        type: beadType,
+        revision: "initial",
+        properties: {},
+      }),
+    };
+    let store = openRecoveryStore({
+      ...configuration,
+      create: { resources: [seed], types: { [beadType]: JSON.stringify(beadDescriptor()) } },
+    });
+    const options = fixture().options;
+    // Fixture identities are only storage controls, not the S4 normalizer.
+    const retained = (effect: "success" | "failure", outcomeJson: string) => ({
+      kind: "retain" as const,
+      semanticIdentityJson: '{"fixture":"allocator"}',
+      resolutionsJson: "{}",
+      effect,
+      outcomeJson,
+      completedAt: 0,
+      retainUntil: 86_400_000,
+    });
+    try {
+      expect(store.runtime.node).toBe("v24.16.0");
+      const setup = store.admit("alice", ["setup"]);
+      store.executeMember(setup, "setup", (tx) => {
+        tx.putAlias("reserved", seed.id);
+        return retained("success", "{}");
+      });
+      const admission = store.admit("alice", ["fault"]);
+      let allocatedId: string | undefined;
+      let allocatedRevision: string | undefined;
+      let evaluation: ReturnType<typeof evaluateResourceMutation> | undefined;
+      const attempt = () =>
+        store.executeMember(admission, "fault", (tx) => {
+          // Real writes/counters occur before the injected facade fault, so the
+          // rollback assertion is not vacuous merely because S2 writes last.
+          tx.putPolicy("rollback-marker", "true");
+          tx.putResource({
+            ...seed,
+            id: "beads/rollback-marker",
+            bodyJson: JSON.stringify({
+              id: `${scope}beads/rollback-marker`,
+              type: beadType,
+              revision: "marker",
+              properties: {},
+            }),
+          });
+          allocatedId = tx.allocateResourceId("bead");
+          allocatedRevision = tx.allocateRevision();
+          const facade: ResourceTransaction = {
+            ...tx,
+            allocateResourceId: () => allocatedId as string,
+            allocateRevision: () => allocatedRevision as string,
+          };
+          // Deliberately invalid runtime facades verify the guard, not its TS type.
+          switch (fault) {
+            case "committed-id":
+              facade.allocateResourceId = () => seed.id;
+              break;
+            case "alias-id":
+              facade.allocateResourceId = () => "beads/reserved";
+              break;
+            case "empty-id":
+              facade.allocateResourceId = () => "";
+              break;
+            case "unsafe-id-tag":
+              facade.allocateResourceId = () => ({ kind: "allocation-unsafe" }) as never;
+              break;
+            case "nonstring-id":
+              facade.allocateResourceId = () => 4 as never;
+              break;
+            case "empty-revision":
+              facade.allocateRevision = () => "";
+              break;
+            case "null-revision":
+              facade.allocateRevision = () => null as never;
+              break;
+            case "unknown-revision-tag":
+              facade.allocateRevision = () => ({ kind: "unknown" }) as never;
+              break;
+            case "nonstring-revision":
+              facade.allocateRevision = () => 4 as never;
+              break;
+            case "established-revision-conflict":
+              facade.allocateRevision = () => ({ kind: "allocation-unsafe" });
+              break;
+          }
+          evaluation = evaluateResourceMutation(
+            facade,
+            {
+              operation: "createBead",
+              input: { type: beadType, properties: {} },
+            },
+            options,
+          );
+          return retained(evaluation.effect, JSON.stringify(evaluation.outcome));
+        });
+      if (fault === "established-revision-conflict") {
+        expect(attempt().kind).toBe("completed");
+        if (!evaluation) throw new Error("missing established failure");
+        failure(evaluation, "revision-allocation-unsafe");
+        expect(store.read((reader) => reader.key("alice", "fault"))).toMatchObject({
+          kind: "retained",
+          effect: "failure",
+          outcomeJson: JSON.stringify(evaluation.outcome),
+        });
+      } else {
+        expect(attempt).toThrow(/allocator/);
+        expect(evaluation).toBeUndefined();
+        expect(store.read((reader) => reader.key("alice", "fault"))).toMatchObject({
+          kind: "claimed",
+          attemptId: admission.attemptId,
+        });
+        expect(store.abandonAttempt(admission)).toBe(1);
+      }
+      expect(store.read((reader) => reader.resources())).toEqual([seed]);
+      expect(store.read((reader) => reader.policy("rollback-marker"))).toBeUndefined();
+      expect(store.read((reader) => reader.identityWasCommitted("beads/rollback-marker"))).toBe(
+        false,
+      );
+      expect(store.read((reader) => reader.alias("reserved"))).toBe(seed.id);
+      store.close();
+      store = openRecoveryStore(configuration);
+      expect(store.read((reader) => reader.key("alice", "fault"))).toMatchObject({
+        kind: fault === "established-revision-conflict" ? "retained" : "unknown",
+      });
+      const retry = store.admit("alice", ["retry"]);
+      let result: ReturnType<typeof evaluateResourceMutation> | undefined;
+      store.executeMember(retry, "retry", (tx) => {
+        // A successful real allocator now reuses only the rolled-back counters.
+        result = evaluateResourceMutation(
+          tx,
+          {
+            operation: "createBead",
+            input: { type: beadType, properties: {} },
+          },
+          options,
+        );
+        return retained(result.effect, JSON.stringify(result.outcome));
+      });
+      expect(result).toMatchObject({
+        effect: "success",
+        outcome: {
+          outcome: "created",
+          resource: { id: `${scope}${allocatedId}`, revision: allocatedRevision },
+        },
+      });
+      if (result?.effect !== "success") throw new Error("missing positive allocation");
+      parseReadUpdateMutationResult(result.outcome);
+      expect(store.read((reader) => reader.resources())).toHaveLength(2);
+      expect(store.read((reader) => reader.key("alice", "retry"))).toMatchObject({
+        kind: "retained",
+        effect: "success",
+        outcomeJson: JSON.stringify(result.outcome),
+      });
+    } finally {
+      store.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps supplied-ID conflict meanings without invoking allocation", () => {
+    const f = fixture();
+    f.createBead("existing");
+    f.aliases.set("reserved", "beads/existing");
+    f.tx.allocateResourceId = () => {
+      throw new Error("unexpected ID allocation");
+    };
+    f.tx.allocateRevision = () => {
+      throw new Error("unexpected revision allocation");
+    };
+    failure(f.createBead("existing"), "identity-taken");
+    failure(f.createBead("reserved"), "alias-path-taken");
+    expect(f.records.size).toBe(1);
   });
 });

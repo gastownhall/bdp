@@ -40,6 +40,7 @@ export type EvaluatorStoredResource = {
   | { readonly kind: "bead"; readonly source?: never; readonly target?: never }
   | { readonly kind: "link"; readonly source: string; readonly target: string }
 );
+/** Revision allocator result; the tag requires positively established persistent unsafety. */
 export type ResourceAllocation = string | { readonly kind: "allocation-unsafe" };
 /** Structural subset of the single S6 owned-member transaction. All IDs and
  * endpoint indexes are normalized Scope-relative IDs or opaque external URIs.
@@ -52,7 +53,7 @@ export interface ResourceTransaction {
   identityWasCommitted(id: string): boolean;
   alias(path: string): string | undefined;
   installedType(id: string): string | undefined;
-  allocateResourceId(kind: ResourceKind): ResourceAllocation;
+  allocateResourceId(kind: ResourceKind): string;
   allocateRevision(): ResourceAllocation;
   putResource(resource: EvaluatorStoredResource): void;
   deleteResource(id: string): void;
@@ -435,9 +436,18 @@ function evaluate(
   const creating = operation === "createBead" || operation === "createLink";
   const deleting = operation === "deleteBead" || operation === "deleteLink";
   const resourceKind: ResourceKind = operation.includes("Bead") ? "bead" : "link";
-  const allocate = (value: ResourceAllocation): string => {
-    if (typeof value !== "string") fail("revision-allocation-unsafe");
+  const allocatedText = (value: unknown, kind: "identity" | "revision"): string => {
+    if (typeof value !== "string" || value.length === 0)
+      throw new TypeError(`allocator must return a nonempty ${kind} string`);
     return value;
+  };
+  const allocateRevision = (): string => {
+    const value = tx.allocateRevision();
+    // Only an established revision-allocation conflict has this wire meaning.
+    // Broken facade values and Resource-ID allocator faults remain internal.
+    if (typeof value === "object" && value !== null && value.kind === "allocation-unsafe")
+      fail("revision-allocation-unsafe");
+    return allocatedText(value, "revision");
   };
   const resolve = (spelling: string, expected: ResourceKind): string => {
     const uri = canonical(scope, spelling);
@@ -461,7 +471,7 @@ function evaluate(
   let before: ResourceRecord | undefined;
   if (creating) {
     const supplied = "id" in input ? input.id : undefined;
-    const spelling = supplied ?? allocate(tx.allocateResourceId(resourceKind));
+    const spelling = supplied ?? allocatedText(tx.allocateResourceId(resourceKind), "identity");
     const path = resourcePath(scope, canonical(scope, spelling), resourceKind);
     if (path === undefined)
       throw new TypeError("creation ID must already have canonical Resource grammar and kind");
@@ -472,8 +482,15 @@ function evaluate(
         original: supplied,
         resolved: new URL(id, scope).href,
       });
-    if (tx.identityWasCommitted(id)) fail("identity-taken");
-    if (resourceKind === "bead" && tx.alias(id.slice(6)) !== undefined) fail("alias-path-taken");
+    if (tx.identityWasCommitted(id)) {
+      if (supplied === undefined)
+        throw new Error("allocator returned a committed Resource identity");
+      fail("identity-taken");
+    }
+    if (resourceKind === "bead" && tx.alias(id.slice(6)) !== undefined) {
+      if (supplied === undefined) throw new Error("allocator returned a live Bead alias path");
+      fail("alias-path-taken");
+    }
   } else {
     const subject = "bead" in input ? input.bead : "link" in input ? input.link : undefined;
     if (subject === undefined) throw new TypeError("Resource subject required");
@@ -666,7 +683,7 @@ function evaluate(
         : {}),
     };
   };
-  const revision = noOp ? before?.revision : deleting ? undefined : allocate(tx.allocateRevision());
+  const revision = noOp ? before?.revision : deleting ? undefined : allocateRevision();
   let after: ResourceRecord | undefined = deleting
     ? undefined
     : ({
@@ -737,7 +754,7 @@ function evaluate(
     after = ownedLinks(after as BeadRecord, declared);
   let sourceAfter: BeadRecord | undefined;
   if (owned && source && sourceDescriptor?.describes === "bead") {
-    const sourceRevision = noOp ? source.revision : allocate(tx.allocateRevision());
+    const sourceRevision = noOp ? source.revision : allocateRevision();
     sourceAfter = ownedLinks(
       {
         id: source.id,
