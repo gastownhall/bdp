@@ -133,6 +133,11 @@ export interface RetainedOutcomeRow {
   readonly completedAt: number;
   readonly retainUntil: number;
 }
+/** Authority-owner-only handle, not a principal/request-facing facet.
+ * Startup visitors expose complete inventories across principals. The owner must
+ * close/refuse startup on a failed scan or qualification; read errors propagate
+ * through the existing read boundary without a new member Problem or fencing policy.
+ */
 export interface RecoveryStore {
   readonly runtime: Readonly<{
     node: string;
@@ -145,9 +150,13 @@ export interface RecoveryStore {
     filesystemType: number;
   }>;
   read<T>(reader: (store: StoreReader) => T): T;
-  /** Synchronous complete inventory, in ID order; no cursor escapes the callback. */
+  /** Synchronous startup inventory in SQLite BINARY order (UTF-8 bytes), not locale
+   * or UTF-16 code-unit order. No cursor escapes the callback.
+   */
   visitInstalledTypes(visitor: (row: InstalledTypeRow) => void): void;
-  /** No ordering promise or implicit expiry; maintenance and qualification stay caller-owned. */
+  /** Startup scan of all key_state rows, delivering still-retained outcome text one
+   * row at a time. No ordering promise or implicit expiry; qualification stays caller-owned.
+   */
   visitRetainedOutcomes(visitor: (row: RetainedOutcomeRow) => void): void;
   admit(
     principal: string,

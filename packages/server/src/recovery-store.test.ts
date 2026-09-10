@@ -165,6 +165,17 @@ describe("durable reference ownership and transaction interface", () => {
     expect(() => store.read(() => undefined)).toThrow(
       expect.objectContaining({ reason: "fenced" }),
     );
+    const visitor = vi.fn();
+    const prepare = vi.spyOn(DatabaseSync.prototype, "prepare");
+    expect(() => store.visitInstalledTypes(visitor)).toThrow(
+      expect.objectContaining({ reason: "fenced" }),
+    );
+    expect(() => store.visitRetainedOutcomes(visitor)).toThrow(
+      expect.objectContaining({ reason: "fenced" }),
+    );
+    expect(visitor).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
+    prepare.mockRestore();
   });
   it("cleans only its own safely rolled-back failed creation", () => {
     const dir = directory();
@@ -1157,7 +1168,14 @@ describe("synchronous startup inventory visitors", () => {
   it("enumerates the complete seeded Type inventory after reopen with exact immutable text", () => {
     const dir = directory();
     const deep = ` {"value":${"[".repeat(12_000)}1.00000000000000000001${"]".repeat(12_000)}} `;
-    const types = { "https://types.test/unused": deep, "https://types.test/a": " { } " };
+    const types = {
+      "https://types.test/unused": deep,
+      "https://types.test/a": " { } ",
+      "https://types.test/B": "{}",
+      // Storage text only: these scalar IDs also distinguish UTF-8 from UTF-16 order.
+      "https://types.test/\u{10000}": "{}",
+      "https://types.test/\uE000": "{}",
+    };
     const seeded = openRecoveryStore({ ...options(dir), create: { types } });
     stores.push(seeded);
     const before: InstalledTypeRow[] = [];
@@ -1176,7 +1194,7 @@ describe("synchronous startup inventory visitors", () => {
     expect(rows).toEqual(before);
     expect(rows).toEqual(
       Object.entries(types)
-        .sort(([a], [b]) => a.localeCompare(b))
+        .sort(([a], [b]) => Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8")))
         .map(([id, bodyJson]) => ({ id, bodyJson })),
     );
     for (const row of rows) {
@@ -1185,7 +1203,10 @@ describe("synchronous startup inventory visitors", () => {
       expect(reopened.read((reader) => reader.installedType(row.id))).toBe(row.bodyJson);
     }
     // A caller can detect both unlisted stored Types and expected Types absent from storage.
-    const expected = new Set(["https://types.test/a", "https://types.test/missing"]);
+    const expected = new Set([
+      ...Object.keys(types).filter((id) => id !== "https://types.test/unused"),
+      "https://types.test/missing",
+    ]);
     expect(rows.filter((row) => !expected.has(row.id)).map((row) => row.id)).toEqual([
       "https://types.test/unused",
     ]);
@@ -1269,6 +1290,7 @@ describe("synchronous startup inventory visitors", () => {
 
   it.each(visitors)("owns $name callbacks synchronously and rejects nested access", ({ visit }) => {
     const store = provision();
+    const admission = store.admit("alice", ["nested-owned"]);
     let escaped: StoreReader | undefined;
     store.read((reader) => {
       escaped = reader;
@@ -1280,6 +1302,9 @@ describe("synchronous startup inventory visitors", () => {
       for (const operation of [
         () => store.read(() => undefined),
         () => store.admit("alice", ["nested"]),
+        () => store.executeMember(admission, "nested-owned", () => outcome()),
+        () => store.releaseOwnedClaim(admission, "nested-owned"),
+        () => store.abandonAttempt(admission),
         () => store.expire(100 + day),
         () => store.close(),
         () => store.visitInstalledTypes(() => {}),
@@ -1295,6 +1320,10 @@ describe("synchronous startup inventory visitors", () => {
     expect(() => store.read(() => visit(store, () => {}))).toThrow(
       expect.objectContaining({ reason: "nested-access" }),
     );
+    expect(store.read((reader) => reader.key("alice", "nested-owned"))).toMatchObject({
+      kind: "claimed",
+    });
+    expect(store.abandonAttempt(admission)).toBe(1);
     effect(store, "after-nested");
   });
 
@@ -1377,6 +1406,7 @@ describe("synchronous startup inventory visitors", () => {
     ({ visit }) => {
       const store = provision();
       const failure = new Error("then getter failed");
+      const cursorSpy = vi.spyOn(StatementSync.prototype, "iterate");
       expect(() =>
         visit(store, () => ({
           // biome-ignore lint/suspicious/noThenProperty: exercise the callback return-value guard.
@@ -1385,6 +1415,9 @@ describe("synchronous startup inventory visitors", () => {
           },
         })),
       ).toThrow(failure);
+      const cursor = cursorSpy.mock.results[0]?.value as ReturnType<StatementSync["iterate"]>;
+      expect(cursor.next().done).toBe(true);
+      cursorSpy.mockRestore();
       effect(store, "after-getter");
       store.close();
     },
