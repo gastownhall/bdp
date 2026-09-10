@@ -4,9 +4,9 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 
 | Surface | Specified | Validated |
 | --- | --- | --- |
-| Read profile | Wildcard ownership, numeric rules, named schema projection and erased-resource pointer correction integrated through foundation #29 | Current two-target cohort: 83 applicable passes, nine justified N/A outcomes; packaged and self-certified provenance and uncovered variants are explicit in the artifact |
+| Read profile | Foundation #29 plus shared negotiation, conditional-response and HEAD implementation; 49 executable scenarios | Preserved foundation evidence: 83 applicable passes and nine justified N/A outcomes. Both current public matrices pass; genuine successor packaged evidence must bind the changed inputs |
 | Read+Update profile | D1–D40 ruled; singleton/sequence/alias wire, idempotency, retention and recovery contracts from #19 are integrated; 84 mirrored schema definitions | Illustrative wire and catalog checks only; no Read+Update runtime, executable manifest or capability claim |
-| Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated; 139 mirrored definitions across profiles | Illustrative wire and catalog checks only; shared Read HTTP runtime and fresh observations are required before landing; no Transactional capability claim |
+| Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated; 139 mirrored definitions across profiles | Wire/catalog checks and T57 canonicalization regressions; shared Read HTTP implementation and public matrix observations complete, with genuine successor cohort required before landing. No Transactional runtime capability claim |
 | History capability | All 38 decisions recorded in merged #25; owning wire materialization under council correction | No advertised capability or runtime evidence |
 
 The Read cohort was genuinely generated from
@@ -31,5 +31,7 @@ optional CORS/absent-limit branches retain their documented limits.
 G1–G5 evidence boundary (2026-09-10): the newly specified shared negotiation,
 conditional-response and HEAD rules are not attested by the preserved Read
 cohort. The HTTP fixture family validates narrated illustrations only. Applicable
-Read catalog/manifest assertions and actual runtime observations must be adopted
-in a genuine successor cohort before this integration lands.
+Read catalog/manifest assertions and runtime controls now include the shared
+HTTP behavior. The 49-scenario public matrices pass against both targets;
+genuine successor packaged and controlled observations must bind these exact
+inputs before this integration lands. Earlier evidence is historical provenance.
