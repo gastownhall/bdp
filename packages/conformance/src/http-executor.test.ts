@@ -1126,6 +1126,86 @@ describe("exact HTTP request execution", () => {
     expect(performance.now() - started).toBeLessThan(500);
   });
 
+  it.each([true, false])(
+    "rechecks early cleanup state when native body completion is released before cleanup: %s",
+    async (releaseBeforeCleanup) => {
+      let trailing: ReturnType<typeof setTimeout> | undefined;
+      let releaseWrite: (() => void) | undefined;
+      let heldCallbacks = 0;
+      let releasedBeforeTrailing = false;
+      let trailingSent = false;
+      const route = await bind(
+        createServer({ allowHalfOpen: true }, (socket) => {
+          socket.on("error", () => undefined);
+          socket.once("data", () => {
+            socket.write("HTTP/1.1 413 Too Large\r\nContent-Length: 0\r\n\r\n");
+            trailing = setTimeout(() => {
+              trailingSent = true;
+              socket.end("extra");
+            }, 10);
+          });
+        }),
+      );
+      const nativeWrite = Socket.prototype.write;
+      vi.spyOn(Socket.prototype, "write").mockImplementation(function (
+        this: Socket,
+        ...args: unknown[]
+      ) {
+        const callback = args.at(-1);
+        const bytes = args[0];
+        if (
+          this.remotePort === route.port &&
+          bytes instanceof Uint8Array &&
+          bytes.length === 2 &&
+          typeof callback === "function"
+        ) {
+          // Hold a genuinely completed native write, then release it after the response
+          // data listeners have scheduled cleanup. This is a controlled transition,
+          // not a claim that an uninstrumented network run naturally hit the race.
+          args[args.length - 1] = (...callbackArgs: unknown[]) => {
+            heldCallbacks++;
+            releaseWrite = () => {
+              releaseWrite = undefined;
+              releasedBeforeTrailing = !trailingSent;
+              Reflect.apply(callback, undefined, callbackArgs);
+            };
+          };
+          this.prependOnceListener("data", () =>
+            queueMicrotask(() => {
+              if (releaseBeforeCleanup) releaseWrite?.();
+            }),
+          );
+        }
+        return Reflect.apply(nativeWrite, this, args) as boolean;
+      });
+      try {
+        const operation = createRawHttpExchangeExecutor(route, {
+          requestTimeoutMs: 1000,
+          exactMode: mode(),
+        })(exact());
+        if (releaseBeforeCleanup) {
+          await expect(operation).rejects.toMatchObject({
+            category: "invalid-body",
+            requestWriteState: "complete",
+          });
+          expect(releasedBeforeTrailing).toBe(true);
+          expect(trailingSent).toBe(true);
+        } else {
+          expect(await operation).toMatchObject({
+            status: 413,
+            exactRequest: { writeState: "started-completion-unestablished" },
+          });
+          expect(trailingSent).toBe(false);
+        }
+        expect(heldCallbacks).toBe(1);
+      } finally {
+        clearTimeout(trailing);
+        releaseWrite?.();
+        vi.restoreAllMocks();
+      }
+    },
+  );
+
   it("rejects already-buffered bytes beyond a held-open early refusal", async () => {
     const route = await bind(
       createServer((socket) =>

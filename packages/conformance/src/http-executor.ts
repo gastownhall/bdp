@@ -1005,6 +1005,12 @@ function exchangeRawBytes(
               earlyCleanup = undefined;
               if (settled) return;
               try {
+                // Native write completion may arrive after cleanup was scheduled.
+                // Completed requests retain the FIN/trailing-byte observation path.
+                if (state === "complete") {
+                  if (!peer.writableEnded) peer.end();
+                  return;
+                }
                 parseRawResponse(raw(), method, maximumHeaderBytes, maximumBodyBytes);
                 finish();
               } catch (error) {
