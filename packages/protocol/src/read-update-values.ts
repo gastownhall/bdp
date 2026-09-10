@@ -7,7 +7,8 @@ import {
   mapLosslessJson,
   isUnicodeScalarString,
   type AdmittedJsonValue,
-  type JsonNumberOccurrence,
+  type JsonNumericAdmission,
+  type JsonNumberDiagnosticBudget,
   type LosslessJsonValue,
 } from "./json-admission.js";
 import { ProtocolArtifactValidationError } from "./protocol-errors.js";
@@ -91,6 +92,11 @@ export interface ReadUpdateInputs {
 }
 /** Raw input still contains literal nodes. No identity, numeric admission,
  * authorization, limits, contracts, storage or effect has been established.
+ * These parsers check Scope-independent carrier syntax only. Before any key
+ * claim or execution, the transport must preflight the WHOLE carrier against
+ * its actual Scope: absolute in-Scope references need canonical local-path
+ * checks, and absolute creation IDs need the correct fixed root. This is not
+ * deferred member-time validation; opaque external endpoints stay unchanged.
  */
 export interface UnadmittedReadUpdateOperation<
   K extends ReadUpdateOperation = ReadUpdateOperation,
@@ -105,7 +111,7 @@ export interface ReadUpdateSequenceRequest {
 }
 export type ReadUpdateNumericAdmission<K extends ReadUpdateOperation> =
   | { readonly ok: true; readonly input: ReadUpdateInputs[K] }
-  | { readonly ok: false; readonly offending: readonly JsonNumberOccurrence[] };
+  | Extract<JsonNumericAdmission, { readonly ok: false }>;
 export class ReadUpdateCarrierError extends Error {
   constructor(message: string, options: ErrorOptions = {}) {
     super(message, options);
@@ -197,7 +203,8 @@ function carrier(
 ): Readonly<Record<string, LosslessJsonValue>> {
   const root = decodeJsonDocument(text);
   // Numbers are only structural placeholders here, private and discarded.
-  // They cannot cause valid overflow/property literals to become syntax errors.
+  // The reachable-root invariant in read-update-numeric-schema.test.ts guards
+  // that placeholders cannot turn valid property literals into syntax errors.
   const structural = mapLosslessJson(root, () => 0);
   // Schema loading/validator failures are internal faults, never blamed on input.
   const check = validator(key);
@@ -222,8 +229,58 @@ export function parseReadUpdateRequest<K extends ReadUpdateOperation>(
   )
     throw new TypeError("unknown RU singleton operation");
   const input = carrier(text, kind);
+  validateReferenceSyntax(kind, input);
   validateAliasSyntax(kind, input);
   return operation(kind, input);
+}
+const REFERENCE_FIELDS: Readonly<Record<ReadUpdateOperation, readonly string[]>> = {
+  createBead: ["id"],
+  updateBeadProperties: ["bead"],
+  deleteBead: ["bead"],
+  createLink: ["id", "source", "target"],
+  updateLinkProperties: ["link"],
+  deleteLink: ["link"],
+  putAlias: ["target"],
+  deleteAlias: [],
+};
+/** Check only declared reference locations, before any carrier can be admitted.
+ * Relative spelling obeys the safe-segment grammar independently of its root.
+ * Absolute endpoints remain byte-exact. Creation IDs have their own fixed-root
+ * and canonical HTTP(S) shape. Scope-aware syntax still requires preflight.
+ */
+function validateReferenceSyntax(
+  kind: ReadUpdateOperation,
+  input: Readonly<Record<string, LosslessJsonValue>>,
+): void {
+  for (const field of REFERENCE_FIELDS[kind]) {
+    const value = input[field];
+    if (value === undefined) continue;
+    const reference = (typeof value === "string" ? value : record(value).uri) as string;
+    // The schema and sequence binding pass enforce where @name is permitted.
+    if (reference.startsWith("@")) continue;
+    if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(reference)) {
+      if (!isJsonSchemaUri(reference))
+        throw new ReadUpdateCarrierError(`malformed ${field} absolute reference`);
+      if (field === "id") {
+        try {
+          parseCanonicalHttpUrl(reference, "creation id");
+        } catch (cause) {
+          throw new ReadUpdateCarrierError("malformed absolute creation id", { cause });
+        }
+      }
+    } else {
+      try {
+        assertCanonicalPathSegments(reference, `${field} reference`);
+        if (field === "id") {
+          const [root, firstIdSegment] = reference.split("/");
+          if (root !== (kind === "createBead" ? "beads" : "links") || firstIdSegment === undefined)
+            throw new Error("creation id requires the correct fixed root and an id path");
+        }
+      } catch (cause) {
+        throw new ReadUpdateCarrierError(`malformed ${field} local reference`, { cause });
+      }
+    }
+  }
 }
 /** Alias spelling grammar is syntax; its root, target existence and authority
  * membership remain member semantics. Never reinterpret a wrong root as syntax.
@@ -253,6 +310,7 @@ export function parseReadUpdateSequenceRequest(text: string): ReadUpdateSequence
   for (const member of operations) {
     const fields = record(member);
     const kind = fields.operation as ReadUpdateOperation;
+    validateReferenceSyntax(kind, fields);
     validateAliasSyntax(kind, fields);
     const key = fields.idempotencyKey as string;
     const name = fields.name as string | undefined;
@@ -295,13 +353,16 @@ export function parseReadUpdateSequenceRequest(text: string): ReadUpdateSequence
   return Object.freeze({ operations: Object.freeze(parsed) });
 }
 /** Call in the member's admission/validation turn, not as sequence syntax.
- * HTTP keys, limits, current contracts and authorization are the owner's work.
+ * HTTP keys, current contracts and authorization are the owner's work. The
+ * explicit budget and formatter must match its advertised validation limits
+ * and map operation-relative occurrences to valid property-relative diagnostics.
  */
 export function admitReadUpdateOperationNumbers<K extends ReadUpdateOperation>(
   value: UnadmittedReadUpdateOperation<K>,
+  budget: JsonNumberDiagnosticBudget,
 ): ReadUpdateNumericAdmission<K> {
   if (!parsedOperations.has(value)) throw new TypeError("expected a parsed RU operation");
-  const result = admitJsonNumbers(value.input);
+  const result = admitJsonNumbers(value.input, budget);
   return result.ok
     ? Object.freeze({ ok: true, input: result.value as unknown as ReadUpdateInputs[K] })
     : result;

@@ -1,3 +1,5 @@
+import type { ValidationDiagnostic } from "./read-update-problems.js";
+
 /** Lossless JSON syntax, separate from per-operation BDP numeric admission.
  * The caller bounds transport bytes. This iterative parser imposes no hidden
  * nesting/wire limit and never constructs a rounded executable number.
@@ -36,9 +38,33 @@ export interface JsonNumberOccurrence {
   readonly pointer: string;
   readonly literal: string;
 }
+/** The caller supplies the actual wire entry, including its property-relative
+ * location. Bounds count entries and UTF-8 bytes of the serialized list, not
+ * internal occurrences. Omitting both bounds explicitly requests the full list.
+ */
+export interface JsonNumberDiagnosticBudget {
+  readonly diagnostics?: number;
+  readonly diagnosticBytes?: number;
+  readonly diagnostic: (occurrence: JsonNumberOccurrence) => ValidationDiagnostic;
+}
+/** A local caller/configuration failure, never a BDP wire error code. The caller
+ * must configure a feasible advertised budget for every permitted request;
+ * transport integration must not expose this as an unhandled input exception.
+ */
+export class JsonDiagnosticBudgetError extends RangeError {
+  constructor(message: string) {
+    super(message);
+    this.name = "JsonDiagnosticBudgetError";
+  }
+}
 export type JsonNumericAdmission =
   | { readonly ok: true; readonly value: AdmittedJsonValue }
-  | { readonly ok: false; readonly offending: readonly JsonNumberOccurrence[] };
+  | {
+      readonly ok: false;
+      readonly offending: readonly JsonNumberOccurrence[];
+      readonly diagnostics: readonly ValidationDiagnostic[];
+      readonly diagnosticsTruncated: boolean;
+    };
 const JSON_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/;
 const NUMBER_PREFIX = /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/y;
 
@@ -200,7 +226,7 @@ function pointer(path: Path | undefined): string {
 /** Iterative transformation also avoids recursive snapshot/freeze overflow. */
 export function mapLosslessJson(
   root: LosslessJsonValue,
-  number: (value: JsonNumberLiteral, pointer: string) => number,
+  number: (value: JsonNumberLiteral, pointer: () => string) => number,
 ): AdmittedJsonValue {
   type Box = { value?: AdmittedJsonValue };
   const box: Box = {};
@@ -225,7 +251,7 @@ export function mapLosslessJson(
     }
     const { value, path, put } = task;
     if (value instanceof JsonNumberLiteral) {
-      put(number(value, pointer(path)));
+      put(number(value, () => pointer(path)));
       continue;
     }
     if (value === null || typeof value !== "object") {
@@ -263,15 +289,72 @@ export function mapLosslessJson(
 /** Per-operation check, never a carrier syntax error. No rounded value escapes
  * on refusal. Pointers are relative to the provided document/operation root.
  */
-export function admitJsonNumbers(root: LosslessJsonValue): JsonNumericAdmission {
+export function admitJsonNumbers(
+  root: LosslessJsonValue,
+  budget: JsonNumberDiagnosticBudget,
+): JsonNumericAdmission {
+  for (const limit of [budget.diagnostics, budget.diagnosticBytes])
+    if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1))
+      throw new JsonDiagnosticBudgetError("diagnostic bounds must be positive safe integers");
   const offending: JsonNumberOccurrence[] = [];
-  const value = mapLosslessJson(root, (number, path) => {
-    if (!isAdmissibleJsonNumber(number.literal))
-      offending.push(Object.freeze({ pointer: path, literal: number.literal }));
-    const nearest = Number(number.literal);
-    return nearest === 0 ? 0 : nearest;
-  });
-  return offending.length
-    ? Object.freeze({ ok: false, offending: Object.freeze(offending) })
-    : Object.freeze({ ok: true, value });
+  const diagnostics: ValidationDiagnostic[] = [];
+  let bytes = 2; // The serialized list's opening and closing brackets.
+  let truncated = false;
+  const stop = Symbol("diagnostic budget exhausted");
+  const refusal = (): JsonNumericAdmission =>
+    Object.freeze({
+      ok: false,
+      offending: Object.freeze(offending),
+      diagnostics: Object.freeze(diagnostics),
+      diagnosticsTruncated: truncated,
+    });
+  try {
+    const value = mapLosslessJson(root, (number, path) => {
+      if (!isAdmissibleJsonNumber(number.literal)) {
+        // Only a further refusal proves that entries were omitted. Do not
+        // materialize its pointer when the entry count is already exhausted.
+        if (budget.diagnostics !== undefined && diagnostics.length >= budget.diagnostics) {
+          truncated = true;
+          throw stop;
+        }
+        const occurrence = Object.freeze({ pointer: path(), literal: number.literal });
+        // Copy the closed fields so later caller mutation cannot change the
+        // measured entry, and no arbitrary extension/toJSON influences bytes.
+        const formatted = budget.diagnostic(occurrence);
+        const diagnostic: ValidationDiagnostic = Object.freeze({
+          ...(formatted.type !== undefined ? { type: formatted.type } : {}),
+          ...(formatted.schemaLocation !== undefined
+            ? { schemaLocation: formatted.schemaLocation }
+            : {}),
+          ...(formatted.instanceLocation !== undefined
+            ? { instanceLocation: formatted.instanceLocation }
+            : {}),
+          message: formatted.message,
+        });
+        const nextBytes =
+          bytes +
+          (diagnostics.length ? 1 : 0) +
+          new TextEncoder().encode(JSON.stringify(diagnostic)).byteLength;
+        if (budget.diagnosticBytes !== undefined && nextBytes > budget.diagnosticBytes) {
+          if (diagnostics.length === 0)
+            throw new JsonDiagnosticBudgetError(
+              "diagnostic byte bound cannot retain the first entry",
+            );
+          truncated = true;
+          throw stop;
+        }
+        bytes = nextBytes;
+        offending.push(occurrence);
+        diagnostics.push(diagnostic);
+      }
+      const nearest = Number(number.literal);
+      return nearest === 0 ? 0 : nearest;
+    });
+    return offending.length ? refusal() : Object.freeze({ ok: true, value });
+  } catch (error) {
+    if (error !== stop) throw error;
+    // The partially built value is discarded; no rounded executable tree or
+    // omitted occurrence leaks out, and no tail traversal is needed.
+    return refusal();
+  }
 }

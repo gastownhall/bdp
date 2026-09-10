@@ -1,12 +1,19 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  admitJsonNumbers,
+  admitJsonNumbers as admitJsonNumbersWithBudget,
+  type LosslessJsonValue,
   decodeJsonDocument,
   isAdmissibleJsonNumber,
   JsonNumberLiteral,
   JsonSyntaxError,
 } from "./json-admission.js";
+
+// These legacy vector checks explicitly request complete diagnostic collection.
+const admitJsonNumbers = (root: LosslessJsonValue) =>
+  admitJsonNumbersWithBudget(root, {
+    diagnostic: ({ pointer }) => ({ instanceLocation: pointer, message: "inadmissible number" }),
+  });
 
 describe("lossless JSON admission", () => {
   it.each([
@@ -69,7 +76,7 @@ describe("lossless JSON admission", () => {
     const result = admitJsonNumbers(
       decodeJsonDocument('{"a/b~c":[9007199254740993,1e9999,1e-9999],"":1.2345678901234567891}'),
     );
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       offending: [
         { pointer: "/a~1b~0c/0", literal: "9007199254740993" },
@@ -79,7 +86,7 @@ describe("lossless JSON admission", () => {
       ],
     });
     expect(result).not.toHaveProperty("value");
-    expect(admitJsonNumbers(decodeJsonDocument("1e9999"))).toEqual({
+    expect(admitJsonNumbers(decodeJsonDocument("1e9999"))).toMatchObject({
       ok: false,
       offending: [{ pointer: "", literal: "1e9999" }],
     });
