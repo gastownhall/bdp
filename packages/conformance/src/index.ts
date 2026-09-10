@@ -84,6 +84,11 @@ export {
 export {
   decodeScenarioRawRequestTarget,
   EXECUTABLE_MANIFEST_VERSION,
+  EXACT_EXECUTABLE_MANIFEST_VERSION,
+  type ExecutableManifestVersion,
+  type ScenarioBody,
+  type ScenarioRequestInput,
+  materializeScenarioBody,
   type ExecutableScenario,
   type ExecutableScenarioManifest,
   type JsonPrimitive,
@@ -143,6 +148,10 @@ export {
 export {
   type AssertionOutcome,
   type ConformanceRunResult,
+  type LegacyConformanceRunResult,
+  type ExactConformanceRunResult,
+  type ExactScenarioExecution,
+  type ExactReportObservation,
   ConformanceRunnerError,
   type FixturePreparation,
   type ObservedAction,
@@ -161,4 +170,4 @@ export {
   type SchemaValidator,
   SchemaValidatorError,
 } from "./schema-validator.js";
-export { serializeConformanceReport } from "./report.js";
+export { serializeConformanceReport, assertLegacyReportVersion } from "./report.js";

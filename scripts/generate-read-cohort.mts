@@ -31,6 +31,7 @@ import {
   type ReadCohortTargetInput,
   readCohortEvidenceConstant,
   runConformanceMatrix,
+  assertLegacyReportVersion,
   serializeReadCohortArtifact,
 } from "@bdp/conformance";
 import {
@@ -285,6 +286,7 @@ async function runPackagedTarget(
           .map((scenario) => `${scenario.id}=${scenario.state}(${scenario.reason ?? ""})`)
           .join(", ")}`,
       );
+    assertLegacyReportVersion(result);
     return result;
   } finally {
     try {
@@ -430,6 +432,8 @@ describe("packaged Read cohort generation", () => {
           JSON.parse(readFileSync(path.join(emitDirectory, `${target}.json`), "utf8")),
         ]),
       );
+
+      for (const run of Object.values(inProcessRuns)) assertLegacyReportVersion(run);
 
       // 5. Isolated bd workspaces for the packaged bdpbd runs. The dedicated
       // external-endpoint workspace carries the accepted real-bd realization:

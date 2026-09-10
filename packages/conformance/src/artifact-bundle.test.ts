@@ -534,3 +534,42 @@ describe("conformance artifact bundle", () => {
     }
   });
 });
+
+describe("version 2 artifact source binding", () => {
+  it("retains exact source digest and catalog identity without granting execution", () => {
+    const raw = { headerLines: [{ name: "Idempotency-Key", value: "private-value" }] };
+    const request = {
+      id: "scope",
+      method: "GET",
+      target: { binding: "scope" },
+      raw,
+      captures: [],
+      assertions: [{ id: "state", kind: "request-write-state", equals: "complete" }],
+    };
+    const manifest = {
+      ...manifestValue,
+      manifestVersion: 2,
+      scenarios: manifestValue.scenarios.map((scenario) => ({ ...scenario, requests: [request] })),
+    };
+    const bytes = encode(manifest);
+    const bundle = createBundle({ manifest: bytes });
+    expect(bundle.digests.manifestDigest).toBe(createHash("sha256").update(bytes).digest("hex"));
+    expect(bundle.manifest.manifestVersion).toBe(2);
+    expect(() =>
+      createBundle({ manifest: encode({ ...manifest, catalogId: "read-update-v1" }) }),
+    ).toThrow("catalogId");
+    expect(() =>
+      createBundle({
+        manifest: encode({
+          ...manifest,
+          scenarios: manifest.scenarios.map((scenario) => ({
+            ...scenario,
+            requests: [{ ...request, headers: {} }],
+          })),
+        }),
+      }),
+    ).toThrow();
+    bytes.fill(0);
+    expect(bundle.manifest.scenarios[0]?.requests?.[0]).toMatchObject({ raw });
+  });
+});

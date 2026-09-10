@@ -1,3 +1,7 @@
+import { createServer as createHttpServer } from "node:http";
+import { createRawHttpScenarioTarget } from "./raw-http-scenario-target.js";
+import { createHash } from "node:crypto";
+import { HttpTransportError } from "./http-executor.js";
 import { describe, expect, it, vi } from "vitest";
 import schemaBundle from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
 import readManifest from "../matrices/read-v1.json" with { type: "json" };
@@ -3869,6 +3873,7 @@ describe("black-box conformance runner", () => {
     ).rejects.toThrow("executable plan 'read.unknown' has no catalog metadata");
     const request = scenario.requests[0];
     if (request === undefined) throw new Error("test manifest unexpectedly empty");
+    if (request.raw !== undefined) throw new Error("expected ordinary legacy request");
     await expect(
       run({
         artifactBundle: replaceArtifacts(base, {
@@ -4674,4 +4679,712 @@ describe("checked-in HTTP observer corrections", () => {
       expect(result.scenarios[0]?.state).toBe("pass");
     },
   );
+});
+
+describe("version 2 exact HTTP receiving", () => {
+  const scope = "https://scope.example/";
+  const url = `${scope}operations/create-bead`;
+  const stateAssertions = [
+    { id: "status", kind: "status", equals: 401 },
+    { id: "authored-head", kind: "request-authored-headers" },
+    { id: "authored-body", kind: "request-authored-body" },
+    { id: "write", kind: "request-write-state", equals: "complete" },
+  ];
+  function source(input: Record<string, unknown> = {}, twice = false) {
+    const request = {
+      id: "post",
+      method: "POST",
+      target: { binding: "scope", path: "operations/create-bead" },
+      raw: {
+        headerLines: [
+          { name: "Idempotency-Key", value: "KEY-SENTINEL" },
+          { name: "iDeMpOtEnCy-KeY", value: "SECOND-KEY-SENTINEL" },
+          { name: "x-PRIVATE-NAME-SENTINEL", value: "VALUE-SENTINEL" },
+        ],
+        body: { encoding: "utf8", value: '{"x":1,"x":9007199254740993,"n":1e9999}' },
+      },
+      captures: [],
+      assertions: stateAssertions,
+      ...input,
+    };
+    return {
+      manifestVersion: 2,
+      catalogId: "read-v1",
+      scenarios: (twice ? ["raw.first", "raw.second"] : ["raw.first"]).map((id) => ({
+        id,
+        requiredProfile: "read-update",
+        setup: { fixture: testFixture.id, requires: [] },
+        applicability: { requires: [] },
+        requests: [request],
+        cleanup: { resetFixture: true },
+      })),
+    };
+  }
+  function setup(input: Record<string, unknown> = {}, twice = false) {
+    const manifest = parseExecutableScenarioManifest(source(input, twice));
+    const catalog = parseScenarioCatalog({
+      catalogVersion: 1,
+      scenarios: manifest.scenarios.map(({ id }) => ({
+        id,
+        title: "Synthetic receiving probe",
+        kind: "normative",
+        requiredProfile: "read-update",
+        requirements: [citation],
+      })),
+    });
+    const artifactBundle = bindArtifacts(catalog, manifest, testFixture);
+    const configuration: import("./raw-http-scenario-target.js").ExactHttpConfiguration = {
+      scope,
+      profile: "read-update",
+      routes: [{ method: "POST", url }],
+      maximumRequestHeaderBytes: 4096,
+      maximumRequestBodyBytes: 4096,
+      defaultCredentialRef: "anonymous",
+      credentialHandles: [{ id: "anonymous", headerNames: [] }],
+    };
+    const ordinary = vi.fn(async () => ({ url, status: 401, headers: {}, bodyText: "" }));
+    const execute = vi.fn<import("./http-executor.js").RawHttpExchangeExecutor>(async (request) => {
+      if (!("raw" in request) || request.raw === undefined) throw new Error("expected raw arm");
+      const bytes = request.raw.bodyBytes;
+      return {
+        url: request.url,
+        status: 401,
+        headers: { "Idempotency-Key": "ECHO-SENTINEL" },
+        bodyText: "",
+        exactRequest: {
+          source: "raw-http1-serializer",
+          writeState: "complete",
+          headerLines: [
+            ...request.raw.headerLines,
+            { name: "Accept", value: "*/*" },
+            { name: "Accept-Language", value: "*" },
+            { name: "Accept-Encoding", value: "identity" },
+            { name: "User-Agent", value: "bdp-conformance/0" },
+            { name: "Host", value: "scope.example" },
+            { name: "Connection", value: "close" },
+            ...(bytes === undefined
+              ? []
+              : [{ name: "Content-Length", value: String(bytes.byteLength) }]),
+          ],
+          bodyPresent: bytes !== undefined,
+          bodyOctets: bytes?.byteLength ?? 0,
+          ...(bytes === undefined
+            ? {}
+            : { bodyDigest: createHash("sha256").update(bytes).digest("hex") }),
+        },
+      };
+    });
+    const harness: ScenarioHarness = {
+      prepare: vi.fn(async () => ({ capabilities: ["public-http"] })),
+      cleanup: vi.fn(async () => undefined),
+    };
+    return {
+      scope,
+      profile: "read-update" as const,
+      seed: 0,
+      artifactBundle,
+      execute: ordinary,
+      exactExecution: { configuration, execute },
+      harness,
+      declaredTargetLabel: "synthetic",
+      requestTimeoutMs: 200,
+      cleanupTimeoutMs: 100,
+    };
+  }
+  it("compares independent owned bytes and projects repeated redacted names without an unapproved hash", async () => {
+    const options = setup();
+    const report = await runConformanceMatrix(options);
+    expect(report.reportVersion).toBe(4);
+    expect(report.scenarios[0]?.state).toBe("pass");
+    expect(report.claimEligible).toBe(false);
+    expect(options.execute).not.toHaveBeenCalled();
+    const exact = report.scenarios[0]?.exchanges[0]?.request.exact;
+    expect(exact).toMatchObject({
+      headerProjection: "allowlisted-relative-order",
+      elidedHeaderLines: 3,
+      writeState: "complete",
+      bodyPresent: true,
+    });
+    expect(exact?.bodyDigest).toBeUndefined();
+    expect(exact?.headerLines.slice(0, 2)).toEqual([
+      { name: "Idempotency-Key", value: "<redacted>" },
+      { name: "iDeMpOtEnCy-KeY", value: "<redacted>" },
+    ]);
+    const text = serializeConformanceReport(report);
+    for (const secret of [
+      "KEY-SENTINEL",
+      "SECOND-KEY",
+      "PRIVATE-NAME-SENTINEL",
+      "VALUE-SENTINEL",
+      "ECHO-SENTINEL",
+      "anonymous",
+      "9007199254740993",
+    ])
+      expect(text).not.toContain(secret);
+    expect(text).toContain("exactConfigurationDigest");
+    expect(report.scenarios[0]?.exchanges[0]?.request.wireHeadersObserved).toBeUndefined();
+  });
+  it("permits only exact source-bound approved synthetic fingerprints", async () => {
+    const options = setup();
+    const report = await runConformanceMatrix({
+      ...options,
+      exactExecution: {
+        ...options.exactExecution,
+        approvedSyntheticManifestDigest: options.artifactBundle.digests.manifestDigest,
+      },
+    });
+    expect(report.scenarios[0]?.exchanges[0]?.request.exact?.bodyDigest).toMatch(/^[0-9a-f]{64}$/);
+    await expect(
+      runConformanceMatrix({
+        ...options,
+        exactExecution: {
+          ...options.exactExecution,
+          approvedSyntheticManifestDigest: "0".repeat(64),
+        },
+      }),
+    ).rejects.toThrow("approval");
+  });
+  it.each([
+    { encoding: "utf8", value: "" },
+    { encoding: "utf8", value: '  {"a":1,"a":2}\\uD800\n' },
+    { encoding: "base64", value: "/wA=" },
+  ])("preserves body bytes for $encoding/$value", async (body) => {
+    const options = setup({ raw: { headerLines: [], body } });
+    const report = await runConformanceMatrix(options);
+    expect(report.scenarios[0]?.state).toBe("pass");
+    const request = options.exactExecution.execute.mock.calls[0]?.[0];
+    if (request === undefined || !("raw" in request) || request.raw === undefined)
+      throw new Error("missing exact call");
+    expect(Buffer.from(request.raw.bodyBytes ?? [])).toEqual(
+      Buffer.from(body.value, body.encoding === "utf8" ? "utf8" : "base64"),
+    );
+  });
+  it("distinguishes absent body from explicit empty", async () => {
+    const options = setup({ raw: { headerLines: [] } });
+    const report = await runConformanceMatrix(options);
+    expect(report.scenarios[0]?.state).toBe("pass");
+    expect(report.scenarios[0]?.exchanges[0]?.request.exact).toMatchObject({
+      bodyPresent: false,
+      bodyOctets: 0,
+    });
+    expect(options.exactExecution.execute.mock.calls[0]?.[0]).not.toHaveProperty("raw.bodyBytes");
+  });
+  it.each([
+    "prefix",
+    "digest",
+    "length",
+    "framing",
+    "extra",
+    "state",
+    "missing",
+    "accessor",
+    "flag",
+  ])("rejects %s corruption while retaining safe response assertions", async (corruption) => {
+    const options = setup();
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(async (request) => {
+      if (good === undefined) throw new Error();
+      const response = await good(request);
+      const exact = response.exactRequest;
+      if (exact === undefined) throw new Error();
+      if (corruption === "missing") {
+        const { exactRequest: _exact, ...rest } = response;
+        return rest;
+      }
+      if (corruption === "accessor")
+        return Object.defineProperty(response, "exactRequest", {
+          get() {
+            throw new Error("OBSERVATION-SENTINEL");
+          },
+        });
+      if (corruption === "flag")
+        return { ...response, effectiveRequest: { url, headers: {}, headersTransmitted: true } };
+      return {
+        ...response,
+        exactRequest: {
+          ...exact,
+          ...(corruption === "digest" ? { bodyDigest: "a".repeat(64) } : {}),
+          ...(corruption === "length" ? { bodyOctets: 0 } : {}),
+          ...(corruption === "state"
+            ? { writeState: "started-completion-unestablished" as const }
+            : {}),
+          ...(corruption === "prefix" ? { headerLines: [...exact.headerLines].reverse() } : {}),
+          ...(corruption === "framing"
+            ? {
+                headerLines: exact.headerLines.map((line) =>
+                  line.name === "Host" ? { ...line, value: "other.example" } : line,
+                ),
+              }
+            : {}),
+          ...(corruption === "extra"
+            ? { headerLines: [...exact.headerLines, { name: "x-extra", value: "EXTRA-SENTINEL" }] }
+            : {}),
+        },
+      };
+    });
+    const report = await runConformanceMatrix(options);
+    const observed = report.scenarios[0]?.exchanges[0];
+    expect(report.scenarios[0]?.state).not.toBe("pass");
+    expect(observed?.response?.status).toBe(401);
+    expect(observed?.assertions.find(({ id }) => id === "status")?.passed).toBe(true);
+    expect(observed?.assertions.some(({ passed }) => !passed)).toBe(true);
+    expect(serializeConformanceReport(report)).not.toContain("SENTINEL");
+  });
+  it("keeps valid request fidelity separate from response conformance", async () => {
+    const options = setup({
+      assertions: [
+        ...stateAssertions.slice(1),
+        { id: "wrong-status", kind: "status", equals: 200 },
+      ],
+    });
+    const report = await runConformanceMatrix(options);
+    expect(report.scenarios[0]?.state).toBe("fail");
+    expect(
+      report.scenarios[0]?.exchanges[0]?.assertions
+        .filter(({ id }) => id !== "wrong-status")
+        .every(({ passed }) => passed),
+    ).toBe(true);
+  });
+  it.each(["missing", "scope", "profile", "route", "cap", "handle", "transactional"])(
+    "fails %s configuration before preparation",
+    async (failure) => {
+      const options = setup(failure === "handle" ? { credentialRef: "unregistered" } : {});
+      const { exactExecution, ...withoutExact } = options;
+      const config = exactExecution.configuration;
+      const attempt =
+        failure === "missing"
+          ? withoutExact
+          : {
+              ...options,
+              ...(failure === "transactional" ? { profile: "transactional" as const } : {}),
+              exactExecution: {
+                ...exactExecution,
+                configuration: {
+                  ...config,
+                  ...(failure === "scope" ? { scope: "https://scope.example/other/" } : {}),
+                  ...(failure === "profile" ? { profile: "read" as const } : {}),
+                  ...(failure === "route" ? { routes: [{ method: "GET" as const, url }] } : {}),
+                  ...(failure === "cap" ? { maximumRequestBodyBytes: 0 } : {}),
+                },
+              },
+            };
+      await expect(runConformanceMatrix(attempt)).rejects.toThrow();
+      expect(options.harness.prepare).not.toHaveBeenCalled();
+      expect(options.exactExecution.execute).not.toHaveBeenCalled();
+    },
+  );
+  it("refuses dispatch-time decorated configuration and stops the next scenario", async () => {
+    const options = setup({}, true);
+    options.exactExecution.execute.mockRejectedValue(
+      new HttpTransportError("configuration", "SECRET-CAUSE", {}, "not-started"),
+    );
+    const report = await runConformanceMatrix(options);
+    expect(report.scenarios.map(({ state, category }) => [state, category])).toEqual([
+      ["harness-error", "exact-configuration"],
+      ["harness-error", "not-run"],
+    ]);
+    expect(report.scenarios[0]?.exchanges[0]).toMatchObject({
+      harnessError: { category: "exact-configuration", writeState: "not-started" },
+    });
+    expect(report.scenarios[0]?.exchanges[0]?.transportError).toBeUndefined();
+    expect(serializeConformanceReport(report)).not.toContain("SECRET-CAUSE");
+  });
+  it.each(["not-started", "started-completion-unestablished", "complete"] as const)(
+    "retains cooperative cancellation state %s",
+    async (writeState) => {
+      const options = setup({}, true);
+      options.exactExecution.execute.mockImplementation(
+        (request) =>
+          new Promise((_resolve, reject) => {
+            request.signal.addEventListener(
+              "abort",
+              () =>
+                setTimeout(
+                  () => reject(new HttpTransportError("abort", "PRIVATE-ERROR", {}, writeState)),
+                  2,
+                ),
+              { once: true },
+            );
+          }),
+      );
+      const report = await runConformanceMatrix({ ...options, requestTimeoutMs: 5 });
+      expect(report.scenarios[0]?.category).toBe("deadline");
+      expect(report.scenarios[0]?.exchanges[0]?.transportError).toMatchObject({
+        category: "timeout",
+        writeState,
+      });
+      expect(options.harness.cleanup).toHaveBeenCalledTimes(1);
+      expect(options.exactExecution.execute).toHaveBeenCalledTimes(1);
+      expect(report.scenarios[1]?.category).toBe("not-run");
+    },
+  );
+  it("bounds a noncooperative cancellation and never infers not-started", async () => {
+    const options = setup({}, true);
+    options.exactExecution.execute.mockImplementation(() => new Promise(() => undefined));
+    const start = performance.now();
+    const report = await runConformanceMatrix({
+      ...options,
+      requestTimeoutMs: 5,
+      cleanupTimeoutMs: 10,
+    });
+    expect(performance.now() - start).toBeLessThan(200);
+    expect(report.scenarios[0]?.exchanges[0]?.transportError).toMatchObject({
+      category: "timeout",
+    });
+    expect(report.scenarios[0]?.exchanges[0]?.transportError?.writeState).toBeUndefined();
+    expect(report.scenarios[0]?.exchanges[0]?.harnessError?.category).toBe("exact-observation");
+    expect(report.scenarios[0]?.cleanupError).toContain("did not settle");
+    expect(options.harness.cleanup).not.toHaveBeenCalled();
+    expect(options.exactExecution.execute).toHaveBeenCalledTimes(1);
+  });
+  it("does not let executor mutation redefine the independent authored-body oracle", async () => {
+    const options = setup();
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(async (request) => {
+      if ("raw" in request) request.raw?.bodyBytes?.fill(65);
+      if (good === undefined) throw new Error();
+      return good(request);
+    });
+    const report = await runConformanceMatrix(options);
+    expect(
+      report.scenarios[0]?.exchanges[0]?.assertions.find(({ id }) => id === "authored-body")
+        ?.passed,
+    ).toBe(false);
+  });
+  it("requires configured routes even for a v2 ordinary arm", async () => {
+    const options = setup();
+    const parsed = parseExecutableScenarioManifest(source());
+    const scenario = requestScenario(parsed.scenarios[0]);
+    const request = scenario.requests[0];
+    if (scenario === undefined || request === undefined) throw new Error();
+    const { raw: _raw, credentialRef: _ref, ...ordinary } = request;
+    const manifest = {
+      ...parsed,
+      scenarios: [
+        {
+          ...scenario,
+          requests: [
+            {
+              ...ordinary,
+              headers: {},
+              assertions: [{ id: "status", kind: "status" as const, equals: 401 }],
+            },
+          ],
+        },
+      ],
+    };
+    const artifactBundle = bindArtifacts(options.artifactBundle.catalog, manifest);
+    const report = await runConformanceMatrix({ ...options, artifactBundle });
+    expect(report.reportVersion).toBe(4);
+    expect(report.scenarios[0]?.state).toBe("pass");
+    expect(report.claimEligible).toBe(false);
+    expect(options.execute).toHaveBeenCalledTimes(1);
+    expect(options.exactExecution.execute).not.toHaveBeenCalled();
+    await expect(
+      runConformanceMatrix({
+        ...options,
+        artifactBundle,
+        exactExecution: {
+          ...options.exactExecution,
+          configuration: {
+            ...options.exactExecution.configuration,
+            routes: [{ method: "GET", url }],
+          },
+        },
+      }),
+    ).rejects.toThrow("configured execution boundary");
+    expect(options.execute).toHaveBeenCalledTimes(1);
+  });
+  it.each([false, true])("checks dynamic captured routes before raw=%s dispatch", async (raw) => {
+    const options = setup();
+    const base = source();
+    const row = base.scenarios[0];
+    const request = row?.requests[0];
+    if (row === undefined || request === undefined) throw new Error();
+    const { raw: _raw, ...ordinary } = request;
+    const manifest = parseExecutableScenarioManifest({
+      ...base,
+      scenarios: [
+        {
+          ...row,
+          requests: [
+            {
+              id: "discover",
+              method: "GET",
+              target: { binding: "scope" },
+              headers: {},
+              captures: [{ binding: "next", from: { kind: "header-link", rel: "next" } }],
+              assertions: [{ id: "status", kind: "status", equals: 200 }],
+            },
+            {
+              ...(raw ? request : { ...ordinary, headers: {} }),
+              target: { binding: "next" },
+              assertions: [{ id: "status", kind: "status", equals: 401 }],
+            },
+          ],
+        },
+      ],
+    });
+    const artifactBundle = bindArtifacts(options.artifactBundle.catalog, manifest);
+    options.execute.mockImplementation(async () => ({
+      url: scope,
+      status: 200,
+      headers: { link: `<${scope}undeclared>; rel="next"` },
+      bodyText: "",
+    }));
+    const report = await runConformanceMatrix({
+      ...options,
+      artifactBundle,
+      exactExecution: {
+        ...options.exactExecution,
+        configuration: {
+          ...options.exactExecution.configuration,
+          routes: [...options.exactExecution.configuration.routes, { method: "GET", url: scope }],
+        },
+      },
+    });
+    expect(report.scenarios[0]?.category).toBe("exact-configuration");
+    expect(options.execute).toHaveBeenCalledTimes(1);
+    expect(options.exactExecution.execute).not.toHaveBeenCalled();
+    expect(report.scenarios[0]?.exchanges[1]?.harnessError?.category).toBe("exact-configuration");
+  });
+  it("keeps v3 normalized and echoed new names absent while v4 allows redacted names", async () => {
+    const legacy = inputs([{ id: "status", kind: "status", equals: 204 }], {
+      "idempotency-key": "PRIVATE-KEY",
+    });
+    const run = (artifactBundle: ConformanceArtifactBundle) =>
+      runConformanceMatrix({
+        ...legacy,
+        artifactBundle,
+        scope,
+        profile: "read",
+        seed: 0,
+        execute: async () => ({
+          url: scope,
+          status: 204,
+          headers: { "Idempotency-Key": "PRIVATE-ECHO" },
+          bodyText: "",
+        }),
+        harness: harness(),
+      });
+    const v3 = await run(legacy.artifactBundle);
+    const v4 = await run(
+      replaceArtifacts(legacy, {
+        manifest: { ...legacy.artifactBundle.manifest, manifestVersion: 2 },
+      }),
+    );
+    expect(v3.reportVersion).toBe(3);
+    expect(v4.reportVersion).toBe(4);
+    expect(serializeConformanceReport(v3)).not.toContain("idempotency-key");
+    expect(v4.scenarios[0]?.exchanges[0]?.request.headers).toHaveProperty(
+      "idempotency-key",
+      "<redacted>",
+    );
+    expect(v4.scenarios[0]?.exchanges[0]?.response?.headers).toHaveProperty(
+      "idempotency-key",
+      "<redacted>",
+    );
+    expect(serializeConformanceReport(v4)).not.toContain("PRIVATE-");
+  });
+  it("late fulfillment after cancellation supplies only a settlement witness, not success or captures", async () => {
+    const options = setup(
+      { captures: [{ binding: "forbidden", from: { kind: "response-url" } }] },
+      true,
+    );
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(
+      (request) =>
+        new Promise((resolve) => {
+          request.signal.addEventListener(
+            "abort",
+            () =>
+              setTimeout(() => {
+                if (good === undefined) throw new Error();
+                void good(request).then(resolve);
+              }, 2),
+            { once: true },
+          );
+        }),
+    );
+    const report = await runConformanceMatrix({ ...options, requestTimeoutMs: 5 });
+    expect(report.scenarios[0]?.category).toBe("deadline");
+    expect(report.scenarios[0]?.exchanges[0]?.transportError?.writeState).toBe("complete");
+    expect(report.scenarios[0]?.exchanges[0]?.request.exact).toBeUndefined();
+    expect(report.scenarios[0]?.exchanges[0]?.response).toBeUndefined();
+    expect(report.scenarios[0]?.exchanges[0]?.assertions).toEqual([]);
+    expect(options.exactExecution.execute).toHaveBeenCalledTimes(1);
+  });
+  it("shares the cleanup allowance with receipt collection", async () => {
+    const options = setup();
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    options.exactExecution.execute.mockImplementation(
+      (request) =>
+        new Promise((_resolve, reject) => {
+          request.signal.addEventListener(
+            "abort",
+            () => {
+              setTimeout(() => {
+                now = 99;
+                reject(new HttpTransportError("abort", "cancelled", {}, "complete"));
+              }, 2);
+            },
+            { once: true },
+          );
+        }),
+    );
+    const cleanup = vi.fn(
+      (_scenario, _scope, signal: AbortSignal) =>
+        new Promise<void>((_resolve, reject) => {
+          const timeout = setTimeout(
+            () => reject(new Error("fresh budget incorrectly granted")),
+            50,
+          );
+          signal.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(timeout);
+              reject(new Error("shared budget ended"));
+            },
+            { once: true },
+          );
+        }),
+    );
+    try {
+      const report = await runConformanceMatrix({
+        ...options,
+        requestTimeoutMs: 5,
+        cleanupTimeoutMs: 100,
+        harness: { ...options.harness, cleanup },
+      });
+      expect(report.scenarios[0]?.cleanupError).toBe("cleanup timed out");
+      expect(report.scenarios[0]?.exchanges[0]?.transportError?.writeState).toBe("complete");
+    } finally {
+      clock.mockRestore();
+    }
+  });
+  it("preserves actual native repeated header lines and unparsed bytes end to end", async () => {
+    const options = setup({
+      raw: {
+        headerLines: [
+          { name: "Idempotency-Key", value: "same" },
+          { name: "iDeMpOtEnCy-KeY", value: "different" },
+        ],
+        body: { encoding: "base64", value: "/wB7fQ==" },
+      },
+    });
+    let receivedHeaders: string[] = [];
+    let receivedBody = Buffer.alloc(0);
+    const target = createRawHttpScenarioTarget(
+      async () => {
+        const server = createHttpServer((request, response) => {
+          receivedHeaders = request.rawHeaders;
+          const chunks: Buffer[] = [];
+          request.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+          request.on("end", () => {
+            receivedBody = Buffer.concat(chunks);
+            response.writeHead(401, { "Content-Length": "0" });
+            response.end();
+          });
+        });
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const address = server.address();
+        if (address === null || typeof address === "string") throw new Error();
+        return {
+          capabilities: ["public-http"],
+          dialRoute: { transport: "plain", host: "127.0.0.1", port: address.port },
+          close: async () => {
+            server.closeAllConnections();
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+          },
+        };
+      },
+      { exactMode: { ...options.exactExecution.configuration, resolveCredentials: () => ({}) } },
+    );
+    if (target.exactConfiguration === undefined) throw new Error();
+    try {
+      const report = await runConformanceMatrix({
+        ...options,
+        execute: target.execute,
+        harness: target.harness,
+        exactExecution: { configuration: target.exactConfiguration, execute: target.execute },
+      });
+      expect(report.scenarios[0]?.state).toBe("pass");
+      expect(receivedHeaders.slice(0, 4)).toEqual([
+        "Idempotency-Key",
+        "same",
+        "iDeMpOtEnCy-KeY",
+        "different",
+      ]);
+      expect(receivedBody).toEqual(Buffer.from([255, 0, 123, 125]));
+    } finally {
+      await target.close();
+    }
+  });
+  it.each(["abort", "configuration"] as const)("caller cancellation stays primary over terminal %s", async (category) => {
+    const options = setup({}, true);
+    const controller = new AbortController();
+    options.exactExecution.execute.mockImplementation((request) => new Promise((_resolve, reject) => {
+      request.signal.addEventListener("abort", () => queueMicrotask(() => reject(new HttpTransportError(category, "PRIVATE-FAILURE", {}, "not-started"))), { once: true });
+      queueMicrotask(() => controller.abort());
+    }));
+    const report = await runConformanceMatrix({ ...options, signal: controller.signal });
+    expect(report.scenarios[0]?.category).toBe("aborted");
+    expect(report.scenarios[0]?.exchanges[0]?.transportError).toMatchObject({ category: "abort", writeState: "not-started" });
+    expect(report.scenarios[0]?.exchanges[0]?.harnessError).toBeUndefined();
+    expect(options.exactExecution.execute).toHaveBeenCalledTimes(1);
+  });
+  it("checks elapsed exact execution time before accepting synchronous fulfillment", async () => {
+    const options = setup({}, true);
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(async (request) => {
+      if (good === undefined) throw new Error();
+      const response = await good(request);
+      now = 500;
+      return response;
+    });
+    try {
+      const report = await runConformanceMatrix({ ...options, requestTimeoutMs: 10 });
+      expect(report.scenarios[0]?.category).toBe("deadline");
+      expect(report.scenarios[0]?.exchanges[0]?.transportError?.writeState).toBe("complete");
+      expect(report.scenarios[0]?.exchanges[0]?.response).toBeUndefined();
+      expect(options.exactExecution.execute).toHaveBeenCalledTimes(1);
+    } finally { clock.mockRestore(); }
+  });
+  it("refuses wrong in-Scope response identity while retaining safe status", async () => {
+    const options = setup();
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(async (request) => {
+      if (good === undefined) throw new Error();
+      return { ...await good(request), url: `${scope}different` };
+    });
+    const report = await runConformanceMatrix(options);
+    expect(report.scenarios[0]?.category).toBe("exact-observation");
+    expect(report.scenarios[0]?.exchanges[0]?.response?.status).toBe(401);
+  });
+  it("does not publish an unbound target digest even with synthetic source approval", async () => {
+    const options = setup();
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(async (request) => {
+      if (good === undefined) throw new Error();
+      const response = await good(request);
+      if (response.exactRequest === undefined) throw new Error();
+      return { ...response, exactRequest: { ...response.exactRequest, bodyDigest: "a".repeat(64) } };
+    });
+    const report = await runConformanceMatrix({ ...options, exactExecution: { ...options.exactExecution, approvedSyntheticManifestDigest: options.artifactBundle.digests.manifestDigest } });
+    expect(report.scenarios[0]?.state).toBe("fail");
+    expect(report.scenarios[0]?.exchanges[0]?.request.exact?.bodyDigest).toBeUndefined();
+  });
+  it("records unavailable state on a categorized transport failure without inventing an exact request", async () => {
+    const options = setup({}, true);
+    options.exactExecution.execute.mockRejectedValue(new HttpTransportError("disconnect", "SECRET-TRANSPORT"));
+    const report = await runConformanceMatrix(options);
+    expect(report.scenarios[0]?.category).toBe("exact-observation");
+    expect(report.scenarios[0]?.exchanges[0]?.transportError).toMatchObject({ category: "disconnect" });
+    expect(report.scenarios[0]?.exchanges[0]?.request.exact).toBeUndefined();
+    expect(report.scenarios[1]?.category).toBe("not-run");
+  });
+
 });

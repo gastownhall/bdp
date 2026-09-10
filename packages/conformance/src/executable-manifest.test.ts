@@ -1398,3 +1398,167 @@ describe("HEAD metadata allowance validation", () => {
     );
   }
 });
+
+describe("manifest v2 exact HTTP inputs", () => {
+  function exactManifest(
+    input: Record<string, unknown>,
+    actions = false,
+    version = 2,
+    profile = "read-update",
+  ) {
+    const request = {
+      id: "exact",
+      method: "POST",
+      target: { binding: "scope" },
+      captures: [],
+      assertions: [{ id: "status", kind: "status", equals: 401 }],
+      ...input,
+    };
+    return {
+      manifestVersion: version,
+      catalogId: "read-v1",
+      scenarios: [
+        {
+          id: "raw.probe",
+          requiredProfile: profile,
+          setup: { fixture: "reference-read-v1", requires: [] },
+          applicability: { requires: [] },
+          ...(actions ? { actions: [{ family: "http", ...request }] } : { requests: [request] }),
+          cleanup: { resetFixture: true },
+        },
+      ],
+    };
+  }
+  it.each([false, true])(
+    "preserves literal bytes, repeats and exclusive shape through actions=%s",
+    (actions) => {
+      const source = exactManifest(
+        {
+          raw: {
+            headerLines: [
+              { name: "Idempotency-Key", value: " a, b " },
+              { name: "iDeMpOtEnCy-KeY", value: "" },
+            ],
+            body: { encoding: "utf8", value: '{"x":1,"x":9007199254740993,"e":1e9999}\\uD800' },
+          },
+          credentialRef: "anonymous",
+          rawRequestTarget: { encoding: "base64", value: "AA==" },
+          assertions: [
+            { id: "body", kind: "request-authored-body" },
+            { id: "head", kind: "request-authored-headers" },
+            { id: "state", kind: "request-write-state", equals: "complete" },
+          ],
+        },
+        actions,
+      );
+      const parsed = parseExecutableScenarioManifest(source);
+      const scenario = parsed.scenarios[0];
+      const request = scenario?.requests?.[0] ?? scenario?.actions?.[0];
+      expect(Object.hasOwn(request ?? {}, "headers")).toBe(false);
+      expect(request).toMatchObject({
+        raw: {
+          headerLines: [
+            { name: "Idempotency-Key", value: " a, b " },
+            { name: "iDeMpOtEnCy-KeY", value: "" },
+          ],
+        },
+        credentialRef: "anonymous",
+      });
+      expect(loadExecutableScenarioManifestJson(JSON.stringify(source))).toEqual(parsed);
+    },
+  );
+  const bad: readonly Record<string, unknown>[] = [
+    { headers: {}, raw: { headerLines: [] } },
+    { credentialRef: "anonymous" },
+    { raw: {} },
+    { raw: { headerLines: [], extra: true } },
+    ...[
+      "Authorization",
+      "CoOkIe",
+      "X-aUtH-token",
+      "Host",
+      "Content-Length",
+      "Transfer-Encoding",
+      "Expect",
+    ].map((name) => ({ raw: { headerLines: [{ name, value: "sentinel" }] } })),
+    ...["YQ=", "YR==", "YWJ=", "YQ==\n"].map((value) => ({
+      raw: { headerLines: [], body: { encoding: "base64", value } },
+    })),
+    { raw: { headerLines: [], body: { encoding: "utf8", value: "\ud800" } } },
+    { raw: { headerLines: [], body: { encoding: "file", value: "secret" } } },
+    { raw: { headerLines: [{ name: "x-ok", value: "\r\n" }] } },
+    { assertions: [{ id: "bad", kind: "request-write-state", equals: "complete" }] },
+    {
+      raw: { headerLines: [] },
+      assertions: [{ id: "bad", kind: "request-authored-body", expected: "target-oracle" }],
+    },
+  ];
+  it.each([false, true])("rejects closed-form violations in actions=%s", (actions) => {
+    for (const input of bad)
+      expect(() => parseExecutableScenarioManifest(exactManifest(input, actions))).toThrow(
+        ManifestValidationError,
+      );
+  });
+  it.each([false, true])("keeps version and Read body guards in actions=%s", (actions) => {
+    expect(() =>
+      parseExecutableScenarioManifest(exactManifest({ raw: { headerLines: [] } }, actions, 1)),
+    ).toThrow();
+    expect(() =>
+      parseExecutableScenarioManifest(
+        exactManifest(
+          {
+            negativeMethodProbe: true,
+            raw: { headerLines: [], body: { encoding: "utf8", value: "" } },
+          },
+          actions,
+          2,
+          "read",
+        ),
+      ),
+    ).toThrow();
+    expect(() =>
+      parseExecutableScenarioManifest(
+        exactManifest({ method: "GET", raw: { headerLines: [] } }, actions, 2, "read"),
+      ),
+    ).not.toThrow();
+  });
+  it("rejects raw holes/accessors without invoking them", () => {
+    let calls = 0;
+    const lines = [
+      Object.defineProperty({ name: "x-ok" }, "value", {
+        enumerable: true,
+        get() {
+          calls++;
+          return "secret";
+        },
+      }),
+    ];
+    for (const headerLines of [
+      lines,
+      new Array(1),
+      Object.defineProperty([], "0", {
+        enumerable: true,
+        get() {
+          calls++;
+          return {};
+        },
+      }),
+    ])
+      expect(() =>
+        parseExecutableScenarioManifest(exactManifest({ raw: { headerLines } })),
+      ).toThrow();
+    const candidate = exactManifest({ raw: { headerLines: [] } });
+    const row = candidate.scenarios[0];
+    const request = row !== undefined && "requests" in row ? row.requests[0] : undefined;
+    if (request === undefined) throw new Error("missing request");
+    Object.defineProperty(request, "raw", {
+      enumerable: true,
+      get() {
+        calls++;
+        return {};
+      },
+    });
+    expect(() => parseExecutableScenarioManifest(candidate)).toThrow();
+    expect(calls).toBe(0);
+  });
+});
