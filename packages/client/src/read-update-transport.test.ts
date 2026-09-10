@@ -1,7 +1,9 @@
+import { createServer } from "node:http";
 import { describe, expect, it } from "vitest";
 import {
   createReadUpdateFetchTransport,
   type ReadUpdateFetchTransportOptions,
+  type ReadUpdateTransportCallOptions,
   ReadUpdateTransportError,
   type ReadUpdateTransportLimits,
 } from "./read-update-transport.js";
@@ -959,5 +961,290 @@ describe("Read+Update bounded transport", () => {
     expect(() =>
       client(async () => response(), { limits: { ...limits, responseTimeoutMs: 2_147_483_648 } }),
     ).toThrow(ReadUpdateTransportError);
+  });
+});
+
+describe("Read+Update dedicated alias transport", () => {
+  const alias = `${scope}alias/team/lead`;
+  function resolve(
+    transport: ReturnType<typeof client>,
+    url = alias,
+    call?: ReadUpdateTransportCallOptions,
+  ) {
+    if (!transport.resolveAlias) throw Error("Fetch transport must supply alias resolution");
+    return transport.resolveAlias(url, call);
+  }
+
+  it("observes a real Fetch 307 without following its Location", async () => {
+    const requests: string[] = [];
+    const server = createServer((request, reply) => {
+      requests.push(request.url ?? "");
+      reply.writeHead(307, {
+        location: "/acme/beads/person",
+        "content-length": "0",
+        "cache-control": "private, no-store",
+      });
+      reply.end();
+    });
+    await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+    try {
+      const address = server.address();
+      if (address === null || typeof address === "string") throw Error("missing server address");
+      const localScope = `http://127.0.0.1:${address.port}/acme/`;
+      const url = `${localScope}alias/team/lead`;
+      const result = await resolve(
+        createReadUpdateFetchTransport({
+          scope: localScope,
+          limits: { ...limits, responseTimeoutMs: 2000 },
+        }),
+        url,
+      );
+      expect(result).toMatchObject({
+        kind: "alias-redirect",
+        status: 307,
+        url,
+        headers: { location: "/acme/beads/person", "cache-control": "private, no-store" },
+      });
+      expect(result).not.toHaveProperty("body");
+      expect(requests).toEqual(["/acme/alias/team/lead"]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((done, reject) =>
+        server.close((error) => (error ? reject(error) : done())),
+      );
+    }
+  });
+
+  it("waits through empty chunks and preserves uninterpreted frozen metadata with rotated credentials", async () => {
+    let token = "first";
+    const tokens: string[] = [];
+    let pulls = 0;
+    const transport = client(
+      async (url, init) => {
+        expect(url).toBe(alias);
+        expect(init).toMatchObject({
+          method: "GET",
+          credentials: "omit",
+          redirect: "manual",
+          cache: "no-store",
+        });
+        expect(init?.body).toBeUndefined();
+        tokens.push(new Headers(init?.headers).get("authorization") ?? "");
+        return response(
+          new ReadableStream<Uint8Array>(
+            {
+              pull(controller) {
+                pulls++;
+                if (pulls % 3 === 0) controller.close();
+                else controller.enqueue(new Uint8Array());
+              },
+            },
+            { highWaterMark: 0 },
+          ),
+          307,
+          {
+            location: "https://other.test/unvalidated",
+            "content-type": "text/html",
+            "retry-after": "9",
+            "set-cookie": "secret",
+          },
+          alias,
+        );
+      },
+      { credential: () => token },
+    );
+    const first = await resolve(transport);
+    token = "second";
+    const second = await resolve(transport);
+    expect(tokens).toEqual(["Bearer first", "Bearer second"]);
+    expect(pulls).toBe(6);
+    for (const result of [first, second]) {
+      expect(result).toMatchObject({
+        kind: "alias-redirect",
+        status: 307,
+        url: alias,
+        contentType: "text/html",
+        retryAfter: "9",
+        headers: { location: "https://other.test/unvalidated" },
+      });
+      expect(result.headers).not.toHaveProperty("set-cookie");
+      expect(Object.isFrozen(result)).toBe(true);
+      expect(Object.isFrozen(result.headers)).toBe(true);
+    }
+  });
+
+  it("rejects the first actual body byte despite Content-Length zero and bounds hostile cancellation", async () => {
+    let pulls = 0,
+      cancelled = 0;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          pulls++;
+          controller.enqueue(Buffer.from("unexpected"));
+        },
+        cancel() {
+          cancelled++;
+          return new Promise<void>(() => {});
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    await expect(
+      resolve(
+        client(async () => response(stream, 307, { "content-length": "0" }, alias), {
+          limits: { ...limits, responseBodyBytes: 1 },
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: "invalid-response",
+      submission: "not-submitted",
+      httpStatus: 307,
+    });
+    expect(pulls).toBe(1);
+    expect(cancelled).toBe(1);
+    expect(stream.locked).toBe(false);
+  });
+
+  it.each([301, 302, 303, 308])(
+    "still rejects alias HTTP%s without reading or following",
+    async (status) => {
+      let pulls = 0,
+        cancelled = 0,
+        calls = 0;
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          pull() {
+            pulls++;
+          },
+          cancel() {
+            cancelled++;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      await expect(
+        resolve(
+          client(async () => {
+            calls++;
+            return response(stream, status, { location: `${scope}beads/person` }, alias);
+          }),
+        ),
+      ).rejects.toMatchObject({
+        code: "redirect",
+        submission: "not-submitted",
+        httpStatus: status,
+      });
+      expect({ pulls, cancelled, calls }).toEqual({ pulls: 0, cancelled: 1, calls: 1 });
+    },
+  );
+
+  it.each(["GET", "POST", "probeScope"])(
+    "keeps ordinary %s refusal of an empty307",
+    async (method) => {
+      const transport = client(async () =>
+        response(null, 307, {}, method === "probeScope" ? scope : alias),
+      );
+      const call =
+        method === "GET"
+          ? transport.get(alias)
+          : method === "POST"
+            ? transport.post(alias, post)
+            : transport.probeScope();
+      await expect(call).rejects.toMatchObject({
+        code: "redirect",
+        submission: method === "POST" ? "unknown" : "not-submitted",
+        httpStatus: 307,
+      });
+    },
+  );
+
+  it("rejects opaque redirects and changed response URLs", async () => {
+    const opaque = Response.error();
+    Object.defineProperty(opaque, "type", { value: "opaqueredirect" });
+    for (const received of [opaque, response(null, 307, {}, `${scope}beads/person`)]) {
+      await expect(resolve(client(async () => received))).rejects.toMatchObject({
+        code: "invalid-response",
+        submission: "not-submitted",
+      });
+    }
+  });
+
+  it("confines alias requests before invoking credentials or Fetch", async () => {
+    let calls = 0;
+    const transport = client(
+      async () => {
+        calls++;
+        return response();
+      },
+      {
+        credential: () => {
+          calls++;
+          return "token";
+        },
+      },
+    );
+    for (const url of [
+      "https://other.test/alias/a",
+      "https://example.test/other/alias/a",
+      `${scope}alias/../a`,
+    ]) {
+      await expect(resolve(transport, url)).rejects.toMatchObject({
+        code: "invalid-input",
+        submission: "not-submitted",
+      });
+    }
+    expect(calls).toBe(0);
+  });
+
+  it.each(["abort", "deadline"])("bounds an unfinished empty alias stream by %s", async (mode) => {
+    const abort = new AbortController();
+    let cancelled = 0;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull() {
+          if (mode === "abort") abort.abort("private reason");
+        },
+        cancel() {
+          cancelled++;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    await expect(
+      resolve(
+        client(async () => response(stream, 307, {}, alias), {
+          limits: { ...limits, responseTimeoutMs: 15 },
+        }),
+        alias,
+        { signal: abort.signal },
+      ),
+    ).rejects.toMatchObject({
+      code: mode === "abort" ? "aborted" : "timeout",
+      submission: "not-submitted",
+      httpStatus: 307,
+    });
+    expect(cancelled).toBe(1);
+    expect(stream.locked).toBe(false);
+  });
+
+  it("uses normal JSON and native response handling for nonredirect alias statuses", async () => {
+    const json = await resolve(
+      client(async () =>
+        response(
+          '{"code":"resource-not-found"}',
+          404,
+          { "content-type": "application/problem+json" },
+          alias,
+        ),
+      ),
+    );
+    expect(json).toMatchObject({ kind: "json", status: 404, body: { code: "resource-not-found" } });
+    const empty = await resolve(client(async () => response(null, 406, {}, alias)));
+    expect(empty).toMatchObject({ kind: "empty", status: 406 });
+    await expect(
+      resolve(
+        client(async () => response("not JSON", 200, { "content-type": "text/html" }, alias)),
+      ),
+    ).rejects.toMatchObject({ code: "invalid-response", submission: "not-submitted" });
   });
 });

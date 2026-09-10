@@ -75,11 +75,19 @@ export type ReadUpdateHttpResponse = ReadUpdateHttpContext &
 export type ReadUpdateScopeProbeResponse =
   | ReadUpdateHttpResponse
   | (ReadUpdateHttpContext & { readonly kind: "scope-probe" });
+export type ReadUpdateAliasResponse =
+  | ReadUpdateHttpResponse
+  | (ReadUpdateHttpContext & { readonly kind: "alias-redirect" });
 export interface ReadUpdateTransport {
   /** Discover through Link metadata; a successful Scope body is never discovery JSON. */
   probeScope(options?: ReadUpdateTransportCallOptions): Promise<ReadUpdateScopeProbeResponse>;
   get(url: string, options?: ReadUpdateTransportCallOptions): Promise<ReadUpdateHttpResponse>;
   post(url: string, options: ReadUpdateTransportPostOptions): Promise<ReadUpdateHttpResponse>;
+  /** One-hop alias response only; the caller validates Location and never implicitly follows it. */
+  resolveAlias?(
+    url: string,
+    options?: ReadUpdateTransportCallOptions,
+  ): Promise<ReadUpdateAliasResponse>;
 }
 
 const MAX_TIMER_MS = 2_147_483_647;
@@ -141,14 +149,21 @@ export function createReadUpdateFetchTransport(
     method: "GET",
     urlInput: string,
     call: ReadUpdateTransportCallOptions,
-    scopeProbe: true,
+    mode: "scope-probe",
   ): Promise<ReadUpdateScopeProbeResponse>;
+  function exchange(
+    method: "GET",
+    urlInput: string,
+    call: ReadUpdateTransportCallOptions,
+    mode: "alias",
+  ): Promise<ReadUpdateAliasResponse>;
   async function exchange(
     method: "GET" | "POST",
     urlInput: string,
     call: ReadUpdateTransportCallOptions | ReadUpdateTransportPostOptions,
-    scopeProbe = false,
-  ): Promise<ReadUpdateScopeProbeResponse> {
+    mode?: "scope-probe" | "alias",
+  ): Promise<ReadUpdateScopeProbeResponse | ReadUpdateAliasResponse> {
+    const scopeProbe = mode === "scope-probe";
     let submitted = false;
     let status: number | undefined;
     let contentType: string | null | undefined;
@@ -281,7 +296,9 @@ export function createReadUpdateFetchTransport(
         retryAfter = metadata["retry-after"] ?? null;
         if (!Number.isInteger(status) || status < 200 || status > 599 || response.url !== url)
           throw error("invalid-response");
-        if (status >= 300 && status < 400 && status !== 304) throw error("redirect");
+        const aliasRedirect = mode === "alias" && status === 307;
+        if (status >= 300 && status < 400 && status !== 304 && !aliasRedirect)
+          throw error("redirect");
         const context: ReadUpdateHttpContext = Object.freeze({
           status,
           url,
@@ -296,7 +313,7 @@ export function createReadUpdateFetchTransport(
           checkAbort();
           return Object.freeze({ ...context, kind: "scope-probe" });
         }
-        const bodyless = BODYLESS_STATUSES.has(status);
+        const bodyless = aliasRedirect || BODYLESS_STATUSES.has(status);
         const media = context.contentType?.split(";", 1)[0]?.trim().toLowerCase();
         if (!bodyless && media !== "application/json" && media !== "application/problem+json")
           throw error("invalid-response");
@@ -310,6 +327,7 @@ export function createReadUpdateFetchTransport(
           bodyless,
         );
         if (bodyless) {
+          if (aliasRedirect) return Object.freeze({ ...context, kind: "alias-redirect" });
           if (scopeProbe && status === 204)
             return Object.freeze({ ...context, kind: "scope-probe" });
           return Object.freeze({ ...context, kind: "empty" });
@@ -342,9 +360,12 @@ export function createReadUpdateFetchTransport(
     }
   }
   return Object.freeze({
-    probeScope: (call: ReadUpdateTransportCallOptions = {}) => exchange("GET", scope, call, true),
+    probeScope: (call: ReadUpdateTransportCallOptions = {}) =>
+      exchange("GET", scope, call, "scope-probe"),
     get: (url: string, call: ReadUpdateTransportCallOptions = {}) => exchange("GET", url, call),
     post: (url: string, call: ReadUpdateTransportPostOptions) => exchange("POST", url, call),
+    resolveAlias: (url: string, call: ReadUpdateTransportCallOptions = {}) =>
+      exchange("GET", url, call, "alias"),
   });
 }
 
