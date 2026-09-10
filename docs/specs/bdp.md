@@ -1278,37 +1278,40 @@ check the same exclusive attempt ownership; a stale execution cannot resolve
 or commit a replacement attempt's work (T62 option 1, materialized 2026-09-09).
 
 A direct singleton or batch that encounters an unresolved reservation MUST
-reject an already provable semantic mismatch with `409` `idempotency-conflict`.
-Otherwise it MUST wait for comparison to become possible, within one finite
-authority-selected comparison budget. The wait MUST NOT hold a database
-transaction open. This budget is separate from `transaction.duration`, which
-bounds admitted execution; it adds no discovery member. Once the reservation
-resolves, ordinary canonical comparison returns the existing receipt or the
-conflict. Until equality is established, this caller MUST NOT receive the owner's pending receipt, execute
-a second mutation, or retract the owner's reservation. If comparison remains
-unresolved at the deadline, return direct `503` `temporarily-unavailable` with
-`retry: after-delay`; the response SHOULD carry `Retry-After` when a useful
-delay is known. This timeout creates no receipt and leaves the owner's state
-intact. Current authorization and non-disclosure apply at response delivery;
-this is not a direct `idempotency-in-progress` or a minimum-position
-`catch-up-timeout` (T62a = A, ruled 2026-09-09).
+reject an already provable semantic mismatch with `409`
+`idempotency-conflict`. Otherwise it MUST wait for comparison to become
+possible, within one finite authority-selected comparison budget. The wait
+MUST NOT hold a database transaction open. This budget is separate from
+`transaction.duration`, which bounds admitted execution; it adds no
+discovery member. Once the reservation resolves, ordinary canonical
+comparison returns the existing receipt or the conflict. Until equality is
+established, this caller MUST NOT receive the owner's pending receipt,
+execute a second mutation, or retract the owner's reservation. If comparison
+remains unresolved at the deadline, return direct `503`
+`temporarily-unavailable` with `retry: after-delay`; the response SHOULD
+carry `Retry-After` when a useful delay is known. This timeout creates no
+receipt and leaves the owner's state intact. Current authorization and
+non-disclosure apply at response delivery; this is not a direct
+`idempotency-in-progress` or a minimum-position `catch-up-timeout` (T62a =
+A, ruled 2026-09-09).
 
-If that unresolved reservation is retracted while the explicit direct request
-is waiting, the request MAY compete for fresh admission in the same Scope
-epoch, under current authorization and within the same overall finite
-deadline. It executes only after winning a new reservation for its own request;
-it inherits neither the previous attempt's ownership, receipt identity, nor
-unresolved dependency form. Another winner returns it to ordinary comparison.
-Retraction or a change of owner MUST NOT reset the deadline. Deadline exhaustion
-returns the same direct `503` `temporarily-unavailable`, `retry: after-delay`,
-with the same `Retry-After` guidance. If the Scope epoch changes,
-the authority MUST stop this waiting comparison or admission attempt with
-that same `503`; the client must refresh Scope discovery and present a fresh
-request before competing in the new epoch. This permission applies only to a
-still-present explicit request that has not joined a proven-equal execution. It neither
-resumes an abandoned sequence tail nor changes the direct transient-abort
-response to an already admitted execution and its joined duplicates
-(T62b = A, ruled 2026-09-09).
+If that unresolved reservation is retracted while the explicit direct
+request is waiting, the request MAY compete for fresh admission in the same
+Scope epoch, under current authorization and within the same overall finite
+deadline. It executes only after winning a new reservation for its own
+request; it inherits neither the previous attempt's ownership, receipt
+identity, nor unresolved dependency form. Another winner returns it to
+ordinary comparison. Retraction or a change of owner MUST NOT reset the
+deadline. Deadline exhaustion returns the same direct `503`
+`temporarily-unavailable`, `retry: after-delay`, with the same `Retry-After`
+guidance. If the Scope epoch changes, the authority MUST stop this waiting
+comparison or admission attempt with that same `503`; the client must
+refresh Scope discovery and present a fresh request before competing in the
+new epoch. This permission applies only to a still-present explicit request
+that has not joined a proven-equal execution. It neither resumes an
+abandoned sequence tail nor changes the direct transient-abort response to
+an already admitted execution and its joined duplicates (T62b = A, ruled
+2026-09-09).
 
 A `completed` receipt's compact form is retained under its key for the rest
 of the Scope epoch: the disposition and the allocated identities outlive the
@@ -2564,16 +2567,20 @@ Implementations advertising later cumulative profiles MUST retain `GET` and
 values. In every profile, an otherwise valid request whose `Accept` field
 accepts none of the endpoint's successful response media types MUST receive
 a bodyless `406 Not Acceptable`, with no BDP problem code, family, or retry
-member. This refusal occurs before mutation admission, receipt creation, or
-state change. Existing authentication, authorization/non-disclosure, and
-other ordinary failures retain their handling; negotiation MUST NOT expose
-a hidden target or recursively renegotiate an error representation. Missing
-`Accept` permits the endpoint's default. Ordinary HTTP media-range matching,
-specificity, and quality weights apply, including `q=0` exclusions; an
-endpoint offering JSON and SSE selects an acceptable supported representation
-when one exists. Unsupported mutation request content remains `415`
-`unsupported-media-type`, distinct from response negotiation (ruled
-2026-09-09, G3).
+member. For a new mutation submission this refusal occurs before durable
+admission, key binding, receipt creation, or state change. For a retained or
+pending duplicate it occurs after successful key comparison and before
+returning the receipt representation; it MUST NOT change, rerun, or renew
+the retained transaction or receipt. Ordinary admission-control refusals for
+an unknown key precede negotiation of an otherwise acceptable submission.
+Existing authentication, authorization/non-disclosure, and other ordinary
+failures retain their handling; negotiation MUST NOT expose a hidden target
+or recursively renegotiate an error representation. Missing `Accept` permits
+the endpoint's default. Ordinary HTTP media-range matching, specificity, and
+quality weights apply, including `q=0` exclusions; an endpoint offering JSON
+and SSE selects an acceptable supported representation when one exists.
+Unsupported mutation request content remains `415` `unsupported-media-type`,
+distinct from response negotiation (ruled 2026-09-09, G3).
 An implementation MUST respond to an unexpected
 internal server fault with a body-less `500 Internal Server Error`, MUST NOT
 include a BDP Problem body, and MUST keep internal fault details off the
@@ -2610,18 +2617,32 @@ returns the normative foreign-view, cursor-expired, or catch-up-timeout
 problem. It never reports success with an older position.
 
 Scope-bounded representations that depend on authorization use
-`Cache-Control: private, no-store`. If an implementation enables cross-origin
-BDP access, its CORS policy MUST allow every BDP-defined non-safelisted
-request field used by its advertised profile, including `Idempotency-Key`,
-`Last-Event-ID`, and the Transactional minimum-position fields when
-applicable. It MUST expose `Link`, `ETag`, `Retry-After`, `Cache-Control`,
-and the three Transactional response fields when applicable. Ordinary CORS
-rules still govern `Accept` and `Content-Type` values. Type Descriptors
-hosted outside a Scope keep ordinary HTTP caching semantics. SSE responses
-use `Cache-Control: no-store, no-transform`. Intermediaries must not cache or
-transform the stream.
+`Cache-Control: private, no-store`. If an implementation enables
+cross-origin BDP access, its CORS policy MUST allow every BDP-defined
+non-safelisted request field used by its advertised profile, including
+`Idempotency-Key`, `Last-Event-ID`, and the Transactional minimum-position
+fields when applicable. It MUST also allow the applicable HTTP conditional
+request fields: `If-Match`, `If-None-Match`, `If-Modified-Since`, and
+`If-Unmodified-Since`. It MUST expose `Link`, `ETag`, `Retry-After`,
+`Cache-Control`, and the three Transactional response fields when
+applicable. Ordinary CORS rules still govern `Accept` and `Content-Type`
+values. Type Descriptors hosted outside a Scope keep ordinary HTTP caching
+semantics. SSE responses use `Cache-Control: no-store, no-transform`.
+Intermediaries must not cache or transform the stream.
 
 ### Conditional reads and HEAD
+
+BDP mutation POSTs address operation command targets, not selected Resource
+representations: no selected representation of the operation target is read
+or modified by executing the command. In particular, `operations/batch` is
+an execution target, not a transaction collection. Under the method and
+selected-representation boundary in
+[RFC 9110 section 13.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.1),
+HTTP conditional fields on these commands do not guard payload-named
+Resources, newly produced receipts, or aliases. `expectedRevision` remains
+the explicit Resource revision guard. This assigns no blanket exemption for
+unsafe HTTP methods and does not change conditions on canonical Resource
+GET or HEAD requests.
 
 GET and HEAD preconditions follow [RFC 9110 section 13.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2).
 Normal authentication, authorization/non-disclosure, query and cursor checks,
@@ -2671,6 +2692,10 @@ group-addressing URL (ruled 2026-09-09, G5). Receipt/page validator omission
 is specified under [Mutation Receipt responses](#mutation-receipt-responses).
 Canonical Resource, Type Descriptor, and discovery ETags remain unchanged;
 these decisions assign no snapshot or discovery validator details.
+
+The following observation table summarizes the existing scoped response laws
+and shared HTTP failures. It does not exclude ordinary applicable failures,
+including authentication and rate limiting.
 
 | Observation target | Method | Response |
 | --- | --- | --- |
@@ -4013,20 +4038,26 @@ and a request that fails one step never reaches the next:
    different normalized request is `409` `idempotency-conflict`, and the
    earlier request's outcome is unaffected; a key bound to the same
    normalized request is answered with its receipt, pending or terminal,
-   under [Mutation Transactions](#mutation-transactions), and nothing
-   below is evaluated. An unresolved reservation uses that section's bounded
-   comparison and same-epoch retraction rules; unproven equality never returns
-   a receipt or admits a second execution; and
+   under [Mutation Transactions](#mutation-transactions), after successful
+   response-media negotiation; unacceptable `Accept` instead yields the
+   shared bodyless `406` without altering the receipt. Nothing below is
+   evaluated for that duplicate. An unresolved reservation uses that
+   section's bounded comparison and same-epoch retraction rules; unproven
+   equality never returns a receipt or admits a second execution;
 5. admission controls for an unknown key — an `operations` count above
    `transaction.operations` is `413` `limit-exceeded` with `limit`
    `transaction.operations`, a rate limit is `429` `rate-limited`, and an
-   authority that cannot admit is `503` `temporarily-unavailable`.
+   authority that cannot admit is `503` `temporarily-unavailable`; and
+6. response negotiation for an otherwise acceptable new submission —
+   unacceptable `Accept` yields the shared bodyless `406` before durable
+   admission or key binding.
 
-Every one of these is a direct problem that creates no receipt and binds no
-key. A syntactically invalid request therefore never consults key state, and
-a retained or pending receipt is returned before limits and rate limits are
-evaluated, so that a retry that only wants its outcome is never refused for
-the capacity its original consumed.
+Every refusal above creates no receipt and binds no key. Apart from the
+HTTP-native bodyless `406`, these are direct problems. A syntactically
+invalid request therefore never consults key state, and a retained or
+pending duplicate negotiates its receipt representation before limits and
+rate limits are evaluated, so that a retry that only wants its outcome is
+never refused for the capacity its original consumed.
 
 A request is admitted when the authority has durably recorded, in one step,
 the key, the normalized request identity, the `pending` Mutation Receipt
@@ -4034,16 +4065,18 @@ with its `transaction` identity, and its own ownership of the execution,
 under [Mutation Transactions](#mutation-transactions). From that point
 client disconnection, a transport failure, and a bodyless `500` decide
 nothing: the transaction commits or fails on its own, the receipt records
-which, and every response to that request or to an identical retry is a
-Mutation Receipt representation — with one exception. A transient abort
-after admission — a serialization conflict the authority does not retry, or
-a component it cannot reach — retracts the pending receipt and unbinds the
-key in one durable step and is answered, to the original request and to
-every joined duplicate, with a direct `503` `temporarily-unavailable` that
-SHOULD carry `Retry-After`; the retracted receipt's URL then answers the
-uniform `404`, and a retry under the same key executes as a new mutation.
-Every other failure after admission is permanent and is reported inside a
-`failed` receipt, never as a direct problem.
+which, and every successful representation returned to that request or to an
+identical retry is a Mutation Receipt. The shared bodyless
+response-negotiation refusal can suppress that representation without
+changing its outcome. The execution has one transient-abort exception. A
+transient abort after admission — a serialization conflict the authority
+does not retry, or a component it cannot reach — retracts the pending
+receipt and unbinds the key in one durable step and is answered, to the
+original request and to every joined duplicate, with a direct `503`
+`temporarily-unavailable` that SHOULD carry `Retry-After`; the retracted
+receipt's URL then answers the uniform `404`, and a retry under the same key
+executes as a new mutation. Every other execution failure after admission is
+permanent and is reported inside a `failed` receipt, never as a direct problem.
 
 The batch target's responses are:
 
@@ -5037,8 +5070,16 @@ may add another read carrier if implementation evidence requires it.
 >
 > Implementations of the Read and Read+Update profiles may skip this entire section.
 
-The discovered `snapshot` target creates one logical read-only snapshot using
-safe `GET` semantics:
+The discovered `snapshot` target creates one logical read-only snapshot
+using safe `GET` semantics. HEAD on this creation target returns the
+corresponding response metadata and decision without a usable snapshot
+handle. That parity does not require materializing or retaining an
+undisclosed snapshot body or handle; internal allocation is an
+implementation detail. HEAD does not renew existing handles. Ordinary HTTP
+HEAD metadata omissions apply, while all BDP-required context and cache
+fields remain required. A later GET independently creates its own manifest.
+This differs from GET/HEAD refetch of a manifest `id`, whose identity and
+expiry remain fixed as specified below:
 
 ```http
 GET /acme/snapshot HTTP/1.1
@@ -5106,6 +5147,10 @@ apply. An authorized expired or no-longer-available snapshot handle returns
 `410 cursor-expired`; an unknown or undisclosable target retains uniform
 `404 resource-not-found`. Actual service inability before the promised expiry
 is a service failure, not an expiration diagnosis (ruled 2026-09-09, G1).
+
+The following snapshot table summarizes the existing scoped response laws
+and shared HTTP failures. It does not exclude ordinary applicable failures,
+including authentication and rate limiting.
 
 | Snapshot target | Method | Response |
 | --- | --- | --- |

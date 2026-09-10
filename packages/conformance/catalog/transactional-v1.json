@@ -151,7 +151,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#batch-operation-target",
-          "selectedText": "A syntactically invalid request therefore never consults key state, and a retained or pending receipt is returned before limits and rate limits are evaluated"
+          "selectedText": "A syntactically invalid request therefore never consults key state, and a retained or pending duplicate negotiates its receipt representation before limits and rate limits are evaluated"
         }
       ]
     },
@@ -1976,7 +1976,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#problem-details",
-          "selectedText": "This refusal occurs before mutation admission, receipt creation, or state change."
+          "selectedText": "For a new mutation submission this refusal occurs before durable admission, key binding, receipt creation, or state change."
         }
       ]
     },

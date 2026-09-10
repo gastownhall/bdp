@@ -17,9 +17,26 @@ interface Example {
   id: string;
   profile: string;
   kind: string;
-  source: { file: string; exchange: string };
+  source?: { file: string; exchange: string; purpose: string };
   context: {
     ordinaryStatus: number;
+    scope?: string;
+    requestSeed?: boolean;
+    entityTag?: string;
+    snapshotHead?: {
+      usableHandleReturned: boolean;
+      existingHandleRenewed: boolean;
+      internalAllocation: string;
+    };
+    admission?: {
+      keyState: string;
+      keyConsulted: boolean;
+      keyBoundAfter: boolean;
+      receiptBefore?: Body;
+      receiptAfter?: Body;
+      detailRenewed?: boolean;
+      rateLimitExceeded?: boolean;
+    };
     ordinaryRefusal?: string;
     independentAdmissionSeed?: boolean;
     receiptIdentityEpoch?: string;
@@ -48,6 +65,7 @@ interface Example {
       detailAvailable: boolean;
       sameAuthorizationView: boolean;
       newErasure: boolean;
+      unavailableReason?: string;
     };
     withheldIndexes?: number[];
     erasedIndexes?: number[];
@@ -83,7 +101,10 @@ ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
 ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
 ajv.addSchema(JSON.parse(read("schemas/bdp-v0.schema.json")));
 const sourceExchangeFor = (example: Example) => {
-  const source = JSON.parse(read(`fixtures/transactional/${example.source.file}`)) as {
+  if (example.source === undefined) throw new Error("This case has no source exchange");
+  const reference = example.source;
+  expect(reference.purpose.trim().length).toBeGreaterThan(0);
+  const source = JSON.parse(read(`fixtures/transactional/${reference.file}`)) as {
     scope: string;
     exchanges: {
       id: string;
@@ -92,8 +113,8 @@ const sourceExchangeFor = (example: Example) => {
       response: Example["response"];
     }[];
   };
-  const exchange = source.exchanges.find(({ id }) => id === example.source.exchange);
-  expect(exchange, example.source.exchange).toBeDefined();
+  const exchange = source.exchanges.find(({ id }) => id === reference.exchange);
+  expect(exchange, reference.exchange).toBeDefined();
   if (exchange === undefined) throw new Error("Missing source exchange");
   return {
     ...exchange,
@@ -130,9 +151,11 @@ const header = (headers: Record<string, string>, name: string): string | undefin
  */
 function checkPremises(example: Example): void {
   const { request, response, context } = example;
-  const source = sourceExchangeFor(example);
-  const target = new URL(request.target, context.independentEmptyScope ?? source.scope);
-  const scope = new URL(context.independentEmptyScope ?? source.scope);
+  const source = example.source === undefined ? undefined : sourceExchangeFor(example);
+  const scopeValue = context.independentEmptyScope ?? context.scope ?? source?.scope;
+  expect(scopeValue).toBeTruthy();
+  const target = new URL(request.target, scopeValue);
+  const scope = new URL(scopeValue as string);
   expect(target.origin).toBe(scope.origin);
   expect(target.pathname.startsWith(scope.pathname)).toBe(true);
   const relative = target.pathname.slice(scope.pathname.length);
@@ -147,9 +170,22 @@ function checkPremises(example: Example): void {
   if (["receipt", "receipt-page"].includes(example.kind)) {
     expect(relative).toMatch(/^receipts\/[^/]+$/);
   }
+  if (context.requestSeed) {
+    if (source === undefined) throw new Error("Missing request seed");
+    expect(request.method).toBe(source.request.method);
+    expect(request.target).toBe(source.request.target);
+    expect(request.body).toEqual(source.request.body);
+    expect(request.schema).toBe(source.request.schema);
+    for (const [name, value] of Object.entries(source.request.headers))
+      if (name.toLowerCase() !== "accept") expect(header(request.headers, name)).toBe(value);
+    const validate = ajv.getSchema(`${BDP_V0_SCHEMA_ID}${request.schema}`);
+    expect(validate).toBeDefined();
+    expect(validate?.(request.body), JSON.stringify(validate?.errors)).toBe(true);
+  }
   if (context.independentAdmissionSeed !== undefined) {
     expect(example.profile).toBe("transactional");
     expect(context.independentAdmissionSeed).toBe(true);
+    if (source === undefined) throw new Error("Missing admission seed");
     expect(source.condition).toBeTruthy();
     expect(source.discovery).toBeDefined();
     expect(response.headers["BDP-Scope-Position"]).toBe(
@@ -171,7 +207,69 @@ function checkPremises(example: Example): void {
     example.kind === "mutation" &&
     context.ordinaryStatus === 200
   ) {
-    expect(context.independentAdmissionSeed).toBeTruthy();
+    expect(context.independentAdmissionSeed || context.admission).toBeTruthy();
+  }
+  if (example.kind === "resource") {
+    expect(context.entityTagAvailable).toBe(true);
+    expect(context.entityTag).toMatch(/^"[^"\\]+"$/);
+  }
+  if (context.snapshotHead !== undefined) {
+    expect(context.handle).toBe("creation-target");
+    expect(request.method).toBe("HEAD");
+    expect(relative).toBe("snapshot");
+    expect(target.search).toBe("");
+    expect(context.snapshotHead).toEqual({
+      usableHandleReturned: false,
+      existingHandleRenewed: false,
+      internalAllocation: "unspecified",
+    });
+    expect(header(response.headers, "Location")).toBeUndefined();
+  }
+  const admission = context.admission;
+  if (admission !== undefined) {
+    if (source === undefined) throw new Error("Missing concrete mutation seed");
+    expect(example.kind).toBe("mutation");
+    expect(request.target).toBe(source.request.target);
+    expect(request.schema).toBe(source.request.schema);
+    expect(header(request.headers, "Idempotency-Key")).toBe(
+      header(source.request.headers, "Idempotency-Key"),
+    );
+    const validate = ajv.getSchema(`${BDP_V0_SCHEMA_ID}${request.schema}`);
+    expect(validate).toBeDefined();
+    if (context.ordinaryRefusal === "malformed-request") {
+      expect(validate?.(request.body)).toBe(false);
+      expect(admission.keyState).toBe("unconsulted");
+      expect(admission.keyConsulted).toBe(false);
+    } else {
+      expect(validate?.(request.body), JSON.stringify(validate?.errors)).toBe(true);
+      expect(admission.keyConsulted).toBe(true);
+      if (context.ordinaryRefusal === "idempotency-conflict") {
+        const different = structuredClone(source.request.body) as Body;
+        ((different.operations as Body[])[1] as Body).expectedRevision = "different-guard";
+        expect(request.body).toEqual(different);
+        expect(request.body).not.toEqual(source.request.body);
+        expect(admission.keyState).toBe("retained");
+      } else expect(request.body).toEqual(source.request.body);
+    }
+    if (admission.keyState === "retained") {
+      expect(admission.receiptBefore).toEqual(source.response.body);
+      expect(admission.receiptAfter).toEqual(admission.receiptBefore);
+      expect(admission.detailRenewed).toBe(false);
+      expect(admission.keyBoundAfter).toBe(true);
+      expect(example.effects.newAdmissions).toBe(0);
+      expect(example.effects.stateChanges).toBe(0);
+      expect(response.headers["BDP-Scope-Position"]).toBe(
+        source.response.headers["bdp-scope-position"],
+      );
+    } else {
+      expect(["unknown", "unconsulted"]).toContain(admission.keyState);
+      expect(admission.keyBoundAfter).toBe(response.status === 200);
+    }
+    if (context.ordinaryRefusal === "rate-limited") {
+      expect(admission.keyState).toBe("unknown");
+      expect(admission.rateLimitExceeded).toBe(true);
+    }
+    if (response.status === 200) expect(response.body).toEqual(source.response.body);
   }
   const refusal = context.ordinaryRefusal;
   if (["foreign-view", "expired-epoch", "catch-up-timeout"].includes(refusal ?? "")) {
@@ -206,6 +304,7 @@ function checkPremises(example: Example): void {
   }
   if (refusal === "erasure-expiry") {
     expect(example.kind).toBe("snapshot");
+    if (source === undefined) throw new Error("Missing snapshot seed");
     const manifest = requiredBody(source.response);
     expect(request.target).toBe(manifest.id);
     expect(context.erasureFence?.snapshot).toBe(manifest.id);
@@ -232,6 +331,9 @@ function expectedStatus(example: Example): number {
   if (context.ordinaryStatus !== 200) {
     const refusals: Record<string, number> = {
       authentication: 401,
+      "idempotency-conflict": 409,
+      "rate-limited": 429,
+      "malformed-request": 400,
       "undisclosed-target": 404,
       "foreign-view": 409,
       "expired-epoch": 410,
@@ -253,13 +355,14 @@ function expectedStatus(example: Example): number {
   }
   if (context.supportedMedia.every((media) => quality(request.headers.Accept, media) === 0))
     return 406;
-  // All preconditions in this fixture are read preconditions on existing
-  // representations with no available entity tag or modification date.
-  expect(context.entityTagAvailable).toBe(false);
+  // These POSTs execute commands; their conditional fields do not select
+  // payload-named Resource representations. This is not a general HTTP engine.
+  if (example.kind === "mutation") return 200;
   expect(context.modificationDateAvailable).toBe(false);
   const match = request.headers["If-Match"];
-  if (match !== undefined && match !== "*") return 412;
-  if (request.headers["If-None-Match"] === "*") return 304;
+  if (match !== undefined && match !== "*" && match !== context.entityTag) return 412;
+  const noneMatch = request.headers["If-None-Match"];
+  if (noneMatch === "*" || (noneMatch !== undefined && noneMatch === context.entityTag)) return 304;
   return 200;
 }
 function check(example: Example): void {
@@ -269,6 +372,11 @@ function check(example: Example): void {
   if (["receipt", "receipt-page", "changes", "events", "resource-events"].includes(example.kind)) {
     expect(headerNames).not.toContain("etag");
     expect(headerNames).not.toContain("last-modified");
+  }
+  if (response.bodyOmittedFromIllustration) {
+    expect(context.ordinaryRefusal).toBeTruthy();
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.headers["Content-Type"]).toBe("application/problem+json");
   }
   const nativeBodyless = [304, 406, 412].includes(response.status);
   if (nativeBodyless || request.method === "HEAD") {
@@ -323,6 +431,23 @@ function check(example: Example): void {
     expect(effects.newAdmissions).toBe(0);
     expect(effects.stateChanges).toBe(0);
     expect(request.target).toBe(sourceExchangeFor(example).request.target);
+    const unavailable = context.recovery.unavailableReason;
+    if (unavailable !== undefined) {
+      const expected = {
+        "prior-epoch-receipt": 404,
+        "expired-detail": 410,
+        "retracted-receipt": 404,
+        "forgotten-failed-receipt": 404,
+      }[unavailable];
+      expect(expected).toBeDefined();
+      expect(context.ordinaryRefusal).toBe(unavailable);
+      expect(response.status).toBe(expected);
+      expect(context.recovery.sameEpoch).toBe(unavailable !== "prior-epoch-receipt");
+      expect(context.recovery.detailAvailable).toBe(false);
+      expect(response.body).toBeUndefined();
+      expect(response.bodyOmittedFromIllustration).toBe(true);
+      return;
+    }
     expect(context.recovery.sameEpoch).toBe(true);
     expect(context.recovery.detailAvailable).toBe(true);
     const original = sourceFor(example);
@@ -374,8 +499,8 @@ const example = (id: string): Example => {
 describe("draft HTTP and retained-handle illustrations (not runtime conformance)", () => {
   it("keeps explicit all-profile negotiation and every affected GET/HEAD family", () => {
     expect(fixture.fixtureVersion).toBe(1);
-    expect(new Set(fixture.cases.map(({ id }) => id)).size).toBe(68);
-    expect(fixture.cases.length).toBe(68);
+    expect(new Set(fixture.cases.map(({ id }) => id)).size).toBe(76);
+    expect(fixture.cases.length).toBe(76);
     for (const profile of ["read", "read-update", "transactional"]) {
       expect(
         fixture.cases.some((row) => row.profile === profile && row.response.status === 406),
@@ -414,6 +539,7 @@ describe("draft HTTP and retained-handle illustrations (not runtime conformance)
     for (const row of fixture.cases.filter((candidate) => candidate.request.method === "HEAD")) {
       const get = structuredClone(row);
       get.request.method = "GET";
+      delete get.context.snapshotHead;
       expect(expectedStatus(get)).toBe(row.response.status);
       if (row.context.independentEmptyScope === undefined) {
         const original = sourceFor(row);
@@ -578,6 +704,111 @@ describe("draft HTTP and retained-handle illustrations (not runtime conformance)
   it("rejects retaining content withheld under the current view after restart", () => {
     const row = example("receipt-page-restart-withheld");
     row.response.body = structuredClone(requiredBody(sourceFor(row)));
+    expect(() => check(row)).toThrow();
+  });
+  it("requires applicable HTTP conditionals in the CORS allow-list", () => {
+    const cors = read("docs/specs/bdp.md")
+      .split("### HTTP consistency, caching, and CORS fields")[1]
+      ?.split("### Conditional reads and HEAD")[0]
+      ?.replace(/\s+/g, " ");
+    expect(cors).toContain("MUST also allow the applicable HTTP conditional request");
+    for (const name of ["If-Match", "If-None-Match", "If-Modified-Since", "If-Unmodified-Since"])
+      expect(cors).toContain(`\`${name}\``);
+  });
+  it("rejects a Problem illustration with ordinary JSON media", () => {
+    const row = example("refusal-before-conditional-expired-detail");
+    row.response.headers["Content-Type"] = "application/json";
+    expect(() => check(row)).toThrow();
+  });
+  it.each([
+    "prior-epoch-receipt",
+    "expired-detail",
+    "retracted-receipt",
+    "forgotten-failed-receipt",
+  ])("rejects successful recovery or false available-detail premises for %s", (reason) => {
+    const row = example(`refusal-before-conditional-${reason}`);
+    row.response.status = 200;
+    expect(() => check(row)).toThrow();
+    const wrongPremise = example(`refusal-before-conditional-${reason}`);
+    if (!wrongPremise.context.recovery) throw new Error("Missing recovery premise");
+    wrongPremise.context.recovery.detailAvailable = true;
+    expect(() => check(wrongPremise)).toThrow();
+  });
+  it("rejects same-epoch recovery mislabelled as a prior-epoch receipt", () => {
+    const row = example("refusal-before-conditional-prior-epoch-receipt");
+    if (!row.context.recovery) throw new Error("Missing recovery premise");
+    row.context.recovery.sameEpoch = true;
+    expect(() => check(row)).toThrow();
+  });
+  it.each(["usableHandleReturned", "existingHandleRenewed"] as const)(
+    "rejects snapshot creation HEAD promising %s",
+    (field) => {
+      const row = example("snapshot-creation-head");
+      if (!row.context.snapshotHead) throw new Error("Missing HEAD premise");
+      row.context.snapshotHead[field] = true;
+      expect(() => check(row)).toThrow();
+    },
+  );
+  it("rejects a usable snapshot Location on creation HEAD", () => {
+    const row = example("snapshot-creation-head");
+    row.response.headers.Location = "https://beads.example/acme/snapshot?snapshot=new";
+    expect(() => check(row)).toThrow();
+  });
+  it("keeps a POST command condition from guarding payload-named Resources", () => {
+    const row = example("command-if-match");
+    row.response.status = 412;
+    expect(() => check(row)).toThrow();
+  });
+  it("rejects dropping the canonical Resource's available validator", () => {
+    const row = example("read-unacceptable");
+    row.context.entityTagAvailable = false;
+    expect(() => check(row)).toThrow();
+  });
+  it("rejects false request provenance", () => {
+    const row = example("transactional-unacceptable");
+    if (!row.source) throw new Error("Missing seed");
+    row.source.exchange = "receipt-9-page-2";
+    expect(() => check(row)).toThrow();
+  });
+  it.each(["retained-duplicate-unacceptable", "conflicting-key-unacceptable"])(
+    "preserves the retained receipt under %s",
+    (id) => {
+      const row = example(id);
+      if (!row.context.admission?.receiptAfter) throw new Error("Missing retained receipt");
+      row.context.admission.receiptAfter.status = "failed";
+      expect(() => check(row)).toThrow();
+    },
+  );
+  it("rejects renewal on a retained duplicate's 406", () => {
+    const row = example("retained-duplicate-unacceptable");
+    if (!row.context.admission) throw new Error("Missing admission premise");
+    row.context.admission.detailRenewed = true;
+    expect(() => check(row)).toThrow();
+  });
+  it("rejects a conflicting-key 409 when the request actually matches", () => {
+    const row = example("conflicting-key-unacceptable");
+    row.request.body = structuredClone(sourceExchangeFor(row).request.body) as Body;
+    expect(() => check(row)).toThrow();
+  });
+  it.each([
+    "conflicting-key-unacceptable",
+    "unknown-key-rate-limit-unacceptable",
+    "malformed-before-negotiation",
+  ])("does not let 406 replace ordinary refusal %s", (id) => {
+    const row = example(id);
+    row.response.status = 406;
+    expect(() => check(row)).toThrow();
+  });
+  it("rejects consulting key state for a malformed request", () => {
+    const row = example("malformed-before-negotiation");
+    if (!row.context.admission) throw new Error("Missing admission premise");
+    row.context.admission.keyConsulted = true;
+    expect(() => check(row)).toThrow();
+  });
+  it("rejects binding an unknown key on 406", () => {
+    const row = example("transactional-unacceptable");
+    if (!row.context.admission) throw new Error("Missing admission premise");
+    row.context.admission.keyBoundAfter = true;
     expect(() => check(row)).toThrow();
   });
 });

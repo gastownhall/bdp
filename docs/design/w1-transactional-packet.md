@@ -797,6 +797,12 @@ accepted: the authority resolves the `uri` to the allocated canonical URL
 and stores and echoes the `revision` byte-identically, applying no semantic
 validation to it, exactly as for every other pin.
 
+> **Clarified 2026-09-10:** This historical transcription predates G3. The
+> canonical specification now negotiates successful retained/pending duplicates
+> after key comparison, and otherwise acceptable unknown-key submissions after
+> ordinary admission controls but before durable binding. Bodyless 406 preserves
+> existing receipts. See the final HTTP council correction record below.
+
 Before admission, the authority decides the request's fate in this order,
 and a request that fails one step never reaches the next:
 
@@ -5128,9 +5134,9 @@ inheritance as is and let a Transactional claim fail the retired rows
     "requiredProfile": "transactional",
     "requirements": [
       {
-        "source": "docs/design/w1-transactional-packet.md",
-        "anchor": "#21-proposed-normative-text",
-        "selectedText": "A syntactically invalid request therefore never consults key state, and a retained or pending receipt is returned before limits and rate limits are evaluated"
+        "source": "docs/specs/bdp.md",
+        "anchor": "#batch-operation-target",
+        "selectedText": "A syntactically invalid request therefore never consults key state, and a retained or pending duplicate negotiates its receipt representation before limits and rate limits are evaluated"
       }
     ]
   },
@@ -6840,7 +6846,8 @@ An implementer who has this packet, ruled, still lacks:
 - **Snapshot stream continuation.** The manifest is transcribed, but the
   grammar of the per-stream `next` URLs, which `410` a snapshot page returns
   after `expiresAt` or after an erasure expires the snapshot, and whether
-  the manifest `id` is itself addressable are unwritten.
+  the manifest `id` is itself addressable were unwritten. **Closed 2026-09-09
+  by G1 = A; see the HTTP gap record below.**
 - **The synchronous wait bound.** T38 bounds `202` on the original
   submission by an authority-chosen bound no longer than
   `transaction.duration`, and T35 bounds pending recovery by the same
@@ -6857,8 +6864,8 @@ An implementer who has this packet, ruled, still lacks:
   administrative transaction identities the fixtures show (`adm-e1`) are
   minted by a mechanism no specification describes.
 - **Receipt page URL stability.** Pages expire with the receipt's detail
-  (T9 (e)); whether a page URL is stable across authority restarts is
-  unwritten.
+  (T9 (e)); whether a page URL is stable across authority restarts was
+  unwritten. **Closed 2026-09-09 by G2 = A; see the HTTP gap record below.**
 - **A JCS conformance check.** Section 5.4 gives vectors; no test in the
   repository computes a digest yet.
 - **Owned Links and Selectors.** Selector candidates are `{ id, type,
@@ -6873,9 +6880,12 @@ An implementer who has this packet, ruled, still lacks:
   request fields; the Read cohort's self-certified lifecycle rows show the
   packaged-versus-in-process provenance question these rows will inherit.
 - **The `406` media-type code.** Unacceptable response media types remain
-  unassigned, as in the draft; `415` is inherited from Read+Update.
+  unassigned in this historical list; `415` is inherited from Read+Update.
+  **Closed 2026-09-09 by G3 = A: bodyless native 406, no BDP code; see
+  the HTTP gap record below.**
 - **`ETag` and conditional requests on receipts and groups;** `HEAD` on
-  `changes/` and `events/`.
+  `changes/` and `events/`. **Closed 2026-09-09 by G4/G5 = A; see the
+  HTTP gap record below.**
 - **Per-Resource diagnostics for set operations.** A `validation-failed`
   or `aggregate-constraint-violation` raised by `updateWhere` locates the
   operation but not the selected Resource; whether a diagnostic's
@@ -8190,7 +8200,7 @@ bounds, administrative erasure controls, or other unrelated residuals.
       {
         "source": "docs/specs/bdp.md",
         "anchor": "#problem-details",
-        "selectedText": "This refusal occurs before mutation admission, receipt creation, or state change."
+        "selectedText": "For a new mutation submission this refusal occurs before durable admission, key binding, receipt creation, or state change."
       }
     ]
   },
@@ -8312,3 +8322,71 @@ whitespace passed with Node 24.16.0 and an offline frozen install. The spec,
 both schema mirrors, all catalog rows and evidence remain unchanged. These
 are fixture corrections, not server observations, new semantics, execution
 conformance or clearance of the corrected head.
+
+
+## Final HTTP council corrections — 2026-09-10
+
+This bounded successor follows the coordinator's adjudication of Claude's
+review of frozen `0eb90f89824baf771ba87dd5590925ed9849ad23`. Finding 1 was
+already fixed by `a9b60b265a77133a7b1a663050923980f602cf36`; its real batch
+request seed, minimum-position contexts and snapshot erasure fences remain.
+The following dispositions close findings 2–11 without reopening G1–G5:
+
+- **2, CORS:** the shared policy explicitly permits the applicable four HTTP
+  conditional request fields; a scoped citation check covers that list.
+- **3, snapshot creation HEAD:** metadata/decision parity supplies no usable
+  handle and renews no existing handle. Internal allocation remains unspecified;
+  no new snapshot retention promise or mandatory no-allocation policy is added.
+  A later GET creates its own manifest; retained manifest refetch is unchanged.
+- **4, command conditions:** actual BDP mutation POST routes are operation
+  execution targets, not selected Resource representations. Their conditional
+  fields do not guard payload-named Resources, new receipts, or aliases;
+  `expectedRevision` remains the explicit Resource guard. This uses the method
+  and selected-representation boundary, not a blanket unsafe-method exemption.
+  A valid batch with `If-Match` and canonical Resource conditional examples
+  illustrate the distinction without introducing a 412 mutation response.
+- **5, Problem media:** all omitted ordinary Problem bodies now record
+  `application/problem+json`; changing that pairing fails the checker.
+- **6, status tables:** observation and snapshot tables summarize their scoped
+  rules plus shared failures without excluding ordinary applicable failures.
+- **7, restart boundaries:** prior-epoch, expired-detail, retracted-receipt and
+  forgotten-failed-receipt cases now carry explicit recovery contexts, with
+  corruption checks for both wrong success and wrong availability premises.
+- **8, source truth:** references carry an explicit request/body/context purpose;
+  independent cases can omit them and instead declare their Scope. The
+  Read+Update 406 now uses an actual singleton request seed. Canonical Resource
+  cases declare their existing ETag, even when negotiation wins first.
+- **9, negotiation order:** bounds, syntax, principal, known-key conflict and
+  unknown-key admission-control refusals retain precedence. A successful
+  retained/pending duplicate negotiates after key comparison, before returning
+  its representation and before rate-limit checks. Its 406 cannot rerun, mutate
+  or renew the receipt. An otherwise acceptable unknown-key submission negotiates
+  before durable admission/key binding. The illustrations include retained
+  duplicate 406 despite an exceeded admission rate limit, conflicting-key 409,
+  unknown-key 429, malformed-request 400 without key consultation, and no binding
+  on a new-key 406. Two affected TX citation excerpts now bind the current spec.
+- **10–11, documentation:** four historical residual bullets carry dated G1–G5
+  closure markers; the earlier pre-admission transcription is explicitly
+  superseded in place. The two flagged paragraphs are reflowed with dates intact.
+
+The HTTP interpretation follows [RFC 9110 sections 9.3.2, 13.2.1 and
+13.2.2](https://www.rfc-editor.org/rfc/rfc9110.html). These are clarified draft
+contracts and narrated examples, not HTTP server, browser, or conformance tests.
+The fixture checker deliberately covers only its stated media-range grammar,
+exact seed requests and explicit lifecycle premises; it does not infer ordering
+from opaque tokens or implement arbitrary HTTP condition/normalization logic.
+
+The HTTP family now has **76 cases**, **23 schema-validated response bodies**,
+**7 schema-annotated request bodies** (six valid, one deliberately malformed),
+and **20 omitted ordinary Problem bodies**. Node 24.16.0/pnpm 11.20.0 checks
+passed: the focused protocol/catalog set contains **299 tests**; the full suite
+passed **1,715 tests in 49 files, no skips**, including required pinned `bd`.
+Build, typecheck, lint, formatting, dependency boundaries, the 7-test executable
+preflight, installed executable smoke checks and diff whitespace passed.
+The historical evidence verifier still verifies its original **74 rows**;
+no observation was generated or rehashed. Both schema mirrors retain their
+138 definitions byte-identically, the 12 older TX fixture files and both inherited
+catalogs remain unchanged, and the TX catalog still has 133 rows with unchanged
+identities and retirements. No runtime, evidence, matrix, feature grant, readiness,
+merge, or new semantic decision is claimed. Fresh successor review and integration
+remain the coordinator's work; unrelated residuals remain unassigned here.
