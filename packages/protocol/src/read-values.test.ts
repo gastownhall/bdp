@@ -264,7 +264,7 @@ describe("Resource properties parsing", () => {
     expect(reads).toBe(1);
   });
 
-  it("rejects cycles, non-JSON values, non-finite numbers, and oversized containers", () => {
+  it("rejects cycles, non-JSON values and non-finite numbers", () => {
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;
 
@@ -275,19 +275,38 @@ describe("Resource properties parsing", () => {
     expect(() => parsePropertiesRecord({ value: Number.NaN })).toThrow(
       "must contain a finite JSON number",
     );
-    expect(() =>
-      parsePropertiesRecord({ values: Array.from({ length: 10_001 }, () => 0) }),
-    ).toThrow("must not exceed 10000 entries");
   });
 
-  it("bounds primitive depth and aggregate node count", () => {
-    let tooDeep: unknown = 0;
-    for (let depth = 0; depth < 128; depth += 1) tooDeep = [tooDeep];
-    expect(() => parsePropertiesRecord({ value: tooDeep })).toThrow("must not exceed depth 128");
+  it("keeps admitted deep and wide Resource properties readable without hidden wire limits", () => {
+    const depth = 20_000;
+    const raw = `${"[1,".repeat(depth)}0${"]".repeat(depth)}`;
+    const deep: unknown = JSON.parse(raw);
+    const parsed = parsePropertiesRecord({ value: deep });
+    let current = parsed.value;
+    for (let i = 0; i < depth; i++) {
+      if (!Array.isArray(current)) throw new Error(`missing level ${i}`);
+      expect(Object.isFrozen(current)).toBe(true);
+      expect(current[0]).toBe(1);
+      current = current[1];
+    }
+    expect(current).toBe(0);
+    const wide = Array.from({ length: 101 }, () => Array(1_001).fill(0));
+    expect(parsePropertiesRecord({ values: wide }).values).toEqual(wide);
+    const entries = Array.from({ length: 10_001 }, () => 0);
+    expect(parsePropertiesRecord({ values: entries }).values).toEqual(entries);
+  });
 
-    const tooManyNodes = Array.from({ length: 101 }, () => Array(1_000).fill(0));
-    expect(() => parsePropertiesRecord({ values: tooManyNodes })).toThrow(
-      "must not exceed 100000 values",
+  it("retains closed Resource schema checks and rejects invalid Unicode at arbitrary property depth", () => {
+    const bead = {
+      id: `${scope}beads/deep`,
+      type: "https://work.example/types/task",
+      revision: "r1",
+      properties: { deep: JSON.parse(`${"[".repeat(256)}1${"]".repeat(256)}`) as unknown },
+    };
+    expect(parseBeadRecord(bead).revision).toBe("r1");
+    expect(() => parseBeadRecord({ ...bead, extra: true })).toThrow("additional properties");
+    expect(() => parseBeadRecord({ ...bead, properties: { deep: { bad: "\ud800" } } })).toThrow(
+      "unpaired surrogate",
     );
   });
 });
@@ -620,7 +639,7 @@ describe("Type artifact parsing", () => {
     expect(Object.isFrozen(parsedDescriptor.source)).toBe(true);
   });
 
-  it("captures array length once before enforcing snapshot bounds and copying", () => {
+  it("captures array length once before copying and schema validation", () => {
     let lengthReads = 0;
     const conformsTo = new Proxy(["https://work.example/types/base"], {
       get(target, property, receiver) {

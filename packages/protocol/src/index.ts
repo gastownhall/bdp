@@ -1,3 +1,4 @@
+export { snapshotJsonValue, stringifyJsonValue } from "./json-values.js";
 import { parseHistoryMissing } from "./history-values.js";
 import type { ChangeContext, HistoryCapability, HistoryMissing } from "./history-values.js";
 export * from "./history-values.js";
@@ -565,3 +566,52 @@ export function historyUnretainedProblem(missing: HistoryMissing): ReadProblem {
     missing: parseHistoryMissing(missing),
   };
 }
+
+// Read+Update wire parsing never grants runtime admission or widens Read roots.
+export {
+  JsonSyntaxError,
+  JsonNumberLiteral,
+  JsonDiagnosticBudgetError,
+  decodeJsonDocument,
+  admitJsonNumbers,
+  isAdmissibleJsonNumber,
+  isUnicodeScalarString,
+  type LosslessJsonValue,
+  type AdmittedJsonValue,
+  type JsonNumberOccurrence,
+  type JsonNumberDiagnosticBudget,
+  type JsonNumericAdmission,
+} from "./json-admission.js";
+export {
+  READ_UPDATE_VALUE_SCHEMA_REFS,
+  ReadUpdateCarrierError,
+  parseReadUpdateRequest,
+  parseReadUpdateSequenceRequest,
+  admitReadUpdateOperationNumbers,
+  parseReadUpdateDiscovery,
+  parseReadUpdateOperationDirectory,
+  parseReadUpdateMutationResult,
+  parseReadUpdateAliasResult,
+  parseReadUpdateSequenceResponse,
+  type ReadUpdateOperation,
+  type ReadUpdateInputs,
+  type ReadUpdateInputReference,
+  type PropertyChange,
+  type UnadmittedReadUpdateOperation,
+  type ReadUpdateSequenceRequest,
+  type ReadUpdateNumericAdmission,
+  type ReadUpdateDiscovery,
+  type ReadUpdateOperationDirectory,
+  type ReadUpdateMutationResult,
+  type ReadUpdateAliasResult,
+  type ReadUpdateSequenceEntry,
+  type ReadUpdateSequenceResponse,
+} from "./read-update-values.js";
+export {
+  parseReadUpdateProblem,
+  parseReadUpdateSequenceMemberProblem,
+  type ReadUpdateProblem,
+  type ReadUpdateProblemCode,
+  type ReadUpdateSequenceMemberProblem,
+  type ValidationDiagnostic,
+} from "./read-update-problems.js";
