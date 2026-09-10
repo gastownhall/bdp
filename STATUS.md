@@ -14,10 +14,11 @@ The Read cohort was genuinely generated from
 capability constant at `599361130bfaa07c2b5d157f3ecbe44f0691cb9e`, then merged
 in #29 at `19923f5bb6cc3f4ee4c508e36df3bd4c5c52344b`.
 The five foundation source ancestries, including #24, remain preserved.
-The approved ordered 27-definition Read seal and independent current-byte
-checks remain unchanged here; coverage checks never choose digest inputs.
-The widened shared History schemas require a reviewed named-seal extension
-and genuine successor observations before a current claim for this integration.
+The original ordered 27-definition Read seal is preserved as the prefix of the
+reviewed 42-name seal. Six actual History Read parser roots are now included;
+41 definitions are reachable, and coverage checks never choose digest inputs.
+This completes the source coverage extension. Genuine successor observations
+must bind these widened schemas before a current claim for this integration.
 
 The current wire integration introduces no write capability grant: every applicable
 Read+Update obligation needs its own actual observations before admission.

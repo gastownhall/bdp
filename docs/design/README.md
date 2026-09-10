@@ -135,6 +135,8 @@ History wire integration, 2026-09-10: all 38 selected answer units have owning d
 text under [Historical resolution](../specs/bdp.md#historical-resolution), mirrored
 schemas, protocol parsers, [illustrative fixtures](../../fixtures/history/README.md)
 and unbound `history-v1` catalog rows. The decision packet remains historical
-selection provenance. Server/client/adapter implementation, capability admission,
-projection coverage integration and genuine successor evidence remain required;
+selection provenance. The reviewed source coverage extension now seals 42 named
+definitions, preserves the original 27-name prefix, and covers all six additional
+History Read parser roots. Server/client/adapter implementation, capability
+admission and genuine successor evidence remain required;
 this fold advertises no History support or full Memory compatibility.
