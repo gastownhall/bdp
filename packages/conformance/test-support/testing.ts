@@ -887,6 +887,9 @@ async function observeOwnedClosure(
   return {
     outcome: "success",
     ...(wildcardOnly === undefined ? {} : { wildcardOnly }),
+    // Narrow defense over the captured Problem bytes, not an independent
+    // all-copy or collection-leak proof. Other assertions own typed refusal,
+    // byte equality, collection exclusion, and the unchanged live control.
     ...(typeof payloadWitness === "string"
       ? {
           payloadAbsent: rawProblemBodies.every(

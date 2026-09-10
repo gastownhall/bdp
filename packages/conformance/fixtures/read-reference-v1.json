@@ -72,7 +72,7 @@
           "links/external-target",
           "https://work.example/types/blocks",
           ["beads/demo-f"],
-          ["external:beads:mol-run-assignee", "  Cited-9F2c — α/β (draft) Å\t"]
+          ["external:beads:mol-run-assignee", "  Cited-9F2c \u2014 \u03b1/\u03b2 (draft) A\u030a\t"]
         ],
         [
           "links/external-source",
@@ -406,7 +406,7 @@
           "beads/demo-f",
           "",
           "external:beads:mol-run-assignee",
-          "  Cited-9F2c — α/β (draft) Å\t",
+          "  Cited-9F2c \u2014 \u03b1/\u03b2 (draft) A\u030a\t",
           {
             "label": "opaque authored label",
             "source": {
@@ -679,7 +679,7 @@
             "source": "https://scope.example/acme/beads/demo-f",
             "target": {
               "uri": "external:beads:mol-run-assignee",
-              "revision": "  Cited-9F2c — α/β (draft) Å\t"
+              "revision": "  Cited-9F2c \u2014 \u03b1/\u03b2 (draft) A\u030a\t"
             },
             "properties": {
               "label": "opaque authored label",
@@ -810,7 +810,8 @@
             "https://work.example/types/wildcard-probe-unknown",
             "https://work.example/types/wildcard-probe-zero",
             "https://work.example/types/wildcard-probe-negative",
-            "https://work.example/types/wildcard-probe-fraction"
+            "https://work.example/types/wildcard-probe-fraction",
+            "https://work.example/types/wildcard-probe-max-valid"
           ]
         },
         "descriptors": [
@@ -879,6 +880,17 @@
                 "max": 1.5
               }
             }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-max-valid",
+            "name": "missing",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 4
+              }
+            }
           }
         ],
         "rows": [
@@ -911,6 +923,21 @@
             "id": "https://work.example/types/wildcard-probe-fraction",
             "outcome": "problem",
             "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-max-valid",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-max-valid",
+              "name": "missing",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 4
+                }
+              }
+            }
           }
         ]
       },
@@ -1012,7 +1039,6 @@
       }
     },
     "ownership-inventory": {
-      "ownedTypes": 2,
       "beadsWithOwnership": 2,
       "input": {
         "ids": [
@@ -1030,7 +1056,8 @@
           "https://work.example/types/relates",
           "https://work.example/types/cites"
         ]
-      }
+      },
+      "resolvedOwnedTypes": 2
     },
     "numeric-model": {
       "declaration": {
@@ -1041,7 +1068,7 @@
       },
       "input": {
         "ids": ["beads/demo-a", "beads/demo-c", "links/demo-b-a"],
-        "numberModel": "IEEE-754-binary64-ECMAScript-JSON"
+        "numberModel": "not-content-derived"
       }
     },
     "wildcard-present": {
@@ -1392,7 +1419,7 @@
       "source": "beads/demo-f",
       "target": {
         "uri": "external:beads:mol-run-assignee",
-        "revision": "  Cited-9F2c — α/β (draft) Å\t"
+        "revision": "  Cited-9F2c \u2014 \u03b1/\u03b2 (draft) A\u030a\t"
       },
       "properties": {
         "label": "opaque authored label",

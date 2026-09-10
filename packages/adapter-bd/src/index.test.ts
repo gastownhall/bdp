@@ -30,13 +30,22 @@ afterEach(async () => {
 });
 
 describe("bd process Scope port", () => {
-  it("serves the shared domain descriptors with ownership stripped — bd declares no ownership", () => {
-    const decision = BD_SERVED_TYPE_DESCRIPTORS.find(({ id }) => id.endsWith("/decision"));
-    expect(decision).toBeDefined();
-    expect(decision).not.toHaveProperty("ownsOutgoing");
-    expect(REFERENCE_TYPE_DESCRIPTORS.find(({ id }) => id.endsWith("/decision"))).toHaveProperty(
-      "ownsOutgoing",
+  it("binds the actual served descriptors to the isolated publisher fixture, including both owners", async () => {
+    const fixture = JSON.parse(
+      await readFile(
+        new URL("../../conformance/fixtures/read-bdpbd-v1.json", import.meta.url),
+        "utf8",
+      ),
     );
+    expect(fixture.typeDescriptors).toEqual(BD_SERVED_TYPE_DESCRIPTORS);
+    for (const name of ["decision", "feature"]) {
+      const descriptor = BD_SERVED_TYPE_DESCRIPTORS.find(({ id }) => id.endsWith(`/${name}`));
+      expect(descriptor).toBeDefined();
+      expect(descriptor).not.toHaveProperty("ownsOutgoing");
+      expect(REFERENCE_TYPE_DESCRIPTORS.find(({ id }) => id.endsWith(`/${name}`))).toHaveProperty(
+        "ownsOutgoing",
+      );
+    }
   });
 
   it("combines structural predicates over the projected reference Type closure", async () => {

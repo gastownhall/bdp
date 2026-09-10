@@ -184,7 +184,12 @@ export async function observeSuccessorRead(
             throw new Error("record ownership has no inventoried descriptor");
         }
       }
-      return { outcome: "success", ownedTypes: ownedTypes.size, beadsWithOwnership };
+      return {
+        outcome: "success",
+        descriptorPlane: "fixture-publisher-and-scope-local-types",
+        resolvedOwnedTypes: ownedTypes.size,
+        beadsWithOwnership,
+      };
     }
     if (execution.operation === "numeric-token-model") {
       if (
@@ -219,7 +224,6 @@ export async function observeSuccessorRead(
         tokensMatch,
         hasNumbers: numbers > 0,
         bothKinds: kinds.size === 2,
-        numberModel: input.numberModel,
         rows,
       };
     }
