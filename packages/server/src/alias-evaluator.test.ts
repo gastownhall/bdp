@@ -175,6 +175,16 @@ function failure(result: AliasEvaluation, code: ReadUpdateProblem["code"]) {
 }
 
 describe("owned-member alias evaluator", () => {
+  it.each([1.5, NaN, Infinity, 2 ** 53])(
+    "rejects non-integer or unsafe startup diagnostic limit %s",
+    (limit) => {
+      for (const limits of [{ diagnosticCount: limit }, { diagnosticBytes: limit }])
+        expect(() => assertAliasDiagnosticLimits(limits)).toThrow(TypeError);
+    },
+  );
+  it("preserves optional unbounded alias checks without qualifying a deployment", () => {
+    expect(() => assertAliasDiagnosticLimits({})).not.toThrow();
+  });
   it("creates, repoints, no-ops, deletes and reuses hierarchical paths without changing Resource bytes", () => {
     const f = fixture();
     const before = f.resources();

@@ -74,6 +74,7 @@ const targetDiagnosticBytes = Buffer.byteLength(JSON.stringify(targetDiagnostics
 /** Reuse the evaluator's diagnostic precondition before accepting authority work.
  * This checks the fixed alias diagnostic only; callers own complete configuration
  * qualification and must supply explicit limits when their profile requires them.
+ * The required typed object is not an untrusted configuration parsing boundary.
  */
 export function assertAliasDiagnosticLimits(limits: AliasEvaluationOptions["limits"]): void {
   const { diagnosticCount, diagnosticBytes } = limits;
