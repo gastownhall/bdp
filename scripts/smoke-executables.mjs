@@ -129,6 +129,22 @@ async function installPackedWorkspace() {
     // Intentional package-surface tripwire: adding or removing a shipped server
     // module is a deliberate reviewed change, not an incidental build artifact.
     const expectedServerOutput = new Set([
+      "alias-evaluator.d.ts",
+      "alias-evaluator.d.ts.map",
+      "alias-evaluator.js",
+      "alias-evaluator.js.map",
+      "recovery-store.d.ts",
+      "recovery-store.d.ts.map",
+      "recovery-store.js",
+      "recovery-store.js.map",
+      "resource-evaluator.d.ts",
+      "resource-evaluator.d.ts.map",
+      "resource-evaluator.js",
+      "resource-evaluator.js.map",
+      "semantic-identity.d.ts",
+      "semantic-identity.d.ts.map",
+      "semantic-identity.js",
+      "semantic-identity.js.map",
       "index.d.ts",
       "index.d.ts.map",
       "index.js",

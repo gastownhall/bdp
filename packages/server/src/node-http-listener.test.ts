@@ -278,7 +278,8 @@ describe("Node HTTP listener", () => {
     const onError = vi.fn();
     const originalStringify = JSON.stringify;
     const stringify = vi.spyOn(JSON, "stringify").mockImplementation((value) => {
-      if (typeof value === "object" && value !== null && Object.hasOwn(value, "revision"))
+      // The iterative encoder delegates only primitive escaping to JSON.stringify.
+      if (value === "opaque-revision")
         throw new TypeError("controlled response serialization fault");
       return originalStringify(value);
     });
@@ -309,7 +310,16 @@ describe("Node HTTP listener", () => {
       expect(response.contentType).toBeUndefined();
       expect(response.contentLength).toBe("0");
       expect(response.etag).toBeUndefined();
-      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ name: "TypeError" }));
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "TypeError",
+          message: "controlled response serialization fault",
+        }),
+      );
+      stringify.mockRestore();
+      const control = await rawRequest(base, "GET", "/local-test/beads/a");
+      expect(control.status).toBe(200);
+      expect(control.etag).toBeDefined();
     } finally {
       stringify.mockRestore();
       await close(listener);

@@ -1,3 +1,4 @@
+import { snapshotJsonValue } from "./json-values.js";
 import { ProtocolArtifactValidationError } from "./protocol-errors.js";
 export { ProtocolArtifactValidationError } from "./protocol-errors.js";
 import { readFileSync } from "node:fs";
@@ -23,9 +24,6 @@ import type {
 } from "./index.js";
 
 const LITERAL_PATH_CHARACTER = /^[A-Za-z0-9._~!$&'()*+,;=:@-]$/;
-const TYPE_VALUE_MAX_DEPTH = 128;
-const TYPE_VALUE_MAX_NODES = 100_000;
-const TYPE_VALUE_MAX_CONTAINER_ENTRIES = 10_000;
 const CANONICAL_SCHEMA_URL = new URL("../schemas/bdp-v0.schema.json", import.meta.url);
 
 /**
@@ -219,7 +217,7 @@ export function parseCanonicalHttpUrl(value: unknown, path = "HTTP URL"): Absolu
     (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
     parsed.username !== "" ||
     parsed.password !== "" ||
-    parsed.hash !== "" ||
+    value.includes("#") ||
     parsed.href !== value
   )
     throw new ProtocolArtifactValidationError(
@@ -239,7 +237,7 @@ export function parseCanonicalTypeId(value: unknown, path = "Type ID"): Absolute
 export function parseCanonicalScope(value: unknown, path = "Scope"): AbsoluteHttpUrl {
   const scope = parseCanonicalHttpUrl(value, path);
   const parsed = new URL(scope);
-  if (parsed.search !== "" || !parsed.pathname.endsWith("/"))
+  if (scope.includes("?") || !parsed.pathname.endsWith("/"))
     throw new ProtocolArtifactValidationError(
       `${path} must be a canonical HTTP(S) URL ending in /`,
     );
@@ -453,74 +451,12 @@ function readRecord(value: unknown, path: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/** Guarded immutable JSON snapshot. Admission owns byte/work limits; valid
+ * deep Resource properties must remain readable without a hidden depth cap.
+ */
 export function snapshotProtocolRecord(
   value: unknown,
   path: string,
 ): Readonly<Record<string, unknown>> {
-  let nodes = 0;
-  const active = new WeakSet<object>();
-
-  const snapshot = (entry: unknown, entryPath: string, depth: number): unknown => {
-    nodes += 1;
-    if (nodes > TYPE_VALUE_MAX_NODES)
-      throw new ProtocolArtifactValidationError(
-        `${path} must not exceed ${TYPE_VALUE_MAX_NODES} values`,
-      );
-    if (depth > TYPE_VALUE_MAX_DEPTH)
-      throw new ProtocolArtifactValidationError(
-        `${path} must not exceed depth ${TYPE_VALUE_MAX_DEPTH}`,
-      );
-    if (typeof entry === "string") {
-      if (!entry.isWellFormed())
-        throw new ProtocolArtifactValidationError(
-          `${entryPath} must contain Unicode scalar values`,
-        );
-      return entry;
-    }
-    if (entry === null || typeof entry === "boolean") return entry;
-    if (typeof entry === "number") {
-      if (Number.isFinite(entry)) return entry;
-      throw new ProtocolArtifactValidationError(`${entryPath} must contain a finite JSON number`);
-    }
-    if (typeof entry !== "object")
-      throw new ProtocolArtifactValidationError(`${entryPath} must contain only JSON values`);
-    if (active.has(entry))
-      throw new ProtocolArtifactValidationError(`${entryPath} must not contain a cycle`);
-    active.add(entry);
-    try {
-      if (Array.isArray(entry)) {
-        const length = entry.length;
-        if (length > TYPE_VALUE_MAX_CONTAINER_ENTRIES)
-          throw new ProtocolArtifactValidationError(
-            `${entryPath} must not exceed ${TYPE_VALUE_MAX_CONTAINER_ENTRIES} entries`,
-          );
-        return Object.freeze(
-          Array.from({ length }, (_, index) =>
-            snapshot(entry[index], `${entryPath}[${index}]`, depth + 1),
-          ),
-        );
-      }
-      const record = readRecord(entry, entryPath);
-      const keys = Object.keys(record);
-      if (keys.length > TYPE_VALUE_MAX_CONTAINER_ENTRIES)
-        throw new ProtocolArtifactValidationError(
-          `${entryPath} must not exceed ${TYPE_VALUE_MAX_CONTAINER_ENTRIES} entries`,
-        );
-      return Object.freeze(
-        Object.fromEntries(
-          keys.map((key) => {
-            if (!key.isWellFormed())
-              throw new ProtocolArtifactValidationError(
-                `${entryPath} member names must contain Unicode scalar values`,
-              );
-            return [key, snapshot(record[key], `${entryPath}.${key}`, depth + 1)];
-          }),
-        ),
-      );
-    } finally {
-      active.delete(entry);
-    }
-  };
-
-  return readRecord(snapshot(value, path, 0), path);
+  return readRecord(snapshotJsonValue(value, path), path);
 }

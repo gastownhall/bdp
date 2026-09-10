@@ -142,6 +142,31 @@ describe("BDP public HTTP handler", () => {
     expect(problem.headers.has("etag")).toBe(false);
   });
 
+  it.each(["\ud800", "\udc00"])(
+    "rejects a non-scalar Resource revision %j before serving",
+    async (revision) => {
+      // The all-profile emitted-JSON scalar rule applies before HTTP projection;
+      // ETag escaping cannot make an invalid Resource body valid.
+      const handler = createHttpHandler(
+        createReadServer({
+          scope: SCOPE,
+          target: "bdptest",
+          admittedProfile: admitReadServerProfile("read", "bdptest"),
+          port: {
+            perform: async () =>
+              scopePortSuccess({
+                id: `${SCOPE}beads/a`,
+                type: "https://work.example/types/task",
+                revision,
+                properties: {},
+              } as never) as never,
+          },
+        }),
+      );
+      await expect(handler(new Request(`${SCOPE}beads/a`))).rejects.toThrow("unpaired surrogate");
+    },
+  );
+
   it.each([
     ['rev"quote', '"bdp-b64_cmV2InF1b3Rl"'],
     ["rev\ncontrol", '"bdp-b64_cmV2CmNvbnRyb2w"'],
