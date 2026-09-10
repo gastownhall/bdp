@@ -763,6 +763,45 @@
           "selectedText": "a content-derived revision-token scheme MUST declare its number model by name, and `sha256-jcs` names RFC 8785 serialization with numbers as binary64."
         }
       ]
+    },
+    {
+      "id": "read.http.accept-negotiation",
+      "title": "Read JSON negotiation uses media specificity and preserves ordinary refusals",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "In every profile, an otherwise valid request whose `Accept` field\naccepts none of the endpoint's successful response media types MUST receive\na bodyless `406 Not Acceptable`, with no BDP problem code, family, or retry\nmember."
+        }
+      ]
+    },
+    {
+      "id": "read.http.conditional-reads",
+      "title": "Read conditions use observed validators and preserve native bodyless outcomes",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "A successful read whose HTTP condition selects\n`304 Not Modified`, or a read whose precondition fails with\n`412 Precondition Failed`, MUST be bodyless and MUST NOT carry a BDP Problem\nbody."
+        }
+      ]
+    },
+    {
+      "id": "read.http.head-conditional-parity",
+      "title": "Wire HEAD preserves GET status and response metadata through negotiation and conditions",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "HEAD retains the corresponding GET authorization, query, cursor, media\nnegotiation, and precondition decision and MUST send no response body."
+        }
+      ]
     }
   ]
 }

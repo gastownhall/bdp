@@ -3626,7 +3626,8 @@
             "binding": "bead.demo-a"
           },
           "headers": {
-            "accept": "application/json"
+            "accept": "text/html",
+            "if-none-match": "*"
           },
           "captures": [],
           "assertions": [
@@ -3643,6 +3644,41 @@
             {
               "id": "body",
               "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "faulting-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "bead.demo-a"
+          },
+          "headers": {
+            "accept": "text/html",
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 500
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "faulting-resource",
+              "headers": ["content-type", "content-length", "cache-control"],
+              "optionalHeaders": ["content-type", "content-length"]
+            },
+            {
+              "id": "redacted",
+              "kind": "wire-not-contains",
+              "fixturePointer": "/private/internalFaultSentinel"
             }
           ]
         }
@@ -7186,6 +7222,2366 @@
             }
           ],
           "inputFixturePointer": "/oracles/numeric-model/input"
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.http.accept-negotiation",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "requests": [
+        {
+          "id": "control",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "link-control",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "collection-control",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "json",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "application/json"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "any",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "*/*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "subtype",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "application/*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "weighted",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "text/html;q=1, application/json;q=0.2"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "specific-allowed",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "application/json;q=0.1, */*;q=0"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "specific-excluded",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "application/json;q=0, */*;q=1"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "subtype-excluded",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "application/*;q=0, */*;q=1"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "application/json;q=0"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "unsupported",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "unsupported-parameter",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "application/json;profile=\"unavailable\""
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "collection-refusal",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "link-refusal",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "scope-has-no-json-representation",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "missing-before-negotiation",
+          "method": "GET",
+          "target": {
+            "binding": "http.absent"
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            }
+          ]
+        },
+        {
+          "id": "query-before-negotiation",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            }
+          ]
+        },
+        {
+          "id": "discovery-locator",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {},
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery-control",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "discovery-refusal",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "headers": {
+            "accept": "application/json;q=0, */*;q=1"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.http.conditional-reads",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "requests": [
+        {
+          "id": "control",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ]
+        },
+        {
+          "id": "link-control",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ]
+        },
+        {
+          "id": "untagged-control",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "strong-match",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "weak-match-fails",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            }
+          ]
+        },
+        {
+          "id": "nonmatch-fails",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            }
+          ]
+        },
+        {
+          "id": "strong-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            }
+          ]
+        },
+        {
+          "id": "weak-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            }
+          ]
+        },
+        {
+          "id": "nonmatch-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "match-list",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact-list"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "weak-list",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak-list"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            }
+          ]
+        },
+        {
+          "id": "match-star",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ]
+        },
+        {
+          "id": "none-star",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            }
+          ]
+        },
+        {
+          "id": "match-precedes-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            },
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            }
+          ]
+        },
+        {
+          "id": "both-pass-to-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            },
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            }
+          ]
+        },
+        {
+          "id": "link-weak-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "link-control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "link-control"
+            }
+          ]
+        },
+        {
+          "id": "untagged-match-star",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {
+            "if-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "untagged-none-star",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "untagged-specific-match",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "untagged-specific-none",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "missing-before-conditions",
+          "method": "GET",
+          "target": {
+            "binding": "http.absent"
+          },
+          "headers": {
+            "if-none-match": "*",
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            }
+          ]
+        },
+        {
+          "id": "query-before-conditions",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "headers": {
+            "if-none-match": "*",
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            }
+          ]
+        },
+        {
+          "id": "scope-match-star",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "scope-none-star",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "scope-specific-match",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "scope-specific-none",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read.http.head-conditional-parity",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-v1",
+        "requires": ["public-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "requests": [
+        {
+          "id": "control",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ]
+        },
+        {
+          "id": "success-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "success-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "success-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "not-modified-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "not-modified-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "not-modified-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "precondition-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "precondition-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "precondition-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "negotiation-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "negotiation-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "negotiation-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ]
+        },
+        {
+          "id": "missing-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.absent"
+          },
+          "headers": {
+            "if-none-match": "*",
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            }
+          ]
+        },
+        {
+          "id": "missing-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.absent"
+          },
+          "headers": {
+            "if-none-match": "*",
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "missing-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "query-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "headers": {
+            "if-none-match": "*",
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            }
+          ]
+        },
+        {
+          "id": "query-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "headers": {
+            "if-none-match": "*",
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "query-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "collection-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "collection-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "collection-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "untagged-not-modified-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "untagged-not-modified-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "untagged-not-modified-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "scope-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "scope-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "accept": "text/html"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "scope-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "link-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "link-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.link"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "link-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "discovery-locator",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {},
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery-control",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "discovery-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "service-desc"
+          },
+          "headers": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "discovery-control",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "scope-not-modified-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "scope-not-modified-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "scope-not-modified-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
+        },
+        {
+          "id": "scope-precondition-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "scope-precondition-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "scope-precondition-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ]
         }
       ],
       "cleanup": {

@@ -6,6 +6,10 @@ export const READ_OBSERVER_SUPPORT_PATHS = Object.freeze([
   "packages/client/test-support/testing.ts",
   "packages/client/test-support/successor-read.ts",
   "packages/conformance/test-support/testing.ts",
+  "packages/conformance/src/conditional-header.ts",
+  "packages/conformance/src/executable-manifest.ts",
+  "packages/conformance/src/runner.ts",
+  "packages/server/src/read-http.ts",
 ]);
 
 export function deriveReadHarnessBindings(read: (source: string) => Uint8Array) {

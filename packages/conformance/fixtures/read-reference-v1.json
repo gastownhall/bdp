@@ -34,7 +34,10 @@
     "alias.unknown": "alias/never-created",
     "bead.pruned": "beads/pruned-relic",
     "bead.erased": "beads/erased-relic",
-    "link.demo-j-k": "links/demo-j-k"
+    "link.demo-j-k": "links/demo-j-k",
+    "http.resource": "beads/demo-a",
+    "http.link": "links/demo-b-a",
+    "http.absent": "beads/http-never-created"
   },
   "aliases": {
     "decision": "beads/demo-f",
