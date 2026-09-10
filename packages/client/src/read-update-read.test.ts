@@ -187,6 +187,22 @@ const variants: readonly [string, ScopeReadOperation, unknown][] = [
   ],
 ];
 
+// Captured from the actual pre-extraction 01f05a47 legacy public Fetch wrapper.
+// These fixed targets are independent of the shared builder used by both clients.
+const preExtractionTargets: Readonly<Record<string, string>> = {
+  "Bead collection":
+    "https://example.test/s/beads/?selector=status+%3D%3D+%27in+progress%27&limit=2",
+  "Link collection":
+    "https://example.test/s/links/?type=https%3A%2F%2Ftypes.example%2Flink&conformsTo=urn%3Abase&source=https%3A%2F%2Fexample.test%2Fs%2Fbeads%2Fteam%2Fa&target=urn%3Aexternal&endpoint=https%3A%2F%2Fexternal.test%2Fa%3Fq%3Dx%2520y&limit=2",
+  "Type inventory": "https://example.test/s/types/?limit=2",
+  Bead: "https://example.test/s/beads/team/a",
+  Link: "https://example.test/s/links/team/l",
+  "Type descriptor": "https://example.test/s/descriptors/task",
+  "Bead properties": "https://example.test/s/beads/team/a?view=properties",
+  "Link properties": "https://example.test/s/links/team/l?view=properties",
+  "Incident Links": "https://example.test/s/beads/team/a?view=links&direction=outbound&limit=2",
+};
+
 describe("Read+Update shared Read session", () => {
   it.each(variants)(
     "executes %s through both public Fetch wrappers with identical final URL bytes",
@@ -242,6 +258,8 @@ describe("Read+Update shared Read session", () => {
           value: body,
           http: { status: 200, url: legacyUrls.at(-1) },
         });
+        expect(ruUrls.at(-1)).toBe(preExtractionTargets[_name]);
+        expect(legacyUrls.at(-1)).toBe(preExtractionTargets[_name]);
         expect(ruUrls).toEqual(legacyUrls);
         expect(ruUrls).toHaveLength(3);
         await ru.read(request);
@@ -327,6 +345,50 @@ describe("Read+Update shared Read session", () => {
       headers: undefined,
     });
     await h.client.close();
+  });
+
+  it.each(["public, max-age=3600", undefined])(
+    "accepts ordinary Type Descriptor caching (%s) without weakening inventory protection",
+    async (cache) => {
+      let typeInventory = false;
+      const transport = createReadUpdateFetchTransport({
+        scope,
+        limits,
+        fetchImplementation: async (input) => {
+          const url = String(input);
+          if (url === scope)
+            return nativeResponse(null, url, 204, { link: '<bdp.json>; rel="service-desc"' });
+          const body = url.endsWith("bdp.json") ? discovery : typeInventory ? page : descriptor;
+          const value = nativeResponse(JSON.stringify(body), url);
+          if (!url.endsWith("bdp.json")) {
+            if (cache === undefined) value.headers.delete("cache-control");
+            else value.headers.set("cache-control", cache);
+          }
+          return value;
+        },
+      });
+      const client = new BdpReadUpdateClient({ scope, transport, settlementTimeoutMs: 1000 });
+      await expect(
+        client.read({ kind: "resource", resource: "type", id: descriptor.id }),
+      ).resolves.toMatchObject({ kind: "success", value: descriptor });
+      typeInventory = true;
+      await expect(client.read({ kind: "collection", collection: "types" })).rejects.toMatchObject({
+        code: "invalid-response",
+        httpStatus: 200,
+      });
+    },
+  );
+  it("captures the Type Descriptor cache classification before caller mutation", async () => {
+    const h = harness(descriptor, {
+      get: async (url) =>
+        response(url.endsWith("bdp.json") ? discovery : descriptor, url, 200, {
+          "cache-control": "public, max-age=3600",
+        }),
+    });
+    const request = { kind: "resource", resource: "type", id: descriptor.id } as const;
+    const pending = h.client.read(request);
+    Object.assign(request, { resource: "bead" });
+    await expect(pending).resolves.toMatchObject({ kind: "success", value: descriptor });
   });
   it.each(["read", "transactional", "future"])(
     "refuses %s discovery before Read dispatch",
@@ -842,6 +904,23 @@ describe("Read+Update explicit alias resolution", () => {
     });
     expect(h.calls).toEqual([]);
   });
+
+  it.each([undefined, null, "forged"])(
+    "rejects the presence of alias continuationScope (%s) before navigation",
+    async (continuationScope) => {
+      const h = harness();
+      const options = { continuationScope };
+      await expect(h.client.resolveAlias(alias, options as object)).rejects.toMatchObject({
+        code: "invalid-input",
+        submission: "not-submitted",
+        httpStatus: undefined,
+      });
+      expect(h.calls).toEqual([]);
+      await expect(
+        h.client.resolveAlias(alias, { signal: new AbortController().signal }),
+      ).resolves.toMatchObject({ kind: "success" });
+    },
+  );
   it("does not require alias support for operation-only transports", async () => {
     const h = harness(page, { resolveAlias: undefined });
     await expect(h.client.resolveAlias(alias)).rejects.toMatchObject({ code: "invalid-input" });

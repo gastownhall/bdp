@@ -33,6 +33,7 @@ import {
 } from "@bdp/protocol";
 import {
   type BdpContinuationScope,
+  captureReadRequest,
   type PreparedRead,
   ReadSession,
   ReadSessionLocalError,
@@ -176,12 +177,14 @@ export class BdpReadUpdateClient {
       throw localFailure;
     };
     let prepared: PreparedRead<R>;
+    let owned: R;
     try {
       if (this.closed) refuse("closed");
       captured = snapshotReadOptions(options);
       this.readSession.owner(captured.continuationScope);
       if (captured.signal?.aborted) refuse("aborted");
-      prepared = this.readSession.prepare(request, captured.continuationScope);
+      owned = captureReadRequest(request);
+      prepared = this.readSession.prepare(owned, captured.continuationScope);
     } catch (cause) {
       return Promise.reject(
         cause === localFailure && localFailure !== undefined
@@ -224,7 +227,9 @@ export class BdpReadUpdateClient {
             media(received) !== "application/json"
           )
             throw call.failure("invalid-response", http);
-          assertPrivateNoStore(http);
+          // A Type ID serves a contract document with ordinary HTTP caching;
+          // inventory and other scoped data keep their current protection.
+          if (!(owned.kind === "resource" && owned.resource === "type")) assertPrivateNoStore(http);
           const validated = prepared.validate(received.body);
           if (validated.kind === "refusal") throw call.failure("invalid-response", http);
           return { kind: "staged", staged: validated.value, http };
@@ -247,6 +252,8 @@ export class BdpReadUpdateClient {
         },
       ).finally(() => prepared.release());
     } catch {
+      // Defensive cleanup if synchronous run setup fails before returning its
+      // promise; ordinary settlement releases through the returned finally.
       prepared.release();
       return Promise.reject(new ReadUpdateClientError("invalid-input", "not-submitted"));
     }
@@ -265,8 +272,7 @@ export class BdpReadUpdateClient {
     const resolve = this.transport.resolveAlias;
     try {
       if (this.closed) refuse("closed");
-      captured = snapshotReadOptions(options);
-      if (captured.continuationScope !== undefined) throw Error();
+      captured = snapshotReadOptions(options, "alias");
       if (captured.signal?.aborted) refuse("aborted");
       if (
         !resolve ||
@@ -930,6 +936,9 @@ function responseContext(value: ClientResponse): ReadUpdateHttpContext {
     headers,
   });
 }
+/** Unconditional RU navigation preserves native empty 405/406/500 handling.
+ * A Problem-shaped body cannot replace those HTTP-native responses.
+ */
 function responseFailure(response: ClientResponse): FailureReply | undefined;
 function responseFailure<P extends ReadUpdateProblem>(
   response: ClientResponse,
@@ -1008,7 +1017,10 @@ function assertPrivateNoStore(http: ReadUpdateHttpContext): void {
   if (!isPrivate || !noStore) throw Error();
 }
 
-function snapshotReadOptions(value: ReadUpdateClientReadOptions): ReadUpdateClientReadOptions {
+function snapshotReadOptions(
+  value: ReadUpdateClientReadOptions,
+  mode: "read" | "alias" = "read",
+): ReadUpdateClientReadOptions {
   if (
     value === null ||
     typeof value !== "object" ||
@@ -1017,7 +1029,7 @@ function snapshotReadOptions(value: ReadUpdateClientReadOptions): ReadUpdateClie
     throw Error();
   const captured: { signal?: AbortSignal; continuationScope?: BdpContinuationScope } = {};
   for (const key of Reflect.ownKeys(value)) {
-    if (key !== "signal" && key !== "continuationScope") throw Error();
+    if (key !== "signal" && (mode === "alias" || key !== "continuationScope")) throw Error();
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (!descriptor || !("value" in descriptor)) throw Error();
     if (key === "signal") {
