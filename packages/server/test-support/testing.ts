@@ -2,7 +2,7 @@ import {
   isReadProblemCode,
   type ReadProblem,
   type ReadProblemCode,
-  readProblemDefinitionFor,
+  readProblem,
 } from "@bdp/protocol";
 import { createReadPagination, type ScopePort, type ServerReadControls } from "../src/index.js";
 import {
@@ -409,13 +409,9 @@ function conformanceReadProblem(
 }
 
 function exactReadProblem(code: ReadProblemCode): ReadProblem {
-  const definition = readProblemDefinitionFor(code);
-  return {
-    type: definition.type,
-    code: definition.code,
-    retry: definition.retry,
-    status: definition.status,
-  };
+  // The injected Unretained case assumes positive incomplete-version knowledge;
+  // the shared constructor's inventory makes no claim about known locations.
+  return readProblem(code);
 }
 
 function isPlainRecord(value: unknown): value is Readonly<Record<string, unknown>> {

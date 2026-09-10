@@ -6,7 +6,7 @@ import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 
 import { BDP_V0_SCHEMA_ID, compareCanonicalIds, type Reference, referenceUri } from "./index.js";
-import { isJsonSchemaUri } from "./schema-formats.js";
+import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
 
 /**
  * The wildcard ownership entry — `ownsOutgoing["*"]`, ruled 2026-09-08 and
@@ -86,6 +86,7 @@ const WILDCARD = "*";
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
 ajv.addSchema(schema);
 
 describe("ownsOutgoing wildcard entry in the bundle", () => {

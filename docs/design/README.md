@@ -130,3 +130,13 @@ Implementation update 2026-09-10: T57’s bounded canonicalization regression an
 its final council corrections are materialized. This supersedes the earlier
 dated pending-implementation statements for T57 only. Transactional runtime,
 shared Read HTTP adoption and fresh conformance observations remain separate.
+
+History wire integration, 2026-09-10: all 38 selected answer units have owning draft
+text under [Historical resolution](../specs/bdp.md#historical-resolution), mirrored
+schemas, protocol parsers, [illustrative fixtures](../../fixtures/history/README.md)
+and unbound `history-v1` catalog rows. The decision packet remains historical
+selection provenance. The reviewed source coverage extension now seals 42 named
+definitions, preserves the original 27-name prefix, and covers all six additional
+History Read parser roots. Server/client/adapter implementation, capability
+admission and genuine successor evidence remain required;
+this fold advertises no History support or full Memory compatibility.

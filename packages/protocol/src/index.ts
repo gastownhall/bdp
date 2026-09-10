@@ -1,3 +1,7 @@
+import { parseHistoryMissing } from "./history-values.js";
+import type { ChangeContext, HistoryCapability, HistoryMissing } from "./history-values.js";
+export * from "./history-values.js";
+
 /** Identifies this package. */
 export const packageName = "@bdp/protocol";
 
@@ -90,6 +94,7 @@ export interface MaximumEndpointMultiplicityPolicy {
 }
 
 export interface ReadDiscovery {
+  readonly historicalResolution?: HistoryCapability;
   readonly bdpVersion: "0";
   readonly profile: ProtocolProfile;
   readonly scope: AbsoluteHttpUrl;
@@ -274,6 +279,7 @@ export interface BeadRecord {
   readonly type: AbsoluteHttpUrl;
   readonly revision: string;
   readonly attribution?: Attribution;
+  readonly changeContext?: ChangeContext;
   readonly properties: PropertiesRecord;
   /**
    * The owned-Links plane: for each Link Type the Bead's declared Type
@@ -291,6 +297,7 @@ export interface LinkRecord {
   readonly type: AbsoluteHttpUrl;
   readonly revision: string;
   readonly attribution?: Attribution;
+  readonly changeContext?: ChangeContext;
   readonly source: Reference;
   readonly target: Reference;
   readonly properties: PropertiesRecord;
@@ -308,6 +315,7 @@ export interface ReadProblem {
   readonly status?: number;
   readonly detail?: string;
   readonly instance?: AbsoluteUri;
+  readonly missing?: HistoryMissing;
   readonly [key: string]: unknown;
 }
 
@@ -445,7 +453,12 @@ export type ReadProblemCode =
   | "request-too-large"
   | "limit-exceeded"
   | "rate-limited"
-  | "temporarily-unavailable";
+  | "temporarily-unavailable"
+  | "revision-unknown"
+  | "revision-unretained"
+  | "revision-reorganized"
+  | "revision-not-tracked"
+  | "revision-unrepresentable";
 
 export type ReadProblemFamily =
   | "request"
@@ -486,6 +499,11 @@ const READ_PROBLEM_ROWS: {
   "limit-exceeded": { family: "size", status: 413, retry: "never" },
   "rate-limited": { family: "rate-limit", status: 429, retry: "after-delay" },
   "temporarily-unavailable": { family: "unavailable", status: 503, retry: "after-delay" },
+  "revision-unknown": { family: "not-found", status: 404, retry: "after-state-change" },
+  "revision-unretained": { family: "conflict", status: 409, retry: "after-state-change" },
+  "revision-reorganized": { family: "gone", status: 410, retry: "after-state-change" },
+  "revision-not-tracked": { family: "conflict", status: 409, retry: "after-state-change" },
+  "revision-unrepresentable": { family: "conflict", status: 409, retry: "after-state-change" },
 };
 
 const READ_PROBLEM_CODES = Object.keys(READ_PROBLEM_ROWS) as readonly ReadProblemCode[];
@@ -510,6 +528,9 @@ export function readProblem(code: ReadProblemCode, detail?: string): ReadProblem
     code,
     retry: definition.retry,
     status: definition.status,
+    // The caller still needs positive incomplete-version evidence. This default
+    // honestly makes no assertion about the inventory of missing locations.
+    ...(code === "revision-unretained" ? { missing: { complete: false, items: [] } } : {}),
     ...(detail === undefined ? {} : { detail }),
   };
 }
@@ -531,4 +552,16 @@ export function isReadProblem(value: unknown): value is ReadProblem {
       candidate.retry === "after-state-change" ||
       candidate.retry === "after-delay")
   );
+}
+
+/** A known incomplete version requires an explicit, potentially bounded inventory. */
+export function historyUnretainedProblem(missing: HistoryMissing): ReadProblem {
+  const definition = readProblemDefinitionFor("revision-unretained");
+  return {
+    type: definition.type,
+    code: definition.code,
+    status: definition.status,
+    retry: definition.retry,
+    missing: parseHistoryMissing(missing),
+  };
 }

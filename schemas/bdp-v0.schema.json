@@ -37,7 +37,12 @@
         "request-too-large",
         "limit-exceeded",
         "rate-limited",
-        "temporarily-unavailable"
+        "temporarily-unavailable",
+        "revision-unknown",
+        "revision-unretained",
+        "revision-reorganized",
+        "revision-not-tracked",
+        "revision-unrepresentable"
       ]
     },
     "readProblem": {
@@ -372,6 +377,121 @@
           "if": {
             "properties": {
               "code": {
+                "const": "revision-unknown"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/not-found"
+              },
+              "status": {
+                "const": 404
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-unretained"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-reorganized"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/gone"
+              },
+              "status": {
+                "const": 410
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-not-tracked"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-unrepresentable"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
                 "const": "resource-pruned"
               }
             },
@@ -413,6 +533,57 @@
           },
           "then": {
             "properties": {
+              "pointer": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-unretained"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "required": ["missing"],
+            "properties": {
+              "missing": {
+                "$ref": "#/$defs/historyMissing"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "missing": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "revision-unknown",
+                  "revision-unretained",
+                  "revision-reorganized",
+                  "revision-not-tracked",
+                  "revision-unrepresentable"
+                ]
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "window": false,
+              "mayChangeAfterSync": false,
+              "resource": false,
+              "properties": false,
+              "ownedLinks": false,
+              "changeContext": false,
+              "archivedAt": false,
               "pointer": false
             }
           }
@@ -630,6 +801,9 @@
               "$ref": "#/$defs/linkRecord"
             }
           }
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContext"
         }
       },
       "additionalProperties": false
@@ -659,6 +833,9 @@
         },
         "properties": {
           "$ref": "#/$defs/properties"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContext"
         }
       },
       "additionalProperties": false
@@ -892,6 +1069,9 @@
           "items": {
             "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
           }
+        },
+        "historicalResolution": {
+          "$ref": "#/$defs/historyCapability"
         }
       },
       "additionalProperties": false
@@ -1092,6 +1272,9 @@
         },
         "attribution": {
           "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContextInput"
         }
       }
     },
@@ -1110,6 +1293,9 @@
         },
         "attribution": {
           "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContextInput"
         }
       }
     },
@@ -1146,6 +1332,9 @@
         },
         "attribution": {
           "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContextInput"
         }
       }
     },
@@ -1164,6 +1353,9 @@
         },
         "attribution": {
           "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContextInput"
         }
       }
     },
@@ -1179,6 +1371,9 @@
         },
         "attribution": {
           "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContextInput"
         }
       }
     },
@@ -1750,6 +1945,11 @@
         "limit-exceeded",
         "rate-limited",
         "temporarily-unavailable",
+        "revision-unknown",
+        "revision-unretained",
+        "revision-reorganized",
+        "revision-not-tracked",
+        "revision-unrepresentable",
         "unsupported-media-type",
         "binding-unavailable",
         "validation-failed",
@@ -1761,7 +1961,8 @@
         "aggregate-constraint-violation",
         "idempotency-conflict",
         "idempotency-in-progress",
-        "idempotency-expired"
+        "idempotency-expired",
+        "revision-allocation-unsafe"
       ]
     },
     "validationDiagnostic": {
@@ -2127,6 +2328,29 @@
           "if": {
             "properties": {
               "code": {
+                "const": "revision-allocation-unsafe"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "https://github.com/gastownhall/bdp/problems/conflict"
+              },
+              "status": {
+                "const": 409
+              },
+              "retry": {
+                "const": "after-state-change"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
                 "const": "validation-failed"
               }
             },
@@ -2190,6 +2414,46 @@
               "retryAfter": false
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision-allocation-unsafe"
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "missing": false,
+              "window": false,
+              "resource": false,
+              "properties": false,
+              "ownedLinks": false,
+              "changeContext": false,
+              "pointer": false,
+              "identity": false,
+              "revision": false
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "code": {
+                  "const": "revision-unretained"
+                }
+              },
+              "required": ["code"]
+            }
+          },
+          "then": {
+            "properties": {
+              "missing": false
+            }
+          }
         }
       ]
     },
@@ -2198,6 +2462,21 @@
       "allOf": [
         {
           "$ref": "#/$defs/readUpdateProblem"
+        },
+        {
+          "properties": {
+            "code": {
+              "not": {
+                "enum": [
+                  "revision-unknown",
+                  "revision-unretained",
+                  "revision-reorganized",
+                  "revision-not-tracked",
+                  "revision-unrepresentable"
+                ]
+              }
+            }
+          }
         }
       ],
       "required": ["status", "operationIndex"],
@@ -2393,6 +2672,9 @@
           "items": {
             "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
           }
+        },
+        "historicalResolution": {
+          "$ref": "#/$defs/historyCapability"
         }
       },
       "additionalProperties": false
@@ -2484,6 +2766,9 @@
         },
         "target": {
           "$ref": "#/$defs/reference"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContext"
         }
       },
       "dependentRequired": {
@@ -2513,6 +2798,9 @@
         },
         "attribution": {
           "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContext"
         }
       },
       "additionalProperties": false
@@ -2601,6 +2889,9 @@
         },
         "attribution": {
           "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContext"
         }
       },
       "oneOf": [
@@ -2835,6 +3126,9 @@
         },
         "attribution": {
           "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContextInput"
         }
       }
     },
@@ -2853,6 +3147,9 @@
         },
         "attribution": {
           "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContextInput"
         }
       }
     },
@@ -3178,7 +3475,9 @@
             },
             "required": ["outcome"],
             "not": {
-              "properties": { "alias": true },
+              "properties": {
+                "alias": true
+              },
               "required": ["alias"]
             }
           },
@@ -3201,7 +3500,9 @@
             },
             "required": ["outcome"],
             "not": {
-              "properties": { "alias": true },
+              "properties": {
+                "alias": true
+              },
               "required": ["alias"]
             }
           },
@@ -3729,7 +4030,13 @@
         "unsupported-media-type",
         "idempotency-conflict",
         "event-history-expired",
-        "catch-up-timeout"
+        "catch-up-timeout",
+        "revision-unknown",
+        "revision-unretained",
+        "revision-reorganized",
+        "revision-not-tracked",
+        "revision-unrepresentable",
+        "revision-allocation-unsafe"
       ]
     },
     "receiptProblemCode": {
@@ -3745,7 +4052,8 @@
         "revision-mismatch",
         "incident-links-exist",
         "aggregate-constraint-violation",
-        "cardinality-violated"
+        "cardinality-violated",
+        "revision-allocation-unsafe"
       ]
     },
     "transactionalProblem": {
@@ -3900,6 +4208,23 @@
               "retryAfter": false
             }
           }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "code": {
+                  "const": "revision-unretained"
+                }
+              },
+              "required": ["code"]
+            }
+          },
+          "then": {
+            "properties": {
+              "missing": false
+            }
+          }
         }
       ]
     },
@@ -4022,6 +4347,23 @@
           "then": {
             "properties": {
               "limit": false
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "code": {
+                  "const": "revision-unretained"
+                }
+              },
+              "required": ["code"]
+            }
+          },
+          "then": {
+            "properties": {
+              "missing": false
             }
           }
         }
@@ -4602,6 +4944,9 @@
           "items": {
             "$ref": "#/$defs/maximumEndpointMultiplicityPolicy"
           }
+        },
+        "historicalResolution": {
+          "$ref": "#/$defs/historyCapability"
         }
       },
       "additionalProperties": false
@@ -4704,6 +5049,399 @@
         }
       },
       "additionalProperties": false
+    },
+    "historyCapability": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        }
+      },
+      "required": ["version"],
+      "additionalProperties": false
+    },
+    "contextString": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "present"
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "enum": ["absent", "undetermined"]
+            }
+          },
+          "required": ["state"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "contextMessage": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "present"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "enum": ["absent", "undetermined"]
+            }
+          },
+          "required": ["state"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "contextTime": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "present"
+            },
+            "value": {
+              "$ref": "#/$defs/dateTime"
+            }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "enum": ["undetermined"]
+            }
+          },
+          "required": ["state"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "changeContext": {
+      "type": "object",
+      "properties": {
+        "committedAt": {
+          "$ref": "#/$defs/contextTime"
+        },
+        "agent": {
+          "$ref": "#/$defs/contextString"
+        },
+        "message": {
+          "$ref": "#/$defs/contextMessage"
+        }
+      },
+      "required": ["committedAt", "agent", "message"],
+      "additionalProperties": false
+    },
+    "changeContextInput": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "historyMissingItem": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "record"
+            }
+          },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "property"
+            },
+            "pointer": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/jsonPointer"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^/(properties(?:/|$)|ownedLinks/([^/~]|~[01])+/(0|[1-9][0-9]*)/properties(?:/|$))"
+                }
+              ]
+            }
+          },
+          "required": ["kind", "pointer"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "owned-links"
+            },
+            "type": {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            }
+          },
+          "required": ["kind"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "historyMissing": {
+      "type": "object",
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/historyMissingItem"
+          },
+          "maxItems": 64,
+          "uniqueItems": true
+        }
+      },
+      "required": ["complete", "items"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "complete": {
+                "const": true
+              }
+            },
+            "required": ["complete"]
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "historyVersionRow": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        },
+        "changeContext": {
+          "$ref": "#/$defs/changeContext"
+        },
+        "lineage": {
+          "enum": ["current", "replaced"]
+        },
+        "body": {
+          "enum": ["complete", "incomplete"]
+        }
+      },
+      "required": ["revision", "lineage", "body"],
+      "additionalProperties": false
+    },
+    "historyWindow": {
+      "type": "object",
+      "properties": {
+        "newest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "oldest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      },
+      "required": ["newest", "oldest", "complete"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "newest": {
+                "type": "null"
+              }
+            },
+            "required": ["newest"]
+          },
+          "then": {
+            "properties": {
+              "oldest": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "oldest": {
+                "$ref": "#/$defs/revision"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "historyVersionsPage": {
+      "type": "object",
+      "properties": {
+        "subject": {
+          "$ref": "#/$defs/absoluteHttpUrl"
+        },
+        "population": {
+          "const": "all-retained"
+        },
+        "participation": {
+          "enum": ["tracked", "not-tracked", "undetermined"]
+        },
+        "window": {
+          "$ref": "#/$defs/historyWindow"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/historyVersionRow"
+          }
+        },
+        "next": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/absoluteHttpUrl"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["subject", "population", "participation", "window", "items", "next"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "participation": {
+                "enum": ["not-tracked", "undetermined"]
+              }
+            },
+            "required": ["participation"]
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "next": {
+                "type": "null"
+              },
+              "window": {
+                "type": "object",
+                "properties": {
+                  "newest": {
+                    "type": "null"
+                  },
+                  "oldest": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "historicalBeadRecord": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/beadRecord"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "links": false
+          }
+        }
+      ]
+    },
+    "historicalLinkRecord": {
+      "$ref": "#/$defs/linkRecord"
+    },
+    "revisionAllocationUnsafeProblem": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/readUpdateProblem"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "code": {
+              "const": "revision-allocation-unsafe"
+            }
+          }
+        }
+      ]
     }
   }
 }

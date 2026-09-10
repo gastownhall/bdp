@@ -5453,7 +5453,12 @@
               "request-too-large",
               "limit-exceeded",
               "rate-limited",
-              "temporarily-unavailable"
+              "temporarily-unavailable",
+              "revision-unknown",
+              "revision-unretained",
+              "revision-reorganized",
+              "revision-not-tracked",
+              "revision-unrepresentable"
             ]
           },
           "captures": [],
@@ -5609,6 +5614,61 @@
                   503,
                   "after-delay",
                   "https://github.com/gastownhall/bdp/problems/unavailable",
+                  null,
+                  true,
+                  "application/problem+json",
+                  true
+                ],
+                [
+                  "revision-unknown",
+                  "not-found",
+                  404,
+                  "after-state-change",
+                  "https://github.com/gastownhall/bdp/problems/not-found",
+                  null,
+                  true,
+                  "application/problem+json",
+                  true
+                ],
+                [
+                  "revision-unretained",
+                  "conflict",
+                  409,
+                  "after-state-change",
+                  "https://github.com/gastownhall/bdp/problems/conflict",
+                  null,
+                  true,
+                  "application/problem+json",
+                  true
+                ],
+                [
+                  "revision-reorganized",
+                  "gone",
+                  410,
+                  "after-state-change",
+                  "https://github.com/gastownhall/bdp/problems/gone",
+                  null,
+                  true,
+                  "application/problem+json",
+                  true
+                ],
+                [
+                  "revision-not-tracked",
+                  "conflict",
+                  409,
+                  "after-state-change",
+                  "https://github.com/gastownhall/bdp/problems/conflict",
+                  null,
+                  true,
+                  "application/problem+json",
+                  true
+                ],
+                [
+                  "revision-unrepresentable",
+                  "conflict",
+                  409,
+                  "after-state-change",
+                  "https://github.com/gastownhall/bdp/problems/conflict",
                   null,
                   true,
                   "application/problem+json",
