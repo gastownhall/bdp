@@ -75,6 +75,7 @@ export class ReadUpdateClientError extends Error {
     readonly contentType?: string | null,
     readonly retryAfter?: string | null,
     readonly headers?: Readonly<Record<string, string>>,
+    readonly operationIndex?: number,
   ) {
     super(`Read+Update client ${code} (${submission})`);
   }
@@ -82,7 +83,11 @@ export class ReadUpdateClientError extends Error {
 interface Call {
   readonly signal: AbortSignal;
   check(): void;
-  failure(code: ReadUpdateClientErrorCode, http?: ReadUpdateHttpContext): ReadUpdateClientError;
+  failure(
+    code: ReadUpdateClientErrorCode,
+    http?: ReadUpdateHttpContext,
+    operationIndex?: number,
+  ): ReadUpdateClientError;
   exchange(
     action: () => Promise<ReadUpdateScopeProbeResponse>,
     url: string,
@@ -154,6 +159,9 @@ export class BdpReadUpdateClient {
     } catch {
       return Promise.reject(new ReadUpdateClientError("invalid-input", "not-submitted"));
     }
+    const operationInput = prepared.operations[0];
+    if (!operationInput)
+      return Promise.reject(new ReadUpdateClientError("invalid-input", "not-submitted"));
     return this.run(
       options,
       async (call) => {
@@ -176,12 +184,11 @@ export class BdpReadUpdateClient {
           http.headers.location !== undefined
         )
           throw call.failure("invalid-response", http);
+        assertPrivateNoStore(http);
         const value =
           operation === "putAlias" || operation === "deleteAlias"
             ? parseReadUpdateAliasResult(received.body)
             : parseReadUpdateMutationResult(received.body);
-        const operationInput = prepared.operations[0];
-        if (!operationInput) throw call.failure("invalid-input");
         this.correspond(operationInput, value, new Map());
         return success(value as ReadUpdateResultFor<K>, http);
       },
@@ -216,52 +223,56 @@ export class BdpReadUpdateClient {
         if (
           received.kind !== "json" ||
           received.status !== 200 ||
-          media(received) !== "application/json" ||
-          http.headers.etag !== undefined ||
-          http.headers.location !== undefined
+          media(received) !== "application/json"
         )
           throw call.failure("invalid-response", http);
+        assertPrivateNoStore(http);
         const value = parseReadUpdateSequenceResponse(received.body, {
           operations: prepared.operations,
         });
         const bindings = new Map<string, string>();
         const transientCreators = new Set<string>();
         for (const [index, entry] of value.results.entries()) {
-          const operation = prepared.operations[index];
-          if (!operation) throw call.failure("invalid-response");
-          // A transient creator forbids even consulting the dependent key. Its
-          // required in-progress response is observable without current lookup.
-          for (const field of ["bead", "link", "source", "target"]) {
-            const reference = operation.input[field];
-            const uri =
-              typeof reference === "string"
-                ? reference
-                : reference && typeof reference === "object" && "uri" in reference
-                  ? reference.uri
-                  : undefined;
-            if (
-              typeof uri === "string" &&
-              uri.startsWith("@") &&
-              transientCreators.has(uri.slice(1))
-            ) {
-              if (!("code" in entry) || entry.code !== "idempotency-in-progress")
-                throw call.failure("invalid-response", http);
+          try {
+            const operation = prepared.operations[index];
+            if (!operation) throw call.failure("invalid-response");
+            // A transient creator forbids even consulting the dependent key. Its
+            // required in-progress response is observable without current lookup.
+            for (const field of ["bead", "link", "source", "target"]) {
+              const reference = operation.input[field];
+              const uri =
+                typeof reference === "string"
+                  ? reference
+                  : reference && typeof reference === "object" && "uri" in reference
+                    ? reference.uri
+                    : undefined;
+              if (
+                typeof uri === "string" &&
+                uri.startsWith("@") &&
+                transientCreators.has(uri.slice(1))
+              ) {
+                if (!("code" in entry) || entry.code !== "idempotency-in-progress")
+                  throw call.failure("invalid-response", http);
+              }
             }
+            if (!("outcome" in entry)) {
+              if (operation.name !== undefined && entry.retry === "after-delay")
+                transientCreators.add(operation.name);
+              continue;
+            }
+            // Envelope fields are already validated against the request above.
+            const { operationIndex: _index, operationName: _name, ...outcome } = entry;
+            const result =
+              operation.operation === "putAlias" || operation.operation === "deleteAlias"
+                ? parseReadUpdateAliasResult(outcome)
+                : parseReadUpdateMutationResult(outcome);
+            this.correspond(operation, result, bindings);
+            if (operation.name !== undefined && "resource" in result && result.resource)
+              bindings.set(operation.name, result.resource.id);
+          } catch {
+            // Report only the caller's member index, never a partly trusted envelope.
+            throw call.failure("invalid-response", http, index);
           }
-          if (!("outcome" in entry)) {
-            if (operation.name !== undefined && entry.retry === "after-delay")
-              transientCreators.add(operation.name);
-            continue;
-          }
-          // Envelope fields are already validated against the request above.
-          const { operationIndex: _index, operationName: _name, ...outcome } = entry;
-          const result =
-            operation.operation === "putAlias" || operation.operation === "deleteAlias"
-              ? parseReadUpdateAliasResult(outcome)
-              : parseReadUpdateMutationResult(outcome);
-          this.correspond(operation, result, bindings);
-          if (operation.name !== undefined && "resource" in result && result.resource)
-            bindings.set(operation.name, result.resource.id);
         }
         return success(value, http);
       },
@@ -298,7 +309,7 @@ export class BdpReadUpdateClient {
       timedOut = false;
     const local = new WeakSet<ReadUpdateClientError>();
     let latest: ReadUpdateHttpContext | undefined;
-    const failure = (code: ReadUpdateClientErrorCode, http = latest) => {
+    const failure = (code: ReadUpdateClientErrorCode, http = latest, operationIndex?: number) => {
       const error = new ReadUpdateClientError(
         code,
         submitted ? "unknown" : "not-submitted",
@@ -306,6 +317,7 @@ export class BdpReadUpdateClient {
         http?.contentType,
         http?.retryAfter,
         http?.headers,
+        operationIndex,
       );
       local.add(error);
       return error;
@@ -331,8 +343,8 @@ export class BdpReadUpdateClient {
       check,
       failure,
       exchange: async (send, url, mutation = false) => {
-        check();
         latest = undefined; // Earlier navigation metadata is not this exchange's response.
+        check();
         if (mutation) submitted = true;
         let received: ReadUpdateScopeProbeResponse;
         try {
@@ -693,7 +705,7 @@ function responseContext(value: ReadUpdateScopeProbeResponse): ReadUpdateHttpCon
 }
 function responseFailure(response: ReadUpdateScopeProbeResponse): FailureReply | undefined {
   const http = responseContext(response);
-  if (response.status === 406 || response.status === 500) {
+  if (response.status === 405 || response.status === 406 || response.status === 500) {
     if (response.kind !== "empty") throw Error();
     return Object.freeze({ kind: "http", http });
   }
@@ -702,13 +714,19 @@ function responseFailure(response: ReadUpdateScopeProbeResponse): FailureReply |
     const problem = parseReadUpdateProblem(response.body);
     if (problem.status !== undefined && problem.status !== response.status) throw Error();
     parseReadUpdateProblem({ ...problem, status: response.status });
-    const cache =
-      http.headers["cache-control"]?.split(",").map((v) => v.trim().toLowerCase()) ?? [];
-    if (!cache.includes("private") || !cache.includes("no-store")) throw Error();
+    assertPrivateNoStore(http);
     return Object.freeze({ kind: "problem", problem, http });
   }
   return undefined;
 }
 function success<T>(value: T, http: ReadUpdateHttpContext): ReadUpdateClientReply<T> {
   return Object.freeze({ kind: "success", value, http });
+}
+
+/** Mutation postimages and authorization-dependent Problems require full private
+ * no-store protection; qualified private does not supply that full directive. */
+function assertPrivateNoStore(http: ReadUpdateHttpContext): void {
+  const directives =
+    http.headers["cache-control"]?.split(",").map((v) => v.trim().toLowerCase()) ?? [];
+  if (!directives.includes("private") || !directives.includes("no-store")) throw Error();
 }

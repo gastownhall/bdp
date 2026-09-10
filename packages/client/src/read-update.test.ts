@@ -57,6 +57,7 @@ function json(
 ): ReadUpdateHttpResponse {
   const headers: Record<string, string> = {
     "content-type": status >= 400 ? "application/problem+json" : "application/json",
+    ...(status < 400 ? { "cache-control": "private, no-store" } : {}),
     ...extra,
   };
   return {
@@ -156,7 +157,7 @@ describe("BdpReadUpdateClient navigation and operations", () => {
           headers:
             url === scope
               ? { "content-type": "text/html", link: '<bdp.json>; rel="service-desc"' }
-              : { "content-type": "application/json" },
+              : { "content-type": "application/json", "cache-control": "private, no-store" },
         });
         Object.defineProperty(response, "url", { value: String(url) });
         return response;
@@ -526,7 +527,7 @@ describe("BdpReadUpdateClient navigation and operations", () => {
       ),
     ).rejects.toMatchObject({ code: "invalid-response" });
   });
-  it.each([406, 500])(
+  it.each([405, 406, 500])(
     "returns actual native%d distinctly without retry or a fabricated Problem",
     async (status) => {
       let posts = 0;
@@ -937,4 +938,126 @@ describe("operation council regressions", () => {
         });
     },
   );
+});
+
+describe("operation HTTP council corrections", () => {
+  it.each(["singleton", "sequence"])("requires private no-store on %s success", async (kind) => {
+    const h = setup(undefined, {
+      post: async (url) => {
+        const body =
+          kind === "singleton"
+            ? { outcome: "created", resource: bead }
+            : { results: [{ operationIndex: 0, outcome: "created", resource: bead }] };
+        const response = json(body, url, 200, { "cache-control": "public, max-age=60" });
+        return response;
+      },
+    });
+    const response =
+      kind === "singleton"
+        ? h.client.mutate("createBead", input, options)
+        : h.client.sequence(
+            JSON.stringify({
+              operations: [{ operation: "createBead", idempotencyKey: "k", type }],
+            }),
+          );
+    await expect(response).rejects.toMatchObject({
+      code: "invalid-response",
+      submission: "unknown",
+      httpStatus: 200,
+    });
+  });
+  it("preserves native method rejection and its Allow metadata", async () => {
+    const h = setup(undefined, {
+      probeScope: async () => ({ ...empty(scope, 405), headers: { allow: "GET, HEAD" } }),
+    });
+    expect(await h.client.discover()).toMatchObject({
+      kind: "http",
+      http: { status: 405, headers: { allow: "GET, HEAD" } },
+    });
+  });
+  it.each(["etag", "location"])(
+    "allows sequence %s without relaxing singleton rules",
+    async (name) => {
+      const h = setup(undefined, {
+        post: async (url) =>
+          json({ results: [{ operationIndex: 0, outcome: "created", resource: bead }] }, url, 200, {
+            [name]: "opaque",
+          }),
+      });
+      expect(
+        (
+          await h.client.sequence(
+            JSON.stringify({
+              operations: [{ operation: "createBead", idempotencyKey: "k", type }],
+            }),
+          )
+        ).kind,
+      ).toBe("success");
+    },
+  );
+  it("reports the offending correspondence index without exposing a partial envelope", async () => {
+    const h = setup({
+      results: [
+        { operationIndex: 0, outcome: "created", resource: bead },
+        { operationIndex: 1, outcome: "created", resource: { ...bead, id: `${scope}beads/other` } },
+      ],
+    });
+    try {
+      await h.client.sequence(
+        JSON.stringify({
+          operations: [
+            { operation: "createBead", idempotencyKey: "a", type },
+            { operation: "createBead", idempotencyKey: "b", id: "beads/b", type },
+          ],
+        }),
+      );
+      throw Error("expected refusal");
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: "invalid-response",
+        submission: "unknown",
+        operationIndex: 1,
+      });
+      expect(JSON.stringify(error)).not.toContain("beads/other");
+      expect(error).not.toHaveProperty("results");
+    }
+  });
+  it("clears directory metadata before a pre-dispatch timeout", async () => {
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    let posts = 0;
+    const h = setup(
+      undefined,
+      {
+        get: async (url) => {
+          const response = json(url === `${scope}bdp.json` ? discovery : directory, url);
+          if (url === `${scope}operations/`)
+            Object.defineProperty(response, "body", {
+              get() {
+                now = 100;
+                return directory;
+              },
+            });
+          return response;
+        },
+        post: async (url) => {
+          posts++;
+          return json({ outcome: "created", resource: bead }, url);
+        },
+      },
+      100,
+    );
+    try {
+      await expect(h.client.mutate("createBead", input, options)).rejects.toMatchObject({
+        code: "timeout",
+        submission: "not-submitted",
+        httpStatus: undefined,
+        headers: undefined,
+      });
+      expect(posts).toBe(0);
+    } finally {
+      clock.mockRestore();
+      await h.client.close();
+    }
+  });
 });
