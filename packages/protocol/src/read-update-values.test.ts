@@ -194,6 +194,185 @@ describe("RU unadmitted carriers", () => {
 });
 
 describe("RU parser boundary regressions", () => {
+  const referenceInputs = [
+    ["createBead", "id", (reference: string) => ({ type, id: reference })],
+    [
+      "createLink",
+      "id",
+      (reference: string) => ({ type, id: reference, source: "beads/a", target: "beads/b" }),
+    ],
+    [
+      "updateBeadProperties",
+      "bead",
+      (reference: string) => ({ bead: reference, change: [{ op: "remove", path: "/n" }] }),
+    ],
+    ["deleteBead", "bead", (reference: string) => ({ bead: reference })],
+    [
+      "updateLinkProperties",
+      "link",
+      (reference: string) => ({ link: reference, change: [{ op: "remove", path: "/n" }] }),
+    ],
+    ["deleteLink", "link", (reference: string) => ({ link: reference })],
+    [
+      "createLink",
+      "source",
+      (reference: string) => ({ type, source: reference, target: "beads/b" }),
+    ],
+    [
+      "createLink",
+      "target",
+      (reference: string) => ({ type, source: "beads/a", target: reference }),
+    ],
+    [
+      "createLink",
+      "source.uri",
+      (reference: string) => ({
+        type,
+        source: { uri: reference, revision: "pin" },
+        target: "beads/b",
+      }),
+    ],
+    [
+      "createLink",
+      "target.uri",
+      (reference: string) => ({
+        type,
+        source: "beads/a",
+        target: { uri: reference, revision: "pin" },
+      }),
+    ],
+    ["putAlias", "target", (reference: string) => ({ alias: "alias/a", target: reference })],
+  ] as const;
+
+  it.each(referenceInputs)(
+    "checks %s %s reference spelling before returning a carrier",
+    (kind, field, input) => {
+      for (const reference of [
+        "beads/bad space",
+        "beads/%",
+        "beads/%FF",
+        "beads/a\\b",
+        "beads/a\u0001",
+        "beads/../b",
+        "beads/./b",
+        "beads//b",
+        "beads/a/",
+        "beads/%2F",
+        "beads/%5C",
+        "beads/%61",
+        "beads/%c3%a9",
+        "//host/beads/a",
+        "/beads/a",
+        "beads/a?x=1",
+        "beads/a#part",
+        "https://outside.test/bad space",
+        "https://outside.test/%",
+        "urn:bad\\reference",
+      ]) {
+        const spelling =
+          field === "id" && kind === "createLink"
+            ? reference.replace(/^beads\//, "links/")
+            : reference;
+        expect(
+          () => parseReadUpdateRequest(kind, JSON.stringify(input(spelling))),
+          spelling,
+        ).toThrow(ReadUpdateCarrierError);
+      }
+      const root = kind === "createLink" ? "links" : "beads";
+      const references =
+        field === "id"
+          ? [
+              `${root}/a`,
+              `${root}/a:b`,
+              `${root}/%C3%A9`,
+              `${root}/a%20b`,
+              `https://example.test/s/${root}/a`,
+            ]
+          : [
+              "beads/a",
+              "links/a",
+              "alias/a",
+              "wrong-root/a",
+              "beads/a:b",
+              "beads/%C3%A9",
+              "beads/a%20b",
+            ];
+      // Non-creation subjects/endpoints retain member-time root/kind checks.
+      for (const reference of references)
+        expect(parseReadUpdateRequest(kind, JSON.stringify(input(reference))).input).toEqual(
+          input(reference),
+        );
+    },
+  );
+
+  it("rejects an invalid late sequence reference before any parsed carrier is available", () => {
+    for (const [kind, _field, input] of referenceInputs) {
+      expect(() =>
+        parseReadUpdateSequenceRequest(
+          sequence([
+            create,
+            { operation: kind, idempotencyKey: "second", ...input("beads/bad space") },
+          ]),
+        ),
+      ).toThrow(ReadUpdateCarrierError);
+    }
+  });
+
+  it("preserves absolute external URI bytes and leaves category checks to the member", () => {
+    for (const reference of [
+      "urn:example:opaque",
+      "https://EXAMPLE.test:443/a/../b?x=1#part",
+      "https://outside.test/%ff",
+    ]) {
+      for (const [kind, field, input] of referenceInputs) {
+        if (field === "id") continue;
+        expect(parseReadUpdateRequest(kind, JSON.stringify(input(reference))).input).toEqual(
+          input(reference),
+        );
+      }
+    }
+    const properties = {
+      subject: "beads/bad space",
+      nested: { uri: "beads/%", target: "@unknown" },
+    };
+    const parsed = parseReadUpdateRequest("createBead", JSON.stringify({ type, properties }));
+    expect(parsed.input.properties).toEqual(properties);
+    const patch = [{ op: "add", path: "/reference", value: properties }];
+    expect(
+      parseReadUpdateRequest(
+        "updateBeadProperties",
+        JSON.stringify({ bead: "beads/a", change: patch }),
+      ).input.change,
+    ).toEqual(patch);
+  });
+
+  it.each(["createBead", "createLink"] as const)(
+    "rejects wrong-root and non-HTTP creation IDs for %s",
+    (kind) => {
+      const fields =
+        kind === "createBead" ? { type } : { type, source: "beads/a", target: "beads/b" };
+      for (const id of [
+        kind === "createBead" ? "links/a" : "beads/a",
+        "wrong-root/a",
+        "alias/a",
+        "beads",
+        "links",
+        "urn:example:opaque",
+        "https://EXAMPLE.test/s/beads/a",
+      ]) {
+        const input = { ...fields, id };
+        expect(() => parseReadUpdateRequest(kind, JSON.stringify(input))).toThrow(
+          ReadUpdateCarrierError,
+        );
+        expect(() =>
+          parseReadUpdateSequenceRequest(
+            sequence([create, { ...input, operation: kind, idempotencyKey: "second" }]),
+          ),
+        ).toThrow(ReadUpdateCarrierError);
+      }
+    },
+  );
+
   it.each([
     "alias/a//b",
     "alias/../a",

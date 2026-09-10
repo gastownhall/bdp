@@ -91,6 +91,11 @@ export interface ReadUpdateInputs {
 }
 /** Raw input still contains literal nodes. No identity, numeric admission,
  * authorization, limits, contracts, storage or effect has been established.
+ * These parsers check Scope-independent carrier syntax only. Before any key
+ * claim or execution, the transport must preflight the WHOLE carrier against
+ * its actual Scope: absolute in-Scope references need canonical local-path
+ * checks, and absolute creation IDs need the correct fixed root. This is not
+ * deferred member-time validation; opaque external endpoints stay unchanged.
  */
 export interface UnadmittedReadUpdateOperation<
   K extends ReadUpdateOperation = ReadUpdateOperation,
@@ -222,8 +227,58 @@ export function parseReadUpdateRequest<K extends ReadUpdateOperation>(
   )
     throw new TypeError("unknown RU singleton operation");
   const input = carrier(text, kind);
+  validateReferenceSyntax(kind, input);
   validateAliasSyntax(kind, input);
   return operation(kind, input);
+}
+const REFERENCE_FIELDS: Readonly<Record<ReadUpdateOperation, readonly string[]>> = {
+  createBead: ["id"],
+  updateBeadProperties: ["bead"],
+  deleteBead: ["bead"],
+  createLink: ["id", "source", "target"],
+  updateLinkProperties: ["link"],
+  deleteLink: ["link"],
+  putAlias: ["target"],
+  deleteAlias: [],
+};
+/** Check only declared reference locations, before any carrier can be admitted.
+ * Relative spelling obeys the safe-segment grammar independently of its root.
+ * Absolute endpoints remain byte-exact. Creation IDs have their own fixed-root
+ * and canonical HTTP(S) shape. Scope-aware syntax still requires preflight.
+ */
+function validateReferenceSyntax(
+  kind: ReadUpdateOperation,
+  input: Readonly<Record<string, LosslessJsonValue>>,
+): void {
+  for (const field of REFERENCE_FIELDS[kind]) {
+    const value = input[field];
+    if (value === undefined) continue;
+    const reference = (typeof value === "string" ? value : record(value).uri) as string;
+    // The schema and sequence binding pass enforce where @name is permitted.
+    if (reference.startsWith("@")) continue;
+    if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(reference)) {
+      if (!isJsonSchemaUri(reference))
+        throw new ReadUpdateCarrierError(`malformed ${field} absolute reference`);
+      if (field === "id") {
+        try {
+          parseCanonicalHttpUrl(reference, "creation id");
+        } catch (cause) {
+          throw new ReadUpdateCarrierError("malformed absolute creation id", { cause });
+        }
+      }
+    } else {
+      try {
+        assertCanonicalPathSegments(reference, `${field} reference`);
+        if (field === "id") {
+          const [root, firstIdSegment] = reference.split("/");
+          if (root !== (kind === "createBead" ? "beads" : "links") || firstIdSegment === undefined)
+            throw new Error("creation id requires the correct fixed root and an id path");
+        }
+      } catch (cause) {
+        throw new ReadUpdateCarrierError(`malformed ${field} local reference`, { cause });
+      }
+    }
+  }
 }
 /** Alias spelling grammar is syntax; its root, target existence and authority
  * membership remain member semantics. Never reinterpret a wrong root as syntax.
@@ -253,6 +308,7 @@ export function parseReadUpdateSequenceRequest(text: string): ReadUpdateSequence
   for (const member of operations) {
     const fields = record(member);
     const kind = fields.operation as ReadUpdateOperation;
+    validateReferenceSyntax(kind, fields);
     validateAliasSyntax(kind, fields);
     const key = fields.idempotencyKey as string;
     const name = fields.name as string | undefined;
