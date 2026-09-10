@@ -293,7 +293,14 @@ export function admitJsonNumbers(
   root: LosslessJsonValue,
   budget: JsonNumberDiagnosticBudget,
 ): JsonNumericAdmission {
-  for (const limit of [budget.diagnostics, budget.diagnosticBytes])
+  // A formatter may close over and mutate its caller-owned policy. Select the
+  // entire policy once, before validation or any callback, without freezing it.
+  const {
+    diagnostics: countLimit,
+    diagnosticBytes: byteLimit,
+    diagnostic: formatDiagnostic,
+  } = budget;
+  for (const limit of [countLimit, byteLimit])
     if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1))
       throw new JsonDiagnosticBudgetError("diagnostic bounds must be positive safe integers");
   const offending: JsonNumberOccurrence[] = [];
@@ -313,14 +320,14 @@ export function admitJsonNumbers(
       if (!isAdmissibleJsonNumber(number.literal)) {
         // Only a further refusal proves that entries were omitted. Do not
         // materialize its pointer when the entry count is already exhausted.
-        if (budget.diagnostics !== undefined && diagnostics.length >= budget.diagnostics) {
+        if (countLimit !== undefined && diagnostics.length >= countLimit) {
           truncated = true;
           throw stop;
         }
         const occurrence = Object.freeze({ pointer: path(), literal: number.literal });
         // Copy the closed fields so later caller mutation cannot change the
         // measured entry, and no arbitrary extension/toJSON influences bytes.
-        const formatted = budget.diagnostic(occurrence);
+        const formatted = formatDiagnostic(occurrence);
         const diagnostic: ValidationDiagnostic = Object.freeze({
           ...(formatted.type !== undefined ? { type: formatted.type } : {}),
           ...(formatted.schemaLocation !== undefined
@@ -335,7 +342,7 @@ export function admitJsonNumbers(
           bytes +
           (diagnostics.length ? 1 : 0) +
           new TextEncoder().encode(JSON.stringify(diagnostic)).byteLength;
-        if (budget.diagnosticBytes !== undefined && nextBytes > budget.diagnosticBytes) {
+        if (byteLimit !== undefined && nextBytes > byteLimit) {
           if (diagnostics.length === 0)
             throw new JsonDiagnosticBudgetError(
               "diagnostic byte bound cannot retain the first entry",

@@ -25,8 +25,20 @@ const numericKeywords = new Set([
 // leaves numbers unconstrained. Follow refs transitively, including conditional
 // schemas; do not treat annotation examples/defaults as validation constraints.
 function numericConstraints(bundle: Record<string, unknown>, refs: readonly string[]): string[] {
-  const pending: unknown[] = refs.map(($ref) => ({ $ref }));
-  const visited = new Set<unknown>();
+  type Role = "schema" | "schema-map";
+  const schemaMaps = new Set([
+    "$defs",
+    "definitions",
+    "properties",
+    "patternProperties",
+    "dependentSchemas",
+    "dependencies",
+  ]);
+  const pending: { value: unknown; role: Role }[] = refs.map(($ref) => ({
+    value: { $ref },
+    role: "schema",
+  }));
+  const visited: Record<Role, Set<unknown>> = { schema: new Set(), "schema-map": new Set() };
   const violations: string[] = [];
   const hasNumber = (value: unknown): boolean => {
     const values = [value];
@@ -38,9 +50,16 @@ function numericConstraints(bundle: Record<string, unknown>, refs: readonly stri
     return false;
   };
   while (pending.length) {
-    const value = pending.pop();
-    if (!value || typeof value !== "object" || visited.has(value)) continue;
-    visited.add(value);
+    const task = pending.pop();
+    if (!task) continue;
+    const { value, role } = task;
+    if (!value || typeof value !== "object" || visited[role].has(value)) continue;
+    visited[role].add(value);
+    // Map keys are user-selected names, even when spelled like schema keywords.
+    if (role === "schema-map") {
+      for (const child of Object.values(value)) pending.push({ value: child, role: "schema" });
+      continue;
+    }
     const schema = value as Record<string, unknown>;
     for (const [key, child] of Object.entries(schema)) {
       if (key === "$ref" || key === "$dynamicRef") {
@@ -52,7 +71,7 @@ function numericConstraints(bundle: Record<string, unknown>, refs: readonly stri
             part.replace(/~1/g, "/").replace(/~0/g, "~")
           ];
         if (target === undefined) throw new Error(`missing schema reference ${child}`);
-        pending.push(target);
+        pending.push({ value: target, role: "schema" });
       } else if (numericKeywords.has(key) && typeof child === "number") violations.push(key);
       else if (
         key === "type" &&
@@ -62,7 +81,8 @@ function numericConstraints(bundle: Record<string, unknown>, refs: readonly stri
       )
         violations.push("type");
       else if ((key === "enum" || key === "const") && hasNumber(child)) violations.push(key);
-      else if (!["examples", "default", "enum", "const"].includes(key)) pending.push(child);
+      else if (!["examples", "default", "enum", "const"].includes(key))
+        pending.push({ value: child, role: schemaMaps.has(key) ? "schema-map" : "schema" });
     }
   }
   return violations;
@@ -86,6 +106,47 @@ describe("RU numeric carrier placeholder schema invariant", () => {
     };
     expect(numericConstraints(bundle, ["#/$defs/root"])).not.toEqual([]);
   });
+  for (const map of [
+    "properties",
+    "patternProperties",
+    "dependentSchemas",
+    "$defs",
+    "definitions",
+    "dependencies",
+  ]) {
+    it.each(["default", "examples", "enum", "const", "type", "$ref"])(
+      `checks schemas named %s inside ${map} as schemas, not annotations`,
+      (name) => {
+        const bundle = { $defs: { root: { [map]: { [name]: { type: "number", minimum: 1 } } } } };
+        expect(numericConstraints(bundle, ["#/$defs/root"])).toEqual(["type", "minimum"]);
+      },
+    );
+  }
+  it.each(["default", "examples"])(
+    "follows a constraint through a property and definition named %s",
+    (name) => {
+      const bundle = {
+        $defs: {
+          root: { properties: { [name]: { $ref: `#/$defs/${name}` } } },
+          [name]: { allOf: [{ properties: { examples: { maximum: 2 } } }] },
+        },
+      };
+      expect(numericConstraints(bundle, ["#/$defs/root"])).toEqual(["maximum"]);
+    },
+  );
+  it("ignores schema-shaped annotation data while checking the adjacent named property", () => {
+    const bundle = {
+      $defs: {
+        root: {
+          examples: [{ properties: { examples: { minimum: 1 } } }],
+          default: { properties: { default: { maximum: 2 } } },
+          properties: { default: { type: "string", examples: [1], default: 2 } },
+        },
+      },
+    };
+    expect(numericConstraints(bundle, ["#/$defs/root"])).toEqual([]);
+  });
+
   it("ignores unreachable numeric definitions and annotation-only numbers", () => {
     const bundle = {
       $defs: {
