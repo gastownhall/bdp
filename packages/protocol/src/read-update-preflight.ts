@@ -24,12 +24,16 @@ export interface PreparedReadUpdateCarrier {
 }
 const preparedCarriers = new WeakSet<object>();
 
-/** Receiving authorities must check the runtime brand before durable admission. */
+/** Receiving authorities check both the brand and their configured Scope before
+ * durable admission; a carrier prepared for another Scope is not admissible. */
 export function assertPreparedReadUpdateCarrier(
   value: unknown,
+  expectedScope: string,
 ): asserts value is PreparedReadUpdateCarrier {
   if (typeof value !== "object" || value === null || !preparedCarriers.has(value))
     throw new TypeError("expected a Scope-preflighted Read+Update carrier");
+  if ((value as PreparedReadUpdateCarrier).scope !== parseCanonicalScope(expectedScope))
+    throw new TypeError("carrier was preflighted for a different Scope");
 }
 
 /** The HTTP owner checks raw header multiplicity before supplying this exact key. */
@@ -140,7 +144,7 @@ function assertCreationRoot(local: string, root: string): void {
  * It establishes no cross-authority equivalence: no DNS or trailing-dot folding.
  */
 function isScopeCandidate(scope: URL, parsed: URL, original: string): boolean {
-  if (parsed.origin !== scope.origin) return false;
+  if (parsed.protocol !== scope.protocol || parsed.origin !== scope.origin) return false;
   const baseSegments = scope.pathname.split("/").slice(1, -1).map(decodeURIComponent);
   // Preserve a raw prefix even when URL parsing removes later dot segments.
   const rawPath = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/?#]*(\/[^?#]*)?/.exec(original)?.[1];
