@@ -156,3 +156,212 @@ describe("raw HTTP scenario target", () => {
     return { transport: "plain" as const, host: "127.0.0.1", port: address.port };
   }
 });
+
+describe("configured exact HTTP sessions", () => {
+  const scope = "https://scope.example/acme/";
+  const url = `${scope}operations/create-bead`;
+  const servers = new Set<Server>();
+  const sockets = new Set<Socket>();
+  const scenario = {} as ExecutableScenario;
+  const fixture = {} as ConformanceFixture;
+  afterEach(async () => {
+    for (const socket of sockets) socket.destroy();
+    await Promise.all(
+      [...servers].map((server) => new Promise<void>((resolve) => server.close(() => resolve()))),
+    );
+    sockets.clear();
+    servers.clear();
+  });
+  async function bind(receive: (socket: Socket) => void) {
+    const server = createServer((socket) => {
+      sockets.add(socket);
+      socket.on("close", () => sockets.delete(socket));
+      receive(socket);
+    });
+    servers.add(server);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (address === null || typeof address === "string") throw new Error("missing address");
+    return { transport: "plain" as const, host: "127.0.0.1", port: address.port };
+  }
+  function mode(): import("./http-executor.js").ExactHttpModeOptions {
+    return {
+      scope,
+      profile: "read-update",
+      routes: [
+        { method: "POST", url },
+        { method: "GET", url: scope },
+      ],
+      maximumRequestHeaderBytes: 4096,
+      maximumRequestBodyBytes: 1024,
+      defaultCredentialRef: "writer",
+      credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+      resolveCredentials: () => ({ Authorization: "Bearer sentinel-secret" }),
+    };
+  }
+  function request(): import("./http-executor.js").ExactHttpExchangeRequest {
+    return {
+      method: "POST",
+      url,
+      signal: new AbortController().signal,
+      raw: {
+        headerLines: [{ name: "Idempotency-Key", value: "key" }],
+        bodyBytes: Buffer.from("{}"),
+      },
+    };
+  }
+  function prepare(target: ReturnType<typeof createRawHttpScenarioTarget>, targetScope = scope) {
+    return target.harness.prepare(scenario, targetScope, 0, fixture, new AbortController().signal);
+  }
+
+  it("binds the actual immutable route/handle configuration and refuses off-Scope credential dispatch", async () => {
+    let received = "";
+    let foreignConnections = 0;
+    const route = await bind((socket) =>
+      socket.once("data", (data) => {
+        received = data.toString();
+        socket.end("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}");
+      }),
+    );
+    const foreign = await bind((socket) => {
+      foreignConnections++;
+      socket.destroy();
+    });
+    const routeEntry = { method: "POST" as const, url };
+    const headerNames = ["authorization"];
+    const configuration = {
+      ...mode(),
+      routes: [routeEntry],
+      credentialHandles: [{ id: "writer", headerNames }],
+    };
+    const resolver = vi.fn(configuration.resolveCredentials);
+    const start = vi.fn(async () => ({
+      dialRoute: route,
+      capabilities: [],
+      close: async () => undefined,
+      routes: [{ method: "POST", url: `http://127.0.0.1:${foreign.port}/` }],
+    }));
+    const target = createRawHttpScenarioTarget(start, {
+      exactMode: { ...configuration, resolveCredentials: resolver },
+    });
+    routeEntry.url = "https://evil.example/";
+    headerNames.length = 0;
+    await expect(prepare(target, "https://foreign.example/")).rejects.toMatchObject({
+      category: "configuration",
+    });
+    expect(start).not.toHaveBeenCalled();
+    await prepare(target);
+    expect(target.exactConfiguration?.routes[0]?.url).toBe(url);
+    expect(target.exactConfiguration).not.toHaveProperty("resolveCredentials");
+    expect(Object.isFrozen(target.exactConfiguration?.credentialHandles[0]?.headerNames)).toBe(
+      true,
+    );
+    for (const targetUrl of [
+      `http://127.0.0.1:${foreign.port}/`,
+      "https://scope.example/other/",
+      `${url}?undeclared=1`,
+    ])
+      await expect(target.execute({ ...request(), url: targetUrl })).rejects.toMatchObject({
+        category: "configuration",
+        requestWriteState: "not-started",
+      });
+    expect(resolver).not.toHaveBeenCalled();
+    expect(foreignConnections).toBe(0);
+    const response = await target.execute(request());
+    expect(response.status).toBe(200);
+    expect(resolver).toHaveBeenCalledOnce();
+    expect(received).toContain("Authorization: Bearer sentinel-secret");
+    await target.close();
+  });
+
+  it("aborts and settles an in-flight socket before emergency session close", async () => {
+    let sawRequest = (): void => undefined;
+    const received = new Promise<void>((resolve) => {
+      sawRequest = resolve;
+    });
+    const route = await bind((socket) =>
+      socket.once("data", () => {
+        socket.pause();
+        sawRequest();
+      }),
+    );
+    const close = vi.fn(async () => undefined);
+    const target = createRawHttpScenarioTarget(
+      async () => ({ dialRoute: route, capabilities: [], close }),
+      { exactMode: mode(), requestTimeoutMs: 1000 },
+    );
+    await prepare(target);
+    const failure = target.execute(request()).catch((error: unknown) => error);
+    await received;
+    await target.close();
+    expect(await failure).toMatchObject({ category: "abort", requestWriteState: "complete" });
+    expect(close).toHaveBeenCalledOnce();
+    await expect(target.execute(request())).rejects.toThrow("outside a prepared fixture");
+    await prepare(target);
+    await target.close();
+    expect(close).toHaveBeenCalledTimes(2);
+  });
+
+  it("closes a late prepared session instead of resurrecting it after emergency close", async () => {
+    let release = (): void => undefined;
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const closed = vi.fn(async () => undefined);
+    const target = createRawHttpScenarioTarget(
+      async (_scenario, _scope, _seed, _fixture, signal) => {
+        await barrier;
+        expect(signal.aborted).toBe(true);
+        return {
+          dialRoute: { transport: "plain", host: "127.0.0.1", port: 1 },
+          capabilities: [],
+          close: closed,
+        };
+      },
+    );
+    const preparing = prepare(target).catch((error: unknown) => error);
+    const closing = target.close();
+    release();
+    await closing;
+    expect(await preparing).toBeInstanceOf(Error);
+    expect(closed).toHaveBeenCalledOnce();
+    await expect(target.execute(request())).rejects.toThrow("outside a prepared fixture");
+  });
+
+  it("does not turn class instances into trusted exact requests through the session wrapper", async () => {
+    const resolve = vi.fn(() => ({ Authorization: "Bearer sentinel-secret" }));
+    const target = createRawHttpScenarioTarget(
+      async () => ({
+        dialRoute: { transport: "plain", host: "127.0.0.1", port: 1 },
+        capabilities: [],
+        close: async () => undefined,
+      }),
+      { exactMode: { ...mode(), resolveCredentials: resolve } },
+    );
+    await prepare(target);
+    class CallerRequest {
+      readonly payload = request();
+    }
+    const input = Object.assign(new CallerRequest(), request());
+    await expect(target.execute(input)).rejects.toMatchObject({
+      category: "configuration",
+      requestWriteState: "not-started",
+    });
+    expect(resolve).not.toHaveBeenCalled();
+    await target.close();
+  });
+
+  it("bounds a noncooperative session close without keeping request sockets alive", async () => {
+    const target = createRawHttpScenarioTarget(
+      async () => ({
+        dialRoute: { transport: "plain", host: "127.0.0.1", port: 1 },
+        capabilities: [],
+        close: async () => new Promise<void>(() => undefined),
+      }),
+      { requestTimeoutMs: 10 },
+    );
+    await prepare(target);
+    await expect(target.close()).rejects.toMatchObject({ category: "abort" });
+    await expect(target.execute(request())).rejects.toThrow("outside a prepared fixture");
+  });
+});

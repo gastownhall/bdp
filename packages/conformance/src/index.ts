@@ -116,6 +116,15 @@ export {
   createFetchHttpExchangeExecutor,
   createRawHttpExchangeExecutor,
   type HttpExchangeExecutor,
+  type HttpMethod,
+  type ExactHttpExchangeRequest,
+  type ExactHttpModeOptions,
+  type ExactRequestObservation,
+  type RawHeaderLine,
+  type RawHttpExchangeExecutor,
+  type RequestWriteState,
+  snapshotExactHttpMode,
+  validateExactRunConfiguration,
   type HttpExchangeRequest,
   type HttpExchangeResponse,
   HttpTransportError,
@@ -125,6 +134,7 @@ export {
 } from "./http-executor.js";
 export {
   createRawHttpScenarioTarget,
+  type ExactHttpConfiguration,
   type RawHttpScenarioSession,
   type RawHttpScenarioTarget,
   type RawHttpScenarioTargetOptions,
