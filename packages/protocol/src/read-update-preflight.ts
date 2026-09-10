@@ -146,10 +146,11 @@ function isScopeCandidate(scope: URL, parsed: URL, original: string): boolean {
   const rawPath = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/?#]*(\/[^?#]*)?/.exec(original)?.[1];
   return [parsed.pathname, rawPath].some((path) => {
     if (path === undefined) return false;
-    // Separators are recognized only for classification; strict acceptance
-    // below still rejects encoded separators. Decode only the Scope prefix,
-    // so a malformed escape later in the local suffix cannot hide that prefix.
-    const segments = path.replace(/%2f|%5c|\\/gi, "/").split("/");
+    // Split actual path separators before decoding each Scope-prefix segment.
+    // An encoded slash/backslash stays within its distinct external segment;
+    // decoding it must not invent an in-Scope path. Decode only the prefix,
+    // so a malformed local-suffix escape cannot hide an actual Scope prefix.
+    const segments = path.split("/");
     if (segments.length < baseSegments.length + 2) return false;
     return baseSegments.every((segment, index) => {
       try {
