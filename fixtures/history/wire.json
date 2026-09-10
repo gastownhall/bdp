@@ -1,0 +1,963 @@
+{
+  "fixtureVersion": 1,
+  "description": "Narrated schema illustrations only. No execution, capability, erasure, authorization, commit-time, or conformance evidence.",
+  "examples": [
+    {
+      "id": "discovery-read",
+      "schema": "#/$defs/readDiscovery",
+      "condition": "Assumed complete History implementation; this example is not capability evidence.",
+      "body": {
+        "bdpVersion": "0",
+        "scope": "https://beads.example/acme/",
+        "beads": "https://beads.example/acme/beads/",
+        "links": "https://beads.example/acme/links/",
+        "types": "https://beads.example/acme/types/",
+        "aliases": "https://beads.example/acme/alias/",
+        "profile": "read",
+        "historicalResolution": {
+          "version": 1
+        }
+      }
+    },
+    {
+      "id": "discovery-read-update",
+      "schema": "#/$defs/readUpdateDiscovery",
+      "condition": "Assumed complete History implementation; this example is not capability evidence.",
+      "body": {
+        "bdpVersion": "0",
+        "profile": "read-update",
+        "scope": "https://beads.example/acme/",
+        "beads": "https://beads.example/acme/beads/",
+        "links": "https://beads.example/acme/links/",
+        "types": "https://beads.example/acme/types/",
+        "operations": "https://beads.example/acme/operations/",
+        "aliases": "https://beads.example/acme/alias/",
+        "limits": {
+          "page": {
+            "defaultItems": 50,
+            "maximumItems": 200
+          },
+          "request": {
+            "targetBytes": 2048,
+            "bodyBytes": 65536
+          },
+          "patch": {
+            "operations": 64,
+            "pathBytes": 512,
+            "pathDepth": 16
+          },
+          "sequence": {
+            "operations": 32
+          },
+          "validation": {
+            "diagnostics": 16,
+            "diagnosticBytes": 8192
+          },
+          "retention": {
+            "idempotency": "P7D"
+          }
+        },
+        "maximumEndpointMultiplicity": [
+          {
+            "linkConformsTo": "https://work.example/types/dependency",
+            "endpoint": "source",
+            "max": 1
+          }
+        ],
+        "historicalResolution": {
+          "version": 1
+        }
+      }
+    },
+    {
+      "id": "discovery-transactional",
+      "schema": "#/$defs/transactionalDiscovery",
+      "condition": "Assumed complete History implementation; this example is not capability evidence.",
+      "body": {
+        "bdpVersion": "0",
+        "profile": "transactional",
+        "scope": "https://beads.example/acme/",
+        "scopeEpoch": "epoch-1",
+        "authorizationView": "view-a",
+        "headPosition": "pos-42",
+        "minimumReplayPosition": "pos-17",
+        "beads": "https://beads.example/acme/beads/",
+        "links": "https://beads.example/acme/links/",
+        "types": "https://beads.example/acme/types/",
+        "operations": "https://beads.example/acme/operations/",
+        "aliases": "https://beads.example/acme/alias/",
+        "receipts": "https://beads.example/acme/receipts/",
+        "snapshot": "https://beads.example/acme/snapshot",
+        "changes": "https://beads.example/acme/changes/",
+        "events": "https://beads.example/acme/events/",
+        "limits": {
+          "page": {
+            "defaultItems": 50,
+            "maximumItems": 200
+          },
+          "request": {
+            "targetBytes": 2048,
+            "bodyBytes": 65536
+          },
+          "validation": {
+            "diagnostics": 16,
+            "diagnosticBytes": 8192
+          },
+          "transaction": {
+            "operations": 200,
+            "inducedEvents": 10000,
+            "duration": "PT30S"
+          },
+          "retention": {
+            "receipt": "P7D",
+            "maximumSnapshotLifetime": "PT300S",
+            "replay": "P30D"
+          }
+        },
+        "historicalResolution": {
+          "version": 1
+        }
+      }
+    },
+    {
+      "id": "exact-bead",
+      "schema": "#/$defs/historicalBeadRecord",
+      "condition": "Authorized complete retained owned state; requested revision is r /?&雪, not current.",
+      "body": {
+        "id": "https://work.example/scope/beads/decision",
+        "type": "https://work.example/types/decision",
+        "revision": "r /?&雪",
+        "properties": {
+          "title": "historical"
+        },
+        "attribution": {
+          "principal": "donna",
+          "status": "claimed"
+        },
+        "changeContext": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-09-09T14:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "assistant-a"
+          },
+          "message": {
+            "state": "absent"
+          }
+        },
+        "ownedLinks": {
+          "https://work.example/types/cites": [
+            {
+              "id": "https://work.example/scope/links/citation",
+              "type": "https://work.example/types/cites",
+              "revision": "link-old",
+              "source": "https://work.example/scope/beads/decision",
+              "target": {
+                "uri": "https://work.example/scope/beads/target",
+                "revision": "target%2Fold"
+              },
+              "properties": {
+                "opaque": {
+                  "$ref": "not-a-protocol-reference"
+                }
+              },
+              "attribution": {
+                "principal": "donna",
+                "status": "claimed"
+              },
+              "changeContext": {
+                "committedAt": {
+                  "state": "present",
+                  "value": "2026-09-09T14:00:00Z"
+                },
+                "agent": {
+                  "state": "present",
+                  "value": "assistant-a"
+                },
+                "message": {
+                  "state": "absent"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "exact-link",
+      "schema": "#/$defs/historicalLinkRecord",
+      "condition": "Independent retained Link, preserving its old target pin.",
+      "body": {
+        "id": "https://work.example/scope/links/citation",
+        "type": "https://work.example/types/cites",
+        "revision": "link-old",
+        "source": "https://work.example/scope/beads/decision",
+        "target": {
+          "uri": "https://work.example/scope/beads/target",
+          "revision": "target%2Fold"
+        },
+        "properties": {
+          "opaque": {
+            "$ref": "not-a-protocol-reference"
+          }
+        },
+        "attribution": {
+          "principal": "donna",
+          "status": "claimed"
+        },
+        "changeContext": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-09-09T14:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "assistant-a"
+          },
+          "message": {
+            "state": "absent"
+          }
+        }
+      }
+    },
+    {
+      "id": "legacy-link",
+      "schema": "#/$defs/historicalLinkRecord",
+      "condition": "Legacy has no invented attribution or context.",
+      "body": {
+        "id": "https://work.example/scope/links/citation",
+        "type": "https://work.example/types/cites",
+        "revision": "link-old",
+        "source": "https://work.example/scope/beads/decision",
+        "target": {
+          "uri": "https://work.example/scope/beads/target",
+          "revision": "target%2Fold"
+        },
+        "properties": {
+          "opaque": {
+            "$ref": "not-a-protocol-reference"
+          }
+        }
+      }
+    },
+    {
+      "id": "versions-replacement",
+      "schema": "#/$defs/historyVersionsPage",
+      "condition": "Restore r1 after r1→r2→r3 and mint r4, retaining r2/r3; r3 stored complete but unrepresentable. No r3→r4 direct ancestry.",
+      "body": {
+        "subject": "https://work.example/scope/beads/decision",
+        "population": "all-retained",
+        "participation": "tracked",
+        "window": {
+          "newest": "r4",
+          "oldest": "r1",
+          "complete": true
+        },
+        "items": [
+          {
+            "revision": "r4",
+            "lineage": "current",
+            "body": "complete",
+            "changeContext": {
+              "committedAt": {
+                "state": "present",
+                "value": "2026-09-09T14:00:00Z"
+              },
+              "agent": {
+                "state": "present",
+                "value": "assistant-a"
+              },
+              "message": {
+                "state": "absent"
+              }
+            }
+          },
+          {
+            "revision": "r3",
+            "lineage": "replaced",
+            "body": "complete"
+          },
+          {
+            "revision": "r2",
+            "lineage": "replaced",
+            "body": "incomplete"
+          },
+          {
+            "revision": "r1",
+            "lineage": "current",
+            "body": "complete"
+          }
+        ],
+        "next": null
+      }
+    },
+    {
+      "id": "versions-undetermined",
+      "schema": "#/$defs/historyVersionsPage",
+      "condition": "History-authorized subject; absent or expired participation evidence is not never",
+      "body": {
+        "subject": "https://work.example/scope/beads/decision",
+        "population": "all-retained",
+        "participation": "undetermined",
+        "window": {
+          "newest": null,
+          "oldest": null,
+          "complete": false
+        },
+        "items": [],
+        "next": null
+      }
+    },
+    {
+      "id": "versions-not-tracked",
+      "schema": "#/$defs/historyVersionsPage",
+      "condition": "History-authorized subject; positive non-participation evidence",
+      "body": {
+        "subject": "https://work.example/scope/beads/decision",
+        "population": "all-retained",
+        "participation": "not-tracked",
+        "window": {
+          "newest": null,
+          "oldest": null,
+          "complete": true
+        },
+        "items": [],
+        "next": null
+      }
+    },
+    {
+      "id": "versions-first-page",
+      "schema": "#/$defs/historyVersionsPage",
+      "condition": "One stable authorized enumeration snapshot; a cursor supplies no body retention hold.",
+      "body": {
+        "subject": "https://work.example/scope/beads/decision",
+        "population": "all-retained",
+        "participation": "tracked",
+        "window": {
+          "newest": "r4",
+          "oldest": "r1",
+          "complete": true
+        },
+        "items": [
+          {
+            "revision": "r4",
+            "lineage": "current",
+            "body": "complete",
+            "changeContext": {
+              "committedAt": {
+                "state": "present",
+                "value": "2026-09-09T14:00:00Z"
+              },
+              "agent": {
+                "state": "present",
+                "value": "assistant-a"
+              },
+              "message": {
+                "state": "absent"
+              }
+            }
+          },
+          {
+            "revision": "r3",
+            "lineage": "replaced",
+            "body": "complete"
+          }
+        ],
+        "next": "https://work.example/scope/beads/decision?view=versions&cursor=page-2&limit=2"
+      }
+    },
+    {
+      "id": "revision-unknown",
+      "schema": "#/$defs/readProblem",
+      "condition": "Subject-history permission and the stated disposition evidence are assumptions; never inferred from a timeout or permission denial.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/not-found",
+        "code": "revision-unknown",
+        "status": 404,
+        "retry": "after-state-change"
+      }
+    },
+    {
+      "id": "revision-unretained",
+      "schema": "#/$defs/readProblem",
+      "condition": "Subject-history permission and the stated disposition evidence are assumptions; never inferred from a timeout or permission denial.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "revision-unretained",
+        "status": 409,
+        "retry": "after-state-change",
+        "missing": {
+          "complete": false,
+          "items": [
+            {
+              "kind": "property",
+              "pointer": "/properties/title"
+            },
+            {
+              "kind": "owned-links",
+              "type": "https://work.example/types/cites"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "revision-reorganized",
+      "schema": "#/$defs/readProblem",
+      "condition": "Subject-history permission and the stated disposition evidence are assumptions; never inferred from a timeout or permission denial.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/gone",
+        "code": "revision-reorganized",
+        "status": 410,
+        "retry": "after-state-change"
+      }
+    },
+    {
+      "id": "revision-not-tracked",
+      "schema": "#/$defs/readProblem",
+      "condition": "Subject-history permission and the stated disposition evidence are assumptions; never inferred from a timeout or permission denial.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "revision-not-tracked",
+        "status": 409,
+        "retry": "after-state-change"
+      }
+    },
+    {
+      "id": "revision-unrepresentable",
+      "schema": "#/$defs/readProblem",
+      "condition": "Subject-history permission and the stated disposition evidence are assumptions; never inferred from a timeout or permission denial.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "revision-unrepresentable",
+        "status": 409,
+        "retry": "after-state-change"
+      }
+    },
+    {
+      "id": "resource-pruned",
+      "schema": "#/$defs/readProblem",
+      "condition": "Subject-history permission and the stated disposition evidence are assumptions; never inferred from a timeout or permission denial.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/gone",
+        "code": "resource-pruned",
+        "status": 410,
+        "retry": "never"
+      }
+    },
+    {
+      "id": "resource-erased",
+      "schema": "#/$defs/readProblem",
+      "condition": "Subject-history permission and the stated disposition evidence are assumptions; never inferred from a timeout or permission denial.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/gone",
+        "code": "resource-erased",
+        "status": 410,
+        "retry": "never"
+      }
+    },
+    {
+      "id": "missing-17",
+      "schema": "#/$defs/historyMissing",
+      "condition": "Known absent component, no reconstructed values or invented nested locations.",
+      "body": {
+        "complete": true,
+        "items": [
+          {
+            "kind": "record"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-18",
+      "schema": "#/$defs/historyMissing",
+      "condition": "Known absent component, no reconstructed values or invented nested locations.",
+      "body": {
+        "complete": true,
+        "items": [
+          {
+            "kind": "owned-links"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-19",
+      "schema": "#/$defs/historyMissing",
+      "condition": "Known absent component, no reconstructed values or invented nested locations.",
+      "body": {
+        "complete": true,
+        "items": [
+          {
+            "kind": "property",
+            "pointer": "/ownedLinks/https:~1~1work.example~1types~1cites/0/properties/note"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bounded-unknown-inventory",
+      "schema": "#/$defs/historyMissing",
+      "condition": "Known incomplete record; exact missing inventory cannot currently be established.",
+      "body": {
+        "complete": false,
+        "items": []
+      }
+    },
+    {
+      "id": "allocation-ru-direct",
+      "schema": "#/$defs/readUpdateProblem",
+      "condition": "Persistent repair-required safety conflict found before admission; no identity disclosure.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "revision-allocation-unsafe",
+        "status": 409,
+        "retry": "after-state-change"
+      }
+    },
+    {
+      "id": "allocation-tx-direct",
+      "schema": "#/$defs/transactionalProblem",
+      "condition": "Persistent repair-required safety conflict found before admission.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "revision-allocation-unsafe",
+        "status": 409,
+        "retry": "after-state-change"
+      }
+    },
+    {
+      "id": "allocation-tx-receipt",
+      "schema": "#/$defs/receiptProblem",
+      "condition": "Found in an admitted operation; rollback and retained permanent failure are required but not observed here.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "revision-allocation-unsafe",
+        "status": 409,
+        "retry": "after-state-change",
+        "operationIndex": 0
+      }
+    },
+    {
+      "id": "allocation-ru-member",
+      "schema": "#/$defs/sequenceMemberProblem",
+      "condition": "Permanent admitted sequence member failure, preserving the shared lifetime/deadline rules.",
+      "body": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "revision-allocation-unsafe",
+        "status": 409,
+        "retry": "after-state-change",
+        "operationIndex": 0
+      }
+    },
+    {
+      "id": "native-context",
+      "schema": "#/$defs/changeContext",
+      "condition": "Authority-observed commit instant; no authentication claim.",
+      "body": {
+        "committedAt": {
+          "state": "present",
+          "value": "2026-09-09T14:00:00Z"
+        },
+        "agent": {
+          "state": "present",
+          "value": "assistant-a"
+        },
+        "message": {
+          "state": "absent"
+        }
+      }
+    },
+    {
+      "id": "import-unknown-context",
+      "schema": "#/$defs/changeContext",
+      "condition": "Original imported time unavailable; do not substitute import time.",
+      "body": {
+        "committedAt": {
+          "state": "undetermined"
+        },
+        "agent": {
+          "state": "absent"
+        },
+        "message": {
+          "state": "undetermined"
+        }
+      }
+    },
+    {
+      "id": "create-bead-input",
+      "schema": "#/$defs/createBeadRequest",
+      "condition": "Optional operation-level context input; timestamps and actor overrides prohibited.",
+      "body": {
+        "type": "https://work.example/types/decision",
+        "changeContext": {
+          "agent": "assistant-a",
+          "message": null
+        }
+      }
+    },
+    {
+      "id": "delete-owned-link-input",
+      "schema": "#/$defs/deleteLinkRequest",
+      "condition": "Optional operation-level context input; timestamps and actor overrides prohibited.",
+      "body": {
+        "link": "https://work.example/scope/links/citation",
+        "changeContext": {
+          "agent": null,
+          "message": "removed citation"
+        }
+      }
+    },
+    {
+      "id": "batch-inputs",
+      "schema": "#/$defs/batchRequest",
+      "condition": "Atomic members can carry distinct operation context; only commit time is shared.",
+      "body": {
+        "operations": [
+          {
+            "operation": "createBead",
+            "type": "https://work.example/types/decision",
+            "changeContext": {
+              "agent": null,
+              "message": "one"
+            }
+          },
+          {
+            "operation": "createBead",
+            "type": "https://work.example/types/decision",
+            "changeContext": {
+              "agent": "assistant-b",
+              "message": "two"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sequence-input",
+      "schema": "#/$defs/sequenceRequest",
+      "condition": "Independently committed sequence members keep their own commit instants.",
+      "body": {
+        "operations": [
+          {
+            "operation": "createBead",
+            "type": "https://work.example/types/decision",
+            "idempotencyKey": "history-one",
+            "changeContext": {
+              "message": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "created-event-data",
+      "schema": "#/$defs/createdData",
+      "condition": "Created Event data carries the named version context, not an Event-time redefinition.",
+      "body": {
+        "revision": "r4",
+        "properties": {
+          "title": "historical"
+        },
+        "changeContext": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-09-09T14:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "assistant-a"
+          },
+          "message": {
+            "state": "absent"
+          }
+        }
+      }
+    },
+    {
+      "id": "set-update-context",
+      "schema": "#/$defs/updateWhereRequest",
+      "condition": "Set fan-out uses this operation context on actual new Link/source versions.",
+      "body": {
+        "collection": "links",
+        "selector": "$[?@.type == \"https://work.example/types/cites\"]",
+        "change": [
+          {
+            "op": "replace",
+            "path": "/note",
+            "value": "updated"
+          }
+        ],
+        "changeContext": {
+          "message": "set change"
+        }
+      }
+    },
+    {
+      "id": "set-delete-context",
+      "schema": "#/$defs/deleteWhereRequest",
+      "condition": "Only surviving sources actually versioned by owned-Link deletions receive context.",
+      "body": {
+        "collection": "links",
+        "selector": "$[?@.type == \"https://work.example/types/cites\"]",
+        "changeContext": {
+          "agent": null
+        }
+      }
+    },
+    {
+      "id": "mutation-context",
+      "schema": "#/$defs/mutationResult",
+      "condition": "Authoritative postimage with recorded context, no extra result-level envelope.",
+      "body": {
+        "outcome": "updated",
+        "resource": {
+          "id": "https://work.example/scope/links/citation",
+          "type": "https://work.example/types/cites",
+          "revision": "link-old",
+          "source": "https://work.example/scope/beads/decision",
+          "target": {
+            "uri": "https://work.example/scope/beads/target",
+            "revision": "target%2Fold"
+          },
+          "properties": {
+            "opaque": {
+              "$ref": "not-a-protocol-reference"
+            }
+          },
+          "attribution": {
+            "principal": "donna",
+            "status": "claimed"
+          },
+          "changeContext": {
+            "committedAt": {
+              "state": "present",
+              "value": "2026-09-09T14:00:00Z"
+            },
+            "agent": {
+              "state": "present",
+              "value": "assistant-a"
+            },
+            "message": {
+              "state": "absent"
+            }
+          }
+        },
+        "source": "https://work.example/scope/beads/decision",
+        "sourceRevision": "r /?&雪"
+      }
+    },
+    {
+      "id": "receipt-context",
+      "schema": "#/$defs/receiptResult",
+      "condition": "Retained postimage carries the same version context under current authorization/erasure.",
+      "body": {
+        "operationIndex": 0,
+        "outcome": "updated",
+        "resource": {
+          "id": "https://work.example/scope/links/citation",
+          "type": "https://work.example/types/cites",
+          "revision": "link-old",
+          "source": "https://work.example/scope/beads/decision",
+          "target": {
+            "uri": "https://work.example/scope/beads/target",
+            "revision": "target%2Fold"
+          },
+          "properties": {
+            "opaque": {
+              "$ref": "not-a-protocol-reference"
+            }
+          },
+          "attribution": {
+            "principal": "donna",
+            "status": "claimed"
+          },
+          "changeContext": {
+            "committedAt": {
+              "state": "present",
+              "value": "2026-09-09T14:00:00Z"
+            },
+            "agent": {
+              "state": "present",
+              "value": "assistant-a"
+            },
+            "message": {
+              "state": "absent"
+            }
+          }
+        },
+        "source": "https://work.example/scope/beads/decision",
+        "sourceRevision": "r /?&雪"
+      }
+    },
+    {
+      "id": "owned-link-delta-context",
+      "schema": "#/$defs/ownedLinkDelta",
+      "condition": "Version-bearing owned delta has Link context, alongside the new source Event context.",
+      "body": {
+        "id": "https://work.example/scope/links/citation",
+        "type": "https://work.example/types/cites",
+        "previousRevision": "link-before",
+        "revision": "link-old",
+        "change": [
+          {
+            "op": "replace",
+            "path": "/note",
+            "value": "updated"
+          }
+        ],
+        "changeContext": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-09-09T14:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "assistant-a"
+          },
+          "message": {
+            "state": "absent"
+          }
+        }
+      }
+    },
+    {
+      "id": "versions-empty-visible-page",
+      "schema": "#/$defs/historyVersionsPage",
+      "condition": "Every scanned row on this page is withheld by whole-row authorization; a later page may disclose authorized rows. The cursor advances the same snapshot. Window bounds name independently authorized rows elsewhere in that snapshot, not hidden rows.",
+      "body": {
+        "subject": "https://work.example/scope/beads/decision",
+        "population": "all-retained",
+        "participation": "tracked",
+        "window": {
+          "newest": "r4",
+          "oldest": "r1",
+          "complete": true
+        },
+        "items": [],
+        "next": "https://work.example/scope/beads/decision?view=versions&cursor=page-2&limit=2"
+      }
+    },
+    {
+      "id": "updated-owned-event-context",
+      "schema": "#/$defs/updatedData",
+      "condition": "Source and updated owned Link versions carry the originating operation context; this is a narrated immutable Event data shape, not proof of a commit.",
+      "body": {
+        "previousRevision": "source-r1",
+        "revision": "source-r2",
+        "ownedLink": {
+          "operation": "updated",
+          "link": {
+            "id": "https://work.example/scope/links/citation",
+            "type": "https://work.example/types/cites",
+            "previousRevision": "link-before",
+            "revision": "link-old",
+            "change": [
+              {
+                "op": "replace",
+                "path": "/note",
+                "value": "updated"
+              }
+            ],
+            "changeContext": {
+              "committedAt": {
+                "state": "present",
+                "value": "2026-09-09T14:00:00Z"
+              },
+              "agent": {
+                "state": "present",
+                "value": "assistant-a"
+              },
+              "message": {
+                "state": "absent"
+              }
+            }
+          }
+        },
+        "changeContext": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-09-09T14:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "assistant-a"
+          },
+          "message": {
+            "state": "absent"
+          }
+        }
+      }
+    },
+    {
+      "id": "updated-properties-event-context",
+      "schema": "#/$defs/updatedData",
+      "condition": "The property-change branch carries its newly minted version context without an owned-Link change.",
+      "body": {
+        "previousRevision": "r1",
+        "revision": "r2",
+        "change": [
+          {
+            "op": "replace",
+            "path": "/title",
+            "value": "Updated"
+          }
+        ],
+        "changeContext": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-09-09T14:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "assistant-a"
+          },
+          "message": {
+            "state": "absent"
+          }
+        }
+      }
+    },
+    {
+      "id": "update-bead-input-context",
+      "schema": "#/$defs/updateBeadPropertiesRequest",
+      "condition": "Singleton update input supplies agent/message only; native commit time is authority-owned.",
+      "body": {
+        "bead": "https://work.example/scope/beads/decision",
+        "change": [
+          {
+            "op": "replace",
+            "path": "/title",
+            "value": "Updated"
+          }
+        ],
+        "changeContext": {
+          "agent": "assistant-a",
+          "message": "Revise decision"
+        }
+      }
+    },
+    {
+      "id": "update-link-input-context",
+      "schema": "#/$defs/updateLinkPropertiesRequest",
+      "condition": "Singleton Link update context also fans out to its source when ownership actually versions that source.",
+      "body": {
+        "link": "https://work.example/scope/links/citation",
+        "change": [
+          {
+            "op": "replace",
+            "path": "/note",
+            "value": "Updated"
+          }
+        ],
+        "changeContext": {
+          "agent": null,
+          "message": "Revise citation"
+        }
+      }
+    }
+  ]
+}

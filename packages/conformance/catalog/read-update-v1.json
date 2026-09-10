@@ -1417,7 +1417,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#outcome-retention",
-          "selectedText": "Read+Update exposes no epoch: a client cannot detect a restore except through a changed canonical Scope URL, and the profile offers no restore signal beyond `resource-not-found`, `revision-mismatch`, and `idempotency-expired`."
+          "selectedText": "Read+Update exposes no epoch: a client cannot detect a restore except through a changed canonical Scope URL, and the profile offers no restore signal beyond `resource-not-found`, `revision-mismatch`, and `idempotency-expired` in its base surface."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "when `historicalResolution` is advertised, the History surface additionally\nreports positively evidenced `revision-reorganized` under its subject-history\ngate and preserves retained old addresses."
         }
       ]
     },

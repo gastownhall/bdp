@@ -55,8 +55,13 @@ describe("BDP v0 schema bundle", () => {
       "beadCollection",
       "beadRecord",
       "cardinality",
+      "changeContext",
+      "changeContextInput",
       "changeGroup",
       "changefeedPage",
+      "contextMessage",
+      "contextString",
+      "contextTime",
       "createBeadMembers",
       "createBeadOperation",
       "createBeadRequest",
@@ -89,6 +94,14 @@ describe("BDP v0 schema bundle", () => {
       "eventPage",
       "eventType",
       "expectedRevision",
+      "historicalBeadRecord",
+      "historicalLinkRecord",
+      "historyCapability",
+      "historyMissing",
+      "historyMissingItem",
+      "historyVersionRow",
+      "historyVersionsPage",
+      "historyWindow",
       "idempotencyKey",
       "inputPinnedReference",
       "inputReference",
@@ -137,6 +150,7 @@ describe("BDP v0 schema bundle", () => {
       "resourceReference",
       "retryDisposition",
       "revision",
+      "revisionAllocationUnsafeProblem",
       "selector",
       "sequenceAllocatedIdentity",
       "sequenceCreateBead",
@@ -293,6 +307,7 @@ describe("BDP v0 schema bundle", () => {
     // never carry it.
     const extensionBranches = (def("readProblem").allOf as SchemaRecord[]).slice(
       READ_PROBLEM_DEFINITIONS.length,
+      READ_PROBLEM_DEFINITIONS.length + 3,
     );
     expect(extensionBranches).toEqual([
       {

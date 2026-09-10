@@ -124,3 +124,11 @@ T65 = A; RP1 was the separately handled eighth recommendation. The
 supersedes all earlier pending statuses for those seven Transactional decisions.
 T57 implementation and independent final review/integration/evidence work remain;
 the new catalog obligations are unclaimed, with no runtime or merge grant.
+
+History wire integration, 2026-09-10: all 38 selected answer units have owning draft
+text under [Historical resolution](../specs/bdp.md#historical-resolution), mirrored
+schemas, protocol parsers, [illustrative fixtures](../../fixtures/history/README.md)
+and unbound `history-v1` catalog rows. The decision packet remains historical
+selection provenance. Server/client/adapter implementation, capability admission,
+projection coverage integration and genuine successor evidence remain required;
+this fold advertises no History support or full Memory compatibility.

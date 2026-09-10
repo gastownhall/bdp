@@ -4,20 +4,22 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 
 | Surface | Specified | Validated |
 | --- | --- | --- |
-| Read profile | Wildcard ownership, numeric rules, named schema projection and erased-resource pointer correction integrated through foundation #29 | Current two-target cohort: 83 applicable passes, nine justified N/A outcomes; packaged and self-certified provenance and uncovered variants are explicit in the artifact |
-| Read+Update profile | D1–D40 ruled; singleton/sequence/alias wire, idempotency, retention and recovery contracts from #19 are integrated; 84 mirrored schema definitions | Illustrative wire and catalog checks only; no Read+Update runtime, executable manifest or capability claim |
-| Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated; 139 mirrored definitions across profiles | Illustrative wire and catalog checks only; shared Read HTTP runtime and fresh observations are required before landing; no Transactional capability claim |
-| History capability | All 38 decisions recorded in merged #25; owning wire materialization under council correction | No advertised capability or runtime evidence |
+| Read profile | Wildcard ownership, numeric rules, named schema projection and erased-resource pointer correction integrated through foundation #29 | The preserved foundation cohort records 83 applicable passes and nine justified N/A outcomes; widened History/shared HTTP inputs require genuine successor observations |
+| Read+Update profile | D1–D40 ruled; singleton/sequence/alias wire, idempotency, retention and recovery contracts from #19 integrated | Illustrative wire and catalog checks only; no Read+Update runtime, executable manifest or capability claim |
+| Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including reviewed T57 canonicalization and its independent vectors | Wire, catalog and canonicalization checks; shared Read HTTP runtime and fresh observations are required before landing; no Transactional capability claim |
+| Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
 The Read cohort was genuinely generated from
 `bcd0dc506f9f8bd3f35e2ddfce2006f288f92215` and committed with its matching
-capability constant at `599361130bfaa07c2b5d157f3ecbe44f0691cb9e`.
+capability constant at `599361130bfaa07c2b5d157f3ecbe44f0691cb9e`, then merged
+in #29 at `19923f5bb6cc3f4ee4c508e36df3bd4c5c52344b`.
 The five foundation source ancestries, including #24, remain preserved.
 The approved ordered 27-definition Read seal and independent current-byte
-checks remain enforced; coverage checks never choose digest inputs.
+checks remain unchanged here; coverage checks never choose digest inputs.
+The widened shared History schemas require a reviewed named-seal extension
+and genuine successor observations before a current claim for this integration.
 
-Read+Update additions must preserve the sealed Read projection. The current
-wire integration introduces no write capability grant: every applicable
+The current wire integration introduces no write capability grant: every applicable
 Read+Update obligation needs its own actual observations before admission.
 The HTTP/client and durable local reference runtime are the next implementation
 wave under the approved authentication, recovery and operational defaults.
@@ -33,3 +35,10 @@ conditional-response and HEAD rules are not attested by the preserved Read
 cohort. The HTTP fixture family validates narrated illustrations only. Applicable
 Read catalog/manifest assertions and actual runtime observations must be adopted
 in a genuine successor cohort before this integration lands.
+
+History wire integration (2026-09-10): `HISTORY_VALUE_SCHEMA_REFS` and a separate
+write-root registry record the additional parser surface. Retained-address,
+erasure, authorization and context semantics still require actual History
+implementation and observations. No target may advertise History from these
+artifacts alone. The cohort artifact, generator and capability constants remain
+those of the genuinely observed Read foundation; they are not new History proof.
