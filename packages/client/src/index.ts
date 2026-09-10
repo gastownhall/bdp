@@ -2484,6 +2484,7 @@ export {
   type ReadUpdateFetchTransportOptions,
   type ReadUpdateHttpContext,
   type ReadUpdateHttpResponse,
+  type ReadUpdateScopeProbeResponse,
   type ReadUpdateTransport,
   type ReadUpdateTransportCallOptions,
   ReadUpdateTransportError,
@@ -2492,3 +2493,14 @@ export {
   type ReadUpdateTransportPostOptions,
 } from "./read-update-transport.js";
 export type { AbsoluteHttpUrl, ReadDiscovery, ReadProblem, ReadRequest, ReadResultFor };
+
+export {
+  BdpReadUpdateClient,
+  ReadUpdateClientError,
+  type ReadUpdateClientOptions,
+  type ReadUpdateClientCallOptions,
+  type ReadUpdateClientMutationOptions,
+  type ReadUpdateClientReply,
+  type ReadUpdateClientErrorCode,
+  type ReadUpdateResultFor,
+} from "./read-update.js";
