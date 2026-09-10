@@ -8,16 +8,27 @@ import type { HttpResponse } from "./index.js";
  */
 export function applyReadHttpSemantics(request: Request, response: HttpResponse): HttpResponse {
   let selected = response;
-  if (response.status === 200 && response.headers.get("content-type") === "application/json") {
+  const json =
+    response.status === 200 && response.headers.get("content-type") === "application/json";
+  if (json || response.status === 204) {
     const headers = new Headers(response.headers);
-    const vary = headers.get("vary");
-    if (vary !== "*" && !vary?.split(",").some((field) => field.trim().toLowerCase() === "accept"))
-      headers.set("vary", vary ? `${vary}, Accept` : "Accept");
-    const status = acceptsJson(request.headers.get("accept"))
-      ? conditionalReadStatus(request.headers, headers.get("etag"))
-      : 406;
+    if (json) {
+      const vary = headers.get("vary");
+      if (
+        vary !== "*" &&
+        !vary?.split(",").some((field) => field.trim().toLowerCase() === "accept")
+      )
+        headers.set("vary", vary ? `${vary}, Accept` : "Accept");
+    }
+    // The Scope probe is an existing zero-length representation with no media
+    // type to negotiate; it still evaluates entity-tag preconditions.
+    const status =
+      json && !acceptsJson(request.headers.get("accept"))
+        ? 406
+        : conditionalReadStatus(request.headers, headers.get("etag"));
     if (status !== 200) {
       headers.delete("content-type");
+      if (status === 406) headers.delete("etag");
       // A 304 Content-Length may describe only the corresponding 200 body,
       // never an invented zero-length representation (RFC 9110 section 8.6).
       headers.delete("content-length");
@@ -48,7 +59,7 @@ function conditionalReadStatus(headers: Headers, etag: string | null): 200 | 304
  * Invalid fields cannot produce a match (13.1.1/13.1.2's 'otherwise' branches).
  */
 function tagListMatches(value: string, current: string | null, strong: boolean): boolean {
-  if (value.trim() === "*") return true; // Called only for an existing 200 representation.
+  if (value.trim() === "*") return true; // Called only for an existing successful representation.
   const tag = /(?:W\/)?"[\x21\x23-\x7e\x80-\xff]*"/y;
   let offset = 0;
   let matched = false;

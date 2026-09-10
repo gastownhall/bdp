@@ -54,7 +54,7 @@ describe("Node HTTP listener", () => {
       expect(probe.status).toBe(204);
       const discovery = await fetch(`${base}/local-test/bdp.json`);
       expect(discovery.status).toBe(200);
-      expect(discovery.headers.has("cache-control")).toBe(false);
+      expect(discovery.headers.get("cache-control")).toBe("private, no-store");
       expect(await discovery.json()).toMatchObject({ scope: SCOPE, profile: "read" });
       const beads = await fetch(`${base}/local-test/beads/`);
       expect(beads.status).toBe(200);

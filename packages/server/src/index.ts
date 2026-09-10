@@ -855,14 +855,16 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
 function jsonResponse(body: unknown): HttpResponse {
   return {
     status: 200,
-    headers: new Headers({ "content-type": "application/json" }),
+    headers: new Headers({
+      "content-type": "application/json",
+      "cache-control": "private, no-store",
+    }),
     body,
   };
 }
 
 function scopeDataResponse(operation: ReadRequest, body: unknown): HttpResponse {
   const response = jsonResponse(body);
-  response.headers.set("cache-control", "private, no-store");
   if (
     operation.kind === "resource" &&
     operation.resource !== "type" &&

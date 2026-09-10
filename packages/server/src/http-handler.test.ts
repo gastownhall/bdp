@@ -564,7 +564,7 @@ describe("BDP public HTTP handler", () => {
     expect(problem.headers.get("cache-control")).toBe("private, no-store");
     expect(invalidParameter.status).toBe(400);
     expect(invalidParameter.headers.get("cache-control")).toBe("private, no-store");
-    expect(discovery.headers.has("cache-control")).toBe(false);
+    expect(discovery.headers.get("cache-control")).toBe("private, no-store");
     expect(scope.headers.has("cache-control")).toBe(false);
     expect(method.headers.has("cache-control")).toBe(false);
   });
