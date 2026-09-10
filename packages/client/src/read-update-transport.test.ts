@@ -36,6 +36,34 @@ const post = { bodyText: "{}", idempotencyKey: "key_A-1" };
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("Read+Update bounded transport", () => {
+  it("discovers a human Scope representation using probe-only wildcard negotiation", async () => {
+    const accepts: string[] = [];
+    const transport = client(async (url, init) => {
+      expect(url).toBe(scope);
+      const accept = new Headers(init?.headers).get("accept") ?? "";
+      accepts.push(accept);
+      if (accept === "application/json") return response(null, 406, {}, scope);
+      expect(accept).toBe("*/*");
+      return response(
+        "<html>Human-readable Scope</html>",
+        200,
+        {
+          "content-type": "text/html",
+          link: '<bdp.json>; rel="service-desc"',
+        },
+        scope,
+      );
+    });
+    expect(await transport.get(scope)).toMatchObject({ kind: "empty", status: 406 });
+    expect(await transport.probeScope()).toMatchObject({
+      kind: "scope-probe",
+      status: 200,
+      contentType: "text/html",
+      headers: { link: '<bdp.json>; rel="service-desc"' },
+    });
+    expect(accepts).toEqual(["application/json", "*/*"]);
+  });
+
   it.each(["Buffer", "Uint8Array"])(
     "copies retained %s chunks before producer reuse",
     async (kind) => {
@@ -86,7 +114,7 @@ describe("Read+Update bounded transport", () => {
           expect(init).toMatchObject({ method: "GET", credentials: "omit", redirect: "manual" });
           expect(init?.body).toBeUndefined();
           expect(init?.headers).toEqual({
-            accept: "application/json",
+            accept: "*/*",
             authorization: "Bearer scope-token",
           });
           return response(
