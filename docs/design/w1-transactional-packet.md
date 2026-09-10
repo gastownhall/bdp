@@ -8284,3 +8284,19 @@ HTTP behavior observation. No external council has reviewed this successor
 by this record, and no runtime, feature grant, readiness, or merge claim is
 made. The five approved gaps are materialized in the draft; implementation,
 successor Read adoption and fresh exact-head review remain integration work.
+
+
+### T57 canonicalization regression materialized (2026-09-10)
+
+The authorized integration now includes #24's existing `canonicalJson` in the
+conformance package. `transactional-digest-vectors.test.ts` runs all eight
+Transactional erasure records through it and compares the produced bytes and
+SHA-256 with the unchanged independent expected vectors. Recursively reversed
+object insertion order must produce those same bytes; array order is retained.
+The original protocol serialization, digest, sorting and served-record checks
+remain in place. No second serializer or protocol dependency on conformance
+is introduced. Earlier T57 unimplemented notes describe their dated heads and
+are superseded by this bounded regression closure.
+
+These are regression tests over illustrative vectors. They do not establish
+Transactional runtime behavior, current executable conformance or readiness.
