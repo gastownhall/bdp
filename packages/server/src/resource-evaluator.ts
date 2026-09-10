@@ -7,6 +7,8 @@ import {
   type LinkRecord,
   type MaximumEndpointMultiplicityPolicy,
   type PropertyChange,
+  type PropertyDiagnosticEmitter,
+  type PropertyValidator,
   type ReadUpdateInputs,
   type ReadUpdateMutationResult,
   type ReadUpdateProblem,
@@ -62,11 +64,10 @@ export interface InstalledResourceContract {
   readonly descriptor: TypeDescriptor;
   /** Required exactly when the pinned descriptor declares propertiesSchema.
    * The installer compiles its complete immutable schema closure offline.
-   * Returned schemaLocation/instanceLocation come from that compiled validator.
+   * Only confirmed final diagnostics reach the emitter. Compiler intermediate
+   * storage/work budgeting is a separate installer obligation, not proved here.
    */
-  readonly validateProperties?: (
-    properties: Readonly<Record<string, unknown>>,
-  ) => readonly Omit<ValidationDiagnostic, "type">[];
+  readonly validateProperties?: PropertyValidator;
 }
 export interface ResourceContractRegistry {
   /** Return only the validator compiled from these exact installed bytes.
@@ -155,39 +156,135 @@ function fail(code: keyof typeof failures): never {
     }),
   );
 }
+/** One accumulator across effective Types; fixed one-cause diagnostics reuse
+ * the same accounting without changing the evaluator's refusal precedence.
+ */
+function collectDiagnostics(limits: ResourceEvaluationOptions["limits"]) {
+  const { diagnosticCount, diagnosticBytes } = limits;
+  const retained: ValidationDiagnostic[] = [];
+  let bytes = 2; // JSON array brackets; include commas and complete UTF-8 entries.
+  let truncated = false;
+  return {
+    get hasDiagnostics() {
+      return retained.length > 0;
+    },
+    get truncated() {
+      return truncated;
+    },
+    append(diagnostic: ValidationDiagnostic): boolean {
+      // Snapshot only closed wire fields before measuring. No caller mutation,
+      // arbitrary extension or toJSON can change the retained entry's byte cost.
+      const entry = parseReadUpdateProblem({
+        type: "https://github.com/gastownhall/bdp/problems/validation",
+        code: "validation-failed",
+        status: 422,
+        retry: "never",
+        diagnostics: [
+          {
+            message: diagnostic.message,
+            ...(diagnostic.type === undefined ? {} : { type: diagnostic.type }),
+            ...(diagnostic.schemaLocation === undefined
+              ? {}
+              : { schemaLocation: diagnostic.schemaLocation }),
+            ...(diagnostic.instanceLocation === undefined
+              ? {}
+              : { instanceLocation: diagnostic.instanceLocation }),
+          },
+        ],
+      }).diagnostics?.[0];
+      if (!entry) throw new TypeError("validator produced no diagnostic");
+      const nextBytes =
+        bytes + (retained.length ? 1 : 0) + Buffer.byteLength(JSON.stringify(entry));
+      if (
+        (diagnosticCount !== undefined && retained.length >= diagnosticCount) ||
+        (diagnosticBytes !== undefined && nextBytes > diagnosticBytes)
+      ) {
+        if (retained.length === 0)
+          throw new Error("diagnostic configuration cannot retain one complete diagnostic");
+        truncated = true;
+        return false;
+      }
+      retained.push(entry);
+      bytes = nextBytes;
+      return true;
+    },
+    fail(): never {
+      if (!retained.length) throw new TypeError("validation failure requires a diagnostic");
+      throw new Failure(
+        parseReadUpdateProblem({
+          type: "https://github.com/gastownhall/bdp/problems/validation",
+          code: "validation-failed",
+          status: 422,
+          retry: "never",
+          diagnostics: retained,
+          ...(truncated ? { diagnosticsTruncated: true } : {}),
+        }),
+      );
+    },
+  };
+}
 function diagnosticFailure(
   diagnostics: readonly ValidationDiagnostic[],
   limits: ResourceEvaluationOptions["limits"],
 ): never {
-  const retained: ValidationDiagnostic[] = [];
-  let bytes = 2; // JSON array brackets; include commas and full UTF-8 entries.
-  for (const diagnostic of diagnostics) {
-    const nextBytes =
-      bytes + (retained.length ? 1 : 0) + Buffer.byteLength(JSON.stringify(diagnostic));
-    if (
-      (limits.diagnosticCount !== undefined && retained.length >= limits.diagnosticCount) ||
-      (limits.diagnosticBytes !== undefined && nextBytes > limits.diagnosticBytes)
-    )
-      break;
-    retained.push(diagnostic);
-    bytes = nextBytes;
-  }
-  if (retained.length === 0) {
-    // Do not truncate a required diagnostic's schema identity or invent a partial
-    // diagnostic. Installation/configuration must admit at least one full entry.
-    throw new Error("diagnostic configuration cannot retain one complete diagnostic");
-  }
-  throw new Failure(
-    parseReadUpdateProblem({
-      type: "https://github.com/gastownhall/bdp/problems/validation",
-      code: "validation-failed",
-      status: 422,
-      retry: "never",
-      diagnostics: retained,
-      ...(retained.length < diagnostics.length ? { diagnosticsTruncated: true } : {}),
-    }),
-  );
+  const collector = collectDiagnostics(limits);
+  for (const diagnostic of diagnostics) if (!collector.append(diagnostic)) break;
+  return collector.fail();
 }
+function validatePropertyContracts(
+  effective: readonly InstalledResourceContract[],
+  properties: Readonly<Record<string, unknown>>,
+  limits: ResourceEvaluationOptions["limits"],
+): void {
+  const collector = collectDiagnostics(limits);
+  for (const entry of effective) {
+    if (!entry.validateProperties) continue;
+    let active = true;
+    let emitted = false;
+    let stopped = false;
+    let emissionFailure: { readonly error: unknown } | undefined;
+    const emitter = Object.freeze<PropertyDiagnosticEmitter>({
+      emit(diagnostic) {
+        try {
+          if (!active || stopped)
+            throw new TypeError("validator emitted outside its active diagnostic traversal");
+          emitted = true;
+          const accepted = collector.append({
+            message: diagnostic.message,
+            schemaLocation: diagnostic.schemaLocation,
+            ...(diagnostic.instanceLocation === undefined
+              ? {}
+              : { instanceLocation: diagnostic.instanceLocation }),
+            type: entry.descriptor.id,
+          });
+          stopped = !accepted;
+          return accepted;
+        } catch (error) {
+          emissionFailure ??= { error };
+          throw error;
+        }
+      },
+    });
+    let result: ReturnType<PropertyValidator>;
+    try {
+      result = entry.validateProperties(properties, emitter);
+    } finally {
+      active = false;
+    }
+    // A validator may not swallow a configuration/entry error and return a
+    // guessed valid or truncated result. Such faults escape the member owner.
+    if (emissionFailure) throw emissionFailure.error;
+    const valid = result?.valid;
+    if (valid === true) {
+      if (emitted) throw new TypeError("valid schema emitted a failure diagnostic");
+    } else if (valid !== false || !emitted || result.diagnosticsComplete !== !stopped) {
+      throw new TypeError("validator result contradicts its diagnostic traversal");
+    }
+    if (collector.truncated) break;
+  }
+  if (collector.hasDiagnostics) collector.fail();
+}
+
 function bad(
   message: string,
   options: ResourceEvaluationOptions,
@@ -372,6 +469,8 @@ export function evaluateResourceMutation(
   mutation: ResourceMutation,
   options: ResourceEvaluationOptions,
 ): ResourceEvaluation {
+  // Capture every supplied limit before any policy/store/validator callback.
+  options = { ...options, limits: Object.freeze({ ...options.limits }) };
   parseCanonicalScope(options.scope);
   for (const bound of [options.limits.diagnosticCount, options.limits.diagnosticBytes]) {
     if (bound !== undefined && (!Number.isSafeInteger(bound) || bound < 1))
@@ -651,15 +750,7 @@ function evaluate(
       : "properties" in input
         ? (input.properties ?? {})
         : {};
-  if (!deleting) {
-    const diagnostics = effective.flatMap(
-      (entry) =>
-        entry
-          .validateProperties?.(properties)
-          .map((diagnostic) => ({ ...diagnostic, type: entry.descriptor.id })) ?? [],
-    );
-    if (diagnostics.length) diagnosticFailure(diagnostics, options.limits);
-  }
+  if (!deleting) validatePropertyContracts(effective, properties, options.limits);
   const sourceDescriptor = source
     ? contracts(source.type).find((entry) => entry.descriptor.id === source?.type)?.descriptor
     : undefined;

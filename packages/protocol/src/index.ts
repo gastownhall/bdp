@@ -1,3 +1,9 @@
+export type {
+  PropertyValidationDiagnostic,
+  PropertyDiagnosticEmitter,
+  PropertyValidationResult,
+  PropertyValidator,
+} from "./property-validation.js";
 export { snapshotJsonValue, stringifyJsonValue } from "./json-values.js";
 import { parseHistoryMissing } from "./history-values.js";
 import type { ChangeContext, HistoryCapability, HistoryMissing } from "./history-values.js";

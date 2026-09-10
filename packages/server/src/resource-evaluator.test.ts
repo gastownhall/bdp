@@ -11,6 +11,8 @@ import {
   parseTypeDescriptor,
   stringifyJsonValue,
   type TypeDescriptor,
+  type PropertyValidator,
+  type PropertyDiagnosticEmitter,
 } from "@bdp/protocol";
 import {
   evaluateResourceMutation,
@@ -367,15 +369,14 @@ describe("pure member Resource evaluation", () => {
     for (const [id, entry] of f.contracts)
       f.contracts.set(id, {
         ...entry,
-        validateProperties: () => {
+        validateProperties: (_properties, diagnostics) => {
           calls.push(id);
-          return [
-            {
-              schemaLocation: `${id === parentType ? schema.$id : "https://schemas.test/child"}#/type`,
-              instanceLocation: "",
-              message: "rejected by installed fixture contract",
-            },
-          ];
+          const complete = diagnostics.emit({
+            schemaLocation: `${id === parentType ? schema.$id : "https://schemas.test/child"}#/type`,
+            instanceLocation: "",
+            message: "rejected by installed fixture contract",
+          });
+          return { valid: false, diagnosticsComplete: complete };
         },
       });
     const problem = failure(f.createBead("a"), "validation-failed");
@@ -393,6 +394,241 @@ describe("pure member Resource evaluation", () => {
     );
     expect(bounded.diagnostics).toHaveLength(1);
     expect(bounded.diagnosticsTruncated).toBe(true);
+  });
+  describe("confirmed property-diagnostic receiving contract", () => {
+    const diagnostic = {
+      schemaLocation: "https://schemas.test/%C3%A9#/properties/x/type",
+      instanceLocation: '/é~1key/"',
+      message: 'expected a string, including "quotes"',
+    };
+    function withValidators(child: PropertyValidator, parent?: PropertyValidator) {
+      const descriptors = [
+        beadDescriptor({
+          propertiesSchema: "https://schemas.test/child",
+          conformsTo: parent ? [parentType] : [],
+        }),
+      ];
+      if (parent)
+        descriptors.push(
+          beadDescriptor({
+            id: parentType,
+            propertiesSchema: "https://schemas.test/parent",
+          }),
+        );
+      const f = fixture(descriptors);
+      f.contracts.set(beadType, {
+        descriptor: descriptors[0] as TypeDescriptor,
+        validateProperties: child,
+      });
+      if (parent)
+        f.contracts.set(parentType, {
+          descriptor: descriptors[1] as TypeDescriptor,
+          validateProperties: parent,
+        });
+      return f;
+    }
+    const reject: PropertyValidator = (_properties, emitter) => ({
+      valid: false,
+      diagnosticsComplete: emitter.emit(diagnostic),
+    });
+    const input = { id: "beads/a", type: beadType };
+
+    it("accounts actual wire bytes including Type across schemas, without false exact-bound truncation", () => {
+      const expected = [beadType, parentType].map((type) => ({ ...diagnostic, type }));
+      const bytes = Buffer.byteLength(JSON.stringify(expected));
+      const f = withValidators(reject, reject);
+      const exact = failure(
+        f.execute("createBead", input, {
+          limits: { diagnosticCount: 2, diagnosticBytes: bytes },
+        }),
+        "validation-failed",
+      );
+      expect(exact.diagnostics).toEqual(expected);
+      expect(exact).not.toHaveProperty("diagnosticsTruncated");
+      expect(Buffer.byteLength(JSON.stringify(exact.diagnostics))).toBe(bytes);
+      for (const limits of [{ diagnosticCount: 1 }, { diagnosticBytes: bytes - 1 }]) {
+        const bounded = failure(f.execute("createBead", input, { limits }), "validation-failed");
+        expect(bounded.diagnostics).toEqual(expected.slice(0, 1));
+        expect(bounded.diagnosticsTruncated).toBe(true);
+      }
+      const complete = failure(f.execute("createBead", input, { limits: {} }), "validation-failed");
+      expect(complete.diagnostics).toEqual(expected);
+      expect(complete).not.toHaveProperty("diagnosticsTruncated");
+      expect(f.writes()).toBe(0);
+      expect(f.authorized).toEqual([]);
+    });
+
+    it("does not call a valid later schema an omission when the exact budget is full", () => {
+      let validCalls = 0;
+      const f = withValidators(reject, () => {
+        validCalls++;
+        return { valid: true };
+      });
+      const bytes = Buffer.byteLength(JSON.stringify([{ ...diagnostic, type: beadType }]));
+      const result = failure(
+        f.execute("createBead", input, {
+          limits: { diagnosticCount: 1, diagnosticBytes: bytes },
+        }),
+        "validation-failed",
+      );
+      expect(validCalls).toBe(1);
+      expect(result.diagnostics).toHaveLength(1);
+      expect(result).not.toHaveProperty("diagnosticsTruncated");
+    });
+
+    it("stops a producing validator only on confirmed omission and does not visit later Types", () => {
+      let produced = 0;
+      let parentCalls = 0;
+      const f = withValidators(
+        (_properties, emitter) => {
+          // A streaming test producer, not an Ajv/compiler implementation claim.
+          for (let i = 0; i < 10000; i++) {
+            produced++;
+            if (!emitter.emit({ ...diagnostic, instanceLocation: `/items/${i}` }))
+              return { valid: false, diagnosticsComplete: false };
+          }
+          return { valid: false, diagnosticsComplete: true };
+        },
+        () => {
+          parentCalls++;
+          return { valid: true };
+        },
+      );
+      const result = failure(
+        f.execute("createBead", input, {
+          limits: { diagnosticCount: 2 },
+        }),
+        "validation-failed",
+      );
+      expect(produced).toBe(3);
+      expect(parentCalls).toBe(0);
+      expect(result.diagnostics?.map((d) => d.instanceLocation)).toEqual(["/items/0", "/items/1"]);
+      expect(result.diagnosticsTruncated).toBe(true);
+      expect(f.writes()).toBe(0);
+    });
+
+    it("admits a valid result without speculative diagnostics escaping", () => {
+      const f = withValidators((properties) => {
+        // Stand-in branch evaluation: only the final Boolean reaches S2.
+        const branchResults = [false, properties.choice === "valid"];
+        if (!branchResults.some(Boolean)) throw new Error("positive control must match");
+        return { valid: true };
+      });
+      expect(f.createBead("a", { choice: "valid" }).effect).toBe("success");
+      expect(f.writes()).toBe(1);
+    });
+
+    it("snapshots caller limits before lookup and snapshots emitted wire fields", () => {
+      const limits = { diagnosticCount: 1, diagnosticBytes: 65536 };
+      const mutable = { ...diagnostic };
+      const f = withValidators((_properties, emitter) => {
+        expect(emitter.emit(mutable)).toBe(true);
+        mutable.message = "changed after emission";
+        limits.diagnosticCount = 10000;
+        return { valid: false, diagnosticsComplete: emitter.emit(diagnostic) };
+      });
+      const original = f.options.contracts.get;
+      const result = failure(
+        f.execute("createBead", input, {
+          limits,
+          contracts: {
+            get(type, bytes) {
+              limits.diagnosticCount = 20000;
+              return original(type, bytes);
+            },
+          },
+        }),
+        "validation-failed",
+      );
+      expect(result.diagnostics).toEqual([{ ...diagnostic, type: beadType }]);
+      expect(result.diagnosticsTruncated).toBe(true);
+      expect(Object.isFrozen(result.diagnostics?.[0])).toBe(true);
+    });
+
+    it("includes Type bytes in first-entry feasibility and does not let the validator swallow its error", () => {
+      const bytesWithoutType = Buffer.byteLength(JSON.stringify([diagnostic]));
+      const f = withValidators((_properties, emitter) => {
+        try {
+          emitter.emit(diagnostic);
+        } catch {
+          /* deliberately broken compiler */
+        }
+        return { valid: true };
+      });
+      expect(() =>
+        f.execute("createBead", input, { limits: { diagnosticBytes: bytesWithoutType } }),
+      ).toThrow("diagnostic configuration cannot retain one complete diagnostic");
+      expect(f.writes()).toBe(0);
+      expect(f.allocations()).toEqual({ nextId: 0, nextRevision: 0 });
+      expect(f.authorized).toEqual([]);
+    });
+
+    it.each<[string, PropertyValidator]>([
+      [
+        "success after confirmed failure",
+        (_p, e) => {
+          e.emit(diagnostic);
+          return { valid: true };
+        },
+      ],
+      ["failure without a diagnostic", () => ({ valid: false, diagnosticsComplete: true })],
+      [
+        "unproved truncation",
+        (_p, e) => {
+          e.emit(diagnostic);
+          return { valid: false, diagnosticsComplete: false };
+        },
+      ],
+      [
+        "omission reported complete",
+        (_p, e) => {
+          e.emit(diagnostic);
+          e.emit(diagnostic);
+          return { valid: false, diagnosticsComplete: true };
+        },
+      ],
+      [
+        "emission after stop",
+        (_p, e) => {
+          e.emit(diagnostic);
+          e.emit(diagnostic);
+          e.emit(diagnostic);
+          return { valid: false, diagnosticsComplete: false };
+        },
+      ],
+      [
+        "swallowed emission-after-stop",
+        (_p, e) => {
+          e.emit(diagnostic);
+          e.emit(diagnostic);
+          try {
+            e.emit(diagnostic);
+          } catch {
+            /* deliberately broken compiler */
+          }
+          return { valid: false, diagnosticsComplete: false };
+        },
+      ],
+    ])("rejects a broken validator contract: %s", (_name, validator) => {
+      const f = withValidators(validator);
+      expect(() => f.execute("createBead", input, { limits: { diagnosticCount: 1 } })).toThrow(
+        TypeError,
+      );
+      expect(f.writes()).toBe(0);
+      expect(f.records.size).toBe(0);
+      expect(f.authorized).toEqual([]);
+    });
+
+    it("closes each emitter when its synchronous invocation returns", () => {
+      let escaped: PropertyDiagnosticEmitter | undefined;
+      const f = withValidators((_properties, emitter) => {
+        escaped = emitter;
+        return { valid: true };
+      });
+      expect(f.createBead("a").effect).toBe("success");
+      expect(() => escaped?.emit(diagnostic)).toThrow("outside its active diagnostic traversal");
+      expect(f.writes()).toBe(1);
+    });
   });
   it("requires effective endpoint conformance and preserves opaque external URIs", () => {
     const f = fixture([
