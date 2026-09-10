@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { closeSync, existsSync, mkdirSync, openSync, statfsSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { parseCanonicalScope } from "@bdp/protocol";
 
 /** Storage text is supplied by the admitted-value evaluator, never a second serializer. */
 export type StoredResource = {
@@ -156,18 +157,18 @@ export interface RecoveryStore {
   close(): void;
 }
 
-const formatVersion = "1";
+const formatVersion = "2";
 const dayMs = 86_400_000;
 const schema = `
  CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
- CREATE TABLE resources(id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('bead','link')), body TEXT NOT NULL CHECK(json_valid(body)), source TEXT, target TEXT, CHECK((kind='bead' AND source IS NULL AND target IS NULL) OR (kind='link' AND source IS NOT NULL AND target IS NOT NULL))) STRICT;
+ CREATE TABLE resources(id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('bead','link')), body TEXT NOT NULL CHECK(bdp_json_syntax_v2(body)), source TEXT, target TEXT, CHECK((kind='bead' AND source IS NULL AND target IS NULL) OR (kind='link' AND source IS NOT NULL AND target IS NOT NULL))) STRICT;
  CREATE INDEX links_source ON resources(source) WHERE kind='link';
  CREATE INDEX links_target ON resources(target) WHERE kind='link';
  CREATE TABLE identities(id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('bead','link'))) STRICT;
  CREATE TABLE aliases(path TEXT PRIMARY KEY, bead_id TEXT NOT NULL) STRICT;
- CREATE TABLE installed_types(id TEXT PRIMARY KEY, body TEXT NOT NULL CHECK(json_valid(body))) STRICT;
- CREATE TABLE policy(name TEXT PRIMARY KEY, body TEXT NOT NULL CHECK(json_valid(body))) STRICT;
- CREATE TABLE key_state(principal TEXT NOT NULL, key TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('claimed','retained','expired')), owner TEXT, identity TEXT, fingerprint TEXT, resolutions TEXT, outcome TEXT, effect TEXT, completed_at INTEGER, retain_until INTEGER, PRIMARY KEY(principal,key), CHECK(identity IS NULL OR json_valid(identity)), CHECK(resolutions IS NULL OR json_valid(resolutions)), CHECK(outcome IS NULL OR json_valid(outcome)),
+ CREATE TABLE installed_types(id TEXT PRIMARY KEY, body TEXT NOT NULL CHECK(bdp_json_syntax_v2(body))) STRICT;
+ CREATE TABLE policy(name TEXT PRIMARY KEY, body TEXT NOT NULL CHECK(bdp_json_syntax_v2(body))) STRICT;
+ CREATE TABLE key_state(principal TEXT NOT NULL, key TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('claimed','retained','expired')), owner TEXT, identity TEXT, fingerprint TEXT, resolutions TEXT, outcome TEXT, effect TEXT, completed_at INTEGER, retain_until INTEGER, PRIMARY KEY(principal,key), CHECK(identity IS NULL OR bdp_json_syntax_v2(identity)), CHECK(resolutions IS NULL OR bdp_json_syntax_v2(resolutions)), CHECK(outcome IS NULL OR bdp_json_syntax_v2(outcome)),
  CHECK((state='claimed' AND owner IS NOT NULL AND identity IS NULL AND fingerprint IS NULL AND resolutions IS NULL AND outcome IS NULL AND effect IS NULL AND completed_at IS NULL AND retain_until IS NULL)
  OR (state='retained' AND owner IS NULL AND identity IS NOT NULL AND fingerprint IS NOT NULL AND resolutions IS NOT NULL AND outcome IS NOT NULL AND effect IS NOT NULL AND effect IN ('success','failure') AND completed_at IS NOT NULL AND retain_until >= completed_at)
  OR (state='expired' AND owner IS NULL AND identity IS NULL AND fingerprint IS NOT NULL AND resolutions IS NOT NULL AND outcome IS NULL AND effect='success' AND completed_at IS NULL AND retain_until IS NULL))) STRICT;
@@ -243,17 +244,11 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       "unsupported-runtime",
       "durable reference storage requires Node v24.16.0",
     );
-  const scope = new URL(options.scope);
-  if (
-    !/^https?:$/.test(scope.protocol) ||
-    scope.href !== options.scope ||
-    !scope.pathname.endsWith("/") ||
-    scope.search ||
-    scope.hash ||
-    scope.username ||
-    scope.password
-  )
-    throw new RecoveryStoreError("invalid-input", "canonical Scope URL required");
+  try {
+    parseCanonicalScope(options.scope);
+  } catch (cause) {
+    throw new RecoveryStoreError("invalid-input", "canonical Scope URL required", { cause });
+  }
   requireText(options.installationId, "installationId");
   requireText(options.lineageId, "lineageId");
   const retention = options.minimumRetentionMs ?? dayMs;
@@ -480,6 +475,23 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
   let runtime: RecoveryStore["runtime"];
   let startupCommitAttempted = false;
   try {
+    // SQLite's built-in JSON parser rejects otherwise admitted deeply nested text.
+    // A named format-2 CHECK uses the same native syntax guard as the facade;
+    // register it before schema creation or integrity checks on every connection.
+    db.function("bdp_json_syntax_v2", { deterministic: true }, (text) => {
+      if (typeof text !== "string") return 0;
+      try {
+        requireJson(text);
+        return 1;
+      } catch (error) {
+        if (
+          error instanceof SyntaxError ||
+          (error instanceof RecoveryStoreError && error.reason === "invalid-input")
+        )
+          return 0;
+        throw error;
+      }
+    });
     const journal = get("PRAGMA journal_mode=DELETE")?.journal_mode;
     const locking = get("PRAGMA locking_mode=EXCLUSIVE")?.locking_mode;
     db.exec("PRAGMA synchronous=EXTRA");

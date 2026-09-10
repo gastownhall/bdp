@@ -1,3 +1,5 @@
+import { decodeJsonDocument } from "@bdp/protocol";
+import { encodeSemanticValue } from "./semantic-identity.js";
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, statfsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -909,5 +911,203 @@ describe("actual Node24 child-process crashes", () => {
     expect(() => openRecoveryStore(options(dir))).toThrow("locked");
     await kill(child);
     expect(open(dir).runtime.recoveredClaims).toBe(0);
+  });
+});
+
+describe("native JSON syntax storage format", () => {
+  it("preserves depth-12000 text in every JSON column through integrity checks and reopen", () => {
+    const dir = directory();
+    // Syntax and exact bytes only: generic storage does not re-admit numeric values.
+    const nested = `${"[".repeat(12_000)}1.00000000000000000000000001${"]".repeat(12_000)}`;
+    const text = ` {"nested":${nested}} `;
+    const store = openRecoveryStore({
+      ...options(dir),
+      create: {
+        resources: [{ id: "beads/seed", kind: "bead", bodyJson: text }],
+        types: { "https://types.test/deep": text },
+        policy: { seed: text },
+      },
+    });
+    stores.push(store);
+    const admission = store.admit("alice", ["deep"]);
+    store.executeMember(admission, "deep", (tx) => {
+      tx.putResource({ id: "beads/deep", kind: "bead", bodyJson: text });
+      tx.putPolicy("deep", text);
+      return outcome("success", {
+        semanticIdentityJson: text,
+        resolutionsJson: text,
+        outcomeJson: text,
+      });
+    });
+    store.close();
+    const reopened = open(dir);
+    expect(reopened.runtime.recoveredClaims).toBe(0);
+    expect(reopened.read((tx) => tx.resource("beads/seed")?.bodyJson)).toBe(text);
+    expect(reopened.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(text);
+    expect(reopened.read((tx) => tx.installedType("https://types.test/deep"))).toBe(text);
+    expect(reopened.read((tx) => tx.policy("seed"))).toBe(text);
+    expect(reopened.read((tx) => tx.policy("deep"))).toBe(text);
+    expect(reopened.read((tx) => tx.key("alice", "deep"))).toMatchObject({
+      kind: "retained",
+      semanticIdentityJson: text,
+      resolutionsJson: text,
+      outcomeJson: text,
+      fingerprint: recoveryIdentityFingerprint(text),
+    });
+    reopened.expire(100 + day);
+    reopened.close();
+    expect(open(dir).read((tx) => tx.key("alice", "deep"))).toEqual({
+      kind: "expired",
+      resolutionsJson: text,
+      fingerprint: recoveryIdentityFingerprint(text),
+    });
+  });
+
+  it("retains actual semantic codec output for 600 nested arrays without rewriting", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    const identity = encodeSemanticValue(
+      decodeJsonDocument(`${"[".repeat(600)}0${"]".repeat(600)}`),
+    );
+    const admission = store.admit("alice", ["codec"]);
+    store.executeMember(admission, "codec", () =>
+      outcome("success", { semanticIdentityJson: identity }),
+    );
+    store.close();
+    expect(open(dir).read((tx) => tx.key("alice", "codec"))).toMatchObject({
+      kind: "retained",
+      semanticIdentityJson: identity,
+      fingerprint: recoveryIdentityFingerprint(identity),
+    });
+  });
+
+  it.each([
+    ["resources.body", "INSERT INTO resources VALUES ('beads/invalid','bead','{',NULL,NULL)"],
+    ["installed_types.body", "INSERT INTO installed_types VALUES ('invalid','{')"],
+    ["policy.body", "INSERT INTO policy VALUES ('invalid','{')"],
+    ["key_state.identity", "UPDATE key_state SET identity='{' WHERE key='retained'"],
+    ["key_state.resolutions", "UPDATE key_state SET resolutions='{' WHERE key='retained'"],
+    ["key_state.outcome", "UPDATE key_state SET outcome='{' WHERE key='retained'"],
+  ])("enforces the SQL syntax CHECK for %s and atomically rolls back", (_column, invalidSql) => {
+    const dir = directory();
+    const store = open(dir, true);
+    effect(store, "retained");
+    const before = store.read((tx) => tx.key("alice", "retained"));
+    const admission = store.admit("alice", ["fault"]);
+    const original = DatabaseSync.prototype.prepare;
+    const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (sql.startsWith("INSERT INTO policy")) this.exec(invalidSql);
+      return original.call(this, sql);
+    });
+    try {
+      expect(() =>
+        store.executeMember(admission, "fault", (tx) => {
+          tx.putResource({ id: "beads/staged", kind: "bead", bodyJson: "{}" });
+          tx.putPolicy("trigger", "{}");
+          return outcome();
+        }),
+      ).toThrow(expect.objectContaining({ reason: "constraint" }));
+    } finally {
+      spy.mockRestore();
+    }
+    expect(store.read((tx) => tx.resource("beads/staged"))).toBeUndefined();
+    expect(store.read((tx) => tx.identityWasCommitted("beads/staged"))).toBe(false);
+    expect(store.read((tx) => tx.key("alice", "retained"))).toEqual(before);
+    expect(store.read((tx) => tx.key("alice", "fault"))).toMatchObject({ kind: "claimed" });
+    expect(store.abandonAttempt(admission)).toBe(1);
+    effect(store, "healthy");
+    store.close();
+    expect(open(dir).read((tx) => tx.key("alice", "retained"))).toEqual(before);
+  });
+
+  it("detects deliberately bypassed malformed text at reopen before claim recovery", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    effect(store, "seed", (tx) => tx.putPolicy("policy", "{}"));
+    store.admit("alice", ["pending"]);
+    store.close();
+    const filename = path.join(dir, "reference.sqlite");
+    const raw = new DatabaseSync(filename);
+    // Deliberate corruption fixture; product connections never bypass CHECKs.
+    raw.exec("PRAGMA ignore_check_constraints=ON");
+    raw.exec("UPDATE policy SET body='{' WHERE name='policy'");
+    raw.close();
+    expect(() => open(dir)).toThrow(expect.objectContaining({ reason: "integrity" }));
+    const after = new DatabaseSync(filename);
+    try {
+      expect(after.prepare("SELECT state FROM key_state WHERE key='pending'").get()?.state).toBe(
+        "claimed",
+      );
+    } finally {
+      after.close();
+    }
+  });
+
+  it("refuses the legacy format before sweeping claims or changing retained records", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    effect(store, "retained");
+    store.admit("alice", ["pending"]);
+    store.close();
+    const filename = path.join(dir, "reference.sqlite");
+    const raw = new DatabaseSync(filename);
+    // Reconstruct the actual format-1 CHECK declarations in this test-owned file.
+    // Keep shallow valid rows: this is a legacy compatibility fixture, not corruption.
+    raw.exec("UPDATE metadata SET value='1' WHERE name='format'");
+    raw.enableDefensive(false); // Test-only legacy reconstruction; product keeps this enabled.
+    raw.exec("PRAGMA writable_schema=ON");
+    raw.exec(
+      "UPDATE sqlite_schema SET sql=replace(sql,'bdp_json_syntax_v2','json_valid') WHERE type='table'",
+    );
+    raw.exec("PRAGMA writable_schema=OFF");
+    raw.enableDefensive(true);
+    const before = raw.prepare("SELECT * FROM key_state ORDER BY key").all();
+    const schemaBefore = raw.prepare("SELECT name,sql FROM sqlite_schema ORDER BY name").all();
+    raw.close();
+    expect(() => open(dir)).toThrow(expect.objectContaining({ reason: "store-mismatch" }));
+    const after = new DatabaseSync(filename);
+    try {
+      expect(after.prepare("SELECT * FROM key_state ORDER BY key").all()).toEqual(before);
+      expect(after.prepare("SELECT name,sql FROM sqlite_schema ORDER BY name").all()).toEqual(
+        schemaBefore,
+      );
+      expect(after.prepare("SELECT value FROM metadata WHERE name='format'").get()?.value).toBe(
+        "1",
+      );
+    } finally {
+      after.close();
+    }
+    expect(() => openRecoveryStore({ ...options(dir), create: {} })).toThrow();
+  });
+
+  it("cleans up an uncommitted new file when syntax function registration fails", () => {
+    const dir = directory();
+    const spy = vi.spyOn(DatabaseSync.prototype, "function").mockImplementationOnce(() => {
+      throw new Error("registration fault");
+    });
+    try {
+      expect(() => open(dir, true)).toThrow("registration fault");
+      expect(existsSync(path.join(dir, "reference.sqlite"))).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+    effect(open(dir, true), "healthy");
+  });
+
+  it.each([
+    `${scope}?`,
+    `${scope}#`,
+    "not a URL",
+    "https://example.test/scope/%61/",
+    "https://example.test:443/scope/",
+  ])("rejects noncanonical Scope %s as invalid-input before provisioning", (candidate) => {
+    const dir = directory();
+    expect(() => openRecoveryStore({ ...options(dir), scope: candidate, create: {} })).toThrow(
+      expect.objectContaining({ reason: "invalid-input" }),
+    );
+    expect(existsSync(path.join(dir, "reference.sqlite"))).toBe(false);
   });
 });

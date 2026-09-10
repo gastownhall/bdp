@@ -1229,6 +1229,85 @@ describe("owned Link and Scope aggregate effects", () => {
 });
 
 describe("deep admitted Resource round trips", () => {
+  it("commits and reopens an admitted depth-12000 S2 postimage through actual S6", () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "bdp-s2-deep-store-"));
+    const configuration = {
+      directory,
+      scope,
+      installationId: "s2-deep-types",
+      lineageId: "s2-deep-lineage",
+    };
+    let store = openRecoveryStore({
+      ...configuration,
+      create: { types: { [beadType]: JSON.stringify(beadDescriptor()) } },
+    });
+    const options = fixture().options;
+    const nestedText = `${"[".repeat(12_000)}7${"]".repeat(12_000)}`;
+    const properties = { nested: JSON.parse(nestedText) as unknown };
+    const submit = (key: string, operation: ResourceOperation, input: unknown) => {
+      const parsed = parseReadUpdateRequest(operation, stringifyJsonValue(input));
+      const numeric = admitReadUpdateOperationNumbers(parsed, {
+        diagnostic: ({ pointer }) => ({
+          message: "inadmissible number",
+          instanceLocation: pointer,
+        }),
+      });
+      if (!numeric.ok) throw new Error("fixture must pass real S1 numeric admission");
+      const admission = store.admit("alice", [key]);
+      let result: ReturnType<typeof evaluateResourceMutation> | undefined;
+      store.executeMember(admission, key, (tx) => {
+        result = evaluateResourceMutation(
+          tx,
+          { operation, input: numeric.input } as ResourceMutation,
+          options,
+        );
+        return {
+          kind: "retain",
+          // This controls durable S2 composition, not S4 identity normalization.
+          semanticIdentityJson: JSON.stringify({ fixture: key }),
+          resolutionsJson: stringifyJsonValue(result.resolutions),
+          outcomeJson: stringifyJsonValue(result.outcome),
+          effect: result.effect,
+          completedAt: 0,
+          retainUntil: 86_400_000,
+        };
+      });
+      if (!result) throw new Error("evaluator did not run");
+      expect(result.effect).toBe("success");
+      parseReadUpdateMutationResult(result.outcome);
+      return result;
+    };
+    try {
+      submit("create", "createBead", { id: "beads/deep", type: beadType, properties });
+      const created = store.read((tx) => tx.resource("beads/deep")?.bodyJson);
+      expect(created).toContain(`"properties":{"nested":${nestedText}}`);
+      store.close();
+      store = openRecoveryStore(configuration);
+      expect(store.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(created);
+      expect(
+        submit("noop", "updateBeadProperties", {
+          bead: "beads/deep",
+          change: [{ op: "replace", path: "", value: properties }],
+        }).changed,
+      ).toEqual([]);
+      expect(store.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(created);
+      submit("patch", "updateBeadProperties", {
+        bead: "beads/deep",
+        change: [{ op: "replace", path: `/nested${"/0".repeat(12_000)}`, value: 8 }],
+      });
+      const patched = store.read((tx) => tx.resource("beads/deep")?.bodyJson);
+      expect(patched).toContain(`"properties":{"nested":${nestedText.replace("7", "8")}}`);
+      const retained = store.read((tx) => tx.key("alice", "patch"));
+      expect(retained.kind).toBe("retained");
+      store.close();
+      store = openRecoveryStore(configuration);
+      expect(store.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(patched);
+      expect(store.read((tx) => tx.key("alice", "patch"))).toEqual(retained);
+    } finally {
+      store.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
   it.each([256, 12_000])("creates, reads, preserves no-ops and patches at depth %i", (depth) => {
     const f = fixture();
     const nestedText = `${"[1,".repeat(depth)}{"n":7}${"]".repeat(depth)}`;
