@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, statfsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -7,6 +7,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isKnownNetworkFilesystem,
   openRecoveryStore,
+  RecoveryStoreError,
+  recoveryIdentityFingerprint,
+  type StoredResource,
   type MemberDecision,
   type MemberTransaction,
   type RecoveryStore,
@@ -76,6 +79,215 @@ afterEach(async () => {
 });
 
 describe("durable reference ownership and transaction interface", () => {
+  it("rejects invalid Resource shapes before SQL and keeps the handle usable", () => {
+    const store = open(directory(), true);
+    // @ts-expect-error Link endpoints are required by the storage facade.
+    const missing: StoredResource = { id: "links/x", kind: "link", bodyJson: "{}" };
+    // @ts-expect-error Beads cannot carry Link endpoint indexes.
+    const bead: StoredResource = { id: "beads/x", kind: "bead", bodyJson: "{}", source: "beads/y" };
+    for (const resource of [missing, bead]) {
+      const admission = store.admit("alice", [resource.id]);
+      expect(() =>
+        store.executeMember(admission, resource.id, (tx) => {
+          tx.putResource(resource);
+          return outcome();
+        }),
+      ).toThrow(expect.objectContaining({ reason: "invalid-input" }));
+      expect(store.read((tx) => tx.resource(resource.id))).toBeUndefined();
+      expect(store.abandonAttempt(admission)).toBe(1);
+    }
+    effect(store, "valid", (tx) =>
+      tx.putResource({ id: "beads/valid", kind: "bead", bodyJson: "{}" }),
+    );
+    expect(store.read((tx) => tx.resource("beads/valid"))).toBeDefined();
+  });
+  it("rolls back an actual mid-callback SQLite constraint without fencing", () => {
+    const store = open(directory(), true);
+    const admission = store.admit("alice", ["key"]);
+    const original = DatabaseSync.prototype.prepare;
+    const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (sql.startsWith("INSERT INTO policy")) {
+        // Real SQLite CHECK failure, raised in the member callback after a graph write.
+        this.exec("INSERT INTO resources VALUES ('links/invalid','link','{}',NULL,NULL)");
+      }
+      return original.call(this, sql);
+    });
+    let failure: unknown;
+    try {
+      store.executeMember(admission, "key", (tx) => {
+        tx.putResource({ id: "beads/staged", kind: "bead", bodyJson: "{}" });
+        tx.putPolicy("trigger", "{}");
+        return outcome();
+      });
+    } catch (error) {
+      failure = error;
+    }
+    spy.mockRestore();
+    expect(failure).toBeInstanceOf(RecoveryStoreError);
+    expect(failure).toMatchObject({
+      reason: "constraint",
+      cause: { code: "ERR_SQLITE_ERROR", errcode: 275 },
+    });
+    expect(store.read((tx) => tx.resource("beads/staged"))).toBeUndefined();
+    expect(store.read((tx) => tx.identityWasCommitted("beads/staged"))).toBe(false);
+    expect(store.read((tx) => tx.key("alice", "key"))).toMatchObject({ kind: "claimed" });
+    expect(store.executeMember(admission, "key", () => outcome("failure"))).toMatchObject({
+      kind: "completed",
+    });
+  });
+  it.each(["sqlite-error", "rollback-error"])("keeps uncertain %s failures fenced", (mode) => {
+    const store = open(directory(), true);
+    const admission = store.admit("alice", ["key"]);
+    const original = DatabaseSync.prototype.exec;
+    const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (mode === "rollback-error" && sql === "ROLLBACK") throw new Error("rollback failed");
+      return original.call(this, sql);
+    });
+    expect(() =>
+      store.executeMember(admission, "key", () => {
+        throw Object.assign(new Error("injected SQLite I/O"), {
+          code: "ERR_SQLITE_ERROR",
+          errcode: 10,
+        });
+      }),
+    ).toThrow(expect.objectContaining({ reason: "fenced" }));
+    spy.mockRestore();
+    expect(() => store.read(() => undefined)).toThrow(
+      expect.objectContaining({ reason: "fenced" }),
+    );
+  });
+  it("cleans only its own safely rolled-back failed creation", () => {
+    const dir = directory();
+    const filename = path.join(dir, "reference.sqlite");
+    expect(() =>
+      openRecoveryStore({
+        ...options(dir),
+        create: { resources: [{ id: "beads/invalid", kind: "bead", bodyJson: "not JSON" }] },
+      }),
+    ).toThrow();
+    expect(existsSync(filename)).toBe(false);
+    const store = open(dir, true);
+    effect(store, "seed", (tx) => tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" }));
+    store.close();
+    const bytes = readFileSync(filename);
+    expect(() => openRecoveryStore({ ...options(dir), create: {} })).toThrow();
+    expect(readFileSync(filename)).toEqual(bytes);
+    expect(open(dir).read((tx) => tx.resource("beads/a"))).toBeDefined();
+  });
+  it.each(["before", "after"])(
+    "preserves failed creation after an uncertain %s-COMMIT error",
+    (phase) => {
+      const dir = directory();
+      const original = DatabaseSync.prototype.exec;
+      const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+        this: DatabaseSync,
+        sql: string,
+      ) {
+        if (sql === "COMMIT") {
+          if (phase === "after") original.call(this, sql);
+          throw new Error("uncertain startup commit");
+        }
+        return original.call(this, sql);
+      });
+      expect(() => open(dir, true)).toThrow("uncertain startup commit");
+      spy.mockRestore();
+      expect(existsSync(path.join(dir, "reference.sqlite"))).toBe(true);
+      if (phase === "after") expect(open(dir).runtime.recoveredClaims).toBe(0);
+    },
+  );
+  it.each(["rollback", "close"])(
+    "preserves a failed creation if %s cannot be confirmed",
+    (phase) => {
+      const dir = directory();
+      const original = DatabaseSync.prototype[phase === "rollback" ? "exec" : "close"];
+      const handles: DatabaseSync[] = [];
+      const spy =
+        phase === "rollback"
+          ? vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+              this: DatabaseSync,
+              sql: string,
+            ) {
+              if (sql === "ROLLBACK") throw new Error("rollback failed");
+              return (original as DatabaseSync["exec"]).call(this, sql);
+            })
+          : vi.spyOn(DatabaseSync.prototype, "close").mockImplementation(function (
+              this: DatabaseSync,
+            ) {
+              handles.push(this);
+              throw new Error("close failed");
+            });
+      try {
+        expect(() =>
+          openRecoveryStore({ ...options(dir), create: { policy: { bad: "invalid" } } }),
+        ).toThrow();
+      } finally {
+        spy.mockRestore();
+        for (const handle of handles) handle.close();
+      }
+      expect(existsSync(path.join(dir, "reference.sqlite"))).toBe(true);
+    },
+  );
+  it("preserves nested alias suffixes and assignment-time target liveness", () => {
+    const store = open(directory(), true);
+    effect(store, "create", (tx) => {
+      tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" });
+      tx.putAlias("alias/latest", "beads/a");
+    });
+    expect(store.read((tx) => tx.alias("latest"))).toBeUndefined();
+    expect(store.read((tx) => tx.alias("alias/latest"))).toBe("beads/a");
+    expect(() =>
+      effect(store, "collision", (tx) =>
+        tx.putResource({ id: "beads/alias/latest", kind: "bead", bodyJson: "{}" }),
+      ),
+    ).toThrow(expect.objectContaining({ reason: "alias-path-live" }));
+    effect(store, "delete", (tx) => tx.deleteResource("beads/a"));
+    expect(store.read((tx) => tx.alias("alias/latest"))).toBe("beads/a");
+    expect(() => effect(store, "new-alias", (tx) => tx.putAlias("other", "beads/a"))).toThrow(
+      expect.objectContaining({ reason: "alias-target-not-live" }),
+    );
+    expect(() => effect(store, "old-path", (tx) => tx.putAlias("a", "beads/a"))).toThrow(
+      expect.objectContaining({ reason: "alias-path-committed" }),
+    );
+  });
+  it("guards literal scalar text and shares exact retained/expired fingerprints", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    for (const invalid of ['"\ud800"', '"\udc00"']) {
+      expect(() =>
+        effect(store, `unicode-${invalid.charCodeAt(1)}`, (tx) => tx.putPolicy("bad", invalid)),
+      ).toThrow(expect.objectContaining({ reason: "invalid-input" }));
+    }
+    expect(() => store.admit("\ud800", ["key"])).toThrow(
+      expect.objectContaining({ reason: "invalid-input" }),
+    );
+    const text = '{"n":1.0,"astral":"😀"}';
+    const admission = store.admit("alice", ["fingerprint"]);
+    store.executeMember(admission, "fingerprint", (tx) => {
+      tx.putPolicy("exact", text);
+      return outcome("success", { semanticIdentityJson: text });
+    });
+    const fingerprint = recoveryIdentityFingerprint(text);
+    expect(fingerprint).toBe("ec50f901cb7f14b77c37e67ebd2d5021524a00e70089c335d779affc9b968ba8");
+    expect(fingerprint).not.toBe(recoveryIdentityFingerprint('{"n":1,"astral":"😀"}'));
+    expect(store.read((tx) => tx.key("alice", "fingerprint"))).toMatchObject({
+      kind: "retained",
+      fingerprint,
+    });
+    store.expire(100 + day);
+    store.close();
+    const reopened = open(dir);
+    expect(reopened.read((tx) => tx.policy("exact"))).toBe(text);
+    expect(reopened.read((tx) => tx.key("alice", "fingerprint"))).toMatchObject({
+      kind: "expired",
+      fingerprint,
+    });
+  });
   it.each([
     ["darwin", 2, true], // Registered NFS VFS type, queried through getvfsbyname.
     ["darwin", 26, false], // Observed local APFS; not a general qualification claim.
@@ -101,6 +313,7 @@ describe("durable reference ownership and transaction interface", () => {
       lockingMode: "exclusive",
       synchronous: 3,
       recoveredClaims: 0,
+      filesystemType: statfsSync(dir).type,
     });
     expect(first.runtime.sqlite).toMatch(/^\d+\.\d+/);
     console.info("S6 runtime", first.runtime);
@@ -269,7 +482,7 @@ describe("durable reference ownership and transaction interface", () => {
       next.executeMember(next.admit("alice", ["short"]), "short", () =>
         outcome("success", { retainUntil: 200 }),
       ),
-    ).toThrow("retention");
+    ).toThrow(expect.objectContaining({ reason: "retention-too-short" }));
   });
   it("reserves deleted identities and alias paths without changing Link/alias coexistence", () => {
     const store = open(directory(), true);
@@ -290,7 +503,7 @@ describe("durable reference ownership and transaction interface", () => {
         tx.putResource({ id: "beads/latest", kind: "bead", bodyJson: "{}" });
         return outcome();
       }),
-    ).toThrow("live alias");
+    ).toThrow(expect.objectContaining({ reason: "alias-path-live" }));
     effect(store, "delete", (tx) => {
       tx.deleteResource("links/latest");
       tx.deleteResource("beads/a");
@@ -302,7 +515,7 @@ describe("durable reference ownership and transaction interface", () => {
         tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" });
         return outcome();
       }),
-    ).toThrow("cannot be reused");
+    ).toThrow(expect.objectContaining({ reason: "identity-reused" }));
   });
   it("allocates revisions without Number precision loss across reopen", () => {
     const dir = directory();
@@ -340,7 +553,9 @@ describe("durable reference ownership and transaction interface", () => {
       { installationId: "different" },
       { lineageId: "different" },
     ])
-      expect(() => openRecoveryStore({ ...options(dir), ...patch })).toThrow("mismatch");
+      expect(() => openRecoveryStore({ ...options(dir), ...patch })).toThrow(
+        expect.objectContaining({ reason: "store-mismatch" }),
+      );
     const broken = directory();
     writeFileSync(path.join(broken, "reference.sqlite"), "");
     expect(() => open(broken)).toThrow();
@@ -372,9 +587,16 @@ describe("durable reference ownership and transaction interface", () => {
           tx.putResource({ id: "beads/a", kind: "bead", bodyJson: "{}" });
           return outcome();
         }),
-      ).toThrow("injected I/O");
+      ).toThrow(
+        expect.objectContaining({
+          reason: "fenced",
+          cause: expect.objectContaining({ message: "injected I/O failure at commit" }),
+        }),
+      );
       spy.mockRestore();
-      expect(() => store.admit("alice", ["retry"])).toThrow("fenced");
+      expect(() => store.admit("alice", ["retry"])).toThrow(
+        expect.objectContaining({ reason: "fenced" }),
+      );
       store.close();
       const recovered = open(dir);
       expect(recovered.read((tx) => tx.resource("beads/a")) === undefined).toBe(phase === "before");
@@ -389,10 +611,11 @@ const moduleUrl = new URL("./recovery-store.ts", import.meta.url).href;
 const childProgram = `
 import {openRecoveryStore} from ${JSON.stringify(moduleUrl)};
 import {DatabaseSync} from "node:sqlite";
+import {writeSync} from "node:fs";
 const [directory,mode]=process.argv.slice(1);
 if(process.version!=="v24.16.0")throw new Error("wrong interpreter");
 const store=openRecoveryStore({directory,scope:${JSON.stringify(scope)},installationId:"installed-v1",lineageId:"logical-store-v1"});
-const send=value=>process.stdout.write(JSON.stringify(value)+"\\n");
+const send=value=>writeSync(1,JSON.stringify(value)+"\\n");
 const stop=()=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0);
 send({ready:store.runtime});
 if(mode==="owner")stop();

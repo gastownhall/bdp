@@ -1,17 +1,52 @@
 import { createHash, randomUUID } from "node:crypto";
-import { closeSync, existsSync, mkdirSync, openSync, statfsSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, statfsSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 /** Storage text is supplied by the admitted-value evaluator, never a second serializer. */
-export interface StoredResource {
+export type StoredResource = {
   /** Canonical namespace-relative Resource ID; the evaluator owns full wire validation. */
   readonly id: string;
-  readonly kind: "bead" | "link";
   /** Exact admitted record text; endpoint indexes must match its normalized references. */
   readonly bodyJson: string;
-  readonly source?: string;
-  readonly target?: string;
+} & (
+  | { readonly kind: "bead"; readonly source?: never; readonly target?: never }
+  | { readonly kind: "link"; readonly source: string; readonly target: string }
+);
+
+/** Storage conditions, never a mapping to normative member Problem codes.
+ * Evaluators perform normative prechecks and retain the appropriate member outcome.
+ */
+export type RecoveryStoreErrorReason =
+  | "invalid-input"
+  | "identity-reused"
+  | "alias-path-live"
+  | "alias-path-committed"
+  | "incident-links"
+  | "alias-target-not-live"
+  | "resource-immutable"
+  | "closed"
+  | "fenced"
+  | "nested-access"
+  | "expired-facade"
+  | "retention-too-short"
+  | "lost-claim"
+  | "invalid-admission"
+  | "async-callback"
+  | "store-mismatch"
+  | "modes-unavailable"
+  | "integrity"
+  | "unsupported-runtime"
+  | "unsupported-filesystem"
+  | "store-missing"
+  | "constraint";
+export class RecoveryStoreError extends Error {
+  readonly reason: RecoveryStoreErrorReason;
+  constructor(reason: RecoveryStoreErrorReason, message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.reason = reason;
+    this.name = "RecoveryStoreError";
+  }
 }
 export type KeyState =
   | { readonly kind: "unknown" }
@@ -53,7 +88,8 @@ export interface StoreReader {
   resources(): readonly StoredResource[];
   incidentLinks(id: string): readonly StoredResource[];
   outgoingLinks(source: string): readonly StoredResource[];
-  alias(aliasPath: string): string | undefined;
+  /** Suffix beneath alias/; "alias/latest" denotes alias/alias/latest. */
+  alias(aliasPathBeneathRoot: string): string | undefined;
   identityWasCommitted(id: string): boolean;
   installedType(id: string): string | undefined;
   policy(name: string): string | undefined;
@@ -62,8 +98,9 @@ export interface StoreReader {
 export interface MemberTransaction extends StoreReader {
   putResource(resource: StoredResource): void;
   deleteResource(id: string): void;
-  putAlias(aliasPath: string, beadId: string): void;
-  deleteAlias(aliasPath: string): void;
+  /** Target must be live when assigned; later deletion does not cascade aliases. */
+  putAlias(aliasPathBeneathRoot: string, beadId: string): void;
+  deleteAlias(aliasPathBeneathRoot: string): void;
   putPolicy(name: string, bodyJson: string): void;
   allocateRevision(): string;
   allocateResourceId(kind: "bead" | "link"): string;
@@ -92,6 +129,7 @@ export interface RecoveryStore {
     lockingMode: string;
     synchronous: number;
     recoveredClaims: number;
+    filesystemType: number;
   }>;
   read<T>(reader: (store: StoreReader) => T): T;
   admit(
@@ -104,6 +142,10 @@ export interface RecoveryStore {
     key: string,
     evaluate: (transaction: MemberTransaction) => MemberDecision,
   ): MemberCompletion;
+  /** S5 must retain every live Admission and call this in finally on attempt termination.
+   * Lost caller references are not recoverable through an unbranded mass-release API.
+   * Startup clears abandoned claims; this method clears only this owned live attempt.
+   */
   abandonAttempt(admission: Admission): number;
   expire(now: number): void;
   close(): void;
@@ -127,16 +169,22 @@ const schema = `
 `;
 
 function requireText(value: string, name: string): void {
-  if (typeof value !== "string" || value.length === 0)
-    throw new Error(`${name} must be nonempty text`);
+  if (typeof value !== "string" || value.length === 0 || !value.isWellFormed())
+    throw new RecoveryStoreError("invalid-input", `${name} must be nonempty text`);
 }
 function requireJson(text: string): void {
-  if (typeof text !== "string") throw new Error("storage JSON must be admitted text");
+  if (typeof text !== "string" || !text.isWellFormed())
+    throw new RecoveryStoreError("invalid-input", "storage JSON must be admitted text");
+  // Literal non-scalar UTF-16 cannot round-trip through SQLite TEXT. S1 additionally
+  // rejects escaped semantic surrogates; storage does not replace that admission phase.
   JSON.parse(text); // Check syntax only; persist the original text and never re-encode numbers.
 }
 function requireTime(time: number): void {
   if (!Number.isSafeInteger(time) || time < 0)
-    throw new Error("time must be nonnegative safe integer milliseconds");
+    throw new RecoveryStoreError(
+      "invalid-input",
+      "time must be nonnegative safe integer milliseconds",
+    );
 }
 function rejectAsync(value: unknown): void {
   if (
@@ -147,10 +195,25 @@ function rejectAsync(value: unknown): void {
   ) {
     // A forbidden async callback must not leave an unhandled rejection after its facade expires.
     Promise.resolve(value).catch(() => {});
-    throw new Error("store callbacks must be synchronous");
+    throw new RecoveryStoreError("async-callback", "store callbacks must be synchronous");
   }
 }
-function sqliteError(error: unknown): boolean {
+/** Same exact admitted identity text is used both at retention and expired-key comparison. */
+export function recoveryIdentityFingerprint(semanticIdentityJson: string): string {
+  requireJson(semanticIdentityJson);
+  return createHash("sha256").update(semanticIdentityJson).digest("hex");
+}
+function sqliteConstraint(error: unknown): boolean {
+  // Node 24 reports ERR_SQLITE_ERROR plus SQLite's numeric extended result code.
+  return (
+    sqliteError(error) &&
+    "errcode" in error &&
+    typeof error.errcode === "number" &&
+    Number.isInteger(error.errcode) &&
+    (error.errcode & 0xff) === 19
+  );
+}
+function sqliteError(error: unknown): error is Error & { code: unknown } {
   return error instanceof Error && "code" in error && String(error.code).startsWith("ERR_SQLITE");
 }
 
@@ -171,7 +234,10 @@ export function isKnownNetworkFilesystem(platform: NodeJS.Platform, type: number
  */
 export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore {
   if (process.version !== "v24.16.0")
-    throw new Error("durable reference storage requires Node v24.16.0");
+    throw new RecoveryStoreError(
+      "unsupported-runtime",
+      "durable reference storage requires Node v24.16.0",
+    );
   const scope = new URL(options.scope);
   if (
     !/^https?:$/.test(scope.protocol) ||
@@ -182,20 +248,29 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
     scope.username ||
     scope.password
   )
-    throw new Error("canonical Scope URL required");
+    throw new RecoveryStoreError("invalid-input", "canonical Scope URL required");
   requireText(options.installationId, "installationId");
   requireText(options.lineageId, "lineageId");
   const retention = options.minimumRetentionMs ?? dayMs;
   requireTime(retention);
-  if (retention < dayMs) throw new Error("retention must preserve at least PT24H");
+  if (retention < dayMs)
+    throw new RecoveryStoreError("retention-too-short", "retention must preserve at least PT24H");
+  const seed = options.create;
   const directory = path.resolve(options.directory);
-  if (options.create !== undefined) mkdirSync(directory, { recursive: true, mode: 0o700 });
-  if (isKnownNetworkFilesystem(process.platform, statfsSync(directory).type))
-    throw new Error("network filesystem is unsupported");
+  if (seed !== undefined) mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const filesystemType = statfsSync(directory).type;
+  if (isKnownNetworkFilesystem(process.platform, filesystemType))
+    throw new RecoveryStoreError("unsupported-filesystem", "network filesystem is unsupported");
   const filename = path.join(directory, "reference.sqlite");
-  if (options.create !== undefined) closeSync(openSync(filename, "wx", 0o600));
-  else if (!existsSync(filename))
-    throw new Error("existing recovery store is missing; refusing reseed");
+  let createdFile = false;
+  if (seed !== undefined) {
+    closeSync(openSync(filename, "wx", 0o600));
+    createdFile = true;
+  } else if (!existsSync(filename))
+    throw new RecoveryStoreError(
+      "store-missing",
+      "existing recovery store is missing; refusing reseed",
+    );
   const db = new DatabaseSync(filename, {
     timeout: 0,
     enableForeignKeyConstraints: true,
@@ -209,12 +284,16 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
   const get = (sql: string, ...args: SQLInputValue[]) => db.prepare(sql).get(...args);
   const meta = (name: string): string => {
     const value = get("SELECT value FROM metadata WHERE name=?", name)?.value;
-    if (typeof value !== "string") throw new Error(`missing store metadata: ${name}`);
+    if (typeof value !== "string")
+      throw new RecoveryStoreError("integrity", `missing store metadata: ${name}`);
     return value;
   };
   const available = () => {
-    if (closed || fenced) throw new Error("recovery store is closed or fenced; reopen before use");
-    if (active) throw new Error("nested store access is forbidden");
+    if (closed)
+      throw new RecoveryStoreError("closed", "recovery store is closed; reopen before use");
+    if (fenced)
+      throw new RecoveryStoreError("fenced", "recovery store is fenced; reopen before use");
+    if (active) throw new RecoveryStoreError("nested-access", "nested store access is forbidden");
   };
   const transaction = <T>(callback: () => T): T => {
     available();
@@ -228,27 +307,43 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       db.exec("COMMIT");
       return result;
     } catch (error) {
-      if (committing || sqliteError(error)) fenced = true;
+      let cleanRollback = false;
       if (db.isTransaction) {
         try {
           db.exec("ROLLBACK");
+          cleanRollback = !db.isTransaction;
         } catch {
           fenced = true;
         }
       }
+      const ordinaryConstraint = !committing && cleanRollback && sqliteConstraint(error);
+      if (committing || (sqliteError(error) && !ordinaryConstraint)) fenced = true;
+      if (fenced)
+        throw new RecoveryStoreError(
+          "fenced",
+          "recovery store fenced after transaction failure; reopen before use",
+          { cause: error },
+        );
+      if (ordinaryConstraint)
+        throw new RecoveryStoreError("constraint", "storage constraint rejected the member", {
+          cause: error,
+        });
       throw error;
     } finally {
       active = false;
     }
   };
-  const resourceFromRow = (row: Record<string, unknown>): StoredResource =>
-    Object.freeze({
-      id: String(row.id),
-      kind: row.kind as "bead" | "link",
-      bodyJson: String(row.body),
-      ...(row.source === null ? {} : { source: String(row.source) }),
-      ...(row.target === null ? {} : { target: String(row.target) }),
-    });
+  const resourceFromRow = (row: Record<string, unknown>): StoredResource => {
+    const common = { id: String(row.id), bodyJson: String(row.body) };
+    return row.kind === "bead"
+      ? Object.freeze({ ...common, kind: "bead" })
+      : Object.freeze({
+          ...common,
+          kind: "link",
+          source: String(row.source),
+          target: String(row.target),
+        });
+  };
   const keyState = (principal: string, key: string): KeyState => {
     const row = get("SELECT * FROM key_state WHERE principal=? AND key=?", principal, key);
     if (!row) return Object.freeze({ kind: "unknown" });
@@ -303,9 +398,9 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
           .map(resourceFromRow),
       );
     },
-    alias(aliasPath) {
+    alias(aliasPathBeneathRoot) {
       check();
-      const value = get("SELECT bead_id FROM aliases WHERE path=?", aliasPath)?.bead_id;
+      const value = get("SELECT bead_id FROM aliases WHERE path=?", aliasPathBeneathRoot)?.bead_id;
       return typeof value === "string" ? value : undefined;
     },
     identityWasCommitted(id) {
@@ -328,10 +423,18 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
     },
   });
   const putResource = (resource: StoredResource): void => {
+    if (resource.kind !== "bead" && resource.kind !== "link")
+      throw new RecoveryStoreError("invalid-input", "invalid Resource kind");
+    if (resource.kind === "link") {
+      requireText(resource.source, "Link source");
+      requireText(resource.target, "Link target");
+    } else if (resource.source !== undefined || resource.target !== undefined) {
+      throw new RecoveryStoreError("invalid-input", "Bead must not carry Link endpoints");
+    }
     requireText(resource.id, "resource id");
     const root = resource.kind === "bead" ? "beads/" : "links/";
     if (!resource.id.startsWith(root) || resource.id.length === root.length)
-      throw new Error("normalized local Resource ID required");
+      throw new RecoveryStoreError("invalid-input", "normalized local Resource ID required");
     requireJson(resource.bodyJson);
     const previous = get("SELECT kind,source,target FROM resources WHERE id=?", resource.id);
     if (
@@ -340,15 +443,21 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
         previous.source !== (resource.source ?? null) ||
         previous.target !== (resource.target ?? null))
     )
-      throw new Error("immutable Resource identity/endpoints changed");
+      throw new RecoveryStoreError(
+        "resource-immutable",
+        "immutable Resource identity/endpoints changed",
+      );
     if (!previous && get("SELECT id FROM identities WHERE id=?", resource.id))
-      throw new Error("committed Resource identity cannot be reused");
+      throw new RecoveryStoreError(
+        "identity-reused",
+        "committed Resource identity cannot be reused",
+      );
     // Evaluator supplies canonical namespace-relative Resource IDs and alias paths.
     if (
       resource.kind === "bead" &&
       get("SELECT path FROM aliases WHERE path=?", resource.id.replace(/^beads\//, ""))
     )
-      throw new Error("Bead identity collides with a live alias");
+      throw new RecoveryStoreError("alias-path-live", "Bead identity collides with a live alias");
     run(
       "INSERT INTO identities(id,kind) VALUES (?,?) ON CONFLICT(id) DO NOTHING",
       resource.id,
@@ -364,15 +473,19 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
     );
   };
   let runtime: RecoveryStore["runtime"];
+  let startupCommitAttempted = false;
   try {
     const journal = get("PRAGMA journal_mode=DELETE")?.journal_mode;
     const locking = get("PRAGMA locking_mode=EXCLUSIVE")?.locking_mode;
     db.exec("PRAGMA synchronous=EXTRA");
     const synchronous = get("PRAGMA synchronous")?.synchronous;
     if (journal !== "delete" || locking !== "exclusive" || synchronous !== 3)
-      throw new Error("required SQLite durability modes unavailable");
+      throw new RecoveryStoreError(
+        "modes-unavailable",
+        "required SQLite durability modes unavailable",
+      );
     db.exec("BEGIN EXCLUSIVE");
-    if (options.create !== undefined) {
+    if (seed !== undefined) {
       db.exec(schema);
       for (const [name, value] of Object.entries({
         format: formatVersion,
@@ -384,12 +497,14 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
         nextIdentity: "0",
       }))
         run("INSERT INTO metadata VALUES (?,?)", name, value);
-      for (const resource of options.create.resources ?? []) putResource(resource);
-      for (const [id, body] of Object.entries(options.create.types ?? {})) {
+      for (const resource of seed.resources ?? []) putResource(resource);
+      for (const [id, body] of Object.entries(seed.types ?? {})) {
+        requireText(id, "Type id");
         requireJson(body);
         run("INSERT INTO installed_types VALUES (?,?)", id, body);
       }
-      for (const [name, body] of Object.entries(options.create.policy ?? {})) {
+      for (const [name, body] of Object.entries(seed.policy ?? {})) {
+        requireText(name, "policy name");
         requireJson(body);
         run("INSERT INTO policy VALUES (?,?)", name, body);
       }
@@ -411,34 +526,38 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       expectedTables.length !== actualTables.length ||
       expectedTables.some((name, index) => name !== actualTables[index])
     )
-      throw new Error("incomplete or incompatible recovery schema");
+      throw new RecoveryStoreError("store-mismatch", "incomplete or incompatible recovery schema");
     if (
       meta("format") !== formatVersion ||
       meta("scope") !== options.scope ||
       meta("installation") !== options.installationId ||
       meta("lineage") !== options.lineageId
     )
-      throw new Error("store format/Scope/installation/lineage mismatch");
+      throw new RecoveryStoreError(
+        "store-mismatch",
+        "store format/Scope/installation/lineage mismatch",
+      );
     if (
       !/^\d+$/.test(meta("nextRevision")) ||
       !/^\d+$/.test(meta("nextIdentity")) ||
       !meta("namespace")
     )
-      throw new Error("invalid allocation recovery state");
+      throw new RecoveryStoreError("integrity", "invalid allocation recovery state");
     if (
       get("PRAGMA quick_check")?.quick_check !== "ok" ||
       db.prepare("PRAGMA foreign_key_check").all().length !== 0
     )
-      throw new Error("store integrity check failed");
+      throw new RecoveryStoreError("integrity", "store integrity check failed");
     if (
       get(
         "SELECT r.id FROM resources r LEFT JOIN identities i ON i.id=r.id WHERE i.id IS NULL OR i.kind<>r.kind LIMIT 1",
       )
     )
-      throw new Error("resource identity history incomplete");
+      throw new RecoveryStoreError("integrity", "resource identity history incomplete");
     const recoveredClaims = Number(run("DELETE FROM key_state WHERE state='claimed'").changes);
     // A genuine startup write obtains and retains ownership even on an empty sweep.
     run("UPDATE metadata SET value=value WHERE name='format'");
+    startupCommitAttempted = true;
     db.exec("COMMIT");
     runtime = Object.freeze({
       node: process.version,
@@ -448,22 +567,41 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       lockingMode: String(locking),
       synchronous: Number(synchronous),
       recoveredClaims,
+      filesystemType,
     });
   } catch (error) {
+    let rolledBack = false;
+    let safelyClosed = false;
     try {
       if (db.isTransaction) db.exec("ROLLBACK");
+      rolledBack = !db.isTransaction;
     } finally {
       db.close();
+      safelyClosed = true;
+      // Only this invocation's exclusively created, uncommitted database is disposable.
+      // A failed/uncertain commit, failed rollback/close, or leftover journal is preserved.
+      if (
+        createdFile &&
+        !startupCommitAttempted &&
+        rolledBack &&
+        safelyClosed &&
+        !existsSync(`${filename}-journal`)
+      )
+        unlinkSync(filename);
     }
     throw error;
   }
 
   const checkAdmission = (admission: Admission, key?: string) => {
-    if (!admissions.has(admission)) throw new Error("admission is not owned by this store handle");
+    if (!admissions.has(admission))
+      throw new RecoveryStoreError(
+        "invalid-admission",
+        "admission is not owned by this store handle",
+      );
     requireText(admission.attemptId, "attemptId");
     requireText(admission.principal, "principal");
     if (key !== undefined && !admission.keys.includes(key))
-      throw new Error("key was not in the admitted carrier");
+      throw new RecoveryStoreError("invalid-admission", "key was not in the admitted carrier");
   };
   return {
     runtime,
@@ -474,7 +612,7 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       try {
         const value = callback(
           reader(() => {
-            if (!valid) throw new Error("expired read facade");
+            if (!valid) throw new RecoveryStoreError("expired-facade", "expired read facade");
           }),
         );
         rejectAsync(value);
@@ -488,7 +626,7 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       const carrierKeys = Object.freeze([...keys]);
       requireText(principal, "principal");
       if (carrierKeys.length === 0 || new Set(carrierKeys).size !== carrierKeys.length)
-        throw new Error("carrier keys must be nonempty and unique");
+        throw new RecoveryStoreError("invalid-input", "carrier keys must be nonempty and unique");
       for (const key of carrierKeys) requireText(key, "idempotency key");
       return transaction(() => {
         const states = Object.freeze(carrierKeys.map((key) => keyState(principal, key)));
@@ -528,7 +666,8 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
         db.exec("SAVEPOINT member_effects");
         let valid = true;
         const check = () => {
-          if (!valid) throw new Error("expired member transaction facade");
+          if (!valid)
+            throw new RecoveryStoreError("expired-facade", "expired member transaction facade");
         };
         const tx: MemberTransaction = {
           ...reader(check),
@@ -545,25 +684,39 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
                 id,
               )
             )
-              throw new Error("live incident Link prevents deletion");
+              throw new RecoveryStoreError(
+                "incident-links",
+                "live incident Link prevents deletion",
+              );
             run("DELETE FROM resources WHERE id=?", id);
           },
-          putAlias(aliasPath, beadId) {
+          putAlias(aliasPathBeneathRoot, beadId) {
             check();
-            requireText(aliasPath, "alias path");
-            if (get("SELECT id FROM identities WHERE kind='bead' AND id=?", `beads/${aliasPath}`))
-              throw new Error("alias collides with committed Bead path");
+            requireText(aliasPathBeneathRoot, "alias path");
+            if (
+              get(
+                "SELECT id FROM identities WHERE kind='bead' AND id=?",
+                `beads/${aliasPathBeneathRoot}`,
+              )
+            )
+              throw new RecoveryStoreError(
+                "alias-path-committed",
+                "alias collides with committed Bead path",
+              );
             if (get("SELECT kind FROM resources WHERE id=?", beadId)?.kind !== "bead")
-              throw new Error("alias target must be a live Bead");
+              throw new RecoveryStoreError(
+                "alias-target-not-live",
+                "alias target must be a live Bead",
+              );
             run(
               "INSERT INTO aliases VALUES (?,?) ON CONFLICT(path) DO UPDATE SET bead_id=excluded.bead_id",
-              aliasPath,
+              aliasPathBeneathRoot,
               beadId,
             );
           },
-          deleteAlias(aliasPath) {
+          deleteAlias(aliasPathBeneathRoot) {
             check();
-            run("DELETE FROM aliases WHERE path=?", aliasPath);
+            run("DELETE FROM aliases WHERE path=?", aliasPathBeneathRoot);
           },
           putPolicy(name, bodyJson) {
             check();
@@ -577,7 +730,8 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
           },
           allocateResourceId(kind) {
             check();
-            if (kind !== "bead" && kind !== "link") throw new Error("invalid Resource kind");
+            if (kind !== "bead" && kind !== "link")
+              throw new RecoveryStoreError("invalid-input", "invalid Resource kind");
             for (;;) {
               const next = BigInt(meta("nextIdentity")) + 1n;
               run("UPDATE metadata SET value=? WHERE name='nextIdentity'", next.toString());
@@ -624,10 +778,11 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
         requireTime(decision.completedAt);
         requireTime(decision.retainUntil);
         if (decision.retainUntil - decision.completedAt < retention)
-          throw new Error("outcome retention is shorter than the promised minimum");
-        const fingerprint = createHash("sha256")
-          .update(decision.semanticIdentityJson)
-          .digest("hex");
+          throw new RecoveryStoreError(
+            "retention-too-short",
+            "outcome retention is shorter than the promised minimum",
+          );
+        const fingerprint = recoveryIdentityFingerprint(decision.semanticIdentityJson);
         const changed = run(
           "UPDATE key_state SET state='retained',owner=NULL,identity=?,fingerprint=?,resolutions=?,outcome=?,effect=?,completed_at=?,retain_until=? WHERE principal=? AND key=? AND state='claimed' AND owner=?",
           decision.semanticIdentityJson,
@@ -641,7 +796,8 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
           key,
           admission.attemptId,
         ).changes;
-        if (changed !== 1) throw new Error("member lost claim ownership");
+        if (changed !== 1)
+          throw new RecoveryStoreError("lost-claim", "member lost claim ownership");
         return { kind: "completed", outcomeJson: decision.outcomeJson };
       });
     },
@@ -671,7 +827,8 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       });
     },
     close() {
-      if (active) throw new Error("cannot close inside a store callback");
+      if (active)
+        throw new RecoveryStoreError("nested-access", "cannot close inside a store callback");
       if (!closed) {
         db.close();
         closed = true;
