@@ -17,6 +17,8 @@ export interface ReadUpdateTransportLimits {
 export interface ReadUpdateFetchTransportOptions {
   readonly scope: string;
   readonly limits: ReadUpdateTransportLimits;
+  /** Must return a Response whose url is the requested URL, including custom
+   * implementations that reconstruct a native Response (whose default url is empty). */
   readonly fetchImplementation?: typeof fetch;
   /** Called per exchange, only for URLs confined to this configured Scope. */
   readonly credential?: (signal: AbortSignal) => string | undefined | Promise<string | undefined>;
@@ -35,6 +37,7 @@ export type ReadUpdateTransportErrorCode =
   | "aborted"
   | "timeout"
   | "network"
+  | "redirect"
   | "invalid-response"
   | "response-too-large";
 
@@ -50,6 +53,7 @@ export class ReadUpdateTransportError extends Error {
     readonly httpStatus?: number,
     readonly contentType?: string | null,
     readonly retryAfter?: string | null,
+    readonly headers?: Readonly<Record<string, string>>,
   ) {
     super(`Read+Update transport ${code} (${submission})`);
   }
@@ -61,7 +65,9 @@ export interface ReadUpdateHttpContext {
   readonly contentType: string | null;
   /** Uninterpreted received Retry-After; not a synthesized member retryAfter. */
   readonly retryAfter: string | null;
-  /** Selected response metadata only; excludes cookies and credential fields. */
+  /** Selected response metadata only; excludes cookies and credential fields.
+   * Browser CORS filtering may hide fields: absence here cannot distinguish an
+   * absent server header from a header the browser does not expose. */
   readonly headers: Readonly<Record<string, string>>;
 }
 export type ReadUpdateHttpResponse = ReadUpdateHttpContext &
@@ -147,6 +153,7 @@ export function createReadUpdateFetchTransport(
     let status: number | undefined;
     let contentType: string | null | undefined;
     let retryAfter: string | null | undefined;
+    let responseHeaders: Readonly<Record<string, string>> | undefined;
     const localErrors = new WeakSet<ReadUpdateTransportError>();
     const error = (code: ReadUpdateTransportErrorCode) => {
       const failure = new ReadUpdateTransportError(
@@ -155,6 +162,7 @@ export function createReadUpdateFetchTransport(
         status,
         contentType,
         retryAfter,
+        responseHeaders,
       );
       localErrors.add(failure);
       return failure;
@@ -244,6 +252,8 @@ export function createReadUpdateFetchTransport(
             ...(body === undefined ? {} : { body: body as NonNullable<RequestInit["body"]> }),
             signal,
             credentials: "omit",
+            // Isolate rotating credentials even from a misconfigured HTTP cache.
+            cache: "no-store",
             redirect: "manual",
           });
           if (performance.now() >= expiresAt) deadline.abort();
@@ -260,22 +270,24 @@ export function createReadUpdateFetchTransport(
       }
       try {
         status = response.status;
-        if (!Number.isInteger(status) || status < 200 || status > 599 || response.url !== url)
-          throw error("invalid-response");
-        contentType = response.headers.get("content-type");
-        retryAfter = response.headers.get("retry-after");
-        if (status >= 300 && status < 400 && status !== 304) throw error("invalid-response");
         const metadata: Record<string, string> = {};
+        const receivedHeaders = response.headers;
         for (const name of RESPONSE_HEADERS) {
-          const value = response.headers.get(name);
+          const value = receivedHeaders.get(name);
           if (value !== null) metadata[name] = value;
         }
+        responseHeaders = Object.freeze(metadata);
+        contentType = metadata["content-type"] ?? null;
+        retryAfter = metadata["retry-after"] ?? null;
+        if (!Number.isInteger(status) || status < 200 || status > 599 || response.url !== url)
+          throw error("invalid-response");
+        if (status >= 300 && status < 400 && status !== 304) throw error("redirect");
         const context: ReadUpdateHttpContext = Object.freeze({
           status,
           url,
-          contentType: metadata["content-type"] ?? null,
-          retryAfter: metadata["retry-after"] ?? null,
-          headers: Object.freeze(metadata),
+          contentType,
+          retryAfter,
+          headers: responseHeaders,
         });
         if (scopeProbe && status === 200) {
           // The Scope representation is uninterpreted, even if it claims JSON.
@@ -284,16 +296,24 @@ export function createReadUpdateFetchTransport(
           checkAbort();
           return Object.freeze({ ...context, kind: "scope-probe" });
         }
-        const data = await readBody(response, limits, signal, abortError, error, checkAbort);
-        if (BODYLESS_STATUSES.has(status)) {
-          if (data.byteLength !== 0) throw error("invalid-response");
+        const bodyless = BODYLESS_STATUSES.has(status);
+        const media = context.contentType?.split(";", 1)[0]?.trim().toLowerCase();
+        if (!bodyless && media !== "application/json" && media !== "application/problem+json")
+          throw error("invalid-response");
+        const data = await readBody(
+          response,
+          limits,
+          signal,
+          abortError,
+          error,
+          checkAbort,
+          bodyless,
+        );
+        if (bodyless) {
           if (scopeProbe && status === 204)
             return Object.freeze({ ...context, kind: "scope-probe" });
           return Object.freeze({ ...context, kind: "empty" });
         }
-        const media = context.contentType?.split(";", 1)[0]?.trim().toLowerCase();
-        if (media !== "application/json" && media !== "application/problem+json")
-          throw error("invalid-response");
         let value: AdmittedJsonValue;
         try {
           const text = new TextDecoder("utf-8", { fatal: true }).decode(data);
@@ -379,11 +399,13 @@ async function readBody(
   abortError: () => Error,
   error: (code: ReadUpdateTransportErrorCode) => Error,
   checkAbort: () => void,
+  expectEmpty: boolean,
 ): Promise<Uint8Array> {
   checkAbort();
   if (response.body === null) return new Uint8Array();
   const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
+  // One owned backing buffer grows geometrically; no retained object per chunk.
+  let bytes = new Uint8Array();
   let length = 0;
   let done = false;
   try {
@@ -396,17 +418,22 @@ async function readBody(
         break;
       }
       if (!(item.value instanceof Uint8Array)) throw error("invalid-response");
-      length += item.value.byteLength;
-      if (length > limits.responseBodyBytes) throw error("response-too-large");
-      if (item.value.byteLength !== 0) chunks.push(new Uint8Array(item.value));
+      const chunk = item.value;
+      if (expectEmpty && chunk.byteLength !== 0) throw error("invalid-response");
+      if (chunk.byteLength > limits.responseBodyBytes - length) throw error("response-too-large");
+      const nextLength = length + chunk.byteLength;
+      if (nextLength > bytes.byteLength) {
+        const grown = new Uint8Array(
+          Math.min(limits.responseBodyBytes, Math.max(nextLength, bytes.byteLength * 2)),
+        );
+        grown.set(bytes);
+        bytes = grown;
+      }
+      // set copies Buffer chunks too; producer reuse cannot mutate accepted bytes.
+      bytes.set(chunk, length);
+      length = nextLength;
     }
-    const bytes = new Uint8Array(length);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    return bytes;
+    return bytes.subarray(0, length);
   } finally {
     if (!done) await boundedCleanup(() => reader.cancel(), limits.cleanupTimeoutMs);
     reader.releaseLock();
