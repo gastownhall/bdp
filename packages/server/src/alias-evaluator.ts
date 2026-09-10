@@ -3,6 +3,7 @@ import {
   type ReadUpdateAliasResult,
   type ReadUpdateInputs,
   type ReadUpdateProblem,
+  ProtocolArtifactValidationError,
   assertCanonicalPathSegments,
   parseBeadRecord,
   parseCanonicalHttpUrl,
@@ -29,10 +30,13 @@ export interface AliasTransaction
 }
 export interface AliasEvaluationOptions {
   readonly scope: string;
-  /** Captured current member policy for the authority's authenticated principal.
-   * Alias writes leave both Bead records unchanged: canWrite receives (record, record).
+  /** Same captured current authority policy/principal as the Resource facet.
+   * canWriteBead means permission to write the touched Bead for an alias
+   * operation, not approval of a particular unchanged Resource transition.
    */
-  readonly policy: Pick<ResourceMutationPolicy, "canRead" | "canWrite">;
+  readonly policy: Pick<ResourceMutationPolicy, "canRead"> & {
+    canWriteBead(record: BeadRecord): boolean;
+  };
   readonly limits: { readonly diagnosticCount?: number; readonly diagnosticBytes?: number };
 }
 export type AliasEvaluation =
@@ -60,43 +64,46 @@ function fail(code: keyof typeof failures): never {
     }),
   );
 }
-function badTarget(byteLimit: number | undefined): never {
-  const diagnostics = [
-    {
-      instanceLocation: "/target",
-      message: "alias target must be a canonical in-Scope Bead reference",
-    },
-  ];
-  if (byteLimit !== undefined && Buffer.byteLength(JSON.stringify(diagnostics)) > byteLimit)
-    throw new Error("diagnostic configuration cannot retain one complete diagnostic");
+const targetDiagnostics = Object.freeze([
+  Object.freeze({
+    message:
+      "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted",
+  }),
+]);
+const targetDiagnosticBytes = Buffer.byteLength(JSON.stringify(targetDiagnostics));
+function badTarget(): never {
   throw new AliasFailure(
     parseReadUpdateProblem({
       type: "https://github.com/gastownhall/bdp/problems/validation",
       code: "validation-failed",
       status: 422,
       retry: "never",
-      diagnostics,
+      diagnostics: targetDiagnostics,
     }),
   );
+}
+function assertAdmittedPath(path: string, uri?: string): void {
+  try {
+    if (uri !== undefined) parseCanonicalHttpUrl(uri);
+    assertCanonicalPathSegments(path, "admitted alias reference");
+  } catch (cause) {
+    if (cause instanceof ProtocolArtifactValidationError)
+      throw new TypeError("S1/Scope preflight must reject malformed alias references", { cause });
+    throw cause;
+  }
 }
 function canonical(scope: string, reference: string): string {
   if (reference.startsWith("@"))
     throw new TypeError("S5 must resolve bindings before alias evaluation");
   if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(reference)) return reference;
-  assertCanonicalPathSegments(reference, "admitted alias reference");
+  assertAdmittedPath(reference);
   return new URL(reference, scope).href;
 }
 function pathInScope(scope: string, uri: string, root: "alias/" | "beads/"): string | undefined {
   if (!uri.startsWith(scope)) return undefined;
   const path = uri.slice(scope.length);
-  if (!path.startsWith(root) || path.length === root.length) return undefined;
-  try {
-    parseCanonicalHttpUrl(uri);
-    assertCanonicalPathSegments(path, "admitted in-Scope reference");
-  } catch {
-    return undefined;
-  }
-  return path;
+  assertAdmittedPath(path, uri);
+  return path.startsWith(root) && path.length > root.length ? path : undefined;
 }
 
 /** Invoke only inside S6 executeMember after whole-carrier S1/Scope preflight
@@ -116,6 +123,8 @@ export function evaluateAliasMutation(
   for (const limit of [diagnosticCount, diagnosticBytes])
     if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1))
       throw new TypeError("positive usable diagnostic limits required");
+  if (diagnosticBytes !== undefined && diagnosticBytes < targetDiagnosticBytes)
+    throw new TypeError("diagnostic configuration cannot retain one complete diagnostic");
   const loadVisible = (id: string): BeadRecord => {
     const stored = tx.resource(id);
     if (stored?.kind !== "bead") fail("resource-not-found");
@@ -139,17 +148,18 @@ export function evaluateAliasMutation(
     if (mutation.operation === "putAlias") {
       const target = canonical(scope, mutation.input.target);
       proposedId = pathInScope(scope, target, "beads/");
-      if (proposedId === undefined) badTarget(diagnosticBytes);
+      if (proposedId === undefined) badTarget();
       proposed = loadVisible(proposedId);
     }
     if (mutation.operation === "deleteAlias" && currentId === undefined) fail("resource-not-found");
     const current = currentId === undefined ? undefined : loadVisible(currentId);
     // Complete both closure checks before disclosing a write-policy refusal.
-    if (proposed && !policy.canWrite(proposed, proposed)) fail("forbidden");
-    if (current && currentId !== proposedId && !policy.canWrite(current, current))
-      fail("forbidden");
+    if (proposed && !policy.canWriteBead(proposed)) fail("forbidden");
+    if (current && currentId !== proposedId && !policy.canWriteBead(current)) fail("forbidden");
     let outcome: ReadUpdateAliasResult;
-    if (proposed && proposedId !== undefined) {
+    if (mutation.operation === "putAlias") {
+      if (proposed === undefined || proposedId === undefined)
+        throw new Error("putAlias lost its validated target");
       if (currentId !== proposedId) tx.putAlias(path, proposedId);
       outcome = {
         outcome: currentId === undefined ? "created" : "updated",
