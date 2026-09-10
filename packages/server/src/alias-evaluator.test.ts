@@ -11,6 +11,7 @@ import {
   type ReadUpdateProblem,
 } from "@bdp/protocol";
 import {
+  assertAliasDiagnosticLimits,
   evaluateAliasMutation,
   type AliasEvaluation,
   type AliasEvaluationOptions,
@@ -554,6 +555,16 @@ describe("owned-member alias evaluator", () => {
     expect(result.outcome.diagnostics).toHaveLength(1);
     expect(result.outcome).not.toHaveProperty("diagnosticsTruncated");
     const bytes = Buffer.byteLength(JSON.stringify(result.outcome.diagnostics));
+    // Startup can apply the same exact bound without a transaction or fake mutation.
+    expect(() =>
+      assertAliasDiagnosticLimits({ diagnosticCount: 1, diagnosticBytes: bytes }),
+    ).not.toThrow();
+    expect(() => assertAliasDiagnosticLimits({ diagnosticBytes: bytes - 1 })).toThrow(
+      "one complete diagnostic",
+    );
+    expect(() => assertAliasDiagnosticLimits({ diagnosticCount: 0 })).toThrow(
+      "positive usable diagnostic limits",
+    );
     expect(
       f.execute("putAlias", input, { limits: { diagnosticCount: 1, diagnosticBytes: bytes } }),
     ).toEqual(result);
