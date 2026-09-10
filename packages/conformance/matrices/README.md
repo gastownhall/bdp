@@ -809,3 +809,24 @@ profile. Missing retirement targets are an invalid bundle, not permission to
 silently drop proof obligations. The runner passes that already-composed
 catalog to selection. No write-profile manifest, runner realization or
 conformance evidence exists yet; the sealed Read bundle is unchanged.
+
+
+### History Read-side schema coverage (2026-09-10)
+
+The History wire integration preserves the original ordered27 sealed names and
+appends15 explicitly reviewed names: changeContext, contextMessage, contextString,
+contextTime, dateTime, historicalBeadRecord, historicalLinkRecord, historyCapability,
+historyMissing, historyMissingItem, historyVersionRow, historyVersionsPage,
+historyWindow, jsonPointer and revision. The six actual HISTORY_VALUE_SCHEMA_REFS
+parser roots now join manifest and READ_VALUE_SCHEMA_REFS roots in the independent
+coverage check. HISTORY_WRITE_VALUE_SCHEMA_REFS remain write-only and excluded.
+Coverage derives no digest input: the checked-in42-name list remains the seal.
+
+Five existing Read definitions changed: readProblemCode, readProblem, beadRecord,
+linkRecord and readDiscovery. The injected problem-table serialization observation
+now exercises18 diagnoses, including the required Unretained missing inventory.
+This does not prove naturally occurring History diagnoses or advertised History.
+The schema regression digest is updated independently; it is not a cohort binding.
+The historical artifact and capability constant remain untouched until genuinely
+new two-target observations bind the final source, inputs and projection. No
+History runtime or capability admission follows from this schema coverage change.
