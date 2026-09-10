@@ -152,11 +152,16 @@ describe("Read+Update problem rows", () => {
     ]);
   });
 
-  it("keeps the Read Problem definition byte-for-byte the closed Read table", () => {
+  it("keeps the closed Read table and its erased-resource pointer restriction", () => {
     expect(propertiesOf("readProblem").code).toEqual({ $ref: "#/$defs/readProblemCode" });
     expect((def("readProblem").allOf as SchemaRecord[]).length).toBe(
-      READ_PROBLEM_DEFINITIONS.length + 2,
+      READ_PROBLEM_DEFINITIONS.length + 3,
     );
+    expect((def("readProblem").allOf as SchemaRecord[]).at(-1)).toEqual({
+      if: { properties: { code: { const: "resource-erased" } }, required: ["code"] },
+      // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
+      then: { properties: { pointer: false } },
+    });
   });
 });
 
