@@ -40,3 +40,10 @@ family remains illustrative; Read observations do not establish Transactional
 mutation, retention/replay, concurrency or persistent-consumer erasure behavior.
 All 2,087 tests in 60 files pass with zero skips after generation and rebuild.
 The evidence verifier accepts 89 rows under the unchanged named Read projection.
+
+Final local release review (2026-09-10): independent source and cohort reviews
+found no outstanding issues. The artifact review independently recomputed all
+36 source bindings, the evidence constant, the 27-name/26-reachable projection,
+and both built entry hashes; all 75 new HTTP exchanges per target and unchanged
+role/N/A/qualification sets were checked. Packaged smoke and all seven readiness
+preflight tests pass. Hosted checks remain a separate publication gate.
