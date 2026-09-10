@@ -950,6 +950,7 @@ describe("allocator faults inside the durable owned-member boundary", () => {
     "committed-id",
     "alias-id",
     "empty-id",
+    "hierarchical-id",
     "unsafe-id-tag",
     "nonstring-id",
     "empty-revision",
@@ -1030,6 +1031,9 @@ describe("allocator faults inside the durable owned-member boundary", () => {
               break;
             case "alias-id":
               facade.allocateResourceId = () => "beads/reserved";
+              break;
+            case "hierarchical-id":
+              facade.allocateResourceId = () => "beads/a/b";
               break;
             case "empty-id":
               facade.allocateResourceId = () => "";
@@ -1129,6 +1133,37 @@ describe("allocator faults inside the durable owned-member boundary", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  it.each(["createBead", "createLink"] as const)(
+    "refuses allocated hierarchy but preserves supplied hierarchy for %s",
+    (operation) => {
+      const f = fixture();
+      f.createBead("a");
+      f.createBead("b");
+      const id = `${operation === "createBead" ? "beads" : "links"}/a/b`;
+      const input =
+        operation === "createBead"
+          ? { type: beadType }
+          : { type: linkType, source: "beads/a", target: "beads/b" };
+      f.tx.allocateResourceId = () => id;
+      const writes = f.writes();
+      expect(() => f.execute(operation, input)).toThrow("one opaque Resource identity segment");
+      expect(f.writes()).toBe(writes);
+      expect(f.records.has(id)).toBe(false);
+      f.tx.allocateResourceId = () => {
+        throw new Error("supplied ID must not allocate");
+      };
+      const result = f.execute(operation, { ...input, id });
+      expect(result).toMatchObject({
+        effect: "success",
+        outcome: {
+          outcome: "created",
+          resource: { id: `${scope}${id}` },
+        },
+      });
+      expect(f.records.has(id)).toBe(true);
+    },
+  );
 
   it("keeps supplied-ID conflict meanings without invoking allocation", () => {
     const f = fixture();

@@ -475,6 +475,8 @@ function evaluate(
     const path = resourcePath(scope, canonical(scope, spelling), resourceKind);
     if (path === undefined)
       throw new TypeError("creation ID must already have canonical Resource grammar and kind");
+    if (supplied === undefined && path.indexOf("/", 6) !== -1)
+      throw new Error("allocator must return one opaque Resource identity segment");
     id = path;
     if (supplied !== undefined)
       resolutions.push({
