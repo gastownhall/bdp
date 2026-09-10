@@ -27,7 +27,10 @@
     "link.demo-b-a": "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
     "bead.demo-f": "beads/demo-f",
     "alias.unknown": "alias/never-created",
-    "bead.absent": "beads/never-created"
+    "bead.absent": "beads/never-created",
+    "http.resource": "beads/demo-a",
+    "http.link": "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
+    "http.absent": "beads/http-never-created"
   },
   "private": {
     "internalFaultSentinel": "bdp-private-internal-fault-bdpbd-e69028371d4a"

@@ -4316,3 +4316,219 @@ describe("black-box conformance runner", () => {
     expect(cancel).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("runner observed ETag context", () => {
+  const secretTag = '"private\\n,opaque-validator"';
+  function etagInputs(actions: boolean, assertionOnly = false) {
+    const base = inputs([{ id: "status", kind: "status", equals: 200 }]);
+    const original = requestScenario(base.artifactBundle.manifest.scenarios[0]);
+    const first = original.requests[0];
+    if (first === undefined) throw new Error("missing test request");
+    const requests = [
+      { ...first, id: "control" },
+      {
+        ...first,
+        id: "conditional",
+        headers: assertionOnly
+          ? {}
+          : { "if-none-match": { etagFrom: "control", form: "weak-list" } },
+        assertions: [
+          { id: "status", kind: "status", equals: 304 },
+          { id: "etag", kind: "header", name: "etag", equalsResponse: "control" },
+          { id: "empty", kind: "body-absent" },
+        ],
+      },
+    ];
+    const { requests: _requests, ...scenario } = original;
+    const manifest = parseExecutableScenarioManifest({
+      manifestVersion: 1,
+      catalogId: "read-v1",
+      scenarios: [
+        {
+          ...scenario,
+          ...(actions
+            ? { actions: requests.map((request) => ({ ...request, family: "http" })) }
+            : { requests }),
+        },
+      ],
+    });
+    return { ...base, artifactBundle: replaceArtifacts(base, { manifest }) };
+  }
+  for (const actions of [false, true]) {
+    it(`uses actual opaque ETag bytes across statuses and redacts them (actions=${actions})`, async () => {
+      const transmitted: Readonly<Record<string, string>>[] = [];
+      const result = await runConformanceMatrix({
+        ...etagInputs(actions),
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        harness: harness(),
+        execute: async (request) => {
+          transmitted.push(request.headers);
+          return {
+            url: request.url,
+            status: transmitted.length === 1 ? 200 : 304,
+            headers: { etag: secretTag },
+            bodyText: "",
+            bodyOctets: 0,
+          };
+        },
+      });
+      expect(result.scenarios[0]?.state).toBe("pass");
+      expect(transmitted[1]?.["if-none-match"]).toBe(
+        `"private\\n,opaque-validator!", W/${secretTag}`,
+      );
+      expect(serializeConformanceReport(result)).not.toContain("opaque-validator");
+      expect(serializeConformanceReport(result)).toContain("if-none-match");
+    });
+    it.each([undefined, '"two", "tags"'])(
+      `rejects missing/invalid source ETag before sending the dependent request (actions=${actions}): %s`,
+      async (tag) => {
+        let calls = 0;
+        const result = await runConformanceMatrix({
+          ...etagInputs(actions),
+          scope: "https://scope.example/",
+          profile: "read",
+          seed: 0,
+          harness: harness(),
+          execute: async (request) => {
+            calls += 1;
+            return {
+              url: request.url,
+              status: 200,
+              headers: tag === undefined ? {} : { etag: tag },
+              bodyText: "",
+            };
+          },
+        });
+        expect(calls).toBe(1);
+        expect(result.scenarios[0]?.state).toBe("harness-error");
+      },
+    );
+    it.each([undefined, '"different"'])(
+      `fails an absent or changed cross-status ETag (actions=${actions}): %s`,
+      async (tag) => {
+        let calls = 0;
+        const result = await runConformanceMatrix({
+          ...etagInputs(actions),
+          scope: "https://scope.example/",
+          profile: "read",
+          seed: 0,
+          harness: harness(),
+          execute: async (request) => {
+            calls += 1;
+            return {
+              url: request.url,
+              status: calls === 1 ? 200 : 304,
+              headers: calls === 1 ? { etag: secretTag } : tag === undefined ? {} : { etag: tag },
+              bodyText: "",
+              bodyOctets: 0,
+            };
+          },
+        });
+        expect(result.scenarios[0]?.state).toBe("fail");
+      },
+    );
+    it(`rejects a comparison with missing source ETag (actions=${actions})`, async () => {
+      let calls = 0;
+      const result = await runConformanceMatrix({
+        ...etagInputs(actions, true),
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        harness: harness(),
+        execute: async (request) => {
+          calls += 1;
+          return {
+            url: request.url,
+            status: calls === 1 ? 200 : 304,
+            headers: {},
+            bodyText: "",
+            bodyOctets: 0,
+          };
+        },
+      });
+      expect(calls).toBe(2);
+      expect(result.scenarios[0]?.state).toBe("harness-error");
+    });
+  }
+});
+
+describe("HEAD metadata omission allowance", () => {
+  it.each([
+    {
+      label: "omitted generated fields",
+      headers: { "cache-control": "private, no-store", etag: '"r1"' },
+      status: 200,
+      state: "pass",
+    },
+    {
+      label: "changed present length",
+      headers: { "cache-control": "private, no-store", etag: '"r1"', "content-length": "99" },
+      status: 200,
+      state: "fail",
+    },
+    { label: "missing mandatory cache", headers: { etag: '"r1"' }, status: 200, state: "fail" },
+    {
+      label: "missing validator",
+      headers: { "cache-control": "private, no-store" },
+      status: 200,
+      state: "fail",
+    },
+    {
+      label: "changed status",
+      headers: { "cache-control": "private, no-store", etag: '"r1"' },
+      status: 304,
+      state: "fail",
+    },
+  ])("$label", async ({ headers, status, state }) => {
+    const base = { family: "http", target: { binding: "scope" }, headers: {}, captures: [] };
+    const options = actionInputs([
+      {
+        ...base,
+        id: "get",
+        method: "GET",
+        assertions: [{ id: "status", kind: "status", equals: 200 }],
+      },
+      {
+        ...base,
+        id: "head",
+        method: "HEAD",
+        assertions: [
+          {
+            id: "parity",
+            kind: "response-metadata-equals",
+            request: "get",
+            headers: ["cache-control", "etag", "content-length", "content-type", "vary"],
+            optionalHeaders: ["content-length", "content-type", "vary"],
+          },
+          { id: "empty", kind: "body-absent" },
+        ],
+      },
+    ]);
+    const result = await runConformanceMatrix({
+      ...options,
+      scope: "https://scope.example/",
+      profile: "read",
+      seed: 0,
+      harness: harness(),
+      execute: async (request) => ({
+        url: request.url,
+        status: request.method === "GET" ? 200 : status,
+        headers:
+          request.method === "GET"
+            ? {
+                "cache-control": "private, no-store",
+                etag: '"r1"',
+                "content-length": "2",
+                "content-type": "application/json",
+                vary: "Accept",
+              }
+            : headers,
+        bodyText: "",
+        bodyOctets: 0,
+      }),
+    });
+    expect(result.scenarios[0]?.state).toBe(state);
+  });
+});
