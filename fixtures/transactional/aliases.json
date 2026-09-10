@@ -1,0 +1,376 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-aliases",
+  "description": "Locator-only alias singleton receipts and retry. Alias state is not replicated and occupies no Scope position. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "put-alias-receipt",
+      "condition": "The caller is authorized for this alias operation. The target task-43 survives in snapshot-at-pos-47 and remains live through these locator-only changes. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-put-alias"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/release/latest",
+          "target": "beads/task-43"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/put-alias",
+          "status": "completed",
+          "idempotencyKey": "w1-put-alias",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "tx-put-alias",
+          "requiredPosition": "pos-49",
+          "detail": "available",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "created",
+              "alias": "https://beads.example/acme/alias/release/latest",
+              "target": "https://beads.example/acme/beads/task-43"
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-15T19:05:00Z"
+        }
+      },
+      "terminalAt": "2026-09-08T19:05:00Z"
+    },
+    {
+      "id": "put-alias-retry",
+      "condition": "The same principal retries the identical request while its receipt detail remains available; no alias transition executes again. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-put-alias"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/release/latest",
+          "target": "beads/task-43"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/put-alias",
+          "status": "completed",
+          "idempotencyKey": "w1-put-alias",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "tx-put-alias",
+          "requiredPosition": "pos-49",
+          "detail": "available",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "created",
+              "alias": "https://beads.example/acme/alias/release/latest",
+              "target": "https://beads.example/acme/beads/task-43"
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-15T19:05:00Z"
+        }
+      },
+      "sameReceiptAs": "put-alias-receipt",
+      "terminalAt": "2026-09-08T19:05:00Z"
+    },
+    {
+      "id": "delete-alias-receipt",
+      "condition": "The caller is authorized for this alias operation. The target task-43 survives in snapshot-at-pos-47 and remains live through these locator-only changes. The locator transition commits without a Resource version, Event, group or Scope position; requiredPosition observes the unchanged projected head. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
+      "request": {
+        "method": "POST",
+        "target": "operations/delete-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-delete-alias"
+        },
+        "schema": "#/$defs/deleteAliasRequest",
+        "body": {
+          "alias": "alias/release/latest"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/delete-alias",
+          "status": "completed",
+          "idempotencyKey": "w1-delete-alias",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "tx-delete-alias",
+          "requiredPosition": "pos-49",
+          "detail": "available",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "alias": "https://beads.example/acme/alias/release/latest"
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-15T19:06:00Z"
+        }
+      },
+      "terminalAt": "2026-09-08T19:06:00Z"
+    },
+    {
+      "id": "delete-alias-retry",
+      "condition": "The same principal retries the identical request while its receipt detail remains available; no alias transition executes again. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
+      "request": {
+        "method": "POST",
+        "target": "operations/delete-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-delete-alias"
+        },
+        "schema": "#/$defs/deleteAliasRequest",
+        "body": {
+          "alias": "alias/release/latest"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/delete-alias",
+          "status": "completed",
+          "idempotencyKey": "w1-delete-alias",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "tx-delete-alias",
+          "requiredPosition": "pos-49",
+          "detail": "available",
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "alias": "https://beads.example/acme/alias/release/latest"
+            }
+          ],
+          "next": null,
+          "expiresAt": "2026-09-15T19:06:00Z"
+        }
+      },
+      "sameReceiptAs": "delete-alias-receipt",
+      "terminalAt": "2026-09-08T19:06:00Z"
+    },
+    {
+      "id": "put-alias-expired",
+      "condition": "The same principal retries after the completed alias receipt detail expires. The compact retained disposition suppresses re-execution and allocated is empty because aliases allocate no Resource identity. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-put-alias"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/release/latest",
+          "target": "beads/task-43"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/put-alias",
+          "status": "completed",
+          "idempotencyKey": "w1-put-alias",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "tx-put-alias",
+          "requiredPosition": "pos-49",
+          "detail": "expired",
+          "allocated": []
+        }
+      },
+      "terminalAt": "2026-09-08T19:05:00Z"
+    },
+    {
+      "id": "delete-alias-expired",
+      "condition": "The same principal retries after the completed alias receipt detail expires. The compact retained disposition suppresses re-execution and allocated is empty because aliases allocate no Resource identity. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
+      "request": {
+        "method": "POST",
+        "target": "operations/delete-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-delete-alias"
+        },
+        "schema": "#/$defs/deleteAliasRequest",
+        "body": {
+          "alias": "alias/release/latest"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/mutationReceipt",
+        "body": {
+          "id": "https://beads.example/acme/receipts/delete-alias",
+          "status": "completed",
+          "idempotencyKey": "w1-delete-alias",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "transaction": "tx-delete-alias",
+          "requiredPosition": "pos-49",
+          "detail": "expired",
+          "allocated": []
+        }
+      },
+      "terminalAt": "2026-09-08T19:06:00Z"
+    },
+    {
+      "id": "put-alias-sequence-replay",
+      "condition": "The same principal and key replay the already completed alias put through a one-member sequence. The carrier-neutral receipt projects its alias result in the inherited sequence shape; the locator transition does not execute again. Receipt terminalAt, where present, is narrated fixture metadata rather than a wire member.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "putAlias",
+              "idempotencyKey": "w1-put-alias",
+              "alias": "alias/release/latest",
+              "target": "beads/task-43"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/transactionalSequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "created",
+              "alias": "https://beads.example/acme/alias/release/latest",
+              "target": "https://beads.example/acme/beads/task-43"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "put-alias-sequence-expired",
+      "condition": "The same alias key is replayed through sequence after its completed receipt detail expired. The alias put allocated no Resource identity despite its original created outcome, so the idempotency-expired member omits allocated.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "putAlias",
+              "idempotencyKey": "w1-put-alias",
+              "alias": "alias/release/latest",
+              "target": "beads/task-43"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-49"
+        },
+        "schema": "#/$defs/transactionalSequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "type": "https://github.com/gastownhall/bdp/problems/gone",
+              "code": "idempotency-expired",
+              "status": 410,
+              "retry": "never"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

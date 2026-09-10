@@ -12,14 +12,53 @@ export function profileIncludes(
   return claimedRank >= requiredRank;
 }
 
-/** All catalog entries applicable to a claimed profile, preserving catalog order. */
+/**
+ * The ids every applicable row of the claimed profile retires. A retired row
+ * is a lower-profile obligation the higher profile contradicts, so the claim
+ * that includes the retiring row never inherits it; a claim below the
+ * retiring row's profile keeps it. The retired rows may live in another
+ * catalog file, so a caller that selects across profiles concatenates the
+ * catalogs before selecting.
+ */
+export function retiredScenarioIds(
+  catalog: ScenarioCatalog,
+  claimedProfile: ProtocolProfile,
+): ReadonlySet<string> {
+  profileRank(claimedProfile);
+  const byId = new Map(catalog.scenarios.map((scenario) => [scenario.id, scenario]));
+  const retired = new Set<string>();
+  for (const scenario of catalog.scenarios) {
+    if (!profileIncludes(claimedProfile, scenario.requiredProfile)) continue;
+    for (const id of scenario.retires ?? []) {
+      const previous = byId.get(id);
+      if (
+        previous === undefined ||
+        scenario.kind !== "normative" ||
+        previous.kind !== "normative" ||
+        profileRank(scenario.requiredProfile) <= profileRank(previous.requiredProfile)
+      ) {
+        throw new RangeError(
+          `scenario '${scenario.id}' must retire a known normative row of a strictly lower profile: '${id}'`,
+        );
+      }
+      retired.add(id);
+    }
+  }
+  return retired;
+}
+
+/**
+ * All catalog entries applicable to a claimed profile, preserving catalog
+ * order and excluding every row an applicable row retires.
+ */
 export function selectApplicableScenariosForProfile(
   catalog: ScenarioCatalog,
   claimedProfile: ProtocolProfile,
 ): readonly ScenarioMetadata[] {
-  profileRank(claimedProfile);
-  return catalog.scenarios.filter((scenario) =>
-    profileIncludes(claimedProfile, scenario.requiredProfile),
+  const retired = retiredScenarioIds(catalog, claimedProfile);
+  return catalog.scenarios.filter(
+    (scenario) =>
+      profileIncludes(claimedProfile, scenario.requiredProfile) && !retired.has(scenario.id),
   );
 }
 

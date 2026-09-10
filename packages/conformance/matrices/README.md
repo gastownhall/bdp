@@ -793,3 +793,19 @@ committed-cohort positive tests rejecting current manifest-byte drift and requir
 re-sealing. The artifact and constant are unchanged. Genuine regeneration, refreshed
 all-green evidence gates and current-head review belong to the coordinator before
 publication or any new claim; this source fold is not a successor cohort.
+
+
+### Write-profile catalog composition (draft, T48; council 13)
+
+The Read+Update and Transactional catalog files are profile deltas, not
+standalone catalogs for claiming cumulative profiles. A write-profile
+artifact bundle's single `catalog` MUST contain the applicable lower-profile
+rows as well as the higher-profile rows, with unique IDs. For Transactional,
+combine the Read, Read+Update and Transactional scenario arrays before
+building the bundle; the bundle model itself remains a single catalog.
+Selection validates each applicable retirement against this combined catalog:
+only a normative row may replace a known normative row of a strictly lower
+profile. Missing retirement targets are an invalid bundle, not permission to
+silently drop proof obligations. The runner passes that already-composed
+catalog to selection. No write-profile manifest, runner realization or
+conformance evidence exists yet; the sealed Read bundle is unchanged.

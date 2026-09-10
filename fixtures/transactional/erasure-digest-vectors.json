@@ -1,0 +1,154 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-erasure-digest-vectors",
+  "description": "Interoperability vectors for the sha-256-jcs erasure digest, recorded from the packet's sanity script: each vector gives a served version record, its RFC 8785 (JCS) serialization — member names in UTF-16 code-unit order, numbers in ES6 form, non-ASCII characters literal, control characters escaped — and the SHA-256 of that serialization. The repository carries no RFC 8785 serializer, so the lockstep test recomputes the digest from the recorded serialization and checks that the serialization parses to the record; it does not recompute the canonicalization. Illustrative vectors; not evidence.",
+  "vectors": [
+    {
+      "label": "task-42-r7",
+      "record": {
+        "id": "https://beads.example/acme/beads/task-42",
+        "type": "https://work.example/types/task",
+        "revision": "task-42-r7",
+        "properties": {
+          "title": "Specify BDP mutation",
+          "status": "open"
+        }
+      },
+      "jcs": "{\"id\":\"https://beads.example/acme/beads/task-42\",\"properties\":{\"status\":\"open\",\"title\":\"Specify BDP mutation\"},\"revision\":\"task-42-r7\",\"type\":\"https://work.example/types/task\"}",
+      "sha256": "5c9db2f807bbed90617ec1a01f3c4c86e44967c703bf6e480ca97c2ce4fae832"
+    },
+    {
+      "label": "task-42-r8",
+      "record": {
+        "id": "https://beads.example/acme/beads/task-42",
+        "type": "https://work.example/types/task",
+        "revision": "task-42-r8",
+        "properties": {
+          "title": "Specify BDP mutation",
+          "status": "cited"
+        }
+      },
+      "jcs": "{\"id\":\"https://beads.example/acme/beads/task-42\",\"properties\":{\"status\":\"cited\",\"title\":\"Specify BDP mutation\"},\"revision\":\"task-42-r8\",\"type\":\"https://work.example/types/task\"}",
+      "sha256": "f51ab17bca9039a933d2780986bbc02d3efacae2e4dc372c9c26fe3646543677"
+    },
+    {
+      "label": "9c1e-r1",
+      "record": {
+        "id": "https://beads.example/owned-erasure/links/9c1e",
+        "type": "https://work.example/types/cites",
+        "revision": "9c1e-r1",
+        "attribution": {
+          "principal": "agent:planner",
+          "status": "claimed"
+        },
+        "source": "https://beads.example/owned-erasure/beads/dec-9",
+        "target": "https://beads.example/owned-erasure/beads/task-42",
+        "properties": {
+          "role": "evidence"
+        }
+      },
+      "jcs": "{\"attribution\":{\"principal\":\"agent:planner\",\"status\":\"claimed\"},\"id\":\"https://beads.example/owned-erasure/links/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"source\":\"https://beads.example/owned-erasure/beads/dec-9\",\"target\":\"https://beads.example/owned-erasure/beads/task-42\",\"type\":\"https://work.example/types/cites\"}",
+      "sha256": "5e34ceb5dabdca08822ee32862214e9c92de6c2c395fc63964c97fded50030a3"
+    },
+    {
+      "label": "2d4f-r1",
+      "record": {
+        "id": "https://beads.example/acme/links/2d4f",
+        "type": "https://work.example/types/relates",
+        "revision": "2d4f-r1",
+        "source": "https://beads.example/acme/beads/task-43",
+        "target": {
+          "uri": "https://github.example/issues/123",
+          "revision": "8f0e2b"
+        },
+        "properties": {}
+      },
+      "jcs": "{\"id\":\"https://beads.example/acme/links/2d4f\",\"properties\":{},\"revision\":\"2d4f-r1\",\"source\":\"https://beads.example/acme/beads/task-43\",\"target\":{\"revision\":\"8f0e2b\",\"uri\":\"https://github.example/issues/123\"},\"type\":\"https://work.example/types/relates\"}",
+      "sha256": "a1997ba742b515687a1fea7949b82e4276e1381ba6f110a86831514cc3fb4a78"
+    },
+    {
+      "label": "dec-9-r2",
+      "record": {
+        "id": "https://beads.example/owned-erasure/beads/dec-9",
+        "type": "https://work.example/types/decision",
+        "revision": "dec-9-r2",
+        "attribution": {
+          "principal": "agent:planner",
+          "status": "claimed"
+        },
+        "properties": {
+          "title": "Adopt owned Links",
+          "status": "proposed"
+        },
+        "ownedLinks": {
+          "https://work.example/types/cites": [
+            {
+              "id": "https://beads.example/owned-erasure/links/9c1e",
+              "type": "https://work.example/types/cites",
+              "revision": "9c1e-r1",
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              },
+              "source": "https://beads.example/owned-erasure/beads/dec-9",
+              "target": "https://beads.example/owned-erasure/beads/task-42",
+              "properties": {
+                "role": "evidence"
+              }
+            }
+          ]
+        }
+      },
+      "jcs": "{\"attribution\":{\"principal\":\"agent:planner\",\"status\":\"claimed\"},\"id\":\"https://beads.example/owned-erasure/beads/dec-9\",\"ownedLinks\":{\"https://work.example/types/cites\":[{\"attribution\":{\"principal\":\"agent:planner\",\"status\":\"claimed\"},\"id\":\"https://beads.example/owned-erasure/links/9c1e\",\"properties\":{\"role\":\"evidence\"},\"revision\":\"9c1e-r1\",\"source\":\"https://beads.example/owned-erasure/beads/dec-9\",\"target\":\"https://beads.example/owned-erasure/beads/task-42\",\"type\":\"https://work.example/types/cites\"}]},\"properties\":{\"status\":\"proposed\",\"title\":\"Adopt owned Links\"},\"revision\":\"dec-9-r2\",\"type\":\"https://work.example/types/decision\"}",
+      "sha256": "84d844516ff305e9ad934aa120bbbcfd0d4faec51c7e1e5fe3d0f3da07cc2051"
+    },
+    {
+      "label": "vec-1-r1",
+      "record": {
+        "id": "https://beads.example/acme/beads/vec-1",
+        "type": "https://work.example/types/task",
+        "revision": "vec-1-r1",
+        "properties": {
+          "big": 1e21,
+          "count": 100,
+          "largest": 9007199254740991,
+          "negativeZero": 0,
+          "ratio": 0.1,
+          "tiny": 1e-7,
+          "whole": 1
+        }
+      },
+      "jcs": "{\"id\":\"https://beads.example/acme/beads/vec-1\",\"properties\":{\"big\":1e+21,\"count\":100,\"largest\":9007199254740991,\"negativeZero\":0,\"ratio\":0.1,\"tiny\":1e-7,\"whole\":1},\"revision\":\"vec-1-r1\",\"type\":\"https://work.example/types/task\"}",
+      "sha256": "f025bb14be7c25892c79db7e1ffbd1328789f8a4f93759fbe9ffaf53e5c60a4b"
+    },
+    {
+      "label": "vec-2-r1",
+      "record": {
+        "id": "https://beads.example/acme/beads/vec-2",
+        "type": "https://work.example/types/task",
+        "revision": "vec-2-r1",
+        "properties": {
+          "Z": "\"quoted\" \\ back",
+          "a": "line\nbreak\ttab",
+          "é": "café",
+          "😀": "emoji"
+        }
+      },
+      "jcs": "{\"id\":\"https://beads.example/acme/beads/vec-2\",\"properties\":{\"Z\":\"\\\"quoted\\\" \\\\ back\",\"a\":\"line\\nbreak\\ttab\",\"é\":\"café\",\"😀\":\"emoji\"},\"revision\":\"vec-2-r1\",\"type\":\"https://work.example/types/task\"}",
+      "sha256": "135fbc96c7deb12207e0b0321ac97686a77d40cf1cf07c75eb730b67d96b9d06"
+    },
+    {
+      "label": "rel-5-r1",
+      "record": {
+        "id": "https://beads.example/acme/links/rel-5",
+        "type": "https://work.example/types/relates",
+        "revision": "rel-5-r1",
+        "source": "https://beads.example/acme/beads/task-43",
+        "target": "https://beads.example/acme/beads/task-44",
+        "properties": {}
+      },
+      "jcs": "{\"id\":\"https://beads.example/acme/links/rel-5\",\"properties\":{},\"revision\":\"rel-5-r1\",\"source\":\"https://beads.example/acme/beads/task-43\",\"target\":\"https://beads.example/acme/beads/task-44\",\"type\":\"https://work.example/types/relates\"}",
+      "sha256": "818526cfc51ba7e4efcb8b77e78b97f570a19d90411e4bfb8984baa947bfa784"
+    }
+  ]
+}

@@ -1,0 +1,2056 @@
+{
+  "catalogVersion": 1,
+  "scenarios": [
+    {
+      "id": "transactional.discovery.document",
+      "title": "Transactional discovery has the exact required history and replication members",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "The history, receipt, snapshot, changefeed, and Event members are required only in Transactional and prohibited in both lower profiles."
+        }
+      ],
+      "retires": ["read-update.discovery.document"]
+    },
+    {
+      "id": "transactional.discovery.operation-directory",
+      "title": "The Transactional Operation Directory lists all twelve targets",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "The discovered `operations/` Resource is a directory of the generic mutation targets available under the Scope's profile."
+        }
+      ],
+      "retires": ["read-update.discovery.operation-directory"]
+    },
+    {
+      "id": "transactional.discovery.limits",
+      "title": "Transactional discovery may advertise the transaction group and receipt and replay retention",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#advertised-limits",
+          "selectedText": "`retention.idempotency`, `retention.receipt`, `retention.maximumSnapshotLifetime`, and `retention.replay` are ISO 8601 durations."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#advertised-limits",
+          "selectedText": "`retention.receipt` bounds how long detailed outcomes and failed receipts remain"
+        }
+      ],
+      "retires": ["read-update.discovery.limits"]
+    },
+    {
+      "id": "transactional.discovery.no-idempotency-retention",
+      "title": "Transactional discovery never advertises retention.idempotency",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#advertised-limits",
+          "selectedText": "a Transactional discovery document MUST NOT advertise it"
+        }
+      ],
+      "retires": ["read-update.idempotency.retention-minimum"]
+    },
+    {
+      "id": "transactional.batch.atomic-commit",
+      "title": "A multi-operation batch commits atomically with ordered postimages",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "executes atomically, so every operation commits or none do;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Created and updated results carry complete postimages — the full Resource state after the change — and revisions."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.local-references",
+      "title": "Batch-local labels bind staged identity, including as Link endpoints and inside pins",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "In a Resource-reference member, a string beginning with `@` refers to the Resource created by the preceding operation with that name."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "A Pinned Reference whose `uri` is an `@label` is accepted"
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.rollback",
+      "title": "A failing operation rolls back the complete batch into a failed receipt",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "The receipt contains no committed operation results because the complete transaction is rolled back. Retrying returns that same failed receipt."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.label-errors",
+      "title": "Forward, unknown, duplicate, and wrong-kind labels are rejected before admission",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "The service rejects forward references, unknown names, duplicate names, and Resource-kind mismatches."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.envelope-errors",
+      "title": "A batch without exactly one header key, or with a body or per-operation key, is malformed",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "A batch request carries exactly one required `Idempotency-Key` HTTP field; the JSON body does not repeat it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "A body-level `idempotencyKey`, a per-operation `idempotencyKey`, or any other undefined member makes the request malformed."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.pre-admission-precedence",
+      "title": "Pre-admission checks run bounds, syntax, principal, key, then admission controls, and never consult key state for an invalid request",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "A syntactically invalid request therefore never consults key state, and a retained or pending duplicate negotiates its receipt representation before limits and rate limits are evaluated"
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.transaction-limits",
+      "title": "Advertised transaction limits fail the whole transaction without partial effect",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#set-mutation",
+          "selectedText": "Exceeding a limit fails the operation without changing anything."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "If a set mutation would exceed that limit, the complete transaction fails before commit."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.duration-limit",
+      "title": "Exceeding transaction.duration is a permanent limit-exceeded failure naming the limit, not a transient abort",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Exceeding `transaction.duration` is permanent, not transient"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "A `limit-exceeded` problem SHOULD carry `limit`, the dotted name of the crossed limit under `limits`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.deletion-safety",
+      "title": "Deleting a Bead with live incident Links fails the transaction",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#explicit-bead-operations",
+          "selectedText": "`DeleteBead` fails if any live Link is incident upon (attached to) the Bead when the operation is reached."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.owned-link-transitions",
+      "title": "Several owned-Link transitions of one source in one batch mint one source version and one updated Event each, in operation order, each carrying its attribution",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "Every mutation of an owned Link versions the source Bead."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "produces one `updated` Event per transition, each with its own `previousRevision` and `revision`, in operation order."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.no-op-entries",
+      "title": "A no-op update reports updated at the retained revision, and an all-no-op transaction completes without a group or effectPosition",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#change-groups-and-replication",
+          "selectedText": "A failed or admitted no-effect mutation produces no group and no new position. Its receipt reports the current `requiredPosition` and omits `effectPosition`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "a transaction all of whose operations are no-ops is an admitted no-effect mutation: it completes, produces no group, and its receipt omits `effectPosition`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.revision-guard-race",
+      "title": "Racing guarded updates serialize into one success and one revision-mismatch",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "The authority applies the operation only if the Resource still has that revision. A mismatch fails the complete Mutation Transaction."
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.aggregate-constraint-race",
+      "title": "Racing Link creations cannot jointly cross a maximum multiplicity",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-aggregate-constraints",
+          "selectedText": "Authorities MUST produce serializable outcomes when concurrent mutations could cross a maximum."
+        }
+      ]
+    },
+    {
+      "id": "transactional.set.mutation",
+      "title": "Set mutation mutates the complete matched set and reports flat entries in canonical-uri order",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#set-mutation-objects",
+          "selectedText": "Set mutation is never paginated: the service either mutates the complete matched set atomically or fails before commit."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "A set operation produces one `matched` entry carrying `count`, the number of Resources it selected, followed by one `updated` or `deleted` entry per selected Resource in ascending code-unit order of their canonical `id`s"
+        }
+      ]
+    },
+    {
+      "id": "transactional.set.zero-match",
+      "title": "A zero-match set operation reports matched 0 and induces no Events",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "A zero-match operation produces no Events."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "a zero-match operation produces its `matched` entry with `count` `0` and nothing else."
+        }
+      ]
+    },
+    {
+      "id": "transactional.set.cardinality",
+      "title": "A matched count outside the supplied cardinality fails the transaction with cardinality-violated",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#set-mutation",
+          "selectedText": "If the matched count falls outside a supplied range, the complete transaction fails."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "`cardinality-violated`: a set operation's matched count is outside its `cardinality`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.set.singleton-targets",
+      "title": "The update-where and delete-where singleton targets accept the set-operation body without the discriminator and return receipts",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "for the two set targets, `updateWhereRequest` and `deleteWhereRequest`, the set-operation members without `operation`; each executes as a one-operation Mutation Transaction and returns its receipt."
+        }
+      ]
+    },
+    {
+      "id": "transactional.set.attribution-fanout",
+      "title": "A set mutation's attribution is recorded on every version it mints, owned sources included",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#set-mutation",
+          "selectedText": "An `attribution` supplied to a set mutation fans out exactly as the corresponding singleton operations would record it"
+        }
+      ]
+    },
+    {
+      "id": "transactional.singleton.receipt",
+      "title": "Singleton targets execute one-operation transactions and return receipts under the batch statuses",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "The request executes as a one-operation Mutation Transaction."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "Singleton operation targets on a Transactional Scope use exactly these statuses and rules"
+        }
+      ],
+      "retires": ["read-update.singleton.result-headers"]
+    },
+    {
+      "id": "transactional.singleton.semantics",
+      "title": "A singleton and the equivalent one-operation batch have identical allocation, validation, idempotency, and Event semantics",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "Within the Transactional profile, the singleton and batch forms have identical allocation, patch, validation, authorization, idempotency, concurrency, event, and deletion semantics."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.readable",
+      "title": "Receipts are independently readable with GET and HEAD",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipts",
+          "selectedText": "The receipt remains independently readable, so a client can resolve a lost response, a pending duplicate, or a paginated result."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.pagination",
+      "title": "Large set results continue through immutable pages bounded by page.maximumItems, every entry counting as one",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Otherwise the response contains the first page and an absolute `next` URL for another immutable page of the same receipt."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "`page.maximumItems`, when advertised, bounds the entries in the receipt's inline `results` and in each page, every entry counting as one whatever its outcome"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.page-expiry",
+      "title": "A page URL returns 410 cursor-expired after detail expiry, decided after authentication and non-disclosure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "After the receipt's detail expires, a page URL returns `410` `cursor-expired`, decided after authentication and the receipt's non-disclosure rule."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.nondisclosure",
+      "title": "Unknown, foreign-principal, retracted, forgotten, and prior-epoch receipt URLs share one 404",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipts",
+          "selectedText": "Receipt access is principal-bound: possessing its URL does not grant access."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "receipts are principal-bound, and they are not an enumeration oracle."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.root",
+      "title": "The receipts root is a namespace with no listing or key lookup",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "BDP v0 defines no receipt listing and no lookup by key, and a `GET` of the root returns `404` `resource-not-found`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.headers",
+      "title": "Receipt responses carry the serving request's observation in the response fields and the execution's facts in the body",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "The recorded `requiredPosition` remains evidence about the original view; it is not a valid minimum-read checkpoint for the replacement view."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "The three Transactional response fields on a receipt or page response are the serving request's own observation, never the body's history"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.reauthorization",
+      "title": "A view change withholds record-bearing entries under owned closure without changing the disposition",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Reading the receipt after such a change returns its unchanged identity and disposition, but the detailed `results` and problem information are re-authorized under the caller's current view."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "hiding a Bead hides the entries of every Bead that owns a Link to it and of those Links."
+        }
+      ],
+      "retires": ["read-update.idempotency.authorization-view"]
+    },
+    {
+      "id": "transactional.receipt.reauthorization-paths",
+      "title": "The synchronous response, a duplicate's response, later reads, pages, and sequence projections share one authorization projection",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Every delivery of a receipt — the synchronous response, the response to a duplicate, a later `GET` or `HEAD`, every page, and the projection of a member's receipt into a sequence response — is one representation"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.non-record-entries",
+      "title": "Matched counts, deleted and erased identities, withheld entries, and failed problems are served as retained",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Entries that carry no record — `matched` counts, `deleted` and `erased` identities, and `withheld` entries — and a `failed` receipt's `problem` are the transaction's own execution facts, disclosed to the principal when it executed, and are served as retained."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.whole-withheld",
+      "title": "A completed receipt whose every entry is withheld reports detail withheld; a failed receipt is never withheld",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "When a `completed` receipt's every entry is withheld, the receipt carries `detail` `withheld` and neither `results`, `next`, nor `allocated`; a `failed` receipt is never `withheld`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.pending-202",
+      "title": "The original submission receives 202 only past the wait bound; a duplicate may receive it any time before terminal",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "`202 Accepted` with the `pending` Mutation Receipt: to the original submission only when the transaction is still executing at the wait bound, and to an identical duplicate that the authority answers before the transaction is terminal."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.deleted-identity",
+      "title": "A deleted entry carries the identity record with the final live revision",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "or `deleted`, carrying `deleted`, the deleted Resource's identity record — `resourceKind` and `resource`, holding `id`, `type`, and final live `revision`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.owned-link-source",
+      "title": "Owned-Link entries carry source and sourceRevision together on creation, update, and deletion",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "An entry for an operation on an owned Link additionally carries `source`, the source Bead's canonical URL, and `sourceRevision`, the source Bead's resulting revision, on creation, update, and deletion alike"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.problem-shape",
+      "title": "A receipt problem carries the would-be status, the failing operationIndex, and a request-body pointer",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "It carries the code's `status` — the HTTP status the failure would have had as a direct response, required because the enclosing status is `200 OK` — and `operationIndex`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "the problem carries `pointer`, an RFC 6901 JSON Pointer into the request body as submitted"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.transaction-level-failure",
+      "title": "A transaction-wide failure omits operationIndex rather than fabricating one",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "omits `operationIndex` rather than fabricating one."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.validation-diagnostics",
+      "title": "A validation-failed receipt problem carries the Read+Update diagnostics and truncation marker",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "A `validation-failed` problem carries `diagnostics` and, when it truncated them, `diagnosticsTruncated`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.no-transient-failure",
+      "title": "No failed receipt ever carries temporarily-unavailable",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "A `failed` receipt never carries `temporarily-unavailable`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.expiry-allocated",
+      "title": "An expired receipt keeps its disposition, positions, and allocated identities and never re-executes",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipts",
+          "selectedText": "A later retry returns an outcome-expired result and never executes the mutation as new."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "An `expired` `completed` receipt therefore carries `allocated`: one entry per creation operation in operation order"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.retention-minimum",
+      "title": "expiresAt is no earlier than the terminal instant plus an advertised retention.receipt",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "when discovery advertises `retention.receipt`, it MUST be no earlier than the terminal instant plus that duration."
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.concurrent-join",
+      "title": "Concurrent identical requests join one execution and one receipt",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Concurrent requests with the same key and the same semantic request join one execution. A duplicate may wait for the terminal response or receive the same pending receipt. Either way, it never executes again."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "For direct carriers, handing a duplicate a receipt presupposes established semantic equality. A request that encounters an unresolved reservation follows the bounded comparison rules below."
+        }
+      ],
+      "retires": ["read-update.idempotency.in-progress"]
+    },
+    {
+      "id": "transactional.idempotency.conflict",
+      "title": "A reused key with different semantics is refused without execution for as long as the key is bound",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Reusing the key for a different semantic request is an idempotency conflict."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A request with the same key and a different normalized request is refused before admission with `409` `idempotency-conflict` for as long as the key is bound"
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.semantic-identity",
+      "title": "Semantic identity excludes name and the carrier, normalizes labels to the creator's index or supplied identity, and includes pins, attribution, guards, and order",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "In a batch, a `@label` reference is normalized to the creating operation's zero-based index when that operation supplies no `id`, and to the supplied identity's canonical URL when it does"
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.cross-carrier",
+      "title": "A one-operation batch, the equivalent singleton, and the equivalent sequence member present one semantic request and share one receipt",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A one-operation batch, the equivalent singleton request, and the equivalent sequence member therefore present one semantic request, and any of them retrieves the receipt the others created."
+        }
+      ],
+      "retires": ["read-update.singleton.idempotent-retry"]
+    },
+    {
+      "id": "transactional.idempotency.key-grammar",
+      "title": "Keys are bare checkpoint-profile tokens compared byte-exactly, and an absent, repeated, or invalid key is malformed",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "carry the same case-sensitive `[A-Za-z0-9_-]{1,256}` token, bare, compared byte-exactly; a request whose key is absent, repeated, or outside the grammar is malformed."
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.expired-detail",
+      "title": "A retry after detail expiry receives the expired receipt with 200 and never re-executes",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "An identical retry after expiry returns the `expired` receipt with `200 OK` and never executes the mutation again."
+        }
+      ],
+      "retires": ["read-update.idempotency.expired"]
+    },
+    {
+      "id": "transactional.idempotency.transient-abort",
+      "title": "A transient abort after admission retracts the pending receipt, unbinds the key, answers 503, and a retry executes anew",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "A transient abort after admission — a serialization conflict the authority does not retry, or a component it cannot reach — retracts the pending receipt and unbinds the key in one durable step"
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.failed-retained",
+      "title": "A failed receipt is retained for at least retention.receipt and a retry returns it; once forgotten, its URL answers 404 and its key executes anew",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A `failed` receipt — disposition and detail alike — is retained under its key for at least `retention.receipt` after it becomes terminal"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Once the authority forgets it, its URL answers the uniform `404` as a retracted receipt's does, and its key is unknown"
+        }
+      ],
+      "retires": ["read-update.idempotency.expired-failure"]
+    },
+    {
+      "id": "transactional.idempotency.durable-admission",
+      "title": "Admission records key, identity, pending receipt, transaction identity, and ownership as one durable step",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "The authority records the key, the normalized request identity or the durable unresolved dependency form below, the `pending` Mutation Receipt with its `transaction` identity, and its own exclusive ownership of the execution together or not at all"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "From that point\nclient disconnection, a transport failure, and a bodyless `500` decide\nnothing"
+        }
+      ],
+      "retires": ["read-update.sequence.internal-fault"]
+    },
+    {
+      "id": "transactional.idempotency.ownership-fencing",
+      "title": "A commit succeeds only while the committing execution owns the pending receipt; a fenced execution produces no group",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "the Resource state, the change group, and the terminal receipt commit atomically only while the committing execution still owns the receipt"
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.pending-recovery",
+      "title": "After a crash every uncommitted pending receipt is retracted within the bound; an older pending receipt is a conformance failure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "a `pending` receipt older than the bound is a conformance failure."
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.one-key-state",
+      "title": "Every mutation route consults one authoritative key state",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "two routes MUST NOT each treat the same key as unknown."
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.member-transactions",
+      "title": "Each sequence member is a one-operation transaction with its own receipt, admitted in declaration order, in an unchanged envelope",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Each member is a one-operation Mutation Transaction: the sequence's admission admits every member whose key is unknown, in declaration order, recording a pending receipt for each"
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.completed-projection",
+      "title": "A completed member projects its receipt's one entry in the Read+Update result shape",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "a `completed` receipt with its detail available projects the receipt's one result entry in the shape of"
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.in-flight-projection",
+      "title": "A member whose key is bound to a pending receipt projects a transient idempotency-in-progress problem without waiting or retaining",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "projects as an `idempotency-in-progress` member problem, which MAY carry `retryAfter`; the sequence does not wait, executes nothing for the member, and retains nothing"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "These sequence projections take precedence over static semantic comparison: a member owned by another pending execution remains `idempotency-in-progress`, and a dependent of a pending or transient creator consults no dependent key, even if an immutable field could establish a mismatch."
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.expired-projection",
+      "title": "A member whose receipt detail expired projects idempotency-expired carrying the allocated identity of a creation",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "a receipt whose detail expired projects as an `idempotency-expired` member problem carrying, for a `completed` Resource creation, the extension member `allocated`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.pending-creator",
+      "title": "A dependent whose creator is pending or transient fails transiently and holds no key",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "a member whose creator's receipt is `pending`, or whose creator was answered transiently in this request, fails transiently with `idempotency-in-progress`, consults no key state, executes nothing, retains nothing, and holds no key"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A transient dependent releases only a reservation newly owned by this attempt; it MUST NOT retract another owner's receipt or retained outcome."
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.failed-creator",
+      "title": "A dependent whose creator's receipt is failed fails with binding-unavailable in its own failed receipt",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "a member whose `@name` creator's receipt is `failed` fails with `binding-unavailable` in its own `failed` receipt"
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.member-reauthorization",
+      "title": "A withheld entry projects as a forbidden member problem and an erased one as resource-erased to an authorized caller",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "an entry the current view withholds projects as the `forbidden` member problem of"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "an entry whose version was erased projects as a `resource-erased` member problem to a caller authorized for the subject's retained history and as `forbidden` to every other caller"
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.owned-link-delta",
+      "title": "Owned-Link mutations emit source updated Events carrying exactly one ownedLink delta",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "An owned-Link change produces an `updated` Event on the source Bead with its fresh revision"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "Exactly one of the two members is present in any `updated` delta."
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.owned-link-update-delta",
+      "title": "An updated owned-Link transition carries the Link's delta, not its record",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "For `updated`, it is the owned Link's delta — the Link's `id` and `type`, its `previousRevision` and fresh `revision`, the committed `change`, and the Link's new version's `attribution` when one was recorded"
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.owned-link-deleted-identity",
+      "title": "A deleted owned-Link transition carries the Link's identity with its final live revision",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "For `deleted`, it is the deleted Link's identity — `id`, `type`, and its final live `revision` — because deletion mints no Link version and a deleted Event does not retain properties."
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.fact-order",
+      "title": "One owned-Link operation's facts are ordered lifecycle, graph facts source before target, then the source's updated fact",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "the Link's lifecycle fact first, then the graph facts at its in-Scope endpoints, source before target"
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.no-op-owned-update",
+      "title": "A no-op owned-Link update versions neither the Link nor the source and emits no Event",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "retains the Link's revision and emits no Event, and it does not version the source"
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.graph-facts",
+      "title": "Link lifecycle produces linked and unlinked facts at every in-Scope endpoint",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "Link creation produces a `created` fact about the Link and a `linked` fact at each in-Scope endpoint Bead. Link deletion produces a `deleted` fact about the Link and an `unlinked` fact at each in-Scope endpoint Bead."
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.self-link",
+      "title": "A self-Link's one endpoint receives a source fact and a target fact in the same group",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "For a self-Link, whose source and target are the same Bead, that one endpoint Bead receives two graph facts in the same group: one whose `endpoint` is `source` and one whose `endpoint` is `target`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.set-expansion-order",
+      "title": "A set operation's induced facts and receipt entries follow canonical-uri order",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#events-and-event-sources",
+          "selectedText": "the selected Resources expand in ascending code-unit order of their canonical `id`s"
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.history-expired",
+      "title": "event-history-expired is disclosed only to a principal authorized for the subject's retained history",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "an authority may return `410` `event-history-expired` only to a principal authorized for that subject's retained history and only when its policy permits disclosing that the history elapsed."
+        }
+      ]
+    },
+    {
+      "id": "transactional.event.cursor-after-withheld",
+      "title": "A cursor naming a withheld Event remains a valid exclusive after position, and eventCount counts served Events",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "every served Event's cursor stays valid, a cursor whose Event was withheld remains a valid exclusive `after` position, and a group's `eventCount` counts the Events it serves"
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.group",
+      "title": "Change groups carry normalized postimages and ordered Events behind one checkpoint",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "The client applies an entire group atomically and advances its durable cursor only to that group's `checkpoint`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.wire-form",
+      "title": "Every group carries changes, erasures, and events; a visible group carries transaction and at least one non-empty array",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "`changes`, `erasures`, and `events` are always present, and each is empty when the group carries nothing of its kind; a visible group carries at least one of the three non-empty."
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.sse",
+      "title": "SSE delivery frames one complete group per message",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "Accepting `text/event-stream` on the same Resource delivers one complete group per SSE message. The SSE `id` is the group's checkpoint, `event` is `change-group`, and `data` is the complete JSON group."
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.start-intent",
+      "title": "A changefeed read without an explicit starting intent is an error",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "Omitting both is an error. It never means “start at whatever history remains.”"
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.owned-link-agreement",
+      "title": "A group carries the owned Link's and the source's postimages, and their inline and first-class records agree",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#change-groups-and-replication",
+          "selectedText": "The two entries describe one graph: the inline record in the source's postimage and the Link's own postimage are member-for-member equal, and a consumer verifies that agreement before applying the group"
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.consistency-fields",
+      "title": "Scope-bounded responses carry epoch, view, and position, and honor minimum positions",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "It never reports success with an older position."
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.catch-up-timeout",
+      "title": "A minimum-position read that cannot be served within the wait bound fails with catch-up-timeout",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "`catch-up-timeout`: a read carrying `BDP-Minimum-Scope-Position` could not be served at or after that position within the authority's wait bound"
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.replay-window",
+      "title": "Late, foreign-epoch, and foreign-view cursors fail explicitly",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#snapshots-and-strict-reads",
+          "selectedText": "A cursor presented too late, from another Scope epoch, or from another Authorization View fails explicitly and never silently skips history."
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.sse-reconnect",
+      "title": "SSE reconnection uses the durable applied checkpoint with header precedence",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "On automatic reconnect, `Last-Event-ID` overrides the original `after` value."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "A checkpoint supplied for changefeed reconnect, whether through `Last-Event-ID` or `after`, MUST be the client's durable checkpoint under the atomic-application rule above."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "An SSE implementation's remembered last-event ID records transport progress, not durable application; the client MUST NOT let an unapplied last-event ID override its durable checkpoint on reconnect."
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.projection-advance",
+      "title": "A hidden transaction projects an identifier-free advance",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#change-groups-and-replication",
+          "selectedText": "For an invisible group, `projectionAdvance` is true, `transaction` is absent, and `changes`, `erasures`, and `events` are empty."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-changefeed",
+          "selectedText": "A projection advance carries `projectionAdvance` `true`, no `transaction`, `eventCount` `0`, and three empty arrays."
+        }
+      ]
+    },
+    {
+      "id": "transactional.changefeed.owned-closure",
+      "title": "Feeds and Event Sources project owned Links with their visible source",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "An Authorization View that projects a Bead projects its owned Links and their in-Scope target Beads: a view is closed over owned Links, and hiding a Bead from a view therefore requires hiding every Bead that owns a Link to it."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.rendezvous",
+      "title": "A snapshot checkpoint continues losslessly into the changefeed",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "`checkpoint` is the opaque, epoch-qualified value that is supplied as the exclusive `after` cursor to the Scope changefeed."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.closed-projection",
+      "title": "A snapshot is a closed projection whose inline and first-class owned-Link records agree; a disagreeing snapshot is rejected",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "a snapshot in which an inline owned Link and its first-class record disagree, or in which a Link's in-Scope endpoint is absent, is invalid, and the replica discards it and fetches a new one rather than choosing an authoritative stream."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.expiry",
+      "title": "A snapshot stays continuable through expiresAt, and a page it cannot serve before then is a service failure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "The authority keeps the snapshot continuable through `expiresAt`. If the authority cannot serve a page before then, that is a service failure, not an expired-cursor result."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.erasure-ledger",
+      "title": "Every snapshot manifest carries the erasure ledger projected for its view",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "Every snapshot manifest carries `erasures`, the ledger projected for the manifest's view — each record whose subject was observable in that view"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.record-digest",
+      "title": "Erasure records propagate with a verifiable sha-256-jcs digest",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "An erasure occupies its own Scope position, carried by the Change Group's `erasures` member as an **erasure record**: the subject's canonical Resource URL, the erased `revision`, and a digest of the erased version record taken before erasure"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "BDP v0 defines exactly one scheme, `sha-256-jcs`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.digest-domain",
+      "title": "BDP JSON follows the number model, so every record has one canonical serialization, and digest computation never gates erasure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#bdp-json-and-http-protocol",
+          "selectedText": "Every JSON text BDP admits or emits follows the number model defined under"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "Digest computation never gates erasure"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.historical-version",
+      "title": "Erasing a historical version commits no state change and induces no Event",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "An erasure-only group, one that erases historical versions and commits nothing, carries empty `changes` and `events`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.live-successor",
+      "title": "A live-version erasure commits its successor in the same group; a property correction carries the content-free root-replace delta, an owned-Link-induced source successor carries only `ownedLink`, and the successor differs in the durable state that determines its revision",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "The correction case commits the erasure record and the successor's `StateChange` in one atomic group at one position."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "The successor MUST differ in the durable state that determines its"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "For the owning Bead's successor induced by an owned Link's correction or deletion, its `updated` fact instead carries only `ownedLink`, never both delta forms."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.live-tombstone",
+      "title": "A live-version erasure with a tombstone is an administrative deletion under deletion safety, inducing the ordinary facts",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "Erasing a live version with a tombstone is an administrative deletion of the Resource."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.owned-link-cascade",
+      "title": "Erasing an owned Link's version erases every source version that inlined it, one record each",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "the authority emits one erasure record per erased version in the same group, and each is applied on its own."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.event-withholding",
+      "title": "Event Sources withhold every Event whose data carries erased content, leaving ordinal gaps",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "withhold, from every Event Source it serves, every Event whose `data` carries erased content"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.graph-facts",
+      "title": "Graph facts are withheld exactly when every version of the Link that carried their endpoints is erased; deleted facts never are",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "which is the case exactly when every version of the Link that carried them is erased, since a Link's endpoints are immutable across its versions."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.receipts",
+      "title": "Receipts and pages stop serving an erased postimage at once, serving erased to authorized callers and withheld otherwise",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "an entry whose postimage is an erased version never carries the content again."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "it MUST be applied by every store, cache, and replica holding the version, and the changefeed is the vehicle that carries the obligation."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.replication-invalidation",
+      "title": "An erasure at P expires every checkpoint and snapshot anchored before P in the views that receive it",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "An erasure record committed at position P invalidates, in each view that receives it, every changefeed checkpoint and every snapshot anchored before P"
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.retention-non-propagation",
+      "title": "Retention removals do not propagate; a longer-window replica keeps what the authority dropped, while erasure reaches it",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "a replica with a longer window legitimately keeps what the authority dropped, and retention removals therefore do not propagate."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.restore",
+      "title": "After a restore the ledger is re-emitted at the new epoch's first positions and no prior-epoch group is served",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "After a restore into a new epoch the authority also re-emits the projected ledger as erasure-only groups at the new epoch's first positions, before any other group, and no group of the prior epoch is served under the new one."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.unestablishable-content",
+      "title": "A replica destroys retained content whose erasure status it cannot establish",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "A replica that retains content whose erasure status it cannot establish — content held under a view or epoch for which it can no longer obtain the ledger — MUST discard that content."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.view-projection",
+      "title": "An erasure record reaches only views that observed the subject",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "a view receives the record only when the subject Resource was observable in that view."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.reads",
+      "title": "Reads of an erased version disclose resource-erased without a pointer to authorized callers and 404 to everyone else",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "A `resource-erased` problem carries no condition-specific extension members beyond its ordinary problem members: even a pointer would disclose what erasure exists to remove."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.epoch-unrotated",
+      "title": "An erasure does not rotate the epoch; tokens anchored at or after it stay valid",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "An erasure does not rotate the Scope epoch: every token anchored at or after the erasure position remains exactly as valid as it was"
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.status-matrix",
+      "title": "Every mutation-surface target answers with exactly the statuses of the matrix",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "The Transactional mutation surface answers as follows; a row's statuses are exhaustive for that target and method, apart from the shared bodyless `406` negotiation refusal, GET/HEAD conditional `304` and `412`, and the bodyless `500` an unexpected internal fault produces anywhere."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.method-405",
+      "title": "Mutation targets answer non-POST methods with 405 and Allow: POST, with enabled CORS OPTIONS answered by the CORS rules",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Those profiles define their additional methods and `Allow` values."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "`405`, `Allow: POST` — plus `OPTIONS` when cross-origin access is enabled, in which case `OPTIONS` is answered by the CORS rules rather than `405` — and no BDP Problem body"
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.problem-table",
+      "title": "Every Transactional Problem preserves its status, family, code, and retry row",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "The code table for later-profile failures is completed with each later profile's schema bundle and conformance material."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "The Transactional profile inherits the Read table and the Read+Update rows above and adds three rows:"
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.problem-contexts",
+      "title": "Direct and receipt codes are disjoint contexts, and the Read+Update key dispositions never appear as direct problems",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "On a Transactional Scope every code occurs in one of two contexts, and the bundle closes each context to its codes."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.internal-fault",
+      "title": "A bodyless 500 or transport failure after admission decides nothing; the receipt records the disposition",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#batch-operation-target",
+          "selectedText": "client disconnection, a transport failure, and a bodyless `500` decide nothing: the transaction commits or fails on its own, the receipt records which"
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.disconnect-admitted",
+      "title": "A disconnect after admission does not decide the outcome",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Once a mutation is admitted, client disconnection does not decide the outcome. The authority commits or rolls back, and it records one terminal receipt."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.timestamps",
+      "title": "Every emitted instant is a valid RFC 3339 date-time with uppercase T and Z",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#bdp-json-and-http-protocol",
+          "selectedText": "is an RFC 3339 `date-time` written with uppercase `T` and `Z`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.ijson-strings-objects",
+      "title": "Unicode scalar strings and unique decoded member names are checked as carrier syntax before execution",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#bdp-json-and-http-protocol",
+          "selectedText": "These string and object violations are carrier syntax rejected before\nexecution with `malformed-request` in every profile."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.token-profile",
+      "title": "Epochs, view tokens, positions, transaction ids, receipt tokens, and keys use the checkpoint character profile; revisions do not",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-id-and-checkpoint-character-profile",
+          "selectedText": "Scope epochs, Authorization View tokens, Scope positions, transaction identifiers, and receipt tokens use this same profile"
+        }
+      ]
+    },
+    {
+      "id": "transactional.restore.epoch-fence",
+      "title": "A restore keeps canonical URLs and fences every prior-epoch token",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-history",
+          "selectedText": "Restoring the same logical Scope therefore preserves its canonical Scope and Resource URLs while rejecting every history-dependent token from the prior epoch."
+        }
+      ]
+    },
+    {
+      "id": "transactional.restore.key-namespace",
+      "title": "A prior-epoch key is unbound under the new epoch and executes anew, never as a replay",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A new epoch is a new namespace: a key first used under a prior epoch is unbound, and a retry under the new epoch executes as a new mutation, which a client that observes a changed `scopeEpoch` MUST treat as a first execution rather than a replay."
+        }
+      ],
+      "retires": ["read-update.idempotency.restore"]
+    },
+    {
+      "id": "transactional.alias.receipt",
+      "title": "Alias singletons use durable one-entry receipts with the ordinary key and replay rules",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-alias-mutations",
+          "selectedText": "A singleton `put-alias` or `delete-alias` on a Transactional Scope is a\none-operation Mutation Transaction."
+        }
+      ]
+    },
+    {
+      "id": "transactional.alias.locator-only",
+      "title": "Alias changes occupy no Scope position and appear in no Event, change group or snapshot",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-alias-mutations",
+          "selectedText": "Alias mutations occupy no Scope position, induce no Event, and appear in\nno change group or snapshot."
+        }
+      ]
+    },
+    {
+      "id": "transactional.alias.no-batch",
+      "title": "Alias operations are excluded from atomic batch membership",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-alias-mutations",
+          "selectedText": "`batch` admits no alias\noperation, so atomic create-plus-alias is unavailable."
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.withheld-allocation",
+      "title": "An expired creation projects the disclosed identity or exactly withheld true",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A completed Resource creation's expired projection MUST carry exactly one of\nthese forms; every other operation's expired projection MUST omit `allocated`"
+        }
+      ]
+    },
+    {
+      "id": "transactional.sequence.withheld-binding",
+      "title": "Withheld allocation preserves internal binding and independently authorizes every dependent",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Each dependent still undergoes ordinary\ncurrent authorization independently."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.live-publication",
+      "title": "Only already admitted caught-up streams in views receiving the erasure cross its atomic publication fence",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "Only such caught-up streams in a view receiving the erasure record receive the\ncomplete group at P; their server-side stream position then advances to P."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.disconnect-race",
+      "title": "Reconnect uses the atomically applied durable checkpoint and resnapshots when it precedes erasure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#version-erasure",
+          "selectedText": "The client advances its durable checkpoint\nonly after atomically applying the complete group."
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.unresolved-admission",
+      "title": "Atomic all-member admission preserves unresolved creator attempts and immutable terminal bindings",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "When a sequence member depends on an authority-allocated creation whose identity is not yet committed, admission MUST durably reserve that member's key and pending receipt together with all other unknown member keys in the same atomic admission step."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Its unresolved dependency form pins each reference to the particular creator attempt and operation slot, not merely to a reusable key or the spelling of a label."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "The authority MUST preserve enough pinned resolution state to resolve or retract every dependent even if the creator's failed receipt is later forgotten and its key reused."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A terminal dependent's normalized identity is immutable: a later creator attempt cannot rebind it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Atomic admission does not combine the sequence's separately committing member executions into one transaction."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "When its creator commits, the authority atomically records the binding fact with the creator's effects and terminal disposition; a dependent resolves only against that pinned fact."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "On a later presentation of the dependent, a successful new creator supplies an identity that conflicts with the retained unbound marker; another permanent creator failure normalizes to the same unbound marker when the remaining fields match."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Binding, retraction, and commit check the same exclusive attempt ownership; a stale execution cannot resolve or commit a replacement attempt's work"
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.unresolved-comparison",
+      "title": "Direct unresolved comparison uses a separate finite wait, proven conflict or receipt, and retryable 503 at its deadline",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "A direct singleton or batch that encounters an unresolved reservation MUST reject an already provable semantic mismatch with `409` `idempotency-conflict`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Otherwise it MUST wait for comparison to become possible, within one finite authority-selected comparison budget."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "This budget is separate from `transaction.duration`, which bounds admitted execution;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Until equality is established, this caller MUST NOT receive the owner's pending receipt, execute a second mutation, or retract the owner's reservation."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If comparison remains unresolved at the deadline, return direct `503` `temporarily-unavailable` with `retry: after-delay`; the response SHOULD carry `Retry-After` when a useful delay is known."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Once the reservation resolves, ordinary canonical comparison returns the existing receipt or the conflict."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting comparison or admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.retraction-retry",
+      "title": "A waiting direct request may win fresh admission in the same epoch without inheriting ownership or resetting its deadline",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If that unresolved reservation is retracted while the explicit direct request is waiting, the request MAY compete for fresh admission in the same Scope epoch, under current authorization and within the same overall finite deadline."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "It executes only after winning a new reservation for its own request; it inherits neither the previous attempt's ownership, receipt identity, nor unresolved dependency form."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "Retraction or a change of owner MUST NOT reset the deadline."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-transactions",
+          "selectedText": "If the Scope epoch changes, the authority MUST stop this waiting comparison or admission attempt with that same `503`; the client must refresh Scope discovery and present a fresh request before competing in the new epoch."
+        }
+      ]
+    },
+    {
+      "id": "transactional.erasure.persistent-event-consumer",
+      "title": "Persistent Event consumers claiming protocol-backed erasure handling integrate Scope changefeed and snapshot ledger recovery and cleanup",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-replay-and-live-observation",
+          "selectedText": "A persistent Event consumer claiming protocol-backed erasure handling MUST integrate the existing Scope changefeed and snapshot erasure ledger as its supported acquisition and reconciliation route."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-replay-and-live-observation",
+          "selectedText": "It applies projected erasure records to its retained copies and, for this changefeed/ledger integration, follows the existing durable-checkpoint, disconnect, replay-expiry, and Authorization View recovery rules, including a fresh snapshot and its ledger when required."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#event-replay-and-live-observation",
+          "selectedText": "This requirement scopes the supported erasure-handling claim; it neither prohibits other storage deployments nor exempts any store, cache, or replica from the every-store erasure duty."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.manifest-refetch",
+      "title": "Snapshot GET/HEAD retrieves the same valid manifest without replacing its anchor or renewing expiry",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "The manifest's `id` MUST support GET and HEAD while the snapshot handle remains valid."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "GET retrieves the same manifest, including its identity, anchor, checkpoint, expiry, erasure ledger, and initial stream pages; it MUST NOT create a replacement snapshot or extend `expiresAt`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.snapshot.handle-refusal",
+      "title": "Snapshot handle expiry and non-disclosure precede conditionals and never disguise a pre-expiry service failure",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "An authorized expired or no-longer-available snapshot handle returns `410 cursor-expired`; an unknown or undisclosable target retains uniform `404 resource-not-found`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-snapshots",
+          "selectedText": "Actual service inability before the promised expiry is a service failure, not an expiration diagnosis"
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.page-restart",
+      "title": "Issued receipt-page URLs preserve boundaries across same-epoch restart while detail remains available",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "An already issued receipt-page URL MUST remain usable across ordinary restart or failover in the same Scope epoch while the receipt detail remains available, preserving its recorded entry boundaries and applying current authorization and erasure projection."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "This preserves detail expiry, failed-receipt forgetting, retraction, and prior-epoch non-disclosure."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.accept-refusal",
+      "title": "Unacceptable successful response media yields bodyless 406 before admission while ordinary refusals retain precedence",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "In every profile, an otherwise valid request whose `Accept` field accepts none of the endpoint's successful response media types MUST receive a bodyless `406 Not Acceptable`, with no BDP problem code, family, or retry member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "For a new mutation submission this refusal occurs before durable admission, key binding, receipt creation, or state change."
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.validator-omission",
+      "title": "Receipt and page responses omit optional validators while retaining private no-store and HTTP preconditions",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-receipt-responses",
+          "selectedText": "Receipt and receipt-page representations MUST omit `ETag` and `Last-Modified` initially and retain `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.finite-validator-omission",
+      "title": "Finite changes and Event pages omit optional validators without changing cursor semantics or adding SSE group validators",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#receipt-and-finite-feed-http-validators",
+          "selectedText": "Finite Scope changefeed pages and finite Event pages, both Scope `events/` and Resource `view=events`, MUST omit `ETag` and `Last-Modified` initially."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#receipt-and-finite-feed-http-validators",
+          "selectedText": "SSE has no per-group HTTP validator or new group-addressing URL"
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.conditional-reads",
+      "title": "Read conditionals preserve ordinary refusal precedence and produce native bodyless 304 or 412 without checkpoint advancement",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "Omitting optional validators does not permit ignoring HTTP preconditions."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "A `304` is not delivery or application of a change group or erasure record and MUST NOT advance a client's durable checkpoint."
+        }
+      ]
+    },
+    {
+      "id": "transactional.http.head-parity",
+      "title": "HEAD preserves GET decisions and required metadata and ends without bodies or SSE frames",
+      "kind": "normative",
+      "requiredProfile": "transactional",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "HEAD retains the corresponding GET authorization, query, cursor, media negotiation, and precondition decision and MUST send no response body."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "For an acceptable SSE representation, HEAD returns the corresponding response metadata and ends without SSE frames; it MUST NOT remain open merely to stream events."
+        }
+      ]
+    }
+  ]
+}
