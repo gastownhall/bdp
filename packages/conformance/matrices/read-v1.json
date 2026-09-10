@@ -4330,6 +4330,218 @@
               "equals": 0
             }
           ]
+        },
+        {
+          "id": "duplicate-names",
+          "family": "client",
+          "operation": "malformed-success-response",
+          "input": {
+            "variant": "duplicate-names"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "problem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "temporarily-unavailable"
+            },
+            {
+              "id": "scope-request",
+              "kind": "json-pointer",
+              "pointer": "/scopeRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "discovery-document",
+              "kind": "json-pointer",
+              "pointer": "/discoveryDocumentRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "read-request",
+              "kind": "json-pointer",
+              "pointer": "/readRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "no-other-request",
+              "kind": "json-pointer",
+              "pointer": "/otherRequests",
+              "exists": true,
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "id": "non-scalar-value",
+          "family": "client",
+          "operation": "malformed-success-response",
+          "input": {
+            "variant": "non-scalar-value"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "problem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "temporarily-unavailable"
+            },
+            {
+              "id": "scope-request",
+              "kind": "json-pointer",
+              "pointer": "/scopeRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "discovery-document",
+              "kind": "json-pointer",
+              "pointer": "/discoveryDocumentRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "read-request",
+              "kind": "json-pointer",
+              "pointer": "/readRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "no-other-request",
+              "kind": "json-pointer",
+              "pointer": "/otherRequests",
+              "exists": true,
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "id": "non-scalar-name",
+          "family": "client",
+          "operation": "malformed-success-response",
+          "input": {
+            "variant": "non-scalar-name"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "problem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "temporarily-unavailable"
+            },
+            {
+              "id": "scope-request",
+              "kind": "json-pointer",
+              "pointer": "/scopeRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "discovery-document",
+              "kind": "json-pointer",
+              "pointer": "/discoveryDocumentRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "read-request",
+              "kind": "json-pointer",
+              "pointer": "/readRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "no-other-request",
+              "kind": "json-pointer",
+              "pointer": "/otherRequests",
+              "exists": true,
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "id": "scalar-control",
+          "family": "client",
+          "operation": "malformed-success-response",
+          "input": {
+            "variant": "scalar-control"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "success"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "scope-request",
+              "kind": "json-pointer",
+              "pointer": "/scopeRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "discovery-document",
+              "kind": "json-pointer",
+              "pointer": "/discoveryDocumentRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "read-request",
+              "kind": "json-pointer",
+              "pointer": "/readRequests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "no-other-request",
+              "kind": "json-pointer",
+              "pointer": "/otherRequests",
+              "exists": true,
+              "equals": 0
+            }
+          ]
         }
       ],
       "cleanup": {

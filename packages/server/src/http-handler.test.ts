@@ -1,5 +1,6 @@
 import {
   readProblem,
+  ProtocolArtifactValidationError,
   type ReadProblem,
   type ReadRequest,
   type ScopeReadOperation,
@@ -147,8 +148,6 @@ describe("BDP public HTTP handler", () => {
     ["révision", '"bdp-b64_csOpdmlzaW9u"'],
     ["bdp-b64_literal", '"bdp-b64_YmRwLWI2NF9saXRlcmFs"'],
     ["bdp-u16_literal", '"bdp-b64_YmRwLXUxNl9saXRlcmFs"'],
-    ["\ud800", '"bdp-u16_2AA"'],
-    ["\udc00", '"bdp-u16_3AA"'],
   ] as const)(
     "projects the unsafe Resource revision %j to a valid injective ETag",
     async (revision, etag) => {
@@ -172,6 +171,36 @@ describe("BDP public HTTP handler", () => {
       const response = await handler(new Request(`${SCOPE}beads/a`));
 
       expect(response.headers.get("etag")).toBe(etag);
+    },
+  );
+
+  it.each(["\ud800", "\udc00"])(
+    "refuses the non-scalar Resource revision %j before GET or HEAD response construction",
+    async (revision) => {
+      const server = createReadServer({
+        scope: SCOPE,
+        target: "bdptest",
+        admittedProfile: admitReadServerProfile("read", "bdptest"),
+        port: {
+          perform: async () =>
+            scopePortSuccess({
+              id: `${SCOPE}beads/a`,
+              type: "https://work.example/types/task",
+              revision,
+              properties: {},
+            } as never) as never,
+        },
+      });
+      const handler = createHttpHandler(server);
+      try {
+        for (const method of ["GET", "HEAD"]) {
+          await expect(handler(new Request(`${SCOPE}beads/a`, { method }))).rejects.toBeInstanceOf(
+            ProtocolArtifactValidationError,
+          );
+        }
+      } finally {
+        await server.close();
+      }
     },
   );
 

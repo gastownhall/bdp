@@ -466,6 +466,11 @@
       "requiredProfile": "read",
       "requirements": [
         {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#bdp-json-and-http-protocol",
+          "selectedText": "Every JSON text BDP admits or emits uses Unicode scalar values in strings and object member names; an unpaired surrogate, including one produced by an escape, is invalid, and an object MUST NOT carry duplicate member names after escape decoding."
+        },
+        {
           "source": "docs/design/requirements.md",
           "anchor": "#conformance-and-quality-requirements",
           "selectedText": "The conformance kit MUST validate normative schemas and observable semantics independently of the server implementation wherever practical, reducing common-mode defects."

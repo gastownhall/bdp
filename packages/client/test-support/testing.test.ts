@@ -67,6 +67,43 @@ describe("BdpClient programmable conformance actions", () => {
     });
   });
 
+  it.each(["duplicate-names", "non-scalar-value", "non-scalar-name", "scalar-control"])(
+    "observes the I-JSON %s response through the public client",
+    async (variant) => {
+      await expect(
+        execute({
+          family: "client",
+          operation: "malformed-success-response",
+          scope,
+          input: { variant },
+          signal: new AbortController().signal,
+        }),
+      ).resolves.toEqual({
+        outcome: variant === "scalar-control" ? "success" : "problem",
+        code: variant === "scalar-control" ? null : "temporarily-unavailable",
+        scopeRequests: 1,
+        discoveryDocumentRequests: 1,
+        readRequests: 1,
+        otherRequests: 0,
+      });
+    },
+  );
+
+  it.each([{ variant: "unknown" }, { variant: "scalar-control", extra: true }])(
+    "refuses unsupported malformed-response input %j",
+    async (input) => {
+      await expect(
+        execute({
+          family: "client",
+          operation: "malformed-success-response",
+          scope,
+          input,
+          signal: new AbortController().signal,
+        }),
+      ).rejects.toThrow("action input was invalid");
+    },
+  );
+
   it("recovers on the same public client after an interrupted response body", async () => {
     const liveExecute = createBdpClientScenarioActionExecutor({
       fetchImplementation: fixtureFetch(),

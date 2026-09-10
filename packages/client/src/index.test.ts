@@ -2207,6 +2207,71 @@ describe("createFetchTransport", () => {
     expect(new Headers(requests[2]?.headers).get("accept")).toBe("application/json");
   });
 
+  it.each([
+    '{"a":1,"a":2}',
+    String.raw`{"a":1,"\u0061":2}`,
+    '{"nested":[{"default":1,"default":2}]}',
+    String.raw`{"__proto__":1,"\u005f_proto__":2}`,
+    String.raw`{"a\"b":1,"a\u0022b":2}`,
+    String.raw`{"a\\b":1,"a\u005cb":2}`,
+    String.raw`{"nested":["\ud800"]}`,
+    String.raw`{"nested":{"\udc00":"valid"}}`,
+  ])("refuses non-I-JSON properties through the public client: %s", async (body) => {
+    const requests: string[] = [];
+    const client = new BdpClient({
+      scope: SCOPE,
+      transport: createFetchTransport(async (input) => {
+        const url = String(input);
+        requests.push(url);
+        if (url === SCOPE)
+          return responseAt(url, null, {
+            status: 204,
+            headers: { link: `<${SCOPE}bdp.json>; rel="service-desc"` },
+          });
+        return responseAt(
+          url,
+          url === `${SCOPE}bdp.json` ? JSON.stringify(validDiscovery()) : body,
+          { headers: { "content-type": "application/json" } },
+        );
+      }),
+    });
+    try {
+      await expect(
+        client.perform({ kind: "properties", resource: "bead", id: `${BEADS}a` }),
+      ).resolves.toMatchObject({ code: "temporarily-unavailable", status: 503 });
+      expect(requests).toHaveLength(3);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it("preserves native JSON values and equal names in distinct objects", async () => {
+    const body = String.raw`{"a":[{"default":1,"__proto__":2,"a\"b":"[{},]","a\\b":3},{"default":4}],"z":{"default":5},"\ud83d\ude00":"\ud83d\ude00","n":1.25e2}`;
+    const client = new BdpClient({
+      scope: SCOPE,
+      transport: createFetchTransport(async (input) => {
+        const url = String(input);
+        if (url === SCOPE)
+          return responseAt(url, null, {
+            status: 204,
+            headers: { link: `<${SCOPE}bdp.json>; rel="service-desc"` },
+          });
+        return responseAt(
+          url,
+          url === `${SCOPE}bdp.json` ? JSON.stringify(validDiscovery()) : body,
+          { headers: { "content-type": "application/json" } },
+        );
+      }),
+    });
+    try {
+      await expect(
+        client.perform({ kind: "properties", resource: "bead", id: `${BEADS}a` }),
+      ).resolves.toEqual(JSON.parse(body));
+    } finally {
+      await client.close();
+    }
+  });
+
   it("rejects a successful body without a JSON media type", async () => {
     const transport = createFetchTransport(async (input) =>
       responseAt(String(input), JSON.stringify({ items: [], next: null }), {
