@@ -570,6 +570,7 @@ export function historyUnretainedProblem(missing: HistoryMissing): ReadProblem {
 export {
   JsonSyntaxError,
   JsonNumberLiteral,
+  JsonDiagnosticBudgetError,
   decodeJsonDocument,
   admitJsonNumbers,
   isAdmissibleJsonNumber,
@@ -577,6 +578,7 @@ export {
   type LosslessJsonValue,
   type AdmittedJsonValue,
   type JsonNumberOccurrence,
+  type JsonNumberDiagnosticBudget,
   type JsonNumericAdmission,
 } from "./json-admission.js";
 export {

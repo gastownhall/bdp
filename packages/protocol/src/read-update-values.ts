@@ -7,7 +7,8 @@ import {
   mapLosslessJson,
   isUnicodeScalarString,
   type AdmittedJsonValue,
-  type JsonNumberOccurrence,
+  type JsonNumericAdmission,
+  type JsonNumberDiagnosticBudget,
   type LosslessJsonValue,
 } from "./json-admission.js";
 import { ProtocolArtifactValidationError } from "./protocol-errors.js";
@@ -110,7 +111,7 @@ export interface ReadUpdateSequenceRequest {
 }
 export type ReadUpdateNumericAdmission<K extends ReadUpdateOperation> =
   | { readonly ok: true; readonly input: ReadUpdateInputs[K] }
-  | { readonly ok: false; readonly offending: readonly JsonNumberOccurrence[] };
+  | Extract<JsonNumericAdmission, { readonly ok: false }>;
 export class ReadUpdateCarrierError extends Error {
   constructor(message: string, options: ErrorOptions = {}) {
     super(message, options);
@@ -202,7 +203,8 @@ function carrier(
 ): Readonly<Record<string, LosslessJsonValue>> {
   const root = decodeJsonDocument(text);
   // Numbers are only structural placeholders here, private and discarded.
-  // They cannot cause valid overflow/property literals to become syntax errors.
+  // The reachable-root invariant in read-update-numeric-schema.test.ts guards
+  // that placeholders cannot turn valid property literals into syntax errors.
   const structural = mapLosslessJson(root, () => 0);
   // Schema loading/validator failures are internal faults, never blamed on input.
   const check = validator(key);
@@ -351,13 +353,16 @@ export function parseReadUpdateSequenceRequest(text: string): ReadUpdateSequence
   return Object.freeze({ operations: Object.freeze(parsed) });
 }
 /** Call in the member's admission/validation turn, not as sequence syntax.
- * HTTP keys, limits, current contracts and authorization are the owner's work.
+ * HTTP keys, current contracts and authorization are the owner's work. The
+ * explicit budget and formatter must match its advertised validation limits
+ * and map operation-relative occurrences to valid property-relative diagnostics.
  */
 export function admitReadUpdateOperationNumbers<K extends ReadUpdateOperation>(
   value: UnadmittedReadUpdateOperation<K>,
+  budget: JsonNumberDiagnosticBudget,
 ): ReadUpdateNumericAdmission<K> {
   if (!parsedOperations.has(value)) throw new TypeError("expected a parsed RU operation");
-  const result = admitJsonNumbers(value.input);
+  const result = admitJsonNumbers(value.input, budget);
   return result.ok
     ? Object.freeze({ ok: true, input: result.value as unknown as ReadUpdateInputs[K] })
     : result;

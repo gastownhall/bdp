@@ -10,7 +10,8 @@ import {
   ProtocolArtifactValidationError,
   parseReadUpdateRequest,
   parseReadUpdateSequenceRequest,
-  admitReadUpdateOperationNumbers,
+  admitReadUpdateOperationNumbers as admitReadUpdateOperationNumbersWithBudget,
+  type UnadmittedReadUpdateOperation,
   parseReadUpdateMutationResult,
   parseReadUpdateAliasResult,
   parseReadUpdateSequenceResponse,
@@ -20,6 +21,13 @@ import {
   parseReadUpdateSequenceMemberProblem,
   type ReadUpdateOperation,
 } from "./index.js";
+
+// Test formatting is explicit; the runtime owner supplies its property-location
+// mapping and the same advertised limits used for other validation failures.
+const admitReadUpdateOperationNumbers = (value: UnadmittedReadUpdateOperation) =>
+  admitReadUpdateOperationNumbersWithBudget(value, {
+    diagnostic: ({ pointer }) => ({ instanceLocation: pointer, message: "inadmissible number" }),
+  });
 
 const type = "https://types.example/task";
 const bead = { id: "https://example.test/s/beads/a", type, revision: "r1", properties: {} };
@@ -65,7 +73,7 @@ describe("RU unadmitted carriers", () => {
       n: new JsonNumberLiteral("9007199254740993"),
       overflow: new JsonNumberLiteral("1e9999"),
     });
-    expect(admitReadUpdateOperationNumbers(second)).toEqual({
+    expect(admitReadUpdateOperationNumbers(second)).toMatchObject({
       ok: false,
       offending: [
         { pointer: "/properties/n", literal: "9007199254740993" },
@@ -78,7 +86,7 @@ describe("RU unadmitted carriers", () => {
       "updateBeadProperties",
       '{"bead":"beads/a","change":[{"op":"add","path":"/x","value":{"a/b":[1e-9999]}}]}',
     );
-    expect(admitReadUpdateOperationNumbers(parsed)).toEqual({
+    expect(admitReadUpdateOperationNumbers(parsed)).toMatchObject({
       ok: false,
       offending: [{ pointer: "/change/0/value/a~1b/0", literal: "1e-9999" }],
     });
