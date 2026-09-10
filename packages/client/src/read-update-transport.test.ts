@@ -36,6 +36,213 @@ const post = { bodyText: "{}", idempotencyKey: "key_A-1" };
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("Read+Update bounded transport", () => {
+  it.each(["Buffer", "Uint8Array"])(
+    "accumulates many reused one-byte %s chunks at the exact budget",
+    async (kind) => {
+      const text = JSON.stringify({ value: "é".repeat(1024) });
+      const encoded = new TextEncoder().encode(text);
+      const chunk = kind === "Buffer" ? Buffer.alloc(1) : new Uint8Array(1);
+      let index = 0;
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            if (index === encoded.length) {
+              chunk[0] = 0;
+              controller.close();
+            } else {
+              chunk[0] = encoded[index++]!;
+              controller.enqueue(chunk);
+            }
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      const result = await client(async () => response(stream), {
+        limits: { ...limits, responseBodyBytes: encoded.length },
+      }).get(target);
+      expect(result).toMatchObject({ kind: "json", body: { value: "é".repeat(1024) } });
+      expect(index).toBe(encoded.length);
+      expect(chunk[0]).toBe(0);
+    },
+  );
+  it("rejects the first byte beyond a non-power-of-two budget and releases the reader", async () => {
+    let pulls = 0,
+      cancelled = 0;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          pulls++;
+          controller.enqueue(Buffer.from("x"));
+        },
+        cancel() {
+          cancelled++;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    await expect(
+      client(async () => response(stream), {
+        limits: { ...limits, responseBodyBytes: 257 },
+      }).get(target),
+    ).rejects.toMatchObject({ code: "response-too-large", submission: "not-submitted" });
+    expect(pulls).toBe(258);
+    expect(cancelled).toBe(1);
+    expect(stream.locked).toBe(false);
+  });
+  it("retains selected frozen headers on redirects and malformed challenges without following", async () => {
+    for (const status of [307, 401]) {
+      let calls = 0;
+      const received = response("not JSON", status, {
+        "content-type": "application/problem+json",
+        "retry-after": "9",
+        location: "https://other.test/",
+        "www-authenticate": 'Bearer realm="test"',
+        link: '<bdp.json>; rel="service-desc"',
+        "set-cookie": "secret-cookie",
+        authorization: "secret-authorization",
+      });
+      const transport = client(
+        async () => {
+          calls++;
+          return received;
+        },
+        { credential: () => "secret-token" },
+      );
+      let caught: unknown;
+      try {
+        await transport.post(target, { bodyText: '"secret-body"', idempotencyKey: "secret-key" });
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(ReadUpdateTransportError);
+      expect(caught).toMatchObject({
+        code: status === 307 ? "redirect" : "invalid-response",
+        submission: "unknown",
+        httpStatus: status,
+        contentType: "application/problem+json",
+        retryAfter: "9",
+        headers: {
+          location: "https://other.test/",
+          "www-authenticate": 'Bearer realm="test"',
+          link: '<bdp.json>; rel="service-desc"',
+        },
+      });
+      const headers = (caught as ReadUpdateTransportError).headers;
+      expect(Object.isFrozen(headers)).toBe(true);
+      received.headers.set("location", "https://changed.test/");
+      expect(headers?.location).toBe("https://other.test/");
+      expect(JSON.stringify(caught)).not.toContain("secret");
+      expect(calls).toBe(1);
+    }
+  });
+  it("rejects unsupported media without reading and bodyless violations on their first bytes", async () => {
+    for (const status of [200, 500]) {
+      let pulls = 0,
+        cancelled = 0;
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            pulls++;
+            controller.enqueue(Buffer.from("unexpected"));
+          },
+          cancel() {
+            cancelled++;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      await expect(
+        client(
+          async () => response(stream, status, { "content-type": "text/html", allow: "GET" }),
+          {
+            limits: { ...limits, responseBodyBytes: 1 },
+          },
+        ).get(target),
+      ).rejects.toMatchObject({
+        code: "invalid-response",
+        submission: "not-submitted",
+        httpStatus: status,
+        headers: { allow: "GET" },
+      });
+      expect(pulls).toBe(status === 200 ? 0 : 1);
+      expect(cancelled).toBe(1);
+      expect(stream.locked).toBe(false);
+    }
+  });
+  it("bypasses ambient caches on successive GETs with rotated credentials", async () => {
+    let token = "first";
+    const tokens: string[] = [];
+    const transport = client(
+      async (_url, init) => {
+        expect(init?.cache).toBe("no-store");
+        expect(init?.credentials).toBe("omit");
+        tokens.push(new Headers(init?.headers).get("authorization") ?? "");
+        return response();
+      },
+      { credential: () => token },
+    );
+    await transport.get(target);
+    token = "second";
+    await transport.get(target);
+    expect(tokens).toEqual(["Bearer first", "Bearer second"]);
+  });
+  it("marks a dispatched GET network failure not-submitted", async () => {
+    await expect(
+      client(async () => {
+        throw Error("foreign-secret");
+      }).get(target),
+    ).rejects.toMatchObject({
+      code: "network",
+      submission: "not-submitted",
+      headers: undefined,
+    });
+  });
+  it.each(["GET", "POST"])(
+    "honors caller abort during an active %s body read and releases the reader",
+    async (method) => {
+      const abort = new AbortController();
+      let notify!: () => void;
+      const reading = new Promise<void>((resolve) => {
+        notify = resolve;
+      });
+      let pulls = 0,
+        cancelled = 0;
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            if (++pulls === 1) {
+              controller.enqueue(Buffer.from("{"));
+              return undefined;
+            } else {
+              notify();
+              return new Promise(() => {});
+            }
+          },
+          cancel() {
+            cancelled++;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      const transport = client(async () => response(stream));
+      const pending =
+        method === "GET"
+          ? transport.get(target, { signal: abort.signal })
+          : transport.post(target, { ...post, signal: abort.signal });
+      const assertion = expect(pending).rejects.toMatchObject({
+        code: "aborted",
+        httpStatus: 200,
+        submission: method === "GET" ? "not-submitted" : "unknown",
+        headers: { "content-type": "application/json" },
+      });
+      await reading;
+      abort.abort("secret-abort-reason");
+      await assertion;
+      expect(pulls).toBe(2);
+      expect(cancelled).toBe(1);
+      expect(stream.locked).toBe(false);
+    },
+  );
   it("discovers a human Scope representation using probe-only wildcard negotiation", async () => {
     const accepts: string[] = [];
     const transport = client(async (url, init) => {
@@ -245,7 +452,7 @@ describe("Read+Update bounded transport", () => {
         response("landing", 307, { location: "https://evil.test/" }, scope),
       ).probeScope(),
     ).rejects.toMatchObject({
-      code: "invalid-response",
+      code: "redirect",
       httpStatus: 307,
       submission: "not-submitted",
     });
@@ -526,7 +733,7 @@ describe("Read+Update bounded transport", () => {
         calls++;
         return response(stream, 307, { location: "https://evil.test/" });
       }).post(target, post),
-    ).rejects.toMatchObject({ code: "invalid-response", submission: "unknown", httpStatus: 307 });
+    ).rejects.toMatchObject({ code: "redirect", submission: "unknown", httpStatus: 307 });
     expect(calls).toBe(1);
     expect(cancelled).toBe(1);
   });
