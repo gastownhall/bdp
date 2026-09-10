@@ -4,7 +4,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, statfsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, StatementSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isKnownNetworkFilesystem,
@@ -16,6 +16,8 @@ import {
   type MemberTransaction,
   type RecoveryStore,
   type StoreReader,
+  type InstalledTypeRow,
+  type RetainedOutcomeRow,
 } from "./recovery-store.js";
 
 const day = 86_400_000;
@@ -1125,5 +1127,274 @@ describe("native JSON syntax storage format", () => {
       expect.objectContaining({ reason: "invalid-input" }),
     );
     expect(existsSync(path.join(dir, "reference.sqlite"))).toBe(false);
+  });
+});
+
+describe("synchronous startup inventory visitors", () => {
+  function provision(): RecoveryStore {
+    const store = openRecoveryStore({
+      ...options(directory()),
+      create: { types: { "https://types.test/z": " {} ", "https://types.test/a": "[]" } },
+    });
+    stores.push(store);
+    effect(store, "first");
+    effect(store, "second");
+    return store;
+  }
+  const visitors = [
+    {
+      name: "installed Types",
+      visit: (store: RecoveryStore, fn: (row: InstalledTypeRow | RetainedOutcomeRow) => void) =>
+        store.visitInstalledTypes(fn),
+    },
+    {
+      name: "retained outcomes",
+      visit: (store: RecoveryStore, fn: (row: InstalledTypeRow | RetainedOutcomeRow) => void) =>
+        store.visitRetainedOutcomes(fn),
+    },
+  ];
+
+  it("enumerates the complete seeded Type inventory after reopen with exact immutable text", () => {
+    const dir = directory();
+    const deep = ` {"value":${"[".repeat(12_000)}1.00000000000000000001${"]".repeat(12_000)}} `;
+    const types = { "https://types.test/unused": deep, "https://types.test/a": " { } " };
+    const seeded = openRecoveryStore({ ...options(dir), create: { types } });
+    stores.push(seeded);
+    const before: InstalledTypeRow[] = [];
+    seeded.visitInstalledTypes((row) => before.push(row));
+    seeded.close();
+    const reopened = open(dir);
+    const rows: InstalledTypeRow[] = [];
+    // The visitor must use streaming SQLite iteration, even for this small inventory.
+    const noAll = vi.spyOn(StatementSync.prototype, "all").mockImplementation(() => {
+      throw new Error("all is forbidden in visitors");
+    });
+    reopened.visitInstalledTypes((row) => {
+      rows.push(row);
+    });
+    noAll.mockRestore();
+    expect(rows).toEqual(before);
+    expect(rows).toEqual(
+      Object.entries(types)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([id, bodyJson]) => ({ id, bodyJson })),
+    );
+    for (const row of rows) {
+      expect(Object.isFrozen(row)).toBe(true);
+      expect(() => Object.assign(row, { bodyJson: "changed" })).toThrow(TypeError);
+      expect(reopened.read((reader) => reader.installedType(row.id))).toBe(row.bodyJson);
+    }
+    // A caller can detect both unlisted stored Types and expected Types absent from storage.
+    const expected = new Set(["https://types.test/a", "https://types.test/missing"]);
+    expect(rows.filter((row) => !expected.has(row.id)).map((row) => row.id)).toEqual([
+      "https://types.test/unused",
+    ]);
+    expect([...expected].filter((id) => !rows.some((row) => row.id === id))).toEqual([
+      "https://types.test/missing",
+    ]);
+    expect(Object.keys(rows[0] ?? {}).sort()).toEqual(["bodyJson", "id"]);
+  });
+
+  it("visits only still-retained success and failure facts without expiring or exposing keys", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    const admission = store.admit("private-principal", [
+      "success",
+      "failure",
+      "expired",
+      "forgotten",
+      "claimed",
+      "released",
+    ]);
+    const text = ` {"diagnostics":${"[".repeat(12_000)}1.00000000000000000001${"]".repeat(12_000)}} `;
+    const records = [
+      ["success", outcome("success", { retainUntil: 100 + 2 * day, outcomeJson: text })],
+      [
+        "failure",
+        outcome("failure", { retainUntil: 100 + 2 * day, outcomeJson: ' {"error":"retained"} ' }),
+      ],
+      ["expired", outcome("success")],
+      ["forgotten", outcome("failure")],
+    ] as const;
+    for (const [key, decision] of records) store.executeMember(admission, key, () => decision);
+    store.executeMember(admission, "released", () => ({ kind: "release" }));
+    const initial: RetainedOutcomeRow[] = [];
+    store.visitRetainedOutcomes((row) => initial.push(row));
+    expect(initial).toHaveLength(4); // No clock-based filtering or implicit maintenance.
+    store.expire(100 + day);
+    const expected = records.slice(0, 2).map(([, row]) => ({
+      outcomeJson: row.outcomeJson,
+      effect: row.effect,
+      completedAt: row.completedAt,
+      retainUntil: row.retainUntil,
+    }));
+    const rows: RetainedOutcomeRow[] = [];
+    const noAll = vi.spyOn(StatementSync.prototype, "all").mockImplementation(() => {
+      throw new Error("all is forbidden in visitors");
+    });
+    store.visitRetainedOutcomes((row) => rows.push(row));
+    noAll.mockRestore();
+    expect(rows).toHaveLength(expected.length);
+    expect(rows).toEqual(expect.arrayContaining(expected)); // No retained-row ordering contract.
+    for (const row of rows) {
+      expect(Object.keys(row).sort()).toEqual([
+        "completedAt",
+        "effect",
+        "outcomeJson",
+        "retainUntil",
+      ]);
+      expect(Object.isFrozen(row)).toBe(true);
+      expect(() => Object.assign(row, { outcomeJson: "changed" })).toThrow(TypeError);
+    }
+    expect(store.read((reader) => reader.key("private-principal", "claimed"))).toMatchObject({
+      kind: "claimed",
+    });
+    expect(store.read((reader) => reader.key("private-principal", "expired"))).toMatchObject({
+      kind: "expired",
+    });
+    expect(store.read((reader) => reader.key("private-principal", "forgotten"))).toEqual({
+      kind: "unknown",
+    });
+    store.close();
+    const reopened = open(dir);
+    const recovered: RetainedOutcomeRow[] = [];
+    reopened.visitRetainedOutcomes((row) => recovered.push(row));
+    expect(recovered).toHaveLength(expected.length);
+    expect(recovered).toEqual(expect.arrayContaining(expected));
+    expect(reopened.runtime.recoveredClaims).toBe(1);
+    expect(reopened.read((reader) => reader.key("private-principal", "claimed"))).toEqual({
+      kind: "unknown",
+    });
+  });
+
+  it.each(visitors)("owns $name callbacks synchronously and rejects nested access", ({ visit }) => {
+    const store = provision();
+    let escaped: StoreReader | undefined;
+    store.read((reader) => {
+      escaped = reader;
+    });
+    let count = 0;
+    const returned = visit(store, (row) => {
+      count++;
+      expect(Object.isFrozen(row)).toBe(true);
+      for (const operation of [
+        () => store.read(() => undefined),
+        () => store.admit("alice", ["nested"]),
+        () => store.expire(100 + day),
+        () => store.close(),
+        () => store.visitInstalledTypes(() => {}),
+        () => store.visitRetainedOutcomes(() => {}),
+      ])
+        expect(operation).toThrow(expect.objectContaining({ reason: "nested-access" }));
+      expect(() => escaped?.resources()).toThrow(
+        expect.objectContaining({ reason: "expired-facade" }),
+      );
+    });
+    expect(returned).toBeUndefined();
+    expect(count).toBe(2);
+    expect(() => store.read(() => visit(store, () => {}))).toThrow(
+      expect.objectContaining({ reason: "nested-access" }),
+    );
+    effect(store, "after-nested");
+  });
+
+  it.each(visitors)(
+    "rejects a $name scan inside a member and rolls back its staged writes",
+    ({ visit }) => {
+      const store = provision();
+      const admission = store.admit("alice", ["nested-visitor"]);
+      expect(() =>
+        store.executeMember(admission, "nested-visitor", (tx) => {
+          tx.putPolicy("rolled-back", "{}");
+          visit(store, () => {});
+          return outcome();
+        }),
+      ).toThrow(expect.objectContaining({ reason: "nested-access" }));
+      expect(store.read((reader) => reader.policy("rolled-back"))).toBeUndefined();
+      expect(
+        store.executeMember(admission, "nested-visitor", () => outcome("failure")),
+      ).toMatchObject({ kind: "completed" });
+    },
+  );
+
+  it.each(visitors)(
+    "closes the $name cursor on a thrown callback and allows mutation/close",
+    ({ visit }) => {
+      const store = provision();
+      const failure = new Error("startup comparison refused");
+      const cursorSpy = vi.spyOn(StatementSync.prototype, "iterate");
+      let count = 0;
+      expect(() =>
+        visit(store, () => {
+          count++;
+          throw failure;
+        }),
+      ).toThrow(failure);
+      expect(count).toBe(1);
+      const cursor = cursorSpy.mock.results[0]?.value as ReturnType<StatementSync["iterate"]>;
+      expect(cursor.next().done).toBe(true);
+      cursorSpy.mockRestore();
+      effect(store, "after-throw", (tx) => tx.putPolicy("still-usable", "{}"));
+      expect(store.read((reader) => reader.policy("still-usable"))).toBe("{}");
+      store.close();
+      expect(() => visit(store, () => {})).toThrow(expect.objectContaining({ reason: "closed" }));
+    },
+  );
+
+  it.each(visitors)(
+    "rejects async $name callbacks, closes cursors and expires escaped facades",
+    async ({ visit }) => {
+      const store = provision();
+      let escaped: StoreReader | undefined;
+      store.read((reader) => {
+        escaped = reader;
+      });
+      let continuation: Promise<void> | undefined;
+      const cursorSpy = vi.spyOn(StatementSync.prototype, "iterate");
+      expect(() =>
+        visit(store, () => {
+          continuation = (async () => {
+            await Promise.resolve();
+            expect(() => escaped?.resources()).toThrow(
+              expect.objectContaining({ reason: "expired-facade" }),
+            );
+            throw new Error("rejected async continuation is consumed");
+          })();
+          return continuation;
+        }),
+      ).toThrow(expect.objectContaining({ reason: "async-callback" }));
+      const cursor = cursorSpy.mock.results[0]?.value as ReturnType<StatementSync["iterate"]>;
+      expect(cursor.next().done).toBe(true);
+      cursorSpy.mockRestore();
+      await expect(continuation).rejects.toThrow("consumed");
+      effect(store, "after-async");
+      store.close();
+    },
+  );
+
+  it.each(visitors)(
+    "releases $name ownership when a callback's then getter throws",
+    ({ visit }) => {
+      const store = provision();
+      const failure = new Error("then getter failed");
+      expect(() =>
+        visit(store, () => ({
+          // biome-ignore lint/suspicious/noThenProperty: exercise the callback return-value guard.
+          get then() {
+            throw failure;
+          },
+        })),
+      ).toThrow(failure);
+      effect(store, "after-getter");
+      store.close();
+    },
+  );
+
+  it("does not manufacture rows for empty inventories", () => {
+    const store = open(directory(), true);
+    const visitor = vi.fn();
+    expect(store.visitInstalledTypes(visitor)).toBeUndefined();
+    expect(store.visitRetainedOutcomes(visitor)).toBeUndefined();
+    expect(visitor).not.toHaveBeenCalled();
   });
 });
