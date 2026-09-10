@@ -36,6 +36,205 @@ const post = { bodyText: "{}", idempotencyKey: "key_A-1" };
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("Read+Update bounded transport", () => {
+  it.each(["Buffer", "Uint8Array"])(
+    "copies retained %s chunks before producer reuse",
+    async (kind) => {
+      const chunk =
+        kind === "Buffer" ? Buffer.from('{"n":1}') : new TextEncoder().encode('{"n":1}');
+      let pulls = 0;
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            if (++pulls === 1) controller.enqueue(chunk);
+            else {
+              chunk[5] = 50;
+              controller.close();
+            }
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      expect(await client(async () => response(stream)).post(target, post)).toMatchObject({
+        kind: "json",
+        body: { n: 1 },
+      });
+      expect(pulls).toBe(2);
+      expect(chunk[5]).toBe(50);
+    },
+  );
+  it.each(["text/html", "text/markdown", "application/json", "application/octet-stream"])(
+    "probes only the configured Scope and ignores its 200 body (%s)",
+    async (media) => {
+      let cancelled = 0;
+      let pulls = 0;
+      let credentials = 0;
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          pull() {
+            pulls++;
+            throw Error("Scope body must not be read");
+          },
+          cancel() {
+            cancelled++;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      const transport = client(
+        async (url, init) => {
+          expect(url).toBe(scope);
+          expect(init).toMatchObject({ method: "GET", credentials: "omit", redirect: "manual" });
+          expect(init?.body).toBeUndefined();
+          expect(init?.headers).toEqual({
+            accept: "application/json",
+            authorization: "Bearer scope-token",
+          });
+          return response(
+            stream,
+            200,
+            {
+              "content-type": media,
+              link: '<bdp.json>; rel="service-desc"',
+              "retry-after": "7",
+              "content-length": "999999999",
+            },
+            scope,
+          );
+        },
+        {
+          credential: () => {
+            credentials++;
+            return "scope-token";
+          },
+          limits: { ...limits, responseBodyBytes: 1 },
+        },
+      );
+      const result = await transport.probeScope();
+      expect(result).toMatchObject({
+        kind: "scope-probe",
+        status: 200,
+        url: scope,
+        contentType: media,
+        retryAfter: "7",
+        headers: { link: '<bdp.json>; rel="service-desc"' },
+      });
+      expect(result).not.toHaveProperty("body");
+      expect(Object.isFrozen(result)).toBe(true);
+      expect(Object.isFrozen(result.headers)).toBe(true);
+      expect([credentials, pulls, cancelled]).toEqual([1, 0, 1]);
+    },
+  );
+  it("accepts a bodyless 204 Scope but rejects actual bytes from an adversarial 204 Response", async () => {
+    expect(await client(async () => response(null, 204, {}, scope)).probeScope()).toMatchObject({
+      kind: "scope-probe",
+      status: 204,
+      contentType: null,
+    });
+    for (const text of ["", "x"]) {
+      // Native Response prevents constructing a 204 body. Override only status
+      // to exercise a custom Fetch response while retaining an actual byte stream.
+      const received = response(text, 200, {}, scope);
+      Object.defineProperty(received, "status", { value: 204 });
+      const pending = client(async () => received).probeScope();
+      if (text === "")
+        await expect(pending).resolves.toMatchObject({ kind: "scope-probe", status: 204 });
+      else
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid-response",
+          httpStatus: 204,
+          submission: "not-submitted",
+        });
+    }
+  });
+  it("bounds uninterpreted Scope cancellation without waiting for physical completion", async () => {
+    let cancelled = 0;
+    const stream = new ReadableStream(
+      {
+        cancel() {
+          cancelled++;
+          return new Promise(() => {});
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const started = performance.now();
+    expect(await client(async () => response(stream, 200, {}, scope)).probeScope()).toMatchObject({
+      kind: "scope-probe",
+    });
+    expect(cancelled).toBe(1);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+  it("preserves the response deadline and caller cancellation during Scope probing", async () => {
+    const abort = new AbortController();
+    abort.abort();
+    let calls = 0;
+    const transport = client(async () => {
+      calls++;
+      return response(null, 204, {}, scope);
+    });
+    await expect(transport.probeScope({ signal: abort.signal })).rejects.toMatchObject({
+      code: "aborted",
+      submission: "not-submitted",
+    });
+    expect(calls).toBe(0);
+    await expect(
+      client(async () => new Promise(() => {}), {
+        limits: { ...limits, responseTimeoutMs: 15 },
+      }).probeScope(),
+    ).rejects.toMatchObject({ code: "timeout", submission: "not-submitted" });
+    const stream = new ReadableStream(
+      { cancel: () => new Promise(() => {}) },
+      { highWaterMark: 0 },
+    );
+    await expect(
+      client(async () => response(stream, 200, {}, scope), {
+        limits: { ...limits, responseTimeoutMs: 10, cleanupTimeoutMs: 20 },
+      }).probeScope(),
+    ).rejects.toMatchObject({ code: "timeout", httpStatus: 200, submission: "not-submitted" });
+  });
+  it("keeps Scope errors and native faults on normal decoding paths with actual context", async () => {
+    const headers = { "content-type": "application/problem+json", "retry-after": "9" };
+    expect(
+      await client(async () =>
+        response('{"code":"temporarily-unavailable"}', 503, headers, scope),
+      ).probeScope(),
+    ).toMatchObject({
+      kind: "json",
+      status: 503,
+      contentType: headers["content-type"],
+      retryAfter: "9",
+      body: { code: "temporarily-unavailable" },
+    });
+    await expect(
+      client(async () => response("not JSON", 503, headers, scope)).probeScope(),
+    ).rejects.toMatchObject({ code: "invalid-response", httpStatus: 503, retryAfter: "9" });
+    expect(await client(async () => response(null, 406, {}, scope)).probeScope()).toMatchObject({
+      kind: "empty",
+      status: 406,
+    });
+    await expect(
+      client(async () =>
+        response("landing", 307, { location: "https://evil.test/" }, scope),
+      ).probeScope(),
+    ).rejects.toMatchObject({
+      code: "invalid-response",
+      httpStatus: 307,
+      submission: "not-submitted",
+    });
+  });
+  it("never applies Scope body ignoring to ordinary GET or POST, including the Scope URL", async () => {
+    const transport = client(async (url) =>
+      response("<html>landing</html>", 200, { "content-type": "text/html" }, String(url)),
+    );
+    await expect(transport.get(scope)).rejects.toMatchObject({
+      code: "invalid-response",
+      httpStatus: 200,
+    });
+    await expect(transport.post(scope, post)).rejects.toMatchObject({
+      code: "invalid-response",
+      httpStatus: 200,
+    });
+  });
   it("sends original numeric/escape bytes and one exact singleton key with confined credentials", async () => {
     const text = '{"properties":{"n":9007199254740993,"x":"\\ud83d\\ude00","a":"é"}}';
     let calls = 0;

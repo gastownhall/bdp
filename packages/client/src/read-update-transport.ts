@@ -66,7 +66,12 @@ export interface ReadUpdateHttpContext {
 }
 export type ReadUpdateHttpResponse = ReadUpdateHttpContext &
   ({ readonly kind: "json"; readonly body: AdmittedJsonValue } | { readonly kind: "empty" });
+export type ReadUpdateScopeProbeResponse =
+  | ReadUpdateHttpResponse
+  | (ReadUpdateHttpContext & { readonly kind: "scope-probe" });
 export interface ReadUpdateTransport {
+  /** Discover through Link metadata; a successful Scope body is never discovery JSON. */
+  probeScope(options?: ReadUpdateTransportCallOptions): Promise<ReadUpdateScopeProbeResponse>;
   get(url: string, options?: ReadUpdateTransportCallOptions): Promise<ReadUpdateHttpResponse>;
   post(url: string, options: ReadUpdateTransportPostOptions): Promise<ReadUpdateHttpResponse>;
 }
@@ -121,11 +126,23 @@ export function createReadUpdateFetchTransport(
   if (typeof fetchImplementation !== "function") return failInput();
   if (credential !== undefined && typeof credential !== "function") return failInput();
 
+  function exchange(
+    method: "GET" | "POST",
+    urlInput: string,
+    call: ReadUpdateTransportCallOptions | ReadUpdateTransportPostOptions,
+  ): Promise<ReadUpdateHttpResponse>;
+  function exchange(
+    method: "GET",
+    urlInput: string,
+    call: ReadUpdateTransportCallOptions,
+    scopeProbe: true,
+  ): Promise<ReadUpdateScopeProbeResponse>;
   async function exchange(
     method: "GET" | "POST",
     urlInput: string,
     call: ReadUpdateTransportCallOptions | ReadUpdateTransportPostOptions,
-  ): Promise<ReadUpdateHttpResponse> {
+    scopeProbe = false,
+  ): Promise<ReadUpdateScopeProbeResponse> {
     let submitted = false;
     let status: number | undefined;
     let contentType: string | null | undefined;
@@ -258,9 +275,18 @@ export function createReadUpdateFetchTransport(
           retryAfter: metadata["retry-after"] ?? null,
           headers: Object.freeze(metadata),
         });
+        if (scopeProbe && status === 200) {
+          // The Scope representation is uninterpreted, even if it claims JSON.
+          // Cancellation has its own bounded wait; no body size or parser applies.
+          await cleanupBody(response, limits.cleanupTimeoutMs);
+          checkAbort();
+          return Object.freeze({ ...context, kind: "scope-probe" });
+        }
         const data = await readBody(response, limits, signal, abortError, error, checkAbort);
         if (BODYLESS_STATUSES.has(status)) {
           if (data.byteLength !== 0) throw error("invalid-response");
+          if (scopeProbe && status === 204)
+            return Object.freeze({ ...context, kind: "scope-probe" });
           return Object.freeze({ ...context, kind: "empty" });
         }
         const media = context.contentType?.split(";", 1)[0]?.trim().toLowerCase();
@@ -294,6 +320,7 @@ export function createReadUpdateFetchTransport(
     }
   }
   return Object.freeze({
+    probeScope: (call: ReadUpdateTransportCallOptions = {}) => exchange("GET", scope, call, true),
     get: (url: string, call: ReadUpdateTransportCallOptions = {}) => exchange("GET", url, call),
     post: (url: string, call: ReadUpdateTransportPostOptions) => exchange("POST", url, call),
   });
@@ -369,7 +396,7 @@ async function readBody(
       if (!(item.value instanceof Uint8Array)) throw error("invalid-response");
       length += item.value.byteLength;
       if (length > limits.responseBodyBytes) throw error("response-too-large");
-      if (item.value.byteLength !== 0) chunks.push(item.value.slice());
+      if (item.value.byteLength !== 0) chunks.push(new Uint8Array(item.value));
     }
     const bytes = new Uint8Array(length);
     let offset = 0;
