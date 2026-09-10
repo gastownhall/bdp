@@ -292,6 +292,9 @@ describe("checked-in Read matrix artifacts", () => {
       "read.owned-wildcard.present-entries",
       "read.owned-wildcard.closure",
       "read.numeric-model.declared-token-model",
+      "read.http.accept-negotiation",
+      "read.http.conditional-reads",
+      "read.http.head-conditional-parity",
     ]);
   });
 
