@@ -1,7 +1,22 @@
 import {
+  assertCanonicalPathSegments,
   type BeadRecord,
+  isHttpScopeCandidate,
   type LinkRecord,
-  type Reference,
+  parseCanonicalHttpUrl,
+  parseCanonicalScope,
+  parseLinkHeader,
+  parseReadProblem,
+  parseReadUpdateAliasResult,
+  parseReadUpdateDiscovery,
+  parseReadUpdateMutationResult,
+  parseReadUpdateOperationDirectory,
+  parseReadUpdateProblem,
+  parseReadUpdateSequenceResponse,
+  prepareReadUpdateSequence,
+  prepareReadUpdateSingleton,
+  type ReadBodyFor,
+  type ReadProblem,
   type ReadUpdateAliasResult,
   type ReadUpdateDiscovery,
   type ReadUpdateMutationResult,
@@ -9,24 +24,22 @@ import {
   type ReadUpdateOperationDirectory,
   type ReadUpdateProblem,
   type ReadUpdateSequenceResponse,
-  type UnadmittedReadUpdateOperation,
-  parseCanonicalHttpUrl,
-  isHttpScopeCandidate,
-  parseCanonicalScope,
-  parseLinkHeader,
-  parseReadUpdateAliasResult,
-  parseReadUpdateDiscovery,
-  parseReadUpdateMutationResult,
-  parseReadUpdateOperationDirectory,
-  parseReadUpdateProblem,
-  parseReadUpdateSequenceResponse,
-  prepareReadUpdateSingleton,
-  prepareReadUpdateSequence,
+  type Reference,
   referenceUri,
   resolveCanonicalLocalResourceId,
+  type ScopeReadOperation,
   snapshotJsonValue,
+  type UnadmittedReadUpdateOperation,
 } from "@bdp/protocol";
 import {
+  type BdpContinuationScope,
+  type PreparedRead,
+  ReadSession,
+  ReadSessionLocalError,
+  type StagedRead,
+} from "./read-session.js";
+import {
+  type ReadUpdateAliasResponse,
   type ReadUpdateHttpContext,
   type ReadUpdateScopeProbeResponse,
   type ReadUpdateTransport,
@@ -42,14 +55,21 @@ export interface ReadUpdateClientOptions {
 export interface ReadUpdateClientCallOptions {
   readonly signal?: AbortSignal;
 }
+export interface ReadUpdateClientReadOptions extends ReadUpdateClientCallOptions {
+  readonly continuationScope?: BdpContinuationScope;
+}
+export interface ReadUpdateClientAliasResolution {
+  readonly alias: string;
+  readonly target: string;
+}
 export interface ReadUpdateClientMutationOptions extends ReadUpdateClientCallOptions {
   readonly idempotencyKey: string;
 }
-export type ReadUpdateClientReply<T> =
+export type ReadUpdateClientReply<T, P = ReadUpdateProblem> =
   | { readonly kind: "success"; readonly value: T; readonly http: ReadUpdateHttpContext }
   | {
       readonly kind: "problem";
-      readonly problem: ReadUpdateProblem;
+      readonly problem: P;
       readonly http: ReadUpdateHttpContext;
     }
   | { readonly kind: "http"; readonly http: ReadUpdateHttpContext };
@@ -85,25 +105,30 @@ interface Call {
   check(): void;
   failure(
     code: ReadUpdateClientErrorCode,
-    http?: ReadUpdateHttpContext,
+    http?: ReadUpdateHttpContext | null,
     operationIndex?: number,
   ): ReadUpdateClientError;
-  exchange(
-    action: () => Promise<ReadUpdateScopeProbeResponse>,
+  exchange<Response extends ClientResponse>(
+    action: () => Promise<Response>,
     url: string,
     mutation?: boolean,
-  ): Promise<ReadUpdateScopeProbeResponse>;
+  ): Promise<Response>;
 }
-type FailureReply = Exclude<ReadUpdateClientReply<never>, { readonly kind: "success" }>;
+type ClientResponse = ReadUpdateScopeProbeResponse | ReadUpdateAliasResponse;
+type FailureReply<P = ReadUpdateProblem> = Exclude<
+  ReadUpdateClientReply<never, P>,
+  { readonly kind: "success" }
+>;
 
-/** Read+Update operations only. No profile-specific Read session, alias lookup,
- * semantic identity, credential policy or authority admission is implemented here.
+/** Read+Update navigation and commands. No semantic identity, credential policy
+ * or authority admission is implemented here.
  * Injected transports must be confined to the same configured Scope.
  */
 export class BdpReadUpdateClient {
   readonly scope: string;
   private readonly transport: ReadUpdateTransport;
   private readonly timeoutMs: number;
+  private readonly readSession: ReadSession;
   private readonly active = new Set<AbortController>();
   private closed = false;
 
@@ -111,8 +136,11 @@ export class BdpReadUpdateClient {
     try {
       this.scope = parseCanonicalScope(options.scope);
       this.timeoutMs = options.settlementTimeoutMs;
+      this.readSession = new ReadSession(this.scope);
       const transport = options.transport;
+      const resolveAlias = transport.resolveAlias;
       this.transport = Object.freeze({
+        ...(resolveAlias === undefined ? {} : { resolveAlias: resolveAlias.bind(transport) }),
         get: transport.get.bind(transport),
         post: transport.post.bind(transport),
         probeScope: transport.probeScope.bind(transport),
@@ -125,6 +153,172 @@ export class BdpReadUpdateClient {
         throw Error();
     } catch {
       throw new ReadUpdateClientError("invalid-input", "not-submitted");
+    }
+  }
+
+  createContinuationScope(): BdpContinuationScope {
+    this.assertReadOpen();
+    return this.readLocal(() => this.readSession.createContinuationScope());
+  }
+  forgetContinuations(owner: BdpContinuationScope): void {
+    this.assertReadOpen();
+    this.readLocal(() => this.readSession.forgetContinuations(owner));
+  }
+  read<R extends ScopeReadOperation>(
+    request: R,
+    options: ReadUpdateClientReadOptions = {},
+  ): Promise<ReadUpdateClientReply<ReadBodyFor<R>, ReadProblem>> {
+    const startedAt = performance.now();
+    let captured: ReadUpdateClientReadOptions;
+    let localFailure: ReadUpdateClientError | undefined;
+    const refuse = (code: ReadUpdateClientErrorCode): never => {
+      localFailure = new ReadUpdateClientError(code, "not-submitted");
+      throw localFailure;
+    };
+    let prepared: PreparedRead<R>;
+    try {
+      if (this.closed) refuse("closed");
+      captured = snapshotReadOptions(options);
+      this.readSession.owner(captured.continuationScope);
+      if (captured.signal?.aborted) refuse("aborted");
+      prepared = this.readSession.prepare(request, captured.continuationScope);
+    } catch (cause) {
+      return Promise.reject(
+        cause === localFailure && localFailure !== undefined
+          ? localFailure
+          : new ReadUpdateClientError("invalid-input", "not-submitted"),
+      );
+    }
+    type Delivery =
+      | FailureReply<ReadProblem>
+      | {
+          readonly kind: "staged";
+          readonly staged: StagedRead<R>;
+          readonly http: ReadUpdateHttpContext;
+        };
+    try {
+      return this.run<Delivery, ReadUpdateClientReply<ReadBodyFor<R>, ReadProblem>>(
+        captured,
+        async (call) => {
+          const discovery = await this.loadDiscovery(call, parseReadProblem);
+          if (discovery.kind !== "success") return discovery;
+          let route: ReturnType<PreparedRead<R>["route"]>;
+          try {
+            route = prepared.route(discovery.value);
+          } catch (cause) {
+            if (cause instanceof ReadSessionLocalError) throw call.failure("invalid-input", null);
+            throw cause;
+          }
+          if (route.kind === "refusal") throw call.failure("invalid-input", null);
+          const url = route.value;
+          const received = await call.exchange(
+            () => this.transport.get(url, { signal: call.signal }),
+            url,
+          );
+          const fault = responseFailure(received, parseReadProblem);
+          if (fault) return fault;
+          const http = responseContext(received);
+          if (
+            received.kind !== "json" ||
+            received.status !== 200 ||
+            media(received) !== "application/json"
+          )
+            throw call.failure("invalid-response", http);
+          assertPrivateNoStore(http);
+          const validated = prepared.validate(received.body);
+          if (validated.kind === "refusal") throw call.failure("invalid-response", http);
+          return { kind: "staged", staged: validated.value, http };
+        },
+        startedAt,
+        (delivery, call) => {
+          if (delivery.kind !== "staged") return delivery;
+          try {
+            const committed = prepared.commit(delivery.staged);
+            if (committed.kind === "refusal") throw call.failure("invalid-response", delivery.http);
+            return success(committed.value, delivery.http);
+          } catch (cause) {
+            if (cause instanceof ReadSessionLocalError)
+              throw call.failure(
+                cause.reason === "capacity" ? "invalid-input" : "invalid-response",
+                cause.reason === "capacity" ? null : delivery.http,
+              );
+            throw cause;
+          }
+        },
+      ).finally(() => prepared.release());
+    } catch {
+      prepared.release();
+      return Promise.reject(new ReadUpdateClientError("invalid-input", "not-submitted"));
+    }
+  }
+  resolveAlias(
+    alias: string,
+    options: ReadUpdateClientCallOptions = {},
+  ): Promise<ReadUpdateClientReply<ReadUpdateClientAliasResolution, ReadProblem>> {
+    const startedAt = performance.now();
+    let captured: ReadUpdateClientReadOptions;
+    let localFailure: ReadUpdateClientError | undefined;
+    const refuse = (code: ReadUpdateClientErrorCode): never => {
+      localFailure = new ReadUpdateClientError(code, "not-submitted");
+      throw localFailure;
+    };
+    const resolve = this.transport.resolveAlias;
+    try {
+      if (this.closed) refuse("closed");
+      captured = snapshotReadOptions(options);
+      if (captured.continuationScope !== undefined) throw Error();
+      if (captured.signal?.aborted) refuse("aborted");
+      if (
+        !resolve ||
+        typeof alias !== "string" ||
+        !alias.startsWith(`${this.scope}alias/`) ||
+        alias.includes("?")
+      )
+        throw Error();
+      parseCanonicalHttpUrl(alias);
+      assertCanonicalPathSegments(alias.slice(`${this.scope}alias/`.length), "alias");
+    } catch (cause) {
+      return Promise.reject(
+        cause === localFailure && localFailure !== undefined
+          ? localFailure
+          : new ReadUpdateClientError("invalid-input", "not-submitted"),
+      );
+    }
+    return this.run(
+      captured,
+      async (call) => {
+        const discovery = await this.loadDiscovery(call, parseReadProblem);
+        if (discovery.kind !== "success") return discovery;
+        const received = await call.exchange(() => resolve(alias, { signal: call.signal }), alias);
+        const fault = responseFailure(received, parseReadProblem);
+        if (fault) return fault;
+        const http = responseContext(received);
+        if (received.kind !== "alias-redirect" || received.status !== 307)
+          throw call.failure("invalid-response", http);
+        assertPrivateNoStore(http);
+        const target = http.headers.location;
+        if (target === undefined || target.includes("?"))
+          throw call.failure("invalid-response", http);
+        parseCanonicalHttpUrl(target);
+        this.resourceId(target, "bead");
+        return success(Object.freeze({ alias, target }), http);
+      },
+      startedAt,
+    );
+  }
+  private assertReadOpen(): void {
+    if (this.closed) throw new ReadUpdateClientError("closed", "not-submitted");
+  }
+  private readLocal<T>(action: () => T): T {
+    try {
+      return action();
+    } catch (cause) {
+      throw new ReadUpdateClientError(
+        cause instanceof ReadSessionLocalError && cause.reason === "closed"
+          ? "closed"
+          : "invalid-input",
+        "not-submitted",
+      );
     }
   }
 
@@ -284,6 +478,7 @@ export class BdpReadUpdateClient {
    */
   close(): Promise<void> {
     this.closed = true;
+    this.readSession.clear();
     for (const controller of this.active) controller.abort();
     return Promise.resolve();
   }
@@ -291,8 +486,20 @@ export class BdpReadUpdateClient {
   private run<T>(
     options: ReadUpdateClientCallOptions,
     action: (call: Call) => Promise<T>,
+    startedAt?: number,
+  ): Promise<T>;
+  private run<T, R>(
+    options: ReadUpdateClientCallOptions,
+    action: (call: Call) => Promise<T>,
+    startedAt: number,
+    finalize: (value: T, call: Call) => R,
+  ): Promise<R>;
+  private run<T, R = T>(
+    options: ReadUpdateClientCallOptions,
+    action: (call: Call) => Promise<T>,
     startedAt = performance.now(),
-  ): Promise<T> {
+    finalize?: (value: T, call: Call) => R,
+  ): Promise<T | R> {
     if (this.closed) return Promise.reject(new ReadUpdateClientError("closed", "not-submitted"));
     let caller: AbortSignal | undefined;
     try {
@@ -309,7 +516,11 @@ export class BdpReadUpdateClient {
       timedOut = false;
     const local = new WeakSet<ReadUpdateClientError>();
     let latest: ReadUpdateHttpContext | undefined;
-    const failure = (code: ReadUpdateClientErrorCode, http = latest, operationIndex?: number) => {
+    const failure = (
+      code: ReadUpdateClientErrorCode,
+      http: ReadUpdateHttpContext | null | undefined = latest,
+      operationIndex?: number,
+    ) => {
       const error = new ReadUpdateClientError(
         code,
         submitted ? "unknown" : "not-submitted",
@@ -342,11 +553,15 @@ export class BdpReadUpdateClient {
       signal,
       check,
       failure,
-      exchange: async (send, url, mutation = false) => {
+      exchange: async <Response extends ClientResponse>(
+        send: () => Promise<Response>,
+        url: string,
+        mutation = false,
+      ): Promise<Response> => {
         latest = undefined; // Earlier navigation metadata is not this exchange's response.
         check();
         if (mutation) submitted = true;
-        let received: ReadUpdateScopeProbeResponse;
+        let received: Response;
         try {
           received = await send();
         } catch (cause) {
@@ -381,7 +596,7 @@ export class BdpReadUpdateClient {
         return received;
       },
     };
-    return new Promise<T>((resolve, reject) => {
+    return new Promise<T | R>((resolve, reject) => {
       const abort = () => reject(abortFailure());
       signal.addEventListener("abort", abort, { once: true });
       const cleanup = () => {
@@ -399,9 +614,13 @@ export class BdpReadUpdateClient {
           (value) => {
             try {
               check();
-              resolve(value);
+              resolve(finalize ? finalize(value, call) : value);
             } catch (cause) {
-              reject(cause);
+              reject(
+                cause instanceof ReadUpdateClientError && local.has(cause)
+                  ? cause
+                  : failure("invalid-response"),
+              );
             }
           },
           (cause) => {
@@ -422,12 +641,20 @@ export class BdpReadUpdateClient {
     });
   }
 
-  private async loadDiscovery(call: Call): Promise<ReadUpdateClientReply<ReadUpdateDiscovery>> {
+  private loadDiscovery(call: Call): Promise<ReadUpdateClientReply<ReadUpdateDiscovery>>;
+  private loadDiscovery<P extends ReadUpdateProblem>(
+    call: Call,
+    parseProblem: (value: unknown) => P,
+  ): Promise<ReadUpdateClientReply<ReadUpdateDiscovery, P>>;
+  private async loadDiscovery(
+    call: Call,
+    parseProblem: (value: unknown) => ReadUpdateProblem = parseReadUpdateProblem,
+  ): Promise<ReadUpdateClientReply<ReadUpdateDiscovery>> {
     const probe = await call.exchange(
       () => this.transport.probeScope({ signal: call.signal }),
       this.scope,
     );
-    const fault = responseFailure(probe);
+    const fault = responseFailure(probe, parseProblem);
     if (fault) return fault;
     if (probe.kind !== "scope-probe" || (probe.status !== 200 && probe.status !== 204))
       throw call.failure("invalid-response");
@@ -459,7 +686,7 @@ export class BdpReadUpdateClient {
       () => this.transport.get(descriptionUrl, { signal: call.signal }),
       descriptionUrl,
     );
-    const problem = responseFailure(received);
+    const problem = responseFailure(received, parseProblem);
     if (problem) return problem;
     if (
       received.kind !== "json" ||
@@ -677,7 +904,7 @@ function selectedHeaders(value: unknown): Readonly<Record<string, string>> {
     ),
   );
 }
-function responseContext(value: ReadUpdateScopeProbeResponse): ReadUpdateHttpContext {
+function responseContext(value: ClientResponse): ReadUpdateHttpContext {
   const { status, url, contentType, retryAfter } = value;
   if (
     !Number.isInteger(status) ||
@@ -703,7 +930,15 @@ function responseContext(value: ReadUpdateScopeProbeResponse): ReadUpdateHttpCon
     headers,
   });
 }
-function responseFailure(response: ReadUpdateScopeProbeResponse): FailureReply | undefined {
+function responseFailure(response: ClientResponse): FailureReply | undefined;
+function responseFailure<P extends ReadUpdateProblem>(
+  response: ClientResponse,
+  parseProblem: (value: unknown) => P,
+): FailureReply<P> | undefined;
+function responseFailure(
+  response: ClientResponse,
+  parseProblem: (value: unknown) => ReadUpdateProblem = parseReadUpdateProblem,
+): FailureReply | undefined {
   const http = responseContext(response);
   if (response.status === 405 || response.status === 406 || response.status === 500) {
     if (response.kind !== "empty") throw Error();
@@ -711,15 +946,19 @@ function responseFailure(response: ReadUpdateScopeProbeResponse): FailureReply |
   }
   if (response.status >= 400) {
     if (response.kind !== "json" || media(response) !== "application/problem+json") throw Error();
-    const problem = parseReadUpdateProblem(response.body);
-    if (problem.status !== undefined && problem.status !== response.status) throw Error();
-    parseReadUpdateProblem({ ...problem, status: response.status });
+    const problem = parseProblem(response.body);
+    const status = problem.status;
+    if (status !== undefined && status !== response.status) throw Error();
+    parseProblem({ ...problem, status: response.status });
     assertPrivateNoStore(http);
     return Object.freeze({ kind: "problem", problem, http });
   }
   return undefined;
 }
-function success<T>(value: T, http: ReadUpdateHttpContext): ReadUpdateClientReply<T> {
+function success<T>(
+  value: T,
+  http: ReadUpdateHttpContext,
+): { readonly kind: "success"; readonly value: T; readonly http: ReadUpdateHttpContext } {
   return Object.freeze({ kind: "success", value, http });
 }
 
@@ -767,4 +1006,25 @@ function assertPrivateNoStore(http: ReadUpdateHttpContext): void {
   if (quoted || escaped) throw Error();
   consume(value.length);
   if (!isPrivate || !noStore) throw Error();
+}
+
+function snapshotReadOptions(value: ReadUpdateClientReadOptions): ReadUpdateClientReadOptions {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    ![Object.prototype, null].includes(Object.getPrototypeOf(value))
+  )
+    throw Error();
+  const captured: { signal?: AbortSignal; continuationScope?: BdpContinuationScope } = {};
+  for (const key of Reflect.ownKeys(value)) {
+    if (key !== "signal" && key !== "continuationScope") throw Error();
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor || !("value" in descriptor)) throw Error();
+    if (key === "signal") {
+      if (descriptor.value !== undefined && !(descriptor.value instanceof AbortSignal))
+        throw Error();
+      if (descriptor.value !== undefined) captured.signal = descriptor.value;
+    } else if (descriptor.value !== undefined) captured.continuationScope = descriptor.value;
+  }
+  return Object.freeze(captured);
 }

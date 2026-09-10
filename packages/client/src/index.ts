@@ -1,39 +1,31 @@
+import {
+  type BdpContinuationScope,
+  captureReadRequest,
+  isWithinScope,
+  ReadSession,
+  ReadSessionLocalError,
+} from "./read-session.js";
+
+export type { BdpContinuationScope } from "./read-session.js";
+
 import type {
   AbsoluteHttpUrl,
-  BeadCollection,
-  BeadCollectionRequest,
-  BeadRecord,
-  LinkCollection,
-  LinkCollectionRequest,
-  LinkRecord,
   ReadDiscovery,
   ReadProblem,
   ReadRequest,
   ReadResultFor,
   ScopeProbe,
-  ScopeReadOperation,
-  TypeInventory,
-  TypeInventoryRequest,
 } from "@bdp/protocol";
 import {
-  referenceUri,
   ProtocolArtifactValidationError,
-  parseBeadCollection,
-  parseBeadRecord,
   parseCanonicalHttpUrl,
   parseCanonicalScope,
   parseCanonicalTypeId,
-  parseLinkCollection,
   parseLinkHeader,
-  parseLinkRecord,
-  parsePropertiesRecord,
   parseReadDiscovery,
   parseReadProblem,
-  parseTypeDescriptor,
-  parseTypeInventory,
   readProblem,
   readProblemDefinitionFor,
-  resolveCanonicalLocalResourceId,
 } from "@bdp/protocol";
 
 /** Identifies the reusable BDP client package. */
@@ -45,8 +37,6 @@ const DEFAULT_MAXIMUM_JSON_NODES = 100_000;
 const DEFAULT_MAXIMUM_JSON_CONTAINER_ENTRIES = 100_000;
 const DEFAULT_RESPONSE_TIMEOUT_MS = 30_000;
 const DEFAULT_TRANSPORT_SETTLEMENT_TIMEOUT_MS = 30_000;
-const MAXIMUM_CONTINUATION_CONTEXTS = 1_024;
-const MAXIMUM_CONTINUATION_HISTORY_ENTRIES = 10_000;
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
 export interface BdpTransport {
@@ -764,185 +754,6 @@ export interface PerformOptions {
   readonly continuationScope?: BdpContinuationScope;
 }
 
-declare const CONTINUATION_SCOPE_BRAND: unique symbol;
-
-/** Opaque ownership token for continuation capabilities issued to one traversal. */
-export interface BdpContinuationScope {
-  readonly [CONTINUATION_SCOPE_BRAND]: true;
-}
-
-type ContinuationContext =
-  | { readonly kind: "collection"; readonly collection: "beads" | "links" | "types" }
-  | {
-      readonly kind: "bead-links";
-      readonly bead: AbsoluteHttpUrl;
-      readonly direction: "inbound" | "outbound" | "both";
-    };
-
-class ContinuationRegistryError extends Error {}
-
-class ContinuationRegistryProtocolError extends ContinuationRegistryError {}
-
-class ContinuationRegistryCapacityError extends ContinuationRegistryError {}
-
-interface ContinuationLease {
-  readonly url: AbsoluteHttpUrl;
-  readonly context: ContinuationContext;
-  readonly owner: BdpContinuationScope | undefined;
-  readonly history: Set<AbsoluteHttpUrl>;
-}
-
-interface ContinuationReservation {
-  readonly context: ContinuationContext;
-  readonly lease?: ContinuationLease;
-}
-
-class ContinuationRegistry {
-  private readonly entries = new Map<
-    AbsoluteHttpUrl,
-    Array<{
-      readonly context: ContinuationContext;
-      readonly owner: BdpContinuationScope | undefined;
-      readonly history: Set<AbsoluteHttpUrl>;
-    }>
-  >();
-  private readonly leases = new Set<ContinuationLease>();
-  private size = 0;
-  private historySize = 0;
-
-  reserve(
-    url: AbsoluteHttpUrl,
-    owner: BdpContinuationScope | undefined,
-    matches: (context: ContinuationContext) => boolean,
-  ): ContinuationLease | undefined {
-    const entries = this.entries.get(url);
-    const index =
-      entries?.findIndex((entry) => entry.owner === owner && matches(entry.context)) ?? -1;
-    if (entries === undefined || index < 0) return undefined;
-    const entry = entries[index];
-    if (entry === undefined) return undefined;
-    entries.splice(index, 1);
-    if (entries.length === 0) this.entries.delete(url);
-    const lease = { url, context: entry.context, owner: entry.owner, history: entry.history };
-    this.leases.add(lease);
-    return lease;
-  }
-
-  commit(
-    lease: ContinuationLease | undefined,
-    next: AbsoluteHttpUrl | null,
-    context: ContinuationContext,
-    owner: BdpContinuationScope | undefined,
-  ): void {
-    if (lease !== undefined && !this.leases.has(lease))
-      throw new ContinuationRegistryProtocolError("the continuation lease is no longer active");
-    if (lease !== undefined && !sameContinuationContext(lease.context, context))
-      throw new ContinuationRegistryProtocolError("the continuation context changed");
-    if (lease !== undefined && lease.owner !== owner)
-      throw new ContinuationRegistryProtocolError("the continuation owner changed");
-    if (next !== null && lease?.url === next)
-      throw new ContinuationRegistryProtocolError("the response repeated its continuation URL");
-    if (next !== null && lease?.history.has(next))
-      throw new ContinuationRegistryProtocolError(
-        "the response cycled to an earlier continuation URL",
-      );
-
-    const candidates = next === null ? undefined : this.entries.get(next);
-    if (
-      context.kind === "bead-links" &&
-      (candidates?.some(
-        (candidate) =>
-          candidate.owner === owner &&
-          candidate.context.kind === "bead-links" &&
-          candidate.context.bead === context.bead &&
-          candidate.context.direction !== context.direction,
-      ) ||
-        [...this.leases].some(
-          (candidate) =>
-            candidate.owner === owner &&
-            candidate.url === next &&
-            candidate.context.kind === "bead-links" &&
-            candidate.context.bead === context.bead &&
-            candidate.context.direction !== context.direction,
-        ))
-    )
-      throw new ContinuationRegistryProtocolError(
-        "the continuation URL is ambiguous across incident-Link directions",
-      );
-    const additions = next === null ? 0 : 1;
-    const consumed = lease === undefined ? 0 : 1;
-    if (this.size - consumed + additions > MAXIMUM_CONTINUATION_CONTEXTS)
-      throw new ContinuationRegistryCapacityError(
-        "the continuation registry reached its local bound",
-      );
-    const releasedHistory = next === null ? (lease?.history.size ?? 0) : 0;
-    const addedHistory = next === null ? 0 : 1;
-    if (this.historySize - releasedHistory + addedHistory > MAXIMUM_CONTINUATION_HISTORY_ENTRIES)
-      throw new ContinuationRegistryCapacityError(
-        "the continuation history reached its local bound",
-      );
-    if (lease !== undefined) {
-      this.leases.delete(lease);
-      this.size -= 1;
-      if (next === null) this.historySize -= lease.history.size;
-    }
-    if (next !== null) {
-      const history = lease?.history ?? new Set<AbsoluteHttpUrl>();
-      history.add(next);
-      this.historySize += 1;
-      this.add(next, context, owner, true, history);
-    }
-  }
-
-  restore(lease: ContinuationLease | undefined): void {
-    if (lease === undefined || !this.leases.delete(lease)) return;
-    this.add(lease.url, lease.context, lease.owner, false, lease.history);
-  }
-
-  clear(): void {
-    this.entries.clear();
-    this.leases.clear();
-    this.size = 0;
-    this.historySize = 0;
-  }
-
-  forgetAvailable(owner: BdpContinuationScope): void {
-    for (const [url, entries] of this.entries) {
-      const retained = entries.filter((entry) => entry.owner !== owner);
-      for (const entry of entries) {
-        if (entry.owner === owner) {
-          this.size -= 1;
-          this.historySize -= entry.history.size;
-        }
-      }
-      if (retained.length === 0) this.entries.delete(url);
-      else this.entries.set(url, retained);
-    }
-  }
-
-  private add(
-    url: AbsoluteHttpUrl,
-    context: ContinuationContext,
-    owner: BdpContinuationScope | undefined,
-    count = true,
-    history: Set<AbsoluteHttpUrl>,
-  ): void {
-    const entries = this.entries.get(url);
-    const entry = { context, owner, history };
-    if (entries === undefined) this.entries.set(url, [entry]);
-    else entries.push(entry);
-    if (count) this.size += 1;
-  }
-}
-
-function sameContinuationContext(left: ContinuationContext, right: ContinuationContext): boolean {
-  if (left.kind !== right.kind) return false;
-  if (left.kind === "collection" && right.kind === "collection")
-    return left.collection === right.collection;
-  if (left.kind !== "bead-links" || right.kind !== "bead-links") return false;
-  return left.bead === right.bead && left.direction === right.direction;
-}
-
 export type BdpClientLocalErrorCode =
   | "client-closed"
   | "operation-aborted"
@@ -1022,98 +833,6 @@ function clientProblem(problem: ReadProblem): ReadProblem {
   return owned;
 }
 
-type ReadRequestVariantMap = {
-  readonly "scope-discovery": Extract<ReadRequest, { readonly kind: "scope-discovery" }>;
-  readonly "collection:beads": Extract<
-    ReadRequest,
-    { readonly kind: "collection"; readonly collection: "beads" }
-  >;
-  readonly "collection:links": Extract<
-    ReadRequest,
-    { readonly kind: "collection"; readonly collection: "links" }
-  >;
-  readonly "collection:types": Extract<
-    ReadRequest,
-    { readonly kind: "collection"; readonly collection: "types" }
-  >;
-  readonly "resource:bead": Extract<
-    ReadRequest,
-    { readonly kind: "resource"; readonly resource: "bead" }
-  >;
-  readonly "resource:link": Extract<
-    ReadRequest,
-    { readonly kind: "resource"; readonly resource: "link" }
-  >;
-  readonly "resource:type": Extract<
-    ReadRequest,
-    { readonly kind: "resource"; readonly resource: "type" }
-  >;
-  readonly "properties:bead": Extract<
-    ReadRequest,
-    { readonly kind: "properties"; readonly resource: "bead" }
-  >;
-  readonly "properties:link": Extract<
-    ReadRequest,
-    { readonly kind: "properties"; readonly resource: "link" }
-  >;
-  readonly "bead-links": Extract<ReadRequest, { readonly kind: "bead-links" }>;
-};
-
-type ReadRequestVariant = keyof ReadRequestVariantMap;
-type RegisteredReadRequest = ReadRequestVariantMap[ReadRequestVariant];
-type ExhaustiveReadRequestRegistration =
-  Exclude<ReadRequest, RegisteredReadRequest> extends never
-    ? unknown
-    : { readonly missingReadRequestRegistration: never };
-
-type ReadRequestVisitor<Result> = {
-  readonly [Variant in ReadRequestVariant]: (request: ReadRequestVariantMap[Variant]) => Result;
-};
-
-function visitReadRequest<Result>(
-  request: ReadRequest,
-  visitor: ReadRequestVisitor<Result>,
-): Result {
-  switch (request.kind) {
-    case "scope-discovery":
-      return visitor["scope-discovery"](request);
-    case "collection":
-      switch (request.collection) {
-        case "beads":
-          return visitor["collection:beads"](request);
-        case "links":
-          return visitor["collection:links"](request);
-        case "types":
-          return visitor["collection:types"](request);
-      }
-      return unreachableReadRequestVariant(request);
-    case "resource":
-      switch (request.resource) {
-        case "bead":
-          return visitor["resource:bead"](request);
-        case "link":
-          return visitor["resource:link"](request);
-        case "type":
-          return visitor["resource:type"](request);
-      }
-      return unreachableReadRequestVariant(request);
-    case "properties":
-      switch (request.resource) {
-        case "bead":
-          return visitor["properties:bead"](request);
-        case "link":
-          return visitor["properties:link"](request);
-      }
-      return unreachableReadRequestVariant(request);
-    case "bead-links":
-      return visitor["bead-links"](request);
-  }
-}
-
-function unreachableReadRequestVariant(value: never): never {
-  throw new TypeError(`unregistered Read request variant ${String(value)}`);
-}
-
 /**
  * A Read client with one operation seam. Wire navigation remains explicit in
  * each request so authoritative discovery and continuation URLs pass through
@@ -1125,8 +844,7 @@ export class BdpClient {
   private readonly externalTypeDescriptorPolicy: ExternalTypeDescriptorRuntime | undefined;
   private readonly operations = new Map<AbortController, Promise<void>>();
   private readonly transportSettlements = new Set<Promise<void>>();
-  private readonly continuations = new ContinuationRegistry();
-  private readonly continuationScopes = new WeakSet<BdpContinuationScope>();
+  private readonly readSession: ReadSession;
   private readonly transportSettlementTimeoutMs: number;
   private state: "open" | "closing" | "closed" = "open";
   private closePromise: Promise<void> | undefined;
@@ -1137,6 +855,7 @@ export class BdpClient {
     const ownedOptions = snapshotClientOptions(options);
     assertCanonicalScope(ownedOptions.scope);
     this.scope = ownedOptions.scope;
+    this.readSession = new ReadSession(this.scope);
     this.transport = ownedOptions.transport;
     this.externalTypeDescriptorPolicy = ownedOptions.externalTypeDescriptorPolicy;
     this.transportSettlementTimeoutMs = ownedOptions.transportSettlementTimeoutMs;
@@ -1152,7 +871,7 @@ export class BdpClient {
     if (ownedOptions.signal !== undefined && abortSignalAborted(ownedOptions.signal)) {
       throw new BdpClientOperationAbortedError({ cause: abortSignalReason(ownedOptions.signal) });
     }
-    const ownedRequest = snapshotRequestParameters(request);
+    const ownedRequest = legacyReadSession(() => captureReadRequest(request));
 
     const operation = new AbortController();
     const completion = deferred();
@@ -1216,12 +935,18 @@ export class BdpClient {
       if (signal.aborted) throw signal.reason;
       return discovery as ReadResultFor<Request>;
     }
-    const continuation = continuationContextFor(request, this.continuations, continuationScope);
-    const lease = continuation?.lease;
-    let committed = false;
+    const prepared = legacyReadSession(() => this.readSession.prepare(request, continuationScope));
     try {
-      const url = await this.urlFor(request, signal);
-      if (typeof url !== "string") return clientProblem(url) as ReadResultFor<Request>;
+      const discovery = await this.getDiscovery(signal);
+      if (isBdpClientProblem(discovery)) return discovery as ReadResultFor<Request>;
+      const routed = legacyReadSession(() =>
+        prepared.route(discovery, this.externalTypeDescriptorPolicy?.typeIds),
+      );
+      if (routed.kind === "refusal")
+        return clientProblem(
+          readProblem(routed.refusal.code, routed.refusal.detail),
+        ) as ReadResultFor<Request>;
+      const url = routed.value;
       if (signal.aborted) throw signal.reason;
       const transport =
         request.kind === "resource" &&
@@ -1234,60 +959,26 @@ export class BdpClient {
           "external Type Descriptor retrieval requires a configured safe-fetch policy",
         );
       const result = await this.invokeTransport(
-        () => transport.perform<ReadResultFor<Request>>(url, { scope: this.scope, signal }),
+        () => transport.perform<unknown>(url, { scope: this.scope, signal }),
         signal,
       );
       if (result.kind === "problem")
+        return clientProblem(validatedTransportProblem(result)) as ReadResultFor<Request>;
+      const validated = legacyReadSession(() => prepared.validate(result.body));
+      if (validated.kind === "refusal")
         return clientProblem(
-          validatedTransportProblem(
-            result as Extract<BdpTransportResult<unknown>, { readonly kind: "problem" }>,
-          ),
+          readProblem(validated.refusal.code, validated.refusal.detail),
         ) as ReadResultFor<Request>;
-      const validated = validateReadBody(
-        request,
-        (result as Extract<BdpTransportResult<unknown>, { readonly kind: "success" }>).body,
-        this.scope,
-        continuation?.context,
-      );
-      if (validated.kind === "problem")
-        return clientProblem(validated.problem) as ReadResultFor<Request>;
-      const value = validated.body as ReadResultFor<Request>;
-      if (continuation !== undefined) {
-        const next = (value as { readonly next: AbsoluteHttpUrl | null }).next;
-        try {
-          this.continuations.commit(lease, next, continuation.context, continuationScope);
-          committed = true;
-        } catch (error) {
-          if (error instanceof ContinuationRegistryCapacityError)
-            throw new BdpClientContinuationCapacityError();
-          if (error instanceof ContinuationRegistryProtocolError)
-            return clientProblem(
-              readProblem(
-                "temporarily-unavailable",
-                "the server returned a structurally invalid Read response",
-              ),
-            ) as ReadResultFor<Request>;
-          throw error;
-        }
-      }
-      return value;
+      if (signal.aborted) throw signal.reason;
+      const committed = legacyReadSession(() => prepared.commit(validated.value));
+      return (
+        committed.kind === "success"
+          ? committed.value
+          : clientProblem(readProblem(committed.refusal.code, committed.refusal.detail))
+      ) as ReadResultFor<Request>;
     } finally {
-      if (lease !== undefined && !committed) this.continuations.restore(lease);
+      prepared.release();
     }
-  }
-
-  private async urlFor(
-    request: ScopeReadOperation,
-    signal: AbortSignal,
-  ): Promise<AbsoluteHttpUrl | ReadProblem> {
-    const discovery = await this.getDiscovery(signal);
-    if (isBdpClientProblem(discovery)) return discovery;
-    return readRequestUrl(
-      request,
-      this.scope,
-      discovery,
-      this.externalTypeDescriptorPolicy?.typeIds ?? new Set<string>(),
-    );
   }
 
   private getDiscovery(signal: AbortSignal): Promise<ReadDiscovery | ReadProblem> {
@@ -1396,7 +1087,7 @@ export class BdpClient {
       .then(() => boundedSettlement(transports, this.transportSettlementTimeoutMs))
       .then(() => {
         this.transportSettlements.clear();
-        this.continuations.clear();
+        this.readSession.clear();
         this.state = "closed";
       });
     return this.closePromise;
@@ -1408,27 +1099,18 @@ export class BdpClient {
    */
   createContinuationScope(): BdpContinuationScope {
     if (this.state !== "open") throw new BdpClientClosedError();
-    const scope = Object.freeze(Object.create(null)) as BdpContinuationScope;
-    this.continuationScopes.add(scope);
-    return scope;
+    return legacyReadSession(() => this.readSession.createContinuationScope());
   }
 
-  /**
-   * Forgets this traversal's retained continuations that are not currently
-   * leased by an admitted operation. Other traversal owners are unaffected.
-   */
+  /** Forget available capabilities for this traversal, preserving active leases. */
   forgetContinuations(scope: BdpContinuationScope): void {
-    const owned = this.ownedContinuationScope(scope);
-    if (owned === undefined) throw new BdpClientRequestError("continuation scope is required");
-    this.continuations.forgetAvailable(owned);
+    legacyReadSession(() => this.readSession.forgetContinuations(scope));
   }
 
   private ownedContinuationScope(
     scope: BdpContinuationScope | undefined,
   ): BdpContinuationScope | undefined {
-    if (scope !== undefined && !this.continuationScopes.has(scope))
-      throw new BdpClientRequestError("continuation scope was not created by this client");
-    return scope;
+    return legacyReadSession(() => this.readSession.owner(scope));
   }
 
   private async invokeTransport<Body>(
@@ -1724,653 +1406,6 @@ function abortSignalReason(signal: AbortSignal): unknown {
   return getter.call(signal);
 }
 
-interface ReadRequestDescriptor {
-  readonly kind: ReadRequest["kind"];
-  readonly qualifierValue?: string;
-  readonly allowedFields: readonly string[];
-  readonly requiredUrlFields: readonly string[];
-  readonly continuationIncompatibleFields: readonly string[];
-  readonly validatesDirection?: true;
-}
-
-type ReadRequestQualifier<Request extends ReadRequest> = Request extends {
-  readonly kind: "collection";
-  readonly collection: infer Qualifier extends string;
-}
-  ? Qualifier
-  : Request extends {
-        readonly kind: "resource" | "properties";
-        readonly resource: infer Qualifier extends string;
-      }
-    ? Qualifier
-    : never;
-
-type RegisteredReadRequestDescriptor<Variant extends ReadRequestVariant> = ReadRequestDescriptor & {
-  readonly kind: ReadRequestVariantMap[Variant]["kind"];
-} & ([ReadRequestQualifier<ReadRequestVariantMap[Variant]>] extends [never]
-    ? { readonly qualifierValue?: never }
-    : {
-        readonly qualifierValue: ReadRequestQualifier<ReadRequestVariantMap[Variant]>;
-      });
-
-const READ_REQUEST_DESCRIPTORS = {
-  "scope-discovery": {
-    kind: "scope-discovery",
-    allowedFields: ["kind", "scope"],
-    requiredUrlFields: ["scope"],
-    continuationIncompatibleFields: [],
-  },
-  "collection:beads": {
-    kind: "collection",
-    qualifierValue: "beads",
-    allowedFields: [
-      "kind",
-      "collection",
-      "continuation",
-      "type",
-      "conformsTo",
-      "limit",
-      "selector",
-    ],
-    requiredUrlFields: [],
-    continuationIncompatibleFields: [
-      "type",
-      "conformsTo",
-      "source",
-      "target",
-      "endpoint",
-      "selector",
-      "limit",
-    ],
-  },
-  "collection:links": {
-    kind: "collection",
-    qualifierValue: "links",
-    allowedFields: [
-      "kind",
-      "collection",
-      "continuation",
-      "type",
-      "conformsTo",
-      "source",
-      "target",
-      "endpoint",
-      "limit",
-      "selector",
-    ],
-    requiredUrlFields: [],
-    continuationIncompatibleFields: [
-      "type",
-      "conformsTo",
-      "source",
-      "target",
-      "endpoint",
-      "selector",
-      "limit",
-    ],
-  },
-  "collection:types": {
-    kind: "collection",
-    qualifierValue: "types",
-    allowedFields: ["kind", "collection", "continuation", "limit"],
-    requiredUrlFields: [],
-    continuationIncompatibleFields: [
-      "type",
-      "conformsTo",
-      "source",
-      "target",
-      "endpoint",
-      "selector",
-      "limit",
-    ],
-  },
-  "resource:bead": {
-    kind: "resource",
-    qualifierValue: "bead",
-    allowedFields: ["kind", "resource", "id"],
-    requiredUrlFields: ["id"],
-    continuationIncompatibleFields: [],
-  },
-  "resource:link": {
-    kind: "resource",
-    qualifierValue: "link",
-    allowedFields: ["kind", "resource", "id"],
-    requiredUrlFields: ["id"],
-    continuationIncompatibleFields: [],
-  },
-  "resource:type": {
-    kind: "resource",
-    qualifierValue: "type",
-    allowedFields: ["kind", "resource", "id"],
-    requiredUrlFields: ["id"],
-    continuationIncompatibleFields: [],
-  },
-  "properties:bead": {
-    kind: "properties",
-    qualifierValue: "bead",
-    allowedFields: ["kind", "resource", "id"],
-    requiredUrlFields: ["id"],
-    continuationIncompatibleFields: [],
-  },
-  "properties:link": {
-    kind: "properties",
-    qualifierValue: "link",
-    allowedFields: ["kind", "resource", "id"],
-    requiredUrlFields: ["id"],
-    continuationIncompatibleFields: [],
-  },
-  "bead-links": {
-    kind: "bead-links",
-    allowedFields: ["kind", "bead", "continuation", "direction", "limit"],
-    requiredUrlFields: ["bead"],
-    continuationIncompatibleFields: ["limit", "direction"],
-    validatesDirection: true,
-  },
-} satisfies {
-  readonly [Variant in ReadRequestVariant]: RegisteredReadRequestDescriptor<Variant>;
-} & ExhaustiveReadRequestRegistration;
-
-type ReadRequestFamilyDescriptor =
-  | {
-      readonly kind: "scope-discovery" | "bead-links";
-    }
-  | {
-      readonly kind: "collection" | "resource" | "properties";
-      readonly qualifierField: "collection" | "resource";
-      readonly missingQualifierMessage: string;
-      readonly invalidQualifierMessage: string;
-    };
-
-const READ_REQUEST_FAMILIES = {
-  "scope-discovery": { kind: "scope-discovery" },
-  collection: {
-    kind: "collection",
-    qualifierField: "collection",
-    missingQualifierMessage: "collection requests require a collection kind",
-    invalidQualifierMessage: "request has an invalid collection kind",
-  },
-  resource: {
-    kind: "resource",
-    qualifierField: "resource",
-    missingQualifierMessage: "Resource requests require a Resource kind",
-    invalidQualifierMessage: "request has an invalid Resource kind",
-  },
-  properties: {
-    kind: "properties",
-    qualifierField: "resource",
-    missingQualifierMessage: "properties requests require a Resource kind",
-    invalidQualifierMessage: "request has an invalid properties Resource kind",
-  },
-  "bead-links": { kind: "bead-links" },
-} satisfies Readonly<Record<ReadRequest["kind"], ReadRequestFamilyDescriptor>>;
-
-function requestDescriptorForCandidate(
-  candidate: Readonly<Record<string, unknown>>,
-): ReadRequestDescriptor {
-  const family = Object.values(READ_REQUEST_FAMILIES).find(
-    (registered) => registered.kind === candidate.kind,
-  );
-  if (family === undefined)
-    throw new BdpClientRequestError("request has an invalid operation kind");
-  const candidates: readonly ReadRequestDescriptor[] = Object.values(
-    READ_REQUEST_DESCRIPTORS,
-  ).filter((descriptor) => descriptor.kind === family.kind);
-  if (!("qualifierField" in family)) {
-    const descriptor = candidates[0];
-    if (descriptor === undefined)
-      throw new BdpClientRequestError("request has an invalid operation kind");
-    return descriptor;
-  }
-  if (!Object.hasOwn(candidate, family.qualifierField))
-    throw new BdpClientRequestError(family.missingQualifierMessage);
-  const qualifierValue = candidate[family.qualifierField];
-  const descriptor = candidates.find((registered) => registered.qualifierValue === qualifierValue);
-  if (descriptor === undefined) throw new BdpClientRequestError(family.invalidQualifierMessage);
-  return descriptor;
-}
-
-function continuationContextFor(
-  request: ReadRequest,
-  continuations: ContinuationRegistry,
-  owner: BdpContinuationScope | undefined,
-): ContinuationReservation | undefined {
-  if (request.kind === "collection") {
-    if (request.continuation === undefined)
-      return { context: { kind: "collection", collection: request.collection } };
-    const lease = continuations.reserve(
-      request.continuation,
-      owner,
-      (candidate) => candidate.kind === "collection" && candidate.collection === request.collection,
-    );
-    if (lease === undefined)
-      throw new BdpClientRequestError("continuation was not issued for this collection");
-    return { context: lease.context, lease };
-  }
-  if (request.kind === "bead-links") {
-    if (request.continuation === undefined)
-      return {
-        context: {
-          kind: "bead-links",
-          bead: request.bead,
-          direction: Object.hasOwn(request, "direction") ? (request.direction ?? "both") : "both",
-        },
-      };
-    const lease = continuations.reserve(
-      request.continuation,
-      owner,
-      (candidate) => candidate.kind === "bead-links" && candidate.bead === request.bead,
-    );
-    if (lease === undefined)
-      throw new BdpClientRequestError("continuation was not issued for this Bead");
-    return { context: lease.context, lease };
-  }
-  return undefined;
-}
-
-function snapshotRequestParameters<Request extends ReadRequest>(value: Request): Request {
-  if (typeof value !== "object" || value === null || Array.isArray(value))
-    throw new BdpClientRequestError("request must be an object");
-  let prototype: object | null;
-  try {
-    prototype = Object.getPrototypeOf(value) as object | null;
-  } catch {
-    throw new BdpClientRequestError("request must be a plain object");
-  }
-  if (prototype !== Object.prototype && prototype !== null)
-    throw new BdpClientRequestError("request must be a plain object");
-  let descriptors: PropertyDescriptorMap;
-  try {
-    descriptors = Object.getOwnPropertyDescriptors(value);
-  } catch {
-    throw new BdpClientRequestError("request fields must be readable data properties");
-  }
-  const entries: Array<readonly [string, unknown]> = [];
-  for (const key of Reflect.ownKeys(descriptors)) {
-    if (typeof key !== "string")
-      throw new BdpClientRequestError("request contains fields not allowed for its operation kind");
-    const descriptor = descriptors[key];
-    if (descriptor === undefined || !Object.hasOwn(descriptor, "value"))
-      throw new BdpClientRequestError("request fields must be readable data properties");
-    entries.push([key, descriptor.value]);
-  }
-  const candidate = Object.freeze(Object.fromEntries(entries)) as Record<string, unknown>;
-  if (!Object.hasOwn(candidate, "kind") || typeof candidate.kind !== "string")
-    throw new BdpClientRequestError("request must have an operation kind");
-  const descriptor = requestDescriptorForCandidate(candidate);
-
-  if (
-    Reflect.ownKeys(candidate).some(
-      (key) => typeof key !== "string" || !descriptor.allowedFields.includes(key),
-    )
-  )
-    throw new BdpClientRequestError("request contains fields not allowed for its operation kind");
-
-  for (const field of descriptor.requiredUrlFields) {
-    if (!Object.hasOwn(candidate, field) || typeof candidate[field] !== "string")
-      throw new BdpClientRequestError("request is missing a required URL field");
-  }
-  for (const field of [
-    "continuation",
-    "type",
-    "conformsTo",
-    "source",
-    "target",
-    "endpoint",
-    "selector",
-  ]) {
-    if (
-      Object.hasOwn(candidate, field) &&
-      candidate[field] !== undefined &&
-      typeof candidate[field] !== "string"
-    )
-      throw new BdpClientRequestError("request URL and selector fields must be strings");
-  }
-
-  const limit = Object.hasOwn(candidate, "limit") ? candidate.limit : undefined;
-  if (limit !== undefined && (!Number.isSafeInteger(limit) || (limit as number) <= 0))
-    throw new BdpClientRequestError("limit must be a positive safe integer");
-  const direction = Object.hasOwn(candidate, "direction") ? candidate.direction : undefined;
-  if (descriptor.validatesDirection === true && direction !== undefined) {
-    if (direction !== "inbound" && direction !== "outbound" && direction !== "both")
-      throw new BdpClientRequestError("direction must be inbound, outbound, or both");
-  }
-  const continuation = Object.hasOwn(candidate, "continuation")
-    ? candidate.continuation
-    : undefined;
-  if (continuation !== undefined) {
-    if (descriptor.continuationIncompatibleFields.some((field) => Object.hasOwn(candidate, field)))
-      throw new BdpClientRequestError("continuation requests must not repeat predicates or limit");
-  }
-  return candidate as unknown as Request;
-}
-
-function readRequestUrl(
-  request: ScopeReadOperation,
-  scope: AbsoluteHttpUrl,
-  discovery: ReadDiscovery,
-  externalTypeDescriptorIds: ReadonlySet<string>,
-): AbsoluteHttpUrl | ReadProblem {
-  return visitReadRequest<AbsoluteHttpUrl | ReadProblem>(request, {
-    "scope-discovery": () => {
-      throw new TypeError("Scope discovery does not have a Read operation URL");
-    },
-    "collection:beads": (collectionRequest) =>
-      collectionRequestUrl(collectionRequest, scope, discovery),
-    "collection:links": (collectionRequest) =>
-      collectionRequestUrl(collectionRequest, scope, discovery),
-    "collection:types": (collectionRequest) =>
-      collectionRequestUrl(collectionRequest, scope, discovery),
-    "resource:bead": (resourceRequest) =>
-      resourceUrl(scope, resourceRequest.id, resourceRequest.resource),
-    "resource:link": (resourceRequest) =>
-      resourceUrl(scope, resourceRequest.id, resourceRequest.resource),
-    "resource:type": (resourceRequest) =>
-      resourceUrl(scope, resourceRequest.id, resourceRequest.resource, externalTypeDescriptorIds),
-    "properties:bead": (propertiesRequest) => propertiesUrl(propertiesRequest, scope),
-    "properties:link": (propertiesRequest) => propertiesUrl(propertiesRequest, scope),
-    "bead-links": (beadLinksRequest) => beadLinksUrl(beadLinksRequest, scope),
-  });
-}
-
-function collectionRequestUrl(
-  request: BeadCollectionRequest | LinkCollectionRequest | TypeInventoryRequest,
-  scope: AbsoluteHttpUrl,
-  discovery: ReadDiscovery,
-): AbsoluteHttpUrl | ReadProblem {
-  if (Object.hasOwn(request, "continuation") && request.continuation !== undefined)
-    return confinedUrl(scope, request.continuation);
-  return collectionUrl(request, discovery);
-}
-
-function propertiesUrl(
-  request: ReadRequestVariantMap["properties:bead" | "properties:link"],
-  scope: AbsoluteHttpUrl,
-): AbsoluteHttpUrl | ReadProblem {
-  const id = resourceUrl(scope, request.id, request.resource);
-  return typeof id !== "string" ? id : appendQuery(id, { view: "properties" });
-}
-
-function beadLinksUrl(
-  request: ReadRequestVariantMap["bead-links"],
-  scope: AbsoluteHttpUrl,
-): AbsoluteHttpUrl | ReadProblem {
-  const bead = resourceUrl(scope, request.bead, "bead");
-  if (typeof bead !== "string") return bead;
-  if (Object.hasOwn(request, "continuation") && request.continuation !== undefined)
-    return confinedUrl(scope, request.continuation);
-  return appendQuery(bead, {
-    view: "links",
-    direction: Object.hasOwn(request, "direction") ? (request.direction ?? "both") : "both",
-    ...(Object.hasOwn(request, "limit") && request.limit !== undefined
-      ? { limit: String(request.limit) }
-      : {}),
-  });
-}
-
-function resourceUrl(
-  scope: AbsoluteHttpUrl,
-  candidate: AbsoluteHttpUrl,
-  resource: "bead" | "link" | "type",
-  externalTypeDescriptorIds: ReadonlySet<string> = new Set<string>(),
-): AbsoluteHttpUrl | ReadProblem {
-  let parsed: AbsoluteHttpUrl;
-  try {
-    parsed = parseCanonicalHttpUrl(candidate, `${resource} Resource URL`);
-  } catch {
-    return readProblem("invalid-parameter", `the requested ${resource} URL is invalid`);
-  }
-  if (resource === "type") {
-    const typeUrl = new URL(parsed);
-    if (!isWithinScope(scope, typeUrl) && !externalTypeDescriptorIds.has(parsed))
-      throw new BdpClientCapabilityError(
-        "external Type Descriptor retrieval requires a configured safe-fetch policy",
-      );
-    return parsed;
-  }
-  const confined = confinedUrl(scope, candidate);
-  if (typeof confined !== "string") return confined;
-  try {
-    const localId = parsed.slice(scope.length);
-    if (resolveCanonicalLocalResourceId(scope, resource, localId) !== parsed)
-      throw new Error("Resource identity did not resolve canonically");
-  } catch {
-    return readProblem(
-      "invalid-parameter",
-      `the requested URL is not a canonical ${resource} Resource ID`,
-    );
-  }
-  return confined;
-}
-
-function isWithinScope(scope: AbsoluteHttpUrl, candidate: URL): boolean {
-  const root = new URL(scope);
-  return candidate.origin === root.origin && candidate.pathname.startsWith(root.pathname);
-}
-
-function isWithinScopeAlias(scope: AbsoluteHttpUrl, candidate: URL): boolean {
-  const root = new URL(scope);
-  if (candidate.origin !== root.origin) return false;
-  const candidatePath = normalizePathPercentEncoding(candidate.pathname);
-  const rootPath = normalizePathPercentEncoding(root.pathname);
-  if (candidatePath === undefined || rootPath === undefined) return isWithinScope(scope, candidate);
-  return candidatePath.startsWith(rootPath);
-}
-
-function normalizePathPercentEncoding(pathname: string): string | undefined {
-  let normalized = "";
-  for (let index = 0; index < pathname.length; index += 1) {
-    const character = pathname[index];
-    if (character !== "%") {
-      normalized += character;
-      continue;
-    }
-    const digits = pathname.slice(index + 1, index + 3);
-    if (!/^[0-9A-Fa-f]{2}$/.test(digits)) return undefined;
-    const byte = Number.parseInt(digits, 16);
-    const decoded = String.fromCharCode(byte);
-    normalized += /^[A-Za-z0-9._~-]$/.test(decoded) ? decoded : `%${digits.toUpperCase()}`;
-    index += 2;
-  }
-  return normalized;
-}
-
-class ReadResponseValidationError extends Error {}
-
-type ReadBodyValidationResult =
-  | { readonly kind: "success"; readonly body: unknown }
-  | { readonly kind: "problem"; readonly problem: ReadProblem };
-
-function validateReadBody(
-  request: ReadRequest,
-  body: unknown,
-  scope: AbsoluteHttpUrl,
-  continuation: ContinuationContext | undefined,
-): ReadBodyValidationResult {
-  try {
-    return visitReadRequest<ReadBodyValidationResult>(request, {
-      "scope-discovery": () => ({ kind: "success", body: parseReadDiscovery(body) }),
-      "collection:beads": () => ({
-        kind: "success",
-        body: validateBeadCollection(parseBeadCollection(body), scope),
-      }),
-      "collection:links": () => ({
-        kind: "success",
-        body: validateLinkCollection(parseLinkCollection(body), scope),
-      }),
-      "collection:types": () => ({
-        kind: "success",
-        body: validateTypeInventory(parseTypeInventory(body), scope),
-      }),
-      "resource:bead": (resourceRequest) => ({
-        kind: "success",
-        body: validateBeadSingleton(parseBeadRecord(body), resourceRequest.id, scope),
-      }),
-      "resource:link": (resourceRequest) => ({
-        kind: "success",
-        body: validateLinkSingleton(parseLinkRecord(body), resourceRequest.id, scope),
-      }),
-      "resource:type": (resourceRequest) => {
-        const descriptor = parseTypeDescriptor(body);
-        if (descriptor.id !== resourceRequest.id)
-          throw new ReadResponseValidationError("wrong Type ID");
-        return { kind: "success", body: descriptor };
-      },
-      "properties:bead": () => ({ kind: "success", body: parsePropertiesRecord(body) }),
-      "properties:link": () => ({ kind: "success", body: parsePropertiesRecord(body) }),
-      "bead-links": () => {
-        if (continuation?.kind !== "bead-links")
-          throw new ReadResponseValidationError("missing incident-Link continuation context");
-        return {
-          kind: "success",
-          body: validateIncidentLinkCollection(
-            parseLinkCollection(body),
-            continuation.bead,
-            continuation.direction,
-            scope,
-          ),
-        };
-      },
-    });
-  } catch (error) {
-    if (error instanceof BdpClientLocalError) throw error;
-    if (
-      !(error instanceof ProtocolArtifactValidationError) &&
-      !(error instanceof ReadResponseValidationError)
-    )
-      throw error;
-    return {
-      kind: "problem",
-      problem: readProblem(
-        "temporarily-unavailable",
-        "the server returned a structurally invalid Read response",
-      ),
-    };
-  }
-}
-
-function validateNext(next: AbsoluteHttpUrl | null, scope: AbsoluteHttpUrl): void {
-  if (next !== null && typeof confinedUrl(scope, next) !== "string")
-    throw new ReadResponseValidationError("collection next escaped the Scope");
-}
-
-function validateBeadCollection(page: BeadCollection, scope: AbsoluteHttpUrl): BeadCollection {
-  validateNext(page.next, scope);
-  return Object.freeze({
-    ...page,
-    items: Object.freeze(page.items.map((item) => validateBeadRecord(item, scope))),
-  });
-}
-
-function validateLinkCollection(page: LinkCollection, scope: AbsoluteHttpUrl): LinkCollection {
-  validateNext(page.next, scope);
-  return Object.freeze({
-    ...page,
-    items: Object.freeze(page.items.map((item) => validateLinkRecord(item, scope))),
-  });
-}
-
-function validateIncidentLinkCollection(
-  page: LinkCollection,
-  bead: AbsoluteHttpUrl,
-  direction: "inbound" | "outbound" | "both",
-  scope: AbsoluteHttpUrl,
-): LinkCollection {
-  const validated = validateLinkCollection(page, scope);
-  for (const link of validated.items) {
-    const outbound = referenceUri(link.source) === bead;
-    const inbound = referenceUri(link.target) === bead;
-    if (
-      (direction === "inbound" && !inbound) ||
-      (direction === "outbound" && !outbound) ||
-      (direction === "both" && !inbound && !outbound)
-    )
-      throw new ReadResponseValidationError(
-        "incident-Link response contains a Link unrelated to the requested Bead or direction",
-      );
-  }
-  return validated;
-}
-
-function validateTypeInventory(page: TypeInventory, scope: AbsoluteHttpUrl): TypeInventory {
-  validateNext(page.next, scope);
-  return page;
-}
-
-function validateBeadSingleton(
-  record: BeadRecord,
-  requestedId: AbsoluteHttpUrl,
-  scope: AbsoluteHttpUrl,
-): BeadRecord {
-  if (record.id !== requestedId) throw new ReadResponseValidationError("wrong Bead ID");
-  return validateBeadRecord(record, scope);
-}
-
-function validateLinkSingleton(
-  record: LinkRecord,
-  requestedId: AbsoluteHttpUrl,
-  scope: AbsoluteHttpUrl,
-): LinkRecord {
-  if (record.id !== requestedId) throw new ReadResponseValidationError("wrong Link ID");
-  return validateLinkRecord(record, scope);
-}
-
-function validateBeadRecord(record: BeadRecord, scope: AbsoluteHttpUrl): BeadRecord {
-  if (typeof resourceUrl(scope, record.id, "bead") !== "string")
-    throw new ReadResponseValidationError("invalid Bead ID");
-  if (record.links !== undefined)
-    throw new ReadResponseValidationError("unexpected embedded Links");
-  for (const links of Object.values(record.ownedLinks ?? {}))
-    for (const link of links) validateLinkRecord(link, scope);
-  return record;
-}
-
-function validateLinkRecord(record: LinkRecord, scope: AbsoluteHttpUrl): LinkRecord {
-  if (typeof resourceUrl(scope, record.id, "link") !== "string")
-    throw new ReadResponseValidationError("invalid Link ID");
-  const sourceInScope = validateEndpoint(record.source, scope);
-  const targetInScope = validateEndpoint(record.target, scope);
-  if (!sourceInScope && !targetInScope)
-    throw new ReadResponseValidationError("a Link must have an in-Scope endpoint");
-  return record;
-}
-
-function validateEndpoint(endpoint: LinkRecord["source"], scope: AbsoluteHttpUrl): boolean {
-  // In-Scope or external is derived, never declared: an endpoint URI that is
-  // (an alias of) this Scope claims an in-Scope Bead and must be canonical;
-  // every other URI is an opaque external reference.
-  const uri = referenceUri(endpoint);
-  let claimsScope = false;
-  try {
-    const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(uri)?.[1]?.toLowerCase();
-    const normalized = scheme === "http" || scheme === "https" ? new URL(uri) : undefined;
-    claimsScope = normalized !== undefined && isWithinScopeAlias(scope, normalized);
-  } catch {
-    // Schema validation already proved this is an absolute URI. Some opaque URI
-    // spellings are deliberately outside WHATWG URL representation.
-  }
-  if (!claimsScope) return false;
-  let canonicalEndpoint: AbsoluteHttpUrl;
-  try {
-    canonicalEndpoint = parseCanonicalHttpUrl(uri, "Link endpoint ID");
-  } catch (error) {
-    if (error instanceof ProtocolArtifactValidationError)
-      throw new ReadResponseValidationError("in-Scope endpoint is not canonical");
-    throw error;
-  }
-  const localId = canonicalEndpoint.slice(scope.length);
-  let resolvedEndpoint: AbsoluteHttpUrl;
-  try {
-    resolvedEndpoint = resolveCanonicalLocalResourceId(scope, "bead", localId);
-  } catch (error) {
-    if (error instanceof ProtocolArtifactValidationError)
-      throw new ReadResponseValidationError("endpoint is not a canonical in-Scope Bead ID");
-    throw error;
-  }
-  if (resolvedEndpoint !== canonicalEndpoint)
-    throw new ReadResponseValidationError("endpoint is not a canonical in-Scope Bead ID");
-  return true;
-}
-
 function sameCanonicalUrl(left: AbsoluteHttpUrl, right: AbsoluteHttpUrl): boolean {
   try {
     const parsedLeft = new URL(left);
@@ -2396,57 +1431,6 @@ function sameScope(discovery: ReadDiscovery, scope: AbsoluteHttpUrl): boolean {
   } catch {
     return false;
   }
-}
-
-function confinedUrl(
-  scope: AbsoluteHttpUrl,
-  candidate: AbsoluteHttpUrl,
-): AbsoluteHttpUrl | ReadProblem {
-  try {
-    const expected = new URL(scope);
-    const actual = new URL(candidate);
-    const prefix = expected.pathname.endsWith("/") ? expected.pathname : `${expected.pathname}/`;
-    if (
-      actual.origin !== expected.origin ||
-      !actual.pathname.startsWith(prefix) ||
-      actual.username !== "" ||
-      actual.password !== "" ||
-      actual.hash !== ""
-    )
-      return readProblem("forbidden", "the requested URL is outside the configured Scope");
-    parseCanonicalHttpUrl(candidate, "Scoped URL");
-    return actual.href;
-  } catch {
-    return readProblem("invalid-parameter", "the requested URL is invalid");
-  }
-}
-
-function collectionUrl(
-  request: BeadCollectionRequest | LinkCollectionRequest | TypeInventoryRequest,
-  discovery: ReadDiscovery,
-): AbsoluteHttpUrl {
-  const root =
-    request.collection === "beads"
-      ? discovery.beads
-      : request.collection === "links"
-        ? discovery.links
-        : discovery.types;
-  const parameters: Record<string, string> = {};
-  for (const key of ["type", "conformsTo", "source", "target", "endpoint", "selector"] as const) {
-    const value = Object.hasOwn(request, key)
-      ? (request as unknown as Record<string, unknown>)[key]
-      : undefined;
-    if (typeof value === "string") parameters[key] = value;
-  }
-  if (Object.hasOwn(request, "limit") && request.limit !== undefined)
-    parameters.limit = String(request.limit);
-  return appendQuery(root, parameters);
-}
-
-function appendQuery(url: AbsoluteHttpUrl, parameters: Readonly<Record<string, string>>): string {
-  const parsed = new URL(url);
-  for (const [name, value] of Object.entries(parameters)) parsed.searchParams.set(name, value);
-  return parsed.href;
 }
 
 async function waitForPromise<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
@@ -2480,7 +1464,20 @@ function deferred(): { readonly promise: Promise<void>; readonly resolve: () => 
 }
 
 export {
+  BdpReadUpdateClient,
+  type ReadUpdateClientAliasResolution,
+  type ReadUpdateClientCallOptions,
+  ReadUpdateClientError,
+  type ReadUpdateClientErrorCode,
+  type ReadUpdateClientMutationOptions,
+  type ReadUpdateClientOptions,
+  type ReadUpdateClientReadOptions,
+  type ReadUpdateClientReply,
+  type ReadUpdateResultFor,
+} from "./read-update.js";
+export {
   createReadUpdateFetchTransport,
+  type ReadUpdateAliasResponse,
   type ReadUpdateFetchTransportOptions,
   type ReadUpdateHttpContext,
   type ReadUpdateHttpResponse,
@@ -2494,13 +1491,21 @@ export {
 } from "./read-update-transport.js";
 export type { AbsoluteHttpUrl, ReadDiscovery, ReadProblem, ReadRequest, ReadResultFor };
 
-export {
-  BdpReadUpdateClient,
-  ReadUpdateClientError,
-  type ReadUpdateClientOptions,
-  type ReadUpdateClientCallOptions,
-  type ReadUpdateClientMutationOptions,
-  type ReadUpdateClientReply,
-  type ReadUpdateClientErrorCode,
-  type ReadUpdateResultFor,
-} from "./read-update.js";
+/** Translate neutral shared failures only at the legacy public boundary. */
+function legacyReadSession<T>(action: () => T): T {
+  try {
+    return action();
+  } catch (error) {
+    if (!(error instanceof ReadSessionLocalError)) throw error;
+    switch (error.reason) {
+      case "request":
+        throw new BdpClientRequestError(error.message);
+      case "capability":
+        throw new BdpClientCapabilityError(error.message);
+      case "capacity":
+        throw new BdpClientContinuationCapacityError();
+      case "closed":
+        throw new BdpClientClosedError();
+    }
+  }
+}
