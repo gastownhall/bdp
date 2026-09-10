@@ -142,6 +142,11 @@ export interface RecoveryStore {
     key: string,
     evaluate: (transaction: MemberTransaction) => MemberDecision,
   ): MemberCompletion;
+  /** Release just this member's owned claim without reading/comparing key state.
+   * A transient creator dependency uses this before any idempotency classification.
+   * False means no owned claim was removed; it discloses no other key disposition.
+   */
+  releaseOwnedClaim(admission: Admission, key: string): boolean;
   /** S5 must retain every live Admission and call this in finally on attempt termination.
    * Lost caller references are not recoverable through an unbranded mass-release API.
    * Startup clears abandoned claims; this method clears only this owned live attempt.
@@ -800,6 +805,20 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
           throw new RecoveryStoreError("lost-claim", "member lost claim ownership");
         return { kind: "completed", outcomeJson: decision.outcomeJson };
       });
+    },
+    releaseOwnedClaim(admission, key) {
+      checkAdmission(admission, key);
+      return transaction(
+        () =>
+          Number(
+            run(
+              "DELETE FROM key_state WHERE principal=? AND key=? AND owner=? AND state='claimed'",
+              admission.principal,
+              key,
+              admission.attemptId,
+            ).changes,
+          ) === 1,
+      );
     },
     abandonAttempt(admission) {
       checkAdmission(admission);

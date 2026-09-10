@@ -345,6 +345,120 @@ describe("durable reference ownership and transaction interface", () => {
       }),
     ).toMatchObject({ kind: "existing", state: { kind: "claimed" } });
   });
+  it("releases one owned member and preserves its independent tail through commit and reopen", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    const admission = store.admit("alice", ["dependent", "tail"]);
+    expect(store.releaseOwnedClaim(admission, "dependent")).toBe(true);
+    expect(store.releaseOwnedClaim(admission, "dependent")).toBe(false);
+    expect(store.read((tx) => tx.key("alice", "dependent"))).toEqual({ kind: "unknown" });
+    expect(store.read((tx) => tx.key("alice", "tail"))).toEqual({
+      kind: "claimed",
+      attemptId: admission.attemptId,
+    });
+    expect(store.executeMember(admission, "tail", () => outcome())).toMatchObject({
+      kind: "completed",
+    });
+    expect(store.abandonAttempt(admission)).toBe(0);
+    store.close();
+    const reopened = open(dir);
+    expect(reopened.runtime.recoveredClaims).toBe(0);
+    expect(reopened.read((tx) => tx.key("alice", "dependent"))).toEqual({ kind: "unknown" });
+    expect(reopened.read((tx) => tx.key("alice", "tail"))).toMatchObject({
+      kind: "retained",
+      outcomeJson: outcome().outcomeJson,
+    });
+  });
+
+  it("leaves other owners, other principals, retained results and expired tombstones untouched", () => {
+    const store = open(directory(), true);
+    const owner = store.admit("alice", ["occupied", "retained", "expired"]);
+    store.executeMember(owner, "retained", () =>
+      outcome("failure", { retainUntil: 100 + 2 * day }),
+    );
+    store.executeMember(owner, "expired", () => outcome());
+    store.expire(100 + day);
+    const otherPrincipal = store.admit("bob", ["own"]);
+    const presenting = store.admit("alice", ["occupied", "retained", "expired", "own"]);
+    const before = store.read((tx) =>
+      ["occupied", "retained", "expired"].map((key) => tx.key("alice", key)),
+    );
+    for (const key of ["occupied", "retained", "expired"]) {
+      expect(store.releaseOwnedClaim(presenting, key)).toBe(false);
+    }
+    // Even the original owner cannot erase its now-terminal members.
+    expect(store.releaseOwnedClaim(owner, "retained")).toBe(false);
+    expect(store.releaseOwnedClaim(owner, "expired")).toBe(false);
+    expect(
+      store.read((tx) => ["occupied", "retained", "expired"].map((key) => tx.key("alice", key))),
+    ).toEqual(before);
+    expect(store.releaseOwnedClaim(presenting, "own")).toBe(true);
+    expect(store.read((tx) => tx.key("bob", "own"))).toEqual({
+      kind: "claimed",
+      attemptId: otherPrincipal.attemptId,
+    });
+    const subsequent = store.admit("alice", ["own"]);
+    expect(store.releaseOwnedClaim(presenting, "own")).toBe(false);
+    expect(store.read((tx) => tx.key("alice", "own"))).toEqual({
+      kind: "claimed",
+      attemptId: subsequent.attemptId,
+    });
+    expect(store.abandonAttempt(presenting)).toBe(0);
+    expect(store.abandonAttempt(owner)).toBe(1);
+  });
+
+  it("rejects forged, foreign and wrong-member release handles before SQL", () => {
+    const store = open(directory(), true);
+    const foreign = open(directory(), true);
+    const admission = store.admit("alice", ["owned"]);
+    const prepare = vi.spyOn(DatabaseSync.prototype, "prepare");
+    for (const candidate of [{ ...admission }, foreign.admit("alice", ["owned"])]) {
+      prepare.mockClear();
+      expect(() => store.releaseOwnedClaim(candidate, "owned")).toThrow(
+        expect.objectContaining({ reason: "invalid-admission" }),
+      );
+      expect(prepare).not.toHaveBeenCalled();
+    }
+    expect(() => store.releaseOwnedClaim(admission, "outside")).toThrow(
+      expect.objectContaining({ reason: "invalid-admission" }),
+    );
+    expect(prepare).not.toHaveBeenCalled();
+    prepare.mockRestore();
+    expect(store.releaseOwnedClaim(admission, "owned")).toBe(true);
+  });
+
+  it("uses one conditional DELETE transaction with no SELECT or key-state comparison", () => {
+    const store = open(directory(), true);
+    const admission = store.admit("alice", ["dependent"]);
+    const originalPrepare = DatabaseSync.prototype.prepare;
+    const originalExec = DatabaseSync.prototype.exec;
+    const statements: string[] = [];
+    const prepare = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      statements.push(sql);
+      if (/\bSELECT\b/i.test(sql)) throw new Error("release must not inspect key state");
+      return originalPrepare.call(this, sql);
+    });
+    const exec = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      statements.push(sql);
+      return originalExec.call(this, sql);
+    });
+    expect(store.releaseOwnedClaim(admission, "dependent")).toBe(true);
+    expect(statements).toEqual([
+      "BEGIN IMMEDIATE",
+      "DELETE FROM key_state WHERE principal=? AND key=? AND owner=? AND state='claimed'",
+      "COMMIT",
+    ]);
+    prepare.mockRestore();
+    exec.mockRestore();
+    expect(store.read((tx) => tx.key("alice", "dependent"))).toEqual({ kind: "unknown" });
+  });
+
   it("snapshots keys before validation can mutate the caller's array", () => {
     const store = open(directory(), true);
     const keys = ["first", "second"];
