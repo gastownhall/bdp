@@ -34,7 +34,13 @@ describe("shared Read HTTP semantics through the public server", () => {
   });
 
   function fixture(
-    options: { revision?: string; problem?: ReadProblem; fault?: Error; denied?: boolean } = {},
+    options: {
+      revision?: string;
+      problem?: ReadProblem;
+      fault?: Error;
+      denied?: boolean;
+      properties?: Record<string, string>;
+    } = {},
   ) {
     const calls: ScopeReadOperation[] = [];
     const controls = createPublicReadControls({
@@ -62,7 +68,7 @@ describe("shared Read HTTP semantics through the public server", () => {
             id: operation.id,
             type: TYPE,
             revision: options.revision ?? "rev-1",
-            properties: {},
+            properties: options.properties ?? {},
             ...(operation.resource === "link"
               ? { source: `${SCOPE}beads/a`, target: `${SCOPE}beads/b` }
               : {}),
@@ -123,6 +129,10 @@ describe("shared Read HTTP semantics through the public server", () => {
     ['text/plain;note="\\",application/json", image/png', 406],
     [", , application/json ; ; q=1. ,", 200],
     ["application/json-seq", 406],
+    ["application/json;charset=utf-8", 406],
+    ["application/json; charset=UTF-8", 406],
+    ["application/json;q=0.9;charset=utf-8", 406],
+    ["application/json;charset=utf-8, */*;q=0.8", 200],
   ])("negotiates JSON for Accept %s", async (accept, status) => {
     const { get, calls } = fixture();
     const response = await get("beads/a", accept === undefined ? {} : { Accept: accept });
@@ -130,7 +140,7 @@ describe("shared Read HTTP semantics through the public server", () => {
     expect(calls).toHaveLength(1);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("vary")).toBe("Accept");
-    expect(response.headers.get("etag")).toBe('"rev-1"');
+    expect(response.headers.get("etag")).toBe(status === 406 ? null : '"rev-1"');
     if (status === 406) {
       expect(response.body).toBeUndefined();
       expect(response.headers.has("content-type")).toBe(false);
@@ -141,6 +151,9 @@ describe("shared Read HTTP semantics through the public server", () => {
   it.each([
     [{ "If-Match": '"rev-1"' }, 200],
     [{ "If-Match": 'W/"rev-1"' }, 412],
+    [{ "If-Match": 'w/"rev-1"' }, 412],
+    [{ "If-None-Match": 'w/"rev-1"' }, 200],
+    [{ "If-None-Match": String.raw`"rev1\", "rev-1"` }, 304],
     [{ "If-Match": '"different", "rev-1"' }, 200],
     [{ "If-Match": "*" }, 200],
     [{ "If-Match": '"missing"', "If-None-Match": "*" }, 412],
@@ -163,6 +176,7 @@ describe("shared Read HTTP semantics through the public server", () => {
     expect(response.status).toBe(status);
     expect(response.headers.get("etag")).toBe('"rev-1"');
     expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("vary")).toBe("Accept");
     if (status !== 200) {
       expect(response.body).toBeUndefined();
       expect(response.headers.has("content-type")).toBe(false);
@@ -192,6 +206,26 @@ describe("shared Read HTTP semantics through the public server", () => {
       expect(response.status).toBe(304);
     },
   );
+
+  it("compares obs-text bytes in HTTP entity tags", () => {
+    // BDP revisions encode non-ASCII bytes before producing validators; this
+    // exercises the HTTP grammar directly without changing that projection.
+    const response = {
+      status: 200,
+      headers: new Headers({ "content-type": "application/json", etag: '"rév"' }),
+      body: {},
+    };
+    expect(
+      applyReadHttpSemantics(
+        new Request(SCOPE, { headers: { "If-None-Match": '"other", W/"rév"' } }),
+        response,
+      ).status,
+    ).toBe(304);
+    expect(
+      applyReadHttpSemantics(new Request(SCOPE, { headers: { "If-Match": '"rev"' } }), response)
+        .status,
+    ).toBe(412);
+  });
 
   it("never strongly matches a weak current validator", () => {
     const response = {
@@ -260,17 +294,67 @@ describe("shared Read HTTP semantics through the public server", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it.each(["", "alias/latest"])(
-    "does not negotiate or condition a bodyless probe/redirect at %s",
-    async (target) => {
-      const { get } = fixture();
-      const response = await get(target, {
-        Accept: "image/png",
-        "If-Match": '"absent"',
-        "If-None-Match": "*",
-      });
-      expect(response.status).toBe(target === "" ? 204 : 307);
+  it("keeps alias redirects before negotiation and conditions", async () => {
+    const { get } = fixture();
+    const response = await get("alias/latest", {
+      Accept: "image/png",
+      "If-Match": '"absent"',
+      "If-None-Match": "*",
+    });
+    expect(response.status).toBe(307);
+    expect(response.body).toBeUndefined();
+  });
+
+  it.each([
+    [{}, 204],
+    [{ "If-Match": "*" }, 204],
+    [{ "If-Match": '"specific"' }, 412],
+    [{ "If-None-Match": "*" }, 304],
+    [{ "If-None-Match": '"specific"' }, 204],
+    [{ "If-Match": '"specific"', "If-None-Match": "*" }, 412],
+  ])("conditions the existing zero-length Scope representation %j", async (headers, status) => {
+    const { get } = fixture();
+    for (const method of ["GET", "HEAD"]) {
+      const response = await get("", { ...headers, Accept: "image/png" }, method);
+      expect(response.status).toBe(status);
       expect(response.body).toBeUndefined();
+      expect(response.headers.get("link")).toBe(
+        `<${SCOPE}bdp.json>; rel="service-desc"; type="application/json"`,
+      );
+      expect(response.headers.has("content-type")).toBe(false);
+      expect(response.headers.has("vary")).toBe(false);
+      expect(response.headers.has("etag")).toBe(false);
+      if (status === 304) expect(response.headers.has("content-length")).toBe(false);
+      if (status === 412) expect(response.headers.get("content-length")).toBe("0");
+    }
+  });
+
+  it.each(["GET", "HEAD"])(
+    "keeps authorization-dependent discovery private on %s",
+    async (method) => {
+      const { get, calls } = fixture();
+      const anonymous = await get("bdp.json", {}, method);
+      expect(anonymous.status).toBe(200);
+      expect(anonymous.headers.get("cache-control")).toBe("private, no-store");
+      for (const credentials of [{ Cookie: "session=1" }, { Authorization: "Bearer secret" }]) {
+        const denied = await get("bdp.json", credentials, method);
+        expect(denied.status).toBe(403);
+        expect(denied.headers.get("cache-control")).toBe("private, no-store");
+        if (method === "GET") expect(denied.body).toMatchObject({ code: "forbidden" });
+        else expect(denied.body).toBeUndefined();
+      }
+      for (const headers of [
+        { Accept: "image/png" },
+        { "If-None-Match": "*" },
+        { "If-Match": '"absent"' },
+      ]) {
+        const response = await get("bdp.json", headers, method);
+        expect(response.status).toBe(headers.Accept ? 406 : headers["If-None-Match"] ? 304 : 412);
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        expect(response.headers.get("vary")).toBe("Accept");
+        expect(response.body).toBeUndefined();
+      }
+      expect(calls).toHaveLength(0);
     },
   );
 
@@ -293,7 +377,9 @@ describe("shared Read HTTP semantics through the public server", () => {
   );
 
   it("preserves actual Node wire bodylessness, list headers and ordinary fault precedence", async () => {
-    const options: { fault?: Error } = {};
+    const options: { fault?: Error; properties: Record<string, string> } = {
+      properties: { title: "café — naïve ✅ 日本語" },
+    };
     const { server } = fixture(options);
     const errors: unknown[] = [];
     const listener = createNodeHttpServer(server, { onError: (error) => errors.push(error) });
@@ -331,6 +417,9 @@ describe("shared Read HTTP semantics through the public server", () => {
       });
     const full = await send("GET", "beads/a", {});
     expect(full.status).toBe(200);
+    expect(JSON.parse(full.body).properties).toEqual(options.properties);
+    expect(Buffer.byteLength(full.body)).toBeGreaterThan(full.body.length);
+    expect(full.headers["content-length"]).toBe(String(Buffer.byteLength(full.body)));
     for (const method of ["GET", "HEAD"]) {
       const conditional = await send(method, "beads/a", {
         "If-None-Match": ['"other"', 'W/"rev-1"'],
@@ -338,17 +427,21 @@ describe("shared Read HTTP semantics through the public server", () => {
       expect(conditional.status).toBe(304);
       expect(conditional.body).toBe("");
       expect(conditional.headers.etag).toBe(full.headers.etag);
+      expect(conditional.headers.vary).toBe("Accept");
       expect(conditional.headers["cache-control"]).toBe(full.headers["cache-control"]);
       expect(conditional.headers["content-length"]).toBeUndefined();
       const mismatch = await send(method, "beads/a", { "If-Match": 'W/"rev-1"' });
       expect(mismatch.status).toBe(412);
       expect(mismatch.body).toBe("");
+      expect(mismatch.headers.etag).toBe(full.headers.etag);
+      expect(mismatch.headers.vary).toBe("Accept");
       const refusal = await send(method, "beads/a", {
         Accept: ["application/json;q=0", "*/*;q=1"],
         "If-None-Match": "*",
       });
       expect(refusal.status).toBe(406);
       expect(refusal.body).toBe("");
+      expect(refusal.headers.etag).toBeUndefined();
       const missing = await send(method, "missing", { Accept: "image/png", "If-None-Match": "*" });
       expect(missing.status).toBe(404);
       expect(
