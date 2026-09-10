@@ -626,5 +626,6 @@ export {
   prepareReadUpdateSingleton,
   prepareReadUpdateSequence,
   assertPreparedReadUpdateCarrier,
+  isHttpScopeCandidate,
   type PreparedReadUpdateCarrier,
 } from "./read-update-preflight.js";

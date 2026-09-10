@@ -6,16 +6,17 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | --- | --- | --- |
 | Read profile | Foundation #29, shared HTTP/scalar guards, iterative deep JSON and canonical URL delimiter corrections; 49 executable scenarios | Genuine current cohort: 89 passes and nine justified N/A slots across both targets, with eight explicit qualifications |
 | Read+Update profile | D1–D40 ruled; wire from #19 plus local admission, Resource/alias evaluators, semantic-value codec and durable SQLite state | These implementation components have focused tests and completed review corrections. Full authority/replay/transport/schema installation and executable profile evidence remain open; no capability claim |
+| Read+Update client | Eight mutations, sequences, all nine Read variants and explicit one-hop alias resolution | 589 client tests plus independent source, lifecycle, URL and packaging reviews; this is client functionality, not a served write-profile claim |
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current runtime-component Read cohort was genuinely generated from
-`5ef2495d3e245ea95caa359d899b4de955a06ae7` and committed with its matching
-capability constant at `362863e759fe40e19a6a1407c9bb6c7444512f78`.
+The current client-integration Read cohort was genuinely generated from
+`a7e8d5e5c0b5f99c8dc88c5ae9ca3a43038c480f` and committed with its matching
+capability constant at `2578e4adbea40997d1a0df50cd3afc4142b27b55`.
 It recorded 36 packaged/11 self-certified passes for the reference target and
 34 packaged/eight self-certified passes for bd, with two/seven N/A slots and
-eight explicit uncovered qualifications. Generation ran for 139.21 seconds
-against the clean integrated source. The prior #20, #29 and #30 cohorts remain
+eight explicit uncovered qualifications. Generation ran for 136.16 seconds
+against the clean integrated source. The prior #20, #29, #30 and #31 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -34,7 +35,7 @@ confirmed diagnostics through one aggregate actual-byte/count budget; this does
 not establish bounded compiler internals or a complete offline schema installer.
 
 Full retained-identity normalization/replay, current authority and sequence
-lifetime, HTTP/auth/configuration/client integration and executable ReadUpdate
+lifetime, server HTTP/auth/configuration integration and executable ReadUpdate
 evidence remain separate gates. A new-alias retry boundary and jointly feasible
 request/properties/diagnostic defaults remain pending operator decisions. Local
 crash tests and evaluator tests do not establish a complete served profile.
@@ -44,7 +45,15 @@ postimage validation or authorization; no new limit or refusal order is selected
 Storage format 2 uses an application-registered JSON syntax function for writes
 and integrity checks, preserves deep JSON bytes, and refuses old format-1 stores
 before recovery writes. Generic logical SQLite restore is not a supported import.
-The separately developed mutation client is not included in this component release.
+The client now supports fresh Read+Update discovery, all eight singleton operations,
+sequences, existing Read navigation and explicit current alias lookup. The shared
+Read session preserves legacy errors, request URLs and continuation ownership;
+caller timeout/abort releases an uncommitted lease before reuse, and successful
+continuations commit at final delivery. Direct Type Descriptor GETs permit ordinary
+HTTP caching; inventory/data, alias redirects and received Problems retain their
+reviewed protections. Client transport keeps bounded byte ownership, selected HTTP
+metadata, Scope-confined credentials and no-follow alias handling. These checks do
+not establish authority admission, retained mutation identity or write conformance.
 
 Evidence claims live only in `docs/design/evidence/read-cohort/read-v1.json`,
 verified by `pnpm evidence:verify` under `packages/conformance/matrices/README.md`.
@@ -68,6 +77,7 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final runtime evidence commit passed 2,659 tests in 72 files with zero skips.
+reviewed foundation source. The final client evidence commit passed 2,983 tests in
+76 files with zero skips; all source, packaged smoke and readiness preflight gates passed.
 Source council corrections and genuine successor observations are complete;
 independent artifact review and hosted checks remain separate release gates.

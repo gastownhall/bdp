@@ -118,7 +118,7 @@ function preflightOperation(scope: URL, { operation, input }: UnadmittedReadUpda
       // S1 has validated an absolute RFC URI. WHATWG URL is used only for
       // locality classification, not as an additional external-URI grammar.
       const parsed = URL.canParse(reference) ? new URL(reference) : undefined;
-      const inScope = parsed !== undefined && isScopeCandidate(scope, parsed, reference);
+      const inScope = parsed !== undefined && isHttpScopeCandidate(scope, parsed, reference);
       if (!inScope && creationRoot === undefined) continue; // External references remain byte-exact.
       if (!inScope || parsed === undefined)
         throw new Error("creation ID is outside the configured Scope");
@@ -143,7 +143,7 @@ function assertCreationRoot(local: string, root: string): void {
  * normalization cannot disguise malformed local input as an opaque endpoint.
  * It establishes no cross-authority equivalence: no DNS or trailing-dot folding.
  */
-function isScopeCandidate(scope: URL, parsed: URL, original: string): boolean {
+export function isHttpScopeCandidate(scope: URL, parsed: URL, original: string): boolean {
   if (parsed.protocol !== scope.protocol || parsed.origin !== scope.origin) return false;
   const baseSegments = scope.pathname.split("/").slice(1, -1).map(decodeURIComponent);
   // Preserve a raw prefix even when URL parsing removes later dot segments.
