@@ -227,7 +227,9 @@ export function createReadUpdateFetchTransport(
         (typeof token !== "string" || /^[A-Za-z0-9\-._~+/]+=*$/.exec(token)?.[0] !== token)
       )
         throw error("invalid-input");
-      const headers: Record<string, string> = { accept: "application/json" };
+      const headers: Record<string, string> = {
+        accept: scopeProbe ? "*/*" : "application/json",
+      };
       if (token !== undefined) headers.authorization = `Bearer ${token}`;
       if (method === "POST") headers["content-type"] = "application/json";
       if (key !== undefined) headers["idempotency-key"] = key;
