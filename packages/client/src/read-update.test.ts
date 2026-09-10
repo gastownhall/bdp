@@ -1061,3 +1061,53 @@ describe("operation HTTP council corrections", () => {
     }
   });
 });
+
+describe("quoted cache directive handling", () => {
+  const invalid = [
+    'extension="a, private, no-store, z"',
+    'private="a, private, no-store, z"',
+    'private="set-cookie", no-store',
+    'private, extension="no-store"',
+    'private, no-store, extension="unterminated',
+    'private, no-store, extension="bad\\"',
+    "private, no-store, extension=bad value",
+    'private, no-store, extension="x"junk',
+  ];
+  const valid = [
+    "private, no-store",
+    'extension="a, private, no-store, z", PRIVATE, No-Store',
+    'private, extension="a\\", b", no-store',
+    ', private, , extension="a\\\\, b", no-store,',
+  ];
+  for (const kind of ["success", "mutation-problem", "discovery-problem"]) {
+    const call = (header: string) => {
+      const headers = { "cache-control": header };
+      const h = setup(
+        undefined,
+        kind === "discovery-problem"
+          ? { probeScope: async () => json(problem, scope, 422, headers) }
+          : {
+              post: async (url) =>
+                json(
+                  kind === "success" ? { outcome: "created", resource: bead } : problem,
+                  url,
+                  kind === "success" ? 200 : 422,
+                  headers,
+                ),
+            },
+      );
+      return kind === "discovery-problem"
+        ? h.client.discover()
+        : h.client.mutate("createBead", input, options);
+    };
+    it.each(invalid)(`rejects invalid protection in ${kind}: %s`, async (header) => {
+      await expect(call(header)).rejects.toMatchObject({ code: "invalid-response" });
+    });
+    it.each(valid)(
+      `accepts real directives and quoted extensions in ${kind}: %s`,
+      async (header) => {
+        expect((await call(header)).kind).toBe(kind === "success" ? "success" : "problem");
+      },
+    );
+  }
+});

@@ -723,10 +723,48 @@ function success<T>(value: T, http: ReadUpdateHttpContext): ReadUpdateClientRepl
   return Object.freeze({ kind: "success", value, http });
 }
 
-/** Mutation postimages and authorization-dependent Problems require full private
- * no-store protection; qualified private does not supply that full directive. */
+/** RFC 9111 section 5.2 and RFC 9110 section 5.6.4: commas in a
+ * quoted-string are value bytes, not additional cache directives. */
+const CACHE_DIRECTIVE =
+  /^[!#$%&'*+.^_`|~0-9A-Za-z-]+(?:=(?:[!#$%&'*+.^_`|~0-9A-Za-z-]+|"(?:[\t\x20\x21\x23-\x5B\x5D-\x7E\x80-\xFF]|\\[\t\x20-\x7E\x80-\xFF])*"))?$/;
+
+/** Require full unqualified directives, not names inside a quoted argument. */
 function assertPrivateNoStore(http: ReadUpdateHttpContext): void {
-  const directives =
-    http.headers["cache-control"]?.split(",").map((v) => v.trim().toLowerCase()) ?? [];
-  if (!directives.includes("private") || !directives.includes("no-store")) throw Error();
+  const value = http.headers["cache-control"];
+  if (value === undefined) throw Error();
+  let quoted = false,
+    escaped = false,
+    start = 0,
+    isPrivate = false,
+    noStore = false;
+  const consume = (end: number) => {
+    const directive = value.slice(start, end).replace(/^[ \t]+|[ \t]+$/g, "");
+    if (directive === "") return; // HTTP lists tolerate empty members.
+    if (!CACHE_DIRECTIVE.test(directive)) throw Error();
+    const name = directive.toLowerCase();
+    if (name === "private") isPrivate = true;
+    if (name === "no-store") noStore = true;
+  };
+  for (let index = 0; index < value.length; index++) {
+    const character = value[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quoted && character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && character === ",") {
+      consume(index);
+      start = index + 1;
+    }
+  }
+  if (quoted || escaped) throw Error();
+  consume(value.length);
+  if (!isPrivate || !noStore) throw Error();
 }
