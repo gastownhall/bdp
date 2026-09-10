@@ -27,6 +27,7 @@ import type {
 } from "@bdp/protocol";
 import {
   referenceUri,
+  stringifyJsonValue,
   isJsonSchemaUri,
   isReadProblem,
   ProtocolArtifactValidationError,
@@ -569,7 +570,7 @@ function createNodeRequestListener(
       response.headers.forEach((value, key) => {
         outgoing.setHeader(key, value);
       });
-      const body = response.body === undefined ? undefined : JSON.stringify(response.body);
+      const body = response.body === undefined ? undefined : stringifyJsonValue(response.body);
       if (body !== undefined && !response.headers.has("content-length")) {
         outgoing.setHeader("content-length", Buffer.byteLength(body));
       }

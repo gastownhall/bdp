@@ -152,7 +152,7 @@ function validate(value: unknown, key: keyof typeof READ_UPDATE_VALUE_SCHEMA_REF
 }
 /** Internal shared schema/snapshot boundary for RU response parsers. Object
  * inputs have already lost source spelling; raw requests MUST use text APIs.
- * Existing protocol artifact snapshot resource bounds are local reader bounds.
+ * The iterative snapshot adds no wire depth limit; admission owns byte/work bounds.
  */
 export function parseReadUpdateShape(
   value: unknown,
