@@ -13,6 +13,7 @@ import {
   type TypeDescriptor,
   type PropertyValidator,
   type PropertyDiagnosticEmitter,
+  type PropertyValidationDiagnostic,
 } from "@bdp/protocol";
 import {
   evaluateResourceMutation,
@@ -617,6 +618,207 @@ describe("pure member Resource evaluation", () => {
       expect(f.writes()).toBe(0);
       expect(f.records.size).toBe(0);
       expect(f.authorized).toEqual([]);
+    });
+
+    it.each([true, false])(
+      "keeps swallowed closed-emitter faults sticky through result getters (valid=%s)",
+      (valid) => {
+        const f = withValidators((_properties, emitter) => {
+          if (!valid) emitter.emit(diagnostic);
+          const misuse = () => {
+            try {
+              emitter.emit(diagnostic);
+            } catch {
+              /* broken producer */
+            }
+          };
+          return valid
+            ? {
+                get valid() {
+                  misuse();
+                  return true as const;
+                },
+              }
+            : {
+                valid: false,
+                get diagnosticsComplete() {
+                  misuse();
+                  return true;
+                },
+              };
+        });
+        expect(() => f.createBead("a")).toThrow("outside its active diagnostic traversal");
+        expect(f.writes()).toBe(0);
+        expect(f.records.size).toBe(0);
+        expect(f.authorized).toEqual([]);
+      },
+    );
+
+    it.each([true, false])(
+      "keeps a prior Type's emitter fault sticky through a later Type (valid=%s)",
+      (valid) => {
+        let prior: PropertyDiagnosticEmitter | undefined;
+        const f = withValidators(
+          (_properties, emitter) => {
+            prior = emitter;
+            return { valid: true };
+          },
+          (_properties, emitter) => {
+            try {
+              prior?.emit(diagnostic);
+            } catch {
+              /* broken producer */
+            }
+            return valid
+              ? { valid: true }
+              : { valid: false, diagnosticsComplete: emitter.emit(diagnostic) };
+          },
+        );
+        expect(() => f.createBead("a")).toThrow("outside its active diagnostic traversal");
+        expect(f.writes()).toBe(0);
+        expect(f.records.size).toBe(0);
+      },
+    );
+
+    it.each([true, false])(
+      "keeps emitter faults sticky through later policy success/refusal (%s)",
+      (allowed) => {
+        let prior: PropertyDiagnosticEmitter | undefined;
+        const f = withValidators((_properties, emitter) => {
+          prior = emitter;
+          return { valid: true };
+        });
+        expect(() =>
+          f.execute("createBead", input, {
+            policy: {
+              ...f.options.policy,
+              canCreate() {
+                try {
+                  prior?.emit(diagnostic);
+                } catch {
+                  /* broken authority callback */
+                }
+                return allowed;
+              },
+            },
+          }),
+        ).toThrow("outside its active diagnostic traversal");
+        expect(f.writes()).toBe(0);
+        expect(f.records.size).toBe(0);
+      },
+    );
+
+    it("checks the sticky fault before returning after a storage callback and rolls back staged effects", () => {
+      let prior: PropertyDiagnosticEmitter | undefined;
+      const f = withValidators((_properties, emitter) => {
+        prior = emitter;
+        return { valid: true };
+      });
+      const put = f.tx.putResource;
+      let staged = 0;
+      f.tx.putResource = (record) => {
+        put(record);
+        staged++;
+        try {
+          prior?.emit(diagnostic);
+        } catch {
+          /* broken storage callback */
+        }
+      };
+      expect(() => f.createBead("a")).toThrow("outside its active diagnostic traversal");
+      expect(staged).toBe(1);
+      expect(f.writes()).toBe(0);
+      expect(f.records.size).toBe(0);
+      expect(f.identities.size).toBe(0);
+    });
+
+    it("captures each diagnostic getter exactly once, including instanceLocation", () => {
+      const reads = { message: 0, schemaLocation: 0, instanceLocation: 0 };
+      const f = withValidators((_properties, emitter) => ({
+        valid: false,
+        diagnosticsComplete: emitter.emit({
+          get message() {
+            reads.message++;
+            return diagnostic.message;
+          },
+          get schemaLocation() {
+            reads.schemaLocation++;
+            return diagnostic.schemaLocation;
+          },
+          get instanceLocation() {
+            return ++reads.instanceLocation === 1 ? "/first" : "/second";
+          },
+        }),
+      }));
+      const problem = failure(f.createBead("a"), "validation-failed");
+      expect(reads).toEqual({ message: 1, schemaLocation: 1, instanceLocation: 1 });
+      expect(problem.diagnostics?.[0]?.instanceLocation).toBe("/first");
+      expect(f.writes()).toBe(0);
+    });
+
+    it("rejects an omitted properties location internally, while retaining the empty root pointer", () => {
+      const missing = { schemaLocation: diagnostic.schemaLocation, message: diagnostic.message };
+      const f = withValidators((_properties, emitter) => ({
+        valid: false,
+        diagnosticsComplete: emitter.emit(missing as PropertyValidationDiagnostic),
+      }));
+      expect(() => f.createBead("a")).toThrow(TypeError);
+      expect(f.writes()).toBe(0);
+      expect(f.authorized).toEqual([]);
+      const root = withValidators((_properties, emitter) => ({
+        valid: false,
+        diagnosticsComplete: emitter.emit({ ...diagnostic, instanceLocation: "" }),
+      }));
+      const result = failure(root.createBead("a"), "validation-failed");
+      expect(result.diagnostics?.[0]?.instanceLocation).toBe("");
+      expect(result).not.toHaveProperty("diagnosticsTruncated");
+    });
+
+    it.each([null, 42])("rejects nonstring properties locations internally: %s", (location) => {
+      const f = withValidators((_properties, emitter) => ({
+        valid: false,
+        diagnosticsComplete: emitter.emit({
+          ...diagnostic,
+          instanceLocation: location,
+        } as unknown as PropertyValidationDiagnostic),
+      }));
+      expect(() => f.createBead("a")).toThrow(TypeError);
+      expect(f.writes()).toBe(0);
+    });
+
+    it("preserves the first swallowed emitter error when a result getter causes another", () => {
+      const first = new Error("diagnostic getter fault");
+      const f = withValidators((_properties, emitter) => {
+        try {
+          emitter.emit({
+            ...diagnostic,
+            get message(): string {
+              throw first;
+            },
+          });
+        } catch {
+          /* broken producer */
+        }
+        return {
+          get valid() {
+            try {
+              emitter.emit(diagnostic);
+            } catch {
+              /* second, closed-emitter fault */
+            }
+            return true as const;
+          },
+        };
+      });
+      let caught: unknown;
+      try {
+        f.createBead("a");
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBe(first);
+      expect(f.writes()).toBe(0);
+      expect(f.records.size).toBe(0);
     });
 
     it("closes each emitter when its synchronous invocation returns", () => {

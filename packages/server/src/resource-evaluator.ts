@@ -156,6 +156,21 @@ function fail(code: keyof typeof failures): never {
     }),
   );
 }
+/** First emitter fault survives every Type, result getter and later callback
+ * until the member leaves its owning transaction. It never becomes a refusal.
+ */
+function createDiagnosticFault() {
+  let failure: { readonly error: unknown } | undefined;
+  return {
+    record(error: unknown): void {
+      failure ??= { error };
+    },
+    check(): void {
+      if (failure) throw failure.error;
+    },
+  };
+}
+type DiagnosticFault = ReturnType<typeof createDiagnosticFault>;
 /** One accumulator across effective Types; fixed one-cause diagnostics reuse
  * the same accounting without changing the evaluator's refusal precedence.
  */
@@ -174,6 +189,7 @@ function collectDiagnostics(limits: ResourceEvaluationOptions["limits"]) {
     append(diagnostic: ValidationDiagnostic): boolean {
       // Snapshot only closed wire fields before measuring. No caller mutation,
       // arbitrary extension or toJSON can change the retained entry's byte cost.
+      const { message, type, schemaLocation, instanceLocation } = diagnostic;
       const entry = parseReadUpdateProblem({
         type: "https://github.com/gastownhall/bdp/problems/validation",
         code: "validation-failed",
@@ -181,14 +197,10 @@ function collectDiagnostics(limits: ResourceEvaluationOptions["limits"]) {
         retry: "never",
         diagnostics: [
           {
-            message: diagnostic.message,
-            ...(diagnostic.type === undefined ? {} : { type: diagnostic.type }),
-            ...(diagnostic.schemaLocation === undefined
-              ? {}
-              : { schemaLocation: diagnostic.schemaLocation }),
-            ...(diagnostic.instanceLocation === undefined
-              ? {}
-              : { instanceLocation: diagnostic.instanceLocation }),
+            message,
+            ...(type === undefined ? {} : { type }),
+            ...(schemaLocation === undefined ? {} : { schemaLocation }),
+            ...(instanceLocation === undefined ? {} : { instanceLocation }),
           },
         ],
       }).diagnostics?.[0];
@@ -235,6 +247,7 @@ function validatePropertyContracts(
   effective: readonly InstalledResourceContract[],
   properties: Readonly<Record<string, unknown>>,
   limits: ResourceEvaluationOptions["limits"],
+  fault: DiagnosticFault,
 ): void {
   const collector = collectDiagnostics(limits);
   for (const entry of effective) {
@@ -242,25 +255,31 @@ function validatePropertyContracts(
     let active = true;
     let emitted = false;
     let stopped = false;
-    let emissionFailure: { readonly error: unknown } | undefined;
     const emitter = Object.freeze<PropertyDiagnosticEmitter>({
       emit(diagnostic) {
         try {
           if (!active || stopped)
             throw new TypeError("validator emitted outside its active diagnostic traversal");
+          const { message, schemaLocation, instanceLocation } = diagnostic;
+          if (
+            typeof message !== "string" ||
+            typeof schemaLocation !== "string" ||
+            typeof instanceLocation !== "string"
+          )
+            throw new TypeError(
+              "property diagnostic requires message, schemaLocation and instanceLocation strings",
+            );
           emitted = true;
           const accepted = collector.append({
-            message: diagnostic.message,
-            schemaLocation: diagnostic.schemaLocation,
-            ...(diagnostic.instanceLocation === undefined
-              ? {}
-              : { instanceLocation: diagnostic.instanceLocation }),
+            message,
+            schemaLocation,
+            instanceLocation,
             type: entry.descriptor.id,
           });
           stopped = !accepted;
           return accepted;
         } catch (error) {
-          emissionFailure ??= { error };
+          fault.record(error);
           throw error;
         }
       },
@@ -273,15 +292,17 @@ function validatePropertyContracts(
     }
     // A validator may not swallow a configuration/entry error and return a
     // guessed valid or truncated result. Such faults escape the member owner.
-    if (emissionFailure) throw emissionFailure.error;
     const valid = result?.valid;
+    const complete = valid === false ? result.diagnosticsComplete : undefined;
+    fault.check();
     if (valid === true) {
       if (emitted) throw new TypeError("valid schema emitted a failure diagnostic");
-    } else if (valid !== false || !emitted || result.diagnosticsComplete !== !stopped) {
+    } else if (valid !== false || !emitted || complete !== !stopped) {
       throw new TypeError("validator result contradicts its diagnostic traversal");
     }
     if (collector.truncated) break;
   }
+  fault.check();
   if (collector.hasDiagnostics) collector.fail();
 }
 
@@ -476,9 +497,13 @@ export function evaluateResourceMutation(
     if (bound !== undefined && (!Number.isSafeInteger(bound) || bound < 1))
       throw new TypeError("positive usable diagnostic limits required");
   }
+  const fault = createDiagnosticFault();
   try {
-    return evaluate(tx, mutation, options);
+    const result = evaluate(tx, mutation, options, fault);
+    fault.check();
+    return result;
   } catch (error) {
+    fault.check();
     if (error instanceof Failure)
       return freeze({
         effect: "failure",
@@ -528,6 +553,7 @@ function evaluate(
   tx: ResourceTransaction,
   mutation: ResourceMutation,
   options: ResourceEvaluationOptions,
+  fault: DiagnosticFault,
 ): ResourceEvaluation {
   const scope = options.scope;
   const { operation, input } = mutation;
@@ -750,7 +776,7 @@ function evaluate(
       : "properties" in input
         ? (input.properties ?? {})
         : {};
-  if (!deleting) validatePropertyContracts(effective, properties, options.limits);
+  if (!deleting) validatePropertyContracts(effective, properties, options.limits, fault);
   const sourceDescriptor = source
     ? contracts(source.type).find((entry) => entry.descriptor.id === source?.type)?.descriptor
     : undefined;
@@ -952,6 +978,7 @@ function evaluate(
         ...(sourceAfter ? { source: sourceAfter.id, sourceRevision: sourceAfter.revision } : {}),
       };
   // No Resource write happens until every validation/policy/CAS/limit check passes.
+  fault.check();
   for (const write of writes) tx.putResource(write);
   if (deleting) tx.deleteResource(id);
   return freeze({

@@ -3,7 +3,8 @@
  */
 export interface PropertyValidationDiagnostic {
   readonly schemaLocation: string;
-  readonly instanceLocation?: string;
+  /** JSON Pointer within properties; the empty string names its root. */
+  readonly instanceLocation: string;
   readonly message: string;
 }
 export interface PropertyDiagnosticEmitter {
