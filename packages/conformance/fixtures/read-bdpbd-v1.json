@@ -17,7 +17,8 @@
     "cors-disabled",
     "unexpected-internal-fault",
     "alias-absent-v1",
-    "attribution-v1"
+    "attribution-v1",
+    "content-derived-revisions-v1"
   ],
   "bindings": {
     "bead.demo-a": "beads/demo-a",
@@ -75,7 +76,7 @@
       {
         "id": "demo-c",
         "title": "C",
-        "type": "task",
+        "type": "feature",
         "priority": 2,
         "status": "closed",
         "created_at": "2026-08-08T23:33:33Z"
@@ -179,16 +180,106 @@
   },
   "typeDescriptors": [
     {
+      "id": "https://work.example/types/tracked-item",
+      "name": "Tracked Item",
+      "describes": "bead",
+      "conformsTo": []
+    },
+    {
+      "id": "https://work.example/types/work-item",
+      "name": "Work Item",
+      "describes": "bead",
+      "conformsTo": ["https://work.example/types/tracked-item"]
+    },
+    {
       "id": "https://work.example/types/task",
       "name": "Task",
       "describes": "bead",
       "conformsTo": ["https://work.example/types/work-item"]
     },
     {
+      "id": "https://work.example/types/bug",
+      "name": "Bug",
+      "describes": "bead",
+      "conformsTo": ["https://work.example/types/work-item"]
+    },
+    {
+      "id": "https://work.example/types/feature",
+      "name": "Feature",
+      "describes": "bead",
+      "conformsTo": ["https://work.example/types/work-item"]
+    },
+    {
+      "id": "https://work.example/types/chore",
+      "name": "Chore",
+      "describes": "bead",
+      "conformsTo": ["https://work.example/types/work-item"]
+    },
+    {
+      "id": "https://work.example/types/epic",
+      "name": "Epic",
+      "describes": "bead",
+      "conformsTo": ["https://work.example/types/work-item"]
+    },
+    {
+      "id": "https://work.example/types/decision",
+      "name": "Decision",
+      "describes": "bead",
+      "conformsTo": []
+    },
+    {
+      "id": "https://work.example/types/relationship",
+      "name": "Relationship",
+      "describes": "link",
+      "conformsTo": [],
+      "source": {
+        "conformsTo": []
+      },
+      "target": {
+        "conformsTo": []
+      }
+    },
+    {
+      "id": "https://work.example/types/dependency",
+      "name": "Dependency",
+      "describes": "link",
+      "conformsTo": ["https://work.example/types/relationship"],
+      "source": {
+        "conformsTo": []
+      },
+      "target": {
+        "conformsTo": []
+      }
+    },
+    {
       "id": "https://work.example/types/blocks",
       "name": "Blocks",
       "describes": "link",
       "conformsTo": ["https://work.example/types/dependency"],
+      "source": {
+        "conformsTo": []
+      },
+      "target": {
+        "conformsTo": []
+      }
+    },
+    {
+      "id": "https://work.example/types/relates",
+      "name": "Relates",
+      "describes": "link",
+      "conformsTo": [],
+      "source": {
+        "conformsTo": []
+      },
+      "target": {
+        "conformsTo": []
+      }
+    },
+    {
+      "id": "https://work.example/types/cites",
+      "name": "Cites",
+      "describes": "link",
+      "conformsTo": [],
       "source": {
         "conformsTo": []
       },
@@ -520,9 +611,9 @@
       ]
     },
     "structural-predicates": {
-      "beads-type": ["A", "B", "C", "D", "I", "J", "K"],
+      "beads-type": ["A", "B", "D", "I", "J", "K"],
       "beads-type-is-exact": [],
-      "beads-conforms-to-declared-type": ["A", "B", "C", "D", "I", "J", "K"],
+      "beads-conforms-to-declared-type": ["A", "B", "D", "I", "J", "K"],
       "beads-conforms-to": ["A", "B", "C", "D", "E", "I", "J", "K"],
       "beads-predicates-and": [],
       "links-source-local": ["links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz"],
@@ -665,6 +756,369 @@
       "bead": {
         "principal": "bdp-conformance",
         "status": "unknown"
+      }
+    },
+    "wildcard-descriptors": {
+      "declaration": {
+        "input": {
+          "ids": [
+            "https://work.example/types/wildcard-probe-only",
+            "https://work.example/types/wildcard-probe-mixed",
+            "https://work.example/types/wildcard-probe-link"
+          ]
+        },
+        "descriptors": [
+          {
+            "id": "https://work.example/types/wildcard-probe-only",
+            "name": "only",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-mixed",
+            "name": "mixed",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              },
+              "https://work.example/types/cites": {
+                "max": 2
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-link",
+            "name": "link",
+            "describes": "link",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              }
+            },
+            "source": {
+              "conformsTo": []
+            },
+            "target": {
+              "conformsTo": []
+            }
+          }
+        ],
+        "rows": [
+          {
+            "id": "https://work.example/types/wildcard-probe-only",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-only",
+              "name": "only",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 3
+                }
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-mixed",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-mixed",
+              "name": "mixed",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 3
+                },
+                "https://work.example/types/cites": {
+                  "max": 2
+                }
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-link",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          }
+        ]
+      },
+      "max-required": {
+        "input": {
+          "ids": [
+            "https://work.example/types/wildcard-probe-missing",
+            "https://work.example/types/wildcard-probe-label",
+            "https://work.example/types/wildcard-probe-unknown",
+            "https://work.example/types/wildcard-probe-zero",
+            "https://work.example/types/wildcard-probe-negative",
+            "https://work.example/types/wildcard-probe-fraction",
+            "https://work.example/types/wildcard-probe-max-valid"
+          ]
+        },
+        "descriptors": [
+          {
+            "id": "https://work.example/types/wildcard-probe-missing",
+            "name": "missing",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {}
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-label",
+            "name": "label",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3,
+                "label": "no"
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-unknown",
+            "name": "unknown",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3,
+                "extra": true
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-zero",
+            "name": "zero",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 0
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-negative",
+            "name": "negative",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": -1
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-fraction",
+            "name": "fraction",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 1.5
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-max-valid",
+            "name": "missing",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 4
+              }
+            }
+          }
+        ],
+        "rows": [
+          {
+            "id": "https://work.example/types/wildcard-probe-missing",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-label",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-unknown",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-zero",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-negative",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-fraction",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-max-valid",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-max-valid",
+              "name": "missing",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 4
+                }
+              }
+            }
+          }
+        ]
+      },
+      "explicit-max-bounded": {
+        "input": {
+          "ids": [
+            "https://work.example/types/wildcard-probe-below",
+            "https://work.example/types/wildcard-probe-equal",
+            "https://work.example/types/wildcard-probe-above"
+          ]
+        },
+        "descriptors": [
+          {
+            "id": "https://work.example/types/wildcard-probe-below",
+            "name": "below",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              },
+              "https://work.example/types/cites": {
+                "max": 2
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-equal",
+            "name": "equal",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              },
+              "https://work.example/types/cites": {
+                "max": 3
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-above",
+            "name": "above",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 3
+              },
+              "https://work.example/types/cites": {
+                "max": 4
+              }
+            }
+          }
+        ],
+        "rows": [
+          {
+            "id": "https://work.example/types/wildcard-probe-below",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-below",
+              "name": "below",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 3
+                },
+                "https://work.example/types/cites": {
+                  "max": 2
+                }
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-equal",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-equal",
+              "name": "equal",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 3
+                },
+                "https://work.example/types/cites": {
+                  "max": 3
+                }
+              }
+            }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-above",
+            "outcome": "problem",
+            "code": "temporarily-unavailable"
+          }
+        ]
+      }
+    },
+    "ownership-inventory": {
+      "beadsWithOwnership": 0,
+      "input": {
+        "ids": [
+          "https://work.example/types/tracked-item",
+          "https://work.example/types/work-item",
+          "https://work.example/types/task",
+          "https://work.example/types/bug",
+          "https://work.example/types/feature",
+          "https://work.example/types/chore",
+          "https://work.example/types/epic",
+          "https://work.example/types/decision",
+          "https://work.example/types/relationship",
+          "https://work.example/types/dependency",
+          "https://work.example/types/blocks",
+          "https://work.example/types/relates",
+          "https://work.example/types/cites"
+        ]
+      },
+      "resolvedOwnedTypes": 0
+    },
+    "numeric-model": {
+      "declaration": {
+        "name": "bdpbd-projected-resource-v1",
+        "numberModel": "IEEE-754-binary64-ECMAScript-JSON",
+        "source": "packages/adapter-bd/README.md",
+        "description": "bdpbd-projected-resource-v1 uses IEEE-754-binary64-ECMAScript-JSON numbers: native JSON is parsed into JavaScript binary64 values and finite numbers are serialized with ECMAScript JSON.stringify (shortest round-trip form, negative zero as 0). The preimage is the complete projected Resource excluding only its revision member: id, type, attribution when present, properties, and Link endpoints when present. Objects use UTF-16 code-unit lexical key order recursively, arrays retain order, and strings use ECMAScript JSON.stringify escaping. The UTF-8 bytes are SHA-256 hashed and encoded as unpadded base64url with the sha256_ prefix. This local discipline does not claim RFC 8785/I-JSON conformance: the reader has no duplicate-member or lone-surrogate admission guarantee. It changes no token bytes and introduces no discovery member. Read observations cover numeric values actually returned by the supported bd projection, not write admission or arbitrary decimal preservation."
+      },
+      "input": {
+        "ids": ["beads/demo-a", "beads/demo-c", "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"],
+        "numberModel": "IEEE-754-binary64-ECMAScript-JSON"
       }
     }
   },

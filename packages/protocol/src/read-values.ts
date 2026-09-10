@@ -11,6 +11,7 @@ import type {
   BeadRecord,
   LinkCollection,
   LinkRecord,
+  OwnedOutgoingDeclarations,
   PropertiesRecord,
   ReadDiscovery,
   ReadProblem,
@@ -24,6 +25,26 @@ const TYPE_VALUE_MAX_DEPTH = 128;
 const TYPE_VALUE_MAX_NODES = 100_000;
 const TYPE_VALUE_MAX_CONTAINER_ENTRIES = 10_000;
 const CANONICAL_SCHEMA_URL = new URL("../schemas/bdp-v0.schema.json", import.meta.url);
+
+/**
+ * The Read envelopes this package parses through the canonical schema bundle,
+ * by bundle-local `$defs` reference. This is the normative Read parse surface.
+ * The Read evidence gate derives the Read schema projection's envelope roots
+ * from it together with the bound manifest's `json-schema` assertions
+ * (D29 = C): adding a Read envelope here widens the projection and is itself a
+ * Read change that closes the sealed cohort until it is re-sealed.
+ */
+export const READ_VALUE_SCHEMA_REFS = Object.freeze({
+  summary: "#/$defs/typeSummary",
+  descriptor: "#/$defs/typeDescriptor",
+  discovery: "#/$defs/readDiscovery",
+  problem: "#/$defs/readProblem",
+  beadRecord: "#/$defs/beadRecord",
+  linkRecord: "#/$defs/linkRecord",
+  beadCollection: "#/$defs/beadCollection",
+  linkCollection: "#/$defs/linkCollection",
+  typesInventory: "#/$defs/typesInventory",
+} as const);
 
 interface ProtocolValueValidators {
   readonly summary: ValidateFunction;
@@ -62,9 +83,17 @@ export function parseTypeDescriptor(value: unknown, path = "Type Descriptor"): T
   validateResourceTypeIds(type.conformsTo, `${path}.conformsTo`);
   if (type.source !== undefined) validateEndpointConstraint(type.source, `${path}.source`);
   if (type.target !== undefined) validateEndpointConstraint(type.target, `${path}.target`);
-  if (type.ownsOutgoing !== undefined)
-    for (const key of Object.keys(type.ownsOutgoing as Readonly<Record<string, unknown>>))
+  if (type.ownsOutgoing !== undefined) {
+    const owned = type.ownsOutgoing as OwnedOutgoingDeclarations;
+    for (const [key, declaration] of Object.entries(owned)) {
+      if (key === "*") continue;
       parseResourceTypeId(key, `${path}.ownsOutgoing key`);
+      if (owned["*"] !== undefined && declaration.max > owned["*"].max)
+        throw new ProtocolArtifactValidationError(
+          `${path}.ownsOutgoing[${JSON.stringify(key)}].max exceeds the wildcard max`,
+        );
+    }
+  }
   return type as unknown as TypeDescriptor;
 }
 
@@ -110,11 +139,17 @@ export function parseBeadRecord(value: unknown, path = "Bead record"): BeadRecor
         const itemPath = `${path}.ownedLinks[${JSON.stringify(key)}][${index}]`;
         const owned_ = parseLinkRecord(item, itemPath);
         if (owned_.type !== key)
-          throw new Error(`${itemPath}.type must equal its entry's Link Type key`);
+          throw new ProtocolArtifactValidationError(
+            `${itemPath}.type must equal its entry's Link Type key`,
+          );
         if (referenceUri(owned_.source) !== record.id)
-          throw new Error(`${itemPath}.source must be the containing Bead`);
+          throw new ProtocolArtifactValidationError(
+            `${itemPath}.source must be the containing Bead`,
+          );
         if (previousId !== undefined && compareCanonicalIds(previousId, owned_.id) >= 0)
-          throw new Error(`${itemPath}.id must ascend in code-unit order within its entry`);
+          throw new ProtocolArtifactValidationError(
+            `${itemPath}.id must ascend in code-unit order within its entry`,
+          );
         previousId = owned_.id;
       }
     }
@@ -261,52 +296,18 @@ function getProtocolValueValidators(): ProtocolValueValidators {
     canonicalSchemaBundle as unknown as JSONSchemaType<unknown>,
     canonicalSchemaBundle.$id,
   );
+  const validatorFor = (schemaRef: string): ValidateFunction =>
+    requireSchemaValidator(schemaValidator, canonicalSchemaBundle.$id, schemaRef);
   protocolValueValidators = Object.freeze({
-    summary: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/typeSummary",
-    ),
-    descriptor: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/typeDescriptor",
-    ),
-    discovery: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/readDiscovery",
-    ),
-    problem: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/readProblem",
-    ),
-    beadRecord: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/beadRecord",
-    ),
-    linkRecord: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/linkRecord",
-    ),
-    beadCollection: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/beadCollection",
-    ),
-    linkCollection: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/linkCollection",
-    ),
-    typesInventory: requireSchemaValidator(
-      schemaValidator,
-      canonicalSchemaBundle.$id,
-      "#/$defs/typesInventory",
-    ),
+    summary: validatorFor(READ_VALUE_SCHEMA_REFS.summary),
+    descriptor: validatorFor(READ_VALUE_SCHEMA_REFS.descriptor),
+    discovery: validatorFor(READ_VALUE_SCHEMA_REFS.discovery),
+    problem: validatorFor(READ_VALUE_SCHEMA_REFS.problem),
+    beadRecord: validatorFor(READ_VALUE_SCHEMA_REFS.beadRecord),
+    linkRecord: validatorFor(READ_VALUE_SCHEMA_REFS.linkRecord),
+    beadCollection: validatorFor(READ_VALUE_SCHEMA_REFS.beadCollection),
+    linkCollection: validatorFor(READ_VALUE_SCHEMA_REFS.linkCollection),
+    typesInventory: validatorFor(READ_VALUE_SCHEMA_REFS.typesInventory),
   });
   return protocolValueValidators;
 }

@@ -49,6 +49,22 @@ export interface ReadCohortVerificationInput {
   /** The self-certifiable set derived independently from the bound manifest. */
   readonly derivedSelfCertifiable: readonly string[];
   /**
+   * D29 = C, projection rule RP1: the digest of the Read schema projection —
+   * the sealed definition set, by name, in sealed order — recomputed by the
+   * gate from the committed bundle after checking that every definition Read
+   * reaches (roots derived from the bound manifest and the protocol parse
+   * table) is sealed. Every segment must bind exactly this value; drift means
+   * the text of a sealed definition changed since the seal, and the cohort
+   * closes until re-sealed.
+   */
+  readonly derivedSchemaReadProjection: string;
+  /** SHA-256 of exact current catalog/manifest bytes and each target fixture. */
+  readonly derivedInputBindings: {
+    readonly catalog: string;
+    readonly manifest: string;
+    readonly fixtures: Readonly<Record<ReadCohortTarget, string>>;
+  };
+  /**
    * D4: the pinned bd identity, recomputed by the caller from the committed
    * baseline observations. Every bdpbd segment must record exactly this
    * identity — any drift closes bdpbd and therefore both targets.
@@ -75,6 +91,7 @@ const ALWAYS_REQUIRED_BINDING_KEYS = [
   "manifest",
   "fixture",
   "schema",
+  "schemaReadProjection",
   "validator",
   "runner",
   "harness",
@@ -166,6 +183,16 @@ export function verifyReadCohortEvidence(input: ReadCohortVerificationInput): vo
   const required = new Set(input.requiredScenarioIds);
   if (required.size !== input.requiredScenarioIds.length) {
     throw new ReadCohortVerificationError("the derived required scenario set repeats ids");
+  }
+  // The projection digest is recomputed by the gate, never read from the
+  // artifact; a gate that derived none must not pass by vacuous agreement.
+  if (
+    typeof input.derivedSchemaReadProjection !== "string" ||
+    !SHA256_HEX.test(input.derivedSchemaReadProjection)
+  ) {
+    throw new ReadCohortVerificationError(
+      "verification input carries no derived Read schema projection digest; the gate must recompute one from the committed bundle",
+    );
   }
 
   // The recorded required set is re-derived rather than trusted, exactly like
@@ -282,6 +309,17 @@ export function verifyReadCohortEvidence(input: ReadCohortVerificationInput): vo
           );
         }
       }
+      // D29 = C / RP1: the seal binds the Read schema projection — the sealed
+      // definition set, by name — and the gate recomputes it from the committed
+      // tree. `schema` (the whole-bundle digest) stays recorded provenance
+      // checked for format only, because a later profile's definitions and the
+      // bundle's top-level metadata legitimately move it; the projection is what
+      // a change to a sealed definition cannot move without a re-seal.
+      if (bindings.schemaReadProjection !== input.derivedSchemaReadProjection) {
+        throw new ReadCohortVerificationError(
+          `Read schema projection drift: re-seal required (target '${targetName}' ${admission} run binds Read schema projection ${String(bindings.schemaReadProjection)}; the committed bundle's sealed definitions project ${input.derivedSchemaReadProjection})`,
+        );
+      }
       // A packaged run must name the payload, process and workspace behind it;
       // an in-process one has none of those and must not claim any. Relabeling
       // an in-process segment as packaged therefore fails here: the bindings it
@@ -340,6 +378,27 @@ export function verifyReadCohortEvidence(input: ReadCohortVerificationInput): vo
         throw new ReadCohortVerificationError(
           `target '${targetName}' runs disagree on the bound fixture`,
         );
+      }
+
+      // Agreement between old segments is not proof that current inputs match.
+      // Bind exact bytes, including assertion-only changes with unchanged IDs
+      // and schema roots, and fixture edits that keep capabilities unchanged.
+      const currentBindings = {
+        catalog: input.derivedInputBindings?.catalog,
+        manifest: input.derivedInputBindings?.manifest,
+        fixture: input.derivedInputBindings?.fixtures?.[targetName as ReadCohortTarget],
+      };
+      for (const [key, current] of Object.entries(currentBindings)) {
+        if (typeof current !== "string" || !SHA256_HEX.test(current)) {
+          throw new ReadCohortVerificationError(
+            `current '${targetName}' ${key} binding is missing or malformed`,
+          );
+        }
+        if (bindings[key] !== current) {
+          throw new ReadCohortVerificationError(
+            `current ${key} bytes drift for '${targetName}': re-seal required`,
+          );
+        }
       }
 
       for (const scenarioEntry of array(segment.scenarios, "segment scenarios")) {

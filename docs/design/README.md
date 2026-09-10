@@ -24,6 +24,34 @@ waves are internal sequencing labels, not protocol concepts.
   items 4 and 5 must close, the parallel item-9 work that proceeds today,
   and the testable contract-suite and Wave 2 freeze evidence milestones the
   eventual port must meet.
+- [Owned-Link wildcard decisions](./owned-wildcard-decisions.md) records the
+  numbered judgments (OW1–OW8) taken while transcribing the 2026-09-08
+  wildcard ownership ruling — what the wildcard's `max` bounds, the closed
+  `{ max }` entry, the present-plus-declared `ownedLinks` rule, row
+  profiles, the evidence posture, and the runtime lag — each with its
+  context, options, recommendation, and the specification sentence that
+  depends on it.
+
+- [Numeric-model decisions](./numeric-model-decisions.md) records the
+  numbered judgments (NM1–NM11) taken while transcribing the 2026-09-08
+  numeric-model ruling — signed zero, the precise round-trip rule, depth and
+  carriers, the rule's scope, the vectors, row profiles, where the rule is
+  stated, the evidence posture, the runtime lag, never-admitted data, and
+  the ledger collision — each with its context, options, recommendation,
+  and the artifacts that depend on it.
+- [Read schema projection gate](./read-projection-gate.md) records the
+  2026-09-08 rulings that the sealed Read cohort binds the digest of a
+  projection of the schema bundle (D29 = C) and that the projection is the
+  sealed definition set by name, not the Read-reachable closure (RP1); the
+  projection rule, the derived roots as coverage check, the re-seal trigger,
+  and the binding-format migrations of the sealed artifact.
+- [Owned-Link wildcard runtime review](./owned-wildcard-runtime-review.md) records
+  the Read parser and reference-adapter draft, verification, council findings
+  and dispositions, and the remaining conformance integration obligations.
+
+- [Read erasure-pointer correction](./read-erasure-pointer-correction.md) records
+  the bounded hardening, review dispositions and historical evidence boundary;
+  prerequisite integration and a genuine successor cohort remain required.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.

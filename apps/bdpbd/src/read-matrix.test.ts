@@ -36,6 +36,7 @@ import {
   runBdWorkspaceCommand as runCommand,
   seedBdWorkspace,
   startControlledTypeDescriptorPublisher,
+  successorDescriptorBodies,
 } from "@bdp/conformance/testing";
 import {
   admitReadServerProfile,
@@ -487,9 +488,10 @@ setTimeout(() => process.exit(0), 1500);
         ) {
           if (!fixture.capabilities.includes(controlledReadExternalTypePublisherCapability))
             throw new Error("bdpbd fixture lacks its external Type publisher capability");
-          descriptorPublisher = await startControlledTypeDescriptorPublisher(
-            fixture.typeDescriptors,
-          );
+          descriptorPublisher = await startControlledTypeDescriptorPublisher([
+            ...fixture.typeDescriptors,
+            ...successorDescriptorBodies(fixture),
+          ]);
         }
 
         const schema = JSON.parse(readText("schemas/bdp-v0.schema.json")) as Record<
@@ -620,7 +622,7 @@ function createReadArtifactBundle(fixturePath: string) {
 const expectedBeads = [
   ["A", "open", "task"],
   ["B", "open", "task"],
-  ["C", "closed", "task"],
+  ["C", "closed", "feature"],
   ["D", "open", "task"],
   ["E", "deferred", "bug"],
   ["F", "open", "decision"],

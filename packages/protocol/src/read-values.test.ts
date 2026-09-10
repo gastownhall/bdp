@@ -16,6 +16,8 @@ import {
   type Reference,
   type ExternalEndpointPolicy,
   type TypeDescriptor,
+  type BeadTypeDescriptor,
+  ProtocolArtifactValidationError,
 } from "./index.js";
 
 // Compile-time contract: a Reference is a URI string, or a Pinned
@@ -45,6 +47,20 @@ void _pinRejectsExtras;
 const scope = "https://scope.example/acme/" as AbsoluteHttpUrl;
 
 describe("Read envelope parsing", () => {
+  it("rejects erasure pointers while preserving ordinary problem extensions", () => {
+    const problem = {
+      type: "https://github.com/gastownhall/bdp/problems/gone",
+      code: "resource-erased",
+      status: 410,
+      retry: "never",
+      traceId: "request-7",
+    };
+    expect(parseReadProblem(problem)).toEqual(problem);
+    for (const pointer of ["https://archive.example/erased", { uri: "urn:erased" }, null]) {
+      expect(() => parseReadProblem({ ...problem, pointer })).toThrow();
+    }
+  });
+
   it("freezes parsed pins so a mutated input cannot reach the snapshot", () => {
     const source = { uri: "urn:external:pin-witness", revision: "pin-1" };
     const record = {
@@ -301,6 +317,23 @@ describe("Type artifact parsing", () => {
     } as const satisfies TypeDescriptor;
     expect([bead.describes, link.describes]).toEqual(["bead", "link"]);
 
+    const wildcardBead: BeadTypeDescriptor = {
+      ...bead,
+      ownsOutgoing: {
+        "*": { max: 3 },
+        "https://work.example/types/cites": { max: 2, label: "cites" },
+      },
+    };
+    const labeledWildcardBead: BeadTypeDescriptor = {
+      ...bead,
+      ownsOutgoing: {
+        // @ts-expect-error The wildcard declaration cannot carry a label.
+        "*": { max: 3, label: "everything" },
+      },
+    };
+    expect(wildcardBead.ownsOutgoing?.["*"]).toEqual({ max: 3 });
+    expect(labeledWildcardBead.describes).toBe("bead");
+
     // @ts-expect-error Link descriptors require both endpoint constraints.
     const invalidLink: TypeDescriptor = {
       id: "https://work.example/types/blocks",
@@ -315,6 +348,59 @@ describe("Type artifact parsing", () => {
       target: { conformsTo: [] },
     };
     expect([invalidLink.describes, invalidBead.describes]).toEqual(["link", "bead"]);
+  });
+
+  it("parses wildcard ownership and enforces the cross-entry bound beyond schema validation", () => {
+    const type = {
+      id: "https://work.example/types/memory",
+      name: "Memory",
+      describes: "bead",
+      conformsTo: [],
+    } as const;
+    const cites = "https://work.example/types/cites";
+    const parse = (ownsOutgoing: unknown) => parseTypeDescriptor({ ...type, ownsOutgoing });
+    for (const ownsOutgoing of [
+      { "*": { max: 3 } },
+      { "*": { max: 3 }, [cites]: { max: 3, label: "cites" } },
+      { [cites]: { max: 2, label: "cites" }, "*": { max: 3 } },
+    ]) {
+      const parsed = parse(ownsOutgoing);
+      expect(parsed).toEqual({ ...type, ownsOutgoing });
+      if (parsed.describes !== "bead") throw new Error("expected Bead Type");
+      expect(Object.isFrozen(parsed.ownsOutgoing)).toBe(true);
+    }
+    expect(() => parse({ "*": { max: 3 }, [cites]: { max: 4 } })).toThrow(
+      "exceeds the wildcard max",
+    );
+    expect(() => parse({ "*": { max: 3, label: "everything" } })).toThrow(
+      ProtocolArtifactValidationError,
+    );
+    expect(() => parse({ "*": { max: 0 } })).toThrow(ProtocolArtifactValidationError);
+    expect(() => parse({ "*": { max: 1.5 } })).toThrow(ProtocolArtifactValidationError);
+    expect(() =>
+      parse({ "*": { max: 3 }, "https://user:pw@work.example/types/cites": { max: 1 } }),
+    ).toThrow(ProtocolArtifactValidationError);
+    expect(() => parse({ "*": { max: 3 }, "not-a-type-url": { max: 1 } })).toThrow(
+      ProtocolArtifactValidationError,
+    );
+    expect(() =>
+      parseTypeDescriptor({
+        ...type,
+        describes: "link",
+        source: { conformsTo: [] },
+        target: { conformsTo: [] },
+        ownsOutgoing: { "*": { max: 3 } },
+      }),
+    ).toThrow(ProtocolArtifactValidationError);
+    expect(() =>
+      parseBeadRecord({
+        id: `${scope}beads/a`,
+        type: type.id,
+        revision: "1",
+        properties: {},
+        ownedLinks: { "*": [] },
+      }),
+    ).toThrow(ProtocolArtifactValidationError);
   });
 
   it("enforces owned-declaration uniqueness and canonical Type URLs", () => {

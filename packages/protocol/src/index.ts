@@ -162,18 +162,24 @@ interface TypeDescriptorMembers {
  * inline;
  * `label` is descriptor documentation for display and SDK projection and
  * never appears in Resource records. Declarations are keyed by Link Type
- * URL, so each pair is declared at most once by construction.
+ * URL, so each pair is declared at most once by construction. The wildcard
+ * owns every other outgoing Link Type and bounds the whole owned set,
+ * including explicitly declared types. It carries no label.
  */
 export interface OwnedLinkDeclaration {
   readonly label?: string;
   readonly max: number;
 }
 
+export type OwnedOutgoingDeclarations = Readonly<Record<string, OwnedLinkDeclaration>> & {
+  readonly "*"?: { readonly max: number; readonly label?: never };
+};
+
 export interface BeadTypeDescriptor extends TypeDescriptorMembers {
   readonly describes: "bead";
   readonly source?: never;
   readonly target?: never;
-  readonly ownsOutgoing?: Readonly<Record<string, OwnedLinkDeclaration>>;
+  readonly ownsOutgoing?: OwnedOutgoingDeclarations;
 }
 
 export interface LinkTypeDescriptor extends TypeDescriptorMembers {
@@ -200,6 +206,7 @@ export {
   parseTypeInventory,
   parseTypeSummary,
   ProtocolArtifactValidationError,
+  READ_VALUE_SCHEMA_REFS,
   assertCanonicalPathSegments,
   resolveCanonicalLocalResourceId,
 } from "./read-values.js";

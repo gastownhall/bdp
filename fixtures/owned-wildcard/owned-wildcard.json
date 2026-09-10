@@ -1,0 +1,222 @@
+{
+  "fixtureVersion": 1,
+  "id": "owned-wildcard",
+  "description": "A Memory-like Bead Type that owns every outgoing Link Type through the wildcard entry beside one explicitly declared type, a wildcard-only Type, and the Beads of those Types: one carrying owned Links of two Link Types its descriptor never names plus the explicitly declared type's empty entry, one carrying only that empty entry, and one carrying nothing yet. Followed by the shapes the bundle rejects: a wildcard without max, a wildcard with a label, a wildcard bound of zero, a wildcard on a Link Type Descriptor, and the wildcard as an ownedLinks record key; then one shape the bundle accepts and descriptor validation refuses: an explicitly declared max above the wildcard's (OW1, ruled A 2026-09-08). Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "wildcardOwner": "https://memory.example/types/memory",
+  "wildcardOnlyOwner": "https://memory.example/types/note",
+  "descriptors": [
+    {
+      "id": "https://memory.example/types/memory",
+      "name": "Memory",
+      "description": "A remembered thing whose relationship vocabulary is open: it cites, supports, contradicts, and refines other Beads through Link Types it does not enumerate.",
+      "describes": "bead",
+      "conformsTo": [],
+      "propertiesSchema": "https://memory.example/schemas/memory-properties-v1",
+      "ownsOutgoing": {
+        "*": { "max": 64 },
+        "https://memory.example/types/cites": { "label": "cites", "max": 16 }
+      }
+    },
+    {
+      "id": "https://memory.example/types/note",
+      "name": "Note",
+      "description": "A wildcard-only owner: every outgoing Link it makes is owned, and no Link Type is named.",
+      "describes": "bead",
+      "conformsTo": [],
+      "ownsOutgoing": {
+        "*": { "max": 8 }
+      }
+    },
+    {
+      "id": "https://memory.example/types/cites",
+      "name": "Cites",
+      "describes": "link",
+      "conformsTo": [],
+      "source": { "conformsTo": ["https://memory.example/types/memory"] },
+      "target": { "conformsTo": [] }
+    },
+    {
+      "id": "https://memory.example/types/supports",
+      "name": "Supports",
+      "describes": "link",
+      "conformsTo": [],
+      "source": { "conformsTo": [] },
+      "target": { "conformsTo": [] }
+    },
+    {
+      "id": "https://memory.example/types/contradicts",
+      "name": "Contradicts",
+      "describes": "link",
+      "conformsTo": [],
+      "source": { "conformsTo": [] },
+      "target": { "conformsTo": [] }
+    }
+  ],
+  "records": [
+    {
+      "id": "https://beads.example/acme/beads/mem-1",
+      "type": "https://memory.example/types/memory",
+      "revision": "mem-1-r3",
+      "attribution": { "principal": "agent:recall", "status": "claimed" },
+      "properties": {
+        "title": "Owned Links version their source",
+        "body": "Every outgoing reference a Memory makes is part of its own versioned state."
+      },
+      "ownedLinks": {
+        "https://memory.example/types/cites": [],
+        "https://memory.example/types/contradicts": [
+          {
+            "id": "https://beads.example/acme/links/contradicts-7",
+            "type": "https://memory.example/types/contradicts",
+            "revision": "contradicts-7-r1",
+            "attribution": { "principal": "agent:recall", "status": "claimed" },
+            "source": "https://beads.example/acme/beads/mem-1",
+            "target": "https://beads.example/acme/beads/mem-2",
+            "properties": {
+              "note": "the earlier reading assumed incoming Links version the target"
+            }
+          }
+        ],
+        "https://memory.example/types/supports": [
+          {
+            "id": "https://beads.example/acme/links/supports-3",
+            "type": "https://memory.example/types/supports",
+            "revision": "supports-3-r2",
+            "attribution": { "principal": "agent:recall", "status": "claimed" },
+            "source": "https://beads.example/acme/beads/mem-1",
+            "target": { "uri": "https://github.example/issues/5877", "revision": "8f0e2b" },
+            "properties": {}
+          },
+          {
+            "id": "https://beads.example/acme/links/supports-9",
+            "type": "https://memory.example/types/supports",
+            "revision": "supports-9-r1",
+            "attribution": { "principal": "agent:recall", "status": "claimed" },
+            "source": "https://beads.example/acme/beads/mem-1",
+            "target": "https://beads.example/acme/beads/mem-2",
+            "properties": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "https://beads.example/acme/beads/mem-2",
+      "type": "https://memory.example/types/memory",
+      "revision": "mem-2-r1",
+      "properties": {
+        "title": "Incoming Links never version their target",
+        "body": "mem-1 contradicts and supports this Bead; neither Link touched this revision."
+      },
+      "ownedLinks": {
+        "https://memory.example/types/cites": []
+      }
+    },
+    {
+      "id": "https://beads.example/acme/beads/note-1",
+      "type": "https://memory.example/types/note",
+      "revision": "note-1-r1",
+      "properties": { "title": "A note that links to nothing yet" },
+      "ownedLinks": {}
+    }
+  ],
+  "rejected": [
+    {
+      "id": "wildcard-without-max",
+      "schema": "#/$defs/typeDescriptor",
+      "reason": "The wildcard entry is exactly { max }: a wildcard without its bound is not a declaration.",
+      "value": {
+        "id": "https://memory.example/types/memory",
+        "name": "Memory",
+        "describes": "bead",
+        "conformsTo": [],
+        "ownsOutgoing": {
+          "*": {}
+        }
+      }
+    },
+    {
+      "id": "wildcard-with-label",
+      "schema": "#/$defs/typeDescriptor",
+      "reason": "The wildcard entry carries no label: it names no Link Type (OW2).",
+      "value": {
+        "id": "https://memory.example/types/memory",
+        "name": "Memory",
+        "describes": "bead",
+        "conformsTo": [],
+        "ownsOutgoing": {
+          "*": { "label": "references", "max": 64 }
+        }
+      }
+    },
+    {
+      "id": "wildcard-max-zero",
+      "schema": "#/$defs/typeDescriptor",
+      "reason": "max is a positive integer for the wildcard as for every declaration.",
+      "value": {
+        "id": "https://memory.example/types/memory",
+        "name": "Memory",
+        "describes": "bead",
+        "conformsTo": [],
+        "ownsOutgoing": {
+          "*": { "max": 0 }
+        }
+      }
+    },
+    {
+      "id": "wildcard-on-link-type",
+      "schema": "#/$defs/typeDescriptor",
+      "reason": "Only Bead Types may own; a Link Type Descriptor carries no ownsOutgoing, wildcard or not.",
+      "value": {
+        "id": "https://memory.example/types/cites",
+        "name": "Cites",
+        "describes": "link",
+        "conformsTo": [],
+        "source": { "conformsTo": [] },
+        "target": { "conformsTo": [] },
+        "ownsOutgoing": {
+          "*": { "max": 1 }
+        }
+      }
+    },
+    {
+      "id": "wildcard-as-record-key",
+      "schema": "#/$defs/beadRecord",
+      "reason": "The ownedLinks member is keyed by Link Type URL alone; the wildcard never appears as a record key.",
+      "value": {
+        "id": "https://beads.example/acme/beads/mem-1",
+        "type": "https://memory.example/types/memory",
+        "revision": "mem-1-r3",
+        "properties": { "title": "Owned Links version their source" },
+        "ownedLinks": {
+          "*": [
+            {
+              "id": "https://beads.example/acme/links/supports-9",
+              "type": "https://memory.example/types/supports",
+              "revision": "supports-9-r1",
+              "source": "https://beads.example/acme/beads/mem-1",
+              "target": "https://beads.example/acme/beads/mem-2",
+              "properties": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "explicit-max-exceeds-wildcard",
+      "schema": "#/$defs/typeDescriptor",
+      "rejectedBy": "descriptor-validation",
+      "reason": "Schema-valid but descriptor-invalid (OW1, ruled A 2026-09-08): the explicitly declared max (16) exceeds the wildcard's max (8) in the same descriptor, and the excess could never be reached. The bundle cannot compare two max values, so it accepts this shape; descriptor validation refuses it and the Type is not installed.",
+      "value": {
+        "id": "https://memory.example/types/memory",
+        "name": "Memory",
+        "describes": "bead",
+        "conformsTo": [],
+        "ownsOutgoing": {
+          "*": { "max": 8 },
+          "https://memory.example/types/cites": { "label": "cites", "max": 16 }
+        }
+      }
+    }
+  ]
+}

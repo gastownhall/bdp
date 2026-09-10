@@ -1,15 +1,28 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 
 import {
+  deriveReadCohortNotApplicableRows,
+  deriveReadCohortRequiredScenarioIds,
+  deriveReadCohortSelfCertifiableIds,
+  deriveReadSchemaProjectionRoots,
+  loadExecutableScenarioManifestJson,
+  loadScenarioCatalogJson,
+  projectReadSchemaBundle,
   readCohortEvidenceConstant,
   ReadCohortVerificationError,
   serializeReadCohortArtifact,
   verifyReadCohortEvidence,
 } from "@bdp/conformance";
 
+import { assertIdentityPin } from "./bd-baseline.mjs";
 import {
   ALLOWED_EVIDENCE_DELTA_PATHS,
   assembleVerificationInput,
+  deriveReadInputBindings,
   assertDistMatchesCommittedConstants,
   classifyEvidenceClaim,
   EvidenceGateError,
@@ -266,6 +279,144 @@ describe("verification wiring", () => {
   });
 });
 
+/**
+ * D29 = C / RP1, proved both ways over the committed bytes: the gate refuses a
+ * change to a sealed definition — reachable from Read or not — and tolerates
+ * everything outside the sealed definitions' text: top-level bundle metadata
+ * and definitions the seal does not name. The inputs are the real catalog,
+ * manifest, fixtures, bundle, and sealed artifact; only the git facts are
+ * stubbed, and the constant is recomputed from the artifact so the test
+ * isolates the projection rule from the constant check the gate makes
+ * separately.
+ */
+describe("Read schema projection drift over the committed cohort", () => {
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const committed = existsSync(path.join(root, READ_COHORT_ARTIFACT_PATH));
+  const readText = (relative) => readFileSync(path.join(root, relative), "utf8");
+  const parseJson = (relative) => JSON.parse(readText(relative));
+  const committedBundle = () => parseJson("schemas/bdp-v0.schema.json");
+
+  function committedInput(bundle) {
+    const catalogPath = "packages/conformance/catalog/read-v1.json";
+    const manifestPath = "packages/conformance/matrices/read-v1.json";
+    const artifactBytes = readFileSync(path.join(root, READ_COHORT_ARTIFACT_PATH));
+    const catalog = loadScenarioCatalogJson(readText(catalogPath), catalogPath);
+    const manifest = loadExecutableScenarioManifestJson(readText(manifestPath), manifestPath);
+    const requiredScenarioIds = deriveReadCohortRequiredScenarioIds(catalog);
+    const capabilitiesOf = (relative) => parseJson(relative).capabilities ?? [];
+    const notApplicableFor = (fixture) =>
+      deriveReadCohortNotApplicableRows(manifest, requiredScenarioIds, capabilitiesOf(fixture));
+    const pinned = assertIdentityPin();
+    const constant = readCohortEvidenceConstant(artifactBytes);
+    return assembleVerificationInput({
+      artifactBytes,
+      evidenceByTarget: { bdptest: constant, bdpbd: constant },
+      requiredScenarioIds,
+      derivedNotApplicableByTarget: {
+        bdptest: notApplicableFor("packages/conformance/fixtures/read-reference-v1.json"),
+        bdpbd: notApplicableFor("packages/conformance/fixtures/read-bdpbd-v1.json"),
+      },
+      derivedSelfCertifiable: deriveReadCohortSelfCertifiableIds(manifest, requiredScenarioIds),
+      derivedSchemaReadProjection: projectReadSchemaBundle(
+        bundle,
+        deriveReadSchemaProjectionRoots(manifest),
+      ).digest,
+      derivedInputBindings: deriveReadInputBindings({
+        catalogBytes: readText(catalogPath),
+        manifestBytes: readText(manifestPath),
+        fixtureBytesByTarget: {
+          bdptest: readText("packages/conformance/fixtures/read-reference-v1.json"),
+          bdpbd: readText("packages/conformance/fixtures/read-bdpbd-v1.json"),
+        },
+      }),
+      expectedBdIdentity: {
+        version: pinned.version,
+        schemaVersion: pinned.schema_version,
+        observationsDigest: pinned.observations_digest,
+      },
+      gitFacts: {
+        evidenceCommit: EVIDENCE_COMMIT,
+        runHeadIsAncestor: true,
+        changedPathsSinceRunHead: [...ALLOWED_EVIDENCE_DELTA_PATHS],
+      },
+    });
+  }
+
+  it.skipIf(!committed)(
+    "verifies the sealed cohort against the committed bundle's Read projection",
+    () => {
+      expect(() => verifyReadCohortEvidence(committedInput(committedBundle()))).not.toThrow();
+    },
+  );
+
+  it.skipIf(!committed)(
+    "refuses a change to a sealed definition: a new advertisedLimits member forces a re-seal",
+    () => {
+      const bundle = committedBundle();
+      bundle.$defs.advertisedLimits.properties.snapshot = {
+        type: "object",
+        properties: { maximumAgeSeconds: { $ref: "#/$defs/positiveInteger" } },
+        additionalProperties: false,
+      };
+      expect(() => verifyReadCohortEvidence(committedInput(bundle))).toThrow(
+        /Read schema projection drift: re-seal required/,
+      );
+    },
+  );
+
+  // The finding behind RP1: nothing in Read references the profile token enum
+  // (discovery pins the constant `read`), so the reachable closure left it out
+  // and a token added there shipped on evidence sealed against the old enum.
+  // The seal names it, so it moves the digest like any sealed definition.
+  it.skipIf(!committed)(
+    "refuses a change to a sealed definition nothing in Read references: a protocolProfile token forces a re-seal",
+    () => {
+      const bundle = committedBundle();
+      bundle.$defs.protocolProfile.enum.push("read-update-v2");
+      expect(() => verifyReadCohortEvidence(committedInput(bundle))).toThrow(
+        /Read schema projection drift: re-seal required/,
+      );
+    },
+  );
+
+  it.skipIf(!committed)(
+    "tolerates top-level bundle metadata drift: description, title, $id, and $schema are outside the digest",
+    () => {
+      const bundle = committedBundle();
+      bundle.description = `${bundle.description} Rewritten since the seal.`;
+      bundle.title = "renamed bundle";
+      bundle.$id = "https://schemas.example/moved.json";
+      bundle.$schema = "https://json-schema.org/draft/2019-09/schema";
+      expect(() => verifyReadCohortEvidence(committedInput(bundle))).not.toThrow();
+    },
+  );
+
+  it.skipIf(!committed)("refuses a bundle that no longer carries a sealed definition", () => {
+    const bundle = committedBundle();
+    delete bundle.$defs.protocolProfile;
+    expect(() => committedInput(bundle)).toThrow(
+      /sealed definition 'protocolProfile' is missing from the bundle/,
+    );
+  });
+
+  it.skipIf(!committed)(
+    "tolerates a definition the seal does not name, added by a later profile",
+    () => {
+      const bundle = committedBundle();
+      bundle.$defs.updateSequence = {
+        type: "object",
+        required: ["operations"],
+        properties: {
+          operations: { type: "array", items: { $ref: "#/$defs/beadRecord" } },
+          attribution: { $ref: "#/$defs/attribution" },
+        },
+        additionalProperties: false,
+      };
+      expect(() => verifyReadCohortEvidence(committedInput(bundle))).not.toThrow();
+    },
+  );
+});
+
 function fakeGit({
   status = "",
   log = `${EVIDENCE_COMMIT}\n`,
@@ -304,6 +455,7 @@ function minimalArtifact() {
     manifest: digest("d2"),
     fixture: digest("e3"),
     schema: digest("11"),
+    schemaReadProjection: digest("12"),
     validator: digest("22"),
     runner: digest("33"),
     harness: digest("44"),
@@ -378,6 +530,12 @@ function genuineVerificationInput(artifact = minimalArtifact()) {
     requiredScenarioIds: REQUIRED_IDS,
     derivedNotApplicableByTarget: { bdptest: [], bdpbd: [] },
     derivedSelfCertifiable: ["read.scope.restore-identity"],
+    derivedSchemaReadProjection: digest("12"),
+    derivedInputBindings: {
+      catalog: digest("c1"),
+      manifest: digest("d2"),
+      fixtures: { bdptest: digest("e3"), bdpbd: digest("e3") },
+    },
     expectedBdIdentity: { version: "1.0.5", schemaVersion: 1, observationsDigest: digest("ab") },
     gitFacts: {
       evidenceCommit: EVIDENCE_COMMIT,
@@ -387,3 +545,46 @@ function genuineVerificationInput(artifact = minimalArtifact()) {
   });
   return { input, constant, artifact };
 }
+
+describe("exact current input byte derivation", () => {
+  it("detects an assertion-only manifest change with unchanged scenario IDs and schema roots", () => {
+    const root = fileURLToPath(new URL("..", import.meta.url));
+    const relative = "packages/conformance/matrices/read-v1.json";
+    const manifestBytes = readFileSync(path.join(root, relative), "utf8");
+    const original = JSON.parse(manifestBytes);
+    const changed = structuredClone(original);
+    function alterAssertion(value) {
+      if (value === null || typeof value !== "object") return false;
+      if (
+        value.kind === "json-pointer" &&
+        value.exists === false &&
+        typeof value.pointer === "string"
+      ) {
+        value.pointer = "/different-assertion";
+        return true;
+      }
+      return Object.values(value).some(alterAssertion);
+    }
+    expect(alterAssertion(changed)).toBe(true);
+    const changedBytes = JSON.stringify(changed);
+    const before = loadExecutableScenarioManifestJson(manifestBytes, relative);
+    const after = loadExecutableScenarioManifestJson(changedBytes, relative);
+    expect(deriveReadSchemaProjectionRoots(after)).toEqual(deriveReadSchemaProjectionRoots(before));
+    expect(after.scenarios.map((row) => row.id)).toEqual(before.scenarios.map((row) => row.id));
+    const inputs = {
+      catalogBytes: readFileSync(path.join(root, "packages/conformance/catalog/read-v1.json")),
+      manifestBytes,
+      fixtureBytesByTarget: {
+        bdptest: readFileSync(
+          path.join(root, "packages/conformance/fixtures/read-reference-v1.json"),
+        ),
+        bdpbd: readFileSync(path.join(root, "packages/conformance/fixtures/read-bdpbd-v1.json")),
+      },
+    };
+    const expected = deriveReadInputBindings(inputs);
+    const actual = deriveReadInputBindings({ ...inputs, manifestBytes: changedBytes });
+    expect(actual.manifest).not.toBe(expected.manifest);
+    expect(actual.catalog).toBe(expected.catalog);
+    expect(actual.fixtures).toEqual(expected.fixtures);
+  });
+});

@@ -12,6 +12,76 @@ not-applicable capability-gated row, and whose content digest is the
 recorded per-target evidence constant; the sealed artifact carries the
 authoritative counts.
 
+## Successor Read observations — pending cohort publication
+
+The successor manifest contains the original 40 Read IDs plus the five Read
+wildcard rows and one Read numeric-model row, for 46 distinct IDs. Companion
+catalog rows are copied with their original IDs and citations. Their Read+Update
+rows remain outside this manifest. This implementation is preparation for a
+new two-target cohort; the historical evidence artifact and constants have not
+been regenerated or relabeled.
+
+- `read.owned-wildcard.declaration`, `max-required`, and `explicit-max-bounded`
+  run generic-client observations on **both** targets. Exact valid and invalid
+  descriptor bodies are fixture-bound and served by the isolated external
+  publisher. Invalid bodies never enter the Scope's Type inventory. These
+  observations test client parsing, not an authority's installation endpoint
+  or public authentication engine; neither packaged target exposes such an
+  installer. The max cases include absence, label/extra members, zero,
+  negative, fractional, below-bound, equal-bound, and above-bound values.
+- `read.owned-wildcard.present-entries` reads packaged reference-domain
+  Resources: Decision F owns wildcard Blocks plus explicit Cites and an empty
+  Relates group; closed Feature C is the empty wildcard-only owner; Task A
+  remains a nonowner. C's type changes in both logical realizations while the
+  topology, statuses and readiness result stay fixed. Exact group keys/order
+  and every inline Link's equality with its first-class body are observed,
+  including a pinned external endpoint, claimed attribution and opaque
+  properties with protocol-looking names. No wildcard key or invented empty
+  group is accepted in the record plane.
+- `read.owned-wildcard.closure` is an **in-process self-certified** lifecycle
+  observation. The source descriptor and a live wildcard-only Blocks Link are
+  observed before the controlled view hides the target. Resource/property/link
+  variants and collections must hide the target, source and Link with uniform
+  non-disclosure bytes; the unrelated control's complete body stays unchanged.
+  This does not establish a packaged production authorization engine.
+- The bdpbd ownership rows alone are N/A. The applicable
+  `read.resource.external-endpoint` plan also reads the complete Type inventory,
+  every Bead record, and resolves inventoried Type identities. External Type bodies
+  come from the isolated fixture publisher; only Scope-local Type identities use
+  the target. Thus publisher declarations and target record-plane absence are
+  distinct evidence. An adapter-boundary test binds the complete bdpbd descriptor
+  fixture to `BD_SERVED_TYPE_DESCRIPTORS`, including Decision and Feature; this
+  is not packaged descriptor-authorship or installer evidence. The two isolated
+  publisher compositions intentionally supply per-realization bodies and are not
+  simultaneous conflicting declarations from one live Type authority. A missing
+  capability alone is not the observed absence witness; an incomplete inventory is refused.
+- `read.numeric-model.declared-token-model` applies to bdpbd. The fixture binds
+  the exact [existing local discipline](../../adapter-bd/README.md), its named
+  binary64/ECMAScript number model and source pointer; tests prevent drift
+  between that declaration and documentation. Independent literal-preimage
+  tests validate the observer, which compares hashes with actual public Bead
+  and Link revisions and requires numeric values plus both Resource kinds.
+  Actual target samples use the supported native projection's numeric fields;
+  serializer unit vectors do not claim native bd supports arbitrary decimals
+  or write admission. No token algorithm, full-JCS promise, discovery member
+  or evidence constant changes. bdptest's fixture-authored opaque discipline
+  is [declared separately](../../adapter-in-memory/README.md) and does not meet
+  this row's content-derived applicability condition.
+
+Both harness digests bind the fixed-order observer support list in
+`scripts/read-harness-bindings.ts`, including the successor observer, client
+dispatcher and controlled publisher. Matrix digests additionally bind their
+entry and server composition. These are source-role provenance, not a claim
+that the gate independently recomputes every transitive installed dependency.
+
+The new fixtures, catalog, manifest, observer code and packaged reference data
+must precede the recorded clean implementation head. Run both app matrices,
+fixture parity, observer regressions, build/typecheck and applicable repository
+gates, then generate genuine packaged observations and the exact in-process
+segments under the existing generator. The driver's parallel 27-name seal and
+current-input gate integration, final review and successor evidence commit
+remain required; this document grants no claim from test-only admission.
+
 The checked-in runner still fails closed when a plan's required capability is
 absent, an observation is incomplete, or target provenance cannot be proved.
 Canonical schema and validator-implementation binding, domain-complete runtime
@@ -449,7 +519,10 @@ self-certified in-process run — so each run declares the rows it carries, and,
 for each target, their union must be exactly the required set minus that
 target's derived not-applicable rows (the honest-absence rule below), with
 every carried row attributed to exactly one run. The cohort must bind the catalog, manifest, fixture,
-canonical schema, validator, runner, harness, executor, installed payload,
+canonical schema (its whole-bundle digest, recorded as provenance, and its
+Read schema projection — the sealed definition set — which the gate
+recomputes; see the projection rule below), validator, runner, harness,
+executor, installed payload,
 launched target process, fixture/workspace, and—for `bdpbd`—the actual `bd`
 executable. A missing, failing, or mismatched target closes the cohort for
 both targets. The fixture binding is per-realization — `read-reference-v1`
@@ -553,8 +626,9 @@ and admission stays fail-closed, which is a passing state. The moment anything
 claims evidence, including a bare well-formed constant with no artifact behind
 it, the gate demands the full proof: canonical artifact bytes digesting to the
 recorded constant for both targets, per-row provenance with the self-certifiable
-set re-derived from the bound manifest, run-head ancestry, and delta
-confinement. This ordering is deliberate: the gate landed before any bootstrap
+set re-derived from the bound manifest, the Read schema projection recomputed
+from the committed bundle, run-head ancestry, and delta confinement. This
+ordering is deliberate: the gate landed before any bootstrap
 constant so that no window ever exists in which a fabricated value admits the
 server unchallenged.
 
@@ -577,3 +651,145 @@ also claimed, or whose scores count an inapplicable row as pass. Honest
 absence is not coverage: a capability-gated row proves nothing about the
 target that lacks the capability, and the artifact says so instead of
 hiding it.
+
+### Read schema projection: what the seal binds (D29 = C and RP1, 2026-09-08)
+
+The bundle at `schemas/bdp-v0.schema.json` is one file for every profile. A
+seal that bound its whole-file digest and recomputed it would close the Read
+cohort every time a later profile added a definition Read never reaches; a
+seal that bound it without recomputing it — the state before this ruling —
+let a Read-facing definition change ship on evidence sealed against the old
+definition. Ruled 2026-09-08 (D29 = C): the cohort binds the digest of a
+**projection** of the bundle, and the gate recomputes it. Ruled the same day
+(RP1, option a): the projection is the **sealed definition set, by name** —
+not the closure reachable from the Read roots, which review found held 25 of
+the 26 definitions the seal covers.
+
+- **Projection.** The `$defs` the bundle carried at the seal commit
+  `0b7d86e7cfec47f88cd1ec22314a73f39763bcf8`, named in a checked-in list in
+  sealed order — `READ_SCHEMA_SEALED_DEFINITIONS` in
+  `packages/conformance/src/schema-read-projection.ts`: the original26 names
+  followed by `ownedWildcardDeclaration` (approved2026-09-09),27 names total,
+  `protocolProfile` included — serialized as the JSON array of
+  `[name, definition]` pairs in that order, canonicalized under RFC 8785
+  (JCS) so member order and whitespace cannot move it, and digested with
+  SHA-256. Only the text of those definitions is inside the digest; a
+  definition's own prose is part of its text. Top-level bundle metadata —
+  `$schema`, `$id`, `title`, `description`, anything outside `$defs` — is
+  outside it, as is every definition the list does not name and whether a
+  sealed definition happens to be reachable from Read.
+- **Why by name.** A name list cannot drift silently: every listed name must
+  be present in the bundle or the projection fails, and any edit to the list
+  moves the digest. Reachability can: the closure from the Read roots held 25
+  definitions because nothing in Read references `protocolProfile`
+  (`readDiscovery.profile` is the constant `read`), so a token added to that
+  enum would have shipped on evidence sealed against the old enum with
+  nothing in the tree saying so, and the closure moves with edits that are
+  not Read changes.
+- **Roots, derived — the coverage check.** The union of the definitions the
+  bound manifest's `json-schema` assertions name (at every request and action
+  assertion site) and the definitions `@bdp/protocol` parses Read values
+  through (`READ_VALUE_SCHEMA_REFS`), never hand-listed. They select nothing.
+  The projection walks the bundle from them and fails if any definition Read
+  reaches is not sealed, so the Read surface cannot widen onto a definition
+  the seal does not cover — a new root, or a new reference from a sealed
+  definition — without the gate saying so; the fix is to extend the sealed
+  list in that Read change, before the run head, and re-seal. At the ruling
+  the roots are `beadCollection`, `beadRecord`, `linkCollection`,
+  `linkRecord`, `properties`, `readDiscovery`, `readProblem`,
+  `typeDescriptor`, `typeSummary`, and `typesInventory`, reaching 25 of the
+  26 sealed definitions. The walk fails closed: a reference it cannot follow,
+  a dangling reference, a root the bundle does not define, or an empty root
+  set is an error, never a narrower check.
+- **Binding.** Every segment records `bindings.schemaReadProjection`, the
+  projection digest of the bundle at the seal; the generator computes it.
+  `bindings.schema`, the whole-bundle digest, stays recorded as provenance
+  and is checked for format only, because later-profile definitions and
+  top-level metadata legitimately move it.
+- **Re-seal trigger.** `pnpm evidence:verify` recomputes the projection from
+  the committed bundle and fails with
+  `Read schema projection drift: re-seal required` when any segment binds a
+  different value. A change to the text of any sealed definition — reachable
+  from Read or not — or to the sealed list therefore forces
+  `pnpm evidence:generate`; a definition the seal does not name, a
+  metadata edit, or a reordering does not. A sealed definition missing from
+  the bundle, or a definition Read reaches that is not sealed, fails the gate
+  outright rather than projecting a narrower set.
+
+The sealed artifact predated the binding and was migrated to carry it, and
+migrated again when RP1 fixed the projection's value;
+[`docs/design/read-projection-gate.md`](../../../docs/design/read-projection-gate.md)
+records the decisions and the migration procedure. Each migration changed
+the artifact's bytes and therefore the evidence constant, but the value it
+wrote is a pure function of the bundle bytes the seal already pinned: a
+binding-format migration, not new evidence and not a re-seal of observations.
+
+
+### Current Read input byte bindings (2026-09-09)
+
+Every segment must bind the SHA-256 of the exact current Read catalog and
+manifest bytes and the exact current fixture bytes for its target. The gate
+recomputes these values independently from committed files; agreement between
+segments alone is insufficient. A changed assertion with unchanged scenario
+IDs and schema roots, or a fixture edit with unchanged capabilities, closes
+the cohort until genuine successor observations bind the changed inputs.
+Both target fixtures are checked for uncommitted changes along with catalog,
+manifest, schema and evidence paths. The Read catalog/manifest stay separate
+from cumulative later-profile inputs.
+
+The successor named schema seal appends `ownedWildcardDeclaration` to the
+original ordered26 definitions. The coverage walk remains an independent
+fail-closed check; it never selects digest inputs. List/definition/input changes
+precede the new run head. Only generated artifact and matching capability
+constant belong in its evidence commit; old observations cannot be rehashed
+into a claim about changed inputs. Whole-schema metadata and later-profile
+unsealed definitions retain the projection rule above.
+
+## Source-council qualification before successor regeneration
+
+The generated cohort must carry the generator's explicit uncovered qualifications
+for the three target-independent client/publisher rows, external descriptor authorship,
+and on-wire numeric declaration. Numeric declaration is fixture-bound implementation
+documentation; public token checks do not independently identify a number model where
+admitted values agree. No discovery member is invented. The input echo assertion was
+removed. Fixture/publisher, manifest and observer corrections require genuine new
+observations; the prior artifact and constant are preserved, not regenerated here.
+
+The closure payload substring check is a narrow redundant defense over captured
+Problem bytes whose uniformity and typed shape are already checked. It is not an
+independent proof of every retained-copy or collection leak path. The before-state
+payload witness still prevents vacuous setup; collection/source/Link absence and
+unchanged public control checks retain their separate meaning.
+
+### Accepted source-council fold
+
+This source correction starts from frozen `464f4fc58cd6745aa061e1d95088195847a5b67f`.
+Claude's source report on `a6112d1` contained one High, four Medium and four Low;
+Codex's one Low harness-binding finding was already fixed before `00d4df83`.
+This fold accepts H1/M2/M4/M5 and L6–L8 with the provenance and premise corrections
+above. The generated qualifications live in the existing `uncovered` field;
+no new artifact shape, discovery member or normative alternative is introduced.
+
+M3 is a correction to the fixture guard, not deletion of a shared topology edge.
+`F → E blocks` exists in both realizations and also falls under reference wildcard
+ownership. The guard now recognizes wildcard ownership, preserves that exact shared
+edge, and requires other owned/pinned reference-only witnesses to be excluded.
+Corruptions adding an unexcluded wildcard edge, removing the shared edge or excluding
+it are rejected. This is a bound on the authored reference topology, not a general
+claim that ownership implies realization-only status.
+
+L9 is accepted as a qualification of a redundant narrow check, not removal of the
+before-state witness or other closure assertions. The substring test can still reject
+captured Problem bytes containing the witness; it does not independently establish
+all-copy confidentiality. Gemini's suggested `.descriptor` unwrap is rejected:
+closure uses the older direct `external-type-descriptors` operation, while the new
+`wildcard-descriptors` operation has a distinct wrapped result. No unwrap was applied.
+
+Validation: Node 24.16.0, offline frozen dependencies, build/typecheck/lint/format and
+boundary checks passed. Observer/artifact focused checks passed 28 tests. The full
+run passed 1,356 tests and failed three of 1,359, across 52 files with no skips;
+both target matrices passed, including pinned `bd` 1.0.5. All three failures are
+committed-cohort positive tests rejecting current manifest-byte drift and requiring
+re-sealing. The artifact and constant are unchanged. Genuine regeneration, refreshed
+all-green evidence gates and current-head review belong to the coordinator before
+publication or any new claim; this source fold is not a successor cohort.

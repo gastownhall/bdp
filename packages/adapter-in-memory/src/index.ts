@@ -282,11 +282,9 @@ function snapshotPreparedReferenceFixture(
       }),
     ),
   );
-  // The owned-Links plane: for each Bead whose declared Type owns
-  // outgoing Link Types, inline the owned Links' complete records in
-  // ascending code-unit id order, one entry per declared owned type
-  // (empty when no owned Links exist). The declared bound is enforced
-  // here so the plane is always servable inline.
+  // Inline the same first-class Link records under concrete Type URLs:
+  // present owned types plus explicit declarations, including empty ones.
+  // Bounds include every owned Link, before serving this closed fixture view.
   const ownedByBeadType = new Map(
     prepared.typeDescriptors.flatMap((descriptor) =>
       descriptor.describes === "bead" && descriptor.ownsOutgoing !== undefined
@@ -298,15 +296,37 @@ function snapshotPreparedReferenceFixture(
     prepared.beads.map((bead) => {
       const owned = ownedByBeadType.get(bead.type);
       if (owned === undefined) return Object.freeze({ ...bead });
+      const groups = new Map<string, LinkRecord[]>(
+        Object.keys(owned)
+          .filter((type) => type !== "*")
+          .map((type) => [type, []]),
+      );
+      let total = 0;
+      for (const link of links) {
+        if (referenceUri(link.source) !== bead.id) continue;
+        if (owned[link.type] === undefined && owned["*"] === undefined) continue;
+        const records = groups.get(link.type) ?? [];
+        records.push(link);
+        groups.set(link.type, records);
+        total += 1;
+      }
+      if (owned["*"] !== undefined && total > owned["*"].max)
+        throw new Error(`owned Links for ${bead.id} exceed the whole-set wildcard bound`);
       const ownedLinks: Record<string, readonly LinkRecord[]> = {};
-      for (const [ownedType, declaration] of Object.entries(owned)) {
-        const records = links
-          .filter((link) => link.type === ownedType && referenceUri(link.source) === bead.id)
-          .slice()
-          .sort((left, right) => compareCanonicalIds(left.id, right.id));
-        if (records.length > declaration.max)
-          throw new Error(`owned Links for ${bead.id} exceed the declared bound of ${ownedType}`);
-        ownedLinks[ownedType] = Object.freeze(records);
+      // Stabilize wildcard key order without changing historical explicit-only
+      // fixture serialization. Ordering object keys is not a protocol rule.
+      const types =
+        owned["*"] === undefined
+          ? [...groups.keys()]
+          : [...groups.keys()].sort(compareCanonicalIds);
+      for (const type of types) {
+        const records = groups.get(type) as LinkRecord[];
+        const declaration = owned[type];
+        if (declaration !== undefined && records.length > declaration.max)
+          throw new Error(`owned Links for ${bead.id} exceed the declared bound of ${type}`);
+        ownedLinks[type] = Object.freeze(
+          records.sort((left, right) => compareCanonicalIds(left.id, right.id)),
+        );
       }
       return Object.freeze({ ...bead, ownedLinks: Object.freeze(ownedLinks) });
     }),
@@ -342,7 +362,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
   const beads: BeadRecord[] = [
     ["demo-a", "A", "open", "Task"],
     ["demo-b", "B", "open", "Task"],
-    ["demo-c", "C", "closed", "Task"],
+    ["demo-c", "C", "closed", "Feature"],
     ["demo-d", "D", "open", "Task"],
     ["demo-e", "E", "deferred", "Bug"],
     ["demo-f", "F", "open", "Decision"],
@@ -454,11 +474,13 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       type,
       revision: "1",
       // demo-j-k carries `unknown`-status attribution (lockstep with the
-      // portable fixture), exercising the second status; no other reference
-      // Link records any.
+      // portable fixture), while external-target carries claimed attribution
+      // through both the first-class and wildcard-owned inline planes.
       ...(localId === "demo-j-k"
         ? { attribution: { principal: "svc:reference-realization", status: "unknown" as const } }
-        : {}),
+        : localId === "external-target"
+          ? { attribution: { principal: "agent:reference-wildcard", status: "claimed" as const } }
+          : {}),
       source: resolveEndpoint(String(source)),
       target: resolveEndpoint(String(target)),
       properties: parsePropertiesRecord(
@@ -466,7 +488,12 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
           ? { constraint: "hard", extension: "retained" }
           : localId === "demo-e-f"
             ? { context: "reference", extension: "retained" }
-            : {},
+            : localId === "external-target"
+              ? {
+                  label: "opaque authored label",
+                  source: { ownedLinks: { "*": ["opaque authored value"] } },
+                }
+              : {},
       ),
     };
   });
@@ -563,6 +590,15 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
   );
   const beadsByLocalId = new Map(beadsWithLocalIds.map(({ localId, record }) => [localId, record]));
   const typeById = new Map(types.map((type) => [type.id, type]));
+  for (const descriptor of typeDescriptors) {
+    if (descriptor.describes !== "bead") continue;
+    for (const type of Object.keys(descriptor.ownsOutgoing ?? {})) {
+      if (type !== "*" && typeById.get(type)?.describes !== "link")
+        throw new ProtocolArtifactValidationError(
+          "fixture owned Link Type must name a declared link Type",
+        );
+    }
+  }
   for (const { record } of beadsWithLocalIds) {
     if (typeById.get(record.type)?.describes !== "bead")
       throw new Error("fixture bead type must name a declared bead Type");

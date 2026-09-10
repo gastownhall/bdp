@@ -1,0 +1,112 @@
+{
+  "catalogVersion": 1,
+  "scenarios": [
+    {
+      "id": "read-update.numeric-model.same-value-no-op",
+      "title": "Admissible spellings of one exact decimal value compare equal under the no-op law",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "Two JSON numbers are the same value if and only if the decimal values their literals denote are equal, whatever their spelling: `1.0`, `1`, and `1e0` are one value, and `9007199254740993` and `9007199254740992` are two."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "If applying an update produces a `properties` value that is equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to the value immediately before that operation, then the operation retains the existing revision and emits no `updated` Event."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "Number equality in that comparison, and the admissibility of every number literal a change carries, are defined under [Revisions](#revisions)."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "Number equality under the no-op law is over exact decimal values."
+        }
+      ]
+    },
+    {
+      "id": "read-update.numeric-model.round-trip-admission",
+      "title": "A literal whose exact decimal value does not round-trip through binary64 is refused at admission",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "a number literal is **admissible** if and only if converting its exact decimal value to the nearest IEEE 754 binary64 value and serializing that value back in its shortest round-trip form — the ECMAScript `Number::toString` form that [RFC 8785 Section 3.2.2.3](https://www.rfc-editor.org/rfc/rfc8785.html#section-3.2.2.3) adopts — yields a literal denoting the same exact decimal value."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "`1e300` and its expanded form are admissible; `-0.0` denotes zero, is admissible, and is the same value as `0`; `9007199254740993` and a decimal of twenty significant digits are not admissible."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "An authority MUST refuse at admission a `properties` document — supplied whole or through a Property Change — that contains an inadmissible literal at any depth: nothing changes, and the operation fails as the write profiles' `validation-failed` with a diagnostic naming the offending member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#validation-and-results",
+          "selectedText": "Type and properties-schema constraints, and the admissibility of every number literal under [Revisions](#revisions);"
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "An authority MUST refuse at admission any number literal in `properties`, at any depth, whose exact decimal value does not round-trip through IEEE 754 binary64 unchanged, as `validation-failed` with a diagnostic naming the member"
+        }
+      ]
+    },
+    {
+      "id": "read-update.numeric-model.nested-refusal",
+      "title": "The refusal applies at any depth and the diagnostic names the nested member",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "An authority MUST refuse at admission a `properties` document — supplied whole or through a Property Change — that contains an inadmissible literal at any depth"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "with a diagnostic naming the offending member."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "any number literal in `properties`, at any depth"
+        }
+      ]
+    },
+    {
+      "id": "read.numeric-model.declared-token-model",
+      "title": "A content-derived revision-token scheme declares its number model by name",
+      "kind": "normative",
+      "requiredProfile": "read",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "A revision-token scheme that derives tokens from content MUST declare, by name, the number model it serializes under: `sha256-jcs` means RFC 8785 serialization with numbers as binary64 under its Section 3.2.2.3, and is exact over admitted values by construction; a scheme over exact decimals is a different scheme with a different name."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revisions",
+          "selectedText": "On every admitted value the exact-decimal model and the binary64 model agree by construction."
+        },
+        {
+          "source": "docs/design/requirements.md",
+          "anchor": "#protocol-requirements",
+          "selectedText": "a content-derived revision-token scheme MUST declare its number model by name, and `sha256-jcs` names RFC 8785 serialization with numbers as binary64."
+        }
+      ]
+    }
+  ]
+}

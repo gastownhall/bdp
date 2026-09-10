@@ -9,6 +9,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import { deriveReadHarnessBindings } from "./read-harness-bindings.js";
 
 import { createBdpClientScenarioActionExecutor } from "@bdp/client/testing";
 import {
@@ -21,7 +22,9 @@ import {
   deriveReadCohortNotApplicableRows,
   deriveReadCohortRequiredScenarioIds,
   deriveReadCohortSelfCertifiableIds,
+  deriveReadSchemaProjectionRoots,
   type ExecutableScenario,
+  projectReadSchemaBundle,
   READ_COHORT_TARGETS,
   type ReadCohortBindings,
   type ReadCohortTarget,
@@ -39,6 +42,7 @@ import {
   runBdWorkspaceCommand,
   seedBdWorkspace,
   startControlledTypeDescriptorPublisher,
+  successorDescriptorBodies,
 } from "@bdp/conformance/testing";
 
 /**
@@ -234,7 +238,10 @@ async function runPackagedTarget(
   );
   const descriptors = fixture.typeDescriptors;
   if (!Array.isArray(descriptors)) throw new Error("fixture Type Descriptors are required");
-  const publisher = await startControlledTypeDescriptorPublisher(descriptors);
+  const publisher = await startControlledTypeDescriptorPublisher([
+    ...descriptors,
+    ...successorDescriptorBodies(fixture),
+  ]);
   const scenarioTarget = createRawHttpScenarioTarget(async (scenario) => {
     const fault = scenario.setup.requires.includes(INTERNAL_FAULT_CAPABILITY);
     const server = await startPackagedServer(
@@ -309,15 +316,19 @@ function loadBundle(fixtureRelativePath: string): ConformanceArtifactBundle {
 }
 
 /**
- * Binding digest conventions. The verifier does not recompute these; they are
- * recorded provenance, and each names the exact committed byte source that
+ * Binding digest conventions. Each names the exact committed byte source that
  * played the role, so a reviewer can re-derive every value from the run head.
+ * The verifier recomputes current catalog, manifest and target-fixture byte
+ * bindings plus `schemaReadProjection` (D29 = C / RP1, computed
+ * below from the bundle at `schema` over the sealed definition set by name,
+ * with the Read roots derived from the bound manifest as the coverage check);
+ * the rest, including the whole-bundle `schema` digest, are recorded
+ * provenance checked for format alone.
  */
 const BINDING_SOURCES = {
   schema: "schemas/bdp-v0.schema.json",
   validator: "packages/conformance/src/schema-validator.ts",
   runner: "packages/conformance/src/runner.ts",
-  packagedHarness: "scripts/generate-read-cohort.mts",
 } as const;
 
 /** The executor role spans the fetch and raw-socket lanes; digest both, fixed order. */
@@ -552,34 +563,19 @@ describe("packaged Read cohort generation", () => {
       // values, cross-checked by createReadCohortArtifact itself.
       const shared = {
         schema: sha256(readRepoBytes(BINDING_SOURCES.schema)),
+        schemaReadProjection: projectReadSchemaBundle(
+          JSON.parse(new TextDecoder().decode(readRepoBytes(BINDING_SOURCES.schema))),
+          deriveReadSchemaProjectionRoots(referenceBundle.manifest),
+        ).digest,
         validator: sha256(readRepoBytes(BINDING_SOURCES.validator)),
         runner: sha256(readRepoBytes(BINDING_SOURCES.runner)),
         executor: executorDigest(),
       };
-      const packagedHarnessDigest = sha256(readRepoBytes(BINDING_SOURCES.packagedHarness));
-      // The in-process rows execute through the shared test-support layers,
-      // so the harness digest binds those transitive sources too: a change
-      // to the controlled projector or the lifecycle/client executors closes
-      // the cohort exactly like a change to the matrix entry file.
-      const inProcessSupportBytes = Buffer.concat([
-        readRepoBytes("packages/server/test-support/testing.ts"),
-        readRepoBytes("packages/conformance/test-support/testing.ts"),
-        readRepoBytes("packages/client/test-support/testing.ts"),
-      ]);
-      const matrixHarnessDigest = {
-        bdptest: sha256(
-          Buffer.concat([
-            readRepoBytes("apps/bdptest/src/read-matrix.test.ts"),
-            inProcessSupportBytes,
-          ]),
-        ),
-        bdpbd: sha256(
-          Buffer.concat([
-            readRepoBytes("apps/bdpbd/src/read-matrix.test.ts"),
-            inProcessSupportBytes,
-          ]),
-        ),
-      };
+      // Both lanes bind their executed observer helpers in a fixed order;
+      // matrix bindings additionally include the controlled server composition.
+      const harnessBindings = deriveReadHarnessBindings(readRepoBytes);
+      const packagedHarnessDigest = harnessBindings.packaged;
+      const matrixHarnessDigest = harnessBindings.matrix;
       const bdExecutableDigest = sha256(readFileSync(bdExecutable));
       const targets: ReadCohortTargetInput[] = [];
       for (const plan of plans) {
@@ -658,6 +654,24 @@ describe("packaged Read cohort generation", () => {
         // than left implicit. Each is documented as deferred in
         // packages/conformance/matrices/README.md.
         uncovered: [
+          ...["declaration", "max-required", "explicit-max-bounded"].map((suffix) => ({
+            scenarioId: `read.owned-wildcard.${suffix}`,
+            variant: "independent-authority-descriptor-installation",
+            reason:
+              "These packaged-lane rows repeat one generic client's parsing of isolated fixture-publisher descriptors; they are not independent observations of each target's descriptor authority or installation API.",
+          })),
+          {
+            scenarioId: "read.resource.external-endpoint",
+            variant: "target-authored-external-type-declarations",
+            reason:
+              "Inventory and Bead records are target-observed; external Type bodies come from the isolated per-realization fixture publisher. Adapter-boundary tests bind the bdpbd publisher data to its served descriptor constant; this is not a packaged observation of external descriptor authorship.",
+          },
+          {
+            scenarioId: "read.numeric-model.declared-token-model",
+            variant: "on-wire-number-model-declaration",
+            reason:
+              "The number-model declaration is bound out-of-band implementation documentation, not a protocol discovery member. Public revision comparisons check the declared local serialization discipline on sampled values and do not discriminate binary64 from exact-decimal models where both agree.",
+          },
           {
             scenarioId: "read.discovery.optional-limits",
             variant: "absent-optional-limits",
