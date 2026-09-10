@@ -2479,4 +2479,16 @@ function deferred(): { readonly promise: Promise<void>; readonly resolve: () => 
   return { promise, resolve };
 }
 
+export {
+  createReadUpdateFetchTransport,
+  type ReadUpdateFetchTransportOptions,
+  type ReadUpdateHttpContext,
+  type ReadUpdateHttpResponse,
+  type ReadUpdateTransport,
+  type ReadUpdateTransportCallOptions,
+  ReadUpdateTransportError,
+  type ReadUpdateTransportErrorCode,
+  type ReadUpdateTransportLimits,
+  type ReadUpdateTransportPostOptions,
+} from "./read-update-transport.js";
 export type { AbsoluteHttpUrl, ReadDiscovery, ReadProblem, ReadRequest, ReadResultFor };
