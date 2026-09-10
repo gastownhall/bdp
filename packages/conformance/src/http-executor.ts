@@ -93,7 +93,11 @@ export interface HttpExchangeResponse {
    * Only the socket-level executor can supply this pre-normalization evidence.
    */
   readonly wireResponseBytes?: Uint8Array;
-  /** Effective wire request after authorization/runtime header decoration. */
+  /**
+   * Compatibility view after authorization/runtime decoration. In exact mode,
+   * repeated names retain their last value and this view has no wire-fidelity flag;
+   * only exactRequest.headerLines preserves authoritative ordered occurrences.
+   */
   readonly effectiveRequest?: {
     readonly url: string;
     readonly headers: Readonly<Record<string, string>>;
@@ -360,19 +364,23 @@ function configuration(): never {
 
 /** Capture data descriptors without invoking caller accessors. */
 function dataRecord(value: unknown, allowed?: readonly string[]): Record<string, unknown> {
-  if (typeof value !== "object" || value === null) return configuration();
-  const prototype = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) return configuration();
-  const result: Record<string, unknown> = Object.create(null);
-  for (const key of Reflect.ownKeys(value)) {
-    if (typeof key !== "string" || (allowed !== undefined && !allowed.includes(key)))
-      return configuration();
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable)
-      return configuration();
-    result[key] = descriptor.value;
+  try {
+    if (typeof value !== "object" || value === null) return configuration();
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return configuration();
+    const result: Record<string, unknown> = Object.create(null);
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string" || (allowed !== undefined && !allowed.includes(key)))
+        return configuration();
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable)
+        return configuration();
+      result[key] = descriptor.value;
+    }
+    return result;
+  } catch {
+    return configuration();
   }
-  return result;
 }
 
 function arrayItems(value: unknown): readonly unknown[] {
@@ -431,13 +439,8 @@ export function snapshotExactHttpMode(value: ExactHttpModeOptions): ExactHttpMod
     "credentialHandles",
     "resolveCredentials",
   ]);
-  const scope = canonicalHttpUrl(fields.scope);
-  if (
-    scope.href.includes("?") ||
-    !scope.pathname.endsWith("/") ||
-    (fields.profile !== "read" && fields.profile !== "read-update")
-  )
-    return configuration();
+  const { scope, routes } = snapshotExactRoutes(fields.scope, fields.routes);
+  if (fields.profile !== "read" && fields.profile !== "read-update") return configuration();
   if (
     typeof fields.maximumRequestHeaderBytes !== "number" ||
     typeof fields.maximumRequestBodyBytes !== "number"
@@ -445,16 +448,6 @@ export function snapshotExactHttpMode(value: ExactHttpModeOptions): ExactHttpMod
     return configuration();
   requirePositiveBound(fields.maximumRequestHeaderBytes, "maximumRequestHeaderBytes");
   requirePositiveBound(fields.maximumRequestBodyBytes, "maximumRequestBodyBytes");
-  const routes: { method: HttpMethod; url: string }[] = [];
-  const sourceRoutes = arrayItems(fields.routes);
-  for (let i = 0; i < sourceRoutes.length; i++) {
-    const entry = dataRecord(arrayItem(sourceRoutes, i), ["method", "url"]);
-    if (!isHttpMethod(entry.method)) return configuration();
-    const url = canonicalHttpUrl(entry.url);
-    if (url.origin !== scope.origin || !url.pathname.startsWith(scope.pathname))
-      return configuration();
-    routes.push(Object.freeze({ method: entry.method, url: url.href }));
-  }
   const handles: { id: string; headerNames: readonly string[] }[] = [];
   const sourceHandles = arrayItems(fields.credentialHandles);
   for (let i = 0; i < sourceHandles.length; i++) {
@@ -511,23 +504,61 @@ function isHttpMethod(value: unknown): value is HttpMethod {
 function isExactRequest(
   request: HttpExchangeRequest | ExactHttpExchangeRequest,
 ): request is ExactHttpExchangeRequest {
-  return "raw" in request;
+  try {
+    return "raw" in request;
+  } catch {
+    throw new HttpTransportError(
+      "configuration",
+      "HTTP request shape is invalid",
+      {},
+      "not-started",
+    );
+  }
 }
 
-/** Does not admit a profile or resolve discovery: this is a configured harness route firewall. */
+/** Closed Scope and route capture shared by the constructor and standalone firewall. */
+function snapshotExactRoutes(
+  scopeValue: unknown,
+  routeValue: unknown,
+): {
+  scope: URL;
+  routes: readonly { method: HttpMethod; url: string }[];
+} {
+  const scope = canonicalHttpUrl(scopeValue);
+  if (scope.href.includes("?") || !scope.pathname.endsWith("/")) return configuration();
+  const routes: { method: HttpMethod; url: string }[] = [];
+  const sourceRoutes = arrayItems(routeValue);
+  for (let i = 0; i < sourceRoutes.length; i++) {
+    const entry = dataRecord(arrayItem(sourceRoutes, i), ["method", "url"]);
+    if (!isHttpMethod(entry.method)) return configuration();
+    const target = canonicalHttpUrl(entry.url);
+    if (target.origin !== scope.origin || !target.pathname.startsWith(scope.pathname))
+      return configuration();
+    routes.push(Object.freeze({ method: entry.method, url: target.href }));
+  }
+  return { scope, routes: Object.freeze(routes) };
+}
+
+/** Does not admit a profile: validates the full Scope/route preconditions, even standalone. */
 export function validateExactRunConfiguration(
   mode: Pick<ExactHttpModeOptions, "scope" | "routes">,
   url: string,
   method: HttpMethod,
 ): void {
-  const target = canonicalHttpUrl(url);
-  const scope = canonicalHttpUrl(mode.scope);
-  if (
-    target.origin !== scope.origin ||
-    !target.pathname.startsWith(scope.pathname) ||
-    !mode.routes.some((route) => route.url === target.href && route.method === method)
-  )
+  try {
+    const fields = dataRecord(mode);
+    const { scope, routes } = snapshotExactRoutes(fields.scope, fields.routes);
+    const target = canonicalHttpUrl(url);
+    if (
+      !isHttpMethod(method) ||
+      target.origin !== scope.origin ||
+      !target.pathname.startsWith(scope.pathname) ||
+      !routes.some((route) => route.url === target.href && route.method === method)
+    )
+      configuration();
+  } catch {
     configuration();
+  }
 }
 
 function copyBoundedBytes(value: unknown, maximum: number): Buffer {
@@ -553,8 +584,8 @@ function requestDeadline(signal: AbortSignal, deadline: number): number {
 
 function safeCredentialTarget(target: Buffer, semantic: URL): boolean {
   const text = target.toString("latin1");
-  if (text.startsWith("/") && !text.startsWith("//") && !text.includes("\\")) return true;
   if (/[^\x21-\x7e]/.test(text) || text.includes("\\")) return false;
+  if (text.startsWith("/") && !text.startsWith("//")) return true;
   try {
     const url = new URL(text, semantic.origin);
     return (
@@ -705,6 +736,8 @@ async function executeExact(
         state = next;
       },
     );
+    state = exchanged.writeState;
+    requestDeadline(signal, deadline);
     const parsed = parseRawResponse(
       exchanged.bytes,
       request.method,
@@ -721,18 +754,22 @@ async function executeExact(
         : { bodyDigest: createHash("sha256").update(body).digest("hex") }),
       writeState: exchanged.writeState,
     });
-    return {
+    const response = {
       url: url.href,
       ...parsed,
       wireResponseBytes: Uint8Array.from(exchanged.bytes),
       exactRequest,
       effectiveRequest: {
         url: url.href,
+        // Deliberately lossy last-occurrence compatibility view, never exact wire evidence.
+        // Ordered exactRequest.headerLines is authoritative for every occurrence.
         headers: Object.freeze(
           Object.fromEntries(lines.map(({ name, value }) => [name.toLowerCase(), value])),
         ),
       },
     };
+    requestDeadline(signal, deadline);
+    return response;
   } catch (error) {
     if (error instanceof HttpTransportError)
       throw new HttpTransportError(error.category, error.message, {}, state);
@@ -844,6 +881,7 @@ function exchangeRawBytes(
   return new Promise((resolve, reject) => {
     let socket: Socket | undefined;
     let settled = false;
+    let earlyCleanup: ReturnType<typeof setImmediate> | undefined;
     let connected = false;
     let state: RequestWriteState = "not-started";
     let completedWrites = 0;
@@ -861,6 +899,7 @@ function exchangeRawBytes(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      if (earlyCleanup !== undefined) clearImmediate(earlyCleanup);
       signal.removeEventListener("abort", onAbort);
       if (socket !== undefined) {
         socket.removeAllListeners();
@@ -957,14 +996,30 @@ function exchangeRawBytes(
             "body-limit",
             "HTTP response exceeded the configured body limit",
           );
-        if (
-          isFramedResponseComplete(raw(), method, maximumHeaderBytes, maximumBodyBytes) &&
-          state === "complete" &&
-          !peer.writableEnded
-        )
-          // Preserve the existing FIN/trailing-byte observation. Do not wait for a queued
-          // outbound body to drain merely to acknowledge an early complete refusal.
-          peer.end();
+        if (isFramedResponseComplete(raw(), method, maximumHeaderBytes, maximumBodyBytes)) {
+          if (observeWrite !== undefined && state === "started-completion-unestablished") {
+            // A queued body cannot be drained through a peer that has already refused it.
+            // Take one cleanup turn, validate all bytes received by then, and terminate this
+            // exact early-response exchange; do not manufacture deadline-time success.
+            earlyCleanup ??= setImmediate(() => {
+              earlyCleanup = undefined;
+              if (settled) return;
+              try {
+                parseRawResponse(raw(), method, maximumHeaderBytes, maximumBodyBytes);
+                finish();
+              } catch (error) {
+                finish(
+                  error instanceof HttpTransportError
+                    ? error
+                    : new HttpTransportError("invalid-body", "HTTP response framing was malformed"),
+                );
+              }
+            });
+          } else if (state === "complete" && !peer.writableEnded) {
+            // Ordinary and fully written requests retain FIN/trailing-byte observation.
+            peer.end();
+          }
+        }
       } catch (error) {
         finish(
           error instanceof HttpTransportError
@@ -1018,8 +1073,7 @@ function isFramedResponseComplete(
   const head = locateFinalResponseHead(raw, maximumHeaderBytes);
   if (head === undefined) return false;
   const { headerEnd, status, headers } = head;
-  if (method === "HEAD" || status === 204 || status === 304 || (status >= 100 && status < 200))
-    return false;
+  if (method === "HEAD" || status === 204 || status === 304) return false;
   if (headers["transfer-encoding"] === undefined && headers["content-length"] === undefined)
     return false;
   try {
@@ -1119,7 +1173,7 @@ function parseRawResponse(
   const { headerEnd, status, headers } = head;
   const framed = raw.subarray(headerEnd + 4);
   const body =
-    method === "HEAD" || status === 204 || status === 304 || (status >= 100 && status < 200)
+    method === "HEAD" || status === 204 || status === 304
       ? framed
       : decodeResponseBody(framed, headers, maximumBodyBytes);
   if (body.byteLength > maximumBodyBytes)

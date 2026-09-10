@@ -211,30 +211,34 @@ export function createRawHttpScenarioTarget(
       return Promise.reject(
         new Error("raw HTTP scenario target executed outside a prepared fixture"),
       );
-    if (snapshot.exactMode !== undefined || "raw" in request) {
-      const prototype = Object.getPrototypeOf(request);
-      if (prototype !== null && prototype !== Object.prototype)
-        return Promise.reject(
-          new HttpTransportError(
-            "configuration",
-            "exact HTTP session request was refused",
-            {},
-            "not-started",
-          ),
-        );
-    }
-    // The executor snapshots exact data descriptors; avoid invoking accessors through object spread.
-    const descriptors = Object.getOwnPropertyDescriptors(request);
-    const signalDescriptor = descriptors.signal;
-    if (
-      signalDescriptor === undefined ||
-      !("value" in signalDescriptor) ||
-      !(signalDescriptor.value instanceof AbortSignal)
-    )
-      return Promise.reject(
-        new HttpTransportError("configuration", "HTTP request signal is invalid"),
-      );
+    let inspected = false;
+    let exactBoundary = snapshot.exactMode !== undefined;
     try {
+      const exactArm = "raw" in request;
+      inspected = true;
+      exactBoundary ||= exactArm;
+      if (exactBoundary) {
+        const prototype = Object.getPrototypeOf(request);
+        if (prototype !== null && prototype !== Object.prototype)
+          return Promise.reject(
+            new HttpTransportError(
+              "configuration",
+              "exact HTTP session request was refused",
+              {},
+              "not-started",
+            ),
+          );
+      }
+      // The executor snapshots exact data descriptors; avoid invoking accessors through object spread.
+      const descriptors = Object.getOwnPropertyDescriptors(request);
+      const signalDescriptor = descriptors.signal;
+      if (
+        signalDescriptor === undefined ||
+        !("value" in signalDescriptor) ||
+        !(signalDescriptor.value instanceof AbortSignal)
+      )
+        throw new HttpTransportError("configuration", "HTTP request signal is invalid");
+
       if (snapshot.exactMode !== undefined) {
         if (
           !descriptors.url ||
@@ -264,10 +268,10 @@ export function createRawHttpScenarioTarget(
       );
       return operation;
     } catch (error) {
-      if (Object.getOwnPropertyDescriptor(request, "raw") !== undefined)
+      if (exactBoundary || !inspected)
         return Promise.reject(
           new HttpTransportError(
-            error instanceof HttpTransportError ? error.category : "configuration",
+            "configuration",
             "exact HTTP session request was refused",
             {},
             "not-started",

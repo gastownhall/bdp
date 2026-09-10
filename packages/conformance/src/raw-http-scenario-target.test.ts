@@ -351,6 +351,70 @@ describe("configured exact HTTP sessions", () => {
     await target.close();
   });
 
+  it.each(["missing", "invalid", "accessor"])(
+    "categorizes %s exact signal before dispatch",
+    async (kind) => {
+      const resolve = vi.fn(() => ({ Authorization: "sentinel-secret" }));
+      const target = createRawHttpScenarioTarget(
+        async () => ({
+          dialRoute: { transport: "plain", host: "127.0.0.1", port: 1 },
+          capabilities: [],
+          close: async () => undefined,
+        }),
+        { exactMode: { ...mode(), resolveCredentials: resolve } },
+      );
+      await prepare(target);
+      const input = { ...request() };
+      if (kind === "missing") Reflect.deleteProperty(input, "signal");
+      else
+        Object.defineProperty(
+          input,
+          "signal",
+          kind === "invalid"
+            ? { value: {} }
+            : {
+                get: () => {
+                  throw new Error("private-signal-sentinel");
+                },
+              },
+        );
+      const error = await target.execute(input).catch((error: unknown) => error);
+      expect(error).toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+      expect(String(error)).not.toContain("private-signal-sentinel");
+      expect(resolve).not.toHaveBeenCalled();
+      await target.close();
+    },
+  );
+
+  it.each(["has", "getPrototypeOf", "getOwnPropertyDescriptor", "ownKeys"])(
+    "sanitizes session %s traps before credentials",
+    async (trap) => {
+      const resolve = vi.fn(() => ({ Authorization: "sentinel-secret" }));
+      const target = createRawHttpScenarioTarget(
+        async () => ({
+          dialRoute: { transport: "plain", host: "127.0.0.1", port: 1 },
+          capabilities: [],
+          close: async () => undefined,
+        }),
+        { exactMode: { ...mode(), resolveCredentials: resolve } },
+      );
+      await prepare(target);
+      const input = new Proxy(request(), {
+        [trap]: () => {
+          throw new Error("private-input-sentinel");
+        },
+      });
+      const error = await Promise.resolve()
+        .then(() => target.execute(input))
+        .catch((error: unknown) => error);
+      expect(error).toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+      expect(String(error)).not.toContain("private-input-sentinel");
+      expect(error).not.toHaveProperty("cause");
+      expect(resolve).not.toHaveBeenCalled();
+      await target.close();
+    },
+  );
+
   it("bounds a noncooperative session close without keeping request sockets alive", async () => {
     const target = createRawHttpScenarioTarget(
       async () => ({
