@@ -1,0 +1,708 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-singletons",
+  "description": "The six singleton targets with their Idempotency-Key field and mutation-result bodies — including a supplied hierarchical id, a semantic no-op update that retains its revision and its prior attribution, the owned-Link cases that carry source and sourceRevision, and an owned-Link no-op that reports the source's unchanged revision — followed by the direct problems a singleton returns, the media-type parameter that is ignored, and the absent, repeated, and malformed Idempotency-Key cases. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "create-bead-with-supplied-id",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-t1-create"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "id": "beads/projects/alpha/tasks/t-1",
+          "type": "https://work.example/types/task",
+          "properties": {
+            "title": "Draft the singleton fixtures",
+            "status": "open"
+          },
+          "attribution": { "principal": "human:janet", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+            "type": "https://work.example/types/task",
+            "revision": "t-1-r1",
+            "attribution": { "principal": "human:janet", "status": "claimed" },
+            "properties": {
+              "title": "Draft the singleton fixtures",
+              "status": "open"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "update-bead-properties-semantic-no-op",
+      "condition": "The replace writes the value the Bead already holds: a semantic no-op. The revision and the prior version's attribution (human:janet) are retained; the input attribution (agent:planner) is recorded nowhere.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-t1-noop"
+        },
+        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "body": {
+          "bead": "beads/projects/alpha/tasks/t-1",
+          "expectedRevision": "t-1-r1",
+          "change": [{ "op": "replace", "path": "/status", "value": "open" }],
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+            "type": "https://work.example/types/task",
+            "revision": "t-1-r1",
+            "attribution": { "principal": "human:janet", "status": "claimed" },
+            "properties": {
+              "title": "Draft the singleton fixtures",
+              "status": "open"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "delete-bead",
+      "request": {
+        "method": "POST",
+        "target": "operations/delete-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-t1-delete"
+        },
+        "schema": "#/$defs/deleteBeadRequest",
+        "body": {
+          "bead": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+          "expectedRevision": "t-1-r1"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "deleted",
+          "deleted": {
+            "resourceKind": "bead",
+            "resource": {
+              "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+              "type": "https://work.example/types/task",
+              "revision": "t-1-r1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "create-link-owned-versions-the-source",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-cites-110-create"
+        },
+        "schema": "#/$defs/createLinkRequest",
+        "body": {
+          "type": "https://work.example/types/cites",
+          "source": "beads/decision-7",
+          "target": { "uri": "urn:doi:10.1000/182", "revision": "v3" },
+          "properties": {},
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/links/cites-110",
+            "type": "https://work.example/types/cites",
+            "revision": "cites-110-r1",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "source": "https://beads.example/acme/beads/decision-7",
+            "target": { "uri": "urn:doi:10.1000/182", "revision": "v3" },
+            "properties": {}
+          },
+          "source": "https://beads.example/acme/beads/decision-7",
+          "sourceRevision": "decision-7-r5"
+        }
+      }
+    },
+    {
+      "id": "update-link-properties-owned-versions-the-source",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-link-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-cites-110-note"
+        },
+        "schema": "#/$defs/updateLinkPropertiesRequest",
+        "body": {
+          "link": "links/cites-110",
+          "expectedRevision": "cites-110-r1",
+          "change": [{ "op": "add", "path": "/note", "value": "primary source" }],
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/links/cites-110",
+            "type": "https://work.example/types/cites",
+            "revision": "cites-110-r2",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "source": "https://beads.example/acme/beads/decision-7",
+            "target": { "uri": "urn:doi:10.1000/182", "revision": "v3" },
+            "properties": {
+              "note": "primary source"
+            }
+          },
+          "source": "https://beads.example/acme/beads/decision-7",
+          "sourceRevision": "decision-7-r6"
+        }
+      }
+    },
+    {
+      "id": "update-link-properties-owned-semantic-no-op",
+      "condition": "The replace writes the value the Link already holds: a semantic no-op. The Link keeps its revision and its prior attribution, no source version is minted, and sourceRevision reports the source's unchanged revision.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-link-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-cites-110-noop"
+        },
+        "schema": "#/$defs/updateLinkPropertiesRequest",
+        "body": {
+          "link": "links/cites-110",
+          "expectedRevision": "cites-110-r2",
+          "change": [{ "op": "replace", "path": "/note", "value": "primary source" }],
+          "attribution": { "principal": "human:janet", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/links/cites-110",
+            "type": "https://work.example/types/cites",
+            "revision": "cites-110-r2",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "source": "https://beads.example/acme/beads/decision-7",
+            "target": { "uri": "urn:doi:10.1000/182", "revision": "v3" },
+            "properties": {
+              "note": "primary source"
+            }
+          },
+          "source": "https://beads.example/acme/beads/decision-7",
+          "sourceRevision": "decision-7-r6"
+        }
+      }
+    },
+    {
+      "id": "delete-link-owned-versions-the-source",
+      "request": {
+        "method": "POST",
+        "target": "operations/delete-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-cites-110-delete"
+        },
+        "schema": "#/$defs/deleteLinkRequest",
+        "body": {
+          "link": "links/cites-110",
+          "expectedRevision": "cites-110-r2",
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "deleted",
+          "deleted": {
+            "resourceKind": "link",
+            "resource": {
+              "id": "https://beads.example/acme/links/cites-110",
+              "type": "https://work.example/types/cites",
+              "revision": "cites-110-r2"
+            }
+          },
+          "source": "https://beads.example/acme/beads/decision-7",
+          "sourceRevision": "decision-7-r7"
+        }
+      }
+    },
+    {
+      "id": "missing-idempotency-key",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "type": "https://work.example/types/task",
+          "properties": { "title": "No key", "status": "open" }
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "Idempotency-Key is required"
+        }
+      }
+    },
+    {
+      "id": "media-type-parameters-are-ignored",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-t2-create"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "id": "beads/projects/alpha/tasks/t-2",
+          "type": "https://work.example/types/task",
+          "properties": {
+            "title": "Check the media-type parameter",
+            "status": "open"
+          },
+          "attribution": { "principal": "human:janet", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-2",
+            "type": "https://work.example/types/task",
+            "revision": "t-2-r1",
+            "attribution": { "principal": "human:janet", "status": "claimed" },
+            "properties": {
+              "title": "Check the media-type parameter",
+              "status": "open"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "absent-content-type",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "accept": "application/json",
+          "idempotency-key": "w1-s-no-media-type"
+        },
+        "rawBody": "{\"type\":\"https://work.example/types/task\"}"
+      },
+      "response": {
+        "status": 415,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "unsupported-media-type",
+          "status": 415,
+          "retry": "never",
+          "detail": "a mutation-target request body must declare application/json"
+        }
+      }
+    },
+    {
+      "id": "repeated-idempotency-key-field",
+      "condition": "The field occurs twice; HTTP presents the occurrences as one comma-joined list value. The authority rejects the request rather than choosing one.",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-dup-a, w1-s-dup-b"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "type": "https://work.example/types/task",
+          "properties": { "title": "Two keys", "status": "open" }
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "Idempotency-Key occurs more than once"
+        }
+      }
+    },
+    {
+      "id": "malformed-idempotency-key",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1 s bad key"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "type": "https://work.example/types/task",
+          "properties": { "title": "Bad key", "status": "open" }
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "Idempotency-Key must match [A-Za-z0-9_-]{1,256}"
+        }
+      }
+    },
+    {
+      "id": "unsupported-media-type",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "text/plain",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-plain"
+        },
+        "rawBody": "type=task"
+      },
+      "response": {
+        "status": 415,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "unsupported-media-type",
+          "status": 415,
+          "retry": "never"
+        }
+      }
+    },
+    {
+      "id": "validation-failed-with-diagnostics",
+      "condition": "A Type-contract failure: diagnostics are mandatory and each names the failing effective Type and its schema location; the list is complete, so diagnosticsTruncated is absent.",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-invalid-status"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "type": "https://work.example/types/task",
+          "properties": { "title": "Bad status", "status": "unknown-state" },
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/validation",
+          "code": "validation-failed",
+          "status": 422,
+          "retry": "never",
+          "detail": "properties do not satisfy the effective Type contract",
+          "diagnostics": [
+            {
+              "type": "https://work.example/types/work-item",
+              "schemaLocation": "https://work.example/schemas/work-item-properties-v1#/properties/status/enum",
+              "instanceLocation": "/status",
+              "message": "must be one of open, closed"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "type-not-installed",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-unknown-type"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "type": "https://work.example/types/retrospective",
+          "properties": {}
+        }
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/validation",
+          "code": "type-not-installed",
+          "status": 422,
+          "retry": "after-state-change",
+          "detail": "https://work.example/types/retrospective is not installed"
+        }
+      }
+    },
+    {
+      "id": "identity-taken-including-deleted",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-t1-recreate"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "id": "beads/projects/alpha/tasks/t-1",
+          "type": "https://work.example/types/task",
+          "properties": { "title": "Reuse a deleted identity", "status": "open" }
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "identity-taken",
+          "status": 409,
+          "retry": "never",
+          "detail": "beads/projects/alpha/tasks/t-1 was previously committed in this Scope"
+        }
+      }
+    },
+    {
+      "id": "aggregate-constraint-violation",
+      "condition": "Discovery advertises max 1 for Links conforming to dependency at the source endpoint; beads/task-7 already has one live blocks Link as source. blocks conforms to dependency, so the second one crosses the maximum.",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-second-blocker"
+        },
+        "schema": "#/$defs/createLinkRequest",
+        "body": {
+          "type": "https://work.example/types/blocks",
+          "source": "beads/task-7",
+          "target": "beads/epic-2",
+          "properties": {}
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "aggregate-constraint-violation",
+          "status": 409,
+          "retry": "after-state-change",
+          "detail": "beads/task-7 already has the maximum of 1 Link conforming to dependency as source"
+        }
+      }
+    },
+    {
+      "id": "singleton-idempotent-retry-after-deletion",
+      "condition": "The create-bead-with-supplied-id request retried under its key after t-1 was deleted: the retained disposition is the postimage at the time of the mutation, not a fresh read, and disclosure is re-authorized against the record as retained whether or not the Resource still exists.",
+      "retained": [{ "from": "create-bead-with-supplied-id", "index": 0 }],
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-t1-create"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "id": "beads/projects/alpha/tasks/t-1",
+          "type": "https://work.example/types/task",
+          "properties": {
+            "title": "Draft the singleton fixtures",
+            "status": "open"
+          },
+          "attribution": { "principal": "human:janet", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
+            "type": "https://work.example/types/task",
+            "revision": "t-1-r1",
+            "attribution": { "principal": "human:janet", "status": "claimed" },
+            "properties": {
+              "title": "Draft the singleton fixtures",
+              "status": "open"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "singleton-idempotency-conflict",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-s-t1-create"
+        },
+        "schema": "#/$defs/createBeadRequest",
+        "body": {
+          "type": "https://work.example/types/task",
+          "properties": { "title": "Another task under a retained key", "status": "open" }
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "idempotency-conflict",
+          "status": 409,
+          "retry": "never",
+          "detail": "w1-s-t1-create is retained with a different semantic identity"
+        }
+      }
+    }
+  ]
+}

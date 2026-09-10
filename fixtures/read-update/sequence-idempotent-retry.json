@@ -1,0 +1,700 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-sequence-idempotent-retry",
+  "description": "A sequence whose client disconnected after admission, so its response was lost. A concurrent identical retry meets the first member in flight: that member and its dependent fail transiently and claim nothing, while an unrelated third member runs. After the delay the sequence is retried byte-identically, then with a new member in front, then with all three members: every retained disposition is returned without re-execution — the allocated identities and revisions never change — positioned by the present member's operationIndex and operationName. A second pair shows that a carrier's admission claims are one linearizable step: two identical sequences whose members depend on each other through state rather than through @name are presented concurrently, the second observes every claim of the first and is refused member by member, and, presented again after the first completes, replays both retained dispositions. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "original",
+      "condition": "The client disconnects after the sequence is admitted. Admission decides: the authority runs both members to their terminal dispositions and retains them, so this response is what the authority produced, not what the client received.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@note",
+              "target": "https://github.example/issues/130",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-109",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-109-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-108",
+                "target": "https://github.example/issues/130",
+                "properties": {}
+              },
+              "source": "https://beads.example/acme/beads/decision-108",
+              "sourceRevision": "decision-108-r2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "concurrent-retry-meets-the-creator-in-flight",
+      "condition": "Submitted while the original's first member is still in flight. The original claimed both of its keys at admission, so members 0 and 1 find their keys in flight; member 1 would be transient anyway, because its creator ended transiently in this request. Neither executes, retains, or claims anything. Member 2 is unrelated, its key is unknown, and it runs.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@note",
+              "target": "https://github.example/issues/130",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-task-11-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-11",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-in-progress",
+              "status": 409,
+              "retry": "after-delay",
+              "operationIndex": 0,
+              "operationName": "note",
+              "retryAfter": 2,
+              "detail": "w1-note-create has not reached a terminal outcome"
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-in-progress",
+              "status": 409,
+              "retry": "after-delay",
+              "operationIndex": 1,
+              "retryAfter": 2,
+              "detail": "w1-note-cite is in flight, and @note's creating member has not reached a terminal outcome"
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-11",
+                "type": "https://work.example/types/task",
+                "revision": "task-11-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Tidy the fixture world",
+                  "status": "closed"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "identical-retry",
+      "condition": "After the delay: both keys are retained with the same semantic identity.",
+      "retained": [
+        { "from": "original", "index": 0, "at": 0 },
+        { "from": "original", "index": 1, "at": 1 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@note",
+              "target": "https://github.example/issues/130",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-109",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-109-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-108",
+                "target": "https://github.example/issues/130",
+                "properties": {}
+              },
+              "source": "https://beads.example/acme/beads/decision-108",
+              "sourceRevision": "decision-108-r2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "repositioned-retry",
+      "condition": "A new member in front: the retained dispositions are repositioned by the present operationIndex.",
+      "retained": [
+        { "from": "original", "index": 0, "at": 1 },
+        { "from": "original", "index": 1, "at": 2 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-task-7-priority",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-7",
+              "change": [{ "op": "add", "path": "/priority", "value": 2 }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@note",
+              "target": "https://github.example/issues/130",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-7",
+                "type": "https://work.example/types/task",
+                "revision": "task-7-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Review the retention ruling",
+                  "status": "open",
+                  "priority": 2
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-109",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-109-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-108",
+                "target": "https://github.example/issues/130",
+                "properties": {}
+              },
+              "source": "https://beads.example/acme/beads/decision-108",
+              "sourceRevision": "decision-108-r2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "retry-after-delay-recovers-every-member",
+      "condition": "After the delay, the three-member request is retried: members 0 and 1 answer from the original's retained dispositions and member 2 from the concurrent retry's. One response is assembled from two executions.",
+      "retained": [
+        { "from": "original", "index": 0, "at": 0 },
+        { "from": "original", "index": 1, "at": 1 },
+        { "from": "concurrent-retry-meets-the-creator-in-flight", "index": 2, "at": 2 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-note-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@note",
+              "target": "https://github.example/issues/130",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-task-11-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-11",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/cites-109",
+                "type": "https://work.example/types/cites",
+                "revision": "cites-109-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/decision-108",
+                "target": "https://github.example/issues/130",
+                "properties": {}
+              },
+              "source": "https://beads.example/acme/beads/decision-108",
+              "sourceRevision": "decision-108-r2"
+            },
+            {
+              "operationIndex": 2,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-11",
+                "type": "https://work.example/types/task",
+                "revision": "task-11-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Tidy the fixture world",
+                  "status": "closed"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "claims-are-one-step-original",
+      "condition": "Admitted first. Its members depend on each other through state, not through @name: member 1 addresses by canonical id the Bead that member 0 creates with a supplied id. Admission claims both keys as one linearizable step before member 0 starts.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-claims-create",
+              "operation": "createBead",
+              "id": "beads/notes/claims",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Claims are one step",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-claims-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/notes/claims",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/notes/claims",
+                "type": "https://work.example/types/task",
+                "revision": "claims-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Claims are one step",
+                  "status": "open"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/notes/claims",
+                "type": "https://work.example/types/task",
+                "revision": "claims-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Claims are one step",
+                  "status": "closed"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "competing-presentation-observes-every-claim",
+      "condition": "The identical sequence presented while the original's member 0 is still in flight. The original's claims were one step, so this presentation observes both of them: member 1 finds w1-claims-close in flight although the original has not reached that member, and so cannot execute the update ahead of the creation or retain a disposition the original would contradict. Nothing executes, retains, or claims; the claim step held no lock, and unrelated requests interleave as before.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-claims-create",
+              "operation": "createBead",
+              "id": "beads/notes/claims",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Claims are one step",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-claims-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/notes/claims",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-in-progress",
+              "status": 409,
+              "retry": "after-delay",
+              "operationIndex": 0,
+              "retryAfter": 2,
+              "detail": "w1-claims-create has not reached a terminal outcome"
+            },
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-in-progress",
+              "status": 409,
+              "retry": "after-delay",
+              "operationIndex": 1,
+              "retryAfter": 2,
+              "detail": "w1-claims-close is claimed by the sequence that first presented it and has not reached a terminal outcome"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "presentation-after-completion-replays-both",
+      "condition": "After the delay, once the original has completed: both keys are retained with the same semantic identity, so both retained dispositions answer without re-execution.",
+      "retained": [
+        { "from": "claims-are-one-step-original", "index": 0, "at": 0 },
+        { "from": "claims-are-one-step-original", "index": 1, "at": 1 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-claims-create",
+              "operation": "createBead",
+              "id": "beads/notes/claims",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Claims are one step",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-claims-close",
+              "operation": "updateBeadProperties",
+              "bead": "beads/notes/claims",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/notes/claims",
+                "type": "https://work.example/types/task",
+                "revision": "claims-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Claims are one step",
+                  "status": "open"
+                }
+              }
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/notes/claims",
+                "type": "https://work.example/types/task",
+                "revision": "claims-r2",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Claims are one step",
+                  "status": "closed"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
