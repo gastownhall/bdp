@@ -142,6 +142,18 @@ describe("Read envelope parsing", () => {
     expect(() => parseCanonicalScope("https://scope.example/acme/?view=other")).toThrow();
   });
 
+  it("rejects present-but-empty fragment and Scope query delimiters", () => {
+    for (const suffix of ["#", "#fragment"]) {
+      expect(() => parseCanonicalHttpUrl(`${scope}beads/a${suffix}`)).toThrow();
+      expect(() => parseCanonicalScope(`${scope}${suffix}`)).toThrow();
+    }
+    expect(() => parseCanonicalScope(`${scope}?`)).toThrow();
+    expect(parseCanonicalScope(scope)).toBe(scope);
+    expect(parseCanonicalHttpUrl(`${scope}beads/a%23b?cursor=%23`)).toBe(
+      `${scope}beads/a%23b?cursor=%23`,
+    );
+  });
+
   it("closes and freezes Resource records and collection pages", () => {
     const bead = {
       id: `${scope}beads/a`,

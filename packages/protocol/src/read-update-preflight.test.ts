@@ -23,6 +23,8 @@ const badLocal = [
   "https://example.test/s/%62eads/a",
   "https://example.test/s/beads/%61",
   "https://example.test/s/beads/%2F",
+  "https://example.test/s/beads/a#",
+  "https://example.test/s/beads/a?",
   "https://example.test/s/beads/%FF",
   "https://example.test/%73/beads/%FF",
   "https://example.test/s/../elsewhere/beads/a",
@@ -33,6 +35,57 @@ const badLocal = [
 ];
 
 describe("whole-carrier Read+Update Scope preflight", () => {
+  it("binds the carrier to the receiving authority's configured Scope", () => {
+    const other = "https://example.test/other/";
+    const carrier = prepareReadUpdateSingleton(
+      other,
+      "deleteBead",
+      JSON.stringify({
+        bead: "https://example.test/s/beads/%61",
+      }),
+      "key",
+    );
+    expect(() => assertPreparedReadUpdateCarrier(carrier, scope)).toThrow("different Scope");
+    expect(() => assertPreparedReadUpdateCarrier(carrier, other)).not.toThrow();
+    const local = prepare("deleteBead", { bead: "beads/a" });
+    expect(() => assertPreparedReadUpdateCarrier(local, scope)).not.toThrow();
+  });
+
+  it.each(["blob:https://example.test/a", "blob:https://example.test/s/beads/a"])(
+    "preserves an opaque origin-borrowing URI %s for root and nested Scopes",
+    (target) => {
+      for (const base of ["https://example.test/", scope]) {
+        const input = { type, source: "beads/a", target };
+        const prepared = prepareReadUpdateSingleton(
+          base,
+          "createLink",
+          JSON.stringify(input),
+          "key",
+        );
+        expect(prepared.operations[0]?.input).toEqual(input);
+        expect(() => assertPreparedReadUpdateCarrier(prepared, base)).not.toThrow();
+      }
+    },
+  );
+
+  it("preserves deeply frozen singleton and sequence reference inputs", () => {
+    const input = { type, source: "beads/a", target: { uri: "beads/b", revision: "pin" } };
+    const singleton = prepare("createLink", input);
+    const sequence = prepareReadUpdateSequence(
+      scope,
+      JSON.stringify({
+        operations: [{ operation: "createLink", idempotencyKey: "key", ...input }],
+      }),
+    );
+    for (const prepared of [singleton, sequence]) {
+      const value = prepared.operations[0]?.input;
+      expect(Object.isFrozen(value)).toBe(true);
+      expect(Object.isFrozen(value?.target)).toBe(true);
+      expect(() => Reflect.set(value?.target as object, "uri", "beads/%61")).not.toThrow();
+      expect(value?.target).toEqual(input.target);
+    }
+  });
+
   it.each(badLocal)("rejects noncanonical local subject %s before preparation", (bead) => {
     const text = JSON.stringify({ bead });
     // These are valid absolute URI spellings for the Scope-independent S1 pass.
@@ -103,7 +156,7 @@ describe("whole-carrier Read+Update Scope preflight", () => {
     ["putAlias", { alias: "alias/latest", target: "alias/no-chain" }],
   ] as const)("preserves valid grammar and member-time categories for %s", (operation, input) => {
     const carrier = prepare(operation, input);
-    expect(() => assertPreparedReadUpdateCarrier(carrier)).not.toThrow();
+    expect(() => assertPreparedReadUpdateCarrier(carrier, scope)).not.toThrow();
     expect(carrier.operations[0]?.input).toEqual(input);
   });
 
@@ -218,12 +271,12 @@ describe("whole-carrier Read+Update Scope preflight", () => {
     expect(carrier.keys).toEqual(["one", "two"]);
     expect(carrier.operations[0]?.name).toBe("a");
     expect(carrier.operations[1]?.input.target).toBe("@a");
-    expect(() => assertPreparedReadUpdateCarrier(carrier)).not.toThrow();
+    expect(() => assertPreparedReadUpdateCarrier(carrier, scope)).not.toThrow();
   });
 
   it("does not hand an admission seam any carrier when only its last member is Scope-invalid", () => {
     const admit = vi.fn((carrier: PreparedReadUpdateCarrier) => {
-      assertPreparedReadUpdateCarrier(carrier);
+      assertPreparedReadUpdateCarrier(carrier, scope);
       return carrier.keys;
     });
     const receive = (bead: string) =>
@@ -247,8 +300,8 @@ describe("whole-carrier Read+Update Scope preflight", () => {
 
   it("rejects a forged prepared carrier and malformed raw singleton keys", () => {
     const carrier = prepare("deleteBead", { bead: "beads/a" });
-    expect(() => assertPreparedReadUpdateCarrier({ ...carrier })).toThrow(TypeError);
-    expect(() => assertPreparedReadUpdateCarrier(null)).toThrow(TypeError);
+    expect(() => assertPreparedReadUpdateCarrier({ ...carrier }, scope)).toThrow(TypeError);
+    expect(() => assertPreparedReadUpdateCarrier(null, scope)).toThrow(TypeError);
     for (const key of ["", " padded", "key,key", "a".repeat(257)]) {
       expect(() =>
         prepareReadUpdateSingleton(scope, "deleteBead", '{"bead":"beads/a"}', key),

@@ -217,7 +217,7 @@ export function parseCanonicalHttpUrl(value: unknown, path = "HTTP URL"): Absolu
     (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
     parsed.username !== "" ||
     parsed.password !== "" ||
-    parsed.hash !== "" ||
+    value.includes("#") ||
     parsed.href !== value
   )
     throw new ProtocolArtifactValidationError(
@@ -237,7 +237,7 @@ export function parseCanonicalTypeId(value: unknown, path = "Type ID"): Absolute
 export function parseCanonicalScope(value: unknown, path = "Scope"): AbsoluteHttpUrl {
   const scope = parseCanonicalHttpUrl(value, path);
   const parsed = new URL(scope);
-  if (parsed.search !== "" || !parsed.pathname.endsWith("/"))
+  if (scope.includes("?") || !parsed.pathname.endsWith("/"))
     throw new ProtocolArtifactValidationError(
       `${path} must be a canonical HTTP(S) URL ending in /`,
     );
