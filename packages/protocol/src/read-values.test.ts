@@ -202,6 +202,68 @@ describe("Resource properties parsing", () => {
     ).toBe(true);
   });
 
+  it.each(["\ud800", "\udc00", "a\ud800b", "\udc00\ud800", "\ud800\ud800"])(
+    "refuses unpaired surrogates %j in nested values, arrays, member names and revisions",
+    (invalid) => {
+      for (const properties of [
+        { nested: { value: invalid } },
+        { nested: [invalid] },
+        { nested: { [invalid]: "valid" } },
+        { [invalid]: "valid" },
+      ]) {
+        expect(() => parsePropertiesRecord(properties)).toThrow(ProtocolArtifactValidationError);
+      }
+      expect(() =>
+        parseBeadRecord({
+          id: `${scope}beads/a`,
+          type: "https://work.example/types/task",
+          revision: invalid,
+          properties: {},
+        }),
+      ).toThrow(ProtocolArtifactValidationError);
+    },
+  );
+
+  it("checks decoded JSON strings and names while preserving valid scalar pairs", () => {
+    for (const json of [String.raw`{"value":"\ud800"}`, String.raw`{"\udc00":0}`]) {
+      expect(() => parsePropertiesRecord(JSON.parse(json))).toThrow(
+        ProtocolArtifactValidationError,
+      );
+    }
+    const properties = JSON.parse(
+      String.raw`{"\ud83d\ude00":{"values":["a\ud83d\ude00z","\u0000","é",""]}}`,
+    );
+    expect(parsePropertiesRecord(properties)).toEqual(properties);
+    expect(
+      parseBeadRecord({
+        id: `${scope}beads/a`,
+        type: "https://work.example/types/task",
+        revision: "a😀z",
+        properties,
+      }).revision,
+    ).toBe("a😀z");
+  });
+
+  it("captures a string accessor once and refuses invalid keys before reading their values", () => {
+    let reads = 0;
+    const source = {
+      get value() {
+        reads += 1;
+        return reads === 1 ? "😀" : "\ud800";
+      },
+    };
+    expect(parsePropertiesRecord(source)).toEqual({ value: "😀" });
+    expect(reads).toBe(1);
+    const invalid = {
+      get "\ud800"() {
+        reads += 1;
+        return "valid";
+      },
+    };
+    expect(() => parsePropertiesRecord(invalid)).toThrow(ProtocolArtifactValidationError);
+    expect(reads).toBe(1);
+  });
+
   it("rejects cycles, non-JSON values, non-finite numbers, and oversized containers", () => {
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;

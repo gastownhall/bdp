@@ -4,7 +4,7 @@ import {
   type JSONSchemaType,
   type ValidateFunction,
 } from "ajv/dist/2020.js";
-import { isJsonSchemaUri } from "@bdp/protocol";
+import { isJsonSchemaDateTime, isJsonSchemaUri } from "@bdp/protocol";
 
 export interface SchemaValidationFailure {
   readonly instancePath: string;
@@ -29,6 +29,7 @@ export function createJsonSchemaValidator(
 ): SchemaValidator {
   const ajv = new Ajv2020({ allErrors: false, strict: true });
   ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+  ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
   const root = bundle as Record<string, unknown>;
   if (typeof root.$id !== "string" || root.$id.length === 0)
     throw new SchemaValidatorError("schema bundle must declare a non-empty $id");

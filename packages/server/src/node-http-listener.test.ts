@@ -1,6 +1,10 @@
 import { request as httpRequest, maxHeaderSize, ServerResponse, type Server } from "node:http";
 import { connect as connectSocket } from "node:net";
-import { readProblem, type ScopeReadOperation } from "@bdp/protocol";
+import {
+  ProtocolArtifactValidationError,
+  readProblem,
+  type ScopeReadOperation,
+} from "@bdp/protocol";
 // This test-only import installs the single non-emitted evidence mock before server admission.
 import { establishReadConformanceEvidenceForTesting } from "@bdp/server/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -54,7 +58,7 @@ describe("Node HTTP listener", () => {
       expect(probe.status).toBe(204);
       const discovery = await fetch(`${base}/local-test/bdp.json`);
       expect(discovery.status).toBe(200);
-      expect(discovery.headers.has("cache-control")).toBe(false);
+      expect(discovery.headers.get("cache-control")).toBe("private, no-store");
       expect(await discovery.json()).toMatchObject({ scope: SCOPE, profile: "read" });
       const beads = await fetch(`${base}/local-test/beads/`);
       expect(beads.status).toBe(200);
@@ -189,6 +193,62 @@ describe("Node HTTP listener", () => {
       }
     },
   );
+
+  it("never emits non-scalar adapter records or validators over GET or HEAD", async () => {
+    const failures: unknown[] = [];
+    let record: unknown;
+    const server = createReadServer({
+      scope: SCOPE,
+      target: "bdptest",
+      admittedProfile: admitReadServerProfile("read", "bdptest"),
+      port: { perform: async () => scopePortSuccess(record as never) as never },
+    });
+    const listener = createNodeHttpServer(server, { onError: (error) => failures.push(error) });
+    const base = await listen(listener);
+    const bead = {
+      id: `${SCOPE}beads/a`,
+      type: "https://work.example/types/task",
+      revision: "r1",
+      properties: {},
+    };
+    try {
+      for (const patch of [
+        { revision: "\ud800" },
+        { revision: "\udc00" },
+        { properties: { nested: ["\ud800"] } },
+        { properties: JSON.parse(String.raw`{"nested":{"\udc00":"valid"}}`) },
+      ]) {
+        record = { ...bead, ...patch };
+        for (const method of ["GET", "HEAD"]) {
+          const response = await rawRequest(base, method, "/local-test/beads/a");
+          expect(response.status).toBe(500);
+          expect(response.body).toBe("");
+          expect(response.etag).toBeUndefined();
+          expect(response.contentType).toBeUndefined();
+        }
+      }
+      expect(failures).toHaveLength(8);
+      for (const failure of failures)
+        expect(failure).toBeInstanceOf(ProtocolArtifactValidationError);
+      record = {
+        ...bead,
+        revision: "r😀",
+        properties: JSON.parse(String.raw`{"\ud83d\ude00":["\ud83d\ude00"]}`),
+      };
+      const get = await rawRequest(base, "GET", "/local-test/beads/a");
+      const head = await rawRequest(base, "HEAD", "/local-test/beads/a");
+      expect(get.status).toBe(200);
+      expect(JSON.parse(get.body)).toEqual(record);
+      expect(head.status).toBe(200);
+      expect(head.body).toBe("");
+      expect(get.etag).toBeDefined();
+      expect(head.etag).toBe(get.etag);
+      expect(failures).toHaveLength(8);
+    } finally {
+      await close(listener);
+      await server.close();
+    }
+  });
 
   it("turns an unchallenged identity-policy 401 into a bodyless internal fault", async () => {
     const onError = vi.fn();

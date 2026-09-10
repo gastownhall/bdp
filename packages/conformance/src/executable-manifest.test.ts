@@ -1228,3 +1228,173 @@ function expectIssues(value: unknown, expectedPaths: readonly string[]): void {
     expect(error.issues.map(({ path }) => path)).toEqual(expectedPaths);
   }
 }
+
+describe("conditional response references", () => {
+  function conditionalManifest(
+    actions: boolean,
+    headers: unknown,
+    assertions: unknown = [],
+    controlId = "control",
+  ) {
+    const base = manifest();
+    const original = base.scenarios[0];
+    const first = original?.requests[0];
+    if (original === undefined || first === undefined) throw new Error("missing test scenario");
+    const requests = [
+      { ...first, id: controlId },
+      { ...first, id: "conditional", headers, assertions, captures: [] },
+      { ...first, id: "future", captures: [] },
+    ];
+    const { requests: _requests, ...scenario } = original;
+    return {
+      ...base,
+      scenarios: [
+        {
+          ...scenario,
+          ...(actions
+            ? { actions: requests.map((request) => ({ ...request, family: "http" })) }
+            : { requests }),
+        },
+      ],
+    };
+  }
+  for (const actions of [false, true]) {
+    it("accepts digit-leading request IDs consistently for validator and presence references", () => {
+      expect(() =>
+        parseExecutableScenarioManifest(
+          conditionalManifest(
+            actions,
+            { "if-none-match": { etagFrom: "304-probe", form: "exact" } },
+            [
+              { id: "etag", kind: "header", name: "etag", equalsResponse: "304-probe" },
+              { id: "vary", kind: "header", name: "vary", presentIfResponse: "304-probe" },
+            ],
+            "304-probe",
+          ),
+        ),
+      ).not.toThrow();
+    });
+    it.each(["date", "content-location", "expires", "vary"])(
+      "accepts bounded 304 metadata-presence field %s",
+      (name) => {
+        expect(() =>
+          parseExecutableScenarioManifest(
+            conditionalManifest(actions, {}, [
+              { id: "presence", kind: "header", name, presentIfResponse: "control" },
+            ]),
+          ),
+        ).not.toThrow();
+      },
+    );
+    it.each([
+      { name: "etag", equalsResponse: "control..bad" },
+      { name: "etag", equalsResponse: "control-" },
+      { name: "etag", equalsResponse: 42 },
+      { name: "vary", presentIfResponse: "conditional" },
+      { name: "vary", presentIfResponse: "future" },
+      { name: "vary", presentIfResponse: "missing" },
+      { name: "vary", presentIfResponse: "control..bad" },
+      { name: "authorization", presentIfResponse: "control" },
+      { name: "etag", presentIfResponse: "control" },
+      { name: "vary", presentIfResponse: "control", absent: false },
+    ])("rejects malformed, forward or unbounded metadata reference %j", (assertion) => {
+      expect(() =>
+        parseExecutableScenarioManifest(
+          conditionalManifest(actions, {}, [{ id: "presence", kind: "header", ...assertion }]),
+        ),
+      ).toThrow(ManifestValidationError);
+    });
+    it.each(["exact", "weak", "nonmatching", "exact-list", "weak-list"])(
+      `accepts prior HTTP ETag form %s (actions=${actions})`,
+      (form) => {
+        expect(() =>
+          parseExecutableScenarioManifest(
+            conditionalManifest(actions, { "if-match": { etagFrom: "control", form } }, [
+              { id: "etag", kind: "header", name: "etag", equalsResponse: "control" },
+            ]),
+          ),
+        ).not.toThrow();
+      },
+    );
+    it.each([
+      { "if-match": { etagFrom: "conditional", form: "exact" } },
+      { "if-match": { etagFrom: "future", form: "exact" } },
+      { "if-none-match": { etagFrom: "unknown", form: "weak" } },
+      { accept: { etagFrom: "control", form: "exact" } },
+      { authorization: { etagFrom: "control", form: "exact" } },
+      { "if-match": { etagFrom: "control", form: "arbitrary" } },
+      { "if-match": { etagFrom: "control", form: "exact", header: "authorization" } },
+    ])(`rejects invalid ETag reference %j (actions=${actions})`, (headers) => {
+      expect(() => parseExecutableScenarioManifest(conditionalManifest(actions, headers))).toThrow(
+        ManifestValidationError,
+      );
+    });
+    it.each([
+      { name: "etag", equalsResponse: "conditional" },
+      { name: "etag", equalsResponse: "future" },
+      { name: "etag", equalsResponse: "unknown" },
+      { name: "authorization", equalsResponse: "control" },
+      { name: "etag", equalsResponse: "control", equals: '"literal"' },
+    ])(`rejects invalid observed comparison %j (actions=${actions})`, (assertion) => {
+      expect(() =>
+        parseExecutableScenarioManifest(
+          conditionalManifest(actions, {}, [{ id: "comparison", kind: "header", ...assertion }]),
+        ),
+      ).toThrow(ManifestValidationError);
+    });
+  }
+});
+
+describe("HEAD metadata allowance validation", () => {
+  for (const actions of [false, true]) {
+    it.each([
+      { method: "HEAD", optionalHeaders: ["content-length"], valid: true },
+      { method: "GET", optionalHeaders: ["content-length"], valid: false },
+      { method: "HEAD", optionalHeaders: ["cache-control"], valid: false },
+      { method: "HEAD", optionalHeaders: ["etag"], valid: false },
+      { method: "HEAD", optionalHeaders: ["authorization"], valid: false },
+      { method: "HEAD", optionalHeaders: ["content-type"], valid: false },
+      { method: "HEAD", optionalHeaders: ["content-length", "content-length"], valid: false },
+    ])(
+      `accepts only selected optional HEAD content metadata (actions=${actions}): %j`,
+      ({ method, optionalHeaders, valid }) => {
+        const base = manifest();
+        const original = base.scenarios[0];
+        const first = original?.requests[0];
+        if (original === undefined || first === undefined) throw new Error("missing test scenario");
+        const requests = [
+          first,
+          {
+            ...first,
+            id: "head",
+            method,
+            captures: [],
+            assertions: [
+              {
+                id: "parity",
+                kind: "response-metadata-equals",
+                request: first.id,
+                headers: ["content-length", "cache-control", "etag"],
+                optionalHeaders,
+              },
+            ],
+          },
+        ];
+        const { requests: _requests, ...rest } = original;
+        const source = {
+          ...base,
+          scenarios: [
+            {
+              ...rest,
+              ...(actions
+                ? { actions: requests.map((request) => ({ ...request, family: "http" })) }
+                : { requests }),
+            },
+          ],
+        };
+        if (valid) expect(() => parseExecutableScenarioManifest(source)).not.toThrow();
+        else expect(() => parseExecutableScenarioManifest(source)).toThrow(ManifestValidationError);
+      },
+    );
+  }
+});

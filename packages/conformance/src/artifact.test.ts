@@ -238,10 +238,10 @@ describe("checked-in Read matrix artifacts", () => {
     const manifestIdList = manifest.scenarios.map(({ id }) => id);
     const catalogIds = new Set(catalogIdList);
     const manifestIds = new Set(manifestIdList);
-    expect(catalog.scenarios).toHaveLength(46);
-    expect(manifest.scenarios).toHaveLength(46);
-    expect(catalogIds.size).toBe(46);
-    expect(manifestIds.size).toBe(46);
+    expect(catalog.scenarios).toHaveLength(49);
+    expect(manifest.scenarios).toHaveLength(49);
+    expect(catalogIds.size).toBe(49);
+    expect(manifestIds.size).toBe(49);
     expect([...manifestIds].sort()).toEqual([...catalogIds].sort());
     expect(manifest.catalogId).toBe("read-v1");
     expect(manifest.scenarios.every(({ id }) => catalogIds.has(id))).toBe(true);
@@ -292,6 +292,9 @@ describe("checked-in Read matrix artifacts", () => {
       "read.owned-wildcard.present-entries",
       "read.owned-wildcard.closure",
       "read.numeric-model.declared-token-model",
+      "read.http.accept-negotiation",
+      "read.http.conditional-reads",
+      "read.http.head-conditional-parity",
     ]);
   });
 
@@ -719,22 +722,30 @@ describe("checked-in Read matrix artifacts", () => {
     expect(plan?.setup.requires).toEqual(
       expect.arrayContaining(["public-http", "unexpected-internal-fault"]),
     );
-    expect(scenarioRequests(plan)).toEqual([
-      expect.objectContaining({
-        id: "faulting-resource",
-        method: "GET",
-        target: { binding: "bead.demo-a" },
-        assertions: expect.arrayContaining([
+    const requests = scenarioRequests(plan);
+    expect(requests.map(({ method }) => method)).toEqual(["GET", "HEAD"]);
+    for (const request of requests) {
+      expect(request.target).toEqual({ binding: "bead.demo-a" });
+      expect(request.headers).toEqual({ accept: "text/html", "if-none-match": "*" });
+      expect(request.assertions).toEqual(
+        expect.arrayContaining([
           { id: "status", kind: "status", equals: 500 },
           {
             id: "redacted",
             kind: "wire-not-contains",
             fixturePointer: "/private/internalFaultSentinel",
           },
-          { id: "body", kind: "body-absent" },
         ]),
-      }),
-    ]);
+      );
+      expect(request.assertions.some(({ kind }) => kind === "body-absent")).toBe(true);
+    }
+    expect(requests[1]?.assertions).toContainEqual({
+      id: "metadata",
+      kind: "response-metadata-equals",
+      request: "faulting-resource",
+      headers: ["content-type", "content-length", "cache-control"],
+      optionalHeaders: ["content-type", "content-length"],
+    });
     for (const fixturePath of [
       "packages/conformance/fixtures/read-reference-v1.json",
       "packages/conformance/fixtures/read-bdpbd-v1.json",

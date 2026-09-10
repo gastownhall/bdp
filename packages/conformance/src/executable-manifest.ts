@@ -1,3 +1,4 @@
+import { CONDITIONAL_HEADER_FORMS, type ScenarioConditionalHeader } from "./conditional-header.js";
 import { isProtocolProfile, type ProtocolProfile } from "@bdp/protocol";
 import type {
   ScenarioAction,
@@ -49,7 +50,7 @@ export interface ScenarioRequest {
   /** Catalog scenario whose behavior must succeed before this scenario's own probe can run. */
   readonly prerequisiteScenario?: string;
   /** Scenario-authored headers are deliberately limited to non-secret protocol fields. */
-  readonly headers?: Readonly<Record<string, string>>;
+  readonly headers?: Readonly<Record<string, string | ScenarioConditionalHeader>>;
   /** Explicitly marks the single POST used to observe Read-profile 405 behavior. */
   readonly negativeMethodProbe?: true;
   /** Exact authored request-target octets for the raw HTTP transport lane. */
@@ -102,6 +103,10 @@ export type ScenarioAssertion =
       readonly equals?: string;
       /** Expected value resolved from a fixture binding as an absolute in-Scope URL. */
       readonly equalsBinding?: string;
+      /** Compare ETag bytes with an earlier response, even across different statuses. */
+      readonly equalsResponse?: string;
+      /** On 304, require this RFC cache field when the earlier 200 supplied it; no value capture. */
+      readonly presentIfResponse?: string;
       readonly contains?: string;
       readonly absent?: boolean;
     }
@@ -128,6 +133,8 @@ export type ScenarioAssertion =
       /** Earlier request in this scenario whose status and named headers are the oracle. */
       readonly request: string;
       readonly headers: readonly string[];
+      /** HEAD-only content metadata may be omitted; present values must still match. */
+      readonly optionalHeaders?: readonly string[];
     }
   | {
       readonly id: string;
@@ -311,6 +318,8 @@ const HEADER_ASSERTION_KEYS = new Set([
   "name",
   "equals",
   "equalsBinding",
+  "equalsResponse",
+  "presentIfResponse",
   "contains",
   "absent",
 ]);
@@ -326,7 +335,13 @@ const HEADER_TOKENS_ASSERTION_KEYS = new Set([
 const MEDIA_TYPE_ASSERTION_KEYS = new Set(["id", "kind", "equals"]);
 const BODY_ABSENT_ASSERTION_KEYS = new Set(["id", "kind"]);
 const WIRE_NOT_CONTAINS_ASSERTION_KEYS = new Set(["id", "kind", "fixturePointer"]);
-const RESPONSE_METADATA_EQUALS_ASSERTION_KEYS = new Set(["id", "kind", "request", "headers"]);
+const RESPONSE_METADATA_EQUALS_ASSERTION_KEYS = new Set([
+  "id",
+  "kind",
+  "request",
+  "headers",
+  "optionalHeaders",
+]);
 const JSON_EQUALS_ASSERTION_KEYS = new Set([
   "id",
   "kind",
@@ -588,7 +603,12 @@ function parseRequests(
       issues,
     );
     const target = parseTarget(ownValue(candidate, "target"), `${requestPath}.target`, issues);
-    const headers = parseHeaders(ownValue(candidate, "headers"), `${requestPath}.headers`, issues);
+    const headers = parseHeaders(
+      ownValue(candidate, "headers"),
+      `${requestPath}.headers`,
+      issues,
+      priorRequestIds,
+    );
     const captures = parseCaptures(
       ownValue(candidate, "captures"),
       `${requestPath}.captures`,
@@ -599,16 +619,13 @@ function parseRequests(
       `${requestPath}.assertions`,
       issues,
     );
-    if (assertions !== undefined)
-      for (const [assertionIndex, assertion] of assertions.entries())
-        if (
-          assertion.kind === "response-metadata-equals" &&
-          !priorRequestIds.has(assertion.request)
-        )
-          issues.push({
-            path: `${requestPath}.assertions[${assertionIndex}].request`,
-            message: "must name an earlier request in this scenario",
-          });
+    validateEarlierResponseAssertions(
+      assertions,
+      priorRequestIds,
+      method,
+      `${requestPath}.assertions`,
+      issues,
+    );
     if (
       id === undefined ||
       method === undefined ||
@@ -767,7 +784,12 @@ function parseHttpAction(
       });
   }
   const target = parseTarget(ownValue(candidate, "target"), `${path}.target`, issues);
-  const headers = parseHeaders(ownValue(candidate, "headers"), `${path}.headers`, issues);
+  const headers = parseHeaders(
+    ownValue(candidate, "headers"),
+    `${path}.headers`,
+    issues,
+    priorHttpActionIds,
+  );
   const captures = parseCaptures(ownValue(candidate, "captures"), `${path}.captures`, issues);
   const assertions = parseAssertions(
     ownValue(candidate, "assertions"),
@@ -779,16 +801,13 @@ function parseHttpAction(
     `${path}.rawRequestTarget`,
     issues,
   );
-  if (assertions !== undefined)
-    for (const [assertionIndex, assertion] of assertions.entries())
-      if (
-        assertion.kind === "response-metadata-equals" &&
-        !priorHttpActionIds.has(assertion.request)
-      )
-        issues.push({
-          path: `${path}.assertions[${assertionIndex}].request`,
-          message: "must name an earlier action in this scenario",
-        });
+  validateEarlierResponseAssertions(
+    assertions,
+    priorHttpActionIds,
+    method,
+    `${path}.assertions`,
+    issues,
+  );
   if (
     id === undefined ||
     method === undefined ||
@@ -1186,27 +1205,86 @@ function parseQueryMap(
   return Object.keys(result).length === Object.keys(value).length ? result : undefined;
 }
 
+function validateEarlierResponseAssertions(
+  assertions: readonly ScenarioAssertion[] | undefined,
+  priorIds: ReadonlySet<string>,
+  method: string | undefined,
+  path: string,
+  issues: ManifestIssue[],
+): void {
+  for (const [index, assertion] of (assertions ?? []).entries()) {
+    if (
+      assertion.kind === "response-metadata-equals" &&
+      assertion.optionalHeaders !== undefined &&
+      method !== "HEAD"
+    )
+      issues.push({
+        path: `${path}[${index}].optionalHeaders`,
+        message: "optional response metadata is restricted to HEAD comparisons",
+      });
+    const reference =
+      assertion.kind === "response-metadata-equals"
+        ? { field: "request", id: assertion.request }
+        : assertion.kind === "header" && assertion.equalsResponse !== undefined
+          ? { field: "equalsResponse", id: assertion.equalsResponse }
+          : assertion.kind === "header" && assertion.presentIfResponse !== undefined
+            ? { field: "presentIfResponse", id: assertion.presentIfResponse }
+            : undefined;
+    if (reference !== undefined && !priorIds.has(reference.id))
+      issues.push({
+        path: `${path}[${index}].${reference.field}`,
+        message: "must name an earlier HTTP response in this scenario",
+      });
+  }
+}
+
 function parseHeaders(
   value: unknown,
   path: string,
   issues: ManifestIssue[],
-): Readonly<Record<string, string>> | undefined {
+  priorRequestIds: ReadonlySet<string>,
+): Readonly<Record<string, string | ScenarioConditionalHeader>> | undefined {
   if (value === undefined) return {};
-  const headers = parseStringMap(value, path, issues);
-  if (headers === undefined) return undefined;
-  for (const name of Object.keys(headers)) {
+  if (!isPlainRecord(value)) {
+    issues.push({ path, message: "must be a plain record" });
+    return undefined;
+  }
+  const headers = Object.create(null) as Record<string, string | ScenarioConditionalHeader>;
+  for (const [name, field] of Object.entries(value)) {
+    const fieldPath = `${path}.${name}`;
     if (!HEADER_PATTERN.test(name) || name !== name.toLowerCase())
-      issues.push({ path: `${path}.${name}`, message: "must be a lowercase HTTP field name" });
+      issues.push({ path: fieldPath, message: "must be a lowercase HTTP field name" });
     if (
       name === name.toLowerCase() &&
       (SECRET_HEADER_PATTERN.test(name) || /(?:token|secret|password|credential|auth)/i.test(name))
     )
+      issues.push({ path: fieldPath, message: "secret headers are not allowed in a scenario" });
+    if (typeof field === "string") {
+      if (!HTTP_FIELD_VALUE_PATTERN.test(field))
+        issues.push({ path: fieldPath, message: "must be a valid HTTP field value" });
+      headers[name] = field;
+    } else if (isPlainRecord(field)) {
+      reportUnknownKeys(field, new Set(["etagFrom", "form"]), fieldPath, issues);
+      if (name !== "if-match" && name !== "if-none-match")
+        issues.push({
+          path: fieldPath,
+          message: "ETag reuse is only allowed for if-match and if-none-match",
+        });
+      const etagFrom = readId(field.etagFrom, `${fieldPath}.etagFrom`, issues);
+      if (etagFrom !== undefined && !priorRequestIds.has(etagFrom))
+        issues.push({
+          path: `${fieldPath}.etagFrom`,
+          message: "must name an earlier HTTP response in this scenario",
+        });
+      if (typeof field.form !== "string" || !CONDITIONAL_HEADER_FORMS.has(field.form))
+        issues.push({ path: `${fieldPath}.form`, message: "must be a supported ETag form" });
+      else if (etagFrom !== undefined)
+        headers[name] = { etagFrom, form: field.form as ScenarioConditionalHeader["form"] };
+    } else
       issues.push({
-        path: `${path}.${name}`,
-        message: "secret headers are not allowed in a scenario",
+        path: fieldPath,
+        message: "must be a field value or an observed ETag reference",
       });
-    if (!HTTP_FIELD_VALUE_PATTERN.test(headers[name] as string))
-      issues.push({ path: `${path}.${name}`, message: "must be a valid HTTP field value" });
   }
   return headers;
 }
@@ -1329,11 +1407,26 @@ function parseAssertions(
       const name = ownValue(candidate, "name");
       const equalsValue = ownValue(candidate, "equals");
       const equalsBindingValue = ownValue(candidate, "equalsBinding");
+      const equalsResponseValue = ownValue(candidate, "equalsResponse");
+      const presentIfResponseValue = ownValue(candidate, "presentIfResponse");
+      const responseId =
+        equalsResponseValue === undefined
+          ? undefined
+          : readId(equalsResponseValue, `${assertionPath}.equalsResponse`, issues);
+      const presenceResponseId =
+        presentIfResponseValue === undefined
+          ? undefined
+          : readId(presentIfResponseValue, `${assertionPath}.presentIfResponse`, issues);
       const containsValue = ownValue(candidate, "contains");
       const absentValue = ownValue(candidate, "absent");
-      const alternatives = [equalsValue, equalsBindingValue, containsValue, absentValue].filter(
-        (entry) => entry !== undefined,
-      );
+      const alternatives = [
+        equalsValue,
+        equalsBindingValue,
+        equalsResponseValue,
+        presentIfResponseValue,
+        containsValue,
+        absentValue,
+      ].filter((entry) => entry !== undefined);
       if (typeof name !== "string" || !HEADER_PATTERN.test(name) || name !== name.toLowerCase())
         issues.push({
           path: `${assertionPath}.name`,
@@ -1343,7 +1436,7 @@ function parseAssertions(
         issues.push({
           path: assertionPath,
           message:
-            "header assertion must choose exactly one of equals, equalsBinding, contains, or absent",
+            "header assertion must choose exactly one of equals, equalsBinding, equalsResponse, presentIfResponse, contains, or absent",
         });
       else if (equalsValue !== undefined && typeof equalsValue !== "string")
         issues.push({ path: `${assertionPath}.equals`, message: "must be a string" });
@@ -1356,6 +1449,21 @@ function parseAssertions(
           path: `${assertionPath}.equalsBinding`,
           message: "must be a binding identifier",
         });
+      else if (equalsResponseValue !== undefined && (name !== "etag" || responseId === undefined))
+        issues.push({
+          path: `${assertionPath}.equalsResponse`,
+          message: "must name an earlier response and may compare only ETag",
+        });
+      else if (
+        presentIfResponseValue !== undefined &&
+        (presenceResponseId === undefined ||
+          typeof name !== "string" ||
+          !["content-location", "date", "vary", "expires"].includes(name))
+      )
+        issues.push({
+          path: `${assertionPath}.presentIfResponse`,
+          message: "must name an earlier response and observe only conditional cache metadata",
+        });
       else if (containsValue !== undefined && typeof containsValue !== "string")
         issues.push({ path: `${assertionPath}.contains`, message: "must be a string" });
       else if (absentValue !== undefined && typeof absentValue !== "boolean")
@@ -1367,6 +1475,8 @@ function parseAssertions(
           name,
           ...(equalsValue === undefined ? {} : { equals: equalsValue }),
           ...(equalsBindingValue === undefined ? {} : { equalsBinding: equalsBindingValue }),
+          ...(responseId === undefined ? {} : { equalsResponse: responseId }),
+          ...(presenceResponseId === undefined ? {} : { presentIfResponse: presenceResponseId }),
           ...(containsValue === undefined ? {} : { contains: containsValue }),
           ...(absentValue === undefined ? {} : { absent: absentValue }),
         };
@@ -1482,6 +1592,7 @@ function parseAssertions(
       reportUnknownKeys(candidate, RESPONSE_METADATA_EQUALS_ASSERTION_KEYS, assertionPath, issues);
       const request = readId(ownValue(candidate, "request"), `${assertionPath}.request`, issues);
       const headers = ownValue(candidate, "headers");
+      const optionalHeaders = ownValue(candidate, "optionalHeaders");
       const validHeaders =
         Array.isArray(headers) &&
         headers.length > 0 &&
@@ -1494,8 +1605,32 @@ function parseAssertions(
           path: `${assertionPath}.headers`,
           message: "must be unique stable lowercase response header names",
         });
+      else if (
+        optionalHeaders !== undefined &&
+        (!Array.isArray(optionalHeaders) ||
+          optionalHeaders.length === 0 ||
+          new Set(optionalHeaders).size !== optionalHeaders.length ||
+          !optionalHeaders.every(
+            (name) =>
+              typeof name === "string" &&
+              ["content-length", "content-type", "vary"].includes(name) &&
+              (headers as string[]).includes(name),
+          ))
+      )
+        issues.push({
+          path: `${assertionPath}.optionalHeaders`,
+          message: "must be unique selected content-length, content-type, or vary headers",
+        });
       else if (id !== undefined && request !== undefined)
-        assertion = { id, kind, request, headers: [...headers] as string[] };
+        assertion = {
+          id,
+          kind,
+          request,
+          headers: [...headers] as string[],
+          ...(optionalHeaders === undefined
+            ? {}
+            : { optionalHeaders: [...optionalHeaders] as string[] }),
+        };
     } else if (kind === "json-equals") {
       reportUnknownKeys(candidate, JSON_EQUALS_ASSERTION_KEYS, assertionPath, issues);
       const value = ownValue(candidate, "value");
@@ -1989,24 +2124,6 @@ function readStringArray(
   if (new Set(result).size !== result.length)
     issues.push({ path, message: "must not contain duplicates" });
   return result;
-}
-
-function parseStringMap(
-  value: unknown,
-  path: string,
-  issues: ManifestIssue[],
-): Readonly<Record<string, string>> | undefined {
-  if (!isPlainRecord(value)) {
-    issues.push({ path, message: "must be a plain record" });
-    return undefined;
-  }
-  const result: Record<string, string> = Object.create(null) as Record<string, string>;
-  for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry !== "string")
-      issues.push({ path: `${path}.${key}`, message: "must be a string" });
-    else result[key] = entry;
-  }
-  return Object.keys(result).length === Object.keys(value).length ? result : undefined;
 }
 
 function readNonemptyString(

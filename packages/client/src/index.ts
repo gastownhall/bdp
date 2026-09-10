@@ -606,7 +606,44 @@ async function readBoundedJson(
     throw new ResponseBodyFormatError("response body was not valid JSON", { cause: error });
   }
   assertJsonComplexity(value, limits);
+  assertUniqueJsonMemberNames(text);
   return value;
+}
+
+/** Native JSON.parse has already validated syntax; retain raw spelling only to detect
+ * duplicate decoded names that its object construction necessarily discards.
+ * One forward scan skips value strings and tracks names separately for each object.
+ */
+function assertUniqueJsonMemberNames(text: string): void {
+  const containers: ({ readonly names: Set<string>; expectsName: boolean } | null)[] = [];
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === '"') {
+      const start = index;
+      index += 1;
+      while (text[index] !== '"') {
+        if (text[index] === "\\") index += 1;
+        index += 1;
+      }
+      const object = containers.at(-1);
+      if (object?.expectsName) {
+        const name = JSON.parse(text.slice(start, index + 1)) as string;
+        if (object.names.has(name))
+          throw new ResponseBodyFormatError("response body contained duplicate JSON member names");
+        object.names.add(name);
+        object.expectsName = false;
+      }
+    } else if (character === "{") {
+      containers.push({ names: new Set(), expectsName: true });
+    } else if (character === "[") {
+      containers.push(null);
+    } else if (character === "}" || character === "]") {
+      containers.pop();
+    } else if (character === ",") {
+      const object = containers.at(-1);
+      if (object !== undefined && object !== null) object.expectsName = true;
+    }
+  }
 }
 
 function isResponseBodyError(error: unknown): boolean {

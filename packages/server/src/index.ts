@@ -55,6 +55,7 @@ import {
   ReadPaginationError,
   type ReadPaginationOptions,
 } from "./read-pagination.js";
+import { applyReadHttpSemantics } from "./read-http.js";
 import {
   ReadSelectorError,
   type ReadSelectorLimits,
@@ -778,7 +779,7 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
   if (!verifiedReadServers.has(server)) {
     throw new TypeError("createHttpHandler requires a server created by createReadServer");
   }
-  return async (request) => {
+  const route: HttpHandler = async (request) => {
     try {
       if (request.method !== "GET" && request.method !== "HEAD") {
         return {
@@ -848,19 +849,22 @@ export function createHttpHandler(server: ReadServer): HttpHandler {
       throw error;
     }
   };
+  return async (request) => applyReadHttpSemantics(request, await route(request));
 }
 
 function jsonResponse(body: unknown): HttpResponse {
   return {
     status: 200,
-    headers: new Headers({ "content-type": "application/json" }),
+    headers: new Headers({
+      "content-type": "application/json",
+      "cache-control": "private, no-store",
+    }),
     body,
   };
 }
 
 function scopeDataResponse(operation: ReadRequest, body: unknown): HttpResponse {
   const response = jsonResponse(body);
-  response.headers.set("cache-control", "private, no-store");
   if (
     operation.kind === "resource" &&
     operation.resource !== "type" &&

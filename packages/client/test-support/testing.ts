@@ -80,7 +80,6 @@ export function createBdpClientScenarioActionExecutor(
         requireEmptyInput(execution.input);
         return observeResourceWithoutTypeResolution(execution);
       case "malformed-success-response":
-        requireEmptyInput(execution.input);
         return observeMalformedSuccessResponse(execution);
       case "disconnect-recovery":
         requireEmptyInput(execution.input);
@@ -575,6 +574,7 @@ async function observeResourceWithoutTypeResolution(execution: BdpClientScenario
 }
 
 async function observeMalformedSuccessResponse(execution: BdpClientScenarioActionExecution) {
+  const properties = malformedResponseProperties(execution.input);
   const scope = execution.scope as AbsoluteHttpUrl;
   const serviceDescription = new URL("bdp.json", scope).href;
   const beads = new URL("beads/", scope).href;
@@ -599,9 +599,15 @@ async function observeMalformedSuccessResponse(execution: BdpClientScenarioActio
     }
     if (url === beads) {
       readRequests += 1;
-      return responseAt(url, "{not-json", {
-        headers: { "content-type": "application/json" },
-      });
+      return responseAt(
+        url,
+        properties === undefined
+          ? "{not-json"
+          : `{"items":[{"id":${JSON.stringify(`${beads}a`)},"type":"https://work.example/types/task","revision":"r1","properties":${properties}}],"next":null}`,
+        {
+          headers: { "content-type": "application/json" },
+        },
+      );
     }
     otherRequests += 1;
     return responseAt(url, null, { status: 404 });
@@ -622,6 +628,25 @@ async function observeMalformedSuccessResponse(execution: BdpClientScenarioActio
     };
   } finally {
     await client.close();
+  }
+}
+
+function malformedResponseProperties(input: unknown): string | undefined {
+  if (!isPlainRecord(input)) throw new Error("malformed-response action input was invalid");
+  if (Reflect.ownKeys(input).length === 0) return undefined;
+  if (Reflect.ownKeys(input).length !== 1)
+    throw new Error("malformed-response action input was invalid");
+  switch (input.variant) {
+    case "duplicate-names":
+      return String.raw`{"a":1,"\u0061":2}`;
+    case "non-scalar-value":
+      return String.raw`{"nested":["\ud800"]}`;
+    case "non-scalar-name":
+      return String.raw`{"nested":{"\udc00":"valid"}}`;
+    case "scalar-control":
+      return String.raw`{"\ud83d\ude00":[{"a":1},{"a":2}],"value":"\ud83d\ude00"}`;
+    default:
+      throw new Error("malformed-response action input was invalid");
   }
 }
 

@@ -469,7 +469,14 @@ function snapshotProtocolRecord(value: unknown, path: string): Readonly<Record<s
       throw new ProtocolArtifactValidationError(
         `${path} must not exceed depth ${TYPE_VALUE_MAX_DEPTH}`,
       );
-    if (entry === null || typeof entry === "string" || typeof entry === "boolean") return entry;
+    if (typeof entry === "string") {
+      if (!entry.isWellFormed())
+        throw new ProtocolArtifactValidationError(
+          `${entryPath} must contain Unicode scalar values`,
+        );
+      return entry;
+    }
+    if (entry === null || typeof entry === "boolean") return entry;
     if (typeof entry === "number") {
       if (Number.isFinite(entry)) return entry;
       throw new ProtocolArtifactValidationError(`${entryPath} must contain a finite JSON number`);
@@ -500,7 +507,13 @@ function snapshotProtocolRecord(value: unknown, path: string): Readonly<Record<s
         );
       return Object.freeze(
         Object.fromEntries(
-          keys.map((key) => [key, snapshot(record[key], `${entryPath}.${key}`, depth + 1)]),
+          keys.map((key) => {
+            if (!key.isWellFormed())
+              throw new ProtocolArtifactValidationError(
+                `${entryPath} member names must contain Unicode scalar values`,
+              );
+            return [key, snapshot(record[key], `${entryPath}.${key}`, depth + 1)];
+          }),
         ),
       );
     } finally {

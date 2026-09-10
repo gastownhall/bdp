@@ -71,6 +71,7 @@ export {
 } from "./result-state.js";
 export {
   profileIncludes,
+  retiredScenarioIds,
   selectApplicableScenariosForProfile,
   selectDiagnosticScenariosForProfile,
   selectNormativeScenariosForProfile,

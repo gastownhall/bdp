@@ -1,4 +1,9 @@
 import {
+  observedEntityTag,
+  ObservedEntityTagError,
+  resolveScenarioHeaders,
+} from "./conditional-header.js";
+import {
   assertFactoryCreatedArtifactBundle,
   type ConformanceArtifactBundle,
   type ConformanceFixture,
@@ -832,12 +837,22 @@ async function runRequest(
   priorResponses: Map<string, ComparableResponse>,
 ): Promise<void> {
   const url = resolveTarget(request, bindings, scope);
+  let headers: Readonly<Record<string, string>>;
+  try {
+    headers = resolveScenarioHeaders(request.headers ?? {}, priorResponses);
+  } catch (error) {
+    if (error instanceof ObservedEntityTagError)
+      throw new ScenarioObservationFailure(error.message, { cause: error });
+    throw new ConformanceRunnerError("conditional request header materialization failed", {
+      cause: error,
+    });
+  }
   const observed: ObservedExchange = {
     request: {
       id: request.id,
       method: request.method,
       url: redactUrl(url),
-      headers: redactHeaders(request.headers ?? {}),
+      headers: redactHeaders(headers),
     },
     assertions: [],
   };
@@ -862,7 +877,7 @@ async function runRequest(
         execute({
           method: request.method,
           url,
-          headers: request.headers ?? {},
+          headers,
           signal: requestSignal,
           ...(rawRequestTarget === undefined ? {} : { rawRequestTarget }),
         }),
@@ -974,7 +989,7 @@ async function runRequest(
         scope,
         runProfile,
         priorResponses,
-        request.headers ?? {},
+        headers,
       ),
   );
   exchanges[exchanges.length - 1] = { ...next, assertions: outcomes };
@@ -1126,6 +1141,36 @@ function evaluateAssertion(
         actual === assertion.equals,
         `header '${assertion.name}' did not equal the expected value`,
       );
+    if (assertion.equalsResponse !== undefined) {
+      const previous = priorResponses.get(assertion.equalsResponse);
+      if (previous === undefined)
+        throw new ConformanceRunnerError("ETag comparison requires an earlier response");
+      let expected: string;
+      try {
+        expected = observedEntityTag(previous.headers.etag);
+      } catch (error) {
+        if (error instanceof ObservedEntityTagError)
+          throw new ScenarioObservationFailure(error.message, { cause: error });
+        throw error;
+      }
+      return outcome(
+        assertion.id,
+        actual === expected,
+        "ETag did not equal the earlier response validator",
+      );
+    }
+    if (assertion.presentIfResponse !== undefined) {
+      const previous = priorResponses.get(assertion.presentIfResponse);
+      if (previous === undefined)
+        throw new ConformanceRunnerError("304 metadata comparison requires an earlier response");
+      return outcome(
+        assertion.id,
+        previous.status === 200 &&
+          response.status === 304 &&
+          (previous.headers[assertion.name] === undefined || actual !== undefined),
+        "304 must retain metadata supplied on the earlier successful response",
+      );
+    }
     if (assertion.equalsBinding !== undefined) {
       const bound = (fixture.bindings as Readonly<Record<string, unknown>>)[
         assertion.equalsBinding
@@ -1198,7 +1243,10 @@ function evaluateAssertion(
     const headersMatch = assertion.headers.every((name) => {
       const prior = expected.headers[name];
       const current = response.headers[name];
-      return current === prior;
+      return (
+        current === prior ||
+        (current === undefined && assertion.optionalHeaders?.includes(name) === true)
+      );
     });
     return outcome(
       assertion.id,
@@ -2216,6 +2264,8 @@ function isHttpUrl(value: string): boolean {
 
 const REPORT_HEADER_NAMES = new Set([
   "accept",
+  "if-match",
+  "if-none-match",
   "accept-encoding",
   "accept-language",
   "access-control-allow-credentials",

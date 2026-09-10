@@ -1,0 +1,197 @@
+{
+  "fixtureVersion": 1,
+  "id": "transactional-snapshots",
+  "description": "Two snapshot manifests: the timeline's pos-42 manifest, a closed projection whose ledger is empty because nothing had been erased, and a pos-47 manifest for a replica that resnapshots after the three erasures, whose ledger carries every record the view received so that the replica scrubs whatever it still holds from before. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "snapshot-at-pos-42",
+      "condition": "blocks-3 targets the in-Scope task-41, which the beads stream therefore carries; the projection is closed. The authority also holds the unowned Link links/hidden-incident from an invisible Bead to task-41; view-a hides that Link and its source. Their incidence on visible task-41 does not add either to this snapshot.",
+      "request": {
+        "method": "GET",
+        "target": "snapshot",
+        "headers": {
+          "accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-42"
+        },
+        "schema": "#/$defs/snapshotManifest",
+        "body": {
+          "id": "https://beads.example/acme/snapshot?snapshot=snapshot-42",
+          "scope": "https://beads.example/acme/",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "scopePosition": "pos-42",
+          "checkpoint": "ckpt-42",
+          "expiresAt": "2026-09-07T19:22:00Z",
+          "erasures": [],
+          "beads": {
+            "items": [
+              {
+                "id": "https://beads.example/acme/beads/task-41",
+                "type": "https://work.example/types/task",
+                "revision": "task-41-r3",
+                "properties": {
+                  "title": "Land the Read+Update wire",
+                  "status": "closed"
+                }
+              },
+              {
+                "id": "https://beads.example/acme/beads/task-42",
+                "type": "https://work.example/types/task",
+                "revision": "task-42-r7",
+                "properties": {
+                  "title": "Specify BDP mutation",
+                  "status": "open"
+                }
+              }
+            ],
+            "next": null
+          },
+          "links": {
+            "items": [
+              {
+                "id": "https://beads.example/acme/links/blocks-3",
+                "type": "https://work.example/types/blocks",
+                "revision": "blocks-3-r1",
+                "source": "https://beads.example/acme/beads/task-42",
+                "target": "https://beads.example/acme/beads/task-41",
+                "properties": {}
+              }
+            ],
+            "next": null
+          }
+        }
+      }
+    },
+    {
+      "id": "snapshot-at-pos-47",
+      "condition": "After the three erasures: the live state carries only the surviving Resources, and the ledger carries the three records in position order.",
+      "request": {
+        "method": "GET",
+        "target": "snapshot",
+        "headers": {
+          "accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store",
+          "bdp-scope-epoch": "epoch-1",
+          "bdp-authorization-view": "view-a",
+          "bdp-scope-position": "pos-47"
+        },
+        "schema": "#/$defs/snapshotManifest",
+        "body": {
+          "id": "https://beads.example/acme/snapshot?snapshot=snapshot-47",
+          "scope": "https://beads.example/acme/",
+          "scopeEpoch": "epoch-1",
+          "authorizationView": "view-a",
+          "scopePosition": "pos-47",
+          "checkpoint": "ckpt-47",
+          "expiresAt": "2026-09-07T19:40:00Z",
+          "erasures": [
+            {
+              "subject": "https://beads.example/acme/beads/task-42",
+              "revision": "task-42-r7",
+              "digest": {
+                "scheme": "sha-256-jcs",
+                "value": "5c9db2f807bbed90617ec1a01f3c4c86e44967c703bf6e480ca97c2ce4fae832"
+              }
+            },
+            {
+              "subject": "https://beads.example/acme/beads/task-42",
+              "revision": "task-42-r8",
+              "digest": {
+                "scheme": "sha-256-jcs",
+                "value": "f51ab17bca9039a933d2780986bbc02d3efacae2e4dc372c9c26fe3646543677"
+              }
+            },
+            {
+              "subject": "https://beads.example/acme/links/rel-5",
+              "revision": "rel-5-r1",
+              "digest": {
+                "scheme": "sha-256-jcs",
+                "value": "818526cfc51ba7e4efcb8b77e78b97f570a19d90411e4bfb8984baa947bfa784"
+              }
+            }
+          ],
+          "beads": {
+            "items": [
+              {
+                "id": "https://beads.example/acme/beads/dec-9",
+                "type": "https://work.example/types/decision",
+                "revision": "dec-9-r3",
+                "attribution": {
+                  "principal": "human:donna",
+                  "status": "claimed"
+                },
+                "properties": {
+                  "title": "Adopt owned Links",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              },
+              {
+                "id": "https://beads.example/acme/beads/task-41",
+                "type": "https://work.example/types/task",
+                "revision": "task-41-r3",
+                "properties": {
+                  "title": "Land the Read+Update wire",
+                  "status": "closed"
+                }
+              },
+              {
+                "id": "https://beads.example/acme/beads/task-43",
+                "type": "https://work.example/types/task",
+                "revision": "task-43-r2",
+                "properties": {
+                  "title": "Draft the receipt schema",
+                  "status": "open"
+                }
+              },
+              {
+                "id": "https://beads.example/acme/beads/task-44",
+                "type": "https://work.example/types/task",
+                "revision": "task-44-r1",
+                "properties": {
+                  "title": "Draft the erasure ledger",
+                  "status": "open"
+                }
+              }
+            ],
+            "next": null
+          },
+          "links": {
+            "items": [
+              {
+                "id": "https://beads.example/acme/links/2d4f",
+                "type": "https://work.example/types/relates",
+                "revision": "2d4f-r1",
+                "source": "https://beads.example/acme/beads/task-43",
+                "target": {
+                  "uri": "https://github.example/issues/123",
+                  "revision": "8f0e2b"
+                },
+                "properties": {}
+              }
+            ],
+            "next": null
+          }
+        }
+      }
+    }
+  ]
+}
