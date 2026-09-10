@@ -5,6 +5,7 @@ import {
   parseReadUpdateMutationResult,
   parseReadUpdateProblem,
   parseTypeDescriptor,
+  stringifyJsonValue,
   type TypeDescriptor,
 } from "@bdp/protocol";
 import {
@@ -104,8 +105,10 @@ function fixture(descriptors: readonly TypeDescriptor[] = [beadDescriptor(), lin
     input: unknown,
     overrides: Partial<ResourceEvaluationOptions> = {},
   ) {
-    const parsed = parseReadUpdateRequest(operation, JSON.stringify(input));
-    const admission = admitReadUpdateOperationNumbers(parsed);
+    const parsed = parseReadUpdateRequest(operation, stringifyJsonValue(input));
+    const admission = admitReadUpdateOperationNumbers(parsed, {
+      diagnostic: ({ pointer }) => ({ message: "inadmissible number", instanceLocation: pointer }),
+    });
     if (!admission.ok) throw new Error("test input numbers must be admitted");
     const saved = {
       records: new Map(records),
@@ -228,6 +231,12 @@ describe("pure member Resource evaluation", () => {
       '{"bead":"beads/a","change":[{"op":"replace","path":"/n","value":1e0},{"op":"replace","path":"/zero","value":-0.0},{"op":"replace","path":"/nested","value":{"b":[2.0],"a":1}}],"changeContext":{"message":"ignored no-op"}}';
     const admitted = admitReadUpdateOperationNumbers(
       parseReadUpdateRequest("updateBeadProperties", raw),
+      {
+        diagnostic: ({ pointer }) => ({
+          message: "inadmissible number",
+          instanceLocation: pointer,
+        }),
+      },
     );
     if (!admitted.ok) throw new Error("admissible test numbers");
     const result = evaluateResourceMutation(
@@ -774,5 +783,160 @@ describe("owned Link and Scope aggregate effects", () => {
         { maximumEndpointMultiplicity },
       ).effect,
     ).toBe("success");
+  });
+});
+
+describe("deep admitted Resource round trips", () => {
+  it.each([256, 12_000])("creates, reads, preserves no-ops and patches at depth %i", (depth) => {
+    const f = fixture();
+    const nestedText = `${"[1,".repeat(depth)}{"n":7}${"]".repeat(depth)}`;
+    const nested: unknown = JSON.parse(nestedText);
+    if (depth > 1_000) expect(() => JSON.stringify(nested)).toThrow(RangeError);
+    const created = f.createBead("deep", { nested });
+    expect(created.effect).toBe("success");
+    const before = f.records.get("beads/deep");
+    expect(before?.bodyJson).toContain(`"properties":{"nested":${nestedText}}`);
+    const revision = f.body("beads/deep").revision;
+    const noop = f.execute("updateBeadProperties", {
+      bead: "beads/deep",
+      change: [{ op: "replace", path: "", value: { nested } }],
+    });
+    expect(noop.effect).toBe("success");
+    expect(noop.changed).toEqual([]);
+    expect(f.body("beads/deep").revision).toBe(revision);
+    const path = `/nested${"/1".repeat(depth)}/n`;
+    const updated = f.execute("updateBeadProperties", {
+      bead: "beads/deep",
+      expectedRevision: revision,
+      change: [{ op: "replace", path, value: 8 }],
+    });
+    expect(updated.effect).toBe("success");
+    expect(f.body("beads/deep").revision).not.toBe(revision);
+    expect(f.records.get("beads/deep")?.bodyJson).toContain(
+      `"properties":{"nested":${nestedText.replace('{"n":7}', '{"n":8}')}}`,
+    );
+    let cursor = f.body("beads/deep").properties.nested;
+    for (let i = 0; i < depth; i++) {
+      if (!Array.isArray(cursor)) throw new Error(`missing depth ${i}`);
+      expect(cursor[0]).toBe(1);
+      cursor = cursor[1];
+    }
+    expect(cursor).toEqual({ n: 8 });
+    const retained = f.records.get("beads/deep")?.bodyJson;
+    failure(
+      f.execute(
+        "updateBeadProperties",
+        { bead: "beads/deep", change: [{ op: "add", path: "/small", value: true }] },
+        { limits: { ...f.options.limits, propertiesBytes: 100 } },
+      ),
+      "limit-exceeded",
+    );
+    expect(f.records.get("beads/deep")?.bodyJson).toBe(retained);
+  });
+  it("keeps deep first-class and inline owned Link bodies equal across read/update/delete", () => {
+    const f = fixture([
+      beadDescriptor({ ownsOutgoing: { [linkType]: { max: 2 } } }),
+      linkDescriptor(),
+    ]);
+    f.createBead("a");
+    f.createBead("b");
+    const depth = 12_000;
+    const nested: unknown = JSON.parse(`${"[1,".repeat(depth)}0${"]".repeat(depth)}`);
+    expect(f.createLink("deep", "beads/a", "beads/b", { properties: { nested } }).effect).toBe(
+      "success",
+    );
+    const source = f.body("beads/a");
+    if (!("ownedLinks" in source)) throw new Error("expected owned Link source");
+    expect(stringifyJsonValue(source.ownedLinks?.[linkType]?.[0])).toBe(
+      f.records.get("links/deep")?.bodyJson,
+    );
+    const oldRevision = f.body("links/deep").revision;
+    expect(
+      f.execute("updateLinkProperties", {
+        link: "links/deep",
+        change: [{ op: "replace", path: "", value: { nested } }],
+      }).changed,
+    ).toEqual([]);
+    expect(f.body("links/deep").revision).toBe(oldRevision);
+    expect(
+      f.execute("updateLinkProperties", {
+        link: "links/deep",
+        change: [{ op: "add", path: "/changed", value: true }],
+      }).effect,
+    ).toBe("success");
+    const updatedSource = f.body("beads/a");
+    if (!("ownedLinks" in updatedSource)) throw new Error("expected source");
+    expect(stringifyJsonValue(updatedSource.ownedLinks?.[linkType]?.[0])).toBe(
+      f.records.get("links/deep")?.bodyJson,
+    );
+    expect(f.execute("deleteLink", { link: "links/deep" }).effect).toBe("success");
+    expect(f.body("beads/a")).toMatchObject({ ownedLinks: { [linkType]: [] } });
+  });
+});
+
+describe("native S2 council corrections", () => {
+  it("requires at least one local endpoint with either direction allowed", () => {
+    const type = linkDescriptor({
+      source: { conformsTo: [], external: "opaque" },
+      target: { conformsTo: [], external: "opaque" },
+    });
+    const f = fixture([beadDescriptor(), type]);
+    f.createBead("a");
+    failure(f.createLink("external-only", "urn:source", "urn:target"), "validation-failed");
+    expect(f.records.has("links/external-only")).toBe(false);
+    expect(f.createLink("local-source", "beads/a", "urn:target").effect).toBe("success");
+    expect(f.createLink("local-target", "urn:source", "beads/a").effect).toBe("success");
+  });
+  it.each([
+    [[{ op: "replace", path: "", value: { n: 2 } }], true],
+    [
+      [
+        { op: "remove", path: "" },
+        { op: "add", path: "", value: { n: 2 } },
+      ],
+      true,
+    ],
+    [
+      [
+        { op: "remove", path: "" },
+        { op: "replace", path: "", value: { n: 2 } },
+      ],
+      false,
+    ],
+    [
+      [
+        { op: "remove", path: "" },
+        { op: "remove", path: "" },
+        { op: "add", path: "", value: { n: 2 } },
+      ],
+      false,
+    ],
+    [
+      [
+        { op: "replace", path: "", value: null },
+        { op: "replace", path: "", value: { n: 2 } },
+      ],
+      true,
+    ],
+    [
+      [
+        { op: "replace", path: "", value: null },
+        { op: "remove", path: "" },
+        { op: "add", path: "", value: { n: 2 } },
+      ],
+      true,
+    ],
+  ])("tracks root existence independently of JSON null %#", (change, valid) => {
+    const f = fixture();
+    f.createBead("a", { n: 1 });
+    const before = f.records.get("beads/a")?.bodyJson;
+    const result = f.execute("updateBeadProperties", { bead: "beads/a", change });
+    if (valid) {
+      expect(result.effect).toBe("success");
+      expect(f.body("beads/a").properties).toEqual({ n: 2 });
+    } else {
+      failure(result, "validation-failed");
+      expect(f.records.get("beads/a")?.bodyJson).toBe(before);
+    }
   });
 });

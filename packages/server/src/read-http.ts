@@ -1,3 +1,4 @@
+import { stringifyJsonValue } from "@bdp/protocol";
 import type { HttpResponse } from "./index.js";
 
 /** Apply shared HTTP rules only after routing, authorization and result validation.
@@ -29,7 +30,7 @@ export function applyReadHttpSemantics(request: Request, response: HttpResponse)
   // defensive strip. HEAD has GET metadata, including the serialized length.
   if (request.method === "HEAD" && selected.body !== undefined) {
     const headers = new Headers(selected.headers);
-    headers.set("content-length", String(Buffer.byteLength(JSON.stringify(selected.body))));
+    headers.set("content-length", String(Buffer.byteLength(stringifyJsonValue(selected.body))));
     return { status: selected.status, headers };
   }
   return selected;

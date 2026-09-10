@@ -24,6 +24,7 @@ import {
   parseReadUpdateProblem,
   parseTypeDescriptor,
   referenceUri,
+  stringifyJsonValue,
 } from "@bdp/protocol";
 
 export type ResourceKind = "bead" | "link";
@@ -32,13 +33,13 @@ export type ResourceOperation = Exclude<keyof ReadUpdateInputs, "putAlias" | "de
 export type ResourceMutation = {
   [K in ResourceOperation]: { readonly operation: K; readonly input: ReadUpdateInputs[K] };
 }[ResourceOperation];
-export interface EvaluatorStoredResource {
+export type EvaluatorStoredResource = {
   readonly id: string;
-  readonly kind: ResourceKind;
   readonly bodyJson: string;
-  readonly source?: string;
-  readonly target?: string;
-}
+} & (
+  | { readonly kind: "bead"; readonly source?: never; readonly target?: never }
+  | { readonly kind: "link"; readonly source: string; readonly target: string }
+);
 export type ResourceAllocation = string | { readonly kind: "allocation-unsafe" };
 /** Structural subset of the single S6 owned-member transaction. All IDs and
  * endpoint indexes are normalized Scope-relative IDs or opaque external URIs.
@@ -224,9 +225,6 @@ function storedRecord(stored: EvaluatorStoredResource, scope: string): ResourceR
     throw new Error("stored Resource identity differs from its index");
   return record;
 }
-function kind(record: ResourceRecord): ResourceKind {
-  return "source" in record ? "link" : "bead";
-}
 
 /** An iterative RFC6902 value comparison over already-admitted numbers. */
 function equal(left: unknown, right: unknown): boolean {
@@ -309,6 +307,8 @@ function patch(
             .split("/")
             .map((token) => token.replace(/~1/g, "/").replace(/~0/g, "~"));
     if (tokens.length === 0) {
+      if (change.op !== "add" && result === undefined)
+        bad("Property Change target does not exist", options, change.path);
       if (change.op === "remove") result = undefined;
       else result = copy(change.value);
       continue;
@@ -390,6 +390,40 @@ export function evaluateResourceMutation(
     throw error;
   }
 }
+/** Shared current-view closure check for Resource and alias member evaluators.
+ * The caller supplies its validated canonical Scope and same-turn policy/store.
+ * A visible Bead includes every owned Link and its local endpoints; a visible
+ * Link includes its local endpoint Beads. This grants no mutation permission.
+ */
+export function isResourceVisible(
+  tx: Pick<ResourceTransaction, "resource">,
+  record: ResourceRecord,
+  scope: string,
+  policy: Pick<ResourceMutationPolicy, "canRead">,
+): boolean {
+  const pending: ResourceRecord[] = [record];
+  const seen = new Set<string>();
+  while (pending.length) {
+    const current = pending.pop();
+    if (!current || seen.has(current.id)) continue;
+    seen.add(current.id);
+    if (!policy.canRead(current)) return false;
+    const links = "source" in current ? [current] : Object.values(current.ownedLinks ?? {}).flat();
+    for (const link of links) {
+      if (!policy.canRead(link)) return false;
+      for (const ref of [link.source, link.target]) {
+        const uri = referenceUri(ref);
+        const id = local(scope, uri);
+        if (id !== undefined) {
+          const found = tx.resource(id);
+          if (found?.kind !== "bead") return false;
+          pending.push(storedRecord(found, scope));
+        }
+      }
+    }
+  }
+  return true;
+}
 function evaluate(
   tx: ResourceTransaction,
   mutation: ResourceMutation,
@@ -415,37 +449,12 @@ function evaluate(
     }
     return uri;
   };
-  const visible = (record: ResourceRecord): boolean => {
-    const pending: ResourceRecord[] = [record];
-    const seen = new Set<string>();
-    while (pending.length) {
-      const current = pending.pop();
-      if (!current || seen.has(current.id)) continue;
-      seen.add(current.id);
-      if (!options.policy.canRead(current)) return false;
-      const links =
-        "source" in current ? [current] : Object.values(current.ownedLinks ?? {}).flat();
-      for (const link of links) {
-        if (!options.policy.canRead(link)) return false;
-        for (const ref of [link.source, link.target]) {
-          const uri = referenceUri(ref);
-          const id = local(scope, uri);
-          if (id !== undefined) {
-            const found = tx.resource(id);
-            if (found?.kind !== "bead") return false;
-            pending.push(storedRecord(found, scope));
-          }
-        }
-      }
-    }
-    return true;
-  };
   const loadVisible = (uri: string, expected: ResourceKind): ResourceRecord => {
     const id = resourcePath(scope, uri, expected);
     const stored = id === undefined ? undefined : tx.resource(id);
     if (!stored || stored.kind !== expected) fail("resource-not-found");
     const record = storedRecord(stored, scope);
-    if (!visible(record)) fail("resource-not-found");
+    if (!isResourceVisible(tx, record, scope, options.policy)) fail("resource-not-found");
     return record;
   };
   let id: string;
@@ -539,6 +548,13 @@ function evaluate(
     else if (before && "source" in before)
       endpoints = { source: endpoint(before.source), target: endpoint(before.target) };
     if (!endpoints) throw new TypeError("Link endpoints required");
+    if (
+      !deleting &&
+      local(scope, referenceUri(endpoints.source)) === undefined &&
+      local(scope, referenceUri(endpoints.target)) === undefined
+    )
+      bad("a Link must have at least one in-Scope endpoint", options);
+
     if (operation === "createLink") {
       resolutions.push(
         { inputPointer: "/source", original: input.source, resolved: endpoints.source },
@@ -784,26 +800,28 @@ function evaluate(
   const writes: EvaluatorStoredResource[] = [];
   for (const record of [after, sourceAfter]) {
     if (!record) continue;
-    const bodyJson = JSON.stringify(record);
+    const bodyJson = stringifyJsonValue(record);
     if (
       (options.limits.propertiesBytes !== undefined &&
-        Buffer.byteLength(JSON.stringify(record.properties)) > options.limits.propertiesBytes) ||
+        Buffer.byteLength(stringifyJsonValue(record.properties)) >
+          options.limits.propertiesBytes) ||
       (options.limits.representationBytes !== undefined &&
         Buffer.byteLength(bodyJson) > options.limits.representationBytes)
     )
       fail("limit-exceeded");
-    if (!noOp)
-      writes.push({
-        id: local(scope, record.id) as string,
-        kind: kind(record),
-        bodyJson,
-        ...("source" in record
+    if (!noOp) {
+      const stored = { id: local(scope, record.id) as string, bodyJson };
+      writes.push(
+        "source" in record
           ? {
+              ...stored,
+              kind: "link",
               source: local(scope, referenceUri(record.source)) ?? referenceUri(record.source),
               target: local(scope, referenceUri(record.target)) ?? referenceUri(record.target),
             }
-          : {}),
-      });
+          : { ...stored, kind: "bead" },
+      );
+    }
   }
   const outcome: ReadUpdateMutationResult = deleting
     ? {

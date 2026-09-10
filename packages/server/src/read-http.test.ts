@@ -34,7 +34,13 @@ describe("shared Read HTTP semantics through the public server", () => {
   });
 
   function fixture(
-    options: { revision?: string; problem?: ReadProblem; fault?: Error; denied?: boolean } = {},
+    options: {
+      revision?: string;
+      problem?: ReadProblem;
+      fault?: Error;
+      denied?: boolean;
+      properties?: Record<string, unknown>;
+    } = {},
   ) {
     const calls: ScopeReadOperation[] = [];
     const controls = createPublicReadControls({
@@ -62,7 +68,7 @@ describe("shared Read HTTP semantics through the public server", () => {
             id: operation.id,
             type: TYPE,
             revision: options.revision ?? "rev-1",
-            properties: {},
+            properties: options.properties ?? {},
             ...(operation.resource === "link"
               ? { source: `${SCOPE}beads/a`, target: `${SCOPE}beads/b` }
               : {}),
@@ -70,6 +76,22 @@ describe("shared Read HTTP semantics through the public server", () => {
         }
         if (operation.kind === "properties")
           return scopePortSuccess({ updatedAt: "2099-01-01T00:00:00Z" } as never);
+        if (
+          options.properties &&
+          operation.kind === "collection" &&
+          operation.collection === "beads"
+        )
+          return scopePortSuccess({
+            items: [
+              {
+                id: `${SCOPE}beads/a`,
+                type: TYPE,
+                revision: "rev-1",
+                properties: options.properties,
+              },
+            ],
+            next: null,
+          } as never);
         return scopePortSuccess({ items: [], next: null } as never);
       },
     };
@@ -291,6 +313,65 @@ describe("shared Read HTTP semantics through the public server", () => {
       }
     },
   );
+
+  it("serves deep Resources and collections over real GET/HEAD with exact UTF-8 lengths", async () => {
+    const depth = 12_000;
+    const deep = `${"[1,".repeat(depth)}"é😀"${"]".repeat(depth)}`;
+    const properties = { deep: JSON.parse(deep) as unknown };
+    expect(() => JSON.stringify(properties)).toThrow(RangeError);
+    const { server } = fixture({ properties });
+    const errors: unknown[] = [];
+    const listener = createNodeHttpServer(server, { onError: (error) => errors.push(error) });
+    listeners.push(listener);
+    await listenNodeHttpServer(listener, {
+      host: "127.0.0.1",
+      port: 0,
+      onError: (error) => errors.push(error),
+    });
+    const address = listener.address();
+    if (address === null || typeof address === "string") throw new Error("No listener address");
+    const send = (method: "GET" | "HEAD", path: string) =>
+      new Promise<{
+        status: number;
+        body: string;
+        headers: import("node:http").IncomingHttpHeaders;
+      }>((resolve, reject) => {
+        const request = nodeRequest(
+          { host: "127.0.0.1", port: address.port, method, path: `/read-http/${path}` },
+          (response) => {
+            const chunks: Buffer[] = [];
+            response.on("data", (chunk: Buffer) => chunks.push(chunk));
+            response.on("error", reject);
+            response.on("end", () =>
+              resolve({
+                status: response.statusCode ?? 0,
+                headers: response.headers,
+                body: Buffer.concat(chunks).toString("utf8"),
+              }),
+            );
+          },
+        );
+        request.on("error", reject);
+        request.end();
+      });
+    const record = `{"id":"${SCOPE}beads/a","type":"${TYPE}","revision":"rev-1","properties":{"deep":${deep}}}`;
+    for (const [path, expected] of [
+      ["beads/a", record],
+      ["beads/", `{"items":[${record}],"next":null}`],
+    ]) {
+      if (path === undefined || expected === undefined) throw new Error("missing HTTP fixture");
+      const get = await send("GET", path);
+      const head = await send("HEAD", path);
+      expect(get.status).toBe(200);
+      expect(head.status).toBe(200);
+      expect(get.body).toBe(expected);
+      expect(head.body).toBe("");
+      expect(get.headers["content-length"]).toBe(String(Buffer.byteLength(expected)));
+      expect(head.headers["content-length"]).toBe(get.headers["content-length"]);
+      expect(head.headers.etag).toBe(get.headers.etag);
+    }
+    expect(errors).toEqual([]);
+  });
 
   it("preserves actual Node wire bodylessness, list headers and ordinary fault precedence", async () => {
     const options: { fault?: Error } = {};
