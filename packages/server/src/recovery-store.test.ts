@@ -5,6 +5,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  isKnownNetworkFilesystem,
   openRecoveryStore,
   type MemberDecision,
   type MemberTransaction,
@@ -75,6 +76,20 @@ afterEach(async () => {
 });
 
 describe("durable reference ownership and transaction interface", () => {
+  it.each([
+    ["darwin", 2, true], // Registered NFS VFS type, queried through getvfsbyname.
+    ["darwin", 26, false], // Observed local APFS; not a general qualification claim.
+    ["darwin", 0x6969, false], // A Linux magic value is not a Darwin type number.
+    ["linux", 0x6969, true],
+    ["linux", 0xff534d42, true],
+    ["linux", 0xfe534d42, true],
+    ["linux", 0x517b, true],
+    ["linux", 0xef53, false],
+    ["linux", 2, false],
+  ] as const)("classifies known network filesystems on %s type %s", (platform, type, expected) => {
+    expect(isKnownNetworkFilesystem(platform, type)).toBe(expected);
+  });
+
   it("asserts pinned runtime, takes real exclusive ownership, and releases only on close", () => {
     expect(process.version).toBe("v24.16.0");
     const dir = directory();
@@ -116,6 +131,27 @@ describe("durable reference ownership and transaction interface", () => {
         throw new Error("must not execute another owner");
       }),
     ).toMatchObject({ kind: "existing", state: { kind: "claimed" } });
+  });
+  it("snapshots keys before validation can mutate the caller's array", () => {
+    const store = open(directory(), true);
+    const keys = ["first", "second"];
+    const admission = store.admit("alice", keys, (states) => {
+      expect(states).toEqual([{ kind: "unknown" }, { kind: "unknown" }]);
+      keys[0] = "";
+      keys.push("extra");
+    });
+    expect(admission.keys).toEqual(["first", "second"]);
+    expect(admission.states).toHaveLength(admission.keys.length);
+    expect(Object.isFrozen(admission.keys)).toBe(true);
+    for (const key of ["first", "second"])
+      expect(store.read((tx) => tx.key("alice", key))).toEqual({
+        kind: "claimed",
+        attemptId: admission.attemptId,
+      });
+    for (const key of ["", "extra"])
+      expect(store.read((tx) => tx.key("alice", key))).toEqual({ kind: "unknown" });
+    expect(() => store.executeMember(admission, "extra", () => outcome())).toThrow("not in");
+    expect(() => store.admit("alice", [""])).toThrow("nonempty");
   });
   it("commits Resources, source version, policy and disposition together, preserving exact JSON text", () => {
     const dir = directory();

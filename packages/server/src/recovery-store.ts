@@ -154,6 +154,15 @@ function sqliteError(error: unknown): boolean {
   return error instanceof Error && "code" in error && String(error.code).startsWith("ERR_SQLITE");
 }
 
+/** Darwin f_type uses VFS type numbers (getvfsbyname); Linux uses magic values.
+ * Darwin NFS=2 is verified against libSystem's registered nfs type. Other
+ * filesystems still require deployment qualification: false is not approval.
+ */
+export function isKnownNetworkFilesystem(platform: NodeJS.Platform, type: number): boolean {
+  if (platform === "darwin") return type === 2;
+  return platform === "linux" && [0x6969, 0xff534d42, 0xfe534d42, 0x517b].includes(type);
+}
+
 /**
  * Local reference storage only. SQLite owns process exclusion and journal recovery;
  * the returned handle is ready only after a real exclusive startup write commits.
@@ -181,12 +190,7 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
   if (retention < dayMs) throw new Error("retention must preserve at least PT24H");
   const directory = path.resolve(options.directory);
   if (options.create !== undefined) mkdirSync(directory, { recursive: true, mode: 0o700 });
-  // Darwin NFS/SMB and Linux NFS/CIFS/SMB2. Other filesystems require deployment qualification.
-  if (
-    [0x6969, 0xff534d42, 0xfe534d42, 0x517b, 0x6e6673, 0x736d6266].includes(
-      statfsSync(directory).type,
-    )
-  )
+  if (isKnownNetworkFilesystem(process.platform, statfsSync(directory).type))
     throw new Error("network filesystem is unsupported");
   const filename = path.join(directory, "reference.sqlite");
   if (options.create !== undefined) closeSync(openSync(filename, "wx", 0o600));
@@ -481,26 +485,27 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       }
     },
     admit(principal, keys, validate) {
+      const carrierKeys = Object.freeze([...keys]);
       requireText(principal, "principal");
-      if (keys.length === 0 || new Set(keys).size !== keys.length)
+      if (carrierKeys.length === 0 || new Set(carrierKeys).size !== carrierKeys.length)
         throw new Error("carrier keys must be nonempty and unique");
-      for (const key of keys) requireText(key, "idempotency key");
+      for (const key of carrierKeys) requireText(key, "idempotency key");
       return transaction(() => {
-        const states = Object.freeze(keys.map((key) => keyState(principal, key)));
+        const states = Object.freeze(carrierKeys.map((key) => keyState(principal, key)));
         if (validate) rejectAsync(validate(states));
         const attemptId = randomUUID();
-        for (let index = 0; index < keys.length; index++)
+        for (let index = 0; index < carrierKeys.length; index++)
           if (states[index]?.kind === "unknown")
             run(
               "INSERT INTO key_state(principal,key,state,owner) VALUES (?,?,'claimed',?)",
               principal,
-              keys[index] as string,
+              carrierKeys[index] as string,
               attemptId,
             );
         const admission = Object.freeze({
           attemptId,
           principal,
-          keys: Object.freeze([...keys]),
+          keys: carrierKeys,
           states,
         });
         admissions.add(admission);
