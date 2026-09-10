@@ -17,6 +17,17 @@ describe("Read observation harness provenance", () => {
     },
   );
 
+  it.each(["packages/conformance/src/runner.ts", "packages/server/src/read-http.ts"])(
+    "does not fold separately owned runner/payload source %s into harness identity",
+    (changedSource) => {
+      const before = deriveReadHarnessBindings(read);
+      const after = deriveReadHarnessBindings((source) =>
+        source === changedSource ? Buffer.from("changed source") : read(source),
+      );
+      expect(after).toEqual(before);
+    },
+  );
+
   it("keeps target-specific matrix entry changes scoped to that matrix", () => {
     const before = deriveReadHarnessBindings(read);
     const after = deriveReadHarnessBindings((source) =>

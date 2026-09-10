@@ -1,4 +1,8 @@
-import { observedEntityTag, resolveScenarioHeaders } from "./conditional-header.js";
+import {
+  observedEntityTag,
+  ObservedEntityTagError,
+  resolveScenarioHeaders,
+} from "./conditional-header.js";
 import {
   assertFactoryCreatedArtifactBundle,
   type ConformanceArtifactBundle,
@@ -837,6 +841,8 @@ async function runRequest(
   try {
     headers = resolveScenarioHeaders(request.headers ?? {}, priorResponses);
   } catch (error) {
+    if (error instanceof ObservedEntityTagError)
+      throw new ScenarioObservationFailure(error.message, { cause: error });
     throw new ConformanceRunnerError("conditional request header materialization failed", {
       cause: error,
     });
@@ -1139,11 +1145,30 @@ function evaluateAssertion(
       const previous = priorResponses.get(assertion.equalsResponse);
       if (previous === undefined)
         throw new ConformanceRunnerError("ETag comparison requires an earlier response");
-      const expected = observedEntityTag(previous.headers.etag);
+      let expected: string;
+      try {
+        expected = observedEntityTag(previous.headers.etag);
+      } catch (error) {
+        if (error instanceof ObservedEntityTagError)
+          throw new ScenarioObservationFailure(error.message, { cause: error });
+        throw error;
+      }
       return outcome(
         assertion.id,
         actual === expected,
         "ETag did not equal the earlier response validator",
+      );
+    }
+    if (assertion.presentIfResponse !== undefined) {
+      const previous = priorResponses.get(assertion.presentIfResponse);
+      if (previous === undefined)
+        throw new ConformanceRunnerError("304 metadata comparison requires an earlier response");
+      return outcome(
+        assertion.id,
+        previous.status === 200 &&
+          response.status === 304 &&
+          (previous.headers[assertion.name] === undefined || actual !== undefined),
+        "304 must retain metadata supplied on the earlier successful response",
       );
     }
     if (assertion.equalsBinding !== undefined) {

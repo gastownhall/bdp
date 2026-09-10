@@ -8032,12 +8032,6 @@
               "kind": "header",
               "name": "cache-control",
               "equals": "private, no-store"
-            },
-            {
-              "id": "etag",
-              "kind": "header",
-              "name": "etag",
-              "equalsResponse": "control"
             }
           ]
         },
@@ -8069,12 +8063,6 @@
               "kind": "header",
               "name": "cache-control",
               "equals": "private, no-store"
-            },
-            {
-              "id": "etag",
-              "kind": "header",
-              "name": "etag",
-              "equalsResponse": "control"
             }
           ]
         },
@@ -8112,6 +8100,30 @@
               "kind": "header",
               "name": "etag",
               "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
             }
           ]
         },
@@ -8149,6 +8161,30 @@
               "kind": "header",
               "name": "etag",
               "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
             }
           ]
         },
@@ -8262,6 +8298,30 @@
               "kind": "header",
               "name": "etag",
               "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
             }
           ]
         },
@@ -8331,6 +8391,30 @@
               "kind": "header",
               "name": "etag",
               "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
             }
           ]
         },
@@ -8363,12 +8447,6 @@
               "kind": "header",
               "name": "cache-control",
               "equals": "private, no-store"
-            },
-            {
-              "id": "etag",
-              "kind": "header",
-              "name": "etag",
-              "equalsResponse": "control"
             }
           ]
         },
@@ -8410,6 +8488,30 @@
               "kind": "header",
               "name": "etag",
               "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
             }
           ]
         },
@@ -8447,6 +8549,30 @@
               "kind": "header",
               "name": "etag",
               "equalsResponse": "link-control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "link-control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "link-control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "link-control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "link-control"
             }
           ]
         },
@@ -8513,6 +8639,30 @@
               "kind": "header",
               "name": "etag",
               "absent": true
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "untagged-control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "untagged-control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "untagged-control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "untagged-control"
             }
           ]
         },
@@ -9512,6 +9662,7 @@
                 "content-type",
                 "content-length",
                 "etag",
+                "last-modified",
                 "vary",
                 "link"
               ],
@@ -9576,6 +9727,7 @@
                 "content-type",
                 "content-length",
                 "etag",
+                "last-modified",
                 "vary",
                 "link"
               ],

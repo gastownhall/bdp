@@ -12,10 +12,18 @@ export const CONDITIONAL_HEADER_FORMS: ReadonlySet<string> = new Set([
   "weak-list",
 ]);
 
+/** A target supplied no usable validator; distinct from an invalid manifest reference. */
+export class ObservedEntityTagError extends Error {
+  constructor() {
+    super("earlier response must contain exactly one valid ETag");
+    this.name = "ObservedEntityTagError";
+  }
+}
+
 /** Entity tags are opaque HTTP bytes: backslashes are not JSON escapes. */
 export function observedEntityTag(value: string | undefined): string {
   if (value === undefined || !/^(?:W\/)?"[\x21\x23-\x7e\x80-\xff]*"$/.test(value))
-    throw new Error("earlier response must contain exactly one valid ETag");
+    throw new ObservedEntityTagError();
   return value;
 }
 

@@ -389,6 +389,21 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#problem-details",
           "selectedText": "An implementation MUST respond to an unexpected internal server fault with a body-less `500 Internal Server Error`, MUST NOT include a BDP Problem body, and MUST keep internal fault details off the wire."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Existing authentication, authorization/non-disclosure, and other ordinary failures retain their handling; negotiation MUST NOT expose a hidden target or recursively renegotiate an error representation."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "Ordinary HTTP HEAD metadata rules, including permitted omissions, apply; BDP's explicitly required context/cache fields remain required."
         }
       ]
     },
@@ -774,6 +789,16 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#problem-details",
           "selectedText": "In every profile, an otherwise valid request whose `Accept` field\naccepts none of the endpoint's successful response media types MUST receive\na bodyless `406 Not Acceptable`, with no BDP problem code, family, or retry\nmember."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Existing authentication, authorization/non-disclosure, and other ordinary failures retain their handling; negotiation MUST NOT expose a hidden target or recursively renegotiate an error representation."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Ordinary HTTP media-range matching, specificity, and quality weights apply, including `q=0` exclusions; an endpoint offering JSON and SSE selects an acceptable supported representation when one exists."
         }
       ]
     },
@@ -787,6 +812,16 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
           "selectedText": "A successful read whose HTTP condition selects\n`304 Not Modified`, or a read whose precondition fails with\n`412 Precondition Failed`, MUST be bodyless and MUST NOT carry a BDP Problem\nbody."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "Required current Scope context and applicable cache fields remain required on these responses (ruled 2026-09-09, G4/G5)."
         }
       ]
     },
@@ -800,6 +835,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
           "selectedText": "HEAD retains the corresponding GET authorization, query, cursor, media\nnegotiation, and precondition decision and MUST send no response body."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conditional-reads-and-head",
+          "selectedText": "Ordinary HTTP HEAD metadata rules, including permitted omissions, apply; BDP's explicitly required context/cache fields remain required."
         }
       ]
     }

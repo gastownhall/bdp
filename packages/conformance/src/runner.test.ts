@@ -4381,7 +4381,7 @@ describe("runner observed ETag context", () => {
       expect(serializeConformanceReport(result)).not.toContain("opaque-validator");
       expect(serializeConformanceReport(result)).toContain("if-none-match");
     });
-    it.each([undefined, '"two", "tags"'])(
+    it.each([undefined, '"two", "tags"', "1234", 'w/"x"'])(
       `rejects missing/invalid source ETag before sending the dependent request (actions=${actions}): %s`,
       async (tag) => {
         let calls = 0;
@@ -4402,7 +4402,8 @@ describe("runner observed ETag context", () => {
           },
         });
         expect(calls).toBe(1);
-        expect(result.scenarios[0]?.state).toBe("harness-error");
+        expect(result.scenarios[0]?.state).toBe("fail");
+        expect(serializeConformanceReport(result)).toContain("exactly one valid ETag");
       },
     );
     it.each([undefined, '"different"'])(
@@ -4429,28 +4430,32 @@ describe("runner observed ETag context", () => {
         expect(result.scenarios[0]?.state).toBe("fail");
       },
     );
-    it(`rejects a comparison with missing source ETag (actions=${actions})`, async () => {
-      let calls = 0;
-      const result = await runConformanceMatrix({
-        ...etagInputs(actions, true),
-        scope: "https://scope.example/",
-        profile: "read",
-        seed: 0,
-        harness: harness(),
-        execute: async (request) => {
-          calls += 1;
-          return {
-            url: request.url,
-            status: calls === 1 ? 200 : 304,
-            headers: {},
-            bodyText: "",
-            bodyOctets: 0,
-          };
-        },
-      });
-      expect(calls).toBe(2);
-      expect(result.scenarios[0]?.state).toBe("harness-error");
-    });
+    it.each([undefined, '"two", "tags"', "1234", 'w/"x"'])(
+      `rejects a comparison with missing or malformed source ETag (actions=${actions}): %s`,
+      async (tag) => {
+        let calls = 0;
+        const result = await runConformanceMatrix({
+          ...etagInputs(actions, true),
+          scope: "https://scope.example/",
+          profile: "read",
+          seed: 0,
+          harness: harness(),
+          execute: async (request) => {
+            calls += 1;
+            return {
+              url: request.url,
+              status: calls === 1 ? 200 : 304,
+              headers: tag === undefined ? {} : { etag: tag },
+              bodyText: "",
+              bodyOctets: 0,
+            };
+          },
+        });
+        expect(calls).toBe(2);
+        expect(result.scenarios[0]?.state).toBe("fail");
+        expect(serializeConformanceReport(result)).toContain("exactly one valid ETag");
+      },
+    );
   }
 });
 
@@ -4531,4 +4536,142 @@ describe("HEAD metadata omission allowance", () => {
     });
     expect(result.scenarios[0]?.state).toBe(state);
   });
+});
+
+describe("conditional cache metadata presence", () => {
+  for (const name of ["date", "content-location", "vary", "expires"]) {
+    it.each([
+      { prior: "first", current: undefined, status: 304, state: "fail" },
+      { prior: "first", current: "later", status: 304, state: "pass" },
+      { prior: undefined, current: undefined, status: 304, state: "pass" },
+      { prior: undefined, current: "new", status: 304, state: "pass" },
+      { prior: "first", current: "first", status: 200, state: "fail" },
+    ])(
+      `checks conditional presence, not captured bytes, for ${name}: %j`,
+      async ({ prior, current, status, state }) => {
+        const base = {
+          family: "http",
+          method: "GET",
+          target: { binding: "scope" },
+          headers: {},
+          captures: [],
+        };
+        const options = actionInputs([
+          { ...base, id: "control", assertions: [{ id: "status", kind: "status", equals: 200 }] },
+          {
+            ...base,
+            id: "conditional",
+            assertions: [{ id: "metadata", kind: "header", name, presentIfResponse: "control" }],
+          },
+        ]);
+        let calls = 0;
+        const result = await runConformanceMatrix({
+          ...options,
+          scope: "https://scope.example/",
+          profile: "read",
+          seed: 0,
+          harness: harness(),
+          execute: async (request) => {
+            calls += 1;
+            const value = calls === 1 ? prior : current;
+            return {
+              url: request.url,
+              status: calls === 1 ? 200 : status,
+              headers: value === undefined ? {} : { [name]: value },
+              bodyText: "",
+              bodyOctets: 0,
+            };
+          },
+        });
+        expect(result.scenarios[0]?.state).toBe(state);
+      },
+    );
+  }
+});
+
+describe("checked-in HTTP observer corrections", () => {
+  const manifest = parseExecutableScenarioManifest(readManifest);
+  const conditional = requestScenario(
+    manifest.scenarios.find(({ id }) => id === "read.http.conditional-reads"),
+  );
+  const parity = requestScenario(
+    manifest.scenarios.find(({ id }) => id === "read.http.head-conditional-parity"),
+  );
+  for (const id of ["scope-not-modified-head", "scope-precondition-head"]) {
+    it.each([undefined, "changed", "unchanged"])(
+      `checks actual ${id} Last-Modified parity: %s`,
+      async (modified) => {
+        const authored = parity.requests.find((request) => request.id === id);
+        const comparison = authored?.assertions.find(
+          (assertion) => assertion.kind === "response-metadata-equals",
+        );
+        if (comparison?.kind !== "response-metadata-equals" || authored === undefined)
+          throw new Error("missing parity assertion");
+        const status = id === "scope-not-modified-head" ? 304 : 412;
+        const base = { family: "http", target: { binding: "scope" }, headers: {}, captures: [] };
+        const options = actionInputs([
+          {
+            ...base,
+            id: comparison.request,
+            method: "GET",
+            assertions: [{ id: "status", kind: "status", equals: status }],
+          },
+          { ...base, id, method: "HEAD", assertions: authored.assertions },
+        ]);
+        const result = await runConformanceMatrix({
+          ...options,
+          scope: "https://scope.example/",
+          profile: "read",
+          seed: 0,
+          harness: harness(),
+          execute: async (request) => ({
+            url: request.url,
+            status,
+            headers:
+              request.method === "GET"
+                ? { "last-modified": "unchanged" }
+                : modified === undefined
+                  ? {}
+                  : { "last-modified": modified },
+            bodyText: "",
+            bodyOctets: 0,
+          }),
+        });
+        expect(result.scenarios[0]?.state).toBe(modified === "unchanged" ? "pass" : "fail");
+      },
+    );
+  }
+  it.each(["weak-match-fails", "nonmatch-fails", "match-precedes-none"])(
+    "permits a bodyless 412 without ETag using actual %s assertions",
+    async (id) => {
+      const request = conditional.requests.find((request) => request.id === id);
+      if (request === undefined) throw new Error("missing conditional request");
+      const options = actionInputs([
+        {
+          family: "http",
+          id,
+          method: "GET",
+          target: { binding: "scope" },
+          headers: {},
+          captures: [],
+          assertions: request.assertions,
+        },
+      ]);
+      const result = await runConformanceMatrix({
+        ...options,
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        harness: harness(),
+        execute: async (request) => ({
+          url: request.url,
+          status: 412,
+          headers: { "cache-control": "private, no-store" },
+          bodyText: "",
+          bodyOctets: 0,
+        }),
+      });
+      expect(result.scenarios[0]?.state).toBe("pass");
+    },
+  );
 });

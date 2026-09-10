@@ -105,6 +105,8 @@ export type ScenarioAssertion =
       readonly equalsBinding?: string;
       /** Compare ETag bytes with an earlier response, even across different statuses. */
       readonly equalsResponse?: string;
+      /** On 304, require this RFC cache field when the earlier 200 supplied it; no value capture. */
+      readonly presentIfResponse?: string;
       readonly contains?: string;
       readonly absent?: boolean;
     }
@@ -317,6 +319,7 @@ const HEADER_ASSERTION_KEYS = new Set([
   "equals",
   "equalsBinding",
   "equalsResponse",
+  "presentIfResponse",
   "contains",
   "absent",
 ]);
@@ -1224,7 +1227,9 @@ function validateEarlierResponseAssertions(
         ? { field: "request", id: assertion.request }
         : assertion.kind === "header" && assertion.equalsResponse !== undefined
           ? { field: "equalsResponse", id: assertion.equalsResponse }
-          : undefined;
+          : assertion.kind === "header" && assertion.presentIfResponse !== undefined
+            ? { field: "presentIfResponse", id: assertion.presentIfResponse }
+            : undefined;
     if (reference !== undefined && !priorIds.has(reference.id))
       issues.push({
         path: `${path}[${index}].${reference.field}`,
@@ -1403,12 +1408,22 @@ function parseAssertions(
       const equalsValue = ownValue(candidate, "equals");
       const equalsBindingValue = ownValue(candidate, "equalsBinding");
       const equalsResponseValue = ownValue(candidate, "equalsResponse");
+      const presentIfResponseValue = ownValue(candidate, "presentIfResponse");
+      const responseId =
+        equalsResponseValue === undefined
+          ? undefined
+          : readId(equalsResponseValue, `${assertionPath}.equalsResponse`, issues);
+      const presenceResponseId =
+        presentIfResponseValue === undefined
+          ? undefined
+          : readId(presentIfResponseValue, `${assertionPath}.presentIfResponse`, issues);
       const containsValue = ownValue(candidate, "contains");
       const absentValue = ownValue(candidate, "absent");
       const alternatives = [
         equalsValue,
         equalsBindingValue,
         equalsResponseValue,
+        presentIfResponseValue,
         containsValue,
         absentValue,
       ].filter((entry) => entry !== undefined);
@@ -1421,7 +1436,7 @@ function parseAssertions(
         issues.push({
           path: assertionPath,
           message:
-            "header assertion must choose exactly one of equals, equalsBinding, equalsResponse, contains, or absent",
+            "header assertion must choose exactly one of equals, equalsBinding, equalsResponse, presentIfResponse, contains, or absent",
         });
       else if (equalsValue !== undefined && typeof equalsValue !== "string")
         issues.push({ path: `${assertionPath}.equals`, message: "must be a string" });
@@ -1434,15 +1449,20 @@ function parseAssertions(
           path: `${assertionPath}.equalsBinding`,
           message: "must be a binding identifier",
         });
-      else if (
-        equalsResponseValue !== undefined &&
-        (name !== "etag" ||
-          typeof equalsResponseValue !== "string" ||
-          !BINDING_REFERENCE_PATTERN.test(equalsResponseValue))
-      )
+      else if (equalsResponseValue !== undefined && (name !== "etag" || responseId === undefined))
         issues.push({
           path: `${assertionPath}.equalsResponse`,
           message: "must name an earlier response and may compare only ETag",
+        });
+      else if (
+        presentIfResponseValue !== undefined &&
+        (presenceResponseId === undefined ||
+          typeof name !== "string" ||
+          !["content-location", "date", "vary", "expires"].includes(name))
+      )
+        issues.push({
+          path: `${assertionPath}.presentIfResponse`,
+          message: "must name an earlier response and observe only conditional cache metadata",
         });
       else if (containsValue !== undefined && typeof containsValue !== "string")
         issues.push({ path: `${assertionPath}.contains`, message: "must be a string" });
@@ -1455,9 +1475,8 @@ function parseAssertions(
           name,
           ...(equalsValue === undefined ? {} : { equals: equalsValue }),
           ...(equalsBindingValue === undefined ? {} : { equalsBinding: equalsBindingValue }),
-          ...(equalsResponseValue === undefined
-            ? {}
-            : { equalsResponse: equalsResponseValue as string }),
+          ...(responseId === undefined ? {} : { equalsResponse: responseId }),
+          ...(presenceResponseId === undefined ? {} : { presentIfResponse: presenceResponseId }),
           ...(containsValue === undefined ? {} : { contains: containsValue }),
           ...(absentValue === undefined ? {} : { absent: absentValue }),
         };

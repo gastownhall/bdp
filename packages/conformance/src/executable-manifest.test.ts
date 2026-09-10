@@ -1230,13 +1230,18 @@ function expectIssues(value: unknown, expectedPaths: readonly string[]): void {
 }
 
 describe("conditional response references", () => {
-  function conditionalManifest(actions: boolean, headers: unknown, assertions: unknown = []) {
+  function conditionalManifest(
+    actions: boolean,
+    headers: unknown,
+    assertions: unknown = [],
+    controlId = "control",
+  ) {
     const base = manifest();
     const original = base.scenarios[0];
     const first = original?.requests[0];
     if (original === undefined || first === undefined) throw new Error("missing test scenario");
     const requests = [
-      { ...first, id: "control" },
+      { ...first, id: controlId },
       { ...first, id: "conditional", headers, assertions, captures: [] },
       { ...first, id: "future", captures: [] },
     ];
@@ -1254,6 +1259,51 @@ describe("conditional response references", () => {
     };
   }
   for (const actions of [false, true]) {
+    it("accepts digit-leading request IDs consistently for validator and presence references", () => {
+      expect(() =>
+        parseExecutableScenarioManifest(
+          conditionalManifest(
+            actions,
+            { "if-none-match": { etagFrom: "304-probe", form: "exact" } },
+            [
+              { id: "etag", kind: "header", name: "etag", equalsResponse: "304-probe" },
+              { id: "vary", kind: "header", name: "vary", presentIfResponse: "304-probe" },
+            ],
+            "304-probe",
+          ),
+        ),
+      ).not.toThrow();
+    });
+    it.each(["date", "content-location", "expires", "vary"])(
+      "accepts bounded 304 metadata-presence field %s",
+      (name) => {
+        expect(() =>
+          parseExecutableScenarioManifest(
+            conditionalManifest(actions, {}, [
+              { id: "presence", kind: "header", name, presentIfResponse: "control" },
+            ]),
+          ),
+        ).not.toThrow();
+      },
+    );
+    it.each([
+      { name: "etag", equalsResponse: "control..bad" },
+      { name: "etag", equalsResponse: "control-" },
+      { name: "etag", equalsResponse: 42 },
+      { name: "vary", presentIfResponse: "conditional" },
+      { name: "vary", presentIfResponse: "future" },
+      { name: "vary", presentIfResponse: "missing" },
+      { name: "vary", presentIfResponse: "control..bad" },
+      { name: "authorization", presentIfResponse: "control" },
+      { name: "etag", presentIfResponse: "control" },
+      { name: "vary", presentIfResponse: "control", absent: false },
+    ])("rejects malformed, forward or unbounded metadata reference %j", (assertion) => {
+      expect(() =>
+        parseExecutableScenarioManifest(
+          conditionalManifest(actions, {}, [{ id: "presence", kind: "header", ...assertion }]),
+        ),
+      ).toThrow(ManifestValidationError);
+    });
     it.each(["exact", "weak", "nonmatching", "exact-list", "weak-list"])(
       `accepts prior HTTP ETag form %s (actions=${actions})`,
       (form) => {
