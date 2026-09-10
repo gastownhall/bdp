@@ -204,6 +204,81 @@
           "next": null
         }
       }
+    },
+    {
+      "id": "sequence-allocation-before-admission",
+      "condition": "An actual positively established persistent repair-required allocation failure is known before admission of this fresh-key carrier. Nothing is admitted or executed. No broad preflight, wait, member-order bypass, or refusal of available retained duplicate outcomes is implied. This is the narrow direct409 exception, not a temporary inspection failure.",
+      "request": {
+        "method": "POST",
+        "target": "https://work.example/scope/operations/sequence",
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "createBead",
+              "idempotencyKey": "history-allocation-1",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "New decision"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "Content-Type": "application/problem+json",
+          "Cache-Control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "revision-allocation-unsafe",
+          "status": 409,
+          "retry": "after-state-change"
+        }
+      }
+    },
+    {
+      "id": "sequence-allocation-after-admission",
+      "condition": "The fresh-key member was admitted under its pending receipt, then positively established a persistent allocation conflict. It rolls back and retains a failed receipt; the carrier projects its problem into the200 sequence envelope. It neither changes to a direct409 nor retries the retained failure as a fresh execution.",
+      "request": {
+        "method": "POST",
+        "target": "https://work.example/scope/operations/sequence",
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "operation": "createBead",
+              "idempotencyKey": "history-allocation-1",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "New decision"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "Cache-Control": "private, no-store"
+        },
+        "schema": "#/$defs/transactionalSequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "revision-allocation-unsafe",
+              "status": 409,
+              "retry": "after-state-change",
+              "operationIndex": 0
+            }
+          ]
+        }
+      }
     }
   ]
 }

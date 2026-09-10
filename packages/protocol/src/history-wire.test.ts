@@ -5,6 +5,8 @@ import {
   HISTORY_VALUE_SCHEMA_REFS,
   HISTORY_WRITE_VALUE_SCHEMA_REFS,
   HistoryQueryError,
+  hasHistoryQueryIntent,
+  historyUnretainedProblem,
   parseChangeContext,
   parseChangeContextInput,
   parseHistoricalBeadRecord,
@@ -117,7 +119,6 @@ describe("History exact-address query syntax", () => {
     "view=versions&cursor=",
     "view=versions&limit=0",
     "view=versions&limit=1e2",
-    "view=versions&limit=9007199254740992",
   ])
     it(`refuses malformed or mixed ${query}`, () => {
       try {
@@ -138,10 +139,48 @@ describe("History exact-address query syntax", () => {
         expect((error as HistoryQueryError).code).toBe("resource-not-found");
       }
   });
+  it("keeps ordinary Read dispatch outside this dedicated parser", () => {
+    for (const query of [
+      "",
+      "view=properties",
+      "view=links",
+      "view=events",
+      "include=links&direction=both",
+      "limit=2&cursor=c",
+    ])
+      expect(hasHistoryQueryIntent(query), query).toBe(false);
+    for (const query of [
+      "revision=r",
+      "revision=",
+      "view=versions",
+      "view=properties&view=versions",
+      "revision=r&include=links",
+    ])
+      expect(hasHistoryQueryIntent(query), query).toBe(true);
+    expect(() => parseHistoryQuery("revision=r", false)).toThrow(HistoryQueryError);
+  });
+  it("preserves exact oversized positive limits for the authority's limit-exceeded decision", () => {
+    for (const limit of ["2000", "9007199254740992", "9007199254740993", "9".repeat(100)])
+      expect(parseHistoryQuery(`view=versions&limit=${limit}`, true)).toEqual({
+        kind: "versions",
+        limit,
+      });
+  });
+  it("uses form-query spaces and preserves an encoded literal plus", () => {
+    expect(parseHistoryQuery("revision=a+b", true)).toEqual({ kind: "revision", revision: "a b" });
+    expect(parseHistoryQuery("revision=a%20b", true)).toEqual({
+      kind: "revision",
+      revision: "a b",
+    });
+    expect(parseHistoryQuery("revision=a%2Bb", true)).toEqual({
+      kind: "revision",
+      revision: "a+b",
+    });
+  });
   it("parses the separate stable-page operation without a revision fallback", () => {
     expect(parseHistoryQuery("view=versions&limit=2&cursor=a%2Bb", true)).toEqual({
       kind: "versions",
-      limit: 2,
+      limit: "2",
       cursor: "a+b",
     });
   });
@@ -206,7 +245,7 @@ describe("Historical records and pages", () => {
       parseHistoryVersionsPage(example("versions-replacement"), `${subject}-wrong`),
     ).toThrow(ProtocolArtifactValidationError);
   });
-  it("rejects page payload leakage, duplicate revisions, foreign continuation and no progress", () => {
+  it("rejects page payload leakage, duplicate revisions and foreign continuation", () => {
     const original = example("versions-replacement");
     const items = original.items as RecordValue[];
     for (const row of [
@@ -226,13 +265,11 @@ describe("Historical records and pages", () => {
         next: "https://foreign.example/beads/x?view=versions&cursor=p2",
       }),
     ).toThrow(ProtocolArtifactValidationError);
-    expect(() =>
-      parseHistoryVersionsPage({
-        ...original,
-        items: [],
-        next: `${subject}?view=versions&cursor=p2`,
-      }),
-    ).toThrow(ProtocolArtifactValidationError);
+    // Empty visible rows do not imply a non-advancing snapshot cursor.
+    expect(parseHistoryVersionsPage(example("versions-empty-visible-page"))).toMatchObject({
+      items: [],
+      next: expect.stringContaining("cursor=page-2"),
+    });
     expect(() =>
       parseHistoryVersionsPage({
         ...original,
@@ -243,6 +280,28 @@ describe("Historical records and pages", () => {
       "cursor=page-2",
     );
     expect(parseHistoryVersionsPage(example("versions-replacement")).next).toBeNull();
+  });
+});
+
+describe("History response corruption boundary", () => {
+  it("reports malformed next queries as response artifacts rather than request refusals", () => {
+    for (const suffix of [
+      "view=versions&cursor=",
+      "view=versions&cursor=%FF",
+      "view=versions&cursor=x&cursor=y",
+    ]) {
+      try {
+        parseHistoryVersionsPage({
+          ...example("versions-first-page"),
+          next: `${subject}?${suffix}`,
+        });
+        throw new Error("accepted malformed continuation");
+      } catch (error) {
+        expect(error).toBeInstanceOf(ProtocolArtifactValidationError);
+        expect(error).not.toBeInstanceOf(HistoryQueryError);
+        expect((error as Error).message).toBe("History continuation query is malformed");
+      }
+    }
   });
 });
 
@@ -277,7 +336,12 @@ describe("History diagnosis boundaries", () => {
             false,
           );
       }
-      expect(validate("receiptProblem", { ...problem, operationIndex: 0 })).toBe(false);
+      const member = { ...problem, operationIndex: 0 };
+      expect(validate("receiptProblem", member)).toBe(false);
+      for (const definition of ["sequenceMemberProblem", "transactionalSequenceMemberProblem"])
+        expect(validate(definition, member), definition).toBe(false);
+      for (const definition of ["sequenceResponse", "transactionalSequenceResponse"])
+        expect(validate(definition, { results: [member] }), definition).toBe(false);
     });
   it("requires explicit bounded missing diagnostics with valid property pointers and no values", () => {
     const problem = example("revision-unretained");
@@ -313,6 +377,20 @@ describe("History diagnosis boundaries", () => {
       ProtocolArtifactValidationError,
     );
   });
+  it("constructs Unretained only from a validated immutable missing inventory", () => {
+    expect(() => historyUnretainedProblem({ complete: true, items: [] })).toThrow(
+      ProtocolArtifactValidationError,
+    );
+    const input = { complete: false, items: [] };
+    const problem = historyUnretainedProblem(input);
+    input.complete = true;
+    expect(problem.missing).toEqual({ complete: false, items: [] });
+    expect(Object.isFrozen(problem.missing)).toBe(true);
+    expect(parseReadProblem(problem)).toMatchObject({
+      code: "revision-unretained",
+      missing: { complete: false, items: [] },
+    });
+  });
   it("admits persistent allocation failure only in applicable write contexts", () => {
     const problem = example("allocation-ru-direct");
     expect(parseRevisionAllocationUnsafeProblem(problem).code).toBe("revision-allocation-unsafe");
@@ -325,6 +403,11 @@ describe("History diagnosis boundaries", () => {
       "transactionalSequenceMemberProblem",
     ])
       expect(validate(definition, { ...problem, operationIndex: 0 })).toBe(true);
+    for (const definition of ["sequenceResponse", "transactionalSequenceResponse"])
+      expect(
+        validate(definition, { results: [{ ...problem, operationIndex: 0 }] }),
+        definition,
+      ).toBe(true);
     expect(() =>
       parseRevisionAllocationUnsafeProblem({ ...problem, pointer: "/identity" }),
     ).toThrow(ProtocolArtifactValidationError);
@@ -398,6 +481,26 @@ describe("Immutable context wire boundary", () => {
     expect(validate("linkRecord", record)).toBe(true);
     expect(validate("linkRecord", { ...record, changeContext: context })).toBe(true);
   });
+  it("keeps context on both updated Event branches and singleton update inputs", () => {
+    for (const id of ["updated-owned-event-context", "updated-properties-event-context"])
+      expect(example(id).changeContext).toEqual(example("native-context"));
+    const ownedUpdate = example("updated-owned-event-context");
+    expect(
+      validate("updatedData", {
+        ...ownedUpdate,
+        change: [{ op: "replace", path: "/title", value: "x" }],
+      }),
+    ).toBe(false);
+    for (const [id, definition] of [
+      ["update-bead-input-context", "updateBeadPropertiesRequest"],
+      ["update-link-input-context", "updateLinkPropertiesRequest"],
+    ] as const) {
+      expect(validate(definition, example(id))).toBe(true);
+      expect(
+        validate(definition, { ...example(id), changeContext: example("native-context") }),
+      ).toBe(false);
+    }
+  });
   it("has independent parser snapshots and rejects cycles before schema traversal", () => {
     const input = example("native-context");
     const parsed = parseChangeContext(input);
@@ -414,7 +517,7 @@ describe("Narrated History HTTP parity", () => {
     exchanges: {
       id: string;
       condition: string;
-      request: { method: string; target: string };
+      request: { method: string; target: string; schema?: string; body?: unknown };
       response: {
         status: number;
         headers: Record<string, string>;
@@ -436,10 +539,32 @@ describe("Narrated History HTTP parity", () => {
       expect(head.response).not.toHaveProperty("body");
     }
   });
+  it("distinguishes pre-admission direct allocation409 from admitted-member200 projection", () => {
+    const before = fixture.exchanges.find(
+      (item) => item.id === "sequence-allocation-before-admission",
+    );
+    const after = fixture.exchanges.find(
+      (item) => item.id === "sequence-allocation-after-admission",
+    );
+    if (!before || !after) throw new Error("missing allocation placement illustrations");
+    expect(before.request).toEqual(after.request);
+    expect(before.response.status).toBe(409);
+    expect(before.response.body).not.toHaveProperty("operationIndex");
+    expect(after.response.status).toBe(200);
+    expect(after.response.body).toEqual({
+      results: [{ ...(before.response.body as RecordValue), operationIndex: 0 }],
+    });
+  });
   it("validates only represented bodies and query syntax, without claiming HTTP execution", () => {
     for (const item of fixture.exchanges) {
       expect(item.condition.length).toBeGreaterThan(0);
-      expect(() => parseHistoryQuery(new URL(item.request.target).search, true)).not.toThrow();
+      if (item.request.method === "POST") {
+        expect(new URL(item.request.target).pathname).toBe("/scope/operations/sequence");
+        expect(item.request.schema).toBe("#/$defs/sequenceRequest");
+        expect(ajv.validate(`${schema.$id}${item.request.schema}`, item.request.body)).toBe(true);
+      } else {
+        expect(() => parseHistoryQuery(new URL(item.request.target).search, true)).not.toThrow();
+      }
       expect(item.response.headers["Cache-Control"]).toBe("private, no-store");
       if (item.response.schema)
         expect(ajv.validate(`${schema.$id}${item.response.schema}`, item.response.body)).toBe(true);

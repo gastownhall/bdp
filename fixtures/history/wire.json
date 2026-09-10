@@ -823,6 +823,141 @@
           }
         }
       }
+    },
+    {
+      "id": "versions-empty-visible-page",
+      "schema": "#/$defs/historyVersionsPage",
+      "condition": "Every scanned row on this page is withheld by whole-row authorization; a later page may disclose authorized rows. The cursor advances the same snapshot. Window bounds name independently authorized rows elsewhere in that snapshot, not hidden rows.",
+      "body": {
+        "subject": "https://work.example/scope/beads/decision",
+        "population": "all-retained",
+        "participation": "tracked",
+        "window": {
+          "newest": "r4",
+          "oldest": "r1",
+          "complete": true
+        },
+        "items": [],
+        "next": "https://work.example/scope/beads/decision?view=versions&cursor=page-2&limit=2"
+      }
+    },
+    {
+      "id": "updated-owned-event-context",
+      "schema": "#/$defs/updatedData",
+      "condition": "Source and updated owned Link versions carry the originating operation context; this is a narrated immutable Event data shape, not proof of a commit.",
+      "body": {
+        "previousRevision": "source-r1",
+        "revision": "source-r2",
+        "ownedLink": {
+          "operation": "updated",
+          "link": {
+            "id": "https://work.example/scope/links/citation",
+            "type": "https://work.example/types/cites",
+            "previousRevision": "link-before",
+            "revision": "link-old",
+            "change": [
+              {
+                "op": "replace",
+                "path": "/note",
+                "value": "updated"
+              }
+            ],
+            "changeContext": {
+              "committedAt": {
+                "state": "present",
+                "value": "2026-09-09T14:00:00Z"
+              },
+              "agent": {
+                "state": "present",
+                "value": "assistant-a"
+              },
+              "message": {
+                "state": "absent"
+              }
+            }
+          }
+        },
+        "changeContext": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-09-09T14:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "assistant-a"
+          },
+          "message": {
+            "state": "absent"
+          }
+        }
+      }
+    },
+    {
+      "id": "updated-properties-event-context",
+      "schema": "#/$defs/updatedData",
+      "condition": "The property-change branch carries its newly minted version context without an owned-Link change.",
+      "body": {
+        "previousRevision": "r1",
+        "revision": "r2",
+        "change": [
+          {
+            "op": "replace",
+            "path": "/title",
+            "value": "Updated"
+          }
+        ],
+        "changeContext": {
+          "committedAt": {
+            "state": "present",
+            "value": "2026-09-09T14:00:00Z"
+          },
+          "agent": {
+            "state": "present",
+            "value": "assistant-a"
+          },
+          "message": {
+            "state": "absent"
+          }
+        }
+      }
+    },
+    {
+      "id": "update-bead-input-context",
+      "schema": "#/$defs/updateBeadPropertiesRequest",
+      "condition": "Singleton update input supplies agent/message only; native commit time is authority-owned.",
+      "body": {
+        "bead": "https://work.example/scope/beads/decision",
+        "change": [
+          {
+            "op": "replace",
+            "path": "/title",
+            "value": "Updated"
+          }
+        ],
+        "changeContext": {
+          "agent": "assistant-a",
+          "message": "Revise decision"
+        }
+      }
+    },
+    {
+      "id": "update-link-input-context",
+      "schema": "#/$defs/updateLinkPropertiesRequest",
+      "condition": "Singleton Link update context also fans out to its source when ownership actually versions that source.",
+      "body": {
+        "link": "https://work.example/scope/links/citation",
+        "change": [
+          {
+            "op": "replace",
+            "path": "/note",
+            "value": "Updated"
+          }
+        ],
+        "changeContext": {
+          "agent": null,
+          "message": "Revise citation"
+        }
+      }
     }
   ]
 }

@@ -254,13 +254,21 @@ profile is considered ready:
 6. **Read table recorded 2026-08-12; later-profile rows pending:** compact RFC
    9457 families, normative codes, statuses, retry dispositions, and operation
    locations must cover every failure before the affected profile.
+   **Amended 2026-09-10 (History):** five optional History Read diagnoses extend
+   the closed Read table across all profiles, with bounded Unretained inventory;
+   write-only allocation409 has its direct and retained-failure contexts.
+   Runtime/evidence materialization remains a separate gate.
 7. **Resolved 2026-08-08:** checkpoint, cache, CORS, and SSE fields are fixed in
    the normative draft's open-question ledger.
 8. **Resolved 2026-08-08:** Event-ID and checkpoint character profiles are
    fixed in the normative draft's open-question ledger.
 9. **Resolved 2026-08-08:** reads after deletion use non-disclosing `404`
    semantics while retained Transactional Event history remains independently
-   readable.
+   readable. **Amended 2026-09-10 (History):** advertised History on all three
+   profiles supports authorized deleted-subject enumeration and exact retained
+   reads, with required Gone reasons at removed cited addresses. Subject-history
+   authorization is the same single retained-history gate; ordinary non-History
+   disclosure remains governed by PROTO-013.
 10. **Resolved 2026-08-08:** authority-attested actor attribution is excluded
     from BDP v0. **Amended 2026-09-02:** a common carried-but-asserted
     `attribution` member exists (PROTO-014); attestation remains excluded

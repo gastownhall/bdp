@@ -1,3 +1,4 @@
+import { parseHistoryMissing } from "./history-values.js";
 import type { ChangeContext, HistoryCapability, HistoryMissing } from "./history-values.js";
 export * from "./history-values.js";
 
@@ -314,6 +315,7 @@ export interface ReadProblem {
   readonly status?: number;
   readonly detail?: string;
   readonly instance?: AbsoluteUri;
+  readonly missing?: HistoryMissing;
   readonly [key: string]: unknown;
 }
 
@@ -560,6 +562,6 @@ export function historyUnretainedProblem(missing: HistoryMissing): ReadProblem {
     code: definition.code,
     status: definition.status,
     retry: definition.retry,
-    missing,
+    missing: parseHistoryMissing(missing),
   };
 }

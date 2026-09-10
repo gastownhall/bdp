@@ -308,7 +308,9 @@ function getProtocolValueValidators(): ProtocolValueValidators {
   return protocolValueValidators;
 }
 
-function readCanonicalSchemaBundle(): Readonly<Record<string, unknown>> & { readonly $id: string } {
+export function readCanonicalSchemaBundle(): Readonly<Record<string, unknown>> & {
+  readonly $id: string;
+} {
   let value: unknown;
   try {
     value = JSON.parse(readFileSync(CANONICAL_SCHEMA_URL, "utf8"));
@@ -320,7 +322,7 @@ function readCanonicalSchemaBundle(): Readonly<Record<string, unknown>> & { read
   return schema as Readonly<Record<string, unknown>> & { readonly $id: string };
 }
 
-function requireSchemaValidator(
+export function requireSchemaValidator(
   schemaValidator: Ajv2020,
   schemaId: string,
   schemaRef: string,

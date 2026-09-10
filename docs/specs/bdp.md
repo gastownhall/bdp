@@ -2575,6 +2575,10 @@ The Read+Update rows mean:
   `after-state-change`, where `identity-taken`'s is `never`.
 - `revision-mismatch`: the member's `expectedRevision` is not the Resource's
   current revision.
+- `revision-allocation-unsafe`: a positively established persistent,
+  repair-required allocation conflict, with the direct pre-admission and retained
+  admitted-failure handling under [Revisions](#revisions); transient inspection
+  failure remains `temporarily-unavailable`.
 - `incident-links-exist`: a Bead deletion reached while a live Link is
   incident upon the Bead. A non-disclosing authority withholds the hidden
   Links that caused it.
@@ -2643,16 +2647,18 @@ The Transactional rows mean:
   bound, under
   [HTTP consistency, caching, and CORS fields](#http-consistency-caching-and-cors-fields).
 
-On a Transactional Scope every code occurs in one of two contexts, and the
-bundle closes each context to its codes. A *direct* code is served as a
+**History amendment, 2026-09-10.** On a Transactional Scope every code occurs
+in one of two contexts, and the bundle closes each context to its codes. A *direct* code is served as a
 direct problem response: every Read code, `unsupported-media-type`,
-`idempotency-conflict`, `event-history-expired`, and `catch-up-timeout`. A
-*receipt* code occurs inside a `failed` Mutation Receipt, where the problem
+`idempotency-conflict`, `event-history-expired`, `catch-up-timeout`, and
+`revision-allocation-unsafe` for the positive persistent pre-admission failure
+under [Revisions](#revisions). A *receipt* code occurs inside a `failed` Mutation Receipt, where the problem
 carries the code's `status` as the failure's would-be direct status:
 `validation-failed`, `type-not-installed`, `identity-taken`,
 `alias-path-taken`, `revision-mismatch`, `incident-links-exist`,
 `aggregate-constraint-violation`, `cardinality-violated`,
-`binding-unavailable` — a sequence member on a Transactional Scope whose
+`revision-allocation-unsafe` for a permanent allocation failure discovered after
+admission, and `binding-unavailable` — a sequence member on a Transactional Scope whose
 `@name` creator's receipt is `failed`, under
 [Mutation Transactions](#mutation-transactions) — and three Read codes
 with these meanings — `forbidden`, operation-local authorization denied
@@ -2760,8 +2766,9 @@ BDP access, its CORS policy MUST allow every BDP-defined non-safelisted
 request field used by its advertised profile, including `Idempotency-Key`,
 `Last-Event-ID`, and the Transactional minimum-position fields when
 applicable. It MUST expose `Link`, `ETag`, `Retry-After`, `Cache-Control`,
-and the three Transactional response fields when applicable. Ordinary CORS
-rules still govern `Accept` and `Content-Type` values. Type Descriptors
+and the three Transactional response fields when applicable. **History amendment,
+2026-09-10:** it MUST also expose `BDP-History-Lineage` when the History capability
+is advertised. Ordinary CORS rules still govern `Accept` and `Content-Type` values. Type Descriptors
 hosted outside a Scope keep ordinary HTTP caching semantics. SSE responses
 use `Cache-Control: no-store, no-transform`. Intermediaries must not cache or
 transform the stream.
@@ -2954,6 +2961,9 @@ GET {resource}?view=properties
 GET {bead}?view=links&direction=inbound|outbound|both
 GET {resource}?view=events&after={event-id}
 GET {bead}?include=links&direction=inbound|outbound|both&limit={count}
+# Only when historicalResolution is advertised:
+GET {resource}?revision={token}
+GET {resource}?view=versions[&limit={count}][&cursor={cursor}]
 ```
 
 `view=properties` is valid for both Beads and Links and returns exactly the
@@ -3102,11 +3112,20 @@ alone supplies no capability claim. No advance age/count retention guarantee,
 aggregate participation count/class, retention hold, or generic persistent-
 consumer erasure acquisition is advertised by this member.
 
+Here **subject-history authorization** means the same single retained-history
+authorization defined under [Reads after deletion](#reads-after-deletion), evaluated
+in the current request's Authorization View. “History-authorized” refers to that
+same gate. It is independent of permission to disclose a complete historical record
+or a whole metadata row; no second retention-disclosure permission is introduced.
+
 #### Exact historical reads
 
 `GET` or `HEAD canonical-resource?revision=token` selects exactly one
-nonempty opaque revision. Decode query data once; percent-encoded reserved
-characters and Unicode are data, not checkpoint-token syntax. Repeated or
+nonempty opaque revision. Query components follow the existing form-query
+convention (`URLSearchParams`): decode percent escapes once and decode `+` as
+space. A literal plus in a token MUST be encoded as `%2B`; a space may be encoded
+as `%20` or `+`. Percent-encoded reserved characters and Unicode are data, not
+checkpoint-token syntax. Repeated or
 empty `revision`, any additional query member (including `view`, `include`,
 selection or pagination), and unsupported History queries on a non-advertising
 authority fail as `invalid-parameter`. Alias queries retain uniform
@@ -3277,8 +3296,8 @@ a truthful authorized target may be absent from the page because its whole row
 cannot be shown. Relation presence implies neither membership/count nor target
 body permission. No current target is invented for a deleted or undisclosable
 current Resource. The History lineage header and these Link values follow the
-same authorization and HEAD/conditional metadata rules; browser-serving authorities
-expose the History header alongside the existing allowed response headers.
+same authorization and HEAD/conditional metadata rules. Browser exposure follows
+[HTTP consistency, caching, and CORS fields](#http-consistency-caching-and-cors-fields).
 
 #### History recovery, imports and assurance
 
@@ -4540,7 +4559,7 @@ and do not add BDP problem codes.
 | Target | Method | Response |
 | --- | --- | --- |
 | `batch`, the six Resource singleton targets, the two set targets, and the two alias targets | `POST` | `200` terminal receipt; `202` pending receipt; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503` |
-| `sequence` | `POST` | `200` envelope of [Sequence response envelope](#sequence-response-envelope), pending members included as problems; direct `400`, `401`, `403`, `413`, `415`, `429`, `503`; never a sequence-level `202` receipt (amended 2026-09-08, council 13) |
+| `sequence` | `POST` | `200` envelope of [Sequence response envelope](#sequence-response-envelope), pending members included as problems; direct `400`, `401`, `403`, `413`, `415`, `429`, `503`, plus only the pre-admission `409` `revision-allocation-unsafe` exception below; never a sequence-level `202` receipt (amended 2026-09-08, council 13; History exception 2026-09-10) |
 | the same targets | any other method | `405`, `Allow: POST` — plus `OPTIONS` when cross-origin access is enabled, in which case `OPTIONS` is answered by the CORS rules rather than `405` — and no BDP Problem body |
 | `operations/` | `GET`, `HEAD` | `200` Operation Directory; `401`, `403`, `429`, `503` |
 | `operations/` | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
@@ -4548,6 +4567,17 @@ and do not add BDP problem codes.
 | a receipt page URL | `GET`, `HEAD` | `200` page; `401`; `404` under the same non-disclosure rule; `409` `foreign-view` or `410` `cursor-expired` for incompatible minimum-position context; `410` `cursor-expired` after the receipt's detail expired; `429`, `503` |
 | a receipt or page URL | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
 | the `receipts` root | any method | `404` `resource-not-found` for `GET` and `HEAD`, `405` with `Allow: GET, HEAD` otherwise |
+
+The sequence's direct `409` exception applies only when an actual, positively
+established persistent, repair-required allocation failure is known before
+carrier admission, under [Revisions](#revisions). This exception introduces no
+new broad allocation preflight, comparison wait or member-order bypass, and
+MUST NOT prevent replay of available retained duplicate outcomes. An ordinary
+operation/member allocation failure discovered after admission follows the
+failed-receipt and sequence projection rules: the carrier returns `200` with
+the member problem, not a direct `409`. Pending-key and dependent-member
+nonwaiting precedence remains unchanged. Transient inability to establish
+allocation safety remains `503`, not this persistent-conflict exception.
 
 On a receipt or page read, authentication is decided first, then the
 principal and epoch non-disclosure rule, then the request's minimum-position
@@ -6554,7 +6584,7 @@ profile-specific response vehicle.
 materialized in [Historical resolution](#historical-resolution), [Immutable
 change context](#immutable-change-context), [Revisions](#revisions), all three
 discovery shapes, problem rows and the required RU restore exception. This
-amends the scope of items 1/3/4/6 below without rewriting their dated records.
+amends the scope of items 1/3/4/6/9 below without rewriting their dated records.
 Exact schemas, illustrative fixtures and unbound History catalog metadata exist;
 server/client/adapter behavior, capability admission, executable applicability
 and new Read projection/evidence remain implementation work. No current target
@@ -6716,7 +6746,11 @@ protocol-identifier prefix, with the release-stability rule stated above.
    and `catch-up-timeout` — join the table, and the direct and receipt
    contexts are closed in the bundle's `transactionalProblem` and
    `receiptProblem`. This question closes when every normative failure is present
-   in the reviewed code table and schema bundle.
+   in the reviewed code table and schema bundle. **Amended 2026-09-10 (History):**
+   the Read table gains five capability-scoped historical diagnoses; Unretained
+   carries a bounded missing inventory. Write-only `revision-allocation-unsafe`
+   occupies its selected direct pre-admission and retained admitted-failure
+   contexts. These wire definitions do not establish runtime or evidence support.
 7. **Resolved 2026-08-08:** only Transactional exposes Scope epoch,
    Authorization View, visible position, and minimum-position HTTP fields.
    Read and Read+Update use Resource `ETag`s and snapshot-preserving cursors
@@ -6732,7 +6766,11 @@ protocol-identifier prefix, with the release-stability rule stated above.
    the same `404` `resource-not-found` response for ordinary, properties, and
    incident Link reads. Non-reuse remains an internal obligation.
    Transactional Event history may outlive its deleted subject for its
-   retention period.
+   retention period. **Amended 2026-09-10 (History):** advertised History on any
+   profile permits authorized deleted-subject versions pages and exact retained
+   reads; removed cited addresses preserve Gone-with-reason evidence under the
+   same single retained-history gate. Ordinary non-History disclosure remains
+   governed by [Reads after deletion](#reads-after-deletion).
 10. **Resolved 2026-08-08:** authority-attested actor attribution is excluded
     from BDP v0. Authentication remains an authorization input. Private audit
     records and domain actor properties are not generic BDP guarantees.

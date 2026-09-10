@@ -2462,6 +2462,21 @@
       "allOf": [
         {
           "$ref": "#/$defs/readUpdateProblem"
+        },
+        {
+          "properties": {
+            "code": {
+              "not": {
+                "enum": [
+                  "revision-unknown",
+                  "revision-unretained",
+                  "revision-reorganized",
+                  "revision-not-tracked",
+                  "revision-unrepresentable"
+                ]
+              }
+            }
+          }
         }
       ],
       "required": ["status", "operationIndex"],

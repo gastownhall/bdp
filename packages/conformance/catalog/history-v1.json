@@ -36,7 +36,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#exact-historical-reads",
-          "selectedText": "`GET` or `HEAD canonical-resource?revision=token` selects exactly one\nnonempty opaque revision. Decode query data once; percent-encoded reserved\ncharacters and Unicode are data, not checkpoint-token syntax. Repeated or\nempty `revision`, any additional query member (including `view`, `include`,\nselection or pagination), and unsupported History queries on a non-advertising\nauthority fail as `invalid-parameter`. Alias queries retain uniform\n`resource-not-found` / 404 and gain no History semantics. Normal authentication\nand non-disclosure precedence applies before condition-specific disclosure."
+          "selectedText": "`GET` or `HEAD canonical-resource?revision=token` selects exactly one\nnonempty opaque revision. Query components follow the existing form-query\nconvention (`URLSearchParams`): decode percent escapes once and decode `+` as\nspace. A literal plus in a token MUST be encoded as `%2B`; a space may be encoded\nas `%20` or `+`. Percent-encoded reserved characters and Unicode are data, not\ncheckpoint-token syntax. Repeated or\nempty `revision`, any additional query member (including `view`, `include`,\nselection or pagination), and unsupported History queries on a non-advertising\nauthority fail as `invalid-parameter`. Alias queries retain uniform\n`resource-not-found` / 404 and gain no History semantics. Normal authentication\nand non-disclosure precedence applies before condition-specific disclosure."
         }
       ]
     },

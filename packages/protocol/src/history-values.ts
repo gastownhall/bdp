@@ -1,11 +1,12 @@
 import { ProtocolArtifactValidationError } from "./protocol-errors.js";
-import { readFileSync } from "node:fs";
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import type { Attribution, BeadRecord, LinkRecord } from "./index.js";
 import {
   parseBeadRecord,
   parseCanonicalHttpUrl,
   parseLinkRecord,
+  readCanonicalSchemaBundle,
+  requireSchemaValidator,
   snapshotProtocolRecord,
 } from "./read-values.js";
 import { isJsonSchemaDateTime, isJsonSchemaUri } from "./schema-formats.js";
@@ -93,14 +94,14 @@ function parseShape(value: unknown, kind: keyof typeof HISTORY_SCHEMA_REFS) {
     const ajv = new Ajv2020({ allErrors: true, strict: true });
     ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
     ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
-    const schema = JSON.parse(
-      readFileSync(new URL("../schemas/bdp-v0.schema.json", import.meta.url), "utf8"),
-    );
+    // Separate validators keep History/write roots explicit without widening
+    // the Read parser registry; bootstrap and named-ref checks are shared.
+    const schema = readCanonicalSchemaBundle();
     ajv.addSchema(schema);
     validators = Object.fromEntries(
       Object.entries(HISTORY_SCHEMA_REFS).map(([key, $ref]) => [
         key,
-        ajv.compile({ $ref: `${schema.$id}${$ref}` }),
+        requireSchemaValidator(ajv, schema.$id, $ref),
       ]),
     ) as Record<keyof typeof HISTORY_SCHEMA_REFS, ValidateFunction>;
   }
@@ -142,16 +143,18 @@ export function parseHistoryVersionsPage(value: unknown, subject?: string): Hist
   if (page.next !== null) {
     parseCanonicalHttpUrl(page.next);
     const next = new URL(page.next);
-    const query = parseHistoryQuery(next.search, true);
+    let query: HistoryQuery;
+    try {
+      query = parseHistoryQuery(next.search, true);
+    } catch (cause) {
+      throw new ProtocolArtifactValidationError("History continuation query is malformed", {
+        cause,
+      });
+    }
     next.search = "";
-    if (
-      next.href !== page.subject ||
-      query.kind !== "versions" ||
-      query.cursor === undefined ||
-      page.items.length === 0
-    )
+    if (next.href !== page.subject || query.kind !== "versions" || query.cursor === undefined)
       throw new ProtocolArtifactValidationError(
-        "History continuation must make progress on the same subject",
+        "History continuation must name a cursor on the same subject",
       );
   }
   if (page.items.length > 0 && page.window.newest === null)
@@ -187,16 +190,25 @@ export function parseHistoricalLinkRecord(
   return record;
 }
 
-/** Query syntax only. The HTTP owner must still apply authentication and disclosure precedence. */
+/** Dedicated History syntax only. Use hasHistoryQueryIntent before dispatching;
+ * the HTTP owner retains ordinary Read handling, authentication and disclosure precedence.
+ * A parsed limit retains exact positive decimal digits for the owner's limit-exceeded check.
+ */
 export type HistoryQuery =
   | { readonly kind: "revision"; readonly revision: string }
-  | { readonly kind: "versions"; readonly cursor?: string; readonly limit?: number };
-export class HistoryQueryError extends ProtocolArtifactValidationError {
+  | { readonly kind: "versions"; readonly cursor?: string; readonly limit?: string };
+export class HistoryQueryError extends Error {
   constructor(readonly code: "invalid-parameter" | "resource-not-found") {
     super(`History query refused: ${code}`);
     this.name = "HistoryQueryError";
   }
 }
+/** Intent only, using the existing form-query convention; this does not validate or authorize. */
+export function hasHistoryQueryIntent(query: string): boolean {
+  const values = new URLSearchParams(query);
+  return values.has("revision") || values.getAll("view").includes("versions");
+}
+
 export function parseHistoryQuery(query: string, advertised: boolean, alias = false): HistoryQuery {
   if (alias) throw new HistoryQueryError("resource-not-found");
   const invalid = (): never => {
@@ -220,14 +232,10 @@ export function parseHistoryQuery(query: string, advertised: boolean, alias = fa
   for (const key of values.keys()) if (!["view", "cursor", "limit"].includes(key)) return invalid();
   const cursor = values.get("cursor");
   const limit = values.get("limit");
-  if (
-    cursor === "" ||
-    (limit !== null && (!/^[1-9][0-9]*$/.test(limit) || !Number.isSafeInteger(Number(limit))))
-  )
-    return invalid();
+  if (cursor === "" || (limit !== null && !/^[1-9][0-9]*$/.test(limit))) return invalid();
   return Object.freeze({
     kind: "versions",
     ...(cursor === null ? {} : { cursor }),
-    ...(limit === null ? {} : { limit: Number(limit) }),
+    ...(limit === null ? {} : { limit }),
   });
 }
