@@ -67,6 +67,7 @@ export type JsonNumericAdmission =
     };
 const JSON_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/;
 const NUMBER_PREFIX = /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/y;
+const diagnosticEncoder = new TextEncoder();
 
 /** RFC7493/I-JSON forbids lone UTF-16 surrogates, including decoded keys. */
 export function isUnicodeScalarString(value: string): boolean {
@@ -341,7 +342,7 @@ export function admitJsonNumbers(
         const nextBytes =
           bytes +
           (diagnostics.length ? 1 : 0) +
-          new TextEncoder().encode(JSON.stringify(diagnostic)).byteLength;
+          diagnosticEncoder.encode(JSON.stringify(diagnostic)).byteLength;
         if (byteLimit !== undefined && nextBytes > byteLimit) {
           if (diagnostics.length === 0)
             throw new JsonDiagnosticBudgetError(

@@ -477,7 +477,7 @@ function patch(
     }
   }
   if (!result || typeof result !== "object" || Array.isArray(result))
-    bad("resulting properties must be an object", options);
+    bad("resulting properties must be an object", options, "");
   return freeze(result as Record<string, unknown>);
 }
 

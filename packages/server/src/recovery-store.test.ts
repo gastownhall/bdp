@@ -658,6 +658,22 @@ describe("durable reference ownership and transaction interface", () => {
     ).toBe("9007199254740995");
     inspect.close();
   });
+  it("reports a missing parent as store-missing before filesystem inspection, without reseeding", () => {
+    const parent = path.join(directory(), "absent");
+    const missing = path.join(parent, "child");
+    // A filesystem inspection of this path really would throw before opening SQLite.
+    expect(() => statfsSync(missing)).toThrow(expect.objectContaining({ code: "ENOENT" }));
+    expect(() => open(missing)).toThrow(expect.objectContaining({ reason: "store-missing" }));
+    expect(existsSync(parent)).toBe(false);
+  });
+
+  it("reports an existing directory without a database as store-missing without creating a file", () => {
+    const dir = directory();
+    expect(() => statfsSync(dir)).not.toThrow();
+    expect(() => open(dir)).toThrow(expect.objectContaining({ reason: "store-missing" }));
+    expect(existsSync(path.join(dir, "reference.sqlite"))).toBe(false);
+  });
+
   it("refuses missing/incomplete stores and incompatible Scope, installation or lineage without reseeding", () => {
     const dir = directory();
     expect(() => open(dir)).toThrow("missing");

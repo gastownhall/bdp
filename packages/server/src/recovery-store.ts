@@ -237,6 +237,12 @@ export function isKnownNetworkFilesystem(platform: NodeJS.Platform, type: number
  * the returned handle is ready only after a real exclusive startup write commits.
  * Restore without complete recovery continuity must use a different canonical Scope.
  * The caller must arrange a supported local filesystem; known network types refuse.
+ * Format 2 is application-owned: writes and SQLite integrity checks require the
+ * exact bdp_json_syntax_v2 function registered below. A stock SQLite connection
+ * can inspect rows but cannot run those checks or replay a logical SQL dump.
+ * Any logical restore must preserve the complete recovery/identity state and
+ * register the format's function before checks or writes. This module supplies
+ * no logical import/export API; opening a partial restore does not certify it.
  */
 export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore {
   if (process.version !== "v24.16.0")
@@ -257,20 +263,21 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
     throw new RecoveryStoreError("retention-too-short", "retention must preserve at least PT24H");
   const seed = options.create;
   const directory = path.resolve(options.directory);
-  if (seed !== undefined) mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const filesystemType = statfsSync(directory).type;
-  if (isKnownNetworkFilesystem(process.platform, filesystemType))
-    throw new RecoveryStoreError("unsupported-filesystem", "network filesystem is unsupported");
   const filename = path.join(directory, "reference.sqlite");
-  let createdFile = false;
-  if (seed !== undefined) {
-    closeSync(openSync(filename, "wx", 0o600));
-    createdFile = true;
-  } else if (!existsSync(filename))
+  if (seed === undefined && !existsSync(filename))
     throw new RecoveryStoreError(
       "store-missing",
       "existing recovery store is missing; refusing reseed",
     );
+  if (seed !== undefined) mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const filesystemType = statfsSync(directory).type;
+  if (isKnownNetworkFilesystem(process.platform, filesystemType))
+    throw new RecoveryStoreError("unsupported-filesystem", "network filesystem is unsupported");
+  let createdFile = false;
+  if (seed !== undefined) {
+    closeSync(openSync(filename, "wx", 0o600));
+    createdFile = true;
+  }
   const db = new DatabaseSync(filename, {
     timeout: 0,
     enableForeignKeyConstraints: true,

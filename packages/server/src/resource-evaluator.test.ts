@@ -769,9 +769,21 @@ describe("pure member Resource evaluation", () => {
         valid: false,
         diagnosticsComplete: emitter.emit({ ...diagnostic, instanceLocation: "" }),
       }));
-      const result = failure(root.createBead("a"), "validation-failed");
-      expect(result.diagnostics?.[0]?.instanceLocation).toBe("");
+      const expected = [{ ...diagnostic, instanceLocation: "", type: beadType }];
+      const bytes = Buffer.byteLength(JSON.stringify(expected));
+      const result = failure(
+        root.execute("createBead", input, {
+          limits: { diagnosticCount: 1, diagnosticBytes: bytes },
+        }),
+        "validation-failed",
+      );
+      expect(result.diagnostics).toEqual(expected);
+      expect(Buffer.byteLength(JSON.stringify(result.diagnostics))).toBe(bytes);
       expect(result).not.toHaveProperty("diagnosticsTruncated");
+      expect(() =>
+        root.execute("createBead", input, { limits: { diagnosticBytes: bytes - 1 } }),
+      ).toThrow("diagnostic configuration cannot retain one complete diagnostic");
+      expect(root.writes()).toBe(0);
     });
 
     it.each([null, 42])("rejects nonstring properties locations internally: %s", (location) => {
@@ -1460,6 +1472,42 @@ describe("native S2 council corrections", () => {
       expect(f.records.get("beads/a")?.bodyJson).toBe(before);
     }
   });
+
+  it.each([
+    [{ op: "replace", path: "", value: [] }],
+    [{ op: "replace", path: "", value: null }],
+    [{ op: "replace", path: "", value: "scalar" }],
+    [{ op: "replace", path: "", value: 1 }],
+    [{ op: "replace", path: "", value: false }],
+    [{ op: "remove", path: "" }],
+  ])(
+    "locates a nonobject properties result at the root and accounts its exact diagnostic bytes %#",
+    (...change) => {
+      const f = fixture();
+      f.createBead("a", { n: 1 });
+      const before = f.records.get("beads/a")?.bodyJson;
+      const writes = f.writes();
+      const expected = [
+        { message: "resulting properties must be an object", instanceLocation: "" },
+      ];
+      const bytes = Buffer.byteLength(JSON.stringify(expected));
+      const input = { bead: "beads/a", change };
+      const result = failure(
+        f.execute("updateBeadProperties", input, {
+          limits: { diagnosticCount: 1, diagnosticBytes: bytes },
+        }),
+        "validation-failed",
+      );
+      expect(result.diagnostics).toEqual(expected);
+      expect(Buffer.byteLength(JSON.stringify(result.diagnostics))).toBe(bytes);
+      expect(result).not.toHaveProperty("diagnosticsTruncated");
+      expect(() =>
+        f.execute("updateBeadProperties", input, { limits: { diagnosticBytes: bytes - 1 } }),
+      ).toThrow("diagnostic configuration cannot retain one complete diagnostic");
+      expect(f.records.get("beads/a")?.bodyJson).toBe(before);
+      expect(f.writes()).toBe(writes);
+    },
+  );
 });
 
 describe("allocator faults inside the durable owned-member boundary", () => {
