@@ -975,6 +975,71 @@ describe("Read+Update dedicated alias transport", () => {
     return transport.resolveAlias(url, call);
   }
 
+  it.each([307, 406])(
+    "checks the deadline after the body-read await before returning HTTP%s",
+    async (status) => {
+      const original = Object.getOwnPropertyDescriptor(performance, "now");
+      let clock = 0;
+      Object.defineProperty(performance, "now", { configurable: true, value: () => clock });
+      try {
+        const stream = new ReadableStream<Uint8Array>({
+          pull(controller) {
+            controller.close();
+            // On pinned Node24 this advances after readBody's final check,
+            // but before exchange resumes from awaiting it. No getters or
+            // consumer-side delayed observation are involved.
+            let remaining = 7;
+            const advance = () => {
+              if (--remaining === 0) clock = 1000;
+              else queueMicrotask(advance);
+            };
+            queueMicrotask(advance);
+          },
+        });
+        const transport = client(async () => response(stream, status, {}, alias), {
+          limits: { ...limits, responseTimeoutMs: 100 },
+        });
+        const result = status === 307 ? resolve(transport) : transport.get(alias);
+        await expect(result).rejects.toMatchObject({
+          code: "timeout",
+          submission: "not-submitted",
+          httpStatus: status,
+        });
+        expect(clock).toBe(1000);
+        expect(stream.locked).toBe(false);
+      } finally {
+        if (original) Object.defineProperty(performance, "now", original);
+        else Reflect.deleteProperty(performance, "now");
+      }
+    },
+  );
+
+  it.each([307, 406, 200])(
+    "does not turn HTTP%s delivered before the deadline into a later timeout",
+    async (status) => {
+      const original = Object.getOwnPropertyDescriptor(performance, "now");
+      let clock = 0;
+      Object.defineProperty(performance, "now", { configurable: true, value: () => clock });
+      try {
+        const transport = client(
+          async () => response(status === 200 ? "{}" : null, status, undefined, alias),
+          { limits: { ...limits, responseTimeoutMs: 100 } },
+        );
+        const pending = status === 307 ? resolve(transport) : transport.get(alias);
+        const delivered = await pending;
+        clock = 1000;
+        expect(await pending).toBe(delivered);
+        expect(delivered).toMatchObject({
+          status,
+          kind: status === 307 ? "alias-redirect" : status === 406 ? "empty" : "json",
+        });
+      } finally {
+        if (original) Object.defineProperty(performance, "now", original);
+        else Reflect.deleteProperty(performance, "now");
+      }
+    },
+  );
+
   it("observes a real Fetch 307 without following its Location", async () => {
     const requests: string[] = [];
     const server = createServer((request, reply) => {

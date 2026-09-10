@@ -326,6 +326,7 @@ export function createReadUpdateFetchTransport(
           checkAbort,
           bodyless,
         );
+        checkAbort();
         if (bodyless) {
           if (aliasRedirect) return Object.freeze({ ...context, kind: "alias-redirect" });
           if (scopeProbe && status === 204)
