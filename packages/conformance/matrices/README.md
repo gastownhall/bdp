@@ -46,9 +46,15 @@ been regenerated or relabeled.
   This does not establish a packaged production authorization engine.
 - The bdpbd ownership rows alone are N/A. The applicable
   `read.resource.external-endpoint` plan also reads the complete Type inventory,
-  its descriptors and every Bead record, verifying no ownership declaration or
-  `ownedLinks` member. A missing capability alone is not the observed absence
-  witness; an incomplete inventory is refused.
+  every Bead record, and resolves inventoried Type identities. External Type bodies
+  come from the isolated fixture publisher; only Scope-local Type identities use
+  the target. Thus publisher declarations and target record-plane absence are
+  distinct evidence. An adapter-boundary test binds the complete bdpbd descriptor
+  fixture to `BD_SERVED_TYPE_DESCRIPTORS`, including Decision and Feature; this
+  is not packaged descriptor-authorship or installer evidence. The two isolated
+  publisher compositions intentionally supply per-realization bodies and are not
+  simultaneous conflicting declarations from one live Type authority. A missing
+  capability alone is not the observed absence witness; an incomplete inventory is refused.
 - `read.numeric-model.declared-token-model` applies to bdpbd. The fixture binds
   the exact [existing local discipline](../../adapter-bd/README.md), its named
   binary64/ECMAScript number model and source pointer; tests prevent drift
@@ -738,3 +744,52 @@ precede the new run head. Only generated artifact and matching capability
 constant belong in its evidence commit; old observations cannot be rehashed
 into a claim about changed inputs. Whole-schema metadata and later-profile
 unsealed definitions retain the projection rule above.
+
+## Source-council qualification before successor regeneration
+
+The generated cohort must carry the generator's explicit uncovered qualifications
+for the three target-independent client/publisher rows, external descriptor authorship,
+and on-wire numeric declaration. Numeric declaration is fixture-bound implementation
+documentation; public token checks do not independently identify a number model where
+admitted values agree. No discovery member is invented. The input echo assertion was
+removed. Fixture/publisher, manifest and observer corrections require genuine new
+observations; the prior artifact and constant are preserved, not regenerated here.
+
+The closure payload substring check is a narrow redundant defense over captured
+Problem bytes whose uniformity and typed shape are already checked. It is not an
+independent proof of every retained-copy or collection leak path. The before-state
+payload witness still prevents vacuous setup; collection/source/Link absence and
+unchanged public control checks retain their separate meaning.
+
+### Accepted source-council fold
+
+This source correction starts from frozen `464f4fc58cd6745aa061e1d95088195847a5b67f`.
+Claude's source report on `a6112d1` contained one High, four Medium and four Low;
+Codex's one Low harness-binding finding was already fixed before `00d4df83`.
+This fold accepts H1/M2/M4/M5 and L6–L8 with the provenance and premise corrections
+above. The generated qualifications live in the existing `uncovered` field;
+no new artifact shape, discovery member or normative alternative is introduced.
+
+M3 is a correction to the fixture guard, not deletion of a shared topology edge.
+`F → E blocks` exists in both realizations and also falls under reference wildcard
+ownership. The guard now recognizes wildcard ownership, preserves that exact shared
+edge, and requires other owned/pinned reference-only witnesses to be excluded.
+Corruptions adding an unexcluded wildcard edge, removing the shared edge or excluding
+it are rejected. This is a bound on the authored reference topology, not a general
+claim that ownership implies realization-only status.
+
+L9 is accepted as a qualification of a redundant narrow check, not removal of the
+before-state witness or other closure assertions. The substring test can still reject
+captured Problem bytes containing the witness; it does not independently establish
+all-copy confidentiality. Gemini's suggested `.descriptor` unwrap is rejected:
+closure uses the older direct `external-type-descriptors` operation, while the new
+`wildcard-descriptors` operation has a distinct wrapped result. No unwrap was applied.
+
+Validation: Node 24.16.0, offline frozen dependencies, build/typecheck/lint/format and
+boundary checks passed. Observer/artifact focused checks passed 28 tests. The full
+run passed 1,356 tests and failed three of 1,359, across 52 files with no skips;
+both target matrices passed, including pinned `bd` 1.0.5. All three failures are
+committed-cohort positive tests rejecting current manifest-byte drift and requiring
+re-sealing. The artifact and constant are unchanged. Genuine regeneration, refreshed
+all-green evidence gates and current-head review belong to the coordinator before
+publication or any new claim; this source fold is not a successor cohort.

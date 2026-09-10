@@ -332,7 +332,11 @@ describe("checked-in Read matrix artifacts", () => {
       ],
       [
         "read.resource.external-endpoint",
-        ["public-http", "controlled-read-external-endpoint-v1"],
+        [
+          "public-http",
+          "controlled-read-external-endpoint-v1",
+          "controlled-external-type-publisher-v1",
+        ],
         "client",
         "external-link-endpoints",
       ],
@@ -410,13 +414,15 @@ describe("checked-in Read matrix artifacts", () => {
     const bdFixture = JSON.parse(readText("packages/conformance/fixtures/read-bdpbd-v1.json")) as {
       readonly typeDescriptors: readonly TypeDescriptor[];
     };
-    expect(bdFixture.typeDescriptors).toEqual(
-      REFERENCE_TYPE_DESCRIPTORS.map((descriptor) =>
-        descriptor.describes === "bead"
-          ? (({ ownsOutgoing: _ownership, ...rest }) => rest)(descriptor)
-          : descriptor,
-      ),
+    // The adapter-boundary test binds these publisher fixtures to the actual
+    // BD_SERVED_TYPE_DESCRIPTORS constant; do not reimplement its projection here.
+    expect(bdFixture.typeDescriptors.map(({ id }) => id)).toEqual(
+      REFERENCE_TYPE_DESCRIPTORS.map(({ id }) => id),
     );
+
+    expect(
+      manifest.scenarios.find(({ id }) => id === "read.resource.external-endpoint")?.setup.requires,
+    ).toContain("controlled-external-type-publisher-v1");
 
     const problemAction = exactProgrammaticAction(
       manifest.scenarios.find(({ id }) => id === "read.http.problem-table"),
@@ -900,6 +906,27 @@ describe("checked-in Read matrix artifacts", () => {
     expect(JSON.stringify(reference.oracles["cross-target"].projection)).not.toMatch(
       /(?:beads\/|links\/|demo-|https?:)/,
     );
+
+    const addedWildcard = structuredClone(reference) as CrossTargetFixture & {
+      links: { localId: string; type: string; source: string; target: string }[];
+    };
+    addedWildcard.links.push({
+      localId: "links/unexcluded-wildcard",
+      type: "https://work.example/types/blocks",
+      source: "beads/demo-f",
+      target: "beads/demo-a",
+    });
+    expect(() => deriveCrossTargetProjection(addedWildcard)).toThrow();
+    const removedShared = structuredClone(reference) as CrossTargetFixture & {
+      links: { localId: string }[];
+    };
+    removedShared.links = removedShared.links.filter(({ localId }) => localId !== "links/demo-f-e");
+    expect(() => deriveCrossTargetProjection(removedShared)).toThrow();
+    const excludedShared = structuredClone(reference);
+    (excludedShared.oracles["cross-target"].input.realizationOnlyLinkIds as string[]).push(
+      "links/demo-f-e",
+    );
+    expect(() => deriveCrossTargetProjection(excludedShared)).toThrow();
 
     const changedType = structuredClone(reference);
     const firstLink = changedType.oracles.collections["link-records"][0];
@@ -1815,9 +1842,11 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
     fixture.oracles["cross-target"].input.relationshipRoles.map(({ type, role }) => [type, role]),
   );
   // The exclusion list is not self-certifying: it must name exactly the
-  // known witnesses, and every excluded link must be independently
-  // justified by the model — it carries a pin, or its type is owned by its
-  // source's Type — and every link so justified must be excluded.
+  // known reference-only witnesses, justified by pinning or ownership.
+  // Ownership alone does not make an edge reference-only: F→E blocks is
+  // shared topology in both realizations and also wildcard-owned here.
+  // Preserve that exact shared witness; require every other owned/pinned
+  // witness to be excluded. The two derived public projections agree below.
   const authoredRealizationOnly = fixture.oracles["cross-target"].input.realizationOnlyLinkIds;
   if ((fixture as { readonly realization?: string }).realization === "bdptest") {
     const fixtureLinks = (
@@ -1847,6 +1876,20 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
         Object.keys(descriptor.ownsOutgoing ?? {}).map((type) => `${descriptor.id}|${type}`),
       ),
     );
+    const wildcardOwners = new Set(
+      fixtureShape.typeDescriptors
+        .filter((descriptor) => Object.hasOwn(descriptor.ownsOutgoing ?? {}, "*"))
+        .map(({ id }) => id),
+    );
+    const sharedOwned = fixtureLinks.filter(
+      ({ localId, source, target, type }) =>
+        localId === "links/demo-f-e" &&
+        source === "beads/demo-f" &&
+        target === "beads/demo-e" &&
+        type === "https://work.example/types/blocks",
+    );
+    expect(sharedOwned).toHaveLength(1);
+    expect(authoredRealizationOnly ?? []).not.toContain("links/demo-f-e");
     const beadTypeByLocalId = new Map(
       fixtureShape.beads.map(({ localId, type }) => [localId, type]),
     );
@@ -1859,10 +1902,12 @@ function deriveCrossTargetProjection(fixture: CrossTargetFixture) {
           return (
             isPinned(source) ||
             isPinned(target) ||
-            (sourceType !== undefined && ownedPairs.has(`${sourceType}|${type}`))
+            (sourceType !== undefined &&
+              (ownedPairs.has(`${sourceType}|${type}`) || wildcardOwners.has(sourceType)))
           );
         })
-        .map(({ localId }) => localId),
+        .map(({ localId }) => localId)
+        .filter((id) => id !== "links/demo-f-e"),
     );
     // external-endpoint witnesses are excluded through their own input
     // list; the realization-only list must cover exactly the remainder.

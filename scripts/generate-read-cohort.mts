@@ -654,6 +654,24 @@ describe("packaged Read cohort generation", () => {
         // than left implicit. Each is documented as deferred in
         // packages/conformance/matrices/README.md.
         uncovered: [
+          ...["declaration", "max-required", "explicit-max-bounded"].map((suffix) => ({
+            scenarioId: `read.owned-wildcard.${suffix}`,
+            variant: "independent-authority-descriptor-installation",
+            reason:
+              "These packaged-lane rows repeat one generic client's parsing of isolated fixture-publisher descriptors; they are not independent observations of each target's descriptor authority or installation API.",
+          })),
+          {
+            scenarioId: "read.resource.external-endpoint",
+            variant: "target-authored-external-type-declarations",
+            reason:
+              "Inventory and Bead records are target-observed; external Type bodies come from the isolated per-realization fixture publisher. Adapter-boundary tests bind the bdpbd publisher data to its served descriptor constant; this is not a packaged observation of external descriptor authorship.",
+          },
+          {
+            scenarioId: "read.numeric-model.declared-token-model",
+            variant: "on-wire-number-model-declaration",
+            reason:
+              "The number-model declaration is bound out-of-band implementation documentation, not a protocol discovery member. Public revision comparisons check the declared local serialization discipline on sampled values and do not discriminate binary64 from exact-decimal models where both agree.",
+          },
           {
             scenarioId: "read.discovery.optional-limits",
             variant: "absent-optional-limits",

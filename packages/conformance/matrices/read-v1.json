@@ -5556,7 +5556,11 @@
       "requiredProfile": "read",
       "setup": {
         "fixture": "reference-read-v1",
-        "requires": ["public-http", "controlled-read-external-endpoint-v1"]
+        "requires": [
+          "public-http",
+          "controlled-read-external-endpoint-v1",
+          "controlled-external-type-publisher-v1"
+        ]
       },
       "applicability": {
         "requires": []
@@ -5652,9 +5656,9 @@
             {
               "id": "ownedtypes",
               "kind": "json-pointer",
-              "pointer": "/ownedTypes",
+              "pointer": "/resolvedOwnedTypes",
               "exists": true,
-              "fixturePointer": "/oracles/ownership-inventory/ownedTypes"
+              "fixturePointer": "/oracles/ownership-inventory/resolvedOwnedTypes"
             },
             {
               "id": "beadswithownership",
@@ -5662,6 +5666,13 @@
               "pointer": "/beadsWithOwnership",
               "exists": true,
               "fixturePointer": "/oracles/ownership-inventory/beadsWithOwnership"
+            },
+            {
+              "id": "descriptor-authority-provenance",
+              "kind": "json-pointer",
+              "pointer": "/descriptorPlane",
+              "exists": true,
+              "equals": "fixture-publisher-and-scope-local-types"
             }
           ],
           "inputFixturePointer": "/oracles/ownership-inventory/input"
@@ -7172,13 +7183,6 @@
               "pointer": "/bothKinds",
               "exists": true,
               "equals": true
-            },
-            {
-              "id": "declared-number-model",
-              "kind": "json-pointer",
-              "pointer": "/numberModel",
-              "exists": true,
-              "equals": "IEEE-754-binary64-ECMAScript-JSON"
             }
           ],
           "inputFixturePointer": "/oracles/numeric-model/input"

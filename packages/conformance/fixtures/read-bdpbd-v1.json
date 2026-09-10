@@ -860,7 +860,8 @@
             "https://work.example/types/wildcard-probe-unknown",
             "https://work.example/types/wildcard-probe-zero",
             "https://work.example/types/wildcard-probe-negative",
-            "https://work.example/types/wildcard-probe-fraction"
+            "https://work.example/types/wildcard-probe-fraction",
+            "https://work.example/types/wildcard-probe-max-valid"
           ]
         },
         "descriptors": [
@@ -929,6 +930,17 @@
                 "max": 1.5
               }
             }
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-max-valid",
+            "name": "missing",
+            "describes": "bead",
+            "conformsTo": [],
+            "ownsOutgoing": {
+              "*": {
+                "max": 4
+              }
+            }
           }
         ],
         "rows": [
@@ -961,6 +973,21 @@
             "id": "https://work.example/types/wildcard-probe-fraction",
             "outcome": "problem",
             "code": "temporarily-unavailable"
+          },
+          {
+            "id": "https://work.example/types/wildcard-probe-max-valid",
+            "outcome": "success",
+            "descriptor": {
+              "id": "https://work.example/types/wildcard-probe-max-valid",
+              "name": "missing",
+              "describes": "bead",
+              "conformsTo": [],
+              "ownsOutgoing": {
+                "*": {
+                  "max": 4
+                }
+              }
+            }
           }
         ]
       },
@@ -1062,7 +1089,6 @@
       }
     },
     "ownership-inventory": {
-      "ownedTypes": 0,
       "beadsWithOwnership": 0,
       "input": {
         "ids": [
@@ -1080,7 +1106,8 @@
           "https://work.example/types/relates",
           "https://work.example/types/cites"
         ]
-      }
+      },
+      "resolvedOwnedTypes": 0
     },
     "numeric-model": {
       "declaration": {

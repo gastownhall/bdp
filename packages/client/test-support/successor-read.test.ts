@@ -72,6 +72,7 @@ describe("successor Read observations", () => {
         expect(f.capabilities).toContain("content-derived-revisions-v1");
       } else {
         expect(d.numberModel).toBe("not-content-derived");
+        expect(f.oracles["numeric-model"].input.numberModel).toBe(d.numberModel);
         expect(f.capabilities).not.toContain("content-derived-revisions-v1");
         expect(f.beads.every((b: { revision: string }) => b.revision === "1")).toBe(true);
       }
@@ -128,6 +129,8 @@ describe("successor Read observations", () => {
         .digest("base64url");
     const resources = { [b.id]: { ...b, revision: bt }, [l.id]: { ...l, revision: lt } };
     const input = { ids: ["beads/a", "links/a-b"], numberModel: model };
+    const numericResult = await run("numeric-token-model", input, publicFetch(resources));
+    expect(numericResult).not.toHaveProperty("numberModel");
     await expect(run("numeric-token-model", input, publicFetch(resources))).resolves.toMatchObject({
       tokensMatch: true,
       hasNumbers: true,
@@ -177,6 +180,25 @@ describe("successor Read observations", () => {
           run("wildcard-descriptors", group.input, publicFetch({}), publisher),
         ).resolves.toEqual({ rows: group.rows });
         expect(requested).toEqual(group.input.ids);
+        // Repair only ownership on each negative. If some unrelated descriptor
+        // field is broken, the repaired body still fails and this control catches it.
+        for (const expected of group.rows as { id: string; outcome: string }[]) {
+          if (expected.outcome !== "problem") continue;
+          const original = bodies.get(expected.id);
+          bodies.set(expected.id, {
+            ...original,
+            ownsOutgoing: original?.describes === "link" ? undefined : { "*": { max: 4 } },
+          });
+          const repaired = await run(
+            "wildcard-descriptors",
+            { ids: [expected.id] },
+            publicFetch({}),
+            publisher,
+          );
+          expect(repaired).toMatchObject({ rows: [{ id: expected.id, outcome: "success" }] });
+          if (original === undefined) throw new Error("Missing descriptor control");
+          bodies.set(expected.id, original);
+        }
       }
       const group = f.oracles["wildcard-descriptors"]["explicit-max-bounded"];
       const bodies = new Map<string, Record<string, unknown>>(
@@ -199,6 +221,44 @@ describe("successor Read observations", () => {
       });
     },
   );
+  it("distinguishes external publisher Type reads from target record observations", async () => {
+    const f = fixture("bdpbd");
+    const descriptor = f.typeDescriptors.find((d: { id: string }) => d.id.endsWith("/task"));
+    const publisherReads: string[] = [];
+    const targetReads: string[] = [];
+    const target = publicFetch({
+      [`${scope}types/`]: {
+        items: [{ id: descriptor.id, name: descriptor.name, describes: descriptor.describes }],
+        next: null,
+      },
+      [`${scope}beads/`]: { items: [], next: null },
+    });
+    const result = await run(
+      "ownership-inventory",
+      { ids: [descriptor.id] },
+      async (input, init) => {
+        targetReads.push(String(input));
+        return target(input, init);
+      },
+      async (input) => {
+        publisherReads.push(String(input));
+        return json(String(input), descriptor);
+      },
+    );
+    expect(result).toEqual({
+      outcome: "success",
+      descriptorPlane: "fixture-publisher-and-scope-local-types",
+      resolvedOwnedTypes: 0,
+      beadsWithOwnership: 0,
+    });
+    expect(publisherReads).toEqual([descriptor.id]);
+    expect(targetReads).not.toContain(descriptor.id);
+    expect(targetReads).toContain(`${scope}types/`);
+    expect(targetReads).toContain(`${scope}beads/`);
+    await expect(run("ownership-inventory", { ids: [descriptor.id] }, target)).rejects.toThrow(
+      "controlled descriptor bindings",
+    );
+  });
   it("fails an ownership absence witness on an incomplete inventory", async () => {
     await expect(
       run(
