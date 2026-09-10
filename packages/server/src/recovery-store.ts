@@ -121,6 +121,23 @@ export interface RecoveryStoreOptions {
   readonly create?: StoreSeed;
   readonly minimumRetentionMs?: number;
 }
+/** Exact storage text; the startup caller owns manifest/schema interpretation. */
+export interface InstalledTypeRow {
+  readonly id: string;
+  readonly bodyJson: string;
+}
+/** Still-retained outcomes only; no principal, key or identity metadata is exposed. */
+export interface RetainedOutcomeRow {
+  readonly outcomeJson: string;
+  readonly effect: "success" | "failure";
+  readonly completedAt: number;
+  readonly retainUntil: number;
+}
+/** Authority-owner-only handle, not a principal/request-facing facet.
+ * Startup visitors expose complete inventories across principals. The owner must
+ * close/refuse startup on a failed scan or qualification; read errors propagate
+ * through the existing read boundary without a new member Problem or fencing policy.
+ */
 export interface RecoveryStore {
   readonly runtime: Readonly<{
     node: string;
@@ -133,6 +150,14 @@ export interface RecoveryStore {
     filesystemType: number;
   }>;
   read<T>(reader: (store: StoreReader) => T): T;
+  /** Synchronous startup inventory in SQLite BINARY order (UTF-8 bytes), not locale
+   * or UTF-16 code-unit order. No cursor escapes the callback.
+   */
+  visitInstalledTypes(visitor: (row: InstalledTypeRow) => void): void;
+  /** Startup scan of all key_state rows, delivering still-retained outcome text one
+   * row at a time. No ordering promise or implicit expiry; qualification stays caller-owned.
+   */
+  visitRetainedOutcomes(visitor: (row: RetainedOutcomeRow) => void): void;
   admit(
     principal: string,
     keys: readonly string[],
@@ -627,24 +652,50 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
     if (key !== undefined && !admission.keys.includes(key))
       throw new RecoveryStoreError("invalid-admission", "key was not in the admitted carrier");
   };
+  const read = <T>(callback: (store: StoreReader) => T): T => {
+    available();
+    active = true;
+    let valid = true;
+    try {
+      const value = callback(
+        reader(() => {
+          if (!valid) throw new RecoveryStoreError("expired-facade", "expired read facade");
+        }),
+      );
+      rejectAsync(value);
+      return value;
+    } finally {
+      valid = false;
+      active = false;
+    }
+  };
   return {
     runtime,
-    read(callback) {
-      available();
-      active = true;
-      let valid = true;
-      try {
-        const value = callback(
-          reader(() => {
-            if (!valid) throw new RecoveryStoreError("expired-facade", "expired read facade");
-          }),
-        );
-        rejectAsync(value);
-        return value;
-      } finally {
-        valid = false;
-        active = false;
-      }
+    read,
+    visitInstalledTypes(visitor) {
+      read(() => {
+        for (const row of db.prepare("SELECT id,body FROM installed_types ORDER BY id").iterate())
+          rejectAsync(visitor(Object.freeze({ id: String(row.id), bodyJson: String(row.body) })));
+      });
+    },
+    visitRetainedOutcomes(visitor) {
+      read(() => {
+        for (const row of db
+          .prepare(
+            "SELECT outcome,effect,completed_at,retain_until FROM key_state WHERE state='retained'",
+          )
+          .iterate())
+          rejectAsync(
+            visitor(
+              Object.freeze({
+                outcomeJson: String(row.outcome),
+                effect: row.effect as "success" | "failure",
+                completedAt: Number(row.completed_at),
+                retainUntil: Number(row.retain_until),
+              }),
+            ),
+          );
+      });
     },
     admit(principal, keys, validate) {
       const carrierKeys = Object.freeze([...keys]);
