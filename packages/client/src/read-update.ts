@@ -11,6 +11,7 @@ import {
   type ReadUpdateSequenceResponse,
   type UnadmittedReadUpdateOperation,
   parseCanonicalHttpUrl,
+  isHttpScopeCandidate,
   parseCanonicalScope,
   parseLinkHeader,
   parseReadUpdateAliasResult,
@@ -224,10 +225,34 @@ export class BdpReadUpdateClient {
           operations: prepared.operations,
         });
         const bindings = new Map<string, string>();
+        const transientCreators = new Set<string>();
         for (const [index, entry] of value.results.entries()) {
           const operation = prepared.operations[index];
           if (!operation) throw call.failure("invalid-response");
-          if (!("outcome" in entry)) continue;
+          // A transient creator forbids even consulting the dependent key. Its
+          // required in-progress response is observable without current lookup.
+          for (const field of ["bead", "link", "source", "target"]) {
+            const reference = operation.input[field];
+            const uri =
+              typeof reference === "string"
+                ? reference
+                : reference && typeof reference === "object" && "uri" in reference
+                  ? reference.uri
+                  : undefined;
+            if (
+              typeof uri === "string" &&
+              uri.startsWith("@") &&
+              transientCreators.has(uri.slice(1))
+            ) {
+              if (!("code" in entry) || entry.code !== "idempotency-in-progress")
+                throw call.failure("invalid-response", http);
+            }
+          }
+          if (!("outcome" in entry)) {
+            if (operation.name !== undefined && entry.retry === "after-delay")
+              transientCreators.add(operation.name);
+            continue;
+          }
           // Envelope fields are already validated against the request above.
           const { operationIndex: _index, operationName: _name, ...outcome } = entry;
           const result =
@@ -294,10 +319,13 @@ export class BdpReadUpdateClient {
       }
       if (signal.aborted || timedOut) throw abortFailure();
     };
-    const timer = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, this.timeoutMs);
+    const timer = setTimeout(
+      () => {
+        timedOut = true;
+        controller.abort();
+      },
+      Math.max(0, expires - performance.now()),
+    );
     const call: Call = {
       signal,
       check,
@@ -498,8 +526,7 @@ export class BdpReadUpdateClient {
     if (URL.canParse(uri)) {
       const candidate = new URL(uri),
         scope = new URL(this.scope);
-      if (candidate.origin === scope.origin && candidate.pathname.startsWith(scope.pathname))
-        this.resourceId(uri, "bead");
+      if (isHttpScopeCandidate(scope, candidate, uri)) this.resourceId(uri, "bead");
     }
   }
   private resource(record: BeadRecord | LinkRecord): void {

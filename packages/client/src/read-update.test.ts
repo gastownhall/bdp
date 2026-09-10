@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AdmittedJsonValue } from "@bdp/protocol";
 import { BdpReadUpdateClient, ReadUpdateClientError } from "./read-update.js";
 import {
@@ -815,6 +815,126 @@ describe("Read+Update sequence and client lifetime", () => {
     "requires an explicit valid settlement deadline %s",
     (timeout) => {
       expect(() => setup(undefined, {}, timeout)).toThrow(ReadUpdateClientError);
+    },
+  );
+});
+
+describe("operation council regressions", () => {
+  it("deducts partially consumed preflight time before scheduling a hanging exchange", async () => {
+    vi.useFakeTimers();
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const h = setup(undefined, { probeScope: () => new Promise(() => {}) }, 100);
+    try {
+      const pending = h.client.mutate("createBead", input, {
+        get idempotencyKey() {
+          now = 75;
+          return "k";
+        },
+      });
+      let delivered = false;
+      const result = pending.catch((error: unknown) => {
+        delivered = true;
+        return error;
+      });
+      await vi.advanceTimersByTimeAsync(24);
+      expect(delivered).toBe(false);
+      now = 100;
+      await vi.advanceTimersByTimeAsync(1);
+      expect(delivered).toBe(true);
+      expect(await result).toMatchObject({ code: "timeout", submission: "not-submitted" });
+    } finally {
+      await h.client.close();
+      clock.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+  it.each([
+    "https://example.test/%73/beads/b",
+    "https://example.test/s/beads/../beads/b",
+    "https://example.test/s/../other/beads/b",
+  ])("rejects disguised local endpoint %s in an update response", async (target) => {
+    const h = setup({ outcome: "updated", resource: { ...link, target } });
+    await expect(
+      h.client.mutate(
+        "updateLinkProperties",
+        JSON.stringify({
+          link: "links/l",
+          change: [{ op: "replace", path: "", value: {} }],
+        }),
+        options,
+      ),
+    ).rejects.toMatchObject({ code: "invalid-response", submission: "unknown" });
+  });
+  it.each([
+    `${scope}beads/b`,
+    "https://example.test/s%2fother/beads/b",
+    "http://example.test/s/beads/b",
+    "blob:https://example.test/s/beads/b",
+  ])("accepts canonical or distinct external endpoint %s", async (target) => {
+    const h = setup({ outcome: "updated", resource: { ...link, target } });
+    expect(
+      (
+        await h.client.mutate(
+          "updateLinkProperties",
+          JSON.stringify({
+            link: "links/l",
+            change: [{ op: "replace", path: "", value: {} }],
+          }),
+          options,
+        )
+      ).kind,
+    ).toBe("success");
+  });
+  it.each(["success", "permanent", "in-progress"])(
+    "checks transient creator dependency: %s",
+    async (variant) => {
+      const transient = {
+        type: "https://github.com/gastownhall/bdp/problems/rate-limit",
+        code: "rate-limited",
+        status: 429,
+        retry: "after-delay",
+        retryAfter: 1,
+      };
+      const dependent =
+        variant === "success"
+          ? { outcome: "updated", resource: bead }
+          : variant === "permanent"
+            ? problem
+            : {
+                type: "https://github.com/gastownhall/bdp/problems/conflict",
+                code: "idempotency-in-progress",
+                status: 409,
+                retry: "after-delay",
+                retryAfter: 1,
+              };
+      const h = setup({
+        results: [
+          { operationIndex: 0, operationName: "a", ...transient },
+          { operationIndex: 1, ...dependent },
+          { operationIndex: 2, outcome: "created", resource: bead },
+        ],
+      });
+      const response = h.client.sequence(
+        JSON.stringify({
+          operations: [
+            { operation: "createBead", idempotencyKey: "a", name: "a", type },
+            {
+              operation: "updateBeadProperties",
+              idempotencyKey: "b",
+              bead: "@a",
+              change: [{ op: "replace", path: "", value: {} }],
+            },
+            { operation: "createBead", idempotencyKey: "c", type },
+          ],
+        }),
+      );
+      if (variant === "in-progress") expect((await response).kind).toBe("success");
+      else
+        await expect(response).rejects.toMatchObject({
+          code: "invalid-response",
+          submission: "unknown",
+        });
     },
   );
 });
