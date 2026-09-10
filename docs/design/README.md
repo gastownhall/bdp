@@ -75,8 +75,9 @@ waves are internal sequencing labels, not protocol concepts.
   its apply record lists what landed where, the ruled sentences it
   amended, T49 (locator-only alias receipt contract, ruled option 1), and the apply-time judgment calls T50–T61,
   initially applied provisionally. T50–T56 recommendation A (including amended T56)
-  was ratified 2026-09-09; T57 option B selects regression work using #24's existing
-  canonicalizer after authorized integration, unimplemented here. T58–T61 were
+  was ratified 2026-09-09; T57 option B is implemented by the bounded
+  [canonicalizer regression](w1-transactional-packet.md#t57-canonicalization-regression-materialized-2026-09-10)
+  using the conformance package's existing implementation. T58–T61 were
   subsequently ratified A. T62a/b and T65 were ruled A and materialized 2026-09-09;
   the [latest ACK record](w1-transactional-packet.md#ratification-and-materialization-of-t58-through-t65-2026-09-09)
   records the direct retry rules and the supported persistent Event consumer
@@ -86,7 +87,7 @@ waves are internal sequencing labels, not protocol concepts.
   Council 13 exposed T62–T64 for admission identity,
   withheld allocation projection, and live erasure delivery.
 
-- [`w1-transactional-council13.md`](w1-transactional-council13.md) — three-seat apply review, verified finding dispositions and correction-pass validation. T49/T63/T64 are ACKed and materialized; T50–T56 recommendation A (including amended T56) is ratified 2026-09-09; T57 option B selects a still-unimplemented canonicalization-check follow-up using #24. T58–T61 are ratified A; T62a/b and T65 are ruled A and materialized 2026-09-09. T65 scopes the supported persistent Event consumer claim to existing changefeed/ledger integration, recovery and cleanup; History H12 and RP1 stay separate. No merge clearance.
+- [`w1-transactional-council13.md`](w1-transactional-council13.md) — three-seat apply review, verified finding dispositions and correction-pass validation. T49/T63/T64 are ACKed and materialized; T50–T56 recommendation A (including amended T56) is ratified 2026-09-09; T57 option B is materialized by the [canonicalization regression](w1-transactional-packet.md#t57-canonicalization-regression-materialized-2026-09-10) using #24; runtime and evidence remain separately gated. T58–T61 are ratified A; T62a/b and T65 are ruled A and materialized 2026-09-09. T65 scopes the supported persistent Event consumer claim to existing changefeed/ledger integration, recovery and cleanup; History H12 and RP1 stay separate. No merge clearance.
 
 These design documents are drafts until their open decisions are resolved and
 their review findings have been addressed.
@@ -124,3 +125,8 @@ T65 = A; RP1 was the separately handled eighth recommendation. The
 supersedes all earlier pending statuses for those seven Transactional decisions.
 T57 implementation and independent final review/integration/evidence work remain;
 the new catalog obligations are unclaimed, with no runtime or merge grant.
+
+Implementation update 2026-09-10: T57’s bounded canonicalization regression and
+its final council corrections are materialized. This supersedes the earlier
+dated pending-implementation statements for T57 only. Transactional runtime,
+shared Read HTTP adoption and fresh conformance observations remain separate.
