@@ -71,6 +71,19 @@ const targetDiagnostics = Object.freeze([
   }),
 ]);
 const targetDiagnosticBytes = Buffer.byteLength(JSON.stringify(targetDiagnostics));
+/** Reuse the evaluator's diagnostic precondition before accepting authority work.
+ * This checks the fixed alias diagnostic only; callers own complete configuration
+ * qualification and must supply explicit limits when their profile requires them.
+ * The required typed object is not an untrusted configuration parsing boundary.
+ */
+export function assertAliasDiagnosticLimits(limits: AliasEvaluationOptions["limits"]): void {
+  const { diagnosticCount, diagnosticBytes } = limits;
+  for (const limit of [diagnosticCount, diagnosticBytes])
+    if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1))
+      throw new TypeError("positive usable diagnostic limits required");
+  if (diagnosticBytes !== undefined && diagnosticBytes < targetDiagnosticBytes)
+    throw new TypeError("diagnostic configuration cannot retain one complete diagnostic");
+}
 function badTarget(): never {
   throw new AliasFailure(
     parseReadUpdateProblem({
@@ -118,13 +131,8 @@ export function evaluateAliasMutation(
   options: AliasEvaluationOptions,
 ): AliasEvaluation {
   const { scope, policy } = options;
-  const { diagnosticCount, diagnosticBytes } = options.limits;
   parseCanonicalScope(scope);
-  for (const limit of [diagnosticCount, diagnosticBytes])
-    if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1))
-      throw new TypeError("positive usable diagnostic limits required");
-  if (diagnosticBytes !== undefined && diagnosticBytes < targetDiagnosticBytes)
-    throw new TypeError("diagnostic configuration cannot retain one complete diagnostic");
+  assertAliasDiagnosticLimits(options.limits);
   const loadVisible = (id: string): BeadRecord => {
     const stored = tx.resource(id);
     if (stored?.kind !== "bead") fail("resource-not-found");
