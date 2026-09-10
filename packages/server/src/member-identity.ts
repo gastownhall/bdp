@@ -112,10 +112,16 @@ export type MemberNormalization =
 export interface MemberIdentityContext {
   readonly scope: string;
   /** Same synchronous member turn; no authorization or Resource-body read.
-   * Return an absolute canonical in-Scope Bead ID, or undefined for no alias. */
+   * locator is an absolute canonical in-Scope alias URL, unlike the bare path
+   * accepted by capturedMemberAlias. Return an absolute canonical in-Scope
+   * Bead ID, or undefined for no alias. */
   resolveAlias(locator: string): string | undefined;
   /** Index is the earlier creator in this current carrier, never a stored label. */
   creatorBinding(index: number): MemberCreatorBinding;
+  /** Parsed metadata from this principal/key's retained or expired state.
+   * The owner must check that namespace: branding and Scope alone do not prove
+   * key ownership. Retry normalization never replaces retained metadata or
+   * outcome, even if the current spelling produces different witnesses. */
   readonly prior?: MemberMetadata;
 }
 
@@ -329,7 +335,9 @@ export function prepareMemberExecution(
   });
 }
 
-/** Structural alias-facade overlay: S2 uses paths beneath alias/. A captured
+/** Structural alias-facade overlay: path is the bare path beneath alias/,
+ * unlike MemberIdentityContext.resolveAlias's absolute canonical alias URL.
+ * A captured target is returned as a Scope-relative Bead ID. A captured
  * miss stays a miss. Only an explicitly uncaptured path may reach the live store
  * (e.g. the separate Bead-allocation uniqueness guard). */
 export function capturedMemberAlias(
