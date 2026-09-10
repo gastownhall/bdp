@@ -615,3 +615,10 @@ export {
   type ReadUpdateSequenceMemberProblem,
   type ValidationDiagnostic,
 } from "./read-update-problems.js";
+
+export {
+  prepareReadUpdateSingleton,
+  prepareReadUpdateSequence,
+  assertPreparedReadUpdateCarrier,
+  type PreparedReadUpdateCarrier,
+} from "./read-update-preflight.js";
