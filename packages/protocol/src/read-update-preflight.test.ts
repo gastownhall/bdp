@@ -25,8 +25,6 @@ const badLocal = [
   "https://example.test/s/beads/%2F",
   "https://example.test/s/beads/%FF",
   "https://example.test/%73/beads/%FF",
-  "https://example.test/s%2Fbeads/a",
-  "https://example.test/s%5Cbeads/a",
   "https://example.test/s/../elsewhere/beads/a",
   "https://example.test/x/../s/beads/a",
   "https://example.test/s/beads/a?view=properties",
@@ -111,6 +109,8 @@ describe("whole-carrier Read+Update Scope preflight", () => {
 
   it.each([
     "urn:example:opaque",
+    "https://example.test/s%2Fbeads/a",
+    "https://example.test/s%5Cbeads/a",
     "https://example.test:99999/s/beads/a",
     "foo://[v1.a]/opaque",
     "https://other.test/s/beads/%61?query=1#pin",
@@ -125,6 +125,23 @@ describe("whole-carrier Read+Update Scope preflight", () => {
     // The same outside spelling as an alias target remains a member category error.
     expect(() => prepare("putAlias", { alias: "alias/latest", target: uri })).not.toThrow();
   });
+
+  it.each(["%2f", "%2F", "%5c", "%5C"])(
+    "preserves a distinct escaped path segment %s while rejecting its local counterpart",
+    (separator) => {
+      const outside = `https://example.test/s${separator}other/beads/a`;
+      for (const target of [outside, { uri: outside, revision: "exact pin" }]) {
+        const input = { type, source: "beads/a", target };
+        expect(() => parseReadUpdateRequest("createLink", JSON.stringify(input))).not.toThrow();
+        expect(prepare("createLink", input).operations[0]?.input).toEqual(input);
+      }
+      const local = { type, source: "beads/a", target: `${scope}beads/a${separator}b` };
+      expect(() => parseReadUpdateRequest("createLink", JSON.stringify(local))).not.toThrow();
+      expect(() => prepare("createLink", local)).toThrow(ReadUpdateCarrierError);
+      const control = { type, source: "beads/a", target: `${scope}beads/a` };
+      expect(prepare("createLink", control).operations[0]?.input).toEqual(control);
+    },
+  );
 
   it("uses decoded Scope segments without accepting encoded aliases of the Scope", () => {
     const unicodeScope = "https://example.test/team/%E2%82%AC/";
