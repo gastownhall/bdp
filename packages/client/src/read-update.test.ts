@@ -91,7 +91,8 @@ interface Harness {
 function setup(
   reply: unknown = { outcome: "created", resource: bead },
   overrides: Partial<ReadUpdateTransport> = {},
-  timeout = 250,
+  // Non-timing cases include cold schema initialization; deadline tests set their own budgets.
+  timeout = 5000,
 ): Harness {
   const calls: Harness["calls"] = [];
   const transport: ReadUpdateTransport = {
@@ -732,12 +733,16 @@ describe("Read+Update sequence and client lifetime", () => {
   it("caller abort ends only that call, with unknown mutation delivery after dispatch", async () => {
     const abort = new AbortController();
     let entered = false;
-    const h = setup(undefined, {
-      post: () => {
-        entered = true;
-        return new Promise(() => {});
+    const h = setup(
+      undefined,
+      {
+        post: () => {
+          entered = true;
+          return new Promise(() => {});
+        },
       },
-    });
+      250,
+    );
     const pending = h.client.mutate("createBead", input, { ...options, signal: abort.signal });
     const observed = expect(pending).rejects.toMatchObject({
       code: "aborted",
@@ -791,16 +796,20 @@ describe("Read+Update sequence and client lifetime", () => {
   it("captures configured methods and request key before asynchronous navigation", async () => {
     let release!: (v: ReadUpdateScopeProbeResponse) => void;
     let key: string | undefined;
-    const h = setup(undefined, {
-      probeScope: () =>
-        new Promise((r) => {
-          release = r;
-        }),
-      post: async (url, call) => {
-        key = call.idempotencyKey;
-        return json({ outcome: "created", resource: bead }, url);
+    const h = setup(
+      undefined,
+      {
+        probeScope: () =>
+          new Promise((r) => {
+            release = r;
+          }),
+        post: async (url, call) => {
+          key = call.idempotencyKey;
+          return json({ outcome: "created", resource: bead }, url);
+        },
       },
-    });
+      250,
+    );
     const inputOptions = { idempotencyKey: "original" };
     const pending = h.client.mutate("createBead", input, inputOptions);
     inputOptions.idempotencyKey = "changed";
