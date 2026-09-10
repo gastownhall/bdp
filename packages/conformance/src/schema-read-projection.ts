@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { READ_VALUE_SCHEMA_REFS } from "@bdp/protocol";
+import { HISTORY_VALUE_SCHEMA_REFS, READ_VALUE_SCHEMA_REFS } from "@bdp/protocol";
 
 import { canonicalJson, compareCodeUnits } from "./canonical-json.js";
 import type { ExecutableScenarioManifest } from "./executable-manifest.js";
@@ -38,7 +38,7 @@ import type { ExecutableScenarioManifest } from "./executable-manifest.js";
  *
  * The Read roots — the definitions the bound manifest's `json-schema`
  * assertions name, united with the definitions `@bdp/protocol` parses Read
- * values through (`READ_VALUE_SCHEMA_REFS`) — are still derived, never
+ * values through (`READ_VALUE_SCHEMA_REFS` and `HISTORY_VALUE_SCHEMA_REFS`) — are still derived, never
  * hand-listed, but they no longer select anything. They are the coverage
  * check: every definition reachable from them must be sealed, so the Read
  * surface cannot widen onto a definition the seal does not cover — a new root,
@@ -64,7 +64,10 @@ export class ReadSchemaProjectionError extends Error {
  * 552329e6b4a42adfc2643dc92e52403cfad5bd5e4474a25d4f0edbc12968417d, the value
  * the historical cohort records as `bindings.schema` — in the order that bundle
  * declares them. The approved 2026-09-09 successor appends
- * `ownedWildcardDeclaration` as name27 before new observations.
+ * `ownedWildcardDeclaration` as name27 before new observations. The approved
+ * History wire integration appends the 15 named Read-side definitions below;
+ * its parser roots join coverage, while write-only roots remain excluded.
+ * This extends schema coverage, not History runtime or capability admission.
  * `protocolProfile` is included: the seal covers what the
  * bundle held, not what Read happened to reach.
  *
@@ -103,6 +106,21 @@ export const READ_SCHEMA_SEALED_DEFINITIONS: readonly string[] = Object.freeze([
   "ownedLinkDeclaration",
   "attribution",
   "ownedWildcardDeclaration",
+  "changeContext",
+  "contextMessage",
+  "contextString",
+  "contextTime",
+  "dateTime",
+  "historicalBeadRecord",
+  "historicalLinkRecord",
+  "historyCapability",
+  "historyMissing",
+  "historyMissingItem",
+  "historyVersionRow",
+  "historyVersionsPage",
+  "historyWindow",
+  "jsonPointer",
+  "revision",
 ]);
 
 export interface ReadSchemaProjection {
@@ -147,7 +165,10 @@ const UNSUPPORTED_REFERENCE_KEYWORDS = new Set(["$dynamicRef", "$recursiveRef"])
  */
 export function deriveReadSchemaProjectionRoots(
   manifest: ExecutableScenarioManifest,
-  protocolSchemaRefs: readonly string[] = Object.values(READ_VALUE_SCHEMA_REFS),
+  protocolSchemaRefs: readonly string[] = [
+    ...Object.values(READ_VALUE_SCHEMA_REFS),
+    ...Object.values(HISTORY_VALUE_SCHEMA_REFS),
+  ],
 ): readonly string[] {
   const refs = new Set<string>(protocolSchemaRefs);
   for (const scenario of manifest.scenarios) {

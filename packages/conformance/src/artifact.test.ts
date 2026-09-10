@@ -431,7 +431,7 @@ describe("checked-in Read matrix artifacts", () => {
       manifest.scenarios.find(({ id }) => id === "read.http.problem-table"),
       "problem-table-serialization",
     );
-    expect(READ_PROBLEM_DEFINITIONS).toHaveLength(13);
+    expect(READ_PROBLEM_DEFINITIONS).toHaveLength(18);
     expect(problemAction.input).toEqual({
       codes: READ_PROBLEM_DEFINITIONS.map(({ code }) => code),
     });

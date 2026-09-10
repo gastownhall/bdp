@@ -44,6 +44,7 @@ const READ_UPDATE_PROBLEM_ROWS: readonly (readonly [string, string, number, stri
   ["idempotency-conflict", "conflict", 409, "never"],
   ["idempotency-in-progress", "conflict", 409, "after-delay"],
   ["idempotency-expired", "gone", 410, "never"],
+  ["revision-allocation-unsafe", "conflict", 409, "after-state-change"],
 ];
 
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{1,256}$/;
@@ -163,9 +164,11 @@ describe("Read+Update problem rows", () => {
   it("keeps the closed Read table and its erased-resource pointer restriction", () => {
     expect(propertiesOf("readProblem").code).toEqual({ $ref: "#/$defs/readProblemCode" });
     expect((def("readProblem").allOf as SchemaRecord[]).length).toBe(
-      READ_PROBLEM_DEFINITIONS.length + 3,
+      READ_PROBLEM_DEFINITIONS.length + 5,
     );
-    expect((def("readProblem").allOf as SchemaRecord[]).at(-1)).toEqual({
+    expect(
+      (def("readProblem").allOf as SchemaRecord[])[READ_PROBLEM_DEFINITIONS.length + 2],
+    ).toEqual({
       if: { properties: { code: { const: "resource-erased" } }, required: ["code"] },
       // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then vocabulary
       then: { properties: { pointer: false } },

@@ -1650,14 +1650,14 @@
     },
     {
       "id": "transactional.restore.epoch-fence",
-      "title": "A restore keeps canonical URLs and fences every prior-epoch token",
+      "title": "A restore keeps canonical URLs and surviving retained Resource-version addresses; all other prior-epoch token classes retain their individual epoch-fence handling",
       "kind": "normative",
       "requiredProfile": "transactional",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-history",
-          "selectedText": "Restoring the same logical Scope therefore preserves its canonical Scope and Resource URLs while rejecting every history-dependent token from the prior epoch."
+          "selectedText": "**Retained-address amendment, 2026-09-09.** Each Scope history has an opaque,\nunguessable **Scope epoch**. The epoch remains stable across ordinary restart\nand failover that preserve identical committed history. It changes whenever\nrestore, destructive reinitialization, or authority replacement may discard,\nrewrite, or replace history. The epoch is not part of canonical Scope or\nResource identity. Retained Resource-version addresses follow [Revisions](#revisions).\nEvery other history-dependent token remains fenced by that epoch, including\nScope positions, transaction identifiers, snapshots and handles, read and Event\ncursors, changefeed checkpoints, minimum-read barriers, receipts, and the\nidempotency-key namespace and its bound dispositions. Individual token contracts\nstill apply. Cached representations retain their epoch and Authorization View\nbindings under Authorization views. An epoch change in the same logical Scope\npreserves canonical Scope and Resource URLs. Prior-epoch uses retain their own\nhandling: a prior-epoch idempotency key is unbound in the new namespace, so a\nsubmission under the new epoch executes anew rather than replaying its prior\ndisposition. Read/Read+Update do not gain exposed epoch fields."
         }
       ]
     },
