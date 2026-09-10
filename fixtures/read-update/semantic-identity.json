@@ -1,0 +1,302 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-semantic-identity",
+  "description": "What semantic identity compares. A retry that renames its label, omits a defaulted member, spells the identity its @name bound as a durable reference, and arrives through the singleton carrier receives the retained disposition; a pin, a changed attribution, an added expectedRevision guard, or a reordered change array is a different identity and conflicts. Runs after read-update-sequence-idempotent-retry: w1-note-create and w1-note-cite are retained. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "equivalent-spelling-and-defaults-are-the-same-identity",
+      "condition": "The retained w1-note-cite member spelled its source as @note, which bound beads/decision-108; this singleton spells that identity as a durable local reference, omits properties (the protocol default is an empty object), and presents the same key. Identity is compared after resolution, canonicalization, and default expansion, so the retained disposition answers.",
+      "retained": [{ "from": "read-update-sequence-idempotent-retry/original", "index": 1 }],
+      "request": {
+        "method": "POST",
+        "target": "operations/create-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-note-cite"
+        },
+        "schema": "#/$defs/createLinkRequest",
+        "body": {
+          "type": "https://work.example/types/cites",
+          "source": "beads/decision-108",
+          "target": "https://github.example/issues/130",
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/links/cites-109",
+            "type": "https://work.example/types/cites",
+            "revision": "cites-109-r1",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "source": "https://beads.example/acme/beads/decision-108",
+            "target": "https://github.example/issues/130",
+            "properties": {}
+          },
+          "source": "https://beads.example/acme/beads/decision-108",
+          "sourceRevision": "decision-108-r2"
+        }
+      }
+    },
+    {
+      "id": "renamed-label-is-the-same-identity",
+      "condition": "The label is excluded from identity: w1-note-create presented under the name decision answers from its retained disposition, carrying the present member's operationName.",
+      "retained": [
+        { "from": "read-update-sequence-idempotent-retry/original", "index": 0, "at": 0 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "decision",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "decision",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "added-pin-is-a-different-identity",
+      "condition": "A Pinned Reference is compared byte-exactly as written: the pin makes a different record under the retained key.",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-note-cite"
+        },
+        "schema": "#/$defs/createLinkRequest",
+        "body": {
+          "type": "https://work.example/types/cites",
+          "source": "beads/decision-108",
+          "target": { "uri": "https://github.example/issues/130", "revision": "abc123" },
+          "properties": {},
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "idempotency-conflict",
+          "status": 409,
+          "retry": "never",
+          "detail": "w1-note-cite is retained with a different semantic identity"
+        }
+      }
+    },
+    {
+      "id": "changed-attribution-is-a-different-identity",
+      "condition": "attribution is part of the operation record and therefore of its identity.",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-note-cite"
+        },
+        "schema": "#/$defs/createLinkRequest",
+        "body": {
+          "type": "https://work.example/types/cites",
+          "source": "beads/decision-108",
+          "target": "https://github.example/issues/130",
+          "properties": {},
+          "attribution": { "principal": "human:janet", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "idempotency-conflict",
+          "status": 409,
+          "retry": "never",
+          "detail": "w1-note-cite is retained with a different semantic identity"
+        }
+      }
+    },
+    {
+      "id": "two-operation-patch-is-retained",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-task-9-close"
+        },
+        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "body": {
+          "bead": "beads/task-9",
+          "change": [
+            { "op": "replace", "path": "/status", "value": "closed" },
+            { "op": "add", "path": "/priority", "value": 1 }
+          ],
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/beads/task-9",
+            "type": "https://work.example/types/task",
+            "revision": "task-9-r2",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "properties": {
+              "title": "Sort the semantic-identity cases",
+              "status": "closed",
+              "priority": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "reordered-change-array-is-a-different-identity",
+      "condition": "Array order is preserved by normalization: the same two patch operations in the other order are a different record.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-task-9-close"
+        },
+        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "body": {
+          "bead": "beads/task-9",
+          "change": [
+            { "op": "add", "path": "/priority", "value": 1 },
+            { "op": "replace", "path": "/status", "value": "closed" }
+          ],
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "idempotency-conflict",
+          "status": 409,
+          "retry": "never",
+          "detail": "w1-task-9-close is retained with a different semantic identity"
+        }
+      }
+    },
+    {
+      "id": "added-revision-guard-is-a-different-identity",
+      "condition": "expectedRevision is part of the operation record and therefore of its identity.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-task-9-close"
+        },
+        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "body": {
+          "bead": "beads/task-9",
+          "expectedRevision": "task-9-r1",
+          "change": [
+            { "op": "replace", "path": "/status", "value": "closed" },
+            { "op": "add", "path": "/priority", "value": 1 }
+          ],
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/conflict",
+          "code": "idempotency-conflict",
+          "status": 409,
+          "retry": "never",
+          "detail": "w1-task-9-close is retained with a different semantic identity"
+        }
+      }
+    }
+  ]
+}

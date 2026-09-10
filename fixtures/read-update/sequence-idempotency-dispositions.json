@@ -1,0 +1,374 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-sequence-idempotency-dispositions",
+  "description": "The three idempotency-key dispositions as sequence-member problems: a retained key presented with different semantics (conflict) and then replayed unchanged, a key whose first member is still in flight (in-progress, then the retained disposition on retry), and a key whose retained outcome was discarded by controlled eviction after the retention interval (expired with the same identity; still a conflict with a different one), and a forgotten failure whose key executes as new. Runs after read-update-sequence-idempotent-retry: w1-note-create is retained. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "conflict-leaves-retained-disposition-unchanged",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "A different decision under a reused key",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-task-7-status",
+              "operation": "updateBeadProperties",
+              "bead": "beads/task-7",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-conflict",
+              "status": 409,
+              "retry": "never",
+              "operationIndex": 0,
+              "operationName": "note",
+              "detail": "w1-note-create is retained with a different semantic identity"
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/task-7",
+                "type": "https://work.example/types/task",
+                "revision": "task-7-r3",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Review the retention ruling",
+                  "status": "closed",
+                  "priority": 2
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "replay-after-conflict-returns-the-retained-disposition-unchanged",
+      "condition": "The conflicting presentation changed nothing: the original record under w1-note-create still answers from its retained disposition.",
+      "retained": [
+        { "from": "read-update-sequence-idempotent-retry/original", "index": 0, "at": 0 }
+      ],
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-note-create",
+              "operation": "createBead",
+              "name": "note",
+              "type": "https://work.example/types/decision",
+              "properties": {
+                "title": "Record the retention ruling",
+                "status": "proposed"
+              },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "operationName": "note",
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/beads/decision-108",
+                "type": "https://work.example/types/decision",
+                "revision": "decision-108-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "properties": {
+                  "title": "Record the retention ruling",
+                  "status": "proposed"
+                },
+                "ownedLinks": {
+                  "https://work.example/types/cites": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "in-progress-while-the-first-presentation-runs",
+      "condition": "Another request presenting w1-blocks-107-delete is executing that member; the presenting member is refused without waiting.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-blocks-107-delete",
+              "operation": "deleteLink",
+              "link": "links/blocks-107",
+              "expectedRevision": "blocks-107-r1"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-in-progress",
+              "status": 409,
+              "retry": "after-delay",
+              "operationIndex": 0,
+              "retryAfter": 1,
+              "detail": "w1-blocks-107-delete has not reached a terminal outcome"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "retry-after-delay-receives-the-retained-disposition",
+      "condition": "After the delay: the first presentation, not shown here, committed the deletion and retained it. A delayed retry may instead still find the key in flight, meet its own transient disposition, or, after a long delay, find the disposition expired.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-blocks-107-delete",
+              "operation": "deleteLink",
+              "link": "links/blocks-107",
+              "expectedRevision": "blocks-107-r1"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "deleted",
+              "deleted": {
+                "resourceKind": "link",
+                "resource": {
+                  "id": "https://beads.example/acme/links/blocks-107",
+                  "type": "https://work.example/types/blocks",
+                  "revision": "blocks-107-r1"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "expired-key-never-executes-again",
+      "condition": "The disposition retained under w0-archive-create-2026-01-04 was discarded by controlled eviction after the advertised retention.idempotency elapsed; its tombstone — key, identity fingerprint, allocated identity, and kind — remains for the Scope's lifetime.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w0-archive-create-2026-01-04",
+              "operation": "createBead",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Archive the 2025 decisions",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:archivist", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/gone",
+              "code": "idempotency-expired",
+              "status": 410,
+              "retry": "never",
+              "operationIndex": 0,
+              "detail": "the outcome retained under w0-archive-create-2026-01-04 was discarded after the retention interval"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "expired-key-with-different-semantics-is-still-a-conflict",
+      "condition": "The same expired key presented with a different semantic identity: the tombstone's fingerprint still decides, so it is a conflict, not an expiry.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w0-archive-create-2026-01-04",
+              "operation": "createBead",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Archive the 2024 decisions",
+                "status": "open"
+              },
+              "attribution": { "principal": "agent:archivist", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "type": "https://github.com/gastownhall/bdp/problems/conflict",
+              "code": "idempotency-conflict",
+              "status": 409,
+              "retry": "never",
+              "operationIndex": 0,
+              "detail": "w0-archive-create-2026-01-04 is retained with a different semantic identity"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "expired-failure-executes-as-new",
+      "condition": "w0-epic-2-close-2026-01-05 was retained as forbidden for the retention interval and then forgotten: a failure committed nothing, so no tombstone outlives it. The principal has since been granted the write, and the key is unknown again, so the member executes for the first time.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w0-epic-2-close-2026-01-05",
+              "operation": "updateBeadProperties",
+              "bead": "beads/epic-2",
+              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+              "attribution": { "principal": "agent:archivist", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "updated",
+              "resource": {
+                "id": "https://beads.example/acme/beads/epic-2",
+                "type": "https://work.example/types/epic",
+                "revision": "epic-2-r2",
+                "attribution": { "principal": "agent:archivist", "status": "claimed" },
+                "properties": {
+                  "title": "2025 decisions",
+                  "status": "closed"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

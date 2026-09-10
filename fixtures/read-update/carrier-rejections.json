@@ -1,0 +1,646 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-carrier-rejections",
+  "description": "Direct rejections of the sequence carrier before execution: a repeated key, a repeated name, an invalid name, an invalid key, a malformed later member, an unknown, forward, or wrong-kind @name reference (decidable from the request text, as in a batch), a stray Idempotency-Key field, and a member count above the advertised sequence.operations. Each is a direct problem response that executes nothing, so no member — not even a well-formed first one — commits and no key is claimed. Request bodies the bundle rejects carry no request schema. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "repeated-key",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-dup-key",
+              "operation": "createBead",
+              "name": "first",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "First",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "idempotencyKey": "w1-dup-key",
+              "operation": "createBead",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Second",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "idempotencyKey w1-dup-key is repeated within the sequence"
+        }
+      }
+    },
+    {
+      "id": "repeated-name",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-dup-name-1",
+              "operation": "createBead",
+              "name": "dup",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "First",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "idempotencyKey": "w1-dup-name-2",
+              "operation": "createBead",
+              "name": "dup",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "Second",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "name dup is repeated within the sequence"
+        }
+      }
+    },
+    {
+      "id": "invalid-name",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-bad-name",
+              "operation": "createBead",
+              "name": "1st",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "First",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "name 1st must match [A-Za-z][A-Za-z0-9_-]*"
+        }
+      }
+    },
+    {
+      "id": "invalid-key",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1 bad key",
+              "operation": "createBead",
+              "name": "first",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "First",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "idempotencyKey must match [A-Za-z0-9_-]{1,256}"
+        }
+      }
+    },
+    {
+      "id": "malformed-later-member",
+      "condition": "Member 0 is well-formed; member 1 omits its required bead. The carrier is rejected as a whole before member 0 starts.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-well-formed-first",
+              "operation": "createBead",
+              "name": "first",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "First",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            },
+            {
+              "idempotencyKey": "w1-malformed-second",
+              "operation": "updateBeadProperties",
+              "change": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "closed"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "operations[1] is not a valid updateBeadProperties record: bead is required"
+        }
+      }
+    },
+    {
+      "id": "unknown-binding",
+      "condition": "@adr is declared by no member of this sequence — bindings are confined to one request — and that is decidable from the request text, so the carrier is rejected before member 0 starts.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": { "content-type": "application/json", "accept": "application/json" },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-first-before-orphan",
+              "operation": "createBead",
+              "name": "first",
+              "type": "https://work.example/types/task",
+              "properties": { "title": "First", "status": "open" },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-orphan-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@adr",
+              "target": "https://github.example/issues/124",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "operations[1] references @adr, which no earlier member of this sequence declares"
+        }
+      }
+    },
+    {
+      "id": "forward-binding",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": { "content-type": "application/json", "accept": "application/json" },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-forward-cite",
+              "operation": "createLink",
+              "type": "https://work.example/types/cites",
+              "source": "@later",
+              "target": "https://github.example/issues/125",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-later-create",
+              "operation": "createBead",
+              "name": "later",
+              "type": "https://work.example/types/decision",
+              "properties": { "title": "Declared too late", "status": "proposed" },
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "operations[0] references @later, which is declared by a later member"
+        }
+      }
+    },
+    {
+      "id": "wrong-kind-binding",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": { "content-type": "application/json", "accept": "application/json" },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-kind-cite",
+              "operation": "createLink",
+              "name": "cite",
+              "type": "https://work.example/types/cites",
+              "source": "beads/decision-7",
+              "target": "https://github.example/issues/126",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            },
+            {
+              "idempotencyKey": "w1-kind-delete",
+              "operation": "deleteBead",
+              "bead": "@cite"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "operations[1] uses @cite, a Link binding, where a Bead reference is required"
+        }
+      }
+    },
+    {
+      "id": "stray-idempotency-key-field",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-stray"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-stray-member",
+              "operation": "createBead",
+              "name": "first",
+              "type": "https://work.example/types/task",
+              "properties": {
+                "title": "First",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/request",
+          "code": "malformed-request",
+          "status": 400,
+          "retry": "never",
+          "detail": "a sequence request must not carry an Idempotency-Key field; member keys are authoritative"
+        }
+      }
+    },
+    {
+      "id": "member-count-above-the-advertised-limit",
+      "condition": "Discovery advertises sequence.operations 32; this sequence carries 33 members.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-bulk-01",
+              "operation": "deleteLink",
+              "link": "links/bulk-01"
+            },
+            {
+              "idempotencyKey": "w1-bulk-02",
+              "operation": "deleteLink",
+              "link": "links/bulk-02"
+            },
+            {
+              "idempotencyKey": "w1-bulk-03",
+              "operation": "deleteLink",
+              "link": "links/bulk-03"
+            },
+            {
+              "idempotencyKey": "w1-bulk-04",
+              "operation": "deleteLink",
+              "link": "links/bulk-04"
+            },
+            {
+              "idempotencyKey": "w1-bulk-05",
+              "operation": "deleteLink",
+              "link": "links/bulk-05"
+            },
+            {
+              "idempotencyKey": "w1-bulk-06",
+              "operation": "deleteLink",
+              "link": "links/bulk-06"
+            },
+            {
+              "idempotencyKey": "w1-bulk-07",
+              "operation": "deleteLink",
+              "link": "links/bulk-07"
+            },
+            {
+              "idempotencyKey": "w1-bulk-08",
+              "operation": "deleteLink",
+              "link": "links/bulk-08"
+            },
+            {
+              "idempotencyKey": "w1-bulk-09",
+              "operation": "deleteLink",
+              "link": "links/bulk-09"
+            },
+            {
+              "idempotencyKey": "w1-bulk-10",
+              "operation": "deleteLink",
+              "link": "links/bulk-10"
+            },
+            {
+              "idempotencyKey": "w1-bulk-11",
+              "operation": "deleteLink",
+              "link": "links/bulk-11"
+            },
+            {
+              "idempotencyKey": "w1-bulk-12",
+              "operation": "deleteLink",
+              "link": "links/bulk-12"
+            },
+            {
+              "idempotencyKey": "w1-bulk-13",
+              "operation": "deleteLink",
+              "link": "links/bulk-13"
+            },
+            {
+              "idempotencyKey": "w1-bulk-14",
+              "operation": "deleteLink",
+              "link": "links/bulk-14"
+            },
+            {
+              "idempotencyKey": "w1-bulk-15",
+              "operation": "deleteLink",
+              "link": "links/bulk-15"
+            },
+            {
+              "idempotencyKey": "w1-bulk-16",
+              "operation": "deleteLink",
+              "link": "links/bulk-16"
+            },
+            {
+              "idempotencyKey": "w1-bulk-17",
+              "operation": "deleteLink",
+              "link": "links/bulk-17"
+            },
+            {
+              "idempotencyKey": "w1-bulk-18",
+              "operation": "deleteLink",
+              "link": "links/bulk-18"
+            },
+            {
+              "idempotencyKey": "w1-bulk-19",
+              "operation": "deleteLink",
+              "link": "links/bulk-19"
+            },
+            {
+              "idempotencyKey": "w1-bulk-20",
+              "operation": "deleteLink",
+              "link": "links/bulk-20"
+            },
+            {
+              "idempotencyKey": "w1-bulk-21",
+              "operation": "deleteLink",
+              "link": "links/bulk-21"
+            },
+            {
+              "idempotencyKey": "w1-bulk-22",
+              "operation": "deleteLink",
+              "link": "links/bulk-22"
+            },
+            {
+              "idempotencyKey": "w1-bulk-23",
+              "operation": "deleteLink",
+              "link": "links/bulk-23"
+            },
+            {
+              "idempotencyKey": "w1-bulk-24",
+              "operation": "deleteLink",
+              "link": "links/bulk-24"
+            },
+            {
+              "idempotencyKey": "w1-bulk-25",
+              "operation": "deleteLink",
+              "link": "links/bulk-25"
+            },
+            {
+              "idempotencyKey": "w1-bulk-26",
+              "operation": "deleteLink",
+              "link": "links/bulk-26"
+            },
+            {
+              "idempotencyKey": "w1-bulk-27",
+              "operation": "deleteLink",
+              "link": "links/bulk-27"
+            },
+            {
+              "idempotencyKey": "w1-bulk-28",
+              "operation": "deleteLink",
+              "link": "links/bulk-28"
+            },
+            {
+              "idempotencyKey": "w1-bulk-29",
+              "operation": "deleteLink",
+              "link": "links/bulk-29"
+            },
+            {
+              "idempotencyKey": "w1-bulk-30",
+              "operation": "deleteLink",
+              "link": "links/bulk-30"
+            },
+            {
+              "idempotencyKey": "w1-bulk-31",
+              "operation": "deleteLink",
+              "link": "links/bulk-31"
+            },
+            {
+              "idempotencyKey": "w1-bulk-32",
+              "operation": "deleteLink",
+              "link": "links/bulk-32"
+            },
+            {
+              "idempotencyKey": "w1-bulk-33",
+              "operation": "deleteLink",
+              "link": "links/bulk-33"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 413,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/size",
+          "code": "limit-exceeded",
+          "status": 413,
+          "retry": "never",
+          "detail": "operations has 33 members; sequence.operations is 32"
+        }
+      }
+    }
+  ]
+}

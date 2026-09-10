@@ -1,0 +1,293 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-alias-references",
+  "description": "Alias spellings in Resource records (decision D38, provisional): a put binds alias/tasks/current to task-13; an update names its bead subject by that alias and the postimage is canonical; a create-link names its source by the alias and the stored endpoint is the canonical Bead URL; one sequence repoints the alias and then creates a Link through it, so the Link observes the repoint because resolution happens when the member is reached; the earlier create-link retried byte-identically after the repoint compares against its retained resolution, not the alias's present target, and receives the retained disposition; a link subject spelled by alias is of the wrong kind; and an alias spelling that names no live alias is not found. task-13 and task-14 are at task-13-r1 and task-14-r1 before the fixture, and no target Bead changes revision through alias mutation. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "put-alias-for-the-current-task",
+      "condition": "No alias is at alias/tasks/current and no canonical Bead segment has the path tasks/current.",
+      "request": {
+        "method": "POST",
+        "target": "operations/put-alias",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-r-current-put"
+        },
+        "schema": "#/$defs/putAliasRequest",
+        "body": {
+          "alias": "alias/tasks/current",
+          "target": "beads/task-13"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/aliasResult",
+        "body": {
+          "outcome": "created",
+          "alias": "https://beads.example/acme/alias/tasks/current",
+          "target": "https://beads.example/acme/beads/task-13"
+        }
+      }
+    },
+    {
+      "id": "update-bead-through-an-alias-subject",
+      "condition": "The bead subject is spelled by alias. It resolves to task-13 when the member is reached, the update applies to task-13, and the postimage is canonical: the alias spelling appears nowhere in Resource data.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-r-current-close"
+        },
+        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "body": {
+          "bead": "alias/tasks/current",
+          "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/beads/task-13",
+            "type": "https://work.example/types/task",
+            "revision": "task-13-r2",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "properties": {
+              "title": "Track the alias-spelled references",
+              "status": "closed"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "create-link-through-an-alias-source",
+      "condition": "The source endpoint is spelled by alias and resolves to task-13 when the member is reached; the stored and served endpoint is the canonical Bead URL. relates is unowned, so no endpoint is versioned.",
+      "request": {
+        "method": "POST",
+        "target": "operations/create-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-r-current-relates"
+        },
+        "schema": "#/$defs/createLinkRequest",
+        "body": {
+          "type": "https://work.example/types/relates",
+          "source": "alias/tasks/current",
+          "target": "beads/task-14",
+          "properties": {},
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/links/relates-117",
+            "type": "https://work.example/types/relates",
+            "revision": "relates-117-r1",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "source": "https://beads.example/acme/beads/task-13",
+            "target": "https://beads.example/acme/beads/task-14",
+            "properties": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "sequence-repoints-the-alias-then-creates-a-link-through-it",
+      "condition": "Resolution happens when the member is reached: member 0 repoints alias/tasks/current to task-14, and member 1, which spells its source by that alias, observes the repoint and is stored with task-14 as its source. The Link created earlier through the alias keeps task-13: a reference resolved through an alias does not follow a later repoint.",
+      "request": {
+        "method": "POST",
+        "target": "operations/sequence",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "schema": "#/$defs/sequenceRequest",
+        "body": {
+          "operations": [
+            {
+              "idempotencyKey": "w1-r-current-repoint",
+              "operation": "putAlias",
+              "alias": "alias/tasks/current",
+              "target": "beads/task-14"
+            },
+            {
+              "idempotencyKey": "w1-r-current-relates-back",
+              "operation": "createLink",
+              "type": "https://work.example/types/relates",
+              "source": "alias/tasks/current",
+              "target": "beads/task-13",
+              "properties": {},
+              "attribution": { "principal": "agent:planner", "status": "claimed" }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/sequenceResponse",
+        "body": {
+          "results": [
+            {
+              "operationIndex": 0,
+              "outcome": "updated",
+              "alias": "https://beads.example/acme/alias/tasks/current",
+              "target": "https://beads.example/acme/beads/task-14"
+            },
+            {
+              "operationIndex": 1,
+              "outcome": "created",
+              "resource": {
+                "id": "https://beads.example/acme/links/relates-118",
+                "type": "https://work.example/types/relates",
+                "revision": "relates-118-r1",
+                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "source": "https://beads.example/acme/beads/task-14",
+                "target": "https://beads.example/acme/beads/task-13",
+                "properties": {}
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "retry-after-a-repoint-matches-the-retained-resolution",
+      "condition": "The create-link-through-an-alias-source request retried byte-identically after the repoint. alias/tasks/current now resolves to task-14, but the member's semantic identity records the resolution the spelling had when the member was reached — task-13, kept with the retained disposition — and the retry compares against that resolution, never against the spelling or the alias's present target. The identities match, so the retained disposition answers; a conflict here would be the spelling-versus-resolution failure the @name rule already prevents.",
+      "retained": [{ "from": "create-link-through-an-alias-source", "index": 0 }],
+      "request": {
+        "method": "POST",
+        "target": "operations/create-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-r-current-relates"
+        },
+        "schema": "#/$defs/createLinkRequest",
+        "body": {
+          "type": "https://work.example/types/relates",
+          "source": "alias/tasks/current",
+          "target": "beads/task-14",
+          "properties": {},
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "created",
+          "resource": {
+            "id": "https://beads.example/acme/links/relates-117",
+            "type": "https://work.example/types/relates",
+            "revision": "relates-117-r1",
+            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "source": "https://beads.example/acme/beads/task-13",
+            "target": "https://beads.example/acme/beads/task-14",
+            "properties": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "link-subject-spelled-by-alias-is-resource-not-found",
+      "condition": "A link subject spelled by alias: an alias resolves to a Bead only, so the subject does not exist as the required kind. The same non-disclosing 404 a wrong-kind durable reference receives.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-link-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-r-current-link-note"
+        },
+        "schema": "#/$defs/updateLinkPropertiesRequest",
+        "body": {
+          "link": "alias/tasks/current",
+          "change": [{ "op": "add", "path": "/note", "value": "spelled by alias" }],
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/not-found",
+          "code": "resource-not-found",
+          "status": 404,
+          "retry": "after-state-change",
+          "detail": "alias/tasks/current does not name a Link"
+        }
+      }
+    },
+    {
+      "id": "alias-spelling-naming-no-live-alias-is-resource-not-found",
+      "condition": "No alias is at alias/tasks/former. An alias spelling that names no live alias fails exactly as an unknown Bead does, under the same non-disclosure rule.",
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead-properties",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "w1-r-former-close"
+        },
+        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "body": {
+          "bead": "alias/tasks/former",
+          "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
+          "attribution": { "principal": "agent:planner", "status": "claimed" }
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/not-found",
+          "code": "resource-not-found",
+          "status": 404,
+          "retry": "after-state-change",
+          "detail": "alias/tasks/former does not exist or is not visible"
+        }
+      }
+    }
+  ]
+}
