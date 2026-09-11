@@ -139,6 +139,9 @@ export interface RetainedOutcomeRow {
  * through the existing read boundary without a new member Problem or fencing policy.
  */
 export interface RecoveryStore {
+  /** Exact canonical Scope captured and validated at open; immutable configuration,
+   * not proof that a carrier or Admission belongs to this handle. */
+  readonly scope: string;
   readonly runtime: Readonly<{
     node: string;
     executable: string;
@@ -275,8 +278,9 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       "unsupported-runtime",
       "durable reference storage requires Node v24.16.0",
     );
+  let scope: string;
   try {
-    parseCanonicalScope(options.scope);
+    scope = parseCanonicalScope(options.scope);
   } catch (cause) {
     throw new RecoveryStoreError("invalid-input", "canonical Scope URL required", { cause });
   }
@@ -538,7 +542,7 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       db.exec(schema);
       for (const [name, value] of Object.entries({
         format: formatVersion,
-        scope: options.scope,
+        scope,
         installation: options.installationId,
         lineage: options.lineageId,
         namespace: randomUUID(),
@@ -578,7 +582,7 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       throw new RecoveryStoreError("store-mismatch", "incomplete or incompatible recovery schema");
     if (
       meta("format") !== formatVersion ||
-      meta("scope") !== options.scope ||
+      meta("scope") !== scope ||
       meta("installation") !== options.installationId ||
       meta("lineage") !== options.lineageId
     )
@@ -669,7 +673,8 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       active = false;
     }
   };
-  return {
+  const store: RecoveryStore = {
+    scope,
     runtime,
     read,
     visitInstalledTypes(visitor) {
@@ -924,4 +929,6 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       }
     },
   };
+  Object.defineProperty(store, "scope", { writable: false, configurable: false });
+  return store;
 }

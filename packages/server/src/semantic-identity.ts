@@ -21,7 +21,7 @@ export type SemanticValue =
  * Persisted identities must retain this version; changing it needs an explicit
  * compatibility/migration decision. S6 hashes these exact returned UTF-8 bytes.
  */
-const format = "ru-semantic-value-1";
+export const SEMANTIC_VALUE_FORMAT = "ru-semantic-value-1";
 const numberPattern = /^(-?)(0|[1-9][0-9]*)(?:\.([0-9]+))?(?:[eE]([+-]?[0-9]+))?$/;
 
 function exactNumber(literal: string): readonly [string, string] {
@@ -57,7 +57,7 @@ type Work =
  * traversal and output serialization are iterative. Caller owns input byte limits.
  */
 export function encodeSemanticValue(value: SemanticValue): string {
-  const output = [`[${JSON.stringify(format)},`];
+  const output = [`[${JSON.stringify(SEMANTIC_VALUE_FORMAT)},`];
   const pending: Work[] = [{ kind: "value", value }];
   const ancestors = new WeakSet<object>();
   while (pending.length) {

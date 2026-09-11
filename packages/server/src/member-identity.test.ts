@@ -14,6 +14,9 @@ import {
   MemberMetadataError,
   capturedMemberAlias,
   normalizeMemberIdentity,
+  normalizePreparedMemberIdentity,
+  prepareMemberDependencies,
+  type PreparedMemberDependencies,
   parseMemberMetadata,
   prepareMemberExecution,
   serializeMemberMetadata,
@@ -728,5 +731,255 @@ describe("versioned retained and expired metadata", () => {
     expect(() => prepareMemberExecution({ ...member }, budget)).toThrow(TypeError);
     expect(() => serializeMemberMetadata({ ...member })).toThrow(TypeError);
     expect(() => capturedMemberAlias({ ...member }, "x")).toThrow(TypeError);
+  });
+});
+
+describe("prepared member dependencies", () => {
+  function prepared(
+    carrier: PreparedReadUpdateCarrier,
+    index: number,
+    creatorBinding = context().creatorBinding,
+  ) {
+    const value = prepareMemberDependencies(carrier, index, scope, creatorBinding);
+    if (value.kind !== "stable-dependencies") throw Error("unexpected transient dependency");
+    return value;
+  }
+  const legalSlots = [
+    { operation: "deleteBead", bead: "@made" },
+    { operation: "updateBeadProperties", bead: "@made", change: [{ op: "remove", path: "/x" }] },
+    { operation: "createLink", type: linkType, source: "@made", target: b },
+    {
+      operation: "createLink",
+      type: linkType,
+      source: { uri: "@made", revision: "r1" },
+      target: b,
+    },
+    { operation: "createLink", type: linkType, source: "alias/earlier", target: "@made" },
+    {
+      operation: "createLink",
+      type: linkType,
+      source: "alias/earlier",
+      target: { uri: "@made", revision: "r1" },
+    },
+    { operation: "putAlias", alias: "alias/lead", target: "@made" },
+    { operation: "deleteLink", link: "@made" },
+    { operation: "updateLinkProperties", link: "@made", change: [{ op: "remove", path: "/x" }] },
+  ];
+  it.each(legalSlots)("stops at a transient creator in the legal $operation slot: %j", (input) => {
+    const link = "link" in input;
+    const creator = link
+      ? { ...create, operation: "createLink", type: linkType, source: a, target: b }
+      : create;
+    const carrier = sequence([creator, { ...input, idempotencyKey: "dependent" }]);
+    const creatorBinding = vi.fn(() => ({ kind: "transient" as const }));
+    expect(prepareMemberDependencies(carrier, 1, scope, creatorBinding)).toEqual({
+      kind: "transient-dependency",
+    });
+    expect(creatorBinding).toHaveBeenCalledExactlyOnceWith(0);
+    const prior = vi.fn(() => {
+      throw Error("prior/key access forbidden");
+    });
+    const resolveAlias = vi.fn(() => {
+      throw Error("alias lookup forbidden");
+    });
+    expect(
+      normalizeMemberIdentity(carrier, 1, {
+        scope,
+        creatorBinding,
+        get prior() {
+          return prior();
+        },
+        resolveAlias,
+      }),
+    ).toEqual({ kind: "transient-dependency" });
+    expect(prior).not.toHaveBeenCalled();
+    expect(resolveAlias).not.toHaveBeenCalled();
+  });
+  it("captures repeated creator facts once and preserves them across callback backing mutation", () => {
+    const carrier = sequence([
+      create,
+      {
+        operation: "createLink",
+        idempotencyKey: "dependent",
+        type: linkType,
+        source: "@made",
+        target: { uri: "@made", revision: "r1" },
+      },
+    ]);
+    const fact = { kind: "bound" as const, resourceKind: "bead" as const, id: a };
+    const creatorBinding = vi.fn(() => fact);
+    const token = prepared(carrier, 1, creatorBinding);
+    expect(Object.isFrozen(token)).toBe(true);
+    expect(creatorBinding).toHaveBeenCalledExactlyOnceWith(0);
+    fact.id = b;
+    creatorBinding.mockImplementation(() => {
+      throw Error("creator provider called again");
+    });
+    const member = normalizePreparedMemberIdentity(carrier, 1, context(), token);
+    if (member.kind !== "ready") throw Error();
+    expect(execution(member).input).toMatchObject({
+      source: a,
+      target: { uri: a, revision: "r1" },
+    });
+    expect(creatorBinding).toHaveBeenCalledTimes(1);
+    expect(
+      member.metadata.witnesses.every(
+        (witness) => witness.kind === "binding" && Object.isFrozen(witness.binding),
+      ),
+    ).toBe(true);
+    const convenience = ready(carrier, 1, {
+      creatorBinding: () => ({ kind: "bound", resourceKind: "bead", id: a }),
+    });
+    expect(member.identityJson).toBe(convenience.identityJson);
+    expect(serializeMemberMetadata(member)).toBe(serializeMemberMetadata(convenience));
+  });
+  it.each(["missing", "wrong-kind", "wrong-scope"])(
+    "rejects %s creator facts instead of silently treating them as unbound",
+    (variant) => {
+      const carrier = sequence([
+        create,
+        { operation: "deleteBead", idempotencyKey: "dependent", bead: "@made" },
+      ]);
+      const creatorBinding = () =>
+        variant === "missing"
+          ? undefined
+          : {
+              kind: "bound",
+              resourceKind: variant === "wrong-kind" ? "link" : "bead",
+              id: variant === "wrong-scope" ? "https://other.test/beads/a" : a,
+            };
+      expect(() =>
+        prepareMemberDependencies(
+          carrier,
+          1,
+          scope,
+          creatorBinding as MemberIdentityContext["creatorBinding"],
+        ),
+      ).toThrow(MemberMetadataError);
+    },
+  );
+  it("rejects forged and mispaired tokens before prior or alias access", () => {
+    const carrier = sequence([
+      create,
+      { operation: "deleteBead", idempotencyKey: "dependent", bead: "alias/current" },
+    ]);
+    const token = prepared(carrier, 1);
+    const other = sequence([
+      create,
+      { operation: "deleteBead", idempotencyKey: "dependent", bead: "alias/current" },
+    ]);
+    const prior = vi.fn(() => {
+      throw Error("prior read");
+    });
+    const alias = vi.fn(() => {
+      throw Error("alias lookup");
+    });
+    for (const [candidate, index, candidateScope, preparation] of [
+      [carrier, 1, scope, {}],
+      [carrier, 1, scope, { ...token }],
+      [carrier, 1, scope, new Proxy(token, {})],
+      [other, 1, scope, token],
+      [carrier, 0, scope, token],
+      [carrier, Number.NaN, scope, token],
+      [carrier, 1, "https://other.test/", token],
+    ] as const) {
+      expect(() =>
+        normalizePreparedMemberIdentity(
+          candidate,
+          index,
+          {
+            scope: candidateScope,
+            get prior() {
+              return prior();
+            },
+            resolveAlias: alias,
+          },
+          preparation as PreparedMemberDependencies,
+        ),
+      ).toThrow("prepared dependencies");
+    }
+    expect(prior).not.toHaveBeenCalled();
+    expect(alias).not.toHaveBeenCalled();
+  });
+  it("rejects a reconstructed carrier and invalid index before creator access", () => {
+    const carrier = sequence([
+      create,
+      { operation: "deleteBead", idempotencyKey: "dependent", bead: "@made" },
+    ]);
+    const creatorBinding = vi.fn(() => ({ kind: "unbound" as const }));
+    expect(() => prepareMemberDependencies({ ...carrier }, 1, scope, creatorBinding)).toThrow(
+      "Scope-preflighted",
+    );
+    for (const index of [-1, 0.5, 2, Number.NaN])
+      expect(() => prepareMemberDependencies(carrier, index, scope, creatorBinding)).toThrow(
+        "member index",
+      );
+    expect(() =>
+      prepareMemberDependencies(carrier, 1, "https://other.test/", creatorBinding),
+    ).toThrow("different Scope");
+    expect(creatorBinding).not.toHaveBeenCalled();
+  });
+  it("defers alias and prior reads until prepared normalization, preserving captured misses and old API bytes", () => {
+    const carrier = singleton("deleteBead", { bead: "alias/missing" });
+    const token = prepared(carrier, 0);
+    const resolveAlias = vi.fn(() => undefined);
+    const member = normalizePreparedMemberIdentity(carrier, 0, { scope, resolveAlias }, token);
+    if (member.kind !== "ready") throw Error();
+    expect(resolveAlias).toHaveBeenCalledExactlyOnceWith(`${scope}alias/missing`);
+    const old = ready(carrier, 0, { resolveAlias: () => undefined });
+    expect(member.identityJson).toBe(old.identityJson);
+    expect(serializeMemberMetadata(member)).toBe(serializeMemberMetadata(old));
+    const retry = normalizePreparedMemberIdentity(
+      carrier,
+      0,
+      {
+        scope,
+        prior: metadata(member),
+        resolveAlias: () => {
+          throw Error("no live retry lookup");
+        },
+      },
+      prepared(carrier, 0),
+    );
+    if (retry.kind !== "ready") throw Error();
+    expect(retry.identityJson).toBe(member.identityJson);
+    expect(capturedMemberAlias(retry, "missing")).toEqual({ captured: true, target: undefined });
+  });
+  it("keeps opaque deep properties outside dependency scanning and preserves old normalization bytes", () => {
+    const depth = 12000;
+    const raw = `{"type":"${type}","properties":{"deep":${"[".repeat(depth)}"@made"${"]".repeat(depth)}}}`;
+    const carrier = prepareReadUpdateSingleton(scope, "createBead", raw, "key");
+    const creatorBinding = vi.fn(() => {
+      throw Error("properties are not bindings");
+    });
+    const token = prepared(carrier, 0, creatorBinding);
+    const member = normalizePreparedMemberIdentity(carrier, 0, context(), token);
+    if (member.kind !== "ready") throw Error();
+    expect(member.identityJson).toBe(ready(carrier).identityJson);
+    expect(serializeMemberMetadata(member)).toBe(serializeMemberMetadata(ready(carrier)));
+    expect(creatorBinding).not.toHaveBeenCalled();
+    const executable = execution(member);
+    if (executable.operation !== "createBead") throw Error();
+    let current: unknown = executable.input.properties?.deep;
+    for (let index = 0; index < depth; index++) current = (current as unknown[])[0];
+    expect(current).toBe("@made");
+  });
+  it("retains unbound and numeric refusal as separate facts with prepared dependencies", () => {
+    const carrier = prepareReadUpdateSequence(
+      scope,
+      `{"operations":[{"operation":"createBead","idempotencyKey":"creator","name":"made","type":"${type}"},{"operation":"updateBeadProperties","idempotencyKey":"dependent","bead":"@made","change":[{"op":"add","path":"/n","value":9007199254740993}]}]}`,
+    );
+    const member = normalizePreparedMemberIdentity(
+      carrier,
+      1,
+      context(),
+      prepared(carrier, 1, () => ({ kind: "unbound" })),
+    );
+    if (member.kind !== "ready") throw Error();
+    expect(prepareMemberExecution(member, budget)).toMatchObject({
+      admission: { ok: false },
+      unavailableBinding: true,
+    });
+    expect(prepareMemberExecution(member, budget)).not.toHaveProperty("executable");
   });
 });
