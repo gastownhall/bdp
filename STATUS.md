@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current raw-HTTP/prerequisite Read cohort was genuinely generated from
-`389b3efe73b81c42f8c3d68802b0f4d58bc33527` and committed with its matching
-capability constant at `48ea75be7777bbc11037ff471ed870d8e90ff7a5`.
+The current timestamp/default-context Read cohort was genuinely generated from
+`94d1b15ddefeaf1bc3b8166a7eea2c9341218e98` and committed with its matching
+capability constant at `686a8069bfa48ab7af0a2e1a66e9c4c3214cd397`.
 It recorded 36 packaged/11 self-certified passes for the reference target and
 34 packaged/eight self-certified passes for bd, with two/seven N/A slots and
-eight explicit uncovered qualifications. Generation ran for 138.00 seconds
-against the clean integrated source. The prior #20, #29, #30, #31, #32 and #33 cohorts remain
+eight explicit uncovered qualifications. Generation ran for 137.66 seconds
+against the clean integrated source. The prior #20, #29, #30, #31, #32, #33 and #34 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -41,10 +41,22 @@ do not implement complete startup qualification or member execution. Property va
 confirmed diagnostics through one aggregate actual-byte/count budget; this does
 not establish bounded compiler internals or a complete offline schema installer.
 
-Timestamp integration and the existing-law correction equating empty and omitted
-context input remain a separate implementation slice. Earlier explicit-empty
-identity fingerprints need an affected-store compatibility proof before corrected
-equality is used there; no migration or replay readiness is established here.
+Resource evaluation now captures an authority clock callable and observes one native
+context instant after timestamp-independent preparation, before final checks on the
+actual subject/source/inline postimages. This conditional logical commit instant
+requires the retained exclusive single-connection synchronous store owner and immutable
+member-turn inputs, policy and contracts; success escapes only after real COMMIT.
+The clock rejection sink does not establish arbitrary callback purity. No-op versions
+and unchanged inline Links preserve their previous context.
+
+The shared member normalizer now treats omitted and empty context input equally,
+while retaining meaningful null/string states and the original execution input.
+This existing-law correction changes old explicit-empty identity fingerprints even
+though the encoder grammar and metadata format remain unchanged. Affected or unknown
+stores need new/unaffected provenance or separately reviewed compatibility before
+using corrected equality. No migration or replay readiness is established here.
+Actual executor/sequence clock wiring, separate terminal-retention observations and
+production owner qualification remain separate implementation gates.
 
 The conformance transport now supports exact raw HTTP/1 body bytes, ordered repeated
 headers, configured credentials/routes/caps, and bounded cancellation/cleanup with
@@ -98,7 +110,7 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,255 tests in
+reviewed foundation source. The final evidence head passed 3,313 tests in
 77 files with zero skips; all source, packaged smoke and readiness preflight gates passed.
 Source council corrections and genuine successor observations are complete;
 independent artifact review and hosted checks remain separate release gates.
