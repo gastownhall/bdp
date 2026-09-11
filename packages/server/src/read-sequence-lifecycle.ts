@@ -207,6 +207,11 @@ type Phase =
   | "closing"
   | "draining"
   | "closed";
+function delegationActive(phase: Phase): boolean {
+  return (
+    phase === "submitting" || phase === "binding-read" || phase === "reading" || phase === "closing"
+  );
+}
 type Decision = {
   readonly reason: ReadSequenceEntryError["reason"];
   readonly origin: ReadSequenceEntryOrigin;
@@ -251,8 +256,7 @@ export function createReadSequenceLifecycle(
     joint.reject(error);
   };
   const gate = (admission: boolean): Decision | undefined => {
-    if (["submitting", "binding-read", "reading", "closing"].includes(phase))
-      return { reason: "reentrant", origin: "coordinator" };
+    if (delegationActive(phase)) return { reason: "reentrant", origin: "coordinator" };
     if (phase === "read-callback") return { reason: "reentrant", origin: "read" };
     const state = captured.inspect();
     if (state.busy) return { reason: "reentrant", origin: "owner" };
@@ -265,11 +269,15 @@ export function createReadSequenceLifecycle(
   function close(): Promise<void> {
     const decision = gate(false);
     if (decision) throw new ReadSequenceEntryError(decision.reason, decision.origin);
-    if (phase === "draining" || phase === "closed") return joint.promise;
+    if (phase === "construction-cleanup" || phase === "draining" || phase === "closed")
+      return joint.promise;
     phase = "closing";
     const ownerFault = invokeClose(captured.close, captured.closed);
     const readFault = invokeClose(plane.close, plane.closed);
     phase = "draining";
+    // Invocation faults do not replace fixed completion evidence. An invalid
+    // component that never settles its captured completion leaves this pending;
+    // do not synthesize cleanup success or a timeout.
     observe(
       Promise.allSettled([captured.closed, plane.closed]).then((results) => {
         try {
@@ -287,6 +295,10 @@ export function createReadSequenceLifecycle(
     return joint.promise;
   }
   const ownerFinished = (): void => {
+    // The actual qualified inspector only reads two local primitives. Native
+    // reactions run after active entries unwind; phase ordering below separates
+    // construction cleanup and ordinary drain. failSettlement is no general
+    // cleanup recovery guarantee for an invalid structural owner handle.
     if (phase === "construction-cleanup" || phase === "closed" || phase === "draining") return;
     try {
       // Never return/adopt joint.closed from an owner observer reaction.
@@ -298,8 +310,7 @@ export function createReadSequenceLifecycle(
   observe(captured.closed.then(ownerFinished, ownerFinished));
 
   const callback = <T>(original: () => T): T => {
-    if (["submitting", "binding-read", "reading", "closing", "read-callback"].includes(phase))
-      return original();
+    if (delegationActive(phase) || phase === "read-callback") return original();
     const previous = phase;
     phase = "read-callback";
     try {

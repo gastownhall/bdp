@@ -530,6 +530,9 @@ export function createSequenceLifecycle(options: SequenceLifecycleOptions): Sequ
     inspectLifecycle(): SynchronousLifecycleState {
       return Object.freeze({ busy, accepting: state === "accepting" });
     },
+    /** Unfiltered, expiring StoreReader capability: keep this owner private to
+     * the qualified exclusive coordinator. HTTP/adapter seams must not leak it
+     * or assume the Read plane's principal/visibility policy applies here. */
     withRead<T>(callback: (reader: StoreReader) => T): OwnerReadEntryResult<T> {
       if (busy)
         return Object.freeze({
@@ -548,6 +551,9 @@ export function createSequenceLifecycle(options: SequenceLifecycleOptions): Sequ
         try {
           value = store.read(callback);
         } catch (error) {
+          // A callback-fabricated RecoveryStoreError("fenced") is indistinguishable
+          // here from a facade fence: it triggers sticky shutdown and propagates
+          // unchanged. Private callbacks remain qualified; unrelated errors do not.
           if (fenced(error)) {
             storeFenced = true;
             shutdown(failure("read", error));
