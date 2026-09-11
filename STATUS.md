@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current sequence-lifecycle Read cohort was genuinely generated from
-`688b8b8e6cbcee835f15f1b728ab6d454849d206` and committed with its matching capability constant at
-`f57ca12d23fc610bdde03f1d12dc6980a0297a35`. Generation ran for 138.26 seconds
+The current dynamic-Read-component Read cohort was genuinely generated from
+`932c6cb964c6d4b84b6f2aa633bd448d68783535` and committed with its matching capability constant at
+`3b30119a5024cf4451fb6b4680826dad7b616ba3`. Generation ran for 137.66 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35 and #36 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36 and #37 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -102,6 +102,28 @@ the unexecuted claims and retry through real retained outcomes. Controlled fixtu
 and scheduler barriers retain their stated limits. Maintenance scans all key rows,
 including permanent tombstones; no aggregate memory or pass-time bound is claimed.
 
+The private dynamic Read component now reads current Resources, properties, Types,
+collections and aliases through one synchronous owner entry and captured authorization
+and Scope configuration. Resource and properties observations retain the same
+captured authoritative Resource revision. Hidden Type conformance and descriptor
+publication remain separate. Current alias lookup and retained mutation replay
+remain distinct. A shared request kernel preserves static Read receiving behavior;
+the new plane strictly snapshots its own request input.
+
+Component controls cover real committed R2 before R1 delivery observation, current
+aggregate replacement, deep owned-Link coherence, immutable Problems, required
+request fields, genuine signal cancellation and error origin. Retained pagination
+shares global state, byte and node budgets; positions are capped per snapshot.
+Capacity pressure can refuse a new retaining page while admitted cursors and
+ordinary point reads remain usable. These bounds do not constrain full transient
+closure/parser work or establish a production latency limit.
+
+The actual S5 Read entry and joint Read/sequence lifecycle are a separate planned
+integration. This component's owner-entry interface does not implement that bridge,
+qualify sole ownership or supply HTTP/authentication. Existing Read cohort evidence
+continues to test its named current targets; it is not an executable dynamic Read
+or ReadUpdate profile grant.
+
 Production authority, full startup/engine qualification, server HTTP/auth/configuration
 integration and executable ReadUpdate evidence remain separate gates. The internal
 owner does not establish actual transport disconnect handling or served write authority.
@@ -146,8 +168,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,479 tests
-in 80 files with zero skips in 38.92 seconds; all source,
+reviewed foundation source. The final evidence head passed 3,684 tests
+in 82 files with zero skips in 38.78 seconds; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.
