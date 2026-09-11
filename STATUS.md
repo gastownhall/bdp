@@ -5,18 +5,18 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Surface | Specified | Validated |
 | --- | --- | --- |
 | Read profile | Foundation #29, shared HTTP/scalar guards, iterative deep JSON and canonical URL delimiter corrections; 49 executable scenarios | Genuine current cohort: 89 passes and nine justified N/A slots across both targets, with eight explicit qualifications |
-| Read+Update profile | D1–D40 ruled; wire from #19 plus local admission, Resource/alias evaluators, exact member identity, durable SQLite state, member execution and retained disclosure | Component tests cover member execution, retained replay/disclosure and clock/retention composition; the complete source council disposition and independent correction review are complete. Full authority/sequence/transport/schema installation and executable profile evidence remain open; no capability claim |
+| Read+Update profile | D1–D40 ruled; wire from #19 plus local admission, Resource/alias evaluators, exact member identity, durable SQLite state, member execution, retained disclosure and internal sequence lifecycle | Component tests cover admission, scheduled turns, replay/projection, maintenance, graceful drain and recovery; the complete source council disposition and independent correction review are complete. Full production authority/transport/schema installation and executable profile evidence remain open; no capability claim |
 | Read+Update client | Eight mutations, sequences, all nine Read variants and explicit one-hop alias resolution | 589 client tests plus independent source, lifecycle, URL and packaging reviews; this is client functionality, not a served write-profile claim |
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current member-executor Read cohort was genuinely generated from
-`7dc2ea7bfc95a250bb798cbfa05178214b46b1e5` and committed with its matching capability constant at
-`084f7f6ca3838be3a2b3deccdd4d66deb4070c44`. Generation ran for 138.56 seconds
+The current sequence-lifecycle Read cohort was genuinely generated from
+`688b8b8e6cbcee835f15f1b728ab6d454849d206` and committed with its matching capability constant at
+`f57ca12d23fc610bdde03f1d12dc6980a0297a35`. Generation ran for 138.26 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34 and #35 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35 and #36 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -67,8 +67,10 @@ The member executor passes the captured clock callable into this path and observ
 terminal retention time separately after outcome/metadata preparation. Neither
 observation measures subsequent filesystem durability completion. The clock rejection
 sink does not establish arbitrary callback purity. No-op versions and unchanged inline
-Links preserve their previous context. Explicit component turns do not qualify the
-future sequence owner's admission, interleaving or lifecycle clock behavior.
+Links preserve their previous context. Sequence tests now distinguish admission without
+clock sampling, separately scheduled member turns, late context observation and terminal
+retention. These observations
+do not qualify production callbacks or authenticated ownership.
 
 The shared member normalizer now treats omitted and empty context input equally,
 while retaining meaningful null/string states and the original execution input.
@@ -76,10 +78,10 @@ This existing-law correction changes old explicit-empty identity fingerprints ev
 though the encoder grammar and metadata format remain unchanged. Affected or unknown
 stores need new/unaffected provenance or separately reviewed compatibility before
 using corrected equality. No migration or historical-population replay readiness is
-established here. Component executor clock/terminal-retention wiring is implemented;
-actual sequence admission/clock integration and production owner qualification remain
-gates. Tests do not qualify mutable or hostile callbacks, authenticated principal
-provenance, full installed contracts or configuration/retention agreement.
+established here. Member and internal sequence execution wire admission, context clocks
+and terminal retention together; production owner qualification remains a gate. Tests
+do not qualify mutable or hostile callbacks, authenticated principal provenance, full
+installed contracts or configuration/retention agreement.
 
 The conformance transport now supports exact raw HTTP/1 body bytes, ordered repeated
 headers, configured credentials/routes/caps, and bounded cancellation/cleanup with
@@ -90,10 +92,19 @@ visible. Diagnostic raw runs keep claimEligible false and do not grant write
 conformance or arbitrary programmable-executor confinement. The current Read
 cohort continues to use its existing version-1 manifest.
 
-Production authority and sequence lifetime, full startup/engine qualification,
-server HTTP/auth/configuration integration and executable ReadUpdate evidence remain
-separate gates. Component replay/disclosure and explicit between-turn tests do not
-supply a sequence scheduler, disconnect/drain/close owner or served write authority.
+The internal sequence owner admits all original keys before scheduling, executes one
+real member per later turn and projects each result before advancing. A completed
+creator prefix stays private. Referenced Node scheduling supports independent
+maintenance and graceful drain; delivery observers do not own admitted work.
+Fault controls cover stale callbacks, cleanup counts and nonrecursive fenced drains.
+Emitted-process crash/reopen tests preserve the durable prefix, recover exactly
+the unexecuted claims and retry through real retained outcomes. Controlled fixtures
+and scheduler barriers retain their stated limits. Maintenance scans all key rows,
+including permanent tombstones; no aggregate memory or pass-time bound is claimed.
+
+Production authority, full startup/engine qualification, server HTTP/auth/configuration
+integration and executable ReadUpdate evidence remain separate gates. The internal
+owner does not establish actual transport disconnect handling or served write authority.
 A new-alias retry boundary and jointly feasible
 request/properties/diagnostic defaults remain pending operator decisions. Local
 crash tests and evaluator tests do not establish a complete served profile.
@@ -135,8 +146,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,428 tests
-in 79 files with zero skips in 39.04 seconds; all source,
+reviewed foundation source. The final evidence head passed 3,479 tests
+in 80 files with zero skips in 38.92 seconds; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.
