@@ -1575,4 +1575,101 @@ describe("manifest v2 exact HTTP inputs", () => {
     expect(parseExecutableScenarioManifest(source).manifestVersion).toBe(1);
     expect(calls).toBe(1);
   });
+  it.each([false, true])("preserves exact v1 headers getter behavior in actions=%s", (actions) => {
+    for (const mode of ["valid", "invalid", "throw"]) {
+      const source = exactManifest({ method: "GET", headers: {} }, actions, 1, "read");
+      const scenario = source.scenarios[0];
+      const request =
+        scenario && ("requests" in scenario ? scenario.requests[0] : scenario.actions[0]);
+      if (!request) throw new Error();
+      let calls = 0;
+      const failure = new Error("legacy getter");
+      Object.defineProperty(request, "headers", {
+        enumerable: true,
+        get() {
+          calls++;
+          if (mode === "throw") throw failure;
+          return mode === "valid" ? { accept: "application/json" } : { authorization: "forbidden" };
+        },
+      });
+      if (mode === "valid") {
+        const parsed = parseExecutableScenarioManifest(source).scenarios[0];
+        const actual = parsed?.requests?.[0] ?? parsed?.actions?.[0];
+        expect(actual).toMatchObject({ headers: { accept: "application/json" } });
+      } else
+        expect(() => parseExecutableScenarioManifest(source)).toThrow(
+          mode === "throw" ? failure : ManifestValidationError,
+        );
+      expect(calls).toBe(1);
+    }
+  });
+  it.each([false, true])(
+    "rejects v2 request and assertion descriptors before reads in actions=%s",
+    (actions) => {
+      for (const field of [
+        "id",
+        "method",
+        "target",
+        "prerequisiteScenario",
+        "negativeMethodProbe",
+        "rawRequestTarget",
+        "captures",
+        "assertions",
+        ...(actions ? ["family"] : []),
+      ]) {
+        const source = exactManifest({ raw: { headerLines: [] } }, actions);
+        const scenario = source.scenarios[0];
+        const request =
+          scenario && ("requests" in scenario ? scenario.requests[0] : scenario.actions[0]);
+        if (!request) throw new Error();
+        let calls = 0;
+        Object.defineProperty(request, field, {
+          enumerable: true,
+          get() {
+            calls++;
+            throw new Error("must not execute");
+          },
+        });
+        expect(() => parseExecutableScenarioManifest(source)).toThrow(ManifestValidationError);
+        expect(calls).toBe(0);
+      }
+      for (const kind of [
+        "request-authored-body",
+        "request-authored-headers",
+        "request-write-state",
+      ]) {
+        for (const invalid of [
+          "id",
+          "kind",
+          ...(kind === "request-write-state" ? ["equals"] : []),
+          "hidden",
+          "symbol",
+        ]) {
+          const assertion = {
+            id: "exact",
+            kind,
+            ...(kind === "request-write-state" ? { equals: "complete" } : {}),
+          };
+          let calls = 0;
+          if (invalid === "symbol")
+            Object.defineProperty(assertion, Symbol("extra"), { value: true });
+          else if (invalid === "hidden") Object.defineProperty(assertion, "extra", { value: true });
+          else
+            Object.defineProperty(assertion, invalid, {
+              enumerable: true,
+              get() {
+                calls++;
+                throw new Error("must not execute");
+              },
+            });
+          expect(() =>
+            parseExecutableScenarioManifest(
+              exactManifest({ raw: { headerLines: [] }, assertions: [assertion] }, actions),
+            ),
+          ).toThrow(ManifestValidationError);
+          expect(calls).toBe(0);
+        }
+      }
+    },
+  );
 });

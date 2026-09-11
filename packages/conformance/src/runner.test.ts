@@ -5405,6 +5405,15 @@ describe("version 2 exact HTTP receiving", () => {
     const report = await runConformanceMatrix(options);
     expect(report.scenarios[0]?.category).toBe("exact-observation");
     expect(report.scenarios[0]?.exchanges[0]?.response?.status).toBe(401);
+    expect(report.scenarios[0]?.exchanges[0]?.request.exact).toBeUndefined();
+    expect(
+      report.scenarios[0]?.exchanges[0]?.assertions.map(({ id, passed }) => [id, passed]),
+    ).toEqual([
+      ["status", true],
+      ["authored-head", false],
+      ["authored-body", false],
+      ["write", false],
+    ]);
   });
   it("does not publish an unbound target digest even with synthetic source approval", async () => {
     const options = setup();
@@ -5524,8 +5533,13 @@ describe("version 2 exact HTTP receiving", () => {
     });
     const report = await runConformanceMatrix(options);
     const exchange = report.scenarios[0]?.exchanges[0];
-    expect(report.scenarios[0]?.state).toBe(
-      variant === "valid" ? "pass" : variant === "missing-observation" ? "harness-error" : "fail",
+    expect(report.scenarios[0]?.state).toBe(variant === "valid" ? "pass" : "harness-error");
+    expect(report.scenarios[0]?.category).toBe(
+      variant === "valid"
+        ? undefined
+        : variant === "missing-observation" || variant === "not-started"
+          ? "exact-observation"
+          : "wire-observation-unavailable",
     );
     expect(exchange?.assertions.find(({ id }) => id === "cors")?.passed).toBe(variant === "valid");
     expect(exchange?.assertions.find(({ id }) => id === "status")?.passed).toBe(true);
@@ -5584,5 +5598,320 @@ describe("version 2 exact HTTP receiving", () => {
     });
     expect(report.scenarios[0]?.state).toBe("pass");
     expect(serializeConformanceReport(report)).not.toContain("SENTINEL");
+  });
+  it.each(["utf8", "base64"] as const)(
+    "enforces positive source body caps at N and N+1 for %s",
+    async (encoding) => {
+      for (const oversized of [false, true]) {
+        const bytes = Buffer.from(`é🙂${oversized ? "!" : ""}`);
+        const options = setup({
+          raw: {
+            headerLines: [],
+            body: {
+              encoding,
+              value: encoding === "utf8" ? bytes.toString("utf8") : bytes.toString("base64"),
+            },
+          },
+        });
+        const attempt = {
+          ...options,
+          exactExecution: {
+            ...options.exactExecution,
+            configuration: { ...options.exactExecution.configuration, maximumRequestBodyBytes: 6 },
+          },
+        };
+        if (oversized) {
+          await expect(runConformanceMatrix(attempt)).rejects.toThrow(
+            "configured execution boundary",
+          );
+          expect(options.harness.prepare).not.toHaveBeenCalled();
+          expect(options.exactExecution.execute).not.toHaveBeenCalled();
+        } else {
+          const report = await runConformanceMatrix(attempt);
+          expect(report.scenarios[0]?.state).toBe("pass");
+          expect(report.scenarios[0]?.exchanges[0]?.request.exact?.bodyOctets).toBe(6);
+        }
+      }
+    },
+  );
+  it("enforces the authored-header lower bound at N and N+1 before preparation", async () => {
+    for (const oversized of [false, true]) {
+      const options = setup({
+        raw: { headerLines: [{ name: "X", value: "a".repeat(57 + Number(oversized)) }] },
+      });
+      // 2 terminator + 1 name + 4 field syntax + 57 value = 64 authored bytes.
+      // Full framing remains an executor obligation; this control isolates preflight.
+      options.exactExecution.execute.mockRejectedValue(
+        new HttpTransportError(
+          "configuration",
+          "full framing exceeds source lower bound",
+          {},
+          "not-started",
+        ),
+      );
+      const attempt = {
+        ...options,
+        exactExecution: {
+          ...options.exactExecution,
+          configuration: { ...options.exactExecution.configuration, maximumRequestHeaderBytes: 64 },
+        },
+      };
+      if (oversized) {
+        await expect(runConformanceMatrix(attempt)).rejects.toThrow(
+          "configured execution boundary",
+        );
+        expect(options.harness.prepare).not.toHaveBeenCalled();
+        expect(options.exactExecution.execute).not.toHaveBeenCalled();
+      } else {
+        const report = await runConformanceMatrix(attempt);
+        expect(options.harness.prepare).toHaveBeenCalledTimes(1);
+        expect(options.exactExecution.execute).toHaveBeenCalledTimes(1);
+        expect(report.scenarios[0]?.category).toBe("exact-configuration");
+      }
+    }
+  });
+  it.each(["scope", "profile"] as const)(
+    "checks supplied v2 ordinary-only Read config %s before declaration or preparation",
+    async (mismatch) => {
+      const legacy = inputs([{ id: "status", kind: "status", equals: 204 }]);
+      const artifactBundle = replaceArtifacts(legacy, {
+        manifest: { ...legacy.artifactBundle.manifest, manifestVersion: 2 },
+      });
+      const options = setup();
+      const configuration = {
+        ...options.exactExecution.configuration,
+        scope: mismatch === "scope" ? "https://other.test/" : scope,
+        profile: mismatch === "profile" ? ("read-update" as const) : ("read" as const),
+        routes: [
+          { method: "GET" as const, url: mismatch === "scope" ? "https://other.test/" : scope },
+        ],
+      };
+      await expect(
+        runConformanceMatrix({
+          ...options,
+          artifactBundle,
+          profile: "read",
+          exactExecution: { ...options.exactExecution, configuration },
+        }),
+      ).rejects.toThrow("must match the run Scope and profile");
+      expect(options.harness.prepare).not.toHaveBeenCalled();
+      expect(options.execute).not.toHaveBeenCalled();
+      expect(options.exactExecution.execute).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["route", "cap"])(
+    "gates only selected applicable %s checks, preserving catalog order",
+    async (failure) => {
+      const options = setup({}, true);
+      const rawSource = source({}, true);
+      const row = rawSource.scenarios[1];
+      const request = row?.requests[0];
+      if (!row || !request) throw new Error();
+      const manifest = parseExecutableScenarioManifest({
+        ...rawSource,
+        scenarios: [
+          rawSource.scenarios[0],
+          {
+            ...row,
+            requests: [
+              {
+                ...request,
+                target: {
+                  binding: "scope",
+                  path: failure === "route" ? "undeclared" : "operations/create-bead",
+                },
+                raw: {
+                  headerLines: [],
+                  body: { encoding: "utf8", value: "x".repeat(failure === "cap" ? 4097 : 1) },
+                },
+              },
+            ],
+          },
+        ],
+      });
+      const artifactBundle = bindArtifacts(options.artifactBundle.catalog, manifest);
+      const report = await runConformanceMatrix({
+        ...options,
+        artifactBundle,
+        scenarioSelection: ["raw.first"],
+      });
+      expect(report.selectedScenarioIds).toEqual(["raw.first"]);
+      expect(report.scenarios[0]?.state).toBe("pass");
+      vi.mocked(options.harness.prepare).mockClear();
+      options.exactExecution.execute.mockClear();
+      await expect(
+        runConformanceMatrix({ ...options, artifactBundle, scenarioSelection: ["raw.second"] }),
+      ).rejects.toThrow("configured execution boundary");
+      expect(options.harness.prepare).not.toHaveBeenCalled();
+      expect(options.exactExecution.execute).not.toHaveBeenCalled();
+      const ordered = await runConformanceMatrix({
+        ...options,
+        scenarioSelection: ["raw.second", "raw.first"],
+      });
+      expect(ordered.selectedScenarioIds).toEqual(["raw.first", "raw.second"]);
+    },
+  );
+  it("receives real socket cancellation after the native body receipt without executing another scenario", async () => {
+    const options = setup(
+      { raw: { headerLines: [], body: { encoding: "base64", value: "/wAB" } } },
+      true,
+    );
+    const controller = new AbortController();
+    let receipt = Buffer.alloc(0);
+    const closed = vi.fn();
+    const target = createRawHttpScenarioTarget(
+      async () => {
+        const server = createHttpServer((request) => {
+          const chunks: Buffer[] = [];
+          request.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+          request.on("end", () => {
+            receipt = Buffer.concat(chunks);
+            controller.abort();
+          });
+        });
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const address = server.address();
+        if (address === null || typeof address === "string") throw new Error();
+        return {
+          capabilities: ["public-http"],
+          dialRoute: { transport: "plain", host: "127.0.0.1", port: address.port },
+          close: async () => {
+            closed();
+            server.closeAllConnections();
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+          },
+        };
+      },
+      { exactMode: { ...options.exactExecution.configuration, resolveCredentials: () => ({}) } },
+    );
+    if (target.exactConfiguration === undefined) throw new Error();
+    try {
+      const report = await runConformanceMatrix({
+        ...options,
+        signal: controller.signal,
+        execute: target.execute,
+        harness: target.harness,
+        exactExecution: { configuration: target.exactConfiguration, execute: target.execute },
+      });
+      expect(receipt).toEqual(Buffer.from([255, 0, 1]));
+      expect(report.scenarios[0]?.category).toBe("aborted");
+      expect(report.scenarios[0]?.exchanges[0]?.transportError).toMatchObject({
+        category: "abort",
+        writeState: "complete",
+      });
+      expect(report.scenarios[0]?.exchanges[0]?.request.exact).toBeUndefined();
+      expect(report.scenarios[0]?.exchanges[0]?.assertions).toEqual([]);
+      expect(report.scenarios[1]?.category).toBe("not-run");
+      expect(closed).toHaveBeenCalledTimes(1);
+    } finally {
+      await target.close();
+    }
+  });
+  it("receives real credential-decorated overflow as a fail-stop harness refusal before dialing", async () => {
+    const options = setup({ raw: { headerLines: [] } }, true);
+    let connections = 0;
+    const resolveCredentials = vi.fn(() => ({ Authorization: "PRIVATE-CREDENTIAL".repeat(32) }));
+    const target = createRawHttpScenarioTarget(
+      async () => {
+        const server = createHttpServer();
+        server.on("connection", () => connections++);
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const address = server.address();
+        if (address === null || typeof address === "string") throw new Error();
+        return {
+          capabilities: ["public-http"],
+          dialRoute: { transport: "plain", host: "127.0.0.1", port: address.port },
+          close: async () => {
+            server.closeAllConnections();
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+          },
+        };
+      },
+      {
+        exactMode: {
+          ...options.exactExecution.configuration,
+          maximumRequestHeaderBytes: 128,
+          defaultCredentialRef: "writer",
+          credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+          resolveCredentials,
+        },
+      },
+    );
+    if (target.exactConfiguration === undefined) throw new Error();
+    try {
+      const report = await runConformanceMatrix({
+        ...options,
+        execute: target.execute,
+        harness: target.harness,
+        exactExecution: { configuration: target.exactConfiguration, execute: target.execute },
+      });
+      expect(report.scenarios[0]?.category).toBe("exact-configuration");
+      expect(report.scenarios[0]?.exchanges[0]?.harnessError).toMatchObject({
+        category: "exact-configuration",
+        writeState: "not-started",
+      });
+      expect(report.scenarios[0]?.exchanges[0]?.transportError).toBeUndefined();
+      expect(report.scenarios[1]?.category).toBe("not-run");
+      expect(resolveCredentials).toHaveBeenCalledTimes(1);
+      expect(connections).toBe(0);
+      expect(serializeConformanceReport(report)).not.toContain("PRIVATE-CREDENTIAL");
+    } finally {
+      await target.close();
+    }
+  });
+
+  it("preserves exact v3 bytes observed at the original e24 receiving base", async () => {
+    const options = inputs([{ id: "status", kind: "status", equals: 204 }], {
+      "idempotency-key": "PRIVATE-KEY",
+      accept: "application/json",
+    });
+    const report = await runConformanceMatrix({
+      ...options,
+      scope,
+      profile: "read",
+      seed: 0,
+      execute: async () => ({
+        url: scope,
+        status: 204,
+        headers: { "Idempotency-Key": "PRIVATE-ECHO", ETag: '"tag"' },
+        bodyText: "",
+        effectiveRequest: {
+          url: scope,
+          headers: { "Idempotency-Key": "PRIVATE-EFFECTIVE", accept: "application/json" },
+          headersTransmitted: true,
+        },
+      }),
+      harness: harness(),
+    });
+    // Captured by raw-receiving-v3-base-bytes-20260911.mjs against e24a9f7 dist.
+    expect(serializeConformanceReport(report)).toBe(
+      '{"artifacts":{"catalogDigest":"bef8e189332e94b7293a19e395b97127a691921762b5b3d5c432e5d8ba6099e8","fixtureDigest":"fd4d7b36e3ea8cb00cd720dc1ba36c80e547dc7ac476dc6be1cf4d1e137c7dc5","manifestDigest":"5ead2492f35fc5ad60ce0a995a72099d28cd0bf23b6775439765ef964f7e5dad"},"claimEligible":false,"declarations":{"targetLabel":"unit-test-target"},"profile":"read","reportVersion":3,"scenarios":[{"exchanges":[{"assertions":[{"id":"status","passed":true}],"request":{"headers":{"accept":"<redacted>"},"id":"scope","method":"GET","url":"https://scope.example/","wireHeadersObserved":true},"response":{"bodyKind":"empty","decodedBodyBytes":0,"headers":{"etag":"<redacted>"},"status":204,"url":"https://scope.example/"}}],"id":"read.discovery","requiredProfile":"read","requirements":["docs/specs/bdp.md#scope-discovery-and-human-documentation"],"state":"pass"}],"scope":"https://scope.example/","seed":0,"selectedScenarioIds":["read.discovery"]}\n',
+    );
+  });
+  it("checks even unused v2 exact declarations while preserving a v1 unused binding", async () => {
+    const options = setup();
+    const readConfiguration = { ...options.exactExecution.configuration, profile: "read" as const };
+    const empty = await runConformanceMatrix({
+      ...options,
+      profile: "read",
+      exactExecution: { ...options.exactExecution, configuration: readConfiguration },
+    });
+    expect(empty.selectedScenarioIds).toEqual([]);
+    expect(empty.reportVersion).toBe(4);
+    expect(empty.declarations).toHaveProperty("exactConfigurationDigest");
+    await expect(runConformanceMatrix({ ...options, profile: "read" })).rejects.toThrow(
+      "must match the run Scope and profile",
+    );
+    expect(options.harness.prepare).not.toHaveBeenCalled();
+    const legacy = inputs([{ id: "status", kind: "status", equals: 204 }]);
+    const report = await runConformanceMatrix({
+      ...options,
+      ...legacy,
+      profile: "read",
+      execute: async () => ({ url: scope, status: 204, headers: {}, bodyText: "" }),
+    });
+    expect(report.reportVersion).toBe(3);
+    expect(report.scenarios[0]?.state).toBe("pass");
+    expect(report.declarations).not.toHaveProperty("exactConfigurationDigest");
   });
 });

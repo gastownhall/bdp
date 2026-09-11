@@ -1200,16 +1200,16 @@ async function runRequest(
   let exactFailure = false;
   if (exact) {
     try {
-      exactObservation = capturedExact;
-      if (response.url !== url || exactObservation === undefined)
+      if (response.url !== url || capturedExact === undefined)
         throw new ExactHarnessError("exact-observation");
       next = {
         ...next,
         request: {
           ...next.request,
-          exact: projectExactObservation(exactObservation, body, options),
+          exact: projectExactObservation(capturedExact, body, options),
         },
       };
+      exactObservation = capturedExact;
     } catch {
       exactFailure = true;
       next = {
@@ -1229,6 +1229,25 @@ async function runRequest(
     ...(response.bodyOctets === undefined ? {} : { bodyOctets: response.bodyOctets }),
     ...(effectiveRequest === undefined ? {} : { effectiveRequest }),
   };
+  const exactWitness = exact
+    ? {
+        request,
+        url,
+        body,
+        observation: exactObservation,
+        configuration: options.exactExecution?.configuration,
+      }
+    : undefined;
+  const corsWitnessFailure =
+    exactWitness !== undefined &&
+    request.assertions.some(
+      (assertion) =>
+        assertion.kind === "header" &&
+        assertion.absent === true &&
+        assertion.name.startsWith("access-control-"),
+    )
+      ? exactCorsWitnessFailure(exactWitness)
+      : undefined;
   const outcomes = request.assertions.map(
     (assertion) =>
       (assertion.kind.startsWith("request-")
@@ -1245,19 +1264,13 @@ async function runRequest(
         runProfile,
         priorResponses,
         headers,
-        exact
-          ? {
-              request,
-              url,
-              body,
-              observation: exactObservation,
-              configuration: options.exactExecution?.configuration,
-            }
-          : undefined,
+        exactWitness,
       ),
   );
   exchanges[exchanges.length - 1] = { ...next, assertions: outcomes };
   if (exactFailure) throw new ExactHarnessError("exact-observation");
+  if (corsWitnessFailure !== undefined)
+    throw new ScenarioWireObservationUnavailableError(corsWitnessFailure);
   if (outcomes.some(({ passed }) => !passed))
     throw new ScenarioAssertionFailure(
       outcomes
@@ -1505,6 +1518,7 @@ function snapshotExactObservation(
   if (
     observed.source !== "raw-http1-serializer" ||
     !isWriteState(observed.writeState) ||
+    observed.writeState === "not-started" ||
     typeof observed.bodyPresent !== "boolean" ||
     typeof observed.bodyOctets !== "number" ||
     !Number.isSafeInteger(observed.bodyOctets) ||
@@ -2549,6 +2563,15 @@ function validateRunOptions(options: ScenarioRunOptions): void {
   )
     throw new ConformanceRunnerError(
       "read-v1 executable scaffold currently supports targets advertising the Read profile only",
+    );
+  if (
+    options.artifactBundle.manifest.manifestVersion === 2 &&
+    options.exactExecution !== undefined &&
+    (options.exactExecution.configuration.scope !== options.scope ||
+      options.exactExecution.configuration.profile !== options.profile)
+  )
+    throw new ConformanceRunnerError(
+      "Version 2 exact configuration must match the run Scope and profile",
     );
   if (
     options.artifactBundle.manifest.manifestVersion === 2 &&

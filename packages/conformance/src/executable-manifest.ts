@@ -597,13 +597,14 @@ function parseRequests(
   const ids = new Set<string>();
   const establishedBindings = new Set(["scope"]);
   let ownRequestSeen = false;
-  for (const [index, candidate] of value.entries()) {
+  for (const [index, source] of value.entries()) {
     const requestPath = `${path}[${index}]`;
     const priorRequestIds = new Set(ids);
-    if (!isPlainRecord(candidate)) {
+    if (!isPlainRecord(source)) {
       issues.push({ path: requestPath, message: "must be a plain record" });
       continue;
     }
+    const candidate = version === 2 ? snapshotManifestRecord(source, requestPath, issues) : source;
     reportUnknownKeys(candidate, REQUEST_KEYS, requestPath, issues);
     const id = readId(ownValue(candidate, "id"), `${requestPath}.id`, issues);
     if (id !== undefined && ids.has(id))
@@ -724,17 +725,18 @@ function parseActions(
   const ids = new Set<string>();
   const establishedBindings = new Set(["scope"]);
   let ownActionSeen = false;
-  for (const [index, candidate] of value.entries()) {
+  for (const [index, source] of value.entries()) {
     const actionPath = `${path}[${index}]`;
     const priorHttpActionIds = new Set(
       actions
         .filter((action): action is ScenarioHttpAction => action.family === "http")
         .map(({ id: actionId }) => actionId),
     );
-    if (!isPlainRecord(candidate)) {
+    if (!isPlainRecord(source)) {
       issues.push({ path: actionPath, message: "must be a plain record" });
       continue;
     }
+    const candidate = version === 2 ? snapshotManifestRecord(source, actionPath, issues) : source;
     const family = ownValue(candidate, "family");
     const id = readId(ownValue(candidate, "id"), `${actionPath}.id`, issues);
     if (id !== undefined && ids.has(id))
@@ -914,7 +916,7 @@ function parseRequestInput(
     if (Object.hasOwn(candidate, "credentialRef"))
       issues.push({ path, message: "credentialRef requires raw input" });
     const headers = parseHeaders(
-      ownDataValue(candidate, "headers"),
+      version === 1 ? ownValue(candidate, "headers") : ownDataValue(candidate, "headers"),
       `${path}.headers`,
       issues,
       prior,
@@ -1564,12 +1566,14 @@ function parseAssertions(
   }
   const assertions: ScenarioAssertion[] = [];
   const ids = new Set<string>();
-  for (const [index, candidate] of value.entries()) {
+  for (const [index, source] of value.entries()) {
     const assertionPath = `${path}[${index}]`;
-    if (!isPlainRecord(candidate)) {
+    if (!isPlainRecord(source)) {
       issues.push({ path: assertionPath, message: "must be a plain record" });
       continue;
     }
+    const candidate =
+      version === 2 ? snapshotManifestRecord(source, assertionPath, issues) : source;
     const id = readId(ownValue(candidate, "id"), `${assertionPath}.id`, issues);
     if (id !== undefined && ids.has(id))
       issues.push({ path: `${assertionPath}.id`, message: "must be unique within the request" });
@@ -2398,6 +2402,29 @@ function reportUnknownKeys(
 
 function ownValue(value: Readonly<Record<string, unknown>>, key: string): unknown {
   return Object.hasOwn(value, key) ? value[key] : undefined;
+}
+
+/** V2 fields are consumed only from copied own data, before any parser reads. */
+function snapshotManifestRecord(
+  value: Record<string, unknown>,
+  path: string,
+  issues: ManifestIssue[],
+): Record<string, unknown> {
+  const result: Record<string, unknown> = Object.create(null);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      typeof key !== "string" ||
+      descriptor === undefined ||
+      !("value" in descriptor) ||
+      !descriptor.enumerable
+    ) {
+      issues.push({ path, message: "members must be enumerable own string-keyed data" });
+      continue;
+    }
+    result[key] = descriptor.value;
+  }
+  return result;
 }
 
 function reportExactUnknownKeys(
