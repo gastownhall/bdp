@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current authority-component Read cohort was genuinely generated from
-`3f65d88bdb2061c22f9691b4c9a271cf0860274e` and committed with its matching
-capability constant at `23e7d710933a0a0b27f35d9feab22150e46c2be0`.
+The current raw-HTTP/prerequisite Read cohort was genuinely generated from
+`389b3efe73b81c42f8c3d68802b0f4d58bc33527` and committed with its matching
+capability constant at `48ea75be7777bbc11037ff471ed870d8e90ff7a5`.
 It recorded 36 packaged/11 self-certified passes for the reference target and
 34 packaged/eight self-certified passes for bd, with two/seven N/A slots and
-eight explicit uncovered qualifications. Generation ran for 136.47 seconds
-against the clean integrated source. The prior #20, #29, #30, #31 and #32 cohorts remain
+eight explicit uncovered qualifications. Generation ran for 138.00 seconds
+against the clean integrated source. The prior #20, #29, #30, #31, #32 and #33 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -33,10 +33,27 @@ operations, durable single-owner SQLite state/recovery, owned-claim release and
 exact semantic-value encoding are implemented. Member identity now pairs exact lossless
 input with captured reference witnesses, numeric execution input and versioned
 resolution metadata. Startup owners can visit installed Types and retained outcomes
-row by row; alias diagnostic limits have a shared readiness check. These components
+row by row; alias diagnostic limits have a shared readiness check. Dependency
+preparation now shares captured creator facts with normalization through a paired
+private token. The existing codec format is exported, and each store exposes its
+immutable canonical Scope. These components
 do not implement complete startup qualification or member execution. Property validation now receives
 confirmed diagnostics through one aggregate actual-byte/count budget; this does
 not establish bounded compiler internals or a complete offline schema installer.
+
+Timestamp integration and the existing-law correction equating empty and omitted
+context input remain a separate implementation slice. Earlier explicit-empty
+identity fingerprints need an affected-store compatibility proof before corrected
+equality is used there; no migration or replay readiness is established here.
+
+The conformance transport now supports exact raw HTTP/1 body bytes, ordered repeated
+headers, configured credentials/routes/caps, and bounded cancellation/cleanup with
+truthful write states. Manifest version 2 and report version 4 receive that path;
+version 1/report version 3 behavior remains covered by legacy regressions. Missing
+exact CORS observations are harness failures, while safe response outcomes remain
+visible. Diagnostic raw runs keep claimEligible false and do not grant write
+conformance or arbitrary programmable-executor confinement. The current Read
+cohort continues to use its existing version-1 manifest.
 
 Retained-identity comparison/replay execution, current authority and sequence
 lifetime, server HTTP/auth/configuration integration and executable ReadUpdate
@@ -81,7 +98,7 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,057 tests in
+reviewed foundation source. The final evidence head passed 3,255 tests in
 77 files with zero skips; all source, packaged smoke and readiness preflight gates passed.
 Source council corrections and genuine successor observations are complete;
 independent artifact review and hosted checks remain separate release gates.
