@@ -2076,11 +2076,12 @@ describe("late native context materialization", () => {
       const target = f.body("beads/b");
       const clock = vi.fn(() => milliseconds + 1000);
       const options = { recordChangeContext, observeCommitTime: clock };
-      f.execute(
+      const updated = f.execute(
         "updateLinkProperties",
         { link: "links/edge", change, changeContext: { agent: null } },
         options,
       );
+      expect(updated).toMatchObject({ effect: "success", changed: ["links/edge", "beads/a"] });
       const source = f.body("beads/a");
       if ("source" in source) throw Error("expected Bead");
       expect(source.ownedLinks?.[linkType]?.find((link) => link.id === old.id)).toEqual(old);
@@ -2090,12 +2091,12 @@ describe("late native context materialization", () => {
       const before = [...f.records.entries()];
       const writes = f.writes();
       for (const changeContext of [undefined, {}, { message: "ignored" }, { agent: null }]) {
-        f.execute(
+        const linkNoOp = f.execute(
           "updateLinkProperties",
           { link: "links/edge", change, ...(changeContext === undefined ? {} : { changeContext }) },
           options,
         );
-        f.execute(
+        const beadNoOp = f.execute(
           "updateBeadProperties",
           {
             bead: "beads/a",
@@ -2104,6 +2105,8 @@ describe("late native context materialization", () => {
           },
           options,
         );
+        expect(linkNoOp).toMatchObject({ effect: "success", changed: [] });
+        expect(beadNoOp).toMatchObject({ effect: "success", changed: [] });
       }
       expect(clock).toHaveBeenCalledTimes(1);
       expect([...f.records.entries()]).toEqual(before);
@@ -2114,18 +2117,25 @@ describe("late native context materialization", () => {
         options,
       );
       expect(clock).toHaveBeenCalledTimes(2);
+      expect(deleted).toMatchObject({ effect: "success", changed: ["beads/a"] });
       expect(deleted.outcome).not.toHaveProperty("changeContext");
       expect(f.body("beads/a").changeContext?.message).toEqual({ state: "absent" });
       const unowned = fixture();
       unowned.createBead("a");
       unowned.createBead("b");
       unowned.createLink("edge");
-      unowned.execute(
+      const unownedDeletion = unowned.execute(
         "deleteLink",
         { link: "links/edge", changeContext: { message: "no version" } },
         options,
       );
-      unowned.execute("deleteBead", { bead: "beads/a" }, options);
+      const beadDeletion = unowned.execute("deleteBead", { bead: "beads/a" }, options);
+      expect(unownedDeletion).toMatchObject({
+        effect: "success",
+        changed: [],
+        deleted: ["links/edge"],
+      });
+      expect(beadDeletion).toMatchObject({ effect: "success", changed: [], deleted: ["beads/a"] });
       expect(clock).toHaveBeenCalledTimes(2);
     },
   );
@@ -2212,42 +2222,50 @@ const contextStoreConfiguration = (directory: string) => ({
 
 describe("native context inside actual durable members", () => {
   const milliseconds = Date.parse(instant);
-  const cases: [ResourceOperation, Record<string, unknown>, boolean][] = [
-    ["createBead", { id: "beads/new", type: beadType }, true],
+  // Expected minted IDs come from the operation law, independently of results.
+  type ContextCase = [ResourceOperation, Record<string, unknown>, boolean, readonly string[]];
+  const cases: ContextCase[] = [
+    ["createBead", { id: "beads/new", type: beadType }, true, ["beads/new"]],
     [
       "updateBeadProperties",
       { bead: "beads/a", change: [{ op: "add", path: "/changed", value: true }] },
       true,
+      ["beads/a"],
     ],
     [
       "updateBeadProperties",
       { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 0 }] },
       true,
+      [],
     ],
-    ...[true, false].flatMap((owned): [ResourceOperation, Record<string, unknown>, boolean][] => [
+    ...[true, false].flatMap((owned): ContextCase[] => [
       [
         "createLink",
         { id: "links/new", type: linkType, source: "beads/a", target: "beads/b" },
         owned,
+        owned ? ["links/new", "beads/a"] : ["links/new"],
       ],
       [
         "updateLinkProperties",
         { link: "links/existing", change: [{ op: "add", path: "/changed", value: true }] },
         owned,
+        owned ? ["links/existing", "beads/a"] : ["links/existing"],
       ],
       [
         "updateLinkProperties",
         { link: "links/existing", change: [{ op: "replace", path: "", value: {} }] },
         owned,
+        [],
       ],
-      ["deleteLink", { link: "links/existing" }, owned],
+      ["deleteLink", { link: "links/existing" }, owned, owned ? ["beads/a"] : []],
     ]),
-    ["deleteBead", { bead: "beads/unlinked" }, true],
+    ["deleteBead", { bead: "beads/unlinked" }, true, []],
   ];
   for (const recordChangeContext of [false, true]) {
     it.each(cases)(
       `commits identical default-context bytes through actual S4/S6 for %s (recording ${recordChangeContext}, case %#)`,
-      (operation, input, owned) => {
+      (operation, input, owned, expectedMintedIds) => {
+        const expectedObservations = recordChangeContext && expectedMintedIds.length > 0 ? 1 : 0;
         const directory = mkdtempSync(path.join(tmpdir(), "bdp-context-default-"));
         const f = contextStoreSeed(owned);
         // Both branches descend from this test-owned, closed pristine store, so
@@ -2277,6 +2295,8 @@ describe("native context inside actual durable members", () => {
                 lockingMode: "exclusive",
                 synchronous: 3,
               });
+              const previousLinkBytes = store.read((tx) => tx.resource("links/existing")?.bodyJson);
+              expect(previousLinkBytes).toBeDefined();
               const result = submitContextMember(
                 store,
                 "key",
@@ -2285,15 +2305,14 @@ describe("native context inside actual durable members", () => {
                 { ...f.options, recordChangeContext, observeCommitTime: clock },
               );
               expect(result.effect).toBe("success");
-              expect(clock).toHaveBeenCalledTimes(
-                recordChangeContext && result.changed.length > 0 ? 1 : 0,
-              );
+              expect(result.changed).toEqual(expectedMintedIds);
+              expect(clock).toHaveBeenCalledTimes(expectedObservations);
               const resources = store.read((tx) => tx.resources());
               const key = store.read((tx) => tx.key("alice", "key"));
               if (key.kind !== "retained") throw Error("expected retained state");
               expect(key.outcomeJson).toBe(stringifyJsonValue(result.outcome));
               if (result.effect !== "success") throw Error("expected success");
-              for (const id of result.changed) {
+              for (const id of expectedMintedIds) {
                 const record = resources.find((resource) => resource.id === id);
                 const context = JSON.parse(record?.bodyJson ?? "null").changeContext;
                 if (recordChangeContext)
@@ -2306,6 +2325,20 @@ describe("native context inside actual durable members", () => {
                     message: { state: "undetermined" },
                   });
                 else expect(context).toBeUndefined();
+              }
+              if (operation === "updateBeadProperties" && owned) {
+                const source = JSON.parse(
+                  resources.find((resource) => resource.id === "beads/a")?.bodyJson ?? "null",
+                ) as ResourceRecord;
+                if ("source" in source) throw Error("expected updated Bead");
+                const inline = source.ownedLinks?.[linkType]?.find(
+                  (link) => link.id === `${scope}links/existing`,
+                );
+                expect(inline).toBeDefined();
+                expect(stringifyJsonValue(inline)).toBe(previousLinkBytes);
+                expect(
+                  resources.find((resource) => resource.id === "links/existing")?.bodyJson,
+                ).toBe(previousLinkBytes);
               }
               if (result.outcome.outcome !== "deleted") {
                 const returned = result.outcome.resource;
@@ -2327,9 +2360,7 @@ describe("native context inside actual durable members", () => {
                 }),
               ).toEqual({ kind: "existing", state: key });
               store.abandonAttempt(admission);
-              expect(clock).toHaveBeenCalledTimes(
-                recordChangeContext && result.changed.length > 0 ? 1 : 0,
-              );
+              expect(clock).toHaveBeenCalledTimes(expectedObservations);
               branches.push({ resources, key });
             } finally {
               store.close();

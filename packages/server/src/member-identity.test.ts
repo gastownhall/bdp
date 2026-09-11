@@ -93,6 +93,14 @@ describe("exact member identity normalization", () => {
     expect(two.metadata).not.toHaveProperty("name");
     expect(two.metadata).not.toHaveProperty("operationIndex");
   });
+  it("keeps the omitted-context identity bytes from base 389b3efe", () => {
+    // Base S4 adds properties:{}, then its unchanged tagged codec sorts object
+    // keys. This literal pins prior persisted bytes, not another encoder call.
+    const member = ready(singleton("createBead", { type }));
+    expect(member.identityJson).toBe(
+      '["ru-semantic-value-1",["object",[["normalizedInput",["object",[["properties",["object",[]]],["type",["string","https://types.example/task"]]]]],["operation",["string","createBead"]]]]]',
+    );
+  });
   it("does not insert an allocated identity or generated attribution/context into omitted input", () => {
     const one = ready(singleton("createBead", { type }));
     const supplied = ready(singleton("createBead", { type, id: a }));
