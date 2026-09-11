@@ -176,7 +176,6 @@ interface Attempt {
   principalId: string;
   admission?: Admission;
   next: number;
-  turns: MemberTurn[];
   creators: (MemberCreatorBinding | undefined)[];
   entries: unknown[];
   token?: Token | undefined;
@@ -188,6 +187,10 @@ interface Attempt {
 /** Takes an already qualified exclusive synchronous S6 owner after pure
  * validation. Prior expiry and complete retained/type/graph/population checks
  * remain the transferring authority's obligation. No HTTP or readiness facet.
+ * After any factory throw, the receiving caller must close its supplied store,
+ * preserving/reporting the original error if cleanup also fails. Pre-transfer
+ * failures require this cleanup; after transfer, repeated close is safe on an
+ * already-closed S6 store outside an active store callback.
  * Collected results and claims sum over all live attempts; no aggregate memory
  * or concurrency bound is supplied here. */
 export function createSequenceLifecycle(options: SequenceLifecycleOptions): SequenceLifecycle {
@@ -469,7 +472,6 @@ export function createSequenceLifecycle(options: SequenceLifecycleOptions): Sequ
           if (storeFenced && !fatal) shutdown(fault);
           return;
         }
-        attempt.turns.push(turn);
         attempt.creators.push(turn.creator);
         try {
           if (attempt.carrier.kind === "sequence")
@@ -535,7 +537,6 @@ export function createSequenceLifecycle(options: SequenceLifecycleOptions): Sequ
           principal,
           principalId,
           next: 0,
-          turns: [],
           creators: [],
           entries: [],
           done: false,

@@ -302,6 +302,7 @@ function controlled(
   carrier: PreparedReadUpdateCarrier,
   index: number,
   problem: unknown,
+  completedAt = start,
 ) {
   // Controlled writer only: production constructors always supply status and no
   // arbitrary extensions. Real S4 identities, real S6 retention; never fake turns.
@@ -327,8 +328,8 @@ function controlled(
         disposition: parseReadUpdateProblem(problem),
       }),
       effect: "failure",
-      completedAt: start,
-      retainUntil: start + day,
+      completedAt,
+      retainUntil: completedAt + day,
     }));
   } finally {
     f.store.abandonAttempt(admission);
@@ -435,15 +436,20 @@ describe("configuration, atomic admission and projection", () => {
     expect(snapshot.limits).toEqual(f.member.limits);
     expect(Object.isFrozen(snapshot)).toBe(true);
     controlled(f, sequence([update("old")]), 0, readProblem("forbidden"));
-    const old = f.key("old");
-    f.store.expire(start);
+    controlled(f, sequence([update("still-retained")]), 0, readProblem("forbidden"), start + 1);
+    const stillRetained = f.key("still-retained");
+    f.store.expire(start + day - 1);
+    expect(f.key("old").kind).toBe("retained");
+    expect(f.key("still-retained")).toEqual(stillRetained);
     f.store.visitRetainedOutcomes((row) => assertRetainedOutcomeCompatible(row, scope, {}));
     const expire = vi.spyOn(f.store, "expire"),
       admit = vi.spyOn(f.store, "admit"),
       cleanup = vi.spyOn(f.store, "abandonAttempt");
+    f.state.now = start + day;
     const owner = f.owner();
-    expect(expire).toHaveBeenCalledTimes(1);
-    expect(f.key("old")).toEqual(old);
+    expect(expire).toHaveBeenCalledExactlyOnceWith(start + day);
+    expect(f.key("old")).toEqual({ kind: "unknown" });
+    expect(f.key("still-retained")).toEqual(stillRetained);
     const original = principal;
     const done = submit(owner, five(), original);
     expect(admit).toHaveBeenCalledExactlyOnceWith("alice", ["k0", "k1", "k2", "k3", "k4"]);
@@ -542,11 +548,34 @@ describe("configuration, atomic admission and projection", () => {
     const f = fixture(),
       owner = f.owner();
     const carrier = sequence([create("a"), create("b")]);
+    const admit = vi.spyOn(f.store, "admit");
     const one = submit(owner, carrier),
       duplicate = submit(owner, carrier),
       other = submit(owner, carrier, { id: "bob" });
     expect(f.clock).toHaveBeenCalledTimes(1);
+    expect(admit.mock.calls).toEqual([
+      ["alice", ["a", "b"]],
+      ["alice", ["a", "b"]],
+      ["bob", ["a", "b"]],
+    ]);
+    const first = admit.mock.results[0]?.value;
+    const competing = admit.mock.results[1]?.value;
+    const independent = admit.mock.results[2]?.value;
+    if (!first || !competing || !independent) throw Error("missing actual admissions");
+    expect(first.states).toEqual([{ kind: "unknown" }, { kind: "unknown" }]);
+    expect(competing.attemptId).not.toBe(first.attemptId);
+    expect(competing.states).toEqual([
+      { kind: "claimed", attemptId: first.attemptId },
+      { kind: "claimed", attemptId: first.attemptId },
+    ]);
+    expect(independent.attemptId).not.toBe(first.attemptId);
+    expect(independent.states).toEqual([{ kind: "unknown" }, { kind: "unknown" }]);
+    expect(carrier.keys.map((key) => f.key(key, "bob"))).toEqual([
+      { kind: "claimed", attemptId: independent.attemptId },
+      { kind: "claimed", attemptId: independent.attemptId },
+    ]);
     f.queue.drain();
+    expect(codes(await duplicate)).toEqual(["created", "created"]);
     const results = await Promise.all([one, duplicate, other]);
     expect(results.every((r) => r.kind === "sequence")).toBe(true);
     expect(f.key("a").kind).toBe("retained");
@@ -781,6 +810,17 @@ describe("canonical projection and real creator prefixes", () => {
       const problem = rowProblem(row);
       expect(parseReadUpdateProblem(problem)).toMatchObject(problem);
       expect(() => parseReadUpdateProblem({ ...problem, status: 599 })).toThrow();
+      // Both are valid public enum members; only the per-code constant rejects this.
+      const wrongStatus = row[2] === 400 ? 409 : 400;
+      expect(() => parseReadUpdateProblem({ ...problem, status: wrongStatus })).toThrow();
+      if (!historyCodes.has(row[0]))
+        expect(() =>
+          parseReadUpdateSequenceMemberProblem({
+            ...problem,
+            status: wrongStatus,
+            operationIndex: 0,
+          }),
+        ).toThrow();
       if (isReadProblemCode(row[0])) {
         expect(readProblemDefinitionFor(row[0])).toMatchObject({
           code: row[0],
@@ -949,10 +989,13 @@ describe("canonical projection and real creator prefixes", () => {
       create("maker", { id: "beads/made", name: "different", properties: { changed: true } }),
       { operation: "deleteBead", bead: "@different", idempotencyKey: "conflict-dependent" },
     ]);
-    expect(codes(await execute(f, owner, conflict))).toEqual([
-      "idempotency-conflict",
-      "binding-unavailable",
-    ]);
+    const conflicted = submit(owner, conflict);
+    f.clock.mockClear();
+    f.queue.step();
+    expect(f.clock).not.toHaveBeenCalled(); // Actual conflict has neither C nor terminal.
+    expect(f.key("maker")).toEqual(maker);
+    f.queue.drain();
+    expect(codes(await conflicted)).toEqual(["idempotency-conflict", "binding-unavailable"]);
     await owner.close();
     f.reopen();
     f.state.now = Math.max(retained(maker).retainUntil, retained(dependent).retainUntil);
@@ -967,7 +1010,14 @@ describe("canonical projection and real creator prefixes", () => {
         idempotencyKey: "after-expiry",
       },
     ]);
-    expect(codes(await execute(f, next, expired))).toEqual(["idempotency-expired", "updated"]);
+    const expiredDone = submit(next, expired);
+    const expiredMaker = f.key("maker");
+    f.clock.mockClear(); // Exclude the independent startup maintenance observation.
+    f.queue.step();
+    expect(f.clock).not.toHaveBeenCalled(); // Actual expired creator has neither C nor terminal.
+    expect(f.key("maker")).toEqual(expiredMaker);
+    f.queue.drain();
+    expect(codes(await expiredDone)).toEqual(["idempotency-expired", "updated"]);
     expect(body(f, "beads/made").properties.after).toBe(2);
     expect(f.key("maker")).not.toHaveProperty("semanticIdentityJson");
     await next.close();
@@ -1330,6 +1380,57 @@ describe("scheduler contracts, drain and fault precedence", () => {
     stale.callback();
     expect(calls).toHaveBeenCalledTimes(5);
   });
+  it.each(["scheduler", "clock"] as const)(
+    "rejects synchronous submit and close reentry from %s without changing accepted work",
+    async (source) => {
+      const f = fixture();
+      let owner: SequenceLifecycle | undefined;
+      let checks = 0;
+      const reenter = () => {
+        if (!owner) return; // Startup occurs before the factory returns its owner.
+        const active = owner;
+        const hostile = {
+          get id(): string {
+            throw Error("reentry sampled principal");
+          },
+        };
+        expect(() => active.submit(five(), hostile)).toThrow(
+          expect.objectContaining({ phase: "reentrant" }),
+        );
+        expect(() => active.close()).toThrow(expect.objectContaining({ phase: "reentrant" }));
+        checks++;
+      };
+      const scheduler: LifecycleScheduler = {
+        delay: f.queue.delay.bind(f.queue),
+        turn(callback) {
+          if (source === "scheduler") reenter();
+          return f.queue.turn(callback);
+        },
+      };
+      owner = f.owner({
+        scheduler,
+        member: optionsFor(f, {
+          clock: function (this: unknown) {
+            expect(this).toBeUndefined();
+            if (source === "clock") reenter();
+            const clock = f.clock;
+            return clock();
+          },
+        }),
+      });
+      const admit = vi.spyOn(f.store, "admit");
+      const close = vi.spyOn(f.store, "close");
+      const done = submit(owner, sequence([create("first"), create("second")]));
+      f.queue.drain();
+      expect(codes(await done)).toEqual(["created", "created"]);
+      expect(checks).toBe(source === "scheduler" ? 2 : 4);
+      expect(admit).toHaveBeenCalledTimes(1);
+      expect(close).not.toHaveBeenCalled();
+      expect(f.store.read((reader) => reader.resources())).toHaveLength(6);
+      await owner.close();
+      expect(close).toHaveBeenCalledTimes(1);
+    },
+  );
   it("rejects callback reentry without state mutation and defers queued-callback cleanup outside the active S6 turn", async () => {
     const f = fixture();
     let owner: SequenceLifecycle | undefined;
@@ -1488,6 +1589,7 @@ describe("scheduler contracts, drain and fault precedence", () => {
     );
     const fault = new RecoveryStoreError("fenced", "controlled sticky fence");
     const cleanups = new Map<string, Error>();
+    const cleanupDepths: number[] = [];
     const executeSpy = vi.spyOn(f.store, "executeMember").mockImplementation(() => {
       throw fault;
     });
@@ -1510,13 +1612,20 @@ describe("scheduler contracts, drain and fault precedence", () => {
       throw fault;
     });
     const cleanup = vi.spyOn(f.store, "abandonAttempt").mockImplementation((admission) => {
+      cleanupDepths.push(new Error().stack?.split("\n").length ?? 0);
       const error = new RecoveryStoreError("fenced", `cleanup-${admission.attemptId}`);
       expect(cleanups.has(admission.attemptId)).toBe(false);
       cleanups.set(admission.attemptId, error);
       throw error;
     });
     const close = vi.spyOn(f.store, "close");
-    f.queue.drain();
+    const stackTraceLimit = Error.stackTraceLimit;
+    try {
+      Error.stackTraceLimit = Infinity;
+      f.queue.drain();
+    } finally {
+      Error.stackTraceLimit = stackTraceLimit;
+    }
     const settled = await Promise.allSettled([first, ...pending]);
     expect(settled).toHaveLength(count + 1);
     for (const result of settled) {
@@ -1542,6 +1651,10 @@ describe("scheduler contracts, drain and fault precedence", () => {
     expect([f.key("k0"), f.key("k1")]).toEqual(prefix);
     expect(f.store.runtime.recoveredClaims).toBe(count + 3);
     expect(f.store.read((reader) => reader.resources())).toHaveLength(6);
+    expect(cleanupDepths).toHaveLength(count + 1);
+    const sweptDepths = cleanupDepths.slice(1); // Originating member cleanup has a different caller.
+    expect(sweptDepths.every((depth) => depth > 0)).toBe(true);
+    expect(new Set(sweptDepths).size, "swept cleanup stack depth must not grow").toBe(1);
   });
   it("stops admission on maintenance failure but drains usable-store work, preserving close failure secondarily", async () => {
     const f = fixture(),
@@ -1568,6 +1681,15 @@ describe("scheduler contracts, drain and fault precedence", () => {
       cause: maintenance,
       secondary: expect.arrayContaining([{ phase: "close", error: closeFailure }]),
     });
+    expect(owner.close()).toBe(owner.closed);
+    const hostile = {
+      get id(): string {
+        throw Error("closed owner sampled principal");
+      },
+    };
+    expect(() => owner.submit(five(), hostile)).toThrow(
+      expect.objectContaining({ phase: "not-accepting" }),
+    );
     expect(owner.close()).toBe(owner.closed);
   });
   it("rolls back a real late terminal failure while unrelated scheduled work drains", async () => {
