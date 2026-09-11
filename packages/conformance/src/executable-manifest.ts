@@ -10,6 +10,8 @@ import type {
 
 /** The executable scenario-manifest shape is intentionally separate from the metadata catalog. */
 export const EXECUTABLE_MANIFEST_VERSION = 1 as const;
+export const EXACT_EXECUTABLE_MANIFEST_VERSION = 2 as const;
+export type ExecutableManifestVersion = 1 | 2;
 
 export type JsonPrimitive = null | boolean | number | string;
 export type JsonValue =
@@ -43,14 +45,12 @@ export type ScenarioQueryValue =
       readonly representation: "absolute-url" | "scope-relative-url";
     };
 
-export interface ScenarioRequest {
+interface ScenarioRequestBase {
   readonly id: string;
   readonly method: "GET" | "HEAD" | "OPTIONS" | "POST" | "PUT" | "PATCH" | "DELETE";
   readonly target: ScenarioTarget;
   /** Catalog scenario whose behavior must succeed before this scenario's own probe can run. */
   readonly prerequisiteScenario?: string;
-  /** Scenario-authored headers are deliberately limited to non-secret protocol fields. */
-  readonly headers?: Readonly<Record<string, string | ScenarioConditionalHeader>>;
   /** Explicitly marks the single POST used to observe Read-profile 405 behavior. */
   readonly negativeMethodProbe?: true;
   /** Exact authored request-target octets for the raw HTTP transport lane. */
@@ -58,6 +58,26 @@ export interface ScenarioRequest {
   readonly captures: readonly ScenarioCapture[];
   readonly assertions: readonly ScenarioAssertion[];
 }
+
+export type ScenarioBody =
+  | { readonly encoding: "utf8"; readonly value: string }
+  | { readonly encoding: "base64"; readonly value: string };
+
+export type ScenarioRequestInput =
+  | {
+      readonly headers?: Readonly<Record<string, string | ScenarioConditionalHeader>>;
+      readonly raw?: never;
+      readonly credentialRef?: never;
+    }
+  | {
+      readonly headers?: never;
+      readonly raw: {
+        readonly headerLines: readonly { readonly name: string; readonly value: string }[];
+        readonly body?: ScenarioBody;
+      };
+      readonly credentialRef?: string;
+    };
+export type ScenarioRequest = ScenarioRequestBase & ScenarioRequestInput;
 
 export type ScenarioRawRequestTargetBytes =
   | { readonly encoding: "ascii"; readonly value: string }
@@ -90,6 +110,13 @@ export type ScenarioCapture =
     };
 
 export type ScenarioAssertion =
+  | { readonly id: string; readonly kind: "request-authored-headers" }
+  | { readonly id: string; readonly kind: "request-authored-body" }
+  | {
+      readonly id: string;
+      readonly kind: "request-write-state";
+      readonly equals: "not-started" | "started-completion-unestablished" | "complete";
+    }
   | {
       readonly id: string;
       readonly kind: "status";
@@ -239,7 +266,7 @@ export type ExecutableScenario = ExecutableScenarioBase &
   );
 
 export interface ExecutableScenarioManifest {
-  readonly manifestVersion: typeof EXECUTABLE_MANIFEST_VERSION;
+  readonly manifestVersion: ExecutableManifestVersion;
   readonly catalogId: string;
   readonly scenarios: readonly ExecutableScenario[];
 }
@@ -279,6 +306,8 @@ const REQUEST_KEYS = new Set([
   "target",
   "prerequisiteScenario",
   "headers",
+  "raw",
+  "credentialRef",
   "negativeMethodProbe",
   "rawRequestTarget",
   "captures",
@@ -433,8 +462,9 @@ export function parseExecutableScenarioManifest(
     );
   }
   reportUnknownKeys(value, ROOT_KEYS, "$", issues);
-  if (ownValue(value, "manifestVersion") !== EXECUTABLE_MANIFEST_VERSION)
-    issues.push({ path: "$.manifestVersion", message: "must equal 1" });
+  const version = ownValue(value, "manifestVersion");
+  if (version !== 1 && version !== 2)
+    issues.push({ path: "$.manifestVersion", message: "must equal 1 or 2" });
   const catalogId = readId(ownValue(value, "catalogId"), "$.catalogId", issues);
   const scenariosValue = ownValue(value, "scenarios");
   const scenarios: ExecutableScenario[] = [];
@@ -443,7 +473,12 @@ export function parseExecutableScenarioManifest(
     issues.push({ path: "$.scenarios", message: "must be an array" });
   } else {
     for (const [index, candidate] of scenariosValue.entries()) {
-      const scenario = parseScenario(candidate, `$.scenarios[${index}]`, issues);
+      const scenario = parseScenario(
+        candidate,
+        `$.scenarios[${index}]`,
+        issues,
+        version === 2 ? 2 : 1,
+      );
       if (scenario === undefined) continue;
       if (ids.has(scenario.id))
         issues.push({ path: `$.scenarios[${index}].id`, message: "must be unique" });
@@ -452,13 +487,18 @@ export function parseExecutableScenarioManifest(
     }
   }
   if (issues.length > 0) throw new ManifestValidationError(issues, sourceLabel);
-  return { manifestVersion: 1, catalogId: catalogId as string, scenarios };
+  return {
+    manifestVersion: version as ExecutableManifestVersion,
+    catalogId: catalogId as string,
+    scenarios,
+  };
 }
 
 function parseScenario(
   value: unknown,
   path: string,
   issues: ManifestIssue[],
+  version: ExecutableManifestVersion,
 ): ExecutableScenario | undefined {
   if (!isPlainRecord(value)) {
     issues.push({ path, message: "must be a plain record" });
@@ -484,10 +524,10 @@ function parseScenario(
   if (hasRequests === hasActions)
     issues.push({ path, message: "must choose exactly one of requests or actions" });
   const requests = hasRequests
-    ? parseRequests(requestsValue, `${path}.requests`, issues, requiredProfile)
+    ? parseRequests(requestsValue, `${path}.requests`, issues, requiredProfile, version)
     : undefined;
   const actions = hasActions
-    ? parseActions(actionsValue, `${path}.actions`, issues, requiredProfile)
+    ? parseActions(actionsValue, `${path}.actions`, issues, requiredProfile, version)
     : undefined;
   const cleanup = parseCleanup(ownValue(value, "cleanup"), `${path}.cleanup`, issues);
   if (
@@ -547,6 +587,7 @@ function parseRequests(
   path: string,
   issues: ManifestIssue[],
   requiredProfile: ProtocolProfile | undefined,
+  version: ExecutableManifestVersion,
 ): readonly ScenarioRequest[] | undefined {
   if (!Array.isArray(value) || value.length === 0) {
     issues.push({ path, message: "must be a non-empty array" });
@@ -556,13 +597,14 @@ function parseRequests(
   const ids = new Set<string>();
   const establishedBindings = new Set(["scope"]);
   let ownRequestSeen = false;
-  for (const [index, candidate] of value.entries()) {
+  for (const [index, source] of value.entries()) {
     const requestPath = `${path}[${index}]`;
     const priorRequestIds = new Set(ids);
-    if (!isPlainRecord(candidate)) {
+    if (!isPlainRecord(source)) {
       issues.push({ path: requestPath, message: "must be a plain record" });
       continue;
     }
+    const candidate = version === 2 ? snapshotManifestRecord(source, requestPath, issues) : source;
     reportUnknownKeys(candidate, REQUEST_KEYS, requestPath, issues);
     const id = readId(ownValue(candidate, "id"), `${requestPath}.id`, issues);
     if (id !== undefined && ids.has(id))
@@ -603,11 +645,13 @@ function parseRequests(
       issues,
     );
     const target = parseTarget(ownValue(candidate, "target"), `${requestPath}.target`, issues);
-    const headers = parseHeaders(
-      ownValue(candidate, "headers"),
-      `${requestPath}.headers`,
+    const input = parseRequestInput(
+      candidate,
+      requestPath,
       issues,
       priorRequestIds,
+      version,
+      requiredProfile,
     );
     const captures = parseCaptures(
       ownValue(candidate, "captures"),
@@ -618,7 +662,9 @@ function parseRequests(
       ownValue(candidate, "assertions"),
       `${requestPath}.assertions`,
       issues,
+      version,
     );
+    validateRequestAssertions(assertions, input, requestPath, issues);
     validateEarlierResponseAssertions(
       assertions,
       priorRequestIds,
@@ -630,7 +676,7 @@ function parseRequests(
       id === undefined ||
       method === undefined ||
       target === undefined ||
-      headers === undefined ||
+      input === undefined ||
       captures === undefined ||
       assertions === undefined
     )
@@ -640,7 +686,7 @@ function parseRequests(
       method,
       target,
       ...(prerequisiteScenario === undefined ? {} : { prerequisiteScenario }),
-      headers,
+      ...input,
       ...(negativeMethodProbe === undefined ? {} : { negativeMethodProbe }),
       ...(rawRequestTarget === undefined ? {} : { rawRequestTarget }),
       captures,
@@ -669,6 +715,7 @@ function parseActions(
   path: string,
   issues: ManifestIssue[],
   requiredProfile: ProtocolProfile | undefined,
+  version: ExecutableManifestVersion,
 ): readonly ScenarioAction[] | undefined {
   if (!Array.isArray(value) || value.length === 0) {
     issues.push({ path, message: "must be a non-empty array" });
@@ -678,17 +725,18 @@ function parseActions(
   const ids = new Set<string>();
   const establishedBindings = new Set(["scope"]);
   let ownActionSeen = false;
-  for (const [index, candidate] of value.entries()) {
+  for (const [index, source] of value.entries()) {
     const actionPath = `${path}[${index}]`;
     const priorHttpActionIds = new Set(
       actions
         .filter((action): action is ScenarioHttpAction => action.family === "http")
         .map(({ id: actionId }) => actionId),
     );
-    if (!isPlainRecord(candidate)) {
+    if (!isPlainRecord(source)) {
       issues.push({ path: actionPath, message: "must be a plain record" });
       continue;
     }
+    const candidate = version === 2 ? snapshotManifestRecord(source, actionPath, issues) : source;
     const family = ownValue(candidate, "family");
     const id = readId(ownValue(candidate, "id"), `${actionPath}.id`, issues);
     if (id !== undefined && ids.has(id))
@@ -717,6 +765,7 @@ function parseActions(
         id,
         prerequisiteScenario,
         priorHttpActionIds,
+        version,
       );
     } else if (family === "client" || family === "lifecycle") {
       reportUnknownKeys(candidate, PROGRAMMATIC_ACTION_KEYS, actionPath, issues);
@@ -764,6 +813,7 @@ function parseHttpAction(
   id: string | undefined,
   prerequisiteScenario: string | undefined,
   priorHttpActionIds: ReadonlySet<string>,
+  version: ExecutableManifestVersion,
 ): ScenarioHttpAction | undefined {
   const method = readMethod(ownValue(candidate, "method"), `${path}.method`, issues);
   const negativeMethodProbeValue = ownValue(candidate, "negativeMethodProbe");
@@ -784,18 +834,22 @@ function parseHttpAction(
       });
   }
   const target = parseTarget(ownValue(candidate, "target"), `${path}.target`, issues);
-  const headers = parseHeaders(
-    ownValue(candidate, "headers"),
-    `${path}.headers`,
+  const input = parseRequestInput(
+    candidate,
+    path,
     issues,
     priorHttpActionIds,
+    version,
+    requiredProfile,
   );
   const captures = parseCaptures(ownValue(candidate, "captures"), `${path}.captures`, issues);
   const assertions = parseAssertions(
     ownValue(candidate, "assertions"),
     `${path}.assertions`,
     issues,
+    version,
   );
+  validateRequestAssertions(assertions, input, path, issues);
   const rawRequestTarget = parseRawRequestTarget(
     ownValue(candidate, "rawRequestTarget"),
     `${path}.rawRequestTarget`,
@@ -812,7 +866,7 @@ function parseHttpAction(
     id === undefined ||
     method === undefined ||
     target === undefined ||
-    headers === undefined ||
+    input === undefined ||
     captures === undefined ||
     assertions === undefined
   )
@@ -823,12 +877,165 @@ function parseHttpAction(
     method,
     target,
     ...(prerequisiteScenario === undefined ? {} : { prerequisiteScenario }),
-    headers,
+    ...input,
     ...(negativeMethodProbe === undefined ? {} : { negativeMethodProbe }),
     ...(rawRequestTarget === undefined ? {} : { rawRequestTarget }),
     captures,
     assertions,
   };
+}
+
+const EXACT_RESERVED_FIELDS = new Set([
+  "host",
+  "connection",
+  "content-length",
+  "transfer-encoding",
+  "trailer",
+  "expect",
+  "upgrade",
+  "proxy-connection",
+  "proxy-authorization",
+  "forwarded",
+  "via",
+]);
+
+function parseRequestInput(
+  candidate: Record<string, unknown>,
+  path: string,
+  issues: ManifestIssue[],
+  prior: ReadonlySet<string>,
+  version: ExecutableManifestVersion,
+  profile: ProtocolProfile | undefined,
+): ScenarioRequestInput | undefined {
+  if (version === 2)
+    reportExactUnknownKeys(candidate, new Set([...REQUEST_KEYS, "family"]), path, issues);
+  const hasRaw = Object.hasOwn(candidate, "raw");
+  if (version !== 2 && (hasRaw || Object.hasOwn(candidate, "credentialRef")))
+    issues.push({ path, message: "raw inputs require manifest version 2" });
+  if (!hasRaw) {
+    if (Object.hasOwn(candidate, "credentialRef"))
+      issues.push({ path, message: "credentialRef requires raw input" });
+    const headers = parseHeaders(
+      version === 1 ? ownValue(candidate, "headers") : ownDataValue(candidate, "headers"),
+      `${path}.headers`,
+      issues,
+      prior,
+    );
+    return headers === undefined ? undefined : { headers };
+  }
+  if (Object.hasOwn(candidate, "headers"))
+    issues.push({ path, message: "raw input excludes headers" });
+  const raw = ownDataValue(candidate, "raw");
+  if (!isPlainRecord(raw)) {
+    issues.push({ path, message: "raw must be a plain record" });
+    return undefined;
+  }
+  reportExactUnknownKeys(raw, new Set(["headerLines", "body"]), `${path}.raw`, issues);
+  const lines = ownDataValue(raw, "headerLines");
+  const headerLines: { name: string; value: string }[] = [];
+  if (!Array.isArray(lines)) issues.push({ path, message: "headerLines must be an array" });
+  else {
+    for (const key of Reflect.ownKeys(lines))
+      if (
+        key !== "length" &&
+        (typeof key !== "string" || !/^(?:0|[1-9]\d*)$/.test(key) || Number(key) >= lines.length)
+      )
+        issues.push({ path, message: "headerLines must contain only indexed lines" });
+    for (let i = 0; i < lines.length; i++) {
+      const descriptor = Object.getOwnPropertyDescriptor(lines, String(i));
+      const line =
+        descriptor !== undefined && "value" in descriptor && descriptor.enumerable
+          ? descriptor.value
+          : undefined;
+      if (!isPlainRecord(line)) {
+        issues.push({ path, message: "line must be own data" });
+        continue;
+      }
+      reportExactUnknownKeys(line, new Set(["name", "value"]), path, issues);
+      const name = ownDataValue(line, "name"),
+        value = ownDataValue(line, "value");
+      if (
+        typeof name !== "string" ||
+        !HEADER_PATTERN.test(name) ||
+        typeof value !== "string" ||
+        !/^[\t\x20-\x7e\x80-\xff]*$/.test(value)
+      ) {
+        issues.push({ path, message: "invalid raw header line" });
+        continue;
+      }
+      const normalized = name.toLowerCase();
+      if (
+        SECRET_HEADER_PATTERN.test(normalized) ||
+        /(?:token|secret|password|credential|auth)/i.test(normalized) ||
+        EXACT_RESERVED_FIELDS.has(normalized)
+      )
+        issues.push({ path, message: "raw source header is secret or executor-owned" });
+      headerLines.push({ name, value });
+    }
+  }
+  let body: ScenarioBody | undefined;
+  if (Object.hasOwn(raw, "body")) {
+    const value = ownDataValue(raw, "body");
+    if (!isPlainRecord(value)) issues.push({ path, message: "body must be a plain record" });
+    else {
+      reportExactUnknownKeys(value, new Set(["encoding", "value"]), path, issues);
+      const encoding = ownDataValue(value, "encoding"),
+        text = ownDataValue(value, "value");
+      if (typeof text !== "string" || (encoding !== "utf8" && encoding !== "base64"))
+        issues.push({ path, message: "invalid body encoding" });
+      else if (encoding === "utf8" ? !text.isWellFormed() : !isCanonicalBodyBase64(text))
+        issues.push({ path, message: "body must be scalar UTF-8 or canonical base64" });
+      else body = { encoding, value: text };
+    }
+    if (profile === "read")
+      issues.push({ path, message: "Read scenarios cannot carry an exact body" });
+  }
+  const ref = ownDataValue(candidate, "credentialRef");
+  const credentialRef =
+    ref === undefined ? undefined : readId(ref, `${path}.credentialRef`, issues);
+  return {
+    raw: { headerLines, ...(body === undefined ? {} : { body }) },
+    ...(credentialRef === undefined ? {} : { credentialRef }),
+  };
+}
+
+function isCanonicalBodyBase64(text: string): boolean {
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(text)) return false;
+  // Check unused padding bits without allocating a decoded buffer.
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  return text.endsWith("==")
+    ? (alphabet.indexOf(text.at(-3) ?? "") & 15) === 0
+    : text.endsWith("=")
+      ? (alphabet.indexOf(text.at(-2) ?? "") & 3) === 0
+      : true;
+}
+
+/** Source bytes, not interpreted JSON. Check the configured byte bound before allocation. */
+export function materializeScenarioBody(body: ScenarioBody, maximumBytes: number): Uint8Array {
+  if ((body.encoding !== "utf8" && body.encoding !== "base64") || typeof body.value !== "string")
+    throw new TypeError("invalid source body encoding");
+  const count =
+    body.encoding === "utf8"
+      ? Buffer.byteLength(body.value, "utf8")
+      : (body.value.length / 4) * 3 -
+        (body.value.endsWith("==") ? 2 : body.value.endsWith("=") ? 1 : 0);
+  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 0 || count > maximumBytes)
+    throw new TypeError("source body exceeds configured limit");
+  if (body.encoding === "utf8" ? !body.value.isWellFormed() : !isCanonicalBodyBase64(body.value))
+    throw new TypeError("invalid source body encoding");
+  return body.encoding === "utf8"
+    ? new TextEncoder().encode(body.value)
+    : Uint8Array.from(Buffer.from(body.value, "base64"));
+}
+
+function validateRequestAssertions(
+  assertions: readonly ScenarioAssertion[] | undefined,
+  input: ScenarioRequestInput | undefined,
+  path: string,
+  issues: ManifestIssue[],
+): void {
+  if (input?.raw === undefined && assertions?.some(({ kind }) => kind.startsWith("request-")))
+    issues.push({ path, message: "request assertions require exact HTTP input" });
 }
 
 function parseRawRequestTarget(
@@ -1351,6 +1558,7 @@ function parseAssertions(
   value: unknown,
   path: string,
   issues: ManifestIssue[],
+  version: ExecutableManifestVersion = 1,
 ): readonly ScenarioAssertion[] | undefined {
   if (!Array.isArray(value) || value.length === 0) {
     issues.push({ path, message: "must be a non-empty array" });
@@ -1358,19 +1566,44 @@ function parseAssertions(
   }
   const assertions: ScenarioAssertion[] = [];
   const ids = new Set<string>();
-  for (const [index, candidate] of value.entries()) {
+  for (const [index, source] of value.entries()) {
     const assertionPath = `${path}[${index}]`;
-    if (!isPlainRecord(candidate)) {
+    if (!isPlainRecord(source)) {
       issues.push({ path: assertionPath, message: "must be a plain record" });
       continue;
     }
+    const candidate =
+      version === 2 ? snapshotManifestRecord(source, assertionPath, issues) : source;
     const id = readId(ownValue(candidate, "id"), `${assertionPath}.id`, issues);
     if (id !== undefined && ids.has(id))
       issues.push({ path: `${assertionPath}.id`, message: "must be unique within the request" });
     else if (id !== undefined) ids.add(id);
     const kind = ownValue(candidate, "kind");
     let assertion: ScenarioAssertion | undefined;
-    if (kind === "status") {
+    if (
+      kind === "request-authored-headers" ||
+      kind === "request-authored-body" ||
+      kind === "request-write-state"
+    ) {
+      reportUnknownKeys(
+        candidate,
+        new Set(kind === "request-write-state" ? ["id", "kind", "equals"] : ["id", "kind"]),
+        assertionPath,
+        issues,
+      );
+      if (version !== 2)
+        issues.push({ path: assertionPath, message: "requires manifest version 2" });
+      const equals = ownValue(candidate, "equals");
+      if (kind === "request-write-state") {
+        if (
+          equals !== "not-started" &&
+          equals !== "started-completion-unestablished" &&
+          equals !== "complete"
+        )
+          issues.push({ path: assertionPath, message: "must name a fixed write state" });
+        else if (id !== undefined) assertion = { id, kind, equals };
+      } else if (id !== undefined) assertion = { id, kind };
+    } else if (kind === "status") {
       reportUnknownKeys(candidate, STATUS_ASSERTION_KEYS, assertionPath, issues);
       const equalsValue = ownValue(candidate, "equals");
       const oneOfValue = ownValue(candidate, "oneOf");
@@ -2169,6 +2402,52 @@ function reportUnknownKeys(
 
 function ownValue(value: Readonly<Record<string, unknown>>, key: string): unknown {
   return Object.hasOwn(value, key) ? value[key] : undefined;
+}
+
+/** V2 fields are consumed only from copied own data, before any parser reads. */
+function snapshotManifestRecord(
+  value: Record<string, unknown>,
+  path: string,
+  issues: ManifestIssue[],
+): Record<string, unknown> {
+  const result: Record<string, unknown> = Object.create(null);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      typeof key !== "string" ||
+      descriptor === undefined ||
+      !("value" in descriptor) ||
+      !descriptor.enumerable
+    ) {
+      issues.push({ path, message: "members must be enumerable own string-keyed data" });
+      continue;
+    }
+    result[key] = descriptor.value;
+  }
+  return result;
+}
+
+function reportExactUnknownKeys(
+  value: Readonly<Record<string, unknown>>,
+  known: ReadonlySet<string>,
+  path: string,
+  issues: ManifestIssue[],
+): void {
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (typeof key !== "string" || !known.has(key))
+      issues.push({
+        path: typeof key === "string" ? `${path}.${key}` : path,
+        message: "unknown member",
+      });
+    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable)
+      issues.push({ path, message: "members must be enumerable own data" });
+  }
+}
+
+function ownDataValue(value: Readonly<Record<string, unknown>>, key: string): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  return descriptor !== undefined && "value" in descriptor ? descriptor.value : undefined;
 }
 
 function isSafeRelativePath(value: string): boolean {

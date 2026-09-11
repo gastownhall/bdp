@@ -156,3 +156,61 @@ describe("deterministic report serialization", () => {
     );
   });
 });
+
+describe("report version isolation", () => {
+  const base = {
+    scope: "https://scope.example/",
+    profile: "read" as const,
+    seed: 0,
+    selectedScenarioIds: [],
+    artifacts: { catalogDigest: "c", manifestDigest: "m", fixtureDigest: "f" },
+    declarations: { targetLabel: "synthetic" },
+    scenarios: [],
+    claimEligible: false as const,
+  };
+  it("serializes v4 even when its selected execution contains no exact observation", () => {
+    expect(serializeConformanceReport({ ...base, reportVersion: 4 })).toContain(
+      '"reportVersion":4',
+    );
+    expect(() =>
+      serializeConformanceReport({ ...base, reportVersion: 5 } as unknown as ConformanceRunResult),
+    ).toThrow("unsupported");
+  });
+  it.each(["exact", "harnessError", "writeState", "declaration"])(
+    "rejects %s metadata mislabeled as v3",
+    (field) => {
+      const exchange = {
+        request: {
+          id: "probe",
+          method: "GET" as const,
+          url: base.scope,
+          headers: {},
+          ...(field === "exact" ? { exact: {} } : {}),
+        },
+        assertions: [],
+        ...(field === "harnessError" ? { harnessError: {} } : {}),
+        ...(field === "writeState"
+          ? { transportError: { category: "abort", message: "aborted", writeState: "complete" } }
+          : {}),
+      };
+      const report = {
+        ...base,
+        reportVersion: 3,
+        declarations: {
+          ...base.declarations,
+          ...(field === "declaration" ? { exactConfigurationDigest: "d" } : {}),
+        },
+        scenarios: [
+          {
+            id: "probe",
+            requiredProfile: "read",
+            state: "pass",
+            requirements: [],
+            exchanges: [exchange],
+          },
+        ],
+      } as unknown as ConformanceRunResult;
+      expect(() => serializeConformanceReport(report)).toThrow("version 4");
+    },
+  );
+});

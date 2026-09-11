@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertCanonicalReadCohortBytes,
+  assertLegacyReportVersion,
   createReadCohortArtifact,
   READ_COHORT_HEADER_NAME_ALLOWLIST,
   type ReadCohortArtifactInput,
@@ -12,9 +13,11 @@ import {
   readCohortEvidenceConstant,
   serializeReadCohortArtifact,
 } from "./index.js";
-import type { ConformanceRunResult, ScenarioRunResult } from "./runner.js";
+import type { LegacyConformanceRunResult } from "./runner.js";
 import type { ScenarioCatalog } from "./catalog.js";
 import type { ExecutableScenarioManifest } from "./executable-manifest.js";
+
+type ScenarioRunResult = LegacyConformanceRunResult["scenarios"][number];
 
 const RUN_HEAD = "a".repeat(40);
 const digest = (seed: string): string =>
@@ -79,7 +82,7 @@ function scenario(id: string, overrides: Partial<ScenarioRunResult> = {}): Scena
   } as ScenarioRunResult;
 }
 
-function run(overrides: Partial<ConformanceRunResult> = {}): ConformanceRunResult {
+function run(overrides: Partial<LegacyConformanceRunResult> = {}): LegacyConformanceRunResult {
   return {
     reportVersion: 3,
     scope: "http://127.0.0.1:8080/",
@@ -95,7 +98,7 @@ function run(overrides: Partial<ConformanceRunResult> = {}): ConformanceRunResul
     scenarios: [scenario("read.a"), scenario("read.b")],
     claimEligible: false,
     ...overrides,
-  } as ConformanceRunResult;
+  } as LegacyConformanceRunResult;
 }
 
 const bindings: ReadCohortBindings = {
@@ -532,5 +535,30 @@ describe("read cohort artifact serialization", () => {
     expect(() =>
       assertCanonicalReadCohortBytes(new TextEncoder().encode(`${JSON.stringify(reordered)}\n`)),
     ).toThrow(/not canonical/);
+  });
+});
+
+describe("legacy cohort format receiving guard", () => {
+  it("rejects a v2 manifest before deriving cohort rows", () => {
+    expect(() =>
+      createReadCohortArtifact(input({ manifest: { ...manifest, manifestVersion: 2 } })),
+    ).toThrow("manifest version 1");
+  });
+  it("rejects a v4 report before projection can erase exact metadata", () => {
+    const legacy = run();
+    const report = { ...legacy, reportVersion: 4 };
+    expect(() => assertLegacyReportVersion(report)).toThrow("version 3");
+    const candidate = input();
+    const invalid = {
+      ...candidate,
+      targets: candidate.targets.map((entry) => ({
+        ...entry,
+        run: { ...entry.run, reportVersion: 4 },
+      })),
+    };
+    expect(() => createReadCohortArtifact(invalid as unknown as ReadCohortArtifactInput)).toThrow(
+      "version 3",
+    );
+    expect(() => assertLegacyReportVersion({ reportVersion: 3 })).not.toThrow();
   });
 });
