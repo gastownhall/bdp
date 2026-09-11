@@ -275,3 +275,27 @@ describe("shared Read request kernel", () => {
     );
   });
 });
+
+// Independent expected mandatory-string inventory: optional filters/page
+// controls stay outside these arrays, and static callers keep their old reads.
+describe("council required registry metadata", () => {
+  it.each([
+    [requests[0], ["kind", "scope"]],
+    [requests[1], ["kind", "collection"]],
+    [requests[2], ["kind", "collection"]],
+    [requests[3], ["kind", "collection"]],
+    [requests[4], ["kind", "resource", "id"]],
+    [requests[5], ["kind", "resource", "id"]],
+    [requests[6], ["kind", "resource", "id"]],
+    [requests[7], ["kind", "resource", "id"]],
+    [requests[8], ["kind", "resource", "id"]],
+    [requests[9], ["kind", "bead"]],
+  ])("exposes immutable required fields for %j", (request, expected) => {
+    const variant = resolveReadRequestVariant(request);
+    if (!variant) throw Error("missing registered descriptor");
+    expect(variant.required).toEqual(expected);
+    expect(Object.isFrozen(variant.required)).toBe(true);
+    expect(Reflect.set(variant.required, "0", "forged")).toBe(false);
+    expect(variant.required).toEqual(expected);
+  });
+});

@@ -16,6 +16,7 @@ import {
 } from "@bdp/protocol";
 import {
   createAuthorityReadPlane,
+  AuthorityReadError,
   type AuthorityReadOptions,
   type AuthorityReadPlane,
   type ReadIntent,
@@ -1938,4 +1939,476 @@ describe("independent generic, Link conformance and deep owned-pair oracles", ()
     });
     await expect(facet.perform(resourceRequest())).rejects.toMatchObject({ reason: "integrity" });
   });
+});
+
+// Full source council correction controls. All positive rows and aliases below
+// still come through the real fixture writer; only named receiving faults vary.
+describe("council delivery guard and actual settlement regressions", () => {
+  it.each(["perform", "alias"] as const)(
+    "guards genuine signal getter close/nested %s without disposing an old cursor",
+    async (method) => {
+      const f = fixture();
+      for (const id of ["a", "b", "c"]) f.createBead(id);
+      f.write("putAlias", { alias: "alias/current", target: "beads/a" }, "signal_alias");
+      const plane = f.open(),
+        facet = plane.readFor({ kind: "anonymous" });
+      const first = body(
+        await facet.perform({ kind: "collection", collection: "beads", limit: 1 }),
+      );
+      const continuation = {
+        kind: "collection",
+        collection: "beads",
+        continuation: first.next,
+      } as ReadRequest;
+      let closed = false,
+        getterCalls = 0;
+      void plane.closed.then(() => {
+        closed = true;
+      });
+      const nested: Promise<unknown>[] = [];
+      const controller = new AbortController();
+      Object.defineProperty(controller.signal, "aborted", {
+        get() {
+          getterCalls++;
+          expect(() => plane.close()).toThrow(AuthorityReadError);
+          expect(() => plane.readFor({ kind: "anonymous" })).toThrow(AuthorityReadError);
+          nested.push(noSyncThrow(() => facet.perform(resourceRequest())));
+          nested.push(noSyncThrow(() => facet.resolveAlias(url("alias/current"))));
+          expect(f.state.entries).toBe(0);
+          return false;
+        },
+      });
+      f.reset();
+      const pending = noSyncThrow(() =>
+        method === "perform"
+          ? facet.perform(resourceRequest(), { signal: controller.signal })
+          : facet.resolveAlias(url("alias/current"), { signal: controller.signal }),
+      );
+      expect(f.state.entries).toBe(1);
+      const result = await pending;
+      if (method === "perform") expect(body(result).id).toBe(url("beads/a"));
+      else expect(result).toMatchObject({ kind: "target", target: url("beads/a") });
+      expect(getterCalls).toBe(1); // final check uses the genuine signal state, not this override
+      for (const rejection of nested) {
+        await expect(rejection).rejects.toBeInstanceOf(AuthorityReadError);
+        await expect(rejection).rejects.toMatchObject({ reason: "reentrant" });
+      }
+      expect(closed).toBe(false);
+      expect(items(await facet.perform(continuation)).map((r) => r.id)).toEqual([url("beads/b")]);
+      expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
+    },
+  );
+
+  it.each(["perform", "alias"] as const)(
+    "keeps %s guarded through cleanup abort/fault precedence and synchronous settlement",
+    async (method) => {
+      const f = fixture();
+      f.createBead("a");
+      f.write("putAlias", { alias: "alias/current", target: "beads/a" }, "cleanup_alias");
+      const plane = f.open(),
+        facet = plane.readFor({ kind: "anonymous" });
+      for (const scenario of [
+        "before-remove",
+        "after-remove",
+        "cleanup-fault",
+        "work-and-cleanup",
+        "after-return",
+      ] as const) {
+        const controller = new AbortController();
+        const workFailure = Error("original work"),
+          cleanupFailure = Error("listener cleanup");
+        const remove = controller.signal.removeEventListener.bind(controller.signal);
+        const addSpy = vi.spyOn(controller.signal, "addEventListener");
+        const removeSpy = vi
+          .spyOn(controller.signal, "removeEventListener")
+          .mockImplementation((...args) => {
+            expect(() => plane.close()).toThrow(AuthorityReadError);
+            if (scenario === "before-remove") controller.abort();
+            remove(...args);
+            if (scenario !== "after-return" && scenario !== "before-remove") controller.abort();
+            if (scenario === "cleanup-fault" || scenario === "work-and-cleanup")
+              throw cleanupFailure;
+          });
+        f.state.captureHook =
+          scenario === "work-and-cleanup"
+            ? () => {
+                throw workFailure;
+              }
+            : undefined;
+        f.reset();
+        const pending = noSyncThrow(() =>
+          method === "perform"
+            ? facet.perform(resourceRequest(), { signal: controller.signal })
+            : facet.resolveAlias(url("alias/current"), { signal: controller.signal }),
+        );
+        expect(f.state.entries).toBe(1);
+        expect(() => f.state.facades[0]?.resource("beads/a")).toThrow(/expired/);
+        expect(addSpy).toHaveBeenCalledTimes(1);
+        expect(removeSpy).toHaveBeenCalledTimes(1);
+        if (scenario === "after-return") {
+          controller.abort();
+          const result = await pending;
+          if (method === "perform") expect(body(result).id).toBe(url("beads/a"));
+          else expect(result).toMatchObject({ kind: "target", target: url("beads/a") });
+        } else if (scenario === "work-and-cleanup") await expect(pending).rejects.toBe(workFailure);
+        else if (scenario === "cleanup-fault") await expect(pending).rejects.toBe(cleanupFailure);
+        else await expect(pending).rejects.toBeInstanceOf(ScopeServerOperationAbortedError);
+        f.state.captureHook = undefined;
+        expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
+      }
+    },
+  );
+});
+
+describe("council immutable generated refusals and required receiving fields", () => {
+  it.each(["pre-context", "observed", "control"] as const)(
+    "freezes generated %s Problem values without changing phase or shape",
+    async (origin) => {
+      const f = fixture(),
+        facet = f.open().readFor({ kind: "anonymous" });
+      const request: ReadRequest =
+        origin === "pre-context"
+          ? { kind: "resource", resource: "bead", id: "https://foreign.test/beads/a" }
+          : origin === "control"
+            ? { kind: "collection", collection: "beads", limit: 0 }
+            : resourceRequest();
+      const result = await facet.perform(request);
+      const code =
+        origin === "pre-context"
+          ? "invalid-parameter"
+          : origin === "control"
+            ? "limit-exceeded"
+            : "resource-not-found";
+      expectProblem(result, code, origin === "pre-context" ? "pre-context" : "observed");
+      if (result.kind !== "problem") throw Error("expected actual generated refusal");
+      expect(result.problem).toEqual(readProblem(code));
+      expect(Object.isFrozen(result.problem)).toBe(true);
+      expect(Object.isFrozen(result)).toBe(true);
+      expect(Reflect.set(result.problem, "code", "forged")).toBe(false);
+      expect(Reflect.set(result.problem, "detail", "forged")).toBe(false);
+      expect(result.problem).toEqual(readProblem(code));
+      expect(f.state.captures).toBe(origin === "pre-context" ? 0 : 1);
+      expect(f.state.calls.resources).toBe(0);
+    },
+  );
+  it("keeps nested supplied gate Problem values immutable and performs no configuration lookup", async () => {
+    const f = fixture();
+    f.state.gate = {
+      ...readProblem("forbidden"),
+      detail: "gate detail",
+      extension: { values: ["kept"] },
+    };
+    const result = await f.open().readFor({ kind: "anonymous" }).perform(resourceRequest());
+    expectProblem(result, "forbidden", "pre-context");
+    if (result.kind !== "problem") throw Error("gate did not refuse");
+    expect(Object.isFrozen(result.problem)).toBe(true);
+    expect(Reflect.set(result.problem, "detail", "changed")).toBe(false);
+    const extension = result.problem.extension as { values: string[] };
+    expect(Object.isFrozen(extension)).toBe(true);
+    expect(Object.isFrozen(extension.values)).toBe(true);
+    expect(Reflect.set(extension.values, "0", "changed")).toBe(false);
+    expect(extension.values).toEqual(["kept"]);
+    expect(f.state.configurations).toBe(0);
+  });
+  it.each([
+    [{ kind: "scope-discovery", scope }, ["kind", "scope"]],
+    [{ kind: "collection", collection: "beads" }, ["kind", "collection"]],
+    [{ kind: "collection", collection: "links" }, ["kind", "collection"]],
+    [{ kind: "collection", collection: "types" }, ["kind", "collection"]],
+    [{ kind: "resource", resource: "bead", id: url("beads/a") }, ["kind", "resource", "id"]],
+    [{ kind: "resource", resource: "link", id: url("links/a") }, ["kind", "resource", "id"]],
+    [{ kind: "resource", resource: "type", id: beadType }, ["kind", "resource", "id"]],
+    [{ kind: "properties", resource: "bead", id: url("beads/a") }, ["kind", "resource", "id"]],
+    [{ kind: "properties", resource: "link", id: url("links/a") }, ["kind", "resource", "id"]],
+    [{ kind: "bead-links", bead: url("beads/a") }, ["kind", "bead"]],
+  ] as const)(
+    "rejects absent/nonstring mandatory values on %j before entry",
+    async (request, required) => {
+      const f = fixture(),
+        facet = f.open().readFor({ kind: "anonymous" });
+      for (const field of required)
+        for (const value of [undefined, 5, null]) {
+          const input: Record<string, unknown> = { ...request };
+          if (value === undefined) delete input[field];
+          else input[field] = value;
+          await expect(
+            noSyncThrow(() => facet.perform(input as unknown as ReadRequest)),
+          ).rejects.toBeInstanceOf(AuthorityReadError);
+        }
+      expect(f.state.entries).toBe(0);
+      expect(f.state.captures).toBe(0);
+    },
+  );
+});
+
+describe("council real two-principal retained capacity coupling", () => {
+  it.each(["state", "bytes", "nodes", "positions"] as const)(
+    "distinguishes plane-global %s capacity from per-snapshot positions without cross-view leaks",
+    async (capacity) => {
+      const f = fixture();
+      for (const id of ["p1", "p2", "p3", "q1", "q2", "q3"])
+        f.createBead(id, { payload: capacity === "nodes" ? Array(100).fill(1) : "x".repeat(2000) });
+      const settings =
+        capacity === "state"
+          ? { retainedStateCapacity: 3 }
+          : capacity === "bytes"
+            ? { retainedSnapshotByteCapacity: 10_000 }
+            : capacity === "nodes"
+              ? { retainedSnapshotNodeCapacity: 500 }
+              : { retainedStateCapacity: 6 };
+      const plane = f.open({
+        pagination: {
+          ...f.options.pagination,
+          maxRetainedCursorPositionsPerSnapshot: 2,
+          ...settings,
+        },
+      });
+      const p = plane.readFor({ kind: "authenticated", principal: { id: "P" } });
+      const q = plane.readFor({ kind: "authenticated", principal: { id: "Q" } });
+      f.state.captureHook = (_r, person) => {
+        if (person.kind !== "authenticated") throw Error("expected P/Q");
+        const prefix = person.principal.id === "P" ? "p" : "q";
+        f.state.view = `view-${prefix}`;
+        f.state.hidden = new Set(
+          ["p1", "p2", "p3", "q1", "q2", "q3"]
+            .filter((id) => !id.startsWith(prefix))
+            .map((id) => url(`beads/${id}`)),
+        );
+      };
+      const expire = vi.spyOn(f.store, "expire");
+      const request = { kind: "collection", collection: "beads", limit: 1 } as const;
+      const first = body(await p.perform(request));
+      expect((first.items as { id: string }[]).map((r) => r.id)).toEqual([url("beads/p1")]);
+      const continuation = {
+        kind: "collection",
+        collection: "beads",
+        continuation: first.next,
+      } as ReadRequest;
+      const qFirst = await q.perform(request);
+      if (capacity === "positions") {
+        expect(items(qFirst).map((r) => r.id)).toEqual([url("beads/q1")]);
+        const qNext = {
+          kind: "collection",
+          collection: "beads",
+          continuation: body(qFirst).next,
+        } as ReadRequest;
+        expect(items(await q.perform(qNext)).map((r) => r.id)).toEqual([url("beads/q2")]);
+        // Two snapshots reserve four cursor positions overall, exceeding the
+        // value2 independently allowed for each. It is not a global position cap.
+      } else expectProblem(qFirst, "temporarily-unavailable");
+      expectProblem(await q.perform(continuation), "foreign-view");
+      const pSecond = body(await p.perform(continuation));
+      expect((pSecond.items as { id: string }[]).map((r) => r.id)).toEqual([url("beads/p2")]);
+      expect(
+        items(
+          await p.perform({
+            kind: "collection",
+            collection: "beads",
+            continuation: pSecond.next,
+          } as ReadRequest),
+        ).map((r) => r.id),
+      ).toEqual([url("beads/p3")]);
+      expect(body(await q.perform(resourceRequest("q1"))).id).toBe(url("beads/q1"));
+      f.state.pageNow = 2000;
+      expect(items(await q.perform(request)).map((r) => r.id)).toEqual([url("beads/q1")]);
+      expectProblem(await p.perform(continuation), "cursor-expired");
+      expect(expire).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("council defensive callback origin and captured-row consistency", () => {
+  it.each(["thenable", "rejected-promise"] as const)(
+    "rejects an outer owner %s specifically at the plane async guard",
+    async (kind) => {
+      const f = fixture();
+      let assimilations = 0;
+      const unhandled: unknown[] = [],
+        listener = (reason: unknown) => unhandled.push(reason);
+      process.on("unhandledRejection", listener);
+      try {
+        const facet = f
+          .open({
+            entry: {
+              scope,
+              withRead: (() =>
+                kind === "thenable"
+                  ? {
+                      // biome-ignore lint/suspicious/noThenProperty: Labeled negative owner-result thenable.
+                      then(resolve: (value: unknown) => void) {
+                        assimilations++;
+                        resolve({ kind: "read", value: 1 });
+                      },
+                    }
+                  : Promise.reject(
+                      Error("outer async owner"),
+                    )) as unknown as AuthorityReadOptions["entry"]["withRead"],
+            },
+          })
+          .readFor({ kind: "anonymous" });
+        for (const call of [
+          () => facet.perform(resourceRequest()),
+          () => facet.resolveAlias(url("alias/current")),
+        ]) {
+          const pending = noSyncThrow(call);
+          await expect(pending).rejects.toBeInstanceOf(AuthorityReadError);
+          await expect(pending).rejects.not.toBeInstanceOf(RecoveryStoreError);
+          await expect(pending).rejects.toMatchObject({ reason: "async-callback" });
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(unhandled).toEqual([]);
+        expect(assimilations).toBe(kind === "thenable" ? 2 : 0);
+        expect(f.state.reads).toBe(0);
+        expect(f.state.captures).toBe(0);
+      } finally {
+        process.off("unhandledRejection", listener);
+      }
+    },
+  );
+  it.each(["canRead", "canReadType"] as const)(
+    "requires actual booleans from %s and observes ordinary async rejection",
+    async (callback) => {
+      const f = fixture();
+      f.createBead("a");
+      for (const mode of ["nonboolean", "thenable", "rejected-promise"] as const) {
+        let calls = 0;
+        const unhandled: unknown[] = [],
+          listener = (reason: unknown) => unhandled.push(reason);
+        process.on("unhandledRejection", listener);
+        try {
+          const facet = f
+            .open({
+              captureReadAuthorization(reader, person, intent) {
+                const decision = f.options.captureReadAuthorization.call(
+                  f.options,
+                  reader,
+                  person,
+                  intent,
+                );
+                if (decision.kind !== "authorized") throw Error("expected fixture authorization");
+                const bad = () => {
+                  calls++;
+                  if (mode === "nonboolean") return 1;
+                  if (mode === "thenable")
+                    return {
+                      // biome-ignore lint/suspicious/noThenProperty: Labeled negative synchronous-policy thenable.
+                      then(resolve: (value: boolean) => void) {
+                        resolve(true);
+                      },
+                    };
+                  return Promise.reject(Error("async boolean"));
+                };
+                return {
+                  kind: "authorized",
+                  authorization: {
+                    ...decision.authorization,
+                    ...(callback === "canRead"
+                      ? { policy: { canRead: bad } }
+                      : { canReadType: bad }),
+                  },
+                } as unknown as ReturnType<AuthorityReadOptions["captureReadAuthorization"]>;
+              },
+            })
+            .readFor({ kind: "anonymous" });
+          const request: ReadRequest =
+            callback === "canRead"
+              ? resourceRequest()
+              : { kind: "resource", resource: "type", id: beadType };
+          const pending = noSyncThrow(() => facet.perform(request));
+          await expect(pending).rejects.toBeInstanceOf(AuthorityReadError);
+          await expect(pending).rejects.toMatchObject({
+            reason: mode === "nonboolean" ? "configuration" : "async-callback",
+          });
+          expect(calls).toBe(1);
+          expect(() => f.state.facades.at(-1)?.policy("x")).toThrow(/expired/);
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          expect(unhandled).toEqual([]);
+        } finally {
+          process.off("unhandledRejection", listener);
+        }
+      }
+    },
+  );
+  it("rejects an invalid decision discriminant before configuration or graph acquisition", async () => {
+    const f = fixture();
+    const facet = f
+      .open({
+        captureReadAuthorization: (() => ({
+          kind: "permission-ish",
+        })) as unknown as AuthorityReadOptions["captureReadAuthorization"],
+      })
+      .readFor({ kind: "anonymous" });
+    for (const call of [
+      () => facet.perform(resourceRequest()),
+      () => facet.resolveAlias(url("alias/current")),
+    ]) {
+      const pending = noSyncThrow(call);
+      await expect(pending).rejects.toBeInstanceOf(AuthorityReadError);
+      await expect(pending).rejects.toMatchObject({ reason: "configuration" });
+    }
+    expect(f.state.entries).toBe(2);
+    expect(f.state.configurations).toBe(0);
+    expect(Object.values(f.state.calls)).toEqual(readerNames.map(() => 0));
+  });
+  it("captures a labeled varying row once before checks and retains the captured body", async () => {
+    const f = fixture();
+    f.createBead("a");
+    const original = f.resource("beads/a");
+    const wrong = { ...original, id: url("beads/forged") };
+    let bodyReads = 0;
+    f.state.wrap = (reader) => ({
+      ...reader,
+      resource(id) {
+        const real = reader.resource(id);
+        if (!real || id !== "beads/a") return real;
+        // Deliberately non-S6 row wrapper: first captured primitive is valid,
+        // subsequent reads would contradict it. No hostile-row qualification.
+        return {
+          ...real,
+          get bodyJson() {
+            bodyReads++;
+            return bodyReads === 1 ? real.bodyJson : stringifyJsonValue(wrong);
+          },
+        };
+      },
+    });
+    const result = await f.open().readFor({ kind: "anonymous" }).perform(resourceRequest());
+    expect(body(result)).toEqual(original);
+    expect(bodyReads).toBe(1);
+  });
+});
+
+describe("council native cancellation state before observation", () => {
+  it.each(["perform", "alias"] as const)(
+    "rejects %s before S6 when a genuine signal getter lies or aborts during the initial sample",
+    async (method) => {
+      for (const alreadyAborted of [true, false]) {
+        const f = fixture();
+        f.createBead("a");
+        const facet = f.open().readFor({ kind: "anonymous" });
+        const controller = new AbortController();
+        if (alreadyAborted) controller.abort();
+        let reads = 0;
+        Object.defineProperty(controller.signal, "aborted", {
+          get() {
+            reads++;
+            if (!alreadyAborted) controller.abort();
+            return false;
+          },
+        });
+        f.reset();
+        const pending = noSyncThrow(() =>
+          method === "perform"
+            ? facet.perform(resourceRequest(), { signal: controller.signal })
+            : facet.resolveAlias(url("alias/current"), { signal: controller.signal }),
+        );
+        await expect(pending).rejects.toBeInstanceOf(ScopeServerOperationAbortedError);
+        expect(reads).toBe(1);
+        expect([f.state.entries, f.state.reads, f.state.captures, f.state.configurations]).toEqual([
+          0, 0, 0, 0,
+        ]);
+        expect(body(await facet.perform(resourceRequest())).id).toBe(url("beads/a"));
+      }
+    },
+  );
 });
