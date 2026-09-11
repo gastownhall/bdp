@@ -850,6 +850,70 @@ describe("Read server contract", () => {
     expect(requests).toEqual(cases);
   });
 
+  it("preserves inherited static request fields and the original port object", async () => {
+    const requests: unknown[] = [];
+    const server = readServer(new ResultPort(requests));
+    const request: ReadRequest = Object.create({
+      kind: "resource",
+      resource: "bead",
+      id: `${SCOPE}beads/inherited`,
+    });
+    await expect(server.perform(request)).resolves.toMatchObject({ id: `${SCOPE}beads/inherited` });
+    expect(requests[0]).toBe(request);
+    expect(Object.hasOwn(request, "kind")).toBe(false);
+    await server.close();
+  });
+
+  it("preserves static accessor rereads across validation, identity and response validation", async () => {
+    let id = `${SCOPE}beads/before`;
+    const observations: string[] = [];
+    const request: ReadRequest = {
+      kind: "resource",
+      resource: "bead",
+      get id() {
+        observations.push(id);
+        return id;
+      },
+    };
+    const requests: unknown[] = [];
+    const server = createReadServer({
+      scope: SCOPE,
+      target: "bdptest",
+      admittedProfile: admitReadServerProfile("read", "bdptest"),
+      port: new ResultPort(requests),
+      readControls: {
+        ...testReadControls(),
+        identityFor: () => {
+          id = `${SCOPE}beads/after`;
+          return { authorizationView: "view", scopeEpoch: "epoch" };
+        },
+      },
+    });
+    await expect(server.perform(request)).resolves.toMatchObject({ id: `${SCOPE}beads/after` });
+    expect(observations[0]).toBe(`${SCOPE}beads/before`);
+    expect(observations.slice(1)).toContain(`${SCOPE}beads/after`);
+    expect(requests[0]).toBe(request);
+    expect(Object.getOwnPropertyDescriptor(request, "id")?.get).toBeTypeOf("function");
+    await server.close();
+  });
+
+  it("keeps discovery getter failures asynchronous while scope validation uses the original dispatch boundary", async () => {
+    const failure = new Error("static request getter");
+    const server = readServer(new ResultPort([]));
+    const discovery: ReadRequest = {
+      kind: "scope-discovery",
+      get scope(): string {
+        throw failure;
+      },
+    };
+    let result: Promise<unknown> | undefined;
+    expect(() => {
+      result = server.perform(discovery);
+    }).not.toThrow();
+    await expect(result).rejects.toBe(failure);
+    await server.close();
+  });
+
   it("rejects forged request discriminants and kind-specific fields before port dispatch", async () => {
     const requests: unknown[] = [];
     const server = readServer(new ResultPort(requests));
