@@ -104,7 +104,6 @@ describe("exact member identity normalization", () => {
   });
   it.each([
     { expectedRevision: "r2" },
-    { changeContext: {} },
     { changeContext: { message: null } },
     { changeContext: { message: "" } },
     { attribution: { principal: "other", status: "claimed" } },
@@ -114,6 +113,62 @@ describe("exact member identity normalization", () => {
       ready(singleton("updateBeadProperties", base)).identityJson,
     );
   });
+  it.each<[ReadUpdateOperation, Record<string, unknown>]>([
+    ["createBead", { id: a, type }],
+    ["updateBeadProperties", { bead: a, change: [{ op: "add", path: "/n", value: 1 }] }],
+    ["createLink", { id: `${scope}links/edge`, type: linkType, source: a, target: b }],
+    [
+      "updateLinkProperties",
+      { link: `${scope}links/edge`, change: [{ op: "add", path: "/n", value: 1 }] },
+    ],
+    ["deleteLink", { link: `${scope}links/edge` }],
+  ])(
+    "normalizes context defaults once across both S4 paths and carrier forms: %s",
+    (operation, input) => {
+      const omitted = ready(singleton(operation, input));
+      const meaningful = [
+        { agent: null },
+        { message: null },
+        { message: "" },
+        { agent: "worker" },
+        { message: "note" },
+        { agent: null, message: null },
+      ];
+      const identities = new Set([omitted.identityJson]);
+      for (const changeContext of [{}, ...meaningful]) {
+        for (const carrier of [
+          singleton(operation, { ...input, changeContext }),
+          sequence([{ operation, idempotencyKey: "other", ...input, changeContext }]),
+        ]) {
+          const direct = ready(carrier);
+          const dependencies = prepareMemberDependencies(
+            carrier,
+            0,
+            scope,
+            context().creatorBinding,
+          );
+          if (dependencies.kind !== "stable-dependencies")
+            throw Error("expected stable dependencies");
+          const prepared = normalizePreparedMemberIdentity(carrier, 0, context(), dependencies);
+          if (prepared.kind !== "ready") throw Error("expected ready identity");
+          expect(prepared.identityJson).toBe(direct.identityJson);
+          expect(serializeMemberMetadata(prepared)).toBe(serializeMemberMetadata(omitted));
+          expect(execution(prepared).input).toMatchObject({ changeContext });
+          // Meaningful explicit null/string states stay different from default and
+          // each other; only the empty closed object takes the omitted identity.
+          if (Object.keys(changeContext).length === 0) {
+            expect(prepared.identityJson).toBe(omitted.identityJson);
+          } else {
+            expect(prepared.identityJson).not.toBe(omitted.identityJson);
+            identities.add(prepared.identityJson);
+          }
+        }
+      }
+      expect(identities.size).toBe(meaningful.length + 1);
+      expect(execution(omitted).input).not.toHaveProperty("changeContext");
+      expect(omitted.identityJson).not.toContain("committedAt");
+    },
+  );
   it("preserves operation kind and patch array order, ignoring object order", () => {
     const change = [
       { op: "add", path: "/a", value: 1 },
@@ -458,7 +513,9 @@ describe("identity receiving boundaries", () => {
       contracts: { get: unexpected },
       policy: { canRead: unexpected, canCreate: unexpected, canWrite: unexpected },
       maximumEndpointMultiplicity: [],
-      committedAt: "2026-09-10T00:00:00Z",
+      observeCommitTime: () => {
+        throw new Error("early refusal must not sample the clock");
+      },
       recordChangeContext: false,
       limits: {},
     });

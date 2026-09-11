@@ -366,6 +366,15 @@ export function normalizePreparedMemberIdentity(
   }
   if (creationKind(original.operation) && !Object.hasOwn(normalized, "properties"))
     normalized.properties = Object.freeze({});
+  // Context's protocol default is omission: {} carries no explicit states.
+  // Keep null/string members and never insert generated version metadata.
+  const contextInput = normalized.changeContext;
+  if (
+    contextInput !== null &&
+    typeof contextInput === "object" &&
+    Object.keys(contextInput).length === 0
+  )
+    delete normalized.changeContext;
   const metadata = remember({
     format: metadataFormat,
     scope,
