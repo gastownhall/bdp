@@ -905,24 +905,31 @@ function parseRequestInput(
   version: ExecutableManifestVersion,
   profile: ProtocolProfile | undefined,
 ): ScenarioRequestInput | undefined {
+  if (version === 2)
+    reportExactUnknownKeys(candidate, new Set([...REQUEST_KEYS, "family"]), path, issues);
   const hasRaw = Object.hasOwn(candidate, "raw");
   if (version !== 2 && (hasRaw || Object.hasOwn(candidate, "credentialRef")))
     issues.push({ path, message: "raw inputs require manifest version 2" });
   if (!hasRaw) {
     if (Object.hasOwn(candidate, "credentialRef"))
       issues.push({ path, message: "credentialRef requires raw input" });
-    const headers = parseHeaders(ownValue(candidate, "headers"), `${path}.headers`, issues, prior);
+    const headers = parseHeaders(
+      ownDataValue(candidate, "headers"),
+      `${path}.headers`,
+      issues,
+      prior,
+    );
     return headers === undefined ? undefined : { headers };
   }
   if (Object.hasOwn(candidate, "headers"))
     issues.push({ path, message: "raw input excludes headers" });
-  const raw = ownValue(candidate, "raw");
+  const raw = ownDataValue(candidate, "raw");
   if (!isPlainRecord(raw)) {
     issues.push({ path, message: "raw must be a plain record" });
     return undefined;
   }
-  reportUnknownKeys(raw, new Set(["headerLines", "body"]), `${path}.raw`, issues);
-  const lines = ownValue(raw, "headerLines");
+  reportExactUnknownKeys(raw, new Set(["headerLines", "body"]), `${path}.raw`, issues);
+  const lines = ownDataValue(raw, "headerLines");
   const headerLines: { name: string; value: string }[] = [];
   if (!Array.isArray(lines)) issues.push({ path, message: "headerLines must be an array" });
   else {
@@ -942,9 +949,9 @@ function parseRequestInput(
         issues.push({ path, message: "line must be own data" });
         continue;
       }
-      reportUnknownKeys(line, new Set(["name", "value"]), path, issues);
-      const name = ownValue(line, "name"),
-        value = ownValue(line, "value");
+      reportExactUnknownKeys(line, new Set(["name", "value"]), path, issues);
+      const name = ownDataValue(line, "name"),
+        value = ownDataValue(line, "value");
       if (
         typeof name !== "string" ||
         !HEADER_PATTERN.test(name) ||
@@ -966,12 +973,12 @@ function parseRequestInput(
   }
   let body: ScenarioBody | undefined;
   if (Object.hasOwn(raw, "body")) {
-    const value = ownValue(raw, "body");
+    const value = ownDataValue(raw, "body");
     if (!isPlainRecord(value)) issues.push({ path, message: "body must be a plain record" });
     else {
-      reportUnknownKeys(value, new Set(["encoding", "value"]), path, issues);
-      const encoding = ownValue(value, "encoding"),
-        text = ownValue(value, "value");
+      reportExactUnknownKeys(value, new Set(["encoding", "value"]), path, issues);
+      const encoding = ownDataValue(value, "encoding"),
+        text = ownDataValue(value, "value");
       if (typeof text !== "string" || (encoding !== "utf8" && encoding !== "base64"))
         issues.push({ path, message: "invalid body encoding" });
       else if (encoding === "utf8" ? !text.isWellFormed() : !isCanonicalBodyBase64(text))
@@ -981,7 +988,7 @@ function parseRequestInput(
     if (profile === "read")
       issues.push({ path, message: "Read scenarios cannot carry an exact body" });
   }
-  const ref = ownValue(candidate, "credentialRef");
+  const ref = ownDataValue(candidate, "credentialRef");
   const credentialRef =
     ref === undefined ? undefined : readId(ref, `${path}.credentialRef`, issues);
   return {
@@ -1003,7 +1010,8 @@ function isCanonicalBodyBase64(text: string): boolean {
 
 /** Source bytes, not interpreted JSON. Check the configured byte bound before allocation. */
 export function materializeScenarioBody(body: ScenarioBody, maximumBytes: number): Uint8Array {
-  if ((body.encoding !== "utf8" && body.encoding !== "base64") || typeof body.value !== "string") throw new TypeError("invalid source body encoding");
+  if ((body.encoding !== "utf8" && body.encoding !== "base64") || typeof body.value !== "string")
+    throw new TypeError("invalid source body encoding");
   const count =
     body.encoding === "utf8"
       ? Buffer.byteLength(body.value, "utf8")
@@ -2384,6 +2392,20 @@ function reportUnknownKeys(
   path: string,
   issues: ManifestIssue[],
 ): void {
+  for (const key of Object.keys(value))
+    if (!known.has(key)) issues.push({ path: `${path}.${key}`, message: "unknown member" });
+}
+
+function ownValue(value: Readonly<Record<string, unknown>>, key: string): unknown {
+  return Object.hasOwn(value, key) ? value[key] : undefined;
+}
+
+function reportExactUnknownKeys(
+  value: Readonly<Record<string, unknown>>,
+  known: ReadonlySet<string>,
+  path: string,
+  issues: ManifestIssue[],
+): void {
   for (const key of Reflect.ownKeys(value)) {
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (typeof key !== "string" || !known.has(key))
@@ -2396,7 +2418,7 @@ function reportUnknownKeys(
   }
 }
 
-function ownValue(value: Readonly<Record<string, unknown>>, key: string): unknown {
+function ownDataValue(value: Readonly<Record<string, unknown>>, key: string): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(value, key);
   return descriptor !== undefined && "value" in descriptor ? descriptor.value : undefined;
 }

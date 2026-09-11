@@ -4878,6 +4878,9 @@ describe("version 2 exact HTTP receiving", () => {
     "state",
     "missing",
     "accessor",
+    "effective-accessor",
+    "effective-url",
+    "effective-header-accessor",
     "flag",
   ])("rejects %s corruption while retaining safe response assertions", async (corruption) => {
     const options = setup();
@@ -4897,6 +4900,27 @@ describe("version 2 exact HTTP receiving", () => {
             throw new Error("OBSERVATION-SENTINEL");
           },
         });
+      if (corruption === "effective-accessor")
+        return Object.defineProperty(response, "effectiveRequest", {
+          get() {
+            throw new Error("OBSERVATION-SENTINEL");
+          },
+        });
+      if (corruption === "effective-url")
+        return { ...response, effectiveRequest: { url: `${scope}wrong`, headers: {} } };
+      if (corruption === "effective-header-accessor")
+        return {
+          ...response,
+          effectiveRequest: {
+            url,
+            headers: Object.defineProperty({}, "origin", {
+              enumerable: true,
+              get() {
+                throw new Error("OBSERVATION-SENTINEL");
+              },
+            }),
+          },
+        };
       if (corruption === "flag")
         return { ...response, effectiveRequest: { url, headers: {}, headersTransmitted: true } };
       return {
@@ -5321,19 +5345,35 @@ describe("version 2 exact HTTP receiving", () => {
       await target.close();
     }
   });
-  it.each(["abort", "configuration"] as const)("caller cancellation stays primary over terminal %s", async (category) => {
-    const options = setup({}, true);
-    const controller = new AbortController();
-    options.exactExecution.execute.mockImplementation((request) => new Promise((_resolve, reject) => {
-      request.signal.addEventListener("abort", () => queueMicrotask(() => reject(new HttpTransportError(category, "PRIVATE-FAILURE", {}, "not-started"))), { once: true });
-      queueMicrotask(() => controller.abort());
-    }));
-    const report = await runConformanceMatrix({ ...options, signal: controller.signal });
-    expect(report.scenarios[0]?.category).toBe("aborted");
-    expect(report.scenarios[0]?.exchanges[0]?.transportError).toMatchObject({ category: "abort", writeState: "not-started" });
-    expect(report.scenarios[0]?.exchanges[0]?.harnessError).toBeUndefined();
-    expect(options.exactExecution.execute).toHaveBeenCalledTimes(1);
-  });
+  it.each(["abort", "configuration"] as const)(
+    "caller cancellation stays primary over terminal %s",
+    async (category) => {
+      const options = setup({}, true);
+      const controller = new AbortController();
+      options.exactExecution.execute.mockImplementation(
+        (request) =>
+          new Promise((_resolve, reject) => {
+            request.signal.addEventListener(
+              "abort",
+              () =>
+                queueMicrotask(() =>
+                  reject(new HttpTransportError(category, "PRIVATE-FAILURE", {}, "not-started")),
+                ),
+              { once: true },
+            );
+            queueMicrotask(() => controller.abort());
+          }),
+      );
+      const report = await runConformanceMatrix({ ...options, signal: controller.signal });
+      expect(report.scenarios[0]?.category).toBe("aborted");
+      expect(report.scenarios[0]?.exchanges[0]?.transportError).toMatchObject({
+        category: "abort",
+        writeState: "not-started",
+      });
+      expect(report.scenarios[0]?.exchanges[0]?.harnessError).toBeUndefined();
+      expect(options.exactExecution.execute).toHaveBeenCalledTimes(1);
+    },
+  );
   it("checks elapsed exact execution time before accepting synchronous fulfillment", async () => {
     const options = setup({}, true);
     let now = 0;
@@ -5351,14 +5391,16 @@ describe("version 2 exact HTTP receiving", () => {
       expect(report.scenarios[0]?.exchanges[0]?.transportError?.writeState).toBe("complete");
       expect(report.scenarios[0]?.exchanges[0]?.response).toBeUndefined();
       expect(options.exactExecution.execute).toHaveBeenCalledTimes(1);
-    } finally { clock.mockRestore(); }
+    } finally {
+      clock.mockRestore();
+    }
   });
   it("refuses wrong in-Scope response identity while retaining safe status", async () => {
     const options = setup();
     const good = options.exactExecution.execute.getMockImplementation();
     options.exactExecution.execute.mockImplementation(async (request) => {
       if (good === undefined) throw new Error();
-      return { ...await good(request), url: `${scope}different` };
+      return { ...(await good(request)), url: `${scope}different` };
     });
     const report = await runConformanceMatrix(options);
     expect(report.scenarios[0]?.category).toBe("exact-observation");
@@ -5371,20 +5413,176 @@ describe("version 2 exact HTTP receiving", () => {
       if (good === undefined) throw new Error();
       const response = await good(request);
       if (response.exactRequest === undefined) throw new Error();
-      return { ...response, exactRequest: { ...response.exactRequest, bodyDigest: "a".repeat(64) } };
+      return {
+        ...response,
+        exactRequest: { ...response.exactRequest, bodyDigest: "a".repeat(64) },
+      };
     });
-    const report = await runConformanceMatrix({ ...options, exactExecution: { ...options.exactExecution, approvedSyntheticManifestDigest: options.artifactBundle.digests.manifestDigest } });
+    const report = await runConformanceMatrix({
+      ...options,
+      exactExecution: {
+        ...options.exactExecution,
+        approvedSyntheticManifestDigest: options.artifactBundle.digests.manifestDigest,
+      },
+    });
     expect(report.scenarios[0]?.state).toBe("fail");
     expect(report.scenarios[0]?.exchanges[0]?.request.exact?.bodyDigest).toBeUndefined();
   });
   it("records unavailable state on a categorized transport failure without inventing an exact request", async () => {
     const options = setup({}, true);
-    options.exactExecution.execute.mockRejectedValue(new HttpTransportError("disconnect", "SECRET-TRANSPORT"));
+    options.exactExecution.execute.mockRejectedValue(
+      new HttpTransportError("disconnect", "SECRET-TRANSPORT"),
+    );
     const report = await runConformanceMatrix(options);
     expect(report.scenarios[0]?.category).toBe("exact-observation");
-    expect(report.scenarios[0]?.exchanges[0]?.transportError).toMatchObject({ category: "disconnect" });
+    expect(report.scenarios[0]?.exchanges[0]?.transportError).toMatchObject({
+      category: "disconnect",
+    });
     expect(report.scenarios[0]?.exchanges[0]?.request.exact).toBeUndefined();
     expect(report.scenarios[1]?.category).toBe("not-run");
   });
 
+  it.each([
+    "valid",
+    "pending",
+    "not-started",
+    "wrong-origin",
+    "missing-origin",
+    "repeated-origin",
+    "empty-origin",
+    "wrong-method",
+    "repeated-method",
+    "empty-method",
+    "reordered",
+    "missing-duplicate",
+    "extra",
+    "changed-case",
+    "wrong-default",
+    "wrong-framing",
+    "missing-observation",
+  ])("uses complete ordered exact CORS evidence: %s", async (variant) => {
+    const headerLines = [
+      { name: "Origin", value: "https://cors-probe.invalid" },
+      { name: "Access-Control-Request-Method", value: "POST" },
+      { name: "X-Probe", value: "first" },
+      { name: "x-Probe", value: "second" },
+    ];
+    if (variant === "missing-origin") headerLines.shift();
+    if (variant === "repeated-origin")
+      headerLines.push({ name: "origin", value: "https://cors-probe.invalid" });
+    if (variant === "empty-origin") headerLines[0] = { name: "Origin", value: "" };
+    if (variant === "repeated-method")
+      headerLines.push({ name: "access-control-request-method", value: "POST" });
+    if (variant === "empty-method")
+      headerLines[1] = { name: "Access-Control-Request-Method", value: "" };
+    const options = setup({
+      raw: { headerLines },
+      assertions: [
+        { id: "cors", kind: "header", name: "access-control-allow-origin", absent: true },
+        { id: "status", kind: "status", equals: 401 },
+      ],
+    });
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(async (request) => {
+      if (good === undefined) throw new Error();
+      const response = await good(request);
+      if (response.exactRequest === undefined) throw new Error();
+      if (variant === "missing-observation") {
+        const { exactRequest: _exact, ...rest } = response;
+        return rest;
+      }
+      const lines = response.exactRequest.headerLines.map((line) => ({ ...line }));
+      if (variant === "wrong-origin")
+        lines[0] = { name: "Origin", value: "https://different.invalid" };
+      if (variant === "wrong-method")
+        lines[1] = { name: "Access-Control-Request-Method", value: "GET" };
+      if (variant === "reordered") {
+        const first = lines[2],
+          second = lines[3];
+        if (first === undefined || second === undefined) throw new Error();
+        [lines[2], lines[3]] = [second, first];
+      }
+      if (variant === "missing-duplicate") lines.splice(3, 1);
+      if (variant === "extra") lines.push({ name: "X-UNKNOWN-SENTINEL", value: "secret" });
+      if (variant === "changed-case") lines[2] = { name: "x-probe", value: "first" };
+      if (variant === "wrong-default") lines[4] = { name: "Accept", value: "changed" };
+      if (variant === "wrong-framing")
+        lines[lines.length - 1] = { name: "Connection", value: "keep-alive" };
+      return {
+        ...response,
+        exactRequest: {
+          ...response.exactRequest,
+          headerLines: lines,
+          writeState:
+            variant === "pending"
+              ? "started-completion-unestablished"
+              : variant === "not-started"
+                ? "not-started"
+                : "complete",
+        },
+      };
+    });
+    const report = await runConformanceMatrix(options);
+    const exchange = report.scenarios[0]?.exchanges[0];
+    expect(report.scenarios[0]?.state).toBe(
+      variant === "valid" ? "pass" : variant === "missing-observation" ? "harness-error" : "fail",
+    );
+    expect(exchange?.assertions.find(({ id }) => id === "cors")?.passed).toBe(variant === "valid");
+    expect(exchange?.assertions.find(({ id }) => id === "status")?.passed).toBe(true);
+    expect(exchange?.request.wireHeadersObserved).toBeUndefined();
+    expect(serializeConformanceReport(report)).not.toContain("UNKNOWN-SENTINEL");
+  });
+  it.each(["not-started", "started-completion-unestablished"] as const)(
+    "keeps response outcomes when authored transmission is incomplete: %s",
+    async (writeState) => {
+      const options = setup();
+      const good = options.exactExecution.execute.getMockImplementation();
+      options.exactExecution.execute.mockImplementation(async (request) => {
+        if (good === undefined) throw new Error();
+        const response = await good(request);
+        if (response.exactRequest === undefined) throw new Error();
+        return { ...response, exactRequest: { ...response.exactRequest, writeState } };
+      });
+      const report = await runConformanceMatrix(options);
+      expect(
+        report.scenarios[0]?.exchanges[0]?.assertions.map(({ id, passed }) => [id, passed]),
+      ).toEqual([
+        ["status", true],
+        ["authored-head", false],
+        ["authored-body", false],
+        ["write", false],
+      ]);
+      expect(report.scenarios[0]?.exchanges[0]?.response?.status).toBe(401);
+    },
+  );
+  it("accepts registered credential decoration and authored defaults without resolving credentials again", async () => {
+    const options = setup({
+      raw: { headerLines: [{ name: "aCcEpT", value: "application/json" }] },
+    });
+    const configuration = {
+      ...options.exactExecution.configuration,
+      defaultCredentialRef: "private",
+      credentialHandles: [{ id: "private", headerNames: ["authorization", "cookie"] }],
+    };
+    const good = options.exactExecution.execute.getMockImplementation();
+    options.exactExecution.execute.mockImplementation(async (request) => {
+      if (good === undefined) throw new Error();
+      const response = await good(request);
+      if (response.exactRequest === undefined) throw new Error();
+      const lines = response.exactRequest.headerLines.filter(({ name }) => name !== "Accept");
+      lines.splice(
+        1,
+        0,
+        { name: "Cookie", value: "COOKIE-SENTINEL" },
+        { name: "Authorization", value: "AUTH-SENTINEL" },
+      );
+      return { ...response, exactRequest: { ...response.exactRequest, headerLines: lines } };
+    });
+    const report = await runConformanceMatrix({
+      ...options,
+      exactExecution: { ...options.exactExecution, configuration },
+    });
+    expect(report.scenarios[0]?.state).toBe("pass");
+    expect(serializeConformanceReport(report)).not.toContain("SENTINEL");
+  });
 });

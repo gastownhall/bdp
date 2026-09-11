@@ -1561,4 +1561,18 @@ describe("manifest v2 exact HTTP inputs", () => {
     expect(() => parseExecutableScenarioManifest(candidate)).toThrow();
     expect(calls).toBe(0);
   });
+  it.each([false, true])("preserves v1 own-member parsing for actions=%s", (actions) => {
+    const source = exactManifest({ method: "GET", headers: {} }, actions, 1, "read");
+    let calls = 0;
+    Object.defineProperty(source, "catalogId", {
+      enumerable: true,
+      get() {
+        calls++;
+        return "read-v1";
+      },
+    });
+    Object.defineProperty(source, "historically-ignored", { enumerable: false, value: true });
+    expect(parseExecutableScenarioManifest(source).manifestVersion).toBe(1);
+    expect(calls).toBe(1);
+  });
 });

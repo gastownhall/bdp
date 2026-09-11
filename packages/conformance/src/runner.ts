@@ -1165,7 +1165,8 @@ async function runRequest(
     throw new ConformanceRunnerError(
       "HTTP executor body-octet count did not match its decoded response body",
     );
-  const effectiveRequest = response.effectiveRequest;
+  // The exact snapshot owns header evidence; do not reread a lossy compatibility view.
+  const effectiveRequest = exact ? undefined : response.effectiveRequest;
   if (effectiveRequest !== undefined) assertEffectiveRequest(effectiveRequest, url, scope);
   let next: ObservedExchange = {
     ...observed,
@@ -1200,7 +1201,8 @@ async function runRequest(
   if (exact) {
     try {
       exactObservation = capturedExact;
-      if (response.url !== url || exactObservation === undefined) throw new ExactHarnessError("exact-observation");
+      if (response.url !== url || exactObservation === undefined)
+        throw new ExactHarnessError("exact-observation");
       next = {
         ...next,
         request: {
@@ -1243,6 +1245,15 @@ async function runRequest(
         runProfile,
         priorResponses,
         headers,
+        exact
+          ? {
+              request,
+              url,
+              body,
+              observation: exactObservation,
+              configuration: options.exactExecution?.configuration,
+            }
+          : undefined,
       ),
   );
   exchanges[exchanges.length - 1] = { ...next, assertions: outcomes };
@@ -1485,8 +1496,11 @@ function snapshotExactObservation(
   const effectiveField = Object.getOwnPropertyDescriptor(response, "effectiveRequest");
   if (effectiveField !== undefined) {
     if (!("value" in effectiveField)) throw new ExactHarnessError("exact-observation");
-    if (exactData(effectiveField.value).headersTransmitted !== undefined)
+    const effective = exactData(effectiveField.value, ["url", "headers", "headersTransmitted"]);
+    if (effective.headersTransmitted !== undefined || effective.url !== response.url)
       throw new ExactHarnessError("exact-observation");
+    for (const value of Object.values(exactData(effective.headers)))
+      if (typeof value !== "string") throw new ExactHarnessError("exact-observation");
   }
   if (
     observed.source !== "raw-http1-serializer" ||
@@ -1618,6 +1632,36 @@ function exactHeadersMatch(
   return index === actual.length;
 }
 
+interface ExactHeaderWitness {
+  readonly request: ScenarioRequest;
+  readonly url: string;
+  readonly body: Uint8Array | undefined;
+  readonly observation: ExactRequestObservation | undefined;
+  readonly configuration: ExactHttpConfiguration | undefined;
+}
+
+/** CORS absence needs an actual, complete request with unambiguous source fields. */
+function exactCorsWitnessFailure(witness: ExactHeaderWitness): string | undefined {
+  const { request, url, body, observation, configuration } = witness;
+  if (
+    observation?.writeState !== "complete" ||
+    configuration === undefined ||
+    !exactHeadersMatch(request, url, body, observation, configuration)
+  )
+    return "CORS-header absence assertion requires complete matching exact request headers";
+  const origins =
+    request.raw?.headerLines.filter(({ name }) => name.toLowerCase() === "origin") ?? [];
+  if (origins.length !== 1 || origins[0]?.value.length === 0)
+    return "CORS-header absence assertion requires matching nonempty Origin evidence";
+  const methods =
+    request.raw?.headerLines.filter(
+      ({ name }) => name.toLowerCase() === "access-control-request-method",
+    ) ?? [];
+  if (methods.length > 1 || methods[0]?.value.length === 0)
+    return "CORS-header absence assertion requires matching nonempty Access-Control-Request-Method evidence";
+  return undefined;
+}
+
 function evaluateExactAssertion(
   assertion: ScenarioAssertion,
   request: ScenarioRequest,
@@ -1742,6 +1786,7 @@ function evaluateAssertion(
   runProfile: ScenarioRunOptions["profile"],
   priorResponses: ReadonlyMap<string, ComparableResponse>,
   requestedHeaders: Readonly<Record<string, string>>,
+  exactWitness?: ExactHeaderWitness,
 ): AssertionOutcome {
   if (
     assertion.kind === "request-authored-body" ||
@@ -1762,23 +1807,32 @@ function evaluateAssertion(
   }
   if (assertion.kind === "header") {
     if (assertion.absent === true && assertion.name.startsWith("access-control-")) {
-      const requestedOrigin = requestedHeaders.origin;
-      if (requestedOrigin === undefined || requestedOrigin.length === 0)
-        throw new ScenarioWireObservationUnavailableError(
-          "CORS-header absence assertion requires matching nonempty Origin evidence",
-        );
-      if (response.effectiveRequest?.headersTransmitted !== true)
-        throw new ScenarioWireObservationUnavailableError(
-          "CORS-header absence assertion requires serialized wire-request evidence",
-        );
-      requireMatchingEffectiveHeader(response.effectiveRequest.headers, "origin", requestedOrigin);
-      const requestedPreflightMethod = requestedHeaders["access-control-request-method"];
-      if (requestedPreflightMethod !== undefined)
+      if (exactWitness !== undefined) {
+        const failure = exactCorsWitnessFailure(exactWitness);
+        if (failure !== undefined) return outcome(assertion.id, false, failure);
+      } else {
+        const requestedOrigin = requestedHeaders.origin;
+        if (requestedOrigin === undefined || requestedOrigin.length === 0)
+          throw new ScenarioWireObservationUnavailableError(
+            "CORS-header absence assertion requires matching nonempty Origin evidence",
+          );
+        if (response.effectiveRequest?.headersTransmitted !== true)
+          throw new ScenarioWireObservationUnavailableError(
+            "CORS-header absence assertion requires serialized wire-request evidence",
+          );
         requireMatchingEffectiveHeader(
           response.effectiveRequest.headers,
-          "access-control-request-method",
-          requestedPreflightMethod,
+          "origin",
+          requestedOrigin,
         );
+        const requestedPreflightMethod = requestedHeaders["access-control-request-method"];
+        if (requestedPreflightMethod !== undefined)
+          requireMatchingEffectiveHeader(
+            response.effectiveRequest.headers,
+            "access-control-request-method",
+            requestedPreflightMethod,
+          );
+      }
     }
     const actual = response.headers[assertion.name.toLowerCase()];
     if (assertion.absent !== undefined)
@@ -2921,7 +2975,11 @@ function createDeadlineSignal(delayMs: number): {
 } {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), delayMs);
-  return { signal: controller.signal, clear: () => clearTimeout(timer), expire: () => controller.abort() };
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(timer),
+    expire: () => controller.abort(),
+  };
 }
 
 function isHttpUrl(value: string): boolean {
