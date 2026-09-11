@@ -204,6 +204,8 @@ function parseDisposition(
   if (Object.hasOwn(body, "operationIndex") || Object.hasOwn(body, "operationName"))
     throw new MemberIntegrityError("stored disposition must be unpositioned");
   if (Object.hasOwn(body, "code")) {
+    if (Object.hasOwn(body, "outcome"))
+      throw new MemberIntegrityError("stored Problem must be positionable without outcome");
     return parseReadUpdateProblem(body);
   }
   const alias = operation === "putAlias" || operation === "deleteAlias";
@@ -302,6 +304,16 @@ function witnessTarget(metadata: MemberMetadata, field: string): string | undefi
 function creation(operation: ReadUpdateOperation): boolean {
   return operation === "createBead" || operation === "createLink";
 }
+function assertSuccessfulWitnesses(metadata: MemberMetadata): void {
+  if (
+    metadata.witnesses.some(
+      (w) =>
+        (w.kind === "binding" && w.binding.kind === "unbound") ||
+        (w.kind === "alias" && w.target === null),
+    )
+  )
+    throw new MemberIntegrityError("successful member has unavailable witnesses");
+}
 function coherent(metadata: MemberMetadata, envelope: Envelope): void {
   if (metadata.operation !== envelope.operation)
     throw new MemberIntegrityError("stored operation and metadata differ");
@@ -311,14 +323,7 @@ function coherent(metadata: MemberMetadata, envelope: Envelope): void {
   if (!success) return;
   const result = envelope.disposition;
   if ("code" in result) return;
-  if (
-    metadata.witnesses.some(
-      (w) =>
-        (w.kind === "binding" && w.binding.kind === "unbound") ||
-        (w.kind === "alias" && w.target === null),
-    )
-  )
-    throw new MemberIntegrityError("successful outcome has unavailable witnesses");
+  assertSuccessfulWitnesses(metadata);
   if ("alias" in result) {
     if (
       witnessTarget(metadata, "alias") !== result.alias ||
@@ -477,8 +482,24 @@ function capture(
   options: MemberExecutorOptions,
   reader: StoreReader,
   principal: StablePrincipal,
+  principalId: string,
 ): MemberContext {
-  const current = options.captureMemberContext(reader, principal);
+  if (principal.id !== principalId)
+    throw new MemberIntegrityError("principal changed before member context capture");
+  // Preserve the original facade's receiver and expiring S6 lifetime, without
+  // exposing transaction writers or allocators through structural subtyping.
+  const view: StoreReader = Object.freeze({
+    resource: reader.resource.bind(reader),
+    resources: reader.resources.bind(reader),
+    incidentLinks: reader.incidentLinks.bind(reader),
+    outgoingLinks: reader.outgoingLinks.bind(reader),
+    alias: reader.alias.bind(reader),
+    identityWasCommitted: reader.identityWasCommitted.bind(reader),
+    installedType: reader.installedType.bind(reader),
+    policy: reader.policy.bind(reader),
+    key: reader.key.bind(reader),
+  });
+  const current = options.captureMemberContext(view, principal);
   const {
     policyIdentity,
     configurationIdentity,
@@ -575,7 +596,7 @@ export function runMember(
     | { disposition: MemberDisposition; outcomeJson?: string; creator?: CreationBinding }
     | undefined;
   const completion = store.executeMember(admission, key, (tx): MemberDecision => {
-    const context = capture(options, tx, principal);
+    const context = capture(options, tx, principal, principalId);
     const member = normalizePreparedMemberIdentity(
       carrier,
       index,
@@ -694,9 +715,12 @@ export function runMember(
       identityOperation(state.semanticIdentityJson, metadata, envelope);
       if (recoveryIdentityFingerprint(state.semanticIdentityJson) !== state.fingerprint)
         throw new MemberIntegrityError("retained fingerprint differs from exact identity");
-    } else if (creation(metadata.operation) && !metadata.creation)
-      throw new MemberIntegrityError("expired creator has no successful creation fact");
-    const context = capture(options, reader, principal);
+    } else {
+      assertSuccessfulWitnesses(metadata);
+      if (creation(metadata.operation) && !metadata.creation)
+        throw new MemberIntegrityError("expired creator has no successful creation fact");
+    }
+    const context = capture(options, reader, principal, principalId);
     if (metadata.operation !== operation)
       return turn(problem("idempotency-conflict"), "conflict", operation);
     const member = normalizePreparedMemberIdentity(

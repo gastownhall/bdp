@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   parseReadUpdateProblem,
+  parseReadUpdateSequenceMemberProblem,
   parseTypeDescriptor,
   prepareReadUpdateSequence,
   prepareReadUpdateSingleton,
@@ -26,6 +27,7 @@ import {
   type KeyState,
   type RecoveryStore,
   type StoredResource,
+  type StoreReader,
 } from "./recovery-store.js";
 import { parseMemberMetadata, type MemberCreatorBinding } from "./member-identity.js";
 import * as evaluator from "./resource-evaluator.js";
@@ -748,6 +750,7 @@ describe("clock, policy snapshot and fault boundaries", () => {
   it("copies aggregate data before policy callbacks and enforces replacement across explicit turns", () => {
     const f = fixture();
     const aggregate = [{ endpoint: "source" as const, linkConformsTo: linkType, max: 2 }];
+    let firstTurn = true;
     const options: MemberExecutorOptions = {
       ...f.options,
       captureMemberContext(reader, principal) {
@@ -757,13 +760,16 @@ describe("clock, policy snapshot and fault boundaries", () => {
           maximumEndpointMultiplicity: aggregate,
           policy: {
             ...current.policy,
-            canCreate: (input) => {
-              // Deliberate adversarial backing-data change: the executor has
-              // already copied aggregate values for this synchronous turn.
-              const first = aggregate[0];
-              if (!first) throw Error("lost fixture aggregate");
-              first.max = 1;
-              return current.policy.canCreate(input);
+            canRead: (input) => {
+              // Endpoint visibility precedes aggregate evaluation. A live array
+              // would reject count2 here; the captured max2 must still permit it.
+              if (firstTurn) {
+                firstTurn = false;
+                const first = aggregate[0];
+                if (!first) throw Error("lost fixture aggregate");
+                first.max = 1;
+              }
+              return current.policy.canRead(input);
             },
           },
         };
@@ -779,6 +785,11 @@ describe("clock, policy snapshot and fault boundaries", () => {
         ),
       ),
     ).toBe("created");
+    expect(firstTurn).toBe(false);
+    const first = aggregate[0];
+    if (!first) throw Error("lost fixture aggregate");
+    expect(first.max).toBe(1);
+    first.max = 3;
     const before = f.store.read((reader) => reader.resources());
     expect(
       code(
@@ -789,8 +800,9 @@ describe("clock, policy snapshot and fault boundaries", () => {
           options,
         ),
       ),
-    ).toBe("aggregate-constraint-violation");
-    expect(f.store.read((reader) => reader.resources())).toEqual(before);
+    ).toBe("created");
+    expect(f.store.read((reader) => reader.resources())).toHaveLength(before.length + 1);
+    expect(f.store.read((reader) => reader.outgoingLinks("beads/a"))).toHaveLength(3);
     expect(f.policyState.contextCalls).toBe(2);
   });
   it.each([NaN, Infinity, -1, 1.5, Number.MAX_SAFE_INTEGER, 8.64e15])(
@@ -1154,7 +1166,7 @@ describe("stored envelope and metadata integrity", () => {
       code: "forbidden",
       retry: "after-state-change",
       extra: { operationIndex: 100, scalar: "🌙" },
-      outcome: { ordinary: "permitted RFC9457 extension" },
+      extension: { outcome: "permitted nested name" },
     });
     injectFailure(disposition);
     const first = f.run("createBead", { type });
@@ -1602,5 +1614,275 @@ describe("whole-plan cross-boundary regression controls", () => {
         ),
       ),
     ).toBe("idempotency-conflict");
+  });
+});
+
+describe("complete source-council correction batch", () => {
+  it("keeps singleton Problems open but refuses non-positionable retained Problems without effects", () => {
+    const f = fixture();
+    const ordinary = parseReadUpdateProblem({
+      ...failureProblem("forbidden"),
+      extra: { outcome: "nested data", operationIndex: 4 },
+    });
+    expect(parseReadUpdateSequenceMemberProblem({ ...ordinary, operationIndex: 0 })).toMatchObject(
+      ordinary,
+    );
+    const reserved = parseReadUpdateProblem({ ...ordinary, outcome: "reserved in sequence" });
+    expect(() =>
+      parseReadUpdateSequenceMemberProblem({ ...reserved, operationIndex: 0 }),
+    ).toThrow();
+    const before = f.store.read((reader) => reader.resources());
+    vi.spyOn(evaluator, "evaluateResourceMutation").mockImplementationOnce((tx) => {
+      tx.deleteResource("beads/free");
+      return { effect: "failure", outcome: reserved, resolutions: [], changed: [], deleted: [] };
+    });
+    expect(() => f.run("createBead", { type })).toThrow("positionable");
+    expect(f.key()).toEqual({ kind: "unknown" });
+    expect(f.store.read((reader) => reader.resources())).toEqual(before);
+    expect(f.clock).not.toHaveBeenCalled();
+    injectFailure(ordinary);
+    f.run("createBead", { type }, "good");
+    const good = retained(f.key("good"));
+    const bad = {
+      ...good,
+      outcomeJson: stringifyJsonValue({
+        format: "ru-member-outcome-1",
+        operation: "createBead",
+        disposition: reserved,
+      }),
+    };
+    // Valid opaque JSON is accepted by S6, but impossible under this writer.
+    seedRetained(f, "bad", bad);
+    const stored = f.key("bad");
+    expect(() => f.run("createBead", { type }, "bad")).toThrow("positionable");
+    expect(f.key("bad")).toEqual(stored);
+    expect(() =>
+      f.store.visitRetainedOutcomes((row) => assertRetainedOutcomeCompatible(row, scope, {})),
+    ).toThrow("positionable");
+    const sequence = prepareReadUpdateSequence(
+      scope,
+      stringifyJsonValue({
+        operations: [{ operation: "createBead", type, name: "current", idempotencyKey: "good" }],
+      }),
+    );
+    const replay = f.present(sequence);
+    expect(replay.storage).toBe("replayed");
+    expect(replay.disposition).toEqual(ordinary);
+    expect(
+      parseReadUpdateSequenceMemberProblem({
+        ...replay.disposition,
+        operationIndex: 0,
+        operationName: "current",
+      }),
+    ).toMatchObject(ordinary);
+    expect(f.key("good")).toEqual(good);
+  });
+
+  it.each([NaN, Infinity, -1, 1.5, Number.MAX_SAFE_INTEGER - day + 1])(
+    "rejects invalid terminal/overflow value %s after a valid native C and rolls back",
+    (invalid) => {
+      const f = fixture();
+      const before = f.store.read((reader) => reader.resources());
+      const clock = vi.fn().mockReturnValueOnce(start).mockReturnValueOnce(invalid);
+      expect(() => f.run("createBead", { type }, "bad", { ...f.options, clock })).toThrow(
+        "safe nonnegative epoch",
+      );
+      expect(clock).toHaveBeenCalledTimes(2);
+      expect(f.key("bad")).toEqual({ kind: "unknown" });
+      expect(f.store.read((reader) => reader.resources())).toEqual(before);
+    },
+  );
+  it("accepts terminal epoch counters outside native Date range when retention remains safe", () => {
+    const f = fixture();
+    const completedAt = Number.MAX_SAFE_INTEGER - day;
+    const clock = vi.fn().mockReturnValueOnce(start).mockReturnValueOnce(completedAt);
+    expect(f.run("createBead", { type }, "large", { ...f.options, clock }).storage).toBe(
+      "retained",
+    );
+    expect(clock).toHaveBeenCalledTimes(2);
+    expect(retained(f.key("large"))).toMatchObject({
+      completedAt,
+      retainUntil: Number.MAX_SAFE_INTEGER,
+    });
+  });
+  it("sinks a rejected terminal Promise after valid C and rolls back before returning", async () => {
+    const f = fixture();
+    const before = f.store.read((reader) => reader.resources());
+    let calls = 0;
+    const clock = (() =>
+      ++calls === 1 ? start : Promise.reject(Error("terminal rejection"))) as () => number;
+    expect(() => f.run("createBead", { type }, "bad", { ...f.options, clock })).toThrow(
+      "terminal clock must be synchronous",
+    );
+    expect(calls).toBe(2);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(f.key("bad")).toEqual({ kind: "unknown" });
+    expect(f.store.read((reader) => reader.resources())).toEqual(before);
+  });
+  it("rejects a configured S6 floor below one day independently of retention versus floor", () => {
+    const f = fixture();
+    const before = f.store.read((reader) => reader.resources());
+    const execute = vi.spyOn(f.store, "executeMember");
+    expect(() =>
+      f.run("createBead", { type }, "bad", {
+        ...f.options,
+        minimumRetentionMs: day - 1,
+        retentionMs: day,
+      }),
+    ).toThrow("configured S6 floor");
+    expect(execute).not.toHaveBeenCalled();
+    expect(f.clock).not.toHaveBeenCalled();
+    expect(f.key("bad")).toEqual({ kind: "unknown" });
+    expect(f.store.read((reader) => reader.resources())).toEqual(before);
+  });
+
+  it.each(["alias", "binding"] as const)(
+    "refuses expired impossible-success %s witnesses before equality or operation conflict",
+    (kind) => {
+      const f = fixture();
+      const carrier = (key: string) =>
+        prepareReadUpdateSequence(
+          scope,
+          stringifyJsonValue({
+            operations: [create, { operation: "deleteBead", bead: "@made", idempotencyKey: key }],
+          }),
+        );
+      if (kind === "alias") f.run("deleteBead", { bead: "alias/missing" }, "origin");
+      else f.present(carrier("origin"), 1, () => ({ kind: "unbound" }));
+      const failure = retained(f.key("origin"));
+      expect(failure.effect).toBe("failure");
+      // S6 is opaque: seed the failure's metadata as an impossible success and
+      // let actual expiry erase the outcome/identity, without SQL or new format.
+      seedRetained(f, "bad", failure, { effect: "success" });
+      f.store.expire(failure.retainUntil);
+      const expired = f.key("bad");
+      expect(expired.kind).toBe("expired");
+      expect(() =>
+        kind === "alias"
+          ? f.run("deleteBead", { bead: "alias/missing" }, "bad")
+          : f.present(carrier("bad"), 1, () => ({ kind: "unbound" })),
+      ).toThrow("successful member has unavailable witnesses");
+      expect(() => f.run("createBead", { type }, "bad")).toThrow(
+        "successful member has unavailable witnesses",
+      );
+      expect(f.key("bad")).toEqual(expired);
+    },
+  );
+
+  it.each(["owned", "retained"])(
+    "rechecks the original principal after creator preparation on %s path",
+    (path) => {
+      const f = fixture();
+      const carrier = prepareReadUpdateSequence(
+        scope,
+        stringifyJsonValue({
+          operations: [
+            create,
+            {
+              operation: "createLink",
+              type: linkType,
+              source: "@made",
+              target: "beads/b",
+              idempotencyKey: "dependent",
+            },
+          ],
+        }),
+      );
+      const binding = {
+        kind: "bound" as const,
+        id: `${scope}beads/a`,
+        resourceKind: "bead" as const,
+      };
+      if (path === "retained") f.present(carrier, 1, () => binding);
+      const principal = { id: "alice" };
+      const admission = f.store.admit(principal.id, carrier.keys);
+      const before = f.store.read((reader) => reader.resources());
+      const state = f.key("dependent");
+      const capture = vi.fn(f.options.captureMemberContext);
+      try {
+        expect(() =>
+          runMember(
+            f.store,
+            admission,
+            principal,
+            carrier,
+            1,
+            () => {
+              principal.id = "blocked";
+              return binding;
+            },
+            { ...f.options, captureMemberContext: capture },
+          ),
+        ).toThrow("principal changed");
+      } finally {
+        f.store.abandonAttempt(admission);
+      }
+      expect(capture).not.toHaveBeenCalled();
+      expect(f.store.read((reader) => reader.resources())).toEqual(before);
+      expect(f.key("dependent")).toEqual(path === "owned" ? { kind: "unknown" } : state);
+    },
+  );
+
+  it("gives context capture exactly nine frozen reader methods with original S6 lifetimes on owned and replay paths", () => {
+    const f = fixture();
+    const escaped: StoreReader[] = [];
+    const names = [
+      "resource",
+      "resources",
+      "incidentLinks",
+      "outgoingLinks",
+      "alias",
+      "identityWasCommitted",
+      "installedType",
+      "policy",
+      "key",
+    ];
+    const options: MemberExecutorOptions = {
+      ...f.options,
+      captureMemberContext(reader, principal) {
+        escaped.push(reader);
+        expect(Object.keys(reader).sort()).toEqual([...names].sort());
+        expect(Object.isFrozen(reader)).toBe(true);
+        for (const writer of [
+          "putResource",
+          "deleteResource",
+          "putPolicy",
+          "putAlias",
+          "deleteAlias",
+          "allocateRevision",
+          "allocateResourceId",
+        ])
+          expect(reader).not.toHaveProperty(writer);
+        expect(reader.resource("beads/a")?.id).toBe("beads/a");
+        expect(reader.resources().length).toBeGreaterThanOrEqual(4);
+        expect(reader.incidentLinks("beads/a")).toHaveLength(1);
+        expect(reader.outgoingLinks("beads/a")).toHaveLength(1);
+        expect(reader.alias("missing")).toBeUndefined();
+        expect(reader.identityWasCommitted("beads/a")).toBe(true);
+        expect(reader.installedType(type)).toContain('"describes":"bead"');
+        expect(reader.policy("missing")).toBeUndefined();
+        expect(reader.key(principal.id, "key").kind).toBe(
+          escaped.length === 1 ? "claimed" : "retained",
+        );
+        return f.options.captureMemberContext(reader, principal);
+      },
+    };
+    expect(f.run("createBead", { type }, "key", options).storage).toBe("retained");
+    expect(f.run("createBead", { type }, "key", options).storage).toBe("replayed");
+    expect(escaped).toHaveLength(2);
+    for (const reader of escaped) {
+      const attempts = [
+        () => reader.resource("beads/a"),
+        () => reader.resources(),
+        () => reader.incidentLinks("beads/a"),
+        () => reader.outgoingLinks("beads/a"),
+        () => reader.alias("missing"),
+        () => reader.identityWasCommitted("beads/a"),
+        () => reader.installedType(type),
+        () => reader.policy("missing"),
+        () => reader.key("alice", "key"),
+      ];
+      for (const attempt of attempts) expect(attempt).toThrow(/expired.*facade/);
+    }
   });
 });
