@@ -412,7 +412,11 @@ function aggregateSnapshot(
     value.map((item) => {
       const { linkConformsTo, endpoint, max } = item;
       const type = parseCanonicalHttpUrl(linkConformsTo, "aggregate Link Type");
-      if ((endpoint !== "source" && endpoint !== "target") || !Number.isSafeInteger(max) || max <= 0)
+      if (
+        (endpoint !== "source" && endpoint !== "target") ||
+        !Number.isSafeInteger(max) ||
+        max <= 0
+      )
         throw new AuthorityReadError("configuration", "invalid aggregate policy");
       return Object.freeze({ linkConformsTo: type, endpoint, max });
     }),
