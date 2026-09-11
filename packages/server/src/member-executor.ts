@@ -478,6 +478,9 @@ function snapshotOptions(options: MemberExecutorOptions): MemberExecutorOptions 
       captureMemberContext.call(options, reader, principal),
   });
 }
+// S5 captures this unchanged configuration before taking admission ownership.
+export { snapshotOptions as snapshotMemberExecutorOptions };
+
 function capture(
   options: MemberExecutorOptions,
   reader: StoreReader,
