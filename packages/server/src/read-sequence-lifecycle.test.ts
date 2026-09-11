@@ -612,6 +612,9 @@ describe("G11 every active entry and timer phase", () => {
         // Explicit test instrumentation of actual owner close exercises its
         // pending scheduler cancellation while common state is still idle.
         // This retained owner handle is never part of the returned interface.
+        // Owner-origin cancellation is a retained-handle negative control of S5
+        // busy state. Supported coordinator.close cancellation instead has
+        // coordinator origin, as the close-at2of5 test asserts.
         f.owner.close();
       }
       f.queue.drain();
@@ -1018,76 +1021,95 @@ function controlledClosures(
   return { handle, calls };
 }
 describe("G11 close evidence and automatic owner observation", () => {
-  it.each(["owner-invoke", "owner-complete", "read-invoke", "read-complete", "all", "foreign"])(
-    "retains fixed actual completion and invocation evidence for %s",
-    async (kind) => {
-      const f = fixture(),
-        oi = new ReadSequenceEntryError("reentrant", "owner"),
-        oc = Error("owner completion"),
-        ri = Error("read invocation"),
-        rc = Error("read completion");
-      const mode = {
-        ownerInvocation: kind === "owner-invoke" || kind === "all" ? oi : undefined,
-        ownerCompletion: kind === "owner-complete" || kind === "all" ? oc : undefined,
-        readInvocation: kind === "read-invoke" || kind === "all" ? ri : undefined,
-        readCompletion: kind === "read-complete" || kind === "all" ? rc : undefined,
-        foreign: kind === "foreign",
-      };
-      const { handle, calls } = controlledClosures(f, mode),
-        lifecycle = await f.open({ owner: handle, read: f.read });
-      const pending = submission(lifecycle, sequence([create("a"), create("b")]));
-      const closed = lifecycle.close();
-      expect(closed).toBe(lifecycle.closed);
-      expect(lifecycle.close()).toBe(closed);
-      expect(calls.owner).toBe(1);
-      expect(calls.read).toBe(1);
-      expect(calls.disposed).toBe(1);
-      let settled = false;
-      void closed.catch(() => {
-        settled = true;
+  it.each([
+    "owner-invoke",
+    "owner-complete",
+    "read-invoke",
+    "read-complete",
+    "owner-complete-read-invoke",
+    "all",
+    "foreign",
+  ])("retains fixed actual completion and invocation evidence for %s", async (kind) => {
+    const f = fixture(),
+      oi = new ReadSequenceEntryError("reentrant", "owner"),
+      oc = Error("owner completion"),
+      ri = Error("read invocation"),
+      rc = Error("read completion");
+    const mode = {
+      ownerInvocation: kind === "owner-invoke" || kind === "all" ? oi : undefined,
+      ownerCompletion:
+        kind === "owner-complete" || kind === "owner-complete-read-invoke" || kind === "all"
+          ? oc
+          : undefined,
+      readInvocation:
+        kind === "read-invoke" || kind === "owner-complete-read-invoke" || kind === "all"
+          ? ri
+          : undefined,
+      readCompletion: kind === "read-complete" || kind === "all" ? rc : undefined,
+      foreign: kind === "foreign",
+    };
+    const { handle, calls } = controlledClosures(f, mode),
+      lifecycle = await f.open({ owner: handle, read: f.read });
+    const pending = submission(lifecycle, sequence([create("a"), create("b")]));
+    const closed = lifecycle.close();
+    expect(closed).toBe(lifecycle.closed);
+    expect(lifecycle.close()).toBe(closed);
+    expect(calls.owner).toBe(1);
+    expect(calls.read).toBe(1);
+    expect(calls.disposed).toBe(1);
+    let settled = false;
+    void closed.catch(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    f.queue.drain();
+    await pending;
+    let error: unknown;
+    try {
+      await closed;
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(ReadSequenceCloseError);
+    const evidence = error as ReadSequenceCloseError;
+    expect(Object.isFrozen(evidence)).toBe(true);
+    for (const component of [evidence.owner, evidence.read]) {
+      expect(Object.isFrozen(component)).toBe(true);
+      expect(Object.isFrozen(component.completion)).toBe(true);
+      if (component.invocationFault) expect(Object.isFrozen(component.invocationFault)).toBe(true);
+    }
+    if (mode.ownerInvocation) expect(evidence.owner.invocationFault?.error).toBe(oi);
+    if (mode.readInvocation) expect(evidence.read.invocationFault?.error).toBe(ri);
+    if (mode.ownerCompletion)
+      expect(evidence.owner.completion).toMatchObject({
+        kind: "rejected",
+        error: { phase: "close", cause: oc },
       });
-      await Promise.resolve();
-      expect(settled).toBe(false);
-      f.queue.drain();
-      await pending;
-      let error: unknown;
-      try {
-        await closed;
-      } catch (caught) {
-        error = caught;
-      }
-      expect(error).toBeInstanceOf(ReadSequenceCloseError);
-      const evidence = error as ReadSequenceCloseError;
-      expect(Object.isFrozen(evidence)).toBe(true);
-      for (const component of [evidence.owner, evidence.read]) {
-        expect(Object.isFrozen(component)).toBe(true);
-        expect(Object.isFrozen(component.completion)).toBe(true);
-        if (component.invocationFault)
-          expect(Object.isFrozen(component.invocationFault)).toBe(true);
-      }
-      if (mode.ownerInvocation) expect(evidence.owner.invocationFault?.error).toBe(oi);
-      if (mode.readInvocation) expect(evidence.read.invocationFault?.error).toBe(ri);
-      if (mode.ownerCompletion)
-        expect(evidence.owner.completion).toMatchObject({
-          kind: "rejected",
-          error: { phase: "close", cause: oc },
-        });
-      if (mode.readCompletion)
-        expect(evidence.read.completion).toEqual({ kind: "rejected", error: rc });
-      if (kind === "all") expect(evidence.cause).toBe(oi);
-      if (kind === "read-invoke") expect(evidence.cause).toBe(ri);
-      if (kind === "read-complete") expect(evidence.cause).toBe(rc);
-      if (kind === "foreign") {
-        expect(evidence.owner.invocationFault?.error).toBeInstanceOf(TypeError);
-        expect(evidence.owner.completion).toEqual({ kind: "fulfilled" });
-      }
-      expect(lifecycle.close()).toBe(closed);
-      expect(calls.owner).toBe(1);
-      expect(calls.read).toBe(1);
-      expect(Object.isFrozen(oi)).toBe(false);
-      expect(Object.isFrozen(oc)).toBe(false);
-    },
-  );
+    if (mode.readCompletion)
+      expect(evidence.read.completion).toEqual({ kind: "rejected", error: rc });
+    if (kind === "all" || kind === "owner-invoke") expect(evidence.cause).toBe(oi);
+    if (kind === "owner-complete-read-invoke") {
+      expect(evidence.owner.completion.kind).toBe("rejected");
+      if (evidence.owner.completion.kind !== "rejected") throw Error("missing owner failure");
+      expect(evidence.cause).toBe(evidence.owner.completion.error);
+      expect(evidence.cause).toBeInstanceOf(SequenceLifecycleError);
+      expect(evidence.cause).toMatchObject({ phase: "close", cause: oc });
+      expect(evidence.read.invocationFault?.error).toBe(ri);
+      expect(evidence.read.completion).toEqual({ kind: "fulfilled" });
+    }
+    if (kind === "read-invoke") expect(evidence.cause).toBe(ri);
+    if (kind === "read-complete") expect(evidence.cause).toBe(rc);
+    if (kind === "foreign") {
+      expect(evidence.owner.invocationFault?.error).toBeInstanceOf(TypeError);
+      expect(evidence.owner.completion).toEqual({ kind: "fulfilled" });
+    }
+    expect(lifecycle.close()).toBe(closed);
+    expect(calls.owner).toBe(1);
+    expect(calls.read).toBe(1);
+    expect(Object.isFrozen(oi)).toBe(false);
+    expect(Object.isFrozen(oc)).toBe(false);
+  });
   it.each(["automatic", "explicit-before-observer"])(
     "owns original and derived rejections during %s close and a real timer while owner drains",
     async (path) => {
@@ -1106,6 +1128,30 @@ describe("G11 close evidence and automatic owner observation", () => {
         throw maintenance;
       });
       f.queue.tick();
+      expect(f.owner.inspectLifecycle()).toEqual({ busy: false, accepting: false });
+      expect(f.queue.turns.length).toBeGreaterThan(0);
+      const reads = vi.spyOn(f.store, "read"),
+        admits = vi.spyOn(f.store, "admit"),
+        closes = vi.spyOn(f.store, "close");
+      const before = [f.state.captures, calls.owner, calls.read, calls.disposed];
+      let submitError: unknown, bindingError: unknown;
+      try {
+        lifecycle.submit(sequence([create("refused-during-drain")]), alice);
+      } catch (error) {
+        submitError = error;
+      }
+      expectEntry(submitError, "not-accepting", "owner");
+      try {
+        lifecycle.readFor({ kind: "anonymous" });
+      } catch (error) {
+        bindingError = error;
+      }
+      expect(bindingError).toBeInstanceOf(ScopeServerClosedError);
+      expectEntry((bindingError as Error).cause, "not-accepting", "owner");
+      expect([reads.mock.calls.length, admits.mock.calls.length, closes.mock.calls.length]).toEqual(
+        [0, 0, 0],
+      );
+      expect([f.state.captures, calls.owner, calls.read, calls.disposed]).toEqual(before);
       for (const call of [
         () => facet.perform(resource()),
         () => facet.resolveAlias(url("alias/current")),
