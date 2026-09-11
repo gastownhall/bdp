@@ -340,6 +340,8 @@ function resourcePath(scope: string, uri: string, kind: ResourceKind): string | 
   }
   return path;
 }
+export { storedRecord as readStoredResource };
+
 function storedRecord(stored: EvaluatorStoredResource, scope: string): ResourceRecord {
   const value = JSON.parse(stored.bodyJson) as unknown;
   const record = stored.kind === "bead" ? parseBeadRecord(value) : parseLinkRecord(value);
