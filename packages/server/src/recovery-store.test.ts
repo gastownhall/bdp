@@ -1,4 +1,8 @@
-import { decodeJsonDocument } from "@bdp/protocol";
+import {
+  decodeJsonDocument,
+  assertPreparedReadUpdateCarrier,
+  prepareReadUpdateSingleton,
+} from "@bdp/protocol";
 import { encodeSemanticValue } from "./semantic-identity.js";
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, statfsSync, rmSync, writeFileSync } from "node:fs";
@@ -1429,5 +1433,82 @@ describe("synchronous startup inventory visitors", () => {
     expect(store.visitInstalledTypes(visitor)).toBeUndefined();
     expect(store.visitRetainedOutcomes(visitor)).toBeUndefined();
     expect(visitor).not.toHaveBeenCalled();
+  });
+});
+
+describe("immutable recovery Scope prerequisite", () => {
+  it("captures the validated Scope once and keeps it immutable through close/reopen", () => {
+    const dir = directory();
+    let suppliedScope = scope;
+    const scopeRead = vi.fn(() => suppliedScope);
+    const supplied = {
+      ...options(dir),
+      create: {},
+      get scope() {
+        return scopeRead();
+      },
+    };
+    const store = openRecoveryStore(supplied);
+    stores.push(store);
+    expect(scopeRead).toHaveBeenCalledTimes(1);
+    expect(store.scope).toBe(scope);
+    expect(Object.getOwnPropertyDescriptor(store, "scope")).toMatchObject({
+      value: scope,
+      writable: false,
+      configurable: false,
+    });
+    suppliedScope = "https://other.test/";
+    expect(Reflect.set(store, "scope", suppliedScope)).toBe(false);
+    expect(Reflect.deleteProperty(store, "scope")).toBe(false);
+    expect(() => Object.defineProperty(store, "scope", { value: suppliedScope })).toThrow(
+      TypeError,
+    );
+    expect(store.scope).toBe(scope);
+    store.close();
+    expect(store.scope).toBe(scope);
+    expect(open(dir).scope).toBe(scope);
+  });
+  it("pairs actual preflight Scope with real stores while preserving Admission ownership", () => {
+    const storeA = open(directory(), true);
+    const otherScope = "https://other.test/scope/";
+    const storeB = openRecoveryStore({ ...options(directory()), scope: otherScope, create: {} });
+    stores.push(storeB);
+    const carrier = prepareReadUpdateSingleton(
+      storeA.scope,
+      "createBead",
+      '{"type":"https://types.test/task"}',
+      "key",
+    );
+    const admissionA = storeA.admit("alice", carrier.keys);
+    const admissionB = storeB.admit("alice", carrier.keys);
+    const evaluate = vi.fn(() => ({ kind: "release" as const }));
+    expect(() => assertPreparedReadUpdateCarrier(carrier, storeA.scope)).not.toThrow();
+    expect(() => assertPreparedReadUpdateCarrier(carrier, storeB.scope)).toThrow("different Scope");
+    expect(() => storeB.executeMember(admissionA, "key", evaluate)).toThrow(
+      expect.objectContaining({ reason: "invalid-admission" }),
+    );
+    expect(evaluate).not.toHaveBeenCalled();
+    expect(storeB.read((reader) => reader.key("alice", "key"))).toEqual({
+      kind: "claimed",
+      attemptId: admissionB.attemptId,
+    });
+    expect(storeA.executeMember(admissionA, "key", evaluate)).toEqual({ kind: "released" });
+    expect(storeB.executeMember(admissionB, "key", evaluate)).toEqual({ kind: "released" });
+  });
+  it("does not replace persisted Scope or canonical-open validation", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    store.close();
+    expect(() => openRecoveryStore({ ...options(dir), scope: "https://other.test/" })).toThrow(
+      expect.objectContaining({ reason: "store-mismatch" }),
+    );
+    expect(() =>
+      openRecoveryStore({
+        ...options(directory()),
+        scope: "https://example.test/not-canonical",
+        create: {},
+      }),
+    ).toThrow(expect.objectContaining({ reason: "invalid-input" }));
+    expect(open(dir).scope).toBe(scope);
   });
 });

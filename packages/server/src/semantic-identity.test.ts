@@ -2,6 +2,7 @@ import { decodeJsonDocument, JsonNumberLiteral } from "@bdp/protocol";
 import { describe, expect, it } from "vitest";
 import {
   encodeSemanticValue,
+  SEMANTIC_VALUE_FORMAT,
   UNBOUND_SEMANTIC_REFERENCE,
   type SemanticValue,
 } from "./semantic-identity.js";
@@ -10,6 +11,10 @@ const encode = (text: string): string => encodeSemanticValue(decodeJsonDocument(
 
 describe("internal exact semantic value codec", () => {
   it("pins the version and separates every scalar kind", () => {
+    expect(SEMANTIC_VALUE_FORMAT).toBe("ru-semantic-value-1");
+    expect((decodeJsonDocument(encode("1.20")) as readonly unknown[])[0]).toBe(
+      SEMANTIC_VALUE_FORMAT,
+    );
     expect(encode("1.20")).toBe('["ru-semantic-value-1",["number","12","-1"]]');
     const values = ["null", "true", "false", '"true"', '"null"', '"1"', "1", "{}", "[]"];
     expect(new Set(values.map(encode)).size).toBe(values.length);

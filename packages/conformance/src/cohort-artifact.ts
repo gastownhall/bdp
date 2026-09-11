@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { canonicalJson, compareCodeUnits } from "./canonical-json.js";
 import type { ScenarioCatalog } from "./catalog.js";
 import type { ExecutableScenarioManifest } from "./executable-manifest.js";
-import type { ConformanceRunResult, ScenarioRunResult } from "./runner.js";
+import { assertLegacyReportVersion } from "./report.js";
+import type { LegacyConformanceRunResult, ScenarioRunResult } from "./runner.js";
 
 /**
  * The reviewed two-target Read evidence cohort.
@@ -223,7 +224,7 @@ export class ReadCohortArtifactError extends Error {
 
 export interface ReadCohortTargetInput {
   readonly target: ReadCohortTarget;
-  readonly run: ConformanceRunResult;
+  readonly run: LegacyConformanceRunResult;
   readonly bindings: ReadCohortBindings;
   readonly bdIdentity?: BdIdentityPin;
   readonly admission: ReadCohortAdmission;
@@ -249,6 +250,8 @@ export interface ReadCohortArtifactInput {
  * partial result to be recorded, it is an invalid experiment.
  */
 export function createReadCohortArtifact(input: ReadCohortArtifactInput): ReadCohortArtifact {
+  if (input.manifest.manifestVersion !== 1)
+    throw new ReadCohortArtifactError("Read cohort requires manifest version 1");
   if (!COMMIT_SHA.test(input.runHead)) {
     throw new ReadCohortArtifactError("runHead must be a 40-hex commit sha");
   }
@@ -528,6 +531,7 @@ function projectSegment(
   selfCertifiable: ReadonlySet<string>,
 ): ReadCohortSegment {
   const { run, target, admission } = entry;
+  assertLegacyReportVersion(run);
 
   if (!READ_COHORT_ADMISSIONS.includes(admission)) {
     throw new ReadCohortArtifactError(

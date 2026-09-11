@@ -84,6 +84,11 @@ export {
 export {
   decodeScenarioRawRequestTarget,
   EXECUTABLE_MANIFEST_VERSION,
+  EXACT_EXECUTABLE_MANIFEST_VERSION,
+  type ExecutableManifestVersion,
+  type ScenarioBody,
+  type ScenarioRequestInput,
+  materializeScenarioBody,
   type ExecutableScenario,
   type ExecutableScenarioManifest,
   type JsonPrimitive,
@@ -116,6 +121,15 @@ export {
   createFetchHttpExchangeExecutor,
   createRawHttpExchangeExecutor,
   type HttpExchangeExecutor,
+  type HttpMethod,
+  type ExactHttpExchangeRequest,
+  type ExactHttpModeOptions,
+  type ExactRequestObservation,
+  type RawHeaderLine,
+  type RawHttpExchangeExecutor,
+  type RequestWriteState,
+  snapshotExactHttpMode,
+  validateExactRunConfiguration,
   type HttpExchangeRequest,
   type HttpExchangeResponse,
   HttpTransportError,
@@ -125,6 +139,7 @@ export {
 } from "./http-executor.js";
 export {
   createRawHttpScenarioTarget,
+  type ExactHttpConfiguration,
   type RawHttpScenarioSession,
   type RawHttpScenarioTarget,
   type RawHttpScenarioTargetOptions,
@@ -133,6 +148,10 @@ export {
 export {
   type AssertionOutcome,
   type ConformanceRunResult,
+  type LegacyConformanceRunResult,
+  type ExactConformanceRunResult,
+  type ExactScenarioExecution,
+  type ExactReportObservation,
   ConformanceRunnerError,
   type FixturePreparation,
   type ObservedAction,
@@ -151,4 +170,4 @@ export {
   type SchemaValidator,
   SchemaValidatorError,
 } from "./schema-validator.js";
-export { serializeConformanceReport } from "./report.js";
+export { serializeConformanceReport, assertLegacyReportVersion } from "./report.js";

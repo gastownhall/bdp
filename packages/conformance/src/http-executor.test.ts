@@ -1,11 +1,15 @@
+import { createHash } from "node:crypto";
 import { createServer as createHttpServer } from "node:http";
 import { createServer, type Server, Socket } from "node:net";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { parseExecutableScenarioManifest } from "./executable-manifest.js";
 import {
   createFetchHttpExchangeExecutor,
   createRawHttpExchangeExecutor,
   type RawHttpDialRoute,
+  snapshotExactHttpMode,
+  validateExactRunConfiguration,
 } from "./http-executor.js";
 
 describe("raw HTTP exchange executor", () => {
@@ -616,3 +620,846 @@ describe("raw HTTP exchange executor", () => {
     });
   }
 });
+
+describe("exact HTTP request execution", () => {
+  const servers = new Set<Server>();
+  const sockets = new Set<Socket>();
+  const scope = "https://scope.example/acme/";
+  const url = `${scope}operations/create-bead`;
+  const responseText = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}";
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    for (const socket of sockets) socket.destroy();
+    sockets.clear();
+    await Promise.all(
+      [...servers].map((server) => new Promise<void>((resolve) => server.close(() => resolve()))),
+    );
+    servers.clear();
+  });
+
+  function mode(
+    overrides: Partial<import("./http-executor.js").ExactHttpModeOptions> = {},
+  ): import("./http-executor.js").ExactHttpModeOptions {
+    return {
+      scope,
+      profile: "read-update",
+      routes: [{ method: "POST", url }],
+      maximumRequestHeaderBytes: 4096,
+      maximumRequestBodyBytes: 1024,
+      defaultCredentialRef: "anonymous",
+      credentialHandles: [{ id: "anonymous", headerNames: [] }],
+      resolveCredentials: () => ({}),
+      ...overrides,
+    };
+  }
+  function exact(
+    bodyBytes: Uint8Array = Buffer.from("{}"),
+  ): import("./http-executor.js").ExactHttpExchangeRequest {
+    return {
+      method: "POST",
+      url,
+      signal: new AbortController().signal,
+      raw: {
+        headerLines: [
+          { name: "Content-Type", value: "application/json" },
+          { name: "Idempotency-Key", value: "same" },
+          { name: "iDeMpOtEnCy-KeY", value: "same" },
+        ],
+        bodyBytes,
+      },
+    };
+  }
+  async function bind(server: Server): Promise<RawHttpDialRoute> {
+    servers.add(server);
+    server.on("connection", (socket: Socket) => {
+      sockets.add(socket);
+      socket.on("close", () => sockets.delete(socket));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (address === null || typeof address === "string") throw new Error("missing address");
+    return { transport: "plain", host: "127.0.0.1", port: address.port };
+  }
+  function deadRoute(): RawHttpDialRoute {
+    return { transport: "plain", host: "127.0.0.1", port: 1 };
+  }
+
+  it.each([
+    Buffer.from('{"a":1,"\\u0061":2,"number":9007199254740993,"x":1e99999}'),
+    Buffer.from('{"x":"\\uD800"}'),
+    Buffer.from([0xc0, 0xaf, 0xff]),
+    Buffer.alloc(0),
+  ])(
+    "preserves exact entity bytes and repeated fields at an actual Node HTTP receiver: %j",
+    async (body) => {
+      let received = Buffer.alloc(0);
+      let rawHeaders: string[] = [];
+      const route = await bind(
+        createHttpServer((request, response) => {
+          rawHeaders = request.rawHeaders;
+          const chunks: Buffer[] = [];
+          request.on("data", (chunk: Buffer) => chunks.push(chunk));
+          request.on("end", () => {
+            received = Buffer.concat(chunks);
+            response.end("{}");
+          });
+        }),
+      );
+      const result = await createRawHttpExchangeExecutor(route, { exactMode: mode() })(exact(body));
+      expect(received).toEqual(body);
+      expect(rawHeaders.slice(0, 6)).toEqual([
+        "Content-Type",
+        "application/json",
+        "Idempotency-Key",
+        "same",
+        "iDeMpOtEnCy-KeY",
+        "same",
+      ]);
+      expect(result.exactRequest).toMatchObject({
+        source: "raw-http1-serializer",
+        bodyPresent: true,
+        bodyOctets: body.length,
+        writeState: "complete",
+      });
+      expect(result.exactRequest?.bodyDigest).toBe(createHashForTest(body));
+      expect(result.effectiveRequest).not.toHaveProperty("headersTransmitted");
+    },
+  );
+
+  it("preserves padded field bytes and copies Buffer subarrays before the resolver can mutate them", async () => {
+    const source = Buffer.from("!before!");
+    const body = source.subarray(1, 7);
+    const firstLine = { name: "Idempotency-Key", value: " \tkey,other " };
+    const lines = [firstLine];
+    let wire = Buffer.alloc(0);
+    const route = await bind(
+      createServer((socket) =>
+        socket.on("data", (chunk: Buffer) => {
+          wire = Buffer.concat([wire, chunk]);
+          if (wire.includes(Buffer.from("before"))) socket.end(responseText);
+        }),
+      ),
+    );
+    const resolve = vi.fn(() => {
+      source.fill(120);
+      firstLine.value = "changed";
+      return { Authorization: "Bearer sentinel-secret" };
+    });
+    const ordinary = vi.fn(() => ({ Authorization: "wrong-legacy" }));
+    const result = await createRawHttpExchangeExecutor(route, {
+      authorize: ordinary,
+      exactMode: mode({
+        defaultCredentialRef: "writer",
+        credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+        resolveCredentials: resolve,
+      }),
+    })({ ...exact(body), raw: { headerLines: lines, bodyBytes: body } });
+    expect(wire.toString("latin1")).toContain("Idempotency-Key:  \tkey,other \r\n");
+    expect(wire.subarray(-6).toString()).toBe("before");
+    expect(wire.toString()).toContain("Authorization: Bearer sentinel-secret");
+    expect(resolve).toHaveBeenCalledOnce();
+    expect(ordinary).not.toHaveBeenCalled();
+    expect(Object.isFrozen(result.exactRequest?.headerLines)).toBe(true);
+    expect(result.exactRequest?.headerLines[0]?.value).toBe(" \tkey,other ");
+  });
+
+  it.each([
+    "Authorization",
+    "AUTHORIZATION",
+    "Cookie",
+    "X-Auth-Token",
+    "Host",
+    "Content-Length",
+    "Transfer-Encoding",
+    "Expect",
+    "Proxy-Connection",
+  ])("rejects authored protected field %s before resolving credentials", async (name) => {
+    const resolve = vi.fn(() => ({}));
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), {
+        exactMode: mode({ resolveCredentials: resolve }),
+      })({ ...exact(), raw: { headerLines: [{ name, value: "secret" }] } }),
+    ).rejects.toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it.each(["bad\r\nInjected: yes", "x\n", "x\r", "x\r\n", "x\0y", "\ud800", "\u0100"])(
+    "rejects field injection/unrepresentable bytes %j",
+    async (value) => {
+      await expect(
+        createRawHttpExchangeExecutor(deadRoute(), { exactMode: mode() })({
+          ...exact(),
+          raw: { headerLines: [{ name: "Idempotency-Key", value }] },
+        }),
+      ).rejects.toMatchObject({ category: "configuration" });
+    },
+  );
+
+  it("refuses unsupported exact/Fetch forms without resolving legacy credentials or normalizing missing headers", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    const authorize = vi.fn(() => ({}));
+    await expect(createFetchHttpExchangeExecutor(fetch, authorize)(exact())).rejects.toMatchObject({
+      category: "configuration",
+    });
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), { authorize })(exact()),
+    ).rejects.toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute())({
+        method: "GET",
+        url,
+        signal: new AbortController().signal,
+      } as never),
+    ).rejects.toMatchObject({ category: "configuration" });
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), { exactMode: mode() })({
+        ...exact(),
+        headers: {},
+      } as never),
+    ).rejects.toMatchObject({ category: "configuration" });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+  });
+
+  it("checks body and authored-header caps before complete copies or credentials", async () => {
+    const resolve = vi.fn(() => ({}));
+    const body = new Uint8Array(1025);
+    const bufferGetter = vi.fn(() => {
+      throw new Error("must not inspect mutable buffer getter");
+    });
+    Object.defineProperty(body, "buffer", { get: bufferGetter });
+    const execute = createRawHttpExchangeExecutor(deadRoute(), {
+      exactMode: mode({ resolveCredentials: resolve, maximumRequestHeaderBytes: 64 }),
+    });
+    await expect(execute(exact(body))).rejects.toMatchObject({ category: "configuration" });
+    await expect(
+      execute({
+        ...exact(),
+        raw: { headerLines: [{ name: "Idempotency-Key", value: "x".repeat(1000) }] },
+      }),
+    ).rejects.toMatchObject({ category: "configuration" });
+    expect(resolve).not.toHaveBeenCalled();
+    expect(bufferGetter).not.toHaveBeenCalled();
+  });
+
+  it("rejects getters and asynchronous/foreign credential results without leaking them into errors", async () => {
+    const getter = vi.fn(() => "secret");
+    const line = Object.defineProperty({ name: "Idempotency-Key" }, "value", {
+      get: getter,
+      enumerable: true,
+    });
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), { exactMode: mode() })({
+        ...exact(),
+        raw: { headerLines: [line] },
+      } as never),
+    ).rejects.toMatchObject({ category: "configuration" });
+    expect(getter).not.toHaveBeenCalled();
+    for (const result of [
+      Promise.resolve({}),
+      { Authorization: "sentinel-secret" },
+      { "Content-Type": "sentinel-secret" },
+    ]) {
+      const execute = createRawHttpExchangeExecutor(deadRoute(), {
+        exactMode: mode({ resolveCredentials: (() => result) as never }),
+      });
+      const error = await execute(exact()).catch((error: unknown) => error);
+      expect(error).toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+      expect(JSON.stringify(error)).not.toContain("sentinel-secret");
+    }
+  });
+
+  it.each([
+    "https://evil.example/acme/operations/create-bead",
+    "https://scope.example/other/",
+    "https://scope.example/acme/%63reate",
+    "https://scope.example/acme//x",
+    `${url}#`,
+    `${url}?other=1`,
+  ])("refuses unconfigured/noncanonical URL %s before credentials", async (target) => {
+    const resolve = vi.fn(() => ({}));
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), {
+        exactMode: mode({ resolveCredentials: resolve }),
+      })({ ...exact(), url: target }),
+    ).rejects.toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("snapshots configured routes and handles and refuses a foreign raw audience with credentials", async () => {
+    const routeEntry = { method: "POST" as const, url };
+    const headerNames = ["authorization"];
+    const configuration = mode({
+      routes: [routeEntry],
+      defaultCredentialRef: "writer",
+      credentialHandles: [{ id: "writer", headerNames }],
+      resolveCredentials: () => ({ Authorization: "sentinel-secret" }),
+    });
+    const execute = createRawHttpExchangeExecutor(deadRoute(), { exactMode: configuration });
+    routeEntry.url = "https://evil.example/";
+    headerNames.length = 0;
+    await expect(
+      execute({ ...exact(), rawRequestTarget: Buffer.from("https://evil.example/") }),
+    ).rejects.toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+    await expect(execute({ ...exact(), credentialRef: "unknown" })).rejects.toMatchObject({
+      category: "configuration",
+    });
+  });
+
+  it("allows anonymous raw foreign-authority probes only at the configured peer and preserves absent entities", async () => {
+    let wire = "";
+    const route = await bind(
+      createServer((socket) =>
+        socket.once("data", (chunk) => {
+          wire = chunk.toString();
+          socket.end(responseText);
+        }),
+      ),
+    );
+    const result = await createRawHttpExchangeExecutor(route, { exactMode: mode() })({
+      ...exact(),
+      rawRequestTarget: Buffer.from("//foreign.example/acme/"),
+      raw: { headerLines: [] },
+    });
+    expect(wire).toContain("POST //foreign.example/acme/ HTTP/1.1");
+    expect(wire).toContain("Host: scope.example");
+    expect(wire).not.toContain("Content-Length:");
+    expect(result.exactRequest).toMatchObject({ bodyPresent: false, bodyOctets: 0 });
+    expect(result.exactRequest).not.toHaveProperty("bodyDigest");
+  });
+
+  it("preserves a complete early refusal while the outbound body remains buffered", async () => {
+    const route = await bind(
+      createServer((socket) =>
+        socket.once("data", () => {
+          socket.pause();
+          socket.end("HTTP/1.1 413 Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        }),
+      ),
+    );
+    const body = Buffer.alloc(32 * 1024 * 1024, 120);
+    const result = await createRawHttpExchangeExecutor(route, {
+      exactMode: mode({ maximumRequestBodyBytes: body.length }),
+      requestTimeoutMs: 2000,
+    })(exact(body));
+    expect(result.status).toBe(413);
+    expect(result.exactRequest).toMatchObject({
+      writeState: "started-completion-unestablished",
+      bodyOctets: body.length,
+    });
+    const saved = JSON.stringify(result.exactRequest);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(JSON.stringify(result.exactRequest)).toBe(saved);
+  });
+
+  it("distinguishes abort before write, during a large write, and after a received body", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), { exactMode: mode() })({
+        ...exact(),
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ category: "abort", requestWriteState: "not-started" });
+    const during = new AbortController();
+    const route = await bind(
+      createServer((socket) =>
+        socket.once("data", () => {
+          socket.pause();
+          during.abort();
+        }),
+      ),
+    );
+    const body = Buffer.alloc(32 * 1024 * 1024);
+    await expect(
+      createRawHttpExchangeExecutor(route, {
+        exactMode: mode({ maximumRequestBodyBytes: body.length }),
+      })({ ...exact(body), signal: during.signal }),
+    ).rejects.toMatchObject({
+      category: "abort",
+      requestWriteState: "started-completion-unestablished",
+    });
+    const after = new AbortController();
+    const completedRoute = await bind(
+      createHttpServer((request) => {
+        request.resume();
+        request.on("end", () => after.abort());
+      }),
+    );
+    await expect(
+      createRawHttpExchangeExecutor(completedRoute, { exactMode: mode() })({
+        ...exact(),
+        signal: after.signal,
+      }),
+    ).rejects.toMatchObject({ category: "abort", requestWriteState: "complete" });
+  });
+
+  it("includes credential work in the elapsed deadline", async () => {
+    const execute = createRawHttpExchangeExecutor(deadRoute(), {
+      requestTimeoutMs: 5,
+      exactMode: mode({
+        resolveCredentials: () => {
+          const until = performance.now() + 10;
+          while (performance.now() < until) {
+            /* trusted synchronous work */
+          }
+          return {};
+        },
+      }),
+    });
+    await expect(execute(exact())).rejects.toMatchObject({
+      category: "timeout",
+      requestWriteState: "not-started",
+    });
+  });
+
+  it.each([
+    "HTTP/1.1 100 Continue\r\n\r\n",
+    "HTTP/1.1 103 Early Hints\r\nLink: </x>\r\n\r\nHTTP/1.1 100 Continue\r\n\r\n",
+  ])("consumes bounded informational heads before the final response: %s", async (prefix) => {
+    const route = await bind(
+      createServer((socket) =>
+        socket.once("data", () => {
+          socket.write(prefix.slice(0, 8));
+          setTimeout(() => socket.end(prefix.slice(8) + responseText), 2);
+        }),
+      ),
+    );
+    const result = await createRawHttpExchangeExecutor(route, { exactMode: mode() })(exact());
+    expect(result).toMatchObject({ status: 200, bodyText: "{}", bodyOctets: 2 });
+    expect(Buffer.from(result.wireResponseBytes ?? []).toString()).toBe(prefix + responseText);
+  });
+
+  it.each([
+    ["HTTP/1.1 100 Continue\r\n\r\n", "disconnect", 4096],
+    ["HTTP/1.1 101 Switching Protocols\r\n\r\n", "invalid-body", 4096],
+    [`HTTP/1.1 100 Continue\r\nContent-Length: 0\r\n\r\n${responseText}`, "invalid-body", 4096],
+    ["HTTP/1.1 100 Continue\r\n\r\n".repeat(4) + responseText, "header-limit", 100],
+  ] as const)("refuses informational framing %s", async (wire, category, cap) => {
+    const route = await bind(createServer((socket) => socket.once("data", () => socket.end(wire))));
+    await expect(
+      createRawHttpExchangeExecutor(route, { exactMode: mode(), maximumHeaderBytes: cap })(exact()),
+    ).rejects.toMatchObject({ category });
+  });
+
+  it("accepts actual body/header cap boundaries and refuses one octet below before credentials/dial", async () => {
+    let lastHeadBytes = 0;
+    const route = await bind(
+      createServer((socket) => {
+        let wire = Buffer.alloc(0);
+        socket.on("data", (chunk: Buffer) => {
+          wire = Buffer.concat([wire, chunk]);
+          const end = wire.indexOf("\r\n\r\n");
+          if (end !== -1 && wire.length >= end + 4 + 1024) {
+            lastHeadBytes = end + 4;
+            socket.end(responseText);
+          }
+        });
+      }),
+    );
+    const body = Buffer.alloc(1024);
+    await createRawHttpExchangeExecutor(route, { exactMode: mode() })(exact(body));
+    const actualHeadBytes = lastHeadBytes;
+    await expect(
+      createRawHttpExchangeExecutor(route, {
+        exactMode: mode({ maximumRequestHeaderBytes: actualHeadBytes }),
+      })(exact(body)),
+    ).resolves.toMatchObject({ status: 200 });
+    const resolve = vi.fn(() => ({}));
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), {
+        exactMode: mode({ maximumRequestBodyBytes: 1023, resolveCredentials: resolve }),
+      })(exact(body)),
+    ).rejects.toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+    expect(resolve).not.toHaveBeenCalled();
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), {
+        exactMode: mode({ maximumRequestHeaderBytes: actualHeadBytes - 1 }),
+      })(exact(body)),
+    ).rejects.toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+  });
+
+  it("refuses a credential-decorated header overflow and inherited exact forms without fallback", async () => {
+    const modeWithCredentials = mode({
+      maximumRequestHeaderBytes: 128,
+      defaultCredentialRef: "writer",
+      credentialHandles: [{ id: "writer", headerNames: ["authorization"] }],
+      resolveCredentials: () => ({ Authorization: "sentinel-secret".repeat(100) }),
+    });
+    const failure = await createRawHttpExchangeExecutor(deadRoute(), {
+      exactMode: modeWithCredentials,
+    })(exact()).catch((error: unknown) => error);
+    expect(failure).toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+    expect(JSON.stringify(failure)).not.toContain("sentinel-secret");
+    const inherited = Object.create({ raw: { headerLines: [] } });
+    Object.assign(inherited, {
+      method: "POST",
+      url,
+      headers: {},
+      signal: new AbortController().signal,
+    });
+    const authorize = vi.fn(() => ({}));
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), { authorize, exactMode: mode() })(inherited),
+    ).rejects.toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+    expect(authorize).not.toHaveBeenCalled();
+  });
+
+  it("preserves a complete refusal from a held-open non-reading peer before the request deadline", async () => {
+    const route = await bind(
+      createServer((socket) =>
+        socket.once("data", () => {
+          socket.pause();
+          socket.write("HTTP/1.1 413 Too Large\r\nContent-Length: 0\r\n\r\n");
+        }),
+      ),
+    );
+    const body = Buffer.alloc(32 * 1024 * 1024);
+    const started = performance.now();
+    const response = await createRawHttpExchangeExecutor(route, {
+      requestTimeoutMs: 1000,
+      exactMode: mode({ maximumRequestBodyBytes: body.length }),
+    })(exact(body));
+    expect(response.status).toBe(413);
+    expect(response.exactRequest?.writeState).toBe("started-completion-unestablished");
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  it.each([true, false])(
+    "rechecks early cleanup state when native body completion is released before cleanup: %s",
+    async (releaseBeforeCleanup) => {
+      let trailing: ReturnType<typeof setTimeout> | undefined;
+      let releaseWrite: (() => void) | undefined;
+      let heldCallbacks = 0;
+      let releasedBeforeTrailing = false;
+      let trailingSent = false;
+      const route = await bind(
+        createServer({ allowHalfOpen: true }, (socket) => {
+          socket.on("error", () => undefined);
+          socket.once("data", () => {
+            socket.write("HTTP/1.1 413 Too Large\r\nContent-Length: 0\r\n\r\n");
+            trailing = setTimeout(() => {
+              trailingSent = true;
+              socket.end("extra");
+            }, 10);
+          });
+        }),
+      );
+      const nativeWrite = Socket.prototype.write;
+      vi.spyOn(Socket.prototype, "write").mockImplementation(function (
+        this: Socket,
+        ...args: unknown[]
+      ) {
+        const callback = args.at(-1);
+        const bytes = args[0];
+        if (
+          this.remotePort === route.port &&
+          bytes instanceof Uint8Array &&
+          bytes.length === 2 &&
+          typeof callback === "function"
+        ) {
+          // Hold a genuinely completed native write, then release it after the response
+          // data listeners have scheduled cleanup. This is a controlled transition,
+          // not a claim that an uninstrumented network run naturally hit the race.
+          args[args.length - 1] = (...callbackArgs: unknown[]) => {
+            heldCallbacks++;
+            releaseWrite = () => {
+              releaseWrite = undefined;
+              releasedBeforeTrailing = !trailingSent;
+              Reflect.apply(callback, undefined, callbackArgs);
+            };
+          };
+          this.prependOnceListener("data", () =>
+            queueMicrotask(() => {
+              if (releaseBeforeCleanup) releaseWrite?.();
+            }),
+          );
+        }
+        return Reflect.apply(nativeWrite, this, args) as boolean;
+      });
+      try {
+        const operation = createRawHttpExchangeExecutor(route, {
+          requestTimeoutMs: 1000,
+          exactMode: mode(),
+        })(exact());
+        if (releaseBeforeCleanup) {
+          await expect(operation).rejects.toMatchObject({
+            category: "invalid-body",
+            requestWriteState: "complete",
+          });
+          expect(releasedBeforeTrailing).toBe(true);
+          expect(trailingSent).toBe(true);
+        } else {
+          expect(await operation).toMatchObject({
+            status: 413,
+            exactRequest: { writeState: "started-completion-unestablished" },
+          });
+          expect(trailingSent).toBe(false);
+        }
+        expect(heldCallbacks).toBe(1);
+      } finally {
+        clearTimeout(trailing);
+        releaseWrite?.();
+        vi.restoreAllMocks();
+      }
+    },
+  );
+
+  it("rejects already-buffered bytes beyond a held-open early refusal", async () => {
+    const route = await bind(
+      createServer((socket) =>
+        socket.once("data", () => {
+          socket.pause();
+          socket.write("HTTP/1.1 413 Too Large\r\nContent-Length: 0\r\n\r\nextra");
+        }),
+      ),
+    );
+    const body = Buffer.alloc(32 * 1024 * 1024);
+    await expect(
+      createRawHttpExchangeExecutor(route, {
+        requestTimeoutMs: 1000,
+        exactMode: mode({ maximumRequestBodyBytes: body.length }),
+      })(exact(body)),
+    ).rejects.toMatchObject({
+      category: "invalid-body",
+      requestWriteState: "started-completion-unestablished",
+    });
+  });
+
+  it("checks elapsed time after response receipt without rewriting a completed write", async () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const route = await bind(
+      createServer((socket) =>
+        socket.once("data", () => {
+          now = 1000;
+          socket.end(responseText);
+        }),
+      ),
+    );
+    await expect(
+      createRawHttpExchangeExecutor(route, { requestTimeoutMs: 100, exactMode: mode() })(exact()),
+    ).rejects.toMatchObject({ category: "timeout", requestWriteState: "complete" });
+  });
+
+  it.each(["elapsed", "abort"])(
+    "checks %s at the final synchronous delivery boundary",
+    async (failure) => {
+      let now = 0;
+      vi.spyOn(performance, "now").mockImplementation(() => now);
+      const controller = new AbortController();
+      const from = Uint8Array.from.bind(Uint8Array);
+      const route = await bind(
+        createServer((socket) => socket.once("data", () => socket.end(responseText))),
+      );
+      vi.spyOn(Uint8Array, "from").mockImplementation((source) => {
+        const copied = from(source);
+        if (failure === "elapsed") now = 1000;
+        else controller.abort();
+        return copied;
+      });
+      await expect(
+        createRawHttpExchangeExecutor(route, { requestTimeoutMs: 100, exactMode: mode() })({
+          ...exact(),
+          signal: controller.signal,
+        }),
+      ).rejects.toMatchObject({
+        category: failure === "elapsed" ? "timeout" : "abort",
+        requestWriteState: "complete",
+      });
+    },
+  );
+
+  it("does not retroactively reject a delivered result when its clock later advances", async () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const route = await bind(
+      createServer((socket) => socket.once("data", () => socket.end(responseText))),
+    );
+    const operation = createRawHttpExchangeExecutor(route, {
+      requestTimeoutMs: 100,
+      exactMode: mode(),
+    })(exact());
+    const result = await operation;
+    now = 1000;
+    expect(await operation).toBe(result);
+    expect(result).toMatchObject({ status: 200, exactRequest: { writeState: "complete" } });
+  });
+
+  it.each(["has", "getPrototypeOf", "getOwnPropertyDescriptor", "ownKeys"])(
+    "categorizes direct exact %s traps without exposing caller errors",
+    async (trap) => {
+      const resolve = vi.fn(() => ({}));
+      const input = new Proxy(exact(), {
+        [trap]: () => {
+          throw new Error("private-input-sentinel");
+        },
+      });
+      const error = await createRawHttpExchangeExecutor(deadRoute(), {
+        exactMode: mode({ resolveCredentials: resolve }),
+      })(input).catch((error: unknown) => error);
+      expect(error).toMatchObject({
+        name: "HttpTransportError",
+        category: "configuration",
+        requestWriteState: "not-started",
+      });
+      expect(String(error)).not.toContain("private-input-sentinel");
+      expect(error).not.toHaveProperty("cause");
+      expect(resolve).not.toHaveBeenCalled();
+    },
+  );
+
+  it("makes standalone Scope/route validation as strict as configured capture", () => {
+    validateExactRunConfiguration({ scope, routes: [{ method: "POST", url }] }, url, "POST");
+    const invalid = [
+      {
+        scope: "https://scope.example/acme",
+        routes: [{ method: "POST" as const, url: "https://scope.example/acmeX/evil" }],
+      },
+      { scope: `${scope}?`, routes: [{ method: "POST" as const, url }] },
+      {
+        scope,
+        routes: [
+          { method: "POST" as const, url },
+          { method: "GET" as const, url: "https://evil.example/" },
+        ],
+      },
+      {
+        scope,
+        routes: [
+          { method: "POST" as const, url },
+          { method: "GET" as const, url: `${scope}%61` },
+        ],
+      },
+    ];
+    for (const configuration of invalid) {
+      expect(() =>
+        validateExactRunConfiguration(configuration, configuration.routes[0]?.url ?? url, "POST"),
+      ).toThrow();
+      expect(() => snapshotExactHttpMode({ ...mode(), ...configuration })).toThrow();
+    }
+  });
+
+  it.each([0, 9, 31, 127, 255])(
+    "requires an explicitly selected anonymous handle for raw control octet %s",
+    async (octet) => {
+      let wire = Buffer.alloc(0);
+      const route = await bind(
+        createServer((socket) =>
+          socket.once("data", (data) => {
+            wire = Buffer.from(data);
+            socket.end(responseText);
+          }),
+        ),
+      );
+      const resolve = vi.fn(({ credentialRef }: { credentialRef: string }) =>
+        credentialRef === "writer" ? { Authorization: "sentinel-secret" } : {},
+      );
+      const execute = createRawHttpExchangeExecutor(route, {
+        exactMode: mode({
+          defaultCredentialRef: "writer",
+          credentialHandles: [
+            { id: "writer", headerNames: ["authorization"] },
+            { id: "anonymous", headerNames: [] },
+          ],
+          resolveCredentials: resolve,
+        }),
+      });
+      const rawRequestTarget = Uint8Array.from([47, octet, 120]);
+      await expect(execute({ ...exact(), rawRequestTarget })).rejects.toMatchObject({
+        category: "configuration",
+        requestWriteState: "not-started",
+      });
+      expect(resolve).not.toHaveBeenCalled();
+      const result = await execute({ ...exact(), rawRequestTarget, credentialRef: "anonymous" });
+      expect(result.status).toBe(200);
+      expect(resolve).toHaveBeenCalledOnce();
+      expect(wire.subarray(5, 8)).toEqual(Buffer.from(rawRequestTarget));
+      expect(wire.toString()).not.toContain("sentinel-secret");
+    },
+  );
+
+  it("cross-checks credential handles against the actual manifest identifier parser", () => {
+    for (const id of [
+      "a",
+      "a-b.c0",
+      "a".repeat(128),
+      "a".repeat(129),
+      "A",
+      "a_b",
+      "a..b",
+      "-a",
+      "a-",
+      "a\n",
+      "",
+    ]) {
+      let manifestAccepts = true;
+      try {
+        parseExecutableScenarioManifest({ manifestVersion: 1, catalogId: id, scenarios: [] });
+      } catch {
+        manifestAccepts = false;
+      }
+      let handleAccepts = true;
+      try {
+        snapshotExactHttpMode(
+          mode({ defaultCredentialRef: id, credentialHandles: [{ id, headerNames: [] }] }),
+        );
+      } catch {
+        handleAccepts = false;
+      }
+      expect(handleAccepts, id).toBe(manifestAccepts);
+    }
+  });
+
+  it.each(["ordinary", "exact-complete"])(
+    "keeps delayed trailing-byte refusal for %s requests",
+    async (kind) => {
+      const route = await bind(
+        createServer({ allowHalfOpen: true }, (socket) =>
+          socket.once("data", () => {
+            socket.write(responseText);
+            setTimeout(() => socket.end("extra"), 5);
+          }),
+        ),
+      );
+      const execute = createRawHttpExchangeExecutor(route, { exactMode: mode() });
+      const operation =
+        kind === "ordinary"
+          ? execute({ method: "GET", url, headers: {}, signal: new AbortController().signal })
+          : execute(exact());
+      await expect(operation).rejects.toMatchObject({ category: "invalid-body" });
+    },
+  );
+
+  it("labels the collapsed exact compatibility view as last-occurrence while preserving all raw lines", async () => {
+    const route = await bind(
+      createServer((socket) => socket.once("data", () => socket.end(responseText))),
+    );
+    const result = await createRawHttpExchangeExecutor(route, { exactMode: mode() })({
+      ...exact(),
+      raw: {
+        headerLines: [
+          { name: "Idempotency-Key", value: "first" },
+          { name: "idempotency-key", value: "last" },
+        ],
+      },
+    });
+    expect(result.effectiveRequest?.headers["idempotency-key"]).toBe("last");
+    expect(result.effectiveRequest).not.toHaveProperty("headersTransmitted");
+    expect(result.exactRequest?.headerLines.slice(0, 2)).toEqual([
+      { name: "Idempotency-Key", value: "first" },
+      { name: "idempotency-key", value: "last" },
+    ]);
+  });
+
+  it("does not allow a Read exact-body probe to act as a mutation lane", async () => {
+    await expect(
+      createRawHttpExchangeExecutor(deadRoute(), { exactMode: mode({ profile: "read" }) })(exact()),
+    ).rejects.toMatchObject({ category: "configuration", requestWriteState: "not-started" });
+  });
+});
+
+function createHashForTest(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import type { ExactHttpConfiguration } from "./raw-http-scenario-target.js";
 import {
   observedEntityTag,
   ObservedEntityTagError,
@@ -18,7 +20,10 @@ import type {
   ScenarioQueryValue,
   ScenarioRequest,
 } from "./executable-manifest.js";
-import { materializeScenarioRawRequestTarget } from "./executable-manifest.js";
+import {
+  materializeScenarioRawRequestTarget,
+  materializeScenarioBody,
+} from "./executable-manifest.js";
 import type {
   ScenarioAction,
   ScenarioActionExecution,
@@ -29,6 +34,11 @@ import {
   type HttpExchangeExecutor,
   type HttpExchangeResponse,
   HttpTransportError,
+  snapshotExactHttpMode,
+  validateExactRunConfiguration,
+  type RawHttpExchangeExecutor,
+  type ExactRequestObservation,
+  type RequestWriteState,
 } from "./http-executor.js";
 import type { SchemaValidator } from "./schema-validator.js";
 import { profileIncludes, selectApplicableScenariosForProfile } from "./selection.js";
@@ -57,7 +67,12 @@ export type ScenarioRunState =
   | "unsupported-profile"
   | "harness-error";
 
-type PrerequisiteFailureCategory = "deadline" | "containment" | "observation-limit";
+type PrerequisiteFailureCategory =
+  | "deadline"
+  | "containment"
+  | "observation-limit"
+  | "exact-configuration"
+  | "exact-observation";
 
 export interface FixturePreparation {
   readonly capabilities: readonly string[];
@@ -75,12 +90,21 @@ export interface ScenarioHarness {
   cleanup(scenario: ExecutableScenario, scope: string, signal: AbortSignal): Promise<void>;
 }
 
+export interface ExactScenarioExecution {
+  /** Pass the executor and captured configuration from the same trusted target. */
+  readonly execute: RawHttpExchangeExecutor;
+  readonly configuration: ExactHttpConfiguration;
+  /** Review approval for fingerprint publication, bound to these exact source bytes. */
+  readonly approvedSyntheticManifestDigest?: string;
+}
+
 export interface ScenarioRunOptions {
   readonly scope: string;
   readonly profile: "read" | "read-update" | "transactional";
   readonly seed: number;
   readonly artifactBundle: ConformanceArtifactBundle;
   readonly execute: HttpExchangeExecutor;
+  readonly exactExecution?: ExactScenarioExecution;
   /** Executes only programmable actions; HTTP remains on the transport executor. */
   readonly actionExecutor?: ScenarioActionExecutor;
   readonly harness: ScenarioHarness;
@@ -111,6 +135,17 @@ export interface AssertionOutcome {
   readonly message?: string;
 }
 
+export interface ExactReportObservation {
+  readonly source: "raw-http1-serializer";
+  readonly writeState: RequestWriteState;
+  readonly headerProjection: "allowlisted-relative-order";
+  readonly headerLines: readonly { readonly name: string; readonly value: "<redacted>" }[];
+  readonly elidedHeaderLines: number;
+  readonly bodyPresent: boolean;
+  readonly bodyOctets: number;
+  readonly bodyDigest?: string;
+}
+
 export interface ObservedExchange {
   readonly request: {
     readonly id: string;
@@ -118,6 +153,7 @@ export interface ObservedExchange {
     readonly url: string;
     readonly headers: Readonly<Record<string, string>>;
     readonly wireHeadersObserved?: true;
+    readonly exact?: ExactReportObservation;
   };
   readonly response?: {
     readonly url: string;
@@ -127,7 +163,16 @@ export interface ObservedExchange {
     readonly wireBodyOctets?: number;
     readonly bodyKind: "empty" | "json" | "invalid-json" | "unrepresentable-json";
   };
-  readonly transportError?: { readonly category: string; readonly message: string };
+  readonly transportError?: {
+    readonly category: string;
+    readonly message: string;
+    readonly writeState?: RequestWriteState;
+  };
+  readonly harnessError?: {
+    readonly category: "exact-configuration" | "exact-observation";
+    readonly message: string;
+    readonly writeState?: RequestWriteState;
+  };
   readonly assertions: readonly AssertionOutcome[];
 }
 
@@ -155,7 +200,9 @@ export interface ScenarioRunResult {
     | "not-run"
     | "observation-limit"
     | "out-of-scope-target"
-    | "wire-observation-unavailable";
+    | "wire-observation-unavailable"
+    | "exact-configuration"
+    | "exact-observation";
   readonly requirements: readonly string[];
   readonly prerequisiteFailure?:
     | {
@@ -178,8 +225,7 @@ export interface ScenarioRunResult {
   readonly actions?: readonly ObservedAction[];
 }
 
-export interface ConformanceRunResult {
-  readonly reportVersion: 3;
+interface ConformanceRunResultBase {
   readonly scope: string;
   readonly profile: ScenarioRunOptions["profile"];
   readonly seed: number;
@@ -196,9 +242,36 @@ export interface ConformanceRunResult {
     /** Caller-supplied label, not cryptographically derived target identity. */
     readonly targetLabel: string;
   };
-  readonly scenarios: readonly ScenarioRunResult[];
   readonly claimEligible: false;
 }
+
+export type LegacyObservedExchange = Omit<
+  ObservedExchange,
+  "request" | "transportError" | "harnessError"
+> & {
+  readonly request: Omit<ObservedExchange["request"], "exact"> & { readonly exact?: never };
+  readonly harnessError?: never;
+  readonly transportError?: {
+    readonly category: string;
+    readonly message: string;
+    readonly writeState?: never;
+  };
+};
+type LegacyScenarioRunResult = Omit<ScenarioRunResult, "exchanges"> & {
+  readonly exchanges: readonly LegacyObservedExchange[];
+};
+export type LegacyConformanceRunResult = ConformanceRunResultBase & {
+  readonly reportVersion: 3;
+  readonly scenarios: readonly LegacyScenarioRunResult[];
+};
+export type ExactConformanceRunResult = ConformanceRunResultBase & {
+  readonly reportVersion: 4;
+  readonly scenarios: readonly ScenarioRunResult[];
+  readonly declarations: ConformanceRunResultBase["declarations"] & {
+    readonly exactConfigurationDigest?: string;
+  };
+};
+export type ConformanceRunResult = LegacyConformanceRunResult | ExactConformanceRunResult;
 
 export class ConformanceRunnerError extends Error {
   constructor(message: string, options: ErrorOptions = {}) {
@@ -267,6 +340,10 @@ export async function runConformanceMatrix(
     // Catalog order is preserved: the selection names membership, not sequence.
     selected = metadata.filter(({ id }) => requested.has(id));
   }
+  preflightExactPlans(
+    selected.flatMap(({ id }) => byId.get(id) ?? []),
+    runOptions,
+  );
   const results: ScenarioRunResult[] = [];
   const resultsById = new Map<string, ScenarioRunResult>();
   for (const [index, scenario] of selected.entries()) {
@@ -288,8 +365,7 @@ export async function runConformanceMatrix(
       break;
     }
   }
-  return {
-    reportVersion: 3,
+  const common = {
     scope: runOptions.scope,
     profile: runOptions.profile,
     seed: runOptions.seed,
@@ -301,10 +377,36 @@ export async function runConformanceMatrix(
       ? {}
       : { scenarioSelection: runOptions.scenarioSelection }),
     artifacts: runOptions.artifactBundle.digests,
-    declarations: { targetLabel: runOptions.declaredTargetLabel },
-    scenarios: results,
-    claimEligible: false,
+    declarations: {
+      targetLabel: runOptions.declaredTargetLabel,
+      ...(runOptions.artifactBundle.manifest.manifestVersion === 2 &&
+      runOptions.exactExecution !== undefined
+        ? { exactConfigurationDigest: exactConfigurationDigest(runOptions.exactExecution) }
+        : {}),
+    },
+    claimEligible: false as const,
   };
+  if (runOptions.artifactBundle.manifest.manifestVersion === 2)
+    return { ...common, reportVersion: 4, scenarios: results };
+  const legacy = results.map((scenario) => {
+    assertLegacyScenario(scenario);
+    return scenario;
+  });
+  return { ...common, reportVersion: 3, scenarios: legacy };
+}
+
+function assertLegacyScenario(
+  scenario: ScenarioRunResult,
+): asserts scenario is ScenarioRunResult & LegacyScenarioRunResult {
+  for (const exchange of scenario.exchanges) {
+    if (
+      Object.hasOwn(exchange.request, "exact") ||
+      Object.hasOwn(exchange, "harnessError") ||
+      (exchange.transportError !== undefined &&
+        Object.hasOwn(exchange.transportError, "writeState"))
+    )
+      throw new ConformanceRunnerError("exact observations cannot enter a legacy report");
+  }
 }
 
 function mustStopMatrixAfter(result: ScenarioRunResult): boolean {
@@ -320,6 +422,8 @@ function mustStopMatrixAfter(result: ScenarioRunResult): boolean {
     case "cleanup":
     case "deadline":
     case "out-of-scope-target":
+    case "exact-configuration":
+    case "exact-observation":
       return true;
     case undefined:
     case "not-implemented":
@@ -343,6 +447,7 @@ function snapshotRunOptions(options: ScenarioRunOptions): ScenarioRunOptions {
     artifactBundle,
     execute,
     actionExecutor,
+    exactExecution,
     harness,
     schemaValidator,
     scenarioFilter,
@@ -361,6 +466,9 @@ function snapshotRunOptions(options: ScenarioRunOptions): ScenarioRunOptions {
     execute,
     harness,
     declaredTargetLabel,
+    ...(exactExecution === undefined
+      ? {}
+      : { exactExecution: snapshotExactExecution(exactExecution) }),
     ...(schemaValidator === undefined ? {} : { schemaValidator }),
     ...(actionExecutor === undefined ? {} : { actionExecutor }),
     ...(scenarioFilter === undefined ? {} : { scenarioFilter }),
@@ -401,7 +509,7 @@ async function runScenario(
   const exchanges: ObservedExchange[] = [];
   const actions: ObservedAction[] = [];
   let fixturePreparationSettled = true;
-  const actionSettlement = { settled: true, description: "HTTP exchange" };
+  const actionSettlement: ActionSettlement = { settled: true, description: "HTTP exchange" };
   let runResult: ScenarioRunResult;
   try {
     if (controller.signal.aborted)
@@ -500,6 +608,7 @@ async function runScenario(
             options.requestTimeoutMs ?? 30_000,
             actionSettlement,
             priorResponses,
+            options,
           );
         } catch (error) {
           if (action.prerequisiteScenario !== undefined)
@@ -556,6 +665,15 @@ async function runScenario(
         error.message,
         exchanges,
         "out-of-scope-target",
+      );
+    else if (error instanceof ExactHarnessError)
+      runResult = result(
+        metadata,
+        scenario,
+        "harness-error",
+        error.message,
+        exchanges,
+        error.category,
       );
     else if (error instanceof ScenarioObservationFailure)
       runResult = result(metadata, scenario, "fail", error.message, exchanges);
@@ -626,7 +744,15 @@ async function runScenario(
         : `cleanup skipped because an ${actionSettlement.description} did not settle`,
     };
   }
-  const cleanupDeadline = createDeadlineSignal(options.cleanupTimeoutMs ?? 10_000);
+  const cleanupRemaining =
+    actionSettlement.cleanupEndsAt === undefined
+      ? (options.cleanupTimeoutMs ?? 10_000)
+      : actionSettlement.cleanupEndsAt - performance.now();
+  if (cleanupRemaining <= 0) {
+    detach();
+    return { ...runResult, cleanupError: "cleanup budget exhausted collecting exact settlement" };
+  }
+  const cleanupDeadline = createDeadlineSignal(cleanupRemaining);
   const cleanupSignal = cleanupDeadline.signal;
   try {
     await enforceDeadline(
@@ -668,8 +794,9 @@ async function runScenarioAction(
   runProfile: ScenarioRunOptions["profile"],
   signal: AbortSignal,
   timeoutMs: number,
-  settlement: { settled: boolean; description: string },
+  settlement: ActionSettlement,
   priorResponses: Map<string, ComparableResponse>,
+  options: ScenarioRunOptions,
 ): Promise<void> {
   if (action.family === "http") {
     await runRequest(
@@ -685,6 +812,7 @@ async function runScenarioAction(
       timeoutMs,
       settlement,
       priorResponses,
+      options,
     );
     return;
   }
@@ -833,14 +961,19 @@ async function runRequest(
   runProfile: ScenarioRunOptions["profile"],
   signal: AbortSignal,
   requestTimeoutMs: number,
-  settlement: { settled: boolean },
+  settlement: ActionSettlement,
   priorResponses: Map<string, ComparableResponse>,
+  options: ScenarioRunOptions,
 ): Promise<void> {
   const url = resolveTarget(request, bindings, scope);
+  const exact = request.raw !== undefined;
+  const reportVersion = options.artifactBundle.manifest.manifestVersion === 2 ? 4 : 3;
+  let body: Uint8Array | undefined;
   let headers: Readonly<Record<string, string>>;
   try {
-    headers = resolveScenarioHeaders(request.headers ?? {}, priorResponses);
+    headers = exact ? {} : resolveScenarioHeaders(request.headers ?? {}, priorResponses);
   } catch (error) {
+    if (error instanceof ExactHarnessError) throw error;
     if (error instanceof ObservedEntityTagError)
       throw new ScenarioObservationFailure(error.message, { cause: error });
     throw new ConformanceRunnerError("conditional request header materialization failed", {
@@ -852,7 +985,7 @@ async function runRequest(
       id: request.id,
       method: request.method,
       url: redactUrl(url),
-      headers: redactHeaders(headers),
+      headers: redactHeaders(headers, reportVersion),
     },
     assertions: [],
   };
@@ -868,19 +1001,45 @@ async function runRequest(
     }
   }
   let response: HttpExchangeResponse;
+  const requestEndsAt = performance.now() + requestTimeoutMs;
   const requestDeadline = createDeadlineSignal(requestTimeoutMs);
   const requestSignal = AbortSignal.any([signal, requestDeadline.signal]);
+  let terminalWitness: Promise<RequestWriteState | undefined> | undefined;
+  let capturedExact: ExactRequestObservation | undefined;
   try {
+    if (exact) body = prepareExactRequest(request, options, url);
+    else if (reportVersion === 4 && runProfile !== "read") {
+      try {
+        if (options.exactExecution === undefined) throw new Error();
+        validateExactRunConfiguration(options.exactExecution.configuration, url, request.method);
+      } catch {
+        throw new ExactHarnessError("exact-configuration");
+      }
+    }
     settlement.settled = false;
     const executionOperation = Promise.resolve()
       .then(() =>
-        execute({
-          method: request.method,
-          url,
-          headers,
-          signal: requestSignal,
-          ...(rawRequestTarget === undefined ? {} : { rawRequestTarget }),
-        }),
+        exact && request.raw !== undefined && options.exactExecution !== undefined
+          ? options.exactExecution.execute({
+              method: request.method,
+              url,
+              signal: requestSignal,
+              raw: {
+                headerLines: request.raw.headerLines,
+                ...(body === undefined ? {} : { bodyBytes: Uint8Array.from(body) }),
+              },
+              ...(request.credentialRef === undefined
+                ? {}
+                : { credentialRef: request.credentialRef }),
+              ...(rawRequestTarget === undefined ? {} : { rawRequestTarget }),
+            })
+          : execute({
+              method: request.method,
+              url,
+              headers,
+              signal: requestSignal,
+              ...(rawRequestTarget === undefined ? {} : { rawRequestTarget }),
+            }),
       )
       .then(
         (value) => {
@@ -892,26 +1051,85 @@ async function runRequest(
           throw error;
         },
       );
+    if (exact)
+      terminalWitness = executionOperation.then(
+        (value) => {
+          try {
+            capturedExact = snapshotExactObservation(value, options.exactExecution?.configuration);
+            return capturedExact.writeState;
+          } catch {
+            return undefined;
+          }
+        },
+        (error: unknown) => observedErrorWriteState(error),
+      );
     response = await enforceDeadline(executionOperation, requestSignal, () =>
       signal.aborted
         ? new HttpTransportError("abort", "HTTP exchange was aborted")
         : new HttpTransportError("timeout", "HTTP exchange timed out"),
     );
+    if (exact && performance.now() >= requestEndsAt) {
+      requestDeadline.expire();
+      throw new HttpTransportError("timeout", "HTTP exchange timed out");
+    }
   } catch (error) {
     const transport = signal.aborted
       ? new HttpTransportError("abort", "HTTP exchange was aborted", { cause: error })
       : requestDeadline.signal.aborted
         ? new HttpTransportError("timeout", "HTTP exchange timed out", { cause: error })
-        : error instanceof HttpTransportError
-          ? error
-          : new HttpTransportError("network", "HTTP exchange failed", { cause: error });
+        : error instanceof ExactHarnessError
+          ? new HttpTransportError(
+              "configuration",
+              "Exact HTTP configuration was refused",
+              {},
+              "not-started",
+            )
+          : error instanceof HttpTransportError
+            ? error
+            : new HttpTransportError("network", "HTTP exchange failed", { cause: error });
+    let writeState = exact ? observedErrorWriteState(error) : undefined;
+    if (
+      exact &&
+      (signal.aborted || requestDeadline.signal.aborted) &&
+      terminalWitness !== undefined
+    ) {
+      settlement.cleanupEndsAt ??= performance.now() + (options.cleanupTimeoutMs ?? 10_000);
+      writeState = await collectExactWitness(terminalWitness, settlement.cleanupEndsAt);
+    }
+    if ((exact || error instanceof ExactHarnessError) && transport.category === "configuration") {
+      exchanges[exchanges.length - 1] = {
+        ...observed,
+        harnessError: {
+          category: "exact-configuration",
+          message: "Exact HTTP configuration was refused",
+          ...(writeState === undefined ? {} : { writeState }),
+        },
+      };
+      throw new ExactHarnessError("exact-configuration");
+    }
     exchanges[exchanges.length - 1] = {
       ...observed,
+      ...(exact && writeState === undefined
+        ? {
+            harnessError: {
+              category: "exact-observation" as const,
+              message: "Exact HTTP write-state evidence was unavailable",
+            },
+          }
+        : {}),
       transportError: {
         category: transport.category,
         message: transportFailureMessage(transport.category),
+        ...(writeState === undefined ? {} : { writeState }),
       },
     };
+    if (
+      exact &&
+      writeState === undefined &&
+      transport.category !== "abort" &&
+      transport.category !== "timeout"
+    )
+      throw new ExactHarnessError("exact-observation");
     throw transport;
   } finally {
     requestDeadline.clear();
@@ -947,9 +1165,10 @@ async function runRequest(
     throw new ConformanceRunnerError(
       "HTTP executor body-octet count did not match its decoded response body",
     );
-  const effectiveRequest = response.effectiveRequest;
+  // The exact snapshot owns header evidence; do not reread a lossy compatibility view.
+  const effectiveRequest = exact ? undefined : response.effectiveRequest;
   if (effectiveRequest !== undefined) assertEffectiveRequest(effectiveRequest, url, scope);
-  const next: ObservedExchange = {
+  let next: ObservedExchange = {
     ...observed,
     ...(effectiveRequest === undefined
       ? {}
@@ -957,8 +1176,8 @@ async function runRequest(
           request: {
             ...observed.request,
             url: redactUrl(effectiveRequest.url),
-            headers: redactHeaders(effectiveRequest.headers),
-            ...(effectiveRequest.headersTransmitted === true
+            headers: redactHeaders(effectiveRequest.headers, reportVersion),
+            ...(!exact && effectiveRequest.headersTransmitted === true
               ? { wireHeadersObserved: true as const }
               : {}),
           },
@@ -966,7 +1185,7 @@ async function runRequest(
     response: {
       url: redactUrl(response.url),
       status: response.status,
-      headers: redactHeaders(responseHeaders),
+      headers: redactHeaders(responseHeaders, reportVersion),
       decodedBodyBytes: new TextEncoder().encode(response.bodyText).byteLength,
       ...(response.bodyOctets === undefined ? {} : { wireBodyOctets: response.bodyOctets }),
       bodyKind: bodyObservation.kind,
@@ -977,12 +1196,67 @@ async function runRequest(
     if (bodyObservation.attribution === "runner-limit")
       throw new ScenarioObservationLimitError(bodyObservation.reason);
   }
+  let exactObservation: ExactRequestObservation | undefined;
+  let exactFailure = false;
+  if (exact) {
+    try {
+      if (response.url !== url || capturedExact === undefined)
+        throw new ExactHarnessError("exact-observation");
+      next = {
+        ...next,
+        request: {
+          ...next.request,
+          exact: projectExactObservation(capturedExact, body, options),
+        },
+      };
+      exactObservation = capturedExact;
+    } catch {
+      exactFailure = true;
+      next = {
+        ...next,
+        harnessError: {
+          category: "exact-observation",
+          message: "Exact HTTP observation was unavailable or malformed",
+        },
+      };
+    }
+  }
+  const assertionResponse: HttpExchangeResponse = {
+    url: response.url,
+    status: response.status,
+    bodyText: response.bodyText,
+    headers: responseHeaders,
+    ...(response.bodyOctets === undefined ? {} : { bodyOctets: response.bodyOctets }),
+    ...(effectiveRequest === undefined ? {} : { effectiveRequest }),
+  };
+  const exactWitness = exact
+    ? {
+        request,
+        url,
+        body,
+        observation: exactObservation,
+        configuration: options.exactExecution?.configuration,
+      }
+    : undefined;
+  const corsWitnessFailure =
+    exactWitness !== undefined &&
+    request.assertions.some(
+      (assertion) =>
+        assertion.kind === "header" &&
+        assertion.absent === true &&
+        assertion.name.startsWith("access-control-"),
+    )
+      ? exactCorsWitnessFailure(exactWitness)
+      : undefined;
   const outcomes = request.assertions.map(
     (assertion) =>
+      (assertion.kind.startsWith("request-")
+        ? evaluateExactAssertion(assertion, request, url, body, exactObservation, options)
+        : undefined) ??
       wireOutcomes.get(assertion.id) ??
       evaluateAssertion(
         assertion,
-        { ...response, headers: responseHeaders },
+        assertionResponse,
         bodyObservation,
         schemaValidator,
         fixture,
@@ -990,9 +1264,13 @@ async function runRequest(
         runProfile,
         priorResponses,
         headers,
+        exactWitness,
       ),
   );
   exchanges[exchanges.length - 1] = { ...next, assertions: outcomes };
+  if (exactFailure) throw new ExactHarnessError("exact-observation");
+  if (corsWitnessFailure !== undefined)
+    throw new ScenarioWireObservationUnavailableError(corsWitnessFailure);
   if (outcomes.some(({ passed }) => !passed))
     throw new ScenarioAssertionFailure(
       outcomes
@@ -1001,14 +1279,440 @@ async function runRequest(
         .join("; "),
     );
   for (const capture of request.captures)
-    bindings.set(
-      capture.binding,
-      captureValue(capture, { ...response, headers: responseHeaders }, bodyObservation, scope),
-    );
+    bindings.set(capture.binding, captureValue(capture, assertionResponse, bodyObservation, scope));
   priorResponses.set(request.id, {
     status: response.status,
     headers: responseHeaders,
   });
+}
+
+interface ActionSettlement {
+  settled: boolean;
+  description: string;
+  cleanupEndsAt?: number;
+}
+class ExactHarnessError extends ConformanceRunnerError {
+  constructor(readonly category: "exact-configuration" | "exact-observation") {
+    super(
+      category === "exact-configuration"
+        ? "Exact HTTP configuration was refused"
+        : "Exact HTTP observation was unavailable or malformed",
+    );
+  }
+}
+
+function exactData(value: unknown, allowed?: readonly string[]): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    throw new ExactHarnessError("exact-observation");
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null)
+    throw new ExactHarnessError("exact-observation");
+  const result: Record<string, unknown> = Object.create(null);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      typeof key !== "string" ||
+      descriptor === undefined ||
+      !("value" in descriptor) ||
+      !descriptor.enumerable ||
+      (allowed !== undefined && !allowed.includes(key))
+    )
+      throw new ExactHarnessError("exact-observation");
+    result[key] = descriptor.value;
+  }
+  return result;
+}
+
+function snapshotExactExecution(value: ExactScenarioExecution): ExactScenarioExecution {
+  try {
+    const input = exactData(value, ["execute", "configuration", "approvedSyntheticManifestDigest"]);
+    if (typeof input.execute !== "function") throw new Error();
+    const mode = snapshotExactHttpMode({
+      ...exactData(input.configuration, [
+        "scope",
+        "profile",
+        "routes",
+        "maximumRequestHeaderBytes",
+        "maximumRequestBodyBytes",
+        "defaultCredentialRef",
+        "credentialHandles",
+      ]),
+      resolveCredentials: () => ({}),
+    } as unknown as Parameters<typeof snapshotExactHttpMode>[0]);
+    const { resolveCredentials: _resolver, ...configuration } = mode;
+    const approval = input.approvedSyntheticManifestDigest;
+    if (
+      approval !== undefined &&
+      (typeof approval !== "string" || !/^[a-f0-9]{64}$/.test(approval))
+    )
+      throw new Error();
+    return Object.freeze({
+      execute: input.execute as RawHttpExchangeExecutor,
+      configuration: Object.freeze(configuration),
+      ...(approval === undefined ? {} : { approvedSyntheticManifestDigest: approval }),
+    });
+  } catch {
+    throw new ConformanceRunnerError("Exact HTTP execution binding is invalid");
+  }
+}
+
+function exactConfigurationDigest(binding: ExactScenarioExecution): string {
+  const config = binding.configuration;
+  return createHash("sha256")
+    .update(
+      JSON.stringify(
+        sortJsonValue({
+          scope: config.scope,
+          profile: config.profile,
+          routes: config.routes,
+          maximumRequestHeaderBytes: config.maximumRequestHeaderBytes,
+          maximumRequestBodyBytes: config.maximumRequestBodyBytes,
+          ...(binding.approvedSyntheticManifestDigest === undefined
+            ? {}
+            : { approvedSyntheticManifestDigest: binding.approvedSyntheticManifestDigest }),
+        }),
+      ),
+    )
+    .digest("hex");
+}
+
+function preflightExactPlans(
+  plans: readonly ExecutableScenario[],
+  options: ScenarioRunOptions,
+): void {
+  try {
+    const exactRequests = plans
+      .flatMap(scenarioActionSequence)
+      .filter(
+        (action) =>
+          action.family === "http" && (action.raw !== undefined || options.profile !== "read"),
+      );
+    if (exactRequests.length === 0) return;
+    if (options.artifactBundle.manifest.manifestVersion !== 2) throw new Error();
+    const binding = options.exactExecution;
+    if (
+      binding === undefined ||
+      binding.configuration.scope !== options.scope ||
+      binding.configuration.profile !== options.profile
+    )
+      throw new Error();
+    if (
+      binding.approvedSyntheticManifestDigest !== undefined &&
+      binding.approvedSyntheticManifestDigest !== options.artifactBundle.digests.manifestDigest
+    )
+      throw new Error();
+    const known = new Map<string, JsonValue>([
+      ["scope", options.scope],
+      ...Object.entries(options.artifactBundle.fixture.bindings),
+    ]);
+    for (const action of exactRequests) {
+      if (action.family !== "http") continue;
+      if (action.raw !== undefined) prepareExactRequest(action, options);
+      // Bound fixture bindings must match preparation; future captures remain dynamic.
+      if (
+        known.has(action.target.binding) &&
+        Object.values(action.target.query ?? {}).every(
+          (value) =>
+            typeof value === "string" || isRepeatedQueryKey(value) || known.has(value.binding),
+        )
+      )
+        validateExactRunConfiguration(
+          binding.configuration,
+          resolveTarget(action, known, options.scope),
+          action.method,
+        );
+    }
+  } catch {
+    throw new ConformanceRunnerError(
+      "Selected exact HTTP requests do not match the configured execution boundary",
+    );
+  }
+}
+
+function prepareExactRequest(
+  request: ScenarioRequest,
+  options: ScenarioRunOptions,
+  url?: string,
+): Uint8Array | undefined {
+  try {
+    const config = options.exactExecution?.configuration;
+    if (
+      config === undefined ||
+      request.raw === undefined ||
+      config.scope !== options.scope ||
+      config.profile !== options.profile
+    )
+      throw new Error();
+    if (url !== undefined) validateExactRunConfiguration(config, url, request.method);
+    const ref = request.credentialRef ?? config.defaultCredentialRef;
+    if (!config.credentialHandles.some(({ id }) => id === ref)) throw new Error();
+    let authoredBytes = 2;
+    for (const line of request.raw.headerLines) {
+      authoredBytes += line.name.length + line.value.length + 4;
+      if (authoredBytes > config.maximumRequestHeaderBytes) throw new Error();
+    }
+    if (request.raw.body === undefined) return undefined;
+    if (options.profile === "read") throw new Error();
+    return materializeScenarioBody(request.raw.body, config.maximumRequestBodyBytes);
+  } catch {
+    throw new ExactHarnessError("exact-configuration");
+  }
+}
+
+function isWriteState(value: unknown): value is RequestWriteState {
+  return (
+    value === "not-started" || value === "started-completion-unestablished" || value === "complete"
+  );
+}
+function observedErrorWriteState(error: unknown): RequestWriteState | undefined {
+  try {
+    if (!(error instanceof HttpTransportError)) return undefined;
+    const field = Object.getOwnPropertyDescriptor(error, "requestWriteState");
+    return field !== undefined && "value" in field && isWriteState(field.value)
+      ? field.value
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+async function collectExactWitness(
+  witness: Promise<RequestWriteState | undefined>,
+  endsAt: number,
+): Promise<RequestWriteState | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      witness,
+      new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), Math.max(0, endsAt - performance.now()));
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+function snapshotExactObservation(
+  response: HttpExchangeResponse,
+  config: ExactHttpConfiguration | undefined,
+): ExactRequestObservation {
+  if (config === undefined) throw new ExactHarnessError("exact-observation");
+  const field = Object.getOwnPropertyDescriptor(response, "exactRequest");
+  const observed = exactData(field !== undefined && "value" in field ? field.value : undefined, [
+    "source",
+    "headerLines",
+    "bodyPresent",
+    "bodyOctets",
+    "bodyDigest",
+    "writeState",
+  ]);
+  const effectiveField = Object.getOwnPropertyDescriptor(response, "effectiveRequest");
+  if (effectiveField !== undefined) {
+    if (!("value" in effectiveField)) throw new ExactHarnessError("exact-observation");
+    const effective = exactData(effectiveField.value, ["url", "headers", "headersTransmitted"]);
+    if (effective.headersTransmitted !== undefined || effective.url !== response.url)
+      throw new ExactHarnessError("exact-observation");
+    for (const value of Object.values(exactData(effective.headers)))
+      if (typeof value !== "string") throw new ExactHarnessError("exact-observation");
+  }
+  if (
+    observed.source !== "raw-http1-serializer" ||
+    !isWriteState(observed.writeState) ||
+    observed.writeState === "not-started" ||
+    typeof observed.bodyPresent !== "boolean" ||
+    typeof observed.bodyOctets !== "number" ||
+    !Number.isSafeInteger(observed.bodyOctets) ||
+    observed.bodyOctets < 0 ||
+    observed.bodyOctets > config.maximumRequestBodyBytes
+  )
+    throw new ExactHarnessError("exact-observation");
+  if (
+    observed.bodyPresent
+      ? typeof observed.bodyDigest !== "string" || !/^[a-f0-9]{64}$/.test(observed.bodyDigest)
+      : observed.bodyOctets !== 0 || Object.hasOwn(observed, "bodyDigest")
+  )
+    throw new ExactHarnessError("exact-observation");
+  const lines = observed.headerLines;
+  if (!Array.isArray(lines) || lines.length > config.maximumRequestHeaderBytes / 4)
+    throw new ExactHarnessError("exact-observation");
+  if (Reflect.ownKeys(lines).length !== lines.length + 1)
+    throw new ExactHarnessError("exact-observation");
+  const headerLines: { readonly name: string; readonly value: string }[] = [];
+  let count = 2;
+  for (let index = 0; index < lines.length; index++) {
+    const entry = Object.getOwnPropertyDescriptor(lines, String(index));
+    const line = exactData(
+      entry !== undefined && "value" in entry && entry.enumerable ? entry.value : undefined,
+      ["name", "value"],
+    );
+    if (typeof line.name !== "string" || typeof line.value !== "string")
+      throw new ExactHarnessError("exact-observation");
+    count += line.name.length + line.value.length + 4;
+    if (
+      count > config.maximumRequestHeaderBytes ||
+      !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(line.name) ||
+      !/^[\t\x20-\x7e\x80-\xff]*$/.test(line.value)
+    )
+      throw new ExactHarnessError("exact-observation");
+    headerLines.push(Object.freeze({ name: line.name, value: line.value }));
+  }
+  return Object.freeze({
+    source: "raw-http1-serializer",
+    writeState: observed.writeState,
+    headerLines: Object.freeze(headerLines),
+    bodyPresent: observed.bodyPresent,
+    bodyOctets: observed.bodyOctets,
+    ...(observed.bodyPresent ? { bodyDigest: observed.bodyDigest as string } : {}),
+  });
+}
+
+function projectExactObservation(
+  observed: ExactRequestObservation,
+  body: Uint8Array | undefined,
+  options: ScenarioRunOptions,
+): ExactReportObservation {
+  const headerLines = observed.headerLines
+    .filter(({ name }) => EXACT_REPORT_HEADER_NAMES.has(name.toLowerCase()))
+    .map(({ name }) => ({ name, value: "<redacted>" as const }));
+  return {
+    source: observed.source,
+    writeState: observed.writeState,
+    headerProjection: "allowlisted-relative-order",
+    headerLines,
+    elidedHeaderLines: observed.headerLines.length - headerLines.length,
+    bodyPresent: observed.bodyPresent,
+    bodyOctets: observed.bodyOctets,
+    ...(options.exactExecution?.approvedSyntheticManifestDigest ===
+      options.artifactBundle.digests.manifestDigest &&
+    body !== undefined &&
+    observed.bodyPresent &&
+    observed.bodyOctets === body.byteLength &&
+    observed.bodyDigest === createHash("sha256").update(body).digest("hex")
+      ? { bodyDigest: observed.bodyDigest }
+      : {}),
+  };
+}
+
+function exactHeadersMatch(
+  request: ScenarioRequest,
+  url: string,
+  body: Uint8Array | undefined,
+  observed: ExactRequestObservation,
+  config: ExactHttpConfiguration,
+): boolean {
+  const authored = request.raw?.headerLines;
+  if (authored === undefined) return false;
+  const actual = observed.headerLines;
+  for (const [index, line] of authored.entries())
+    if (actual[index]?.name !== line.name || actual[index]?.value !== line.value) return false;
+  let index = authored.length;
+  const handle = config.credentialHandles.find(
+    ({ id }) => id === (request.credentialRef ?? config.defaultCredentialRef),
+  );
+  if (handle === undefined) return false;
+  const names = new Set<string>();
+  for (let n = 0; n < handle.headerNames.length; n++) {
+    const line = actual[index++];
+    if (
+      line === undefined ||
+      !handle.headerNames.includes(line.name.toLowerCase()) ||
+      names.has(line.name.toLowerCase())
+    )
+      return false;
+    names.add(line.name.toLowerCase());
+  }
+  const expected = (
+    [
+      ["Accept", "*/*"],
+      ["Accept-Language", "*"],
+      ["Accept-Encoding", "identity"],
+      ["User-Agent", "bdp-conformance/0"],
+    ] as const
+  ).filter(
+    ([name]) =>
+      !authored.some((line) => line.name.toLowerCase() === name.toLowerCase()) &&
+      !names.has(name.toLowerCase()),
+  );
+  const generated: readonly (readonly [string, string])[] = [
+    ...expected,
+    ["Host", new URL(url).host],
+    ["Connection", "close"],
+    ...(body === undefined ? [] : [["Content-Length", String(body.byteLength)] as const]),
+  ];
+  for (const [name, value] of generated) {
+    const line = actual[index++];
+    if (line?.name !== name || line.value !== value) return false;
+  }
+  return index === actual.length;
+}
+
+interface ExactHeaderWitness {
+  readonly request: ScenarioRequest;
+  readonly url: string;
+  readonly body: Uint8Array | undefined;
+  readonly observation: ExactRequestObservation | undefined;
+  readonly configuration: ExactHttpConfiguration | undefined;
+}
+
+/** CORS absence needs an actual, complete request with unambiguous source fields. */
+function exactCorsWitnessFailure(witness: ExactHeaderWitness): string | undefined {
+  const { request, url, body, observation, configuration } = witness;
+  if (
+    observation?.writeState !== "complete" ||
+    configuration === undefined ||
+    !exactHeadersMatch(request, url, body, observation, configuration)
+  )
+    return "CORS-header absence assertion requires complete matching exact request headers";
+  const origins =
+    request.raw?.headerLines.filter(({ name }) => name.toLowerCase() === "origin") ?? [];
+  if (origins.length !== 1 || origins[0]?.value.length === 0)
+    return "CORS-header absence assertion requires matching nonempty Origin evidence";
+  const methods =
+    request.raw?.headerLines.filter(
+      ({ name }) => name.toLowerCase() === "access-control-request-method",
+    ) ?? [];
+  if (methods.length > 1 || methods[0]?.value.length === 0)
+    return "CORS-header absence assertion requires matching nonempty Access-Control-Request-Method evidence";
+  return undefined;
+}
+
+function evaluateExactAssertion(
+  assertion: ScenarioAssertion,
+  request: ScenarioRequest,
+  url: string,
+  body: Uint8Array | undefined,
+  observed: ExactRequestObservation | undefined,
+  options: ScenarioRunOptions,
+): AssertionOutcome | undefined {
+  if (
+    assertion.kind !== "request-authored-headers" &&
+    assertion.kind !== "request-authored-body" &&
+    assertion.kind !== "request-write-state"
+  )
+    return undefined;
+  if (observed === undefined)
+    return outcome(assertion.id, false, "Exact HTTP observation was unavailable");
+  if (assertion.kind === "request-write-state")
+    return outcome(
+      assertion.id,
+      assertion.equals === observed.writeState,
+      "Exact HTTP write state did not match",
+    );
+  if (observed.writeState !== "complete")
+    return outcome(assertion.id, false, "Exact HTTP request write completion was not established");
+  const matches =
+    assertion.kind === "request-authored-body"
+      ? observed.bodyPresent === (body !== undefined) &&
+        observed.bodyOctets === (body?.byteLength ?? 0) &&
+        observed.bodyDigest ===
+          (body === undefined ? undefined : createHash("sha256").update(body).digest("hex"))
+      : options.exactExecution !== undefined &&
+        exactHeadersMatch(request, url, body, observed, options.exactExecution.configuration);
+  return outcome(
+    assertion.id,
+    matches,
+    "Exact HTTP authored request did not match the observation",
+  );
 }
 
 interface ComparableResponse {
@@ -1096,7 +1800,14 @@ function evaluateAssertion(
   runProfile: ScenarioRunOptions["profile"],
   priorResponses: ReadonlyMap<string, ComparableResponse>,
   requestedHeaders: Readonly<Record<string, string>>,
+  exactWitness?: ExactHeaderWitness,
 ): AssertionOutcome {
+  if (
+    assertion.kind === "request-authored-body" ||
+    assertion.kind === "request-authored-headers" ||
+    assertion.kind === "request-write-state"
+  )
+    return outcome(assertion.id, false, "exact HTTP observation required");
   if (assertion.kind === "wire-not-contains")
     throw new ConformanceRunnerError("raw-wire assertion was not evaluated before normalization");
   if (assertion.kind === "status") {
@@ -1110,23 +1821,32 @@ function evaluateAssertion(
   }
   if (assertion.kind === "header") {
     if (assertion.absent === true && assertion.name.startsWith("access-control-")) {
-      const requestedOrigin = requestedHeaders.origin;
-      if (requestedOrigin === undefined || requestedOrigin.length === 0)
-        throw new ScenarioWireObservationUnavailableError(
-          "CORS-header absence assertion requires matching nonempty Origin evidence",
-        );
-      if (response.effectiveRequest?.headersTransmitted !== true)
-        throw new ScenarioWireObservationUnavailableError(
-          "CORS-header absence assertion requires serialized wire-request evidence",
-        );
-      requireMatchingEffectiveHeader(response.effectiveRequest.headers, "origin", requestedOrigin);
-      const requestedPreflightMethod = requestedHeaders["access-control-request-method"];
-      if (requestedPreflightMethod !== undefined)
+      if (exactWitness !== undefined) {
+        const failure = exactCorsWitnessFailure(exactWitness);
+        if (failure !== undefined) return outcome(assertion.id, false, failure);
+      } else {
+        const requestedOrigin = requestedHeaders.origin;
+        if (requestedOrigin === undefined || requestedOrigin.length === 0)
+          throw new ScenarioWireObservationUnavailableError(
+            "CORS-header absence assertion requires matching nonempty Origin evidence",
+          );
+        if (response.effectiveRequest?.headersTransmitted !== true)
+          throw new ScenarioWireObservationUnavailableError(
+            "CORS-header absence assertion requires serialized wire-request evidence",
+          );
         requireMatchingEffectiveHeader(
           response.effectiveRequest.headers,
-          "access-control-request-method",
-          requestedPreflightMethod,
+          "origin",
+          requestedOrigin,
         );
+        const requestedPreflightMethod = requestedHeaders["access-control-request-method"];
+        if (requestedPreflightMethod !== undefined)
+          requireMatchingEffectiveHeader(
+            response.effectiveRequest.headers,
+            "access-control-request-method",
+            requestedPreflightMethod,
+          );
+      }
     }
     const actual = response.headers[assertion.name.toLowerCase()];
     if (assertion.absent !== undefined)
@@ -1836,10 +2556,40 @@ function validateRunOptions(options: ScenarioRunOptions): void {
       throw new ConformanceRunnerError(
         `${name} must be an integer from 1 to ${MAX_TIMER_DELAY_MS}`,
       );
-  if (options.artifactBundle.manifest.catalogId === "read-v1" && options.profile !== "read")
+  if (
+    options.artifactBundle.manifest.manifestVersion === 1 &&
+    options.artifactBundle.manifest.catalogId === "read-v1" &&
+    options.profile !== "read"
+  )
     throw new ConformanceRunnerError(
       "read-v1 executable scaffold currently supports targets advertising the Read profile only",
     );
+  if (
+    options.artifactBundle.manifest.manifestVersion === 2 &&
+    options.exactExecution !== undefined &&
+    (options.exactExecution.configuration.scope !== options.scope ||
+      options.exactExecution.configuration.profile !== options.profile)
+  )
+    throw new ConformanceRunnerError(
+      "Version 2 exact configuration must match the run Scope and profile",
+    );
+  if (
+    options.artifactBundle.manifest.manifestVersion === 2 &&
+    options.profile !== "read" &&
+    (options.profile !== "read-update" ||
+      options.exactExecution === undefined ||
+      options.exactExecution.configuration.profile !== options.profile ||
+      options.exactExecution.configuration.scope !== options.scope)
+  )
+    throw new ConformanceRunnerError(
+      "Version 2 non-Read execution requires matching Read+Update configuration",
+    );
+  if (
+    options.exactExecution?.approvedSyntheticManifestDigest !== undefined &&
+    options.exactExecution.approvedSyntheticManifestDigest !==
+      options.artifactBundle.digests.manifestDigest
+  )
+    throw new ConformanceRunnerError("Synthetic body approval does not match the manifest source");
   const catalogIds = new Set(options.artifactBundle.catalog.scenarios.map(({ id }) => id));
   const catalogPositions = new Map(
     options.artifactBundle.catalog.scenarios.map(({ id }, index) => [id, index]),
@@ -2082,6 +2832,7 @@ function prerequisiteRecheckResultReason(
 }
 
 function prerequisiteFailureCategory(error: unknown): PrerequisiteFailureCategory | undefined {
+  if (error instanceof ExactHarnessError) return error.category;
   if (error instanceof ScenarioDeadlineError) return "deadline";
   if (error instanceof HttpTransportError && error.category === "timeout") return "deadline";
   if (error instanceof ScenarioObservationLimitError) return "observation-limit";
@@ -2243,10 +2994,15 @@ function enforceDeadline<T>(
 function createDeadlineSignal(delayMs: number): {
   readonly signal: AbortSignal;
   readonly clear: () => void;
+  readonly expire: () => void;
 } {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), delayMs);
-  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(timer),
+    expire: () => controller.abort(),
+  };
 }
 
 function isHttpUrl(value: string): boolean {
@@ -2294,13 +3050,16 @@ const REPORT_HEADER_NAMES = new Set([
   "www-authenticate",
 ]);
 
+const EXACT_REPORT_HEADER_NAMES = new Set([...REPORT_HEADER_NAMES, "idempotency-key"]);
+
 function redactHeaders(
   headers: Readonly<Record<string, string>>,
+  version: 3 | 4 = 3,
 ): Readonly<Record<string, string>> {
   return Object.fromEntries(
     Object.keys(headers)
       .map((name) => name.toLowerCase())
-      .filter((name) => REPORT_HEADER_NAMES.has(name))
+      .filter((name) => (version === 4 ? EXACT_REPORT_HEADER_NAMES : REPORT_HEADER_NAMES).has(name))
       .map((name) => [name, "<redacted>"] as const)
       .sort(([left], [right]) => compareKeys(left, right)),
   );
