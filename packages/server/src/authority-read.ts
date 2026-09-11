@@ -177,6 +177,8 @@ export interface AuthorityReadFacet {
 export interface AuthorityReadPlane {
   readFor(principal: ReadPrincipal): AuthorityReadFacet;
   readonly closed: Promise<void>;
+  /** Active-entry reentry throws synchronously before cleanup. Ordinary and
+   * repeated calls return the same fixed closed Promise. */
   close(): Promise<void>;
 }
 
@@ -294,15 +296,7 @@ function snapshotRequest(value: unknown): ReadRequest {
   const variant = resolveReadRequestVariant(request);
   if (variant === undefined)
     throw new AuthorityReadError("invalid-input", "unsupported Read request shape");
-  const required =
-    request.kind === "scope-discovery"
-      ? ["scope"]
-      : request.kind === "collection"
-        ? ["collection"]
-        : request.kind === "bead-links"
-          ? ["bead"]
-          : ["resource", "id"];
-  for (const field of ["kind", ...required]) {
+  for (const field of variant.required) {
     if (typeof request[field] !== "string")
       throw new AuthorityReadError("invalid-input", `Read request requires own ${field}`);
   }
@@ -464,10 +458,15 @@ function captureContext(
 }
 
 function preContext(problem: ReadProblem): ReadRefusal {
-  return Object.freeze({ kind: "problem", phase: "pre-context", problem });
+  return Object.freeze({ kind: "problem", phase: "pre-context", problem: Object.freeze(problem) });
 }
 function observed(problem: ReadProblem, observation: ReadObservation): ReadRefusal {
-  return Object.freeze({ kind: "problem", phase: "observed", problem, observation });
+  return Object.freeze({
+    kind: "problem",
+    phase: "observed",
+    problem: Object.freeze(problem),
+    observation,
+  });
 }
 
 /** Catch only actual control work, never the enclosing provider or store call. */
@@ -532,8 +531,17 @@ function checkedGraph(reader: StoreReader, scope: AbsoluteHttpUrl) {
     const uri = referenceUri(reference);
     return validateServerEndpoint(reference, scope) ? uri.slice(scope.length) : uri;
   };
-  const accept = (row: StoredResource, expected?: string): CheckedRecord => {
-    synchronous(row);
+  const accept = (returned: StoredResource, expected?: string): CheckedRecord => {
+    synchronous(returned);
+    // All checks and the cache use this one capture of declared row primitives;
+    // this does not qualify arbitrary accessors or the coherence of unseen rows.
+    const row = Object.freeze({
+      id: returned.id,
+      kind: returned.kind,
+      bodyJson: returned.bodyJson,
+      source: returned.source,
+      target: returned.target,
+    }) as StoredResource;
     if (expected !== undefined && row.id !== expected)
       integrity("point row differs from requested identity");
     if (row.kind !== "bead" && row.kind !== "link") integrity("unknown stored Resource kind");
@@ -563,8 +571,7 @@ function checkedGraph(reader: StoreReader, scope: AbsoluteHttpUrl) {
       return previous;
     }
     if (missing.has(row.id)) integrity("same entry returned a previously missing Resource");
-    // Copy row primitives so later facade wrappers cannot change the cache.
-    const item = Object.freeze({ row: Object.freeze({ ...row }), record });
+    const item = Object.freeze({ row, record });
     cache.set(row.id, item);
     if (row.kind === "bead") ownedQueue.push(record as BeadRecord);
     return item;
@@ -639,7 +646,8 @@ function structural(
         : true;
   }
   if (operation.collection === "types") return false;
-  if ((operation.collection === "links") !== "source" in record) return false;
+  const isLinkRecord = "source" in record;
+  if ((operation.collection === "links") !== isLinkRecord) return false;
   if (operation.type !== undefined && operation.type !== record.type) return false;
   if (
     operation.conformsTo !== undefined &&
@@ -741,7 +749,8 @@ function materialize(
   if (intent.kind === "resource" || intent.kind === "properties") {
     const record = graph.point(intent.id.slice(scope.length));
     if (record === undefined) return observed(notFound(), observation);
-    if ((intent.resource === "link") !== "source" in record)
+    const isLinkRecord = "source" in record;
+    if ((intent.resource === "link") !== isLinkRecord)
       throw new AuthorityReadError("integrity", "requested Resource kind disagrees with row");
     if (!graph.visible(record, policy)) return observed(notFound(), observation);
     return Object.freeze({
@@ -851,7 +860,29 @@ function principalSnapshot(value: ReadPrincipal): {
   });
 }
 
-/** A private current-Read component; supplied entry/configuration are not readiness. */
+// Final cancellation samples the real signal state after overridable cleanup.
+// Capturing the intrinsic avoids a second observable getter at that boundary.
+const readSignalAborted = Object.getOwnPropertyDescriptor(AbortSignal.prototype, "aborted")?.get;
+function nativeSignalAborted(signal: AbortSignal | undefined): boolean {
+  if (signal === undefined) return false;
+  if (readSignalAborted === undefined)
+    throw new AuthorityReadError("configuration", "native AbortSignal state getter required");
+  return readSignalAborted.call(signal) as boolean;
+}
+
+/** A private current-Read component; supplied entry/configuration are not readiness.
+ * Work includes complete candidate/record bytes, owned-pair comparisons and the
+ * sum of per-candidate closure/parser/policy visits; the point cache saves SQL
+ * loads, not those repeated parses. Explicit owned point requests are bounded by
+ * distinct encountered IDs even when their rows also arrive in a collection.
+ * Selector validation/application parses twice; Type lookup is O(T), inventory
+ * filtering preserves callback order, and canonical sorting is O(N log N).
+ * Retained bytes/nodes and snapshots-plus-reserved-positions share plane-global
+ * budgets; the positions-per-snapshot cap is separate. Pressure can refuse new
+ * retaining pages without evicting existing cursors or blocking point reads.
+ * Neither page size nor retained budgets bound transient closure/copy work.
+ * Feasible workload qualification remains upstream; no latency bound is implied.
+ */
 export function createAuthorityReadPlane(options: AuthorityReadOptions): AuthorityReadPlane {
   const prepared = prepare(options);
   let busy = false;
@@ -932,6 +963,8 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
         };
         try {
           guard();
+          busy = true;
+          entered = true;
           if (supplied !== undefined) {
             const receiving = ownData(supplied, "Read delivery options");
             if (Object.keys(receiving).some((key) => key !== "signal"))
@@ -947,11 +980,11 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
               throw new AuthorityReadError("invalid-input", "Read signal must be an AbortSignal");
             signal = candidate as AbortSignal | undefined;
           }
-          if (signal?.aborted) throw new ScopeServerOperationAbortedError();
+          const reportedAborted = signal?.aborted;
+          if (nativeSignalAborted(signal) || reportedAborted)
+            throw new ScopeServerOperationAbortedError();
           principal.check();
           const intent = makeIntent();
-          busy = true;
-          entered = true;
           if (signal !== undefined) {
             listening = true;
             signal.addEventListener("abort", onAbort, { once: true });
@@ -968,7 +1001,6 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
             });
             result = issue === undefined ? observe(principal.principal, intent) : preContext(issue);
           }
-          if (aborted || signal?.aborted) throw new ScopeServerOperationAbortedError();
           outcome = result as T;
         } catch (error) {
           // Work faults retain precedence over an abort observed during the work.
@@ -979,10 +1011,21 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
           } catch (error) {
             failure ??= { error };
           }
+        }
+        try {
+          if (failure === undefined) {
+            const signalAborted = nativeSignalAborted(signal);
+            if (signalAborted || aborted) throw new ScopeServerOperationAbortedError();
+          }
+        } catch (error) {
+          failure ??= { error };
+        }
+        try {
+          if (failure !== undefined) reject(failure.error);
+          else fulfill(outcome as T);
+        } finally {
           if (entered) busy = false;
         }
-        if (failure !== undefined) reject(failure.error);
-        else fulfill(outcome as T);
         return delivery;
       };
       return Object.freeze({

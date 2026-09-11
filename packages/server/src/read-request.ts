@@ -43,12 +43,14 @@ export type ReadRequestVariant =
   | {
       readonly kind: "discovery";
       readonly fields: readonly string[];
+      readonly required: readonly string[];
       matches(request: Readonly<Record<string, unknown>>): boolean;
       validate(request: unknown, context: ReadRequestValidationContext): ReadProblem | undefined;
     }
   | {
       readonly kind: "scope";
       readonly fields: readonly string[];
+      readonly required: readonly string[];
       matches(request: Readonly<Record<string, unknown>>): boolean;
       validate(request: unknown, context: ReadRequestValidationContext): ReadProblem | undefined;
       readonly validateBody: ScopeBodyValidation<ScopeReadOperation>;
@@ -95,12 +97,14 @@ function readRequestDiscriminant(
 function defineScopeReadVariant<Operation extends ScopeReadOperation>(options: {
   readonly matches: (request: Readonly<Record<string, unknown>>) => boolean;
   readonly fields: readonly string[];
+  readonly required: readonly string[];
   readonly validate: ScopeRequestValidation<Operation>;
   readonly validateBody: ScopeBodyValidation<Operation>;
 }): ReadRequestVariant {
   return Object.freeze({
     kind: "scope" as const,
     fields: options.fields,
+    required: Object.freeze(options.required),
     matches: options.matches,
     validate(request: unknown, context: ReadRequestValidationContext) {
       return options.validate(request as Operation, context);
@@ -540,6 +544,7 @@ type BeadLinksOperation = Extract<ScopeReadOperation, { readonly kind: "bead-lin
 const READ_REQUEST_VARIANTS = Object.freeze({
   "scope-discovery": Object.freeze({
     fields: ["kind", "scope"],
+    required: Object.freeze(["kind", "scope"]),
     matches: readRequestDiscriminant("scope-discovery"),
     kind: "discovery" as const,
     validate(value: unknown, context: ReadRequestValidationContext): ReadProblem | undefined {
@@ -548,6 +553,7 @@ const READ_REQUEST_VARIANTS = Object.freeze({
     },
   }),
   "collection:beads": defineScopeReadVariant<BeadCollectionOperation>({
+    required: ["kind", "collection"],
     matches: readRequestDiscriminant("collection", ["collection", "beads"]),
     fields: ["kind", "collection", "continuation", "type", "conformsTo", "limit", "selector"],
     validate: (operation, options) =>
@@ -558,6 +564,7 @@ const READ_REQUEST_VARIANTS = Object.freeze({
     validateBody: validateBeadCollectionBody,
   }),
   "collection:links": defineScopeReadVariant<LinkCollectionOperation>({
+    required: ["kind", "collection"],
     matches: readRequestDiscriminant("collection", ["collection", "links"]),
     fields: [
       "kind",
@@ -575,6 +582,7 @@ const READ_REQUEST_VARIANTS = Object.freeze({
     validateBody: validateLinkCollectionBody,
   }),
   "collection:types": defineScopeReadVariant<TypeInventoryOperation>({
+    required: ["kind", "collection"],
     matches: readRequestDiscriminant("collection", ["collection", "types"]),
     fields: ["kind", "collection", "continuation", "limit"],
     validate: (operation, options) =>
@@ -583,18 +591,21 @@ const READ_REQUEST_VARIANTS = Object.freeze({
       validateTypeInventory(parseTypeInventory(value, "ScopePort Type inventory")),
   }),
   "resource:bead": defineScopeReadVariant<BeadResourceOperation>({
+    required: ["kind", "resource", "id"],
     matches: readRequestDiscriminant("resource", ["resource", "bead"]),
     fields: ["kind", "resource", "id"],
     validate: (operation, options) => localResourceIssue(operation, options.scope),
     validateBody: validateBeadResourceBody,
   }),
   "resource:link": defineScopeReadVariant<LinkResourceOperation>({
+    required: ["kind", "resource", "id"],
     matches: readRequestDiscriminant("resource", ["resource", "link"]),
     fields: ["kind", "resource", "id"],
     validate: (operation, options) => localResourceIssue(operation, options.scope),
     validateBody: validateLinkResourceBody,
   }),
   "resource:type": defineScopeReadVariant<TypeResourceOperation>({
+    required: ["kind", "resource", "id"],
     matches: readRequestDiscriminant("resource", ["resource", "type"]),
     fields: ["kind", "resource", "id"],
     validate: (operation, options) => {
@@ -604,18 +615,21 @@ const READ_REQUEST_VARIANTS = Object.freeze({
     validateBody: validateTypeResourceBody,
   }),
   "properties:bead": defineScopeReadVariant<BeadPropertiesOperation>({
+    required: ["kind", "resource", "id"],
     matches: readRequestDiscriminant("properties", ["resource", "bead"]),
     fields: ["kind", "resource", "id"],
     validate: (operation, options) => localResourceIssue(operation, options.scope),
     validateBody: validatePropertiesBody,
   }),
   "properties:link": defineScopeReadVariant<LinkPropertiesOperation>({
+    required: ["kind", "resource", "id"],
     matches: readRequestDiscriminant("properties", ["resource", "link"]),
     fields: ["kind", "resource", "id"],
     validate: (operation, options) => localResourceIssue(operation, options.scope),
     validateBody: validatePropertiesBody,
   }),
   "bead-links": defineScopeReadVariant<BeadLinksOperation>({
+    required: ["kind", "bead"],
     matches: readRequestDiscriminant("bead-links"),
     fields: ["kind", "bead", "continuation", "direction", "limit"],
     validate: validateBeadLinksRequest,
