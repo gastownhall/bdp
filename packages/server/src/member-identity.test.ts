@@ -735,6 +735,96 @@ describe("versioned retained and expired metadata", () => {
 });
 
 describe("prepared member dependencies", () => {
+  it("preserves convenience context method receivers and reads scope and prior once", () => {
+    const carrier = sequence([
+      create,
+      {
+        operation: "createLink",
+        idempotencyKey: "dependent",
+        type: linkType,
+        source: "@made",
+        target: "alias/current",
+      },
+    ]);
+    class MethodContext implements MemberIdentityContext {
+      scopeReads = 0;
+      priorReads = 0;
+      creatorCalls: number[] = [];
+      aliasCalls: string[] = [];
+      scopeValue = scope;
+      creatorId = a;
+      aliasId = b;
+
+      constructor() {
+        Object.defineProperty(this, "prior", {
+          get: () => {
+            this.priorReads++;
+            return undefined;
+          },
+        });
+      }
+
+      get scope() {
+        this.scopeReads++;
+        return this.scopeValue;
+      }
+
+      creatorBinding(index: number) {
+        this.creatorCalls.push(index);
+        return { kind: "bound" as const, resourceKind: "bead" as const, id: this.creatorId };
+      }
+
+      resolveAlias(locator: string) {
+        this.aliasCalls.push(locator);
+        return this.aliasId;
+      }
+    }
+    const methodContext = new MethodContext();
+    const member = normalizeMemberIdentity(carrier, 1, methodContext);
+    if (member.kind !== "ready") throw Error("expected ready member");
+    expect(execution(member).input).toMatchObject({ source: a, target: b });
+    expect(methodContext.scopeReads).toBe(1);
+    expect(methodContext.priorReads).toBe(1);
+    expect(methodContext.creatorCalls).toEqual([0]);
+    expect(methodContext.aliasCalls).toEqual([`${scope}alias/current`]);
+  });
+  it("checks distinct creators after an unbound fact and stops on a later transient fact", () => {
+    const carrier = sequence([
+      { ...create, name: "x", idempotencyKey: "x" },
+      { ...create, name: "y", idempotencyKey: "y" },
+      {
+        operation: "createLink",
+        idempotencyKey: "dependent",
+        type: linkType,
+        source: "@x",
+        target: "@y",
+      },
+    ]);
+    const creatorBinding = vi.fn((index: number) =>
+      index === 0 ? { kind: "unbound" as const } : { kind: "transient" as const },
+    );
+    const prior = vi.fn(() => {
+      throw Error("prior access forbidden");
+    });
+    const resolveAlias = vi.fn(() => {
+      throw Error("alias lookup forbidden");
+    });
+    const result = normalizeMemberIdentity(carrier, 2, {
+      scope,
+      creatorBinding,
+      get prior() {
+        return prior();
+      },
+      resolveAlias,
+    });
+    expect(result).toEqual({ kind: "transient-dependency" });
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(creatorBinding).toHaveBeenCalledTimes(2);
+    expect(creatorBinding).toHaveBeenNthCalledWith(1, 0);
+    expect(creatorBinding).toHaveBeenNthCalledWith(2, 1);
+    expect(prior).not.toHaveBeenCalled();
+    expect(resolveAlias).not.toHaveBeenCalled();
+  });
   function prepared(
     carrier: PreparedReadUpdateCarrier,
     index: number,

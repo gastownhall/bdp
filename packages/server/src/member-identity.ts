@@ -275,7 +275,8 @@ export function prepareMemberDependencies(
 }
 
 /** Existing convenience API. Preparation and prepared normalization share the
- * same inventory and each creator provider is called at most once per member. */
+ * same inventory; the creator provider is called at most once per distinct
+ * referenced creator label per preparation. */
 export function normalizeMemberIdentity(
   carrier: PreparedReadUpdateCarrier,
   index: number,
