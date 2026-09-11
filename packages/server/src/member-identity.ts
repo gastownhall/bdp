@@ -125,6 +125,37 @@ export interface MemberIdentityContext {
   readonly prior?: MemberMetadata;
 }
 
+const dependencyBrand = Symbol("prepared member dependencies");
+/** Opaque stable facts for one original member in one captured synchronous turn.
+ * Only prepareMemberDependencies can create a usable token; copying it loses its brand. */
+export interface PreparedMemberDependencies {
+  readonly kind: "stable-dependencies";
+  readonly [dependencyBrand]: true;
+}
+export type MemberDependencyPreparation =
+  | PreparedMemberDependencies
+  | { readonly kind: "transient-dependency" };
+export type PreparedMemberIdentityContext = Omit<MemberIdentityContext, "creatorBinding">;
+type PreparedNormalization = Exclude<
+  MemberNormalization,
+  { readonly kind: "transient-dependency" }
+>;
+const dependencyState = new WeakMap<
+  PreparedMemberDependencies,
+  {
+    readonly carrier: PreparedReadUpdateCarrier;
+    readonly index: number;
+    readonly scope: string;
+    readonly original: UnadmittedReadUpdateOperation;
+    readonly references: readonly {
+      readonly rule: FieldRule;
+      readonly slot: MemberReferenceSlot;
+      readonly uri: string;
+    }[];
+    readonly bindings: ReadonlyMap<string, MemberCreatorBinding>;
+  }
+>();
+
 function creationKind(operation: ReadUpdateOperation): ResourceKind | undefined {
   return operation === "createBead" ? "bead" : operation === "createLink" ? "link" : undefined;
 }
@@ -196,15 +227,15 @@ function inputReference(
   return { slot: `/${rule.field}/uri` as MemberReferenceSlot, uri };
 }
 
-/** Pure normalization only. The owner performs no key lookup before a transient
- * dependency is excluded, and invokes this inside the member's captured turn.
- * No policy, allocation, evaluation, retention or public Problem is selected. */
-export function normalizeMemberIdentity(
+/** Captures only legal reference slots and creator facts, before any key/prior,
+ * alias, policy or numeric-admission access. Missing facts are sequencing errors.
+ * The caller may continue normalization only for this exact carrier/index/Scope. */
+export function prepareMemberDependencies(
   carrier: PreparedReadUpdateCarrier,
   index: number,
-  context: MemberIdentityContext,
-): MemberNormalization {
-  const scope = context.scope;
+  scope: string,
+  creatorBinding: MemberIdentityContext["creatorBinding"],
+): MemberDependencyPreparation {
   assertPreparedReadUpdateCarrier(carrier, scope);
   if (!Number.isSafeInteger(index) || index < 0 || index >= carrier.operations.length)
     throw new TypeError("member index is outside its prepared carrier");
@@ -223,12 +254,68 @@ export function normalizeMemberIdentity(
     if (!fact) {
       const creator = carrier.operations.findIndex((member) => member.name === ref.uri.slice(1));
       if (creator < 0 || creator >= index) throw new TypeError("invalid prepared creator order");
-      fact = binding(context.creatorBinding(creator), scope, ref.rule.binding, true);
+      fact = binding(creatorBinding(creator), scope, ref.rule.binding, true);
       bindings.set(ref.uri, fact);
     }
     if (fact.kind === "transient") return Object.freeze({ kind: "transient-dependency" });
   }
-  // Do not even read context.prior/resolveAlias before the transient scan.
+  const prepared: PreparedMemberDependencies = Object.freeze({
+    kind: "stable-dependencies",
+    [dependencyBrand]: true as const,
+  });
+  dependencyState.set(prepared, {
+    carrier,
+    index,
+    scope,
+    original,
+    references: Object.freeze(references),
+    bindings,
+  });
+  return prepared;
+}
+
+/** Existing convenience API. Preparation and prepared normalization share the
+ * same inventory; the creator provider is called at most once per distinct
+ * referenced creator label per preparation. */
+export function normalizeMemberIdentity(
+  carrier: PreparedReadUpdateCarrier,
+  index: number,
+  context: MemberIdentityContext,
+): MemberNormalization {
+  const scope = context.scope;
+  const prepared = prepareMemberDependencies(carrier, index, scope, (creator) =>
+    context.creatorBinding(creator),
+  );
+  if (prepared.kind === "transient-dependency") return prepared;
+  const prior = context.prior;
+  return normalizePreparedMemberIdentity(
+    carrier,
+    index,
+    {
+      scope,
+      ...(prior === undefined ? {} : { prior }),
+      resolveAlias(locator) {
+        return context.resolveAlias(locator);
+      },
+    },
+    prepared,
+  );
+}
+
+/** Continue using captured dependency facts after authoritative key classification.
+ * Pairing is checked before reading prior metadata or invoking an alias callback.
+ * No creator provider belongs to this interface or is called a second time. */
+export function normalizePreparedMemberIdentity(
+  carrier: PreparedReadUpdateCarrier,
+  index: number,
+  context: PreparedMemberIdentityContext,
+  prepared: PreparedMemberDependencies,
+): PreparedNormalization {
+  const state = dependencyState.get(prepared);
+  if (!state || state.carrier !== carrier || state.index !== index || state.scope !== context.scope)
+    throw new TypeError("prepared dependencies do not match the original member and Scope");
+  const { scope, original, references, bindings } = state;
+  // Do not even read context.prior/resolveAlias before the dependency/pairing checks.
   const prior = context.prior;
   if (prior !== undefined) checkMetadata(prior, scope);
   const aliases = new Map<string, string | null>();
