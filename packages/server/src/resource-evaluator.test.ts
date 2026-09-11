@@ -1,9 +1,15 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { openRecoveryStore, type StoredResource } from "./recovery-store.js";
+import { describe, expect, it, vi } from "vitest";
 import {
+  openRecoveryStore,
+  type RecoveryStore,
+  type MemberTransaction,
+  type StoredResource,
+} from "./recovery-store.js";
+import {
+  prepareReadUpdateSingleton,
   admitReadUpdateOperationNumbers,
   parseReadUpdateRequest,
   parseReadUpdateMutationResult,
@@ -26,12 +32,19 @@ import {
   type ResourceTransaction,
 } from "./resource-evaluator.js";
 
+import {
+  normalizeMemberIdentity,
+  prepareMemberExecution,
+  serializeMemberMetadata,
+  parseMemberMetadata,
+} from "./member-identity.js";
+
 const scope = "https://example.test/s/";
 const beadType = "https://types.test/bead";
 const linkType = "https://types.test/link";
 const parentType = "https://types.test/parent";
 const childType = "https://types.test/child";
-const instant = "2026-09-10T10:00:00Z";
+const instant = "2026-09-10T10:00:00.000Z";
 const beadDescriptor = (extra = {}): TypeDescriptor =>
   parseTypeDescriptor({ id: beadType, name: "Bead", describes: "bead", conformsTo: [], ...extra });
 const linkDescriptor = (extra = {}): TypeDescriptor =>
@@ -103,7 +116,7 @@ function fixture(descriptors: readonly TypeDescriptor[] = [beadDescriptor(), lin
       },
     },
     maximumEndpointMultiplicity: [],
-    committedAt: instant,
+    observeCommitTime: () => Date.parse(instant),
     recordChangeContext: false,
     limits: { diagnosticCount: 10, diagnosticBytes: 65536 },
   };
@@ -1034,7 +1047,7 @@ describe("pure member Resource evaluation", () => {
     f.execute(
       "updateBeadProperties",
       { bead: "beads/a", change: [{ op: "replace", path: "", value: {} }] },
-      { recordChangeContext: true, committedAt: "2026-09-11T00:00:00Z" },
+      { recordChangeContext: true, observeCommitTime: () => Date.parse("2026-09-11T00:00:00Z") },
     );
     expect(f.body("beads/a")).toEqual(before);
   });
@@ -1253,7 +1266,7 @@ describe("deep admitted Resource round trips", () => {
       ...configuration,
       create: { types: { [beadType]: JSON.stringify(beadDescriptor()) } },
     });
-    const options = fixture().options;
+    const options = { ...fixture().options, recordChangeContext: true };
     const nestedText = `${"[".repeat(12_000)}7${"]".repeat(12_000)}`;
     const properties = { nested: JSON.parse(nestedText) as unknown };
     const submit = (key: string, operation: ResourceOperation, input: unknown) => {
@@ -1375,9 +1388,12 @@ describe("deep admitted Resource round trips", () => {
     f.createBead("b");
     const depth = 12_000;
     const nested: unknown = JSON.parse(`${"[1,".repeat(depth)}0${"]".repeat(depth)}`);
-    expect(f.createLink("deep", "beads/a", "beads/b", { properties: { nested } }).effect).toBe(
-      "success",
-    );
+    expect(
+      f.createLink("deep", "beads/a", "beads/b", {
+        properties: { nested },
+        changeContext: { message: "deep native Link" },
+      }).effect,
+    ).toBe("success");
     const source = f.body("beads/a");
     if (!("ownedLinks" in source)) throw new Error("expected owned Link source");
     expect(stringifyJsonValue(source.ownedLinks?.[linkType]?.[0])).toBe(
@@ -1743,5 +1759,872 @@ describe("allocator faults inside the durable owned-member boundary", () => {
     failure(f.createBead("existing"), "identity-taken");
     failure(f.createBead("reserved"), "alias-path-taken");
     expect(f.records.size).toBe(1);
+  });
+});
+
+describe("late native context materialization", () => {
+  const milliseconds = Date.parse(instant);
+  const change = [{ op: "add", path: "/n", value: 1 }];
+  function ownedFixture(max = 8) {
+    const f = fixture([
+      beadDescriptor({ ownsOutgoing: { [linkType]: { max } } }),
+      linkDescriptor(),
+    ]);
+    f.createBead("a", { source: "kept" });
+    f.createBead("b");
+    return f;
+  }
+  it("captures and validates the clock callable at entry without observing it", () => {
+    const f = fixture();
+    let reads = 0;
+    const clock = vi.fn(() => milliseconds);
+    const options: ResourceEvaluationOptions = {
+      ...f.options,
+      recordChangeContext: true,
+      get observeCommitTime() {
+        reads++;
+        return clock;
+      },
+      contracts: {
+        get(type, bytes) {
+          Object.defineProperty(options, "observeCommitTime", {
+            value: () => {
+              throw Error("replacement");
+            },
+          });
+          return f.options.contracts.get(type, bytes);
+        },
+      },
+    };
+    const result = evaluateResourceMutation(
+      f.tx,
+      { operation: "createBead", input: { type: beadType } },
+      options,
+    );
+    expect(result.effect).toBe("success");
+    expect(reads).toBe(1);
+    expect(clock).toHaveBeenCalledTimes(1);
+    for (const invalid of [undefined, null, 1, "precomputed", {}]) {
+      expect(() =>
+        f.execute(
+          "deleteBead",
+          { bead: "beads/missing" },
+          {
+            observeCommitTime: invalid as never,
+          },
+        ),
+      ).toThrow("a synchronous authority commit clock is required");
+    }
+  });
+  it("observes after schema, owned inventory and aggregate preparation, before exact subject/source policy", () => {
+    const f = ownedFixture();
+    const schemaLink = linkDescriptor({ propertiesSchema: "https://schemas.test/context" });
+    f.installed.set(linkType, JSON.stringify(schemaLink));
+    const order: string[] = [];
+    let now = milliseconds;
+    f.contracts.set(linkType, {
+      descriptor: schemaLink,
+      validateProperties: () => {
+        order.push("schema");
+        now += 1000;
+        return { valid: true };
+      },
+    });
+    const outgoing = f.tx.outgoingLinks;
+    f.tx.outgoingLinks = (id) => {
+      order.push("owned");
+      now += 1000;
+      return outgoing(id);
+    };
+    const incident = f.tx.incidentLinks;
+    f.tx.incidentLinks = (id) => {
+      order.push("aggregate");
+      now += 1000;
+      return incident(id);
+    };
+    const put = f.tx.putResource;
+    f.tx.putResource = (record) => {
+      order.push(`put:${record.id}`);
+      put(record);
+    };
+    const seen: ResourceRecord[] = [];
+    const clock = vi.fn(() => {
+      order.push("clock");
+      return now;
+    });
+    const check = (record: ResourceRecord | undefined) => {
+      if (!record) throw Error("expected full postimage");
+      expect(Object.isFrozen(record)).toBe(true);
+      expect(record.changeContext?.committedAt).toEqual({
+        state: "present",
+        value: new Date(milliseconds + 3000).toISOString(),
+      });
+      seen.push(record);
+      now += 1000;
+      return true;
+    };
+    const result = f.execute(
+      "createLink",
+      {
+        id: "links/edge",
+        type: linkType,
+        source: "beads/a",
+        target: "beads/b",
+        changeContext: { message: "final" },
+      },
+      {
+        observeCommitTime: clock,
+        maximumEndpointMultiplicity: [{ endpoint: "source", linkConformsTo: linkType, max: 8 }],
+        policy: {
+          ...f.options.policy,
+          canCreate: (after) => {
+            order.push("subject-policy");
+            return check(after);
+          },
+          canWrite: (_before, after) => {
+            order.push("source-policy");
+            return check(after);
+          },
+        },
+      },
+    );
+    expect(result.effect).toBe("success");
+    expect(order).toEqual([
+      "schema",
+      "owned",
+      "aggregate",
+      "clock",
+      "subject-policy",
+      "source-policy",
+      "put:links/edge",
+      "put:beads/a",
+    ]);
+    expect(clock).toHaveBeenCalledTimes(1);
+    const source = seen[1];
+    if (!source || "source" in source) throw Error("expected source Bead");
+    expect(source.ownedLinks?.[linkType]?.[0]).toBe(seen[0]);
+    expect(result.outcome).toMatchObject({ resource: seen[0] });
+    expect(f.body("links/edge")).toEqual(seen[0]);
+    expect(f.body("beads/a")).toEqual(source);
+  });
+  it.each(["schema", "owned", "aggregate"] as const)(
+    "does not observe or authorize after %s preparation refuses",
+    (refusal) => {
+      const f = ownedFixture(refusal === "owned" ? 1 : 8);
+      if (refusal === "owned") f.createLink("existing");
+      if (refusal === "schema") {
+        const descriptor = linkDescriptor({ propertiesSchema: "https://schemas.test/context" });
+        f.installed.set(linkType, JSON.stringify(descriptor));
+        f.contracts.set(linkType, {
+          descriptor,
+          validateProperties: (_properties, emitter) => ({
+            valid: false,
+            diagnosticsComplete: emitter.emit({
+              schemaLocation: "https://schemas.test/context#/type",
+              instanceLocation: "",
+              message: "refused",
+            }),
+          }),
+        });
+      }
+      const clock = vi.fn(() => milliseconds);
+      const policy = {
+        ...f.options.policy,
+        canCreate: vi.fn(() => true),
+        canWrite: vi.fn(() => true),
+      };
+      const counters = f.allocations();
+      failure(
+        f.execute(
+          "createLink",
+          { id: "links/edge", type: linkType, source: "beads/a", target: "beads/b" },
+          {
+            recordChangeContext: true,
+            observeCommitTime: clock,
+            policy,
+            maximumEndpointMultiplicity:
+              refusal === "aggregate"
+                ? [{ endpoint: "source", linkConformsTo: linkType, max: 0 }]
+                : [],
+          },
+        ),
+        refusal === "aggregate" ? "aggregate-constraint-violation" : "validation-failed",
+      );
+      expect(clock).not.toHaveBeenCalled();
+      expect(policy.canCreate).not.toHaveBeenCalled();
+      expect(policy.canWrite).not.toHaveBeenCalled();
+      expect(f.allocations()).toEqual(counters);
+    },
+  );
+  it.each([
+    {
+      subject: false,
+      source: false,
+      cas: "stale",
+      patch: 0,
+      code: "forbidden",
+      calls: ["subject"],
+    },
+    {
+      subject: true,
+      source: false,
+      cas: "stale",
+      patch: 0,
+      code: "forbidden",
+      calls: ["subject", "source"],
+    },
+    {
+      subject: true,
+      source: true,
+      cas: "stale",
+      patch: 0,
+      code: "revision-mismatch",
+      calls: ["subject", "source"],
+    },
+    {
+      subject: true,
+      source: true,
+      cas: undefined,
+      patch: 0,
+      code: "limit-exceeded",
+      calls: ["subject", "source"],
+    },
+    {
+      subject: true,
+      source: true,
+      cas: undefined,
+      patch: 1,
+      code: "limit-exceeded",
+      calls: ["subject", "source"],
+    },
+  ])("keeps final policy/CAS/patch/byte refusal order %#", (scenario) => {
+    const f = ownedFixture();
+    f.createLink("edge");
+    const old = [...f.records.entries()];
+    const counters = f.allocations();
+    const clock = vi.fn(() => milliseconds);
+    const calls: string[] = [];
+    failure(
+      f.execute(
+        "updateLinkProperties",
+        {
+          link: "links/edge",
+          change,
+          ...(scenario.cas ? { expectedRevision: scenario.cas } : {}),
+        },
+        {
+          recordChangeContext: true,
+          observeCommitTime: clock,
+          limits: { patchOperations: scenario.patch, representationBytes: 1 },
+          policy: {
+            ...f.options.policy,
+            canWrite: (before, after) => {
+              expect(after?.changeContext?.committedAt).toEqual({
+                state: "present",
+                value: instant,
+              });
+              const subject = "source" in before;
+              calls.push(subject ? "subject" : "source");
+              return subject ? scenario.subject : scenario.source;
+            },
+          },
+        },
+      ),
+      scenario.code,
+    );
+    expect(calls).toEqual(scenario.calls);
+    expect(clock).toHaveBeenCalledTimes(1);
+    expect([...f.records.entries()]).toEqual(old);
+    expect(f.allocations()).toEqual(counters);
+  });
+  it("measures exact final owned-source bytes including escaped context", () => {
+    const input = {
+      id: "links/edge",
+      type: linkType,
+      source: "beads/a",
+      target: "beads/b",
+      changeContext: { agent: "worker", message: 'é "\n'.repeat(20) },
+    };
+    const baseline = ownedFixture();
+    baseline.execute("createLink", input);
+    const sourceBytes = Buffer.byteLength(baseline.records.get("beads/a")?.bodyJson ?? "");
+    expect(sourceBytes).toBeGreaterThan(
+      Buffer.byteLength(baseline.records.get("links/edge")?.bodyJson ?? ""),
+    );
+    for (const difference of [0, -1]) {
+      const f = ownedFixture();
+      const before = [...f.records.entries()];
+      const result = f.execute("createLink", input, {
+        limits: { representationBytes: sourceBytes + difference },
+      });
+      if (difference === 0) {
+        expect(result.effect).toBe("success");
+        expect(f.records.get("beads/a")?.bodyJson).toBe(baseline.records.get("beads/a")?.bodyJson);
+      } else {
+        failure(result, "limit-exceeded");
+        expect([...f.records.entries()]).toEqual(before);
+      }
+    }
+  });
+  it.each([false, true])(
+    "preserves old inline versions, no-ops and context-free deletions with recording %s",
+    (recordChangeContext) => {
+      const f = ownedFixture();
+      f.createLink("old", "beads/a", "beads/b", { changeContext: { message: "old version" } });
+      f.createLink("edge");
+      const old = f.body("links/old");
+      const target = f.body("beads/b");
+      const clock = vi.fn(() => milliseconds + 1000);
+      const options = { recordChangeContext, observeCommitTime: clock };
+      const updated = f.execute(
+        "updateLinkProperties",
+        { link: "links/edge", change, changeContext: { agent: null } },
+        options,
+      );
+      expect(updated).toMatchObject({ effect: "success", changed: ["links/edge", "beads/a"] });
+      const source = f.body("beads/a");
+      if ("source" in source) throw Error("expected Bead");
+      expect(source.ownedLinks?.[linkType]?.find((link) => link.id === old.id)).toEqual(old);
+      expect(f.body("links/old")).toEqual(old);
+      expect(f.body("beads/b")).toEqual(target);
+      expect(clock).toHaveBeenCalledTimes(1);
+      const before = [...f.records.entries()];
+      const writes = f.writes();
+      for (const changeContext of [undefined, {}, { message: "ignored" }, { agent: null }]) {
+        const linkNoOp = f.execute(
+          "updateLinkProperties",
+          { link: "links/edge", change, ...(changeContext === undefined ? {} : { changeContext }) },
+          options,
+        );
+        const beadNoOp = f.execute(
+          "updateBeadProperties",
+          {
+            bead: "beads/a",
+            change: [{ op: "replace", path: "/source", value: "kept" }],
+            ...(changeContext === undefined ? {} : { changeContext }),
+          },
+          options,
+        );
+        expect(linkNoOp).toMatchObject({ effect: "success", changed: [] });
+        expect(beadNoOp).toMatchObject({ effect: "success", changed: [] });
+      }
+      expect(clock).toHaveBeenCalledTimes(1);
+      expect([...f.records.entries()]).toEqual(before);
+      expect(f.writes()).toBe(writes);
+      const deleted = f.execute(
+        "deleteLink",
+        { link: "links/edge", changeContext: { message: null } },
+        options,
+      );
+      expect(clock).toHaveBeenCalledTimes(2);
+      expect(deleted).toMatchObject({ effect: "success", changed: ["beads/a"] });
+      expect(deleted.outcome).not.toHaveProperty("changeContext");
+      expect(f.body("beads/a").changeContext?.message).toEqual({ state: "absent" });
+      const unowned = fixture();
+      unowned.createBead("a");
+      unowned.createBead("b");
+      unowned.createLink("edge");
+      const unownedDeletion = unowned.execute(
+        "deleteLink",
+        { link: "links/edge", changeContext: { message: "no version" } },
+        options,
+      );
+      const beadDeletion = unowned.execute("deleteBead", { bead: "beads/a" }, options);
+      expect(unownedDeletion).toMatchObject({
+        effect: "success",
+        changed: [],
+        deleted: ["links/edge"],
+      });
+      expect(beadDeletion).toMatchObject({ effect: "success", changed: [], deleted: ["beads/a"] });
+      expect(clock).toHaveBeenCalledTimes(2);
+    },
+  );
+});
+
+/** Actual S1/S4/S2/S6 composition only, not the future executor, scheduler,
+ * retained-envelope/disclosure owner, or a deployment compatibility proof.
+ */
+function submitContextMember(
+  store: RecoveryStore,
+  key: string,
+  operation: ResourceOperation,
+  input: unknown,
+  options: ResourceEvaluationOptions,
+  wrap: (tx: MemberTransaction) => ResourceTransaction = (tx) => tx,
+  terminal: () => number = () => Date.parse(instant) + 60_000,
+) {
+  const carrier = prepareReadUpdateSingleton(scope, operation, stringifyJsonValue(input), key);
+  const admission = store.admit("alice", [key]);
+  let result: ReturnType<typeof evaluateResourceMutation> | undefined;
+  try {
+    const completion = store.executeMember(admission, key, (tx) => {
+      const member = normalizeMemberIdentity(carrier, 0, {
+        scope,
+        creatorBinding: () => {
+          throw Error("no fixture bindings");
+        },
+        resolveAlias: () => {
+          throw Error("no fixture aliases");
+        },
+      });
+      if (member.kind !== "ready") throw Error("expected ready fixture member");
+      const values = prepareMemberExecution(member, {
+        diagnostic: ({ pointer }) => ({ message: "bad fixture number", instanceLocation: pointer }),
+      });
+      if (!values.executable) throw Error("expected executable fixture member");
+      result = evaluateResourceMutation(wrap(tx), values.executable as ResourceMutation, options);
+      if (result.effect === "success") parseReadUpdateMutationResult(result.outcome);
+      else parseReadUpdateProblem(result.outcome);
+      const resolutionsJson = serializeMemberMetadata(
+        member,
+        result.effect === "success" && result.outcome.outcome === "created"
+          ? result.outcome
+          : undefined,
+      );
+      parseMemberMetadata(resolutionsJson, scope);
+      const outcomeJson = stringifyJsonValue(result.outcome);
+      const completedAt = terminal();
+      return {
+        kind: "retain",
+        effect: result.effect,
+        semanticIdentityJson: member.identityJson,
+        resolutionsJson,
+        outcomeJson,
+        completedAt,
+        retainUntil: completedAt + 86_400_000,
+      };
+    });
+    if (!result || completion.kind !== "completed") throw Error("expected new completed member");
+    expect(completion.outcomeJson).toBe(stringifyJsonValue(result.outcome));
+    return result;
+  } finally {
+    // The future attempt owner must perform this cleanup; this is test-owned.
+    store.abandonAttempt(admission);
+  }
+}
+function contextStoreSeed(owned = true) {
+  const f = fixture([
+    beadDescriptor(owned ? { ownsOutgoing: { [linkType]: { max: 8 } } } : {}),
+    linkDescriptor(),
+  ]);
+  f.createBead("unlinked");
+  f.createBead("a", { n: 0 }, { changeContext: { message: "old source" } });
+  f.createBead("b");
+  f.createLink("existing", "beads/a", "beads/b", { changeContext: { message: "old Link" } });
+  return f;
+}
+const contextStoreConfiguration = (directory: string) => ({
+  directory,
+  scope,
+  installationId: "context-tests",
+  lineageId: "context-test-lineage",
+});
+
+describe("native context inside actual durable members", () => {
+  const milliseconds = Date.parse(instant);
+  // Expected minted IDs come from the operation law, independently of results.
+  type ContextCase = [ResourceOperation, Record<string, unknown>, boolean, readonly string[]];
+  const cases: ContextCase[] = [
+    ["createBead", { id: "beads/new", type: beadType }, true, ["beads/new"]],
+    [
+      "updateBeadProperties",
+      { bead: "beads/a", change: [{ op: "add", path: "/changed", value: true }] },
+      true,
+      ["beads/a"],
+    ],
+    [
+      "updateBeadProperties",
+      { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 0 }] },
+      true,
+      [],
+    ],
+    ...[true, false].flatMap((owned): ContextCase[] => [
+      [
+        "createLink",
+        { id: "links/new", type: linkType, source: "beads/a", target: "beads/b" },
+        owned,
+        owned ? ["links/new", "beads/a"] : ["links/new"],
+      ],
+      [
+        "updateLinkProperties",
+        { link: "links/existing", change: [{ op: "add", path: "/changed", value: true }] },
+        owned,
+        owned ? ["links/existing", "beads/a"] : ["links/existing"],
+      ],
+      [
+        "updateLinkProperties",
+        { link: "links/existing", change: [{ op: "replace", path: "", value: {} }] },
+        owned,
+        [],
+      ],
+      ["deleteLink", { link: "links/existing" }, owned, owned ? ["beads/a"] : []],
+    ]),
+    ["deleteBead", { bead: "beads/unlinked" }, true, []],
+  ];
+  for (const recordChangeContext of [false, true]) {
+    it.each(cases)(
+      `commits identical default-context bytes through actual S4/S6 for %s (recording ${recordChangeContext}, case %#)`,
+      (operation, input, owned, expectedMintedIds) => {
+        const expectedObservations = recordChangeContext && expectedMintedIds.length > 0 ? 1 : 0;
+        const directory = mkdtempSync(path.join(tmpdir(), "bdp-context-default-"));
+        const f = contextStoreSeed(owned);
+        // Both branches descend from this test-owned, closed pristine store, so
+        // genuine S6 allocator namespaces/counters and original versions match.
+        // This does not inspect or migrate any operator database.
+        const seedDirectory = path.join(directory, "seed");
+        const seed = openRecoveryStore({
+          ...contextStoreConfiguration(seedDirectory),
+          create: {
+            resources: [...f.records.values()],
+            types: Object.fromEntries(f.installed),
+          },
+        });
+        seed.close();
+        const branches: { resources: readonly StoredResource[]; key: unknown }[] = [];
+        try {
+          for (const empty of [false, true]) {
+            const branch = path.join(directory, empty ? "empty" : "omitted");
+            cpSync(seedDirectory, branch, { recursive: true });
+            const configuration = contextStoreConfiguration(branch);
+            let store = openRecoveryStore(configuration);
+            const clock = vi.fn(() => milliseconds + 1000);
+            try {
+              expect(store.runtime).toMatchObject({
+                node: "v24.16.0",
+                journalMode: "delete",
+                lockingMode: "exclusive",
+                synchronous: 3,
+              });
+              const previousLinkBytes = store.read((tx) => tx.resource("links/existing")?.bodyJson);
+              expect(previousLinkBytes).toBeDefined();
+              const result = submitContextMember(
+                store,
+                "key",
+                operation,
+                { ...input, ...(empty && operation !== "deleteBead" ? { changeContext: {} } : {}) },
+                { ...f.options, recordChangeContext, observeCommitTime: clock },
+              );
+              expect(result.effect).toBe("success");
+              expect(result.changed).toEqual(expectedMintedIds);
+              expect(clock).toHaveBeenCalledTimes(expectedObservations);
+              const resources = store.read((tx) => tx.resources());
+              const key = store.read((tx) => tx.key("alice", "key"));
+              if (key.kind !== "retained") throw Error("expected retained state");
+              expect(key.outcomeJson).toBe(stringifyJsonValue(result.outcome));
+              if (result.effect !== "success") throw Error("expected success");
+              for (const id of expectedMintedIds) {
+                const record = resources.find((resource) => resource.id === id);
+                const context = JSON.parse(record?.bodyJson ?? "null").changeContext;
+                if (recordChangeContext)
+                  expect(context).toEqual({
+                    committedAt: {
+                      state: "present",
+                      value: new Date(milliseconds + 1000).toISOString(),
+                    },
+                    agent: { state: "undetermined" },
+                    message: { state: "undetermined" },
+                  });
+                else expect(context).toBeUndefined();
+              }
+              if (operation === "updateBeadProperties" && owned) {
+                const source = JSON.parse(
+                  resources.find((resource) => resource.id === "beads/a")?.bodyJson ?? "null",
+                ) as ResourceRecord;
+                if ("source" in source) throw Error("expected updated Bead");
+                const inline = source.ownedLinks?.[linkType]?.find(
+                  (link) => link.id === `${scope}links/existing`,
+                );
+                expect(inline).toBeDefined();
+                expect(stringifyJsonValue(inline)).toBe(previousLinkBytes);
+                expect(
+                  resources.find((resource) => resource.id === "links/existing")?.bodyJson,
+                ).toBe(previousLinkBytes);
+              }
+              if (result.outcome.outcome !== "deleted") {
+                const returned = result.outcome.resource;
+                if (!returned) throw Error("expected returned Resource");
+                expect(
+                  resources.find((resource) => `${scope}${resource.id}` === returned.id)?.bodyJson,
+                ).toBe(stringifyJsonValue(returned));
+              }
+              store.close();
+              store = openRecoveryStore(configuration);
+              expect(store.read((tx) => tx.resources())).toEqual(resources);
+              expect(store.read((tx) => tx.key("alice", "key"))).toEqual(key);
+              // Exercise S6's real existing-key branch without pretending this
+              // callback is the future replay projection/sequence implementation.
+              const admission = store.admit("alice", ["key"]);
+              expect(
+                store.executeMember(admission, "key", () => {
+                  throw Error("must not reevaluate");
+                }),
+              ).toEqual({ kind: "existing", state: key });
+              store.abandonAttempt(admission);
+              expect(clock).toHaveBeenCalledTimes(expectedObservations);
+              branches.push({ resources, key });
+            } finally {
+              store.close();
+            }
+          }
+          expect(branches[0]).toEqual(branches[1]);
+        } finally {
+          rmSync(directory, { recursive: true, force: true });
+        }
+      },
+    );
+  }
+  it("uses one late context for actual owned writes and a separate terminal retention observation", () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "bdp-context-clock-"));
+    const f = contextStoreSeed();
+    const descriptor = linkDescriptor({ propertiesSchema: "https://schemas.test/context" });
+    f.installed.set(linkType, JSON.stringify(descriptor));
+    let now = milliseconds;
+    const trace: string[] = [];
+    f.contracts.set(linkType, {
+      descriptor,
+      validateProperties: () => {
+        trace.push("schema");
+        now += 1000;
+        return { valid: true };
+      },
+    });
+    const configuration = contextStoreConfiguration(directory);
+    let store = openRecoveryStore({
+      ...configuration,
+      create: { resources: [...f.records.values()], types: Object.fromEntries(f.installed) },
+    });
+    const clock = vi.fn(() => {
+      trace.push("context");
+      return now;
+    });
+    const policy = {
+      ...f.options.policy,
+      canWrite: (_before: ResourceRecord, after: ResourceRecord | undefined) => {
+        trace.push("policy");
+        expect(after?.changeContext?.committedAt).toEqual({
+          state: "present",
+          value: new Date(milliseconds + 3000).toISOString(),
+        });
+        expect(Object.isFrozen(after)).toBe(true);
+        now += 1000;
+        return true;
+      },
+    };
+    try {
+      const result = submitContextMember(
+        store,
+        "key",
+        "updateLinkProperties",
+        {
+          link: "links/existing",
+          change: [{ op: "add", path: "/n", value: 1 }],
+          changeContext: { agent: null, message: "" },
+        },
+        {
+          ...f.options,
+          policy,
+          observeCommitTime: clock,
+          maximumEndpointMultiplicity: [{ endpoint: "source", linkConformsTo: linkType, max: 8 }],
+        },
+        (tx) => ({
+          ...tx,
+          outgoingLinks: (id) => {
+            trace.push("owned");
+            now += 1000;
+            return tx.outgoingLinks(id);
+          },
+          incidentLinks: (id) => {
+            trace.push("aggregate");
+            now += 1000;
+            return tx.incidentLinks(id);
+          },
+          putResource: (record) => {
+            trace.push(`write:${record.id}`);
+            tx.putResource(record);
+          },
+        }),
+        () => {
+          trace.push("retention");
+          now += 1000;
+          return now;
+        },
+      );
+      expect(trace).toEqual([
+        "schema",
+        "owned",
+        "aggregate",
+        "context",
+        "policy",
+        "policy",
+        "write:links/existing",
+        "write:beads/a",
+        "retention",
+      ]);
+      expect(clock).toHaveBeenCalledTimes(1);
+      const records = store.read((tx) => tx.resources());
+      const link = JSON.parse(
+        records.find((record) => record.id === "links/existing")?.bodyJson ?? "null",
+      );
+      const source = JSON.parse(
+        records.find((record) => record.id === "beads/a")?.bodyJson ?? "null",
+      );
+      expect(source.ownedLinks[linkType][0]).toEqual(link);
+      expect(source.changeContext).toEqual(link.changeContext);
+      expect(link.changeContext).toMatchObject({
+        agent: { state: "absent" },
+        message: { state: "present", value: "" },
+      });
+      const retained = store.read((tx) => tx.key("alice", "key"));
+      expect(retained).toMatchObject({
+        kind: "retained",
+        completedAt: milliseconds + 6000,
+        retainUntil: milliseconds + 6000 + 86_400_000,
+        outcomeJson: stringifyJsonValue(result.outcome),
+      });
+      store.close();
+      store = openRecoveryStore(configuration);
+      expect(store.read((tx) => tx.resources())).toEqual(records);
+      expect(store.read((tx) => tx.key("alice", "key"))).toEqual(retained);
+    } finally {
+      store.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+  it.each([
+    "throw",
+    "promise",
+    "rejected-promise",
+    "thenable",
+    "nan",
+    "infinity",
+    "fraction",
+    "negative",
+    "unsafe",
+    "date-overflow",
+    "extended-year",
+    "nested-clock",
+    "nested-policy",
+    "post-policy",
+    "post-write",
+  ])("rolls back real allocated identities/revisions and staged effects for %s", async (fault) => {
+    const directory = mkdtempSync(path.join(tmpdir(), "bdp-context-fault-"));
+    const f = contextStoreSeed();
+    const configuration = contextStoreConfiguration(directory);
+    let store = openRecoveryStore({
+      ...configuration,
+      create: { resources: [...f.records.values()], types: Object.fromEntries(f.installed) },
+    });
+    const before = store.read((tx) => tx.resources());
+    let allocatedId: string | undefined;
+    let allocatedRevision: string | undefined;
+    let writes = 0;
+    const rejection = vi.fn();
+    process.on("unhandledRejection", rejection);
+    const clock = vi.fn((): number => {
+      switch (fault) {
+        case "throw":
+          throw Error("clock fault");
+        case "promise":
+          return Promise.resolve(milliseconds) as never;
+        case "rejected-promise":
+          return Promise.reject(Error("async clock fault")) as never;
+        case "thenable":
+          return {
+            // biome-ignore lint/suspicious/noThenProperty: deliberate forbidden async clock fixture
+            then: (_resolve: unknown, reject: (error: Error) => void) =>
+              reject(Error("thenable fault")),
+          } as never;
+        case "nan":
+          return NaN;
+        case "infinity":
+          return Infinity;
+        case "fraction":
+          return milliseconds + 0.5;
+        case "negative":
+          return -1;
+        case "unsafe":
+          return Number.MAX_SAFE_INTEGER + 1;
+        case "date-overflow":
+          return 8.64e15 + 1;
+        case "extended-year":
+          return Date.parse("+010000-01-01T00:00:00.000Z");
+        case "nested-clock":
+          return store.read(() => milliseconds);
+        default:
+          return milliseconds;
+      }
+    });
+    try {
+      const attempt = () =>
+        submitContextMember(
+          store,
+          "fault",
+          "createBead",
+          { type: beadType, changeContext: { message: "new" } },
+          {
+            ...f.options,
+            observeCommitTime: clock,
+            policy: {
+              ...f.options.policy,
+              canCreate: () => {
+                if (fault === "nested-policy") store.read(() => true);
+                return fault !== "post-policy";
+              },
+            },
+          },
+          (tx) => ({
+            ...tx,
+            allocateResourceId: (kind) => {
+              allocatedId = tx.allocateResourceId(kind);
+              return allocatedId;
+            },
+            allocateRevision: () => {
+              allocatedRevision = tx.allocateRevision();
+              return allocatedRevision;
+            },
+            putResource: (record) => {
+              writes++;
+              tx.putResource(record);
+              if (fault === "post-write") throw Error("after actual write");
+            },
+          }),
+        );
+      if (fault === "post-policy") {
+        failure(attempt(), "forbidden");
+        expect(store.read((tx) => tx.key("alice", "fault"))).toMatchObject({
+          kind: "retained",
+          effect: "failure",
+        });
+      } else {
+        expect(attempt).toThrow();
+        expect(store.read((tx) => tx.key("alice", "fault"))).toEqual({ kind: "unknown" });
+      }
+      // A turn of the event loop makes rejected async return values observable.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(rejection).not.toHaveBeenCalled();
+      expect(clock).toHaveBeenCalledTimes(1);
+      expect(writes).toBe(fault === "post-write" ? 1 : 0);
+      expect(allocatedId).toBeDefined();
+      expect(allocatedRevision).toBeDefined();
+      expect(store.read((tx) => tx.resources())).toEqual(before);
+      expect(store.read((tx) => tx.identityWasCommitted(allocatedId as string))).toBe(false);
+      store.close();
+      store = openRecoveryStore(configuration);
+      const retry = submitContextMember(
+        store,
+        "retry",
+        "createBead",
+        { type: beadType, changeContext: { message: "new" } },
+        f.options,
+      );
+      expect(retry).toMatchObject({
+        effect: "success",
+        outcome: { resource: { id: `${scope}${allocatedId}`, revision: allocatedRevision } },
+      });
+    } finally {
+      process.off("unhandledRejection", rejection);
+      store.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });

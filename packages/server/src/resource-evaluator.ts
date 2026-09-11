@@ -89,8 +89,11 @@ export interface ResourceEvaluationOptions {
   readonly policy: ResourceMutationPolicy;
   /** Complete Scope policy set current in this member transaction. */
   readonly maximumEndpointMultiplicity: readonly MaximumEndpointMultiplicityPolicy[];
-  /** Authority-observed instant for this one atomic member, never caller input. */
-  readonly committedAt: string;
+  /** Authority clock, captured at entry and observed late inside this member.
+   * Requires exclusive synchronous ownership and immutable member-turn policy.
+   * Never supply a closure around an admission-time or caller-provided sample.
+   */
+  readonly observeCommitTime: () => number;
   /** Native History recording policy; neither this flag nor a parser is admission. */
   readonly recordChangeContext: boolean;
   /** Bounds must match advertised validation limits; absent means complete diagnostics. */
@@ -492,6 +495,8 @@ export function evaluateResourceMutation(
 ): ResourceEvaluation {
   // Capture every supplied limit before any policy/store/validator callback.
   options = { ...options, limits: Object.freeze({ ...options.limits }) };
+  if (typeof options.observeCommitTime !== "function")
+    throw new TypeError("a synchronous authority commit clock is required");
   parseCanonicalScope(options.scope);
   for (const bound of [options.limits.diagnosticCount, options.limits.diagnosticBytes]) {
     if (bound !== undefined && (!Number.isSafeInteger(bound) || bound < 1))
@@ -785,60 +790,68 @@ function evaluate(
   const owned =
     ownership !== undefined && (Object.hasOwn(ownership, type) || Object.hasOwn(ownership, "*"));
   const noOp = !creating && !deleting && equal(properties, before?.properties);
-  const metadata = (
-    prior: ResourceRecord | undefined,
-  ): { readonly attribution?: Attribution; readonly changeContext?: ChangeContext } => {
+  const contextInput = "changeContext" in input ? input.changeContext : undefined;
+  // Protocol defaults: omitted and {} both carry only undetermined states.
+  const needsContext =
+    !noOp &&
+    (options.recordChangeContext ||
+      (contextInput !== undefined &&
+        (Object.hasOwn(contextInput, "agent") || Object.hasOwn(contextInput, "message"))));
+  const metadata = (prior: ResourceRecord | undefined): VersionRecipe["metadata"] => {
     if (noOp && prior)
       return {
         ...(prior.attribution ? { attribution: prior.attribution } : {}),
-        ...(prior.changeContext ? { changeContext: prior.changeContext } : {}),
+        context: { kind: "preserved", value: prior.changeContext },
       };
     const attribution = "attribution" in input ? input.attribution : undefined;
-    const context = "changeContext" in input ? input.changeContext : undefined;
     return {
       ...(attribution === undefined ? {} : { attribution }),
-      ...(options.recordChangeContext || context !== undefined
-        ? { changeContext: makeContext(context, options.committedAt) }
-        : {}),
+      context: needsContext ? { kind: "native" } : { kind: "preserved", value: undefined },
     };
   };
   const revision = noOp ? before?.revision : deleting ? undefined : allocateRevision();
-  let after: ResourceRecord | undefined = deleting
+  let subjectRecipe: VersionRecipe | undefined = deleting
     ? undefined
-    : ({
+    : {
         id: uri,
         type,
-        revision,
+        revision: revision as string,
         properties,
-        ...metadata(before),
-        ...(endpoints ?? {}),
-      } as ResourceRecord);
+        metadata: metadata(before),
+        endpoints,
+      };
   const ownedLinks = (
-    owner: BeadRecord,
+    owner: VersionRecipe,
     descriptor: BeadTypeDescriptor,
-    replacement?: LinkRecord,
+    replacement?: VersionRecipe,
     removed?: string,
-  ): BeadRecord => {
+  ): VersionRecipe => {
     if (descriptor.ownsOutgoing === undefined) return owner;
-    const entries: Record<string, LinkRecord[]> = Object.create(null) as Record<
+    const entries: Record<string, PreparedLink[]> = Object.create(null) as Record<
       string,
-      LinkRecord[]
+      PreparedLink[]
     >;
     for (const name of Object.keys(descriptor.ownsOutgoing)) if (name !== "*") entries[name] = [];
     const live = tx
       .outgoingLinks(local(scope, owner.id) as string)
       .filter((link) => link.id !== removed && new URL(link.id, scope).href !== replacement?.id)
-      .map((link) => storedRecord(link, scope) as LinkRecord);
-    if (replacement) live.push(replacement);
-    for (const link of live) {
+      .map(
+        (link): PreparedLink => ({
+          kind: "existing",
+          value: storedRecord(link, scope) as LinkRecord,
+        }),
+      );
+    if (replacement) live.push({ kind: "replacement", value: replacement });
+    for (const prepared of live) {
+      const link = prepared.value;
       if (Object.hasOwn(descriptor.ownsOutgoing, link.type) || descriptor.ownsOutgoing["*"]) {
         const bucket = entries[link.type] ?? [];
         entries[link.type] = bucket;
-        bucket.push(link);
+        bucket.push(prepared);
       }
     }
     for (const [name, links] of Object.entries(entries)) {
-      links.sort((a, b) => compareCanonicalIds(a.id, b.id));
+      links.sort((a, b) => compareCanonicalIds(a.value.id, b.value.id));
       const max = descriptor.ownsOutgoing[name]?.max;
       if (max !== undefined && links.length > max)
         diagnosticFailure(
@@ -869,21 +882,22 @@ function evaluate(
       );
     return { ...owner, ownedLinks: entries };
   };
-  if (after && resourceKind === "bead" && declared.describes === "bead")
-    after = ownedLinks(after as BeadRecord, declared);
-  let sourceAfter: BeadRecord | undefined;
+  if (subjectRecipe && resourceKind === "bead" && declared.describes === "bead")
+    subjectRecipe = ownedLinks(subjectRecipe, declared);
+  let sourceRecipe: VersionRecipe | undefined;
   if (owned && source && sourceDescriptor?.describes === "bead") {
     const sourceRevision = noOp ? source.revision : allocateRevision();
-    sourceAfter = ownedLinks(
+    sourceRecipe = ownedLinks(
       {
         id: source.id,
         type: source.type,
         revision: sourceRevision,
         properties: source.properties,
-        ...metadata(source),
+        metadata: metadata(source),
+        endpoints: undefined,
       },
       sourceDescriptor,
-      after as LinkRecord | undefined,
+      subjectRecipe,
       deleting ? id : undefined,
     );
   }
@@ -903,8 +917,26 @@ function evaluate(
       if (count > policy.max) fail("aggregate-constraint-violation");
     }
   }
-  after = after ? freeze(after) : undefined;
-  sourceAfter = sourceAfter ? freeze(sourceAfter) : undefined;
+  // Preparation has made no graph writes. Recipes are private, never provisional
+  // Resource records passed to policy/storage. Their inventory checks ran once.
+  if (subjectRecipe) freeze(subjectRecipe);
+  if (sourceRecipe) freeze(sourceRecipe);
+  // C is a conditional logical commit point only under the owner's exclusive
+  // single-connection, synchronous, immutable-snapshot contract. Final checks
+  // below may still refuse; only the outer S6 COMMIT permits a success to escape.
+  // Adding concurrent readers/WAL, async or reentrant owners reopens this proof.
+  const context =
+    subjectRecipe?.metadata.context.kind === "native" ||
+    sourceRecipe?.metadata.context.kind === "native"
+      ? makeContext(contextInput, observeCommitTime(options.observeCommitTime))
+      : undefined;
+  const materialized = new Map<VersionRecipe, ResourceRecord>();
+  const after = subjectRecipe
+    ? materializeVersion(subjectRecipe, context, materialized)
+    : undefined;
+  const sourceAfter = sourceRecipe
+    ? (materializeVersion(sourceRecipe, context, materialized) as BeadRecord)
+    : undefined;
   if (
     creating
       ? !after || !options.policy.canCreate(after)
@@ -988,6 +1020,80 @@ function evaluate(
     changed: writes.map((write) => write.id),
     deleted: deleting ? [id] : [],
   });
+}
+/** Private version recipes cannot be supplied to a Resource consumer. Only the
+ * new Link recipe may be referenced by its source; old Links stay whole records.
+ */
+interface VersionRecipe {
+  readonly id: string;
+  readonly type: string;
+  readonly revision: string;
+  readonly properties: BeadRecord["properties"];
+  readonly endpoints: { readonly source: Reference; readonly target: Reference } | undefined;
+  readonly metadata: {
+    readonly attribution?: Attribution;
+    readonly context:
+      | { readonly kind: "native" }
+      | { readonly kind: "preserved"; readonly value: ChangeContext | undefined };
+  };
+  readonly ownedLinks?: Readonly<Record<string, readonly PreparedLink[]>>;
+}
+type PreparedLink =
+  | { readonly kind: "existing"; readonly value: LinkRecord }
+  | { readonly kind: "replacement"; readonly value: VersionRecipe };
+function materializeVersion(
+  recipe: VersionRecipe,
+  nativeContext: ChangeContext | undefined,
+  materialized: Map<VersionRecipe, ResourceRecord>,
+): ResourceRecord {
+  const existing = materialized.get(recipe);
+  if (existing) return existing;
+  const context =
+    recipe.metadata.context.kind === "native" ? nativeContext : recipe.metadata.context.value;
+  if (recipe.metadata.context.kind === "native" && context === undefined)
+    throw new TypeError("native version requires its commit observation");
+  const record = freeze({
+    id: recipe.id,
+    type: recipe.type,
+    revision: recipe.revision,
+    properties: recipe.properties,
+    ...(recipe.metadata.attribution === undefined
+      ? {}
+      : { attribution: recipe.metadata.attribution }),
+    ...(context === undefined ? {} : { changeContext: context }),
+    ...(recipe.endpoints ?? {}),
+    ...(recipe.ownedLinks === undefined
+      ? {}
+      : {
+          ownedLinks: Object.fromEntries(
+            Object.entries(recipe.ownedLinks).map(([type, links]) => [
+              type,
+              links.map((link) =>
+                link.kind === "existing"
+                  ? link.value
+                  : materializeVersion(link.value, nativeContext, materialized),
+              ),
+            ]),
+          ),
+        }),
+  }) as ResourceRecord;
+  materialized.set(recipe, record);
+  return record;
+}
+function observeCommitTime(clock: () => number): string {
+  const value: unknown = clock();
+  if (value !== null && (typeof value === "object" || typeof value === "function")) {
+    // Reject asynchronous clocks without leaving an unhandled rejection after
+    // the owned transaction rolls back. Never await or consume their timestamp.
+    Promise.resolve(value).catch(() => {});
+    throw new TypeError("authority commit clock must return synchronous epoch milliseconds");
+  }
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0 || value > 8.64e15)
+    throw new TypeError(
+      "authority commit clock must return safe epoch milliseconds within Date range",
+    );
+  // The canonical context parser also rejects Date's extended-year spelling.
+  return new Date(value).toISOString();
 }
 function makeContext(input: ChangeContextInput | undefined, committedAt: string): ChangeContext {
   const state = (
