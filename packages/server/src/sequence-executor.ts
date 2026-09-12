@@ -22,7 +22,13 @@ import {
   type StablePrincipal,
 } from "./member-executor.js";
 import type { MemberCreatorBinding } from "./member-identity.js";
-import { RecoveryStoreError, type Admission, type RecoveryStore } from "./recovery-store.js";
+import type { OwnerReadEntryResult } from "./authority-read.js";
+import {
+  RecoveryStoreError,
+  type Admission,
+  type RecoveryStore,
+  type StoreReader,
+} from "./recovery-store.js";
 
 export type CancelScheduled = () => void;
 export interface LifecycleScheduler {
@@ -42,7 +48,14 @@ export type SubmissionCompletion =
 export type Submission =
   | { readonly kind: "refused"; readonly problem: ReadUpdateProblem }
   | { readonly kind: "admitted"; readonly completion: Promise<SubmissionCompletion> };
+export interface SynchronousLifecycleState {
+  readonly busy: boolean;
+  readonly accepting: boolean;
+}
 export interface SequenceLifecycle {
+  readonly scope: string;
+  inspectLifecycle(): SynchronousLifecycleState;
+  withRead<T>(callback: (reader: StoreReader) => T): OwnerReadEntryResult<T>;
   submit(carrier: PreparedReadUpdateCarrier, principal: StablePrincipal): Submission;
   readonly closed: Promise<void>;
   close(): Promise<void>;
@@ -55,6 +68,7 @@ export type LifecyclePhase =
   | "register"
   | "schedule"
   | "member"
+  | "read"
   | "project"
   | "cleanup"
   | "maintenance"
@@ -512,6 +526,43 @@ export function createSequenceLifecycle(options: SequenceLifecycleOptions): Sequ
   });
   if (ownerFailure) throw errorOf(ownerFailure);
   return Object.freeze({
+    scope: member.scope,
+    inspectLifecycle(): SynchronousLifecycleState {
+      return Object.freeze({ busy, accepting: state === "accepting" });
+    },
+    /** Unfiltered, expiring StoreReader capability: keep this owner private to
+     * the qualified exclusive coordinator. HTTP/adapter seams must not leak it
+     * or assume the Read plane's principal/visibility policy applies here. */
+    withRead<T>(callback: (reader: StoreReader) => T): OwnerReadEntryResult<T> {
+      if (busy)
+        return Object.freeze({
+          kind: "entry-refused",
+          reason: "reentrant",
+          cause: new SequenceLifecycleError("reentrant", new Error("owner entry is active")),
+        });
+      return enter(() => {
+        if (state !== "accepting")
+          return Object.freeze({
+            kind: "entry-refused",
+            reason: "not-accepting",
+            cause: new SequenceLifecycleError("not-accepting", new Error("owner is not accepting")),
+          });
+        let value: T;
+        try {
+          value = store.read(callback);
+        } catch (error) {
+          // A callback-fabricated RecoveryStoreError("fenced") is indistinguishable
+          // here from a facade fence: it triggers sticky shutdown and propagates
+          // unchanged. Private callbacks remain qualified; unrelated errors do not.
+          if (fenced(error)) {
+            storeFenced = true;
+            shutdown(failure("read", error));
+          }
+          throw error;
+        }
+        return Object.freeze({ kind: "read", value });
+      });
+    },
     closed,
     submit(carrier: PreparedReadUpdateCarrier, principal: StablePrincipal): Submission {
       return enter(() => {

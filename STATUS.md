@@ -5,18 +5,18 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Surface | Specified | Validated |
 | --- | --- | --- |
 | Read profile | Foundation #29, shared HTTP/scalar guards, iterative deep JSON and canonical URL delimiter corrections; 49 executable scenarios | Genuine current cohort: 89 passes and nine justified N/A slots across both targets, with eight explicit qualifications |
-| Read+Update profile | D1–D40 ruled; wire from #19 plus local admission, Resource/alias evaluators, exact member identity, durable SQLite state, member execution, retained disclosure and internal sequence lifecycle | Component tests cover admission, scheduled turns, replay/projection, maintenance, graceful drain and recovery; the complete source council disposition and independent correction review are complete. Full production authority/transport/schema installation and executable profile evidence remain open; no capability claim |
+| Read+Update profile | D1–D40 ruled; wire from #19 plus local admission, Resource/alias evaluators, exact member identity, durable SQLite state, member execution, retained disclosure and private joint Read/sequence lifecycle | Component tests cover admission, scheduled turns, replay/projection, maintenance, graceful drain and recovery; the complete source council disposition and independent correction review are complete. Full production authority/transport/schema installation and executable profile evidence remain open; no capability claim |
 | Read+Update client | Eight mutations, sequences, all nine Read variants and explicit one-hop alias resolution | 589 client tests plus independent source, lifecycle, URL and packaging reviews; this is client functionality, not a served write-profile claim |
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current dynamic-Read-component Read cohort was genuinely generated from
-`932c6cb964c6d4b84b6f2aa633bd448d68783535` and committed with its matching capability constant at
-`3b30119a5024cf4451fb6b4680826dad7b616ba3`. Generation ran for 137.66 seconds
+The current private-S5/Read-bridge Read cohort was genuinely generated from
+`90d2eb8374ba280222c33b518c92cffd4884c7a1` and committed with its matching capability constant at
+`763a6e6b91df4bed15b1e01d7c49f77967dba2b8`. Generation ran for 137.30 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36 and #37 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37 and #38 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -118,11 +118,30 @@ Capacity pressure can refuse a new retaining page while admitted cursors and
 ordinary point reads remain usable. These bounds do not constrain full transient
 closure/parser work or establish a production latency limit.
 
-The actual S5 Read entry and joint Read/sequence lifecycle are a separate planned
-integration. This component's owner-entry interface does not implement that bridge,
-qualify sole ownership or supply HTTP/authentication. Existing Read cohort evidence
-continues to test its named current targets; it is not an executable dynamic Read
-or ReadUpdate profile grant.
+The private S5/Read coordinator now combines actual scheduled Member execution and
+principal-bound Read on the same qualified synchronous owner. S5 supplies checked
+Scope identity, inert lifecycle inspection and a direct expiring S6 reader callback;
+the Read result envelope is created only after that callback returns. Common entry
+guards cover Member/Read callbacks and the actual idle pagination timer. Joint close
+stops admission, disposes Read pagination and waits for the real admitted Member tail
+and both fixed component completions. Invocation faults retain separate bounded
+evidence; they do not replace genuine completion or establish a timeout guarantee.
+
+Actual bridge controls cover all thirteen G11 groups, including five committed
+prefixes, R2 before awaiting R1, shared current aggregate policy, timer reentry,
+close at two of five Members, sticky Read fences and recovery, constructor cleanup,
+and original/derived rejection ownership. The corrected controls additionally
+discriminate owner-origin synchronous refusals during automatic drain and owner
+completion failure before Read invocation failure. Hidden construction-joint
+identity and once-settlement remain source-review proofs without a testing hook.
+
+The private S5 handle has unfiltered, expiring StoreReader access. It must remain
+inside the qualified exclusive owner; an HTTP/adapter seam must not expose it or
+assume the principal-bound Read plane's visibility policy applies to that handle.
+Checked Scope identity and contained callback guards do not qualify sole ownership,
+immutable authority inputs or a complete authenticated service. Existing Read cohort
+evidence still tests its named current targets; it does not establish a served
+dynamic Read or ReadUpdate profile from this private bridge.
 
 Production authority, full startup/engine qualification, server HTTP/auth/configuration
 integration and executable ReadUpdate evidence remain separate gates. The internal
@@ -168,8 +187,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,684 tests
-in 82 files with zero skips in 38.78 seconds; all source,
+reviewed foundation source. The final evidence head passed 3,735 tests
+in 83 files with zero skips in 38.92 seconds; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.
