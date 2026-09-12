@@ -2412,3 +2412,54 @@ describe("council native cancellation state before observation", () => {
     },
   );
 });
+
+describe("G11 partial plane construction error ownership", () => {
+  it.each([false, true])(
+    "preserves original construction fault and cleanup evidence (cleanup fails=%s)",
+    (cleanupFails) => {
+      const f = fixture();
+      const original = Error("controlled conformance construction"),
+        cleanup = Error("controlled pagination disposal");
+      const realFactory = paginationModule.createReadPagination;
+      let calls = 0;
+      vi.spyOn(paginationModule, "createReadPagination").mockImplementation((options) => {
+        const engine = realFactory(options);
+        return {
+          ...engine,
+          close() {
+            calls++;
+            const result = engine.close();
+            if (cleanupFails) throw cleanup;
+            return result;
+          },
+        };
+      });
+      vi.spyOn(protocolModule, "createTypeConformanceIndex").mockImplementation(() => {
+        throw original;
+      });
+      let thrown: unknown;
+      try {
+        f.open();
+      } catch (error) {
+        thrown = error;
+      }
+      expect(calls).toBe(1);
+      if (!cleanupFails) expect(thrown).toBe(original);
+      else {
+        expect(thrown).toBeInstanceOf(AggregateError);
+        const aggregate = thrown as AggregateError;
+        expect(aggregate.errors).toEqual([original, cleanup]);
+        expect(aggregate.errors[0]).toBe(original);
+        expect(aggregate.errors[1]).toBe(cleanup);
+        expect(aggregate.cause).toBe(original);
+        expect(Object.isFrozen(aggregate.errors)).toBe(true);
+        expect(Object.isFrozen(aggregate)).toBe(true);
+        expect(Reflect.set(aggregate.errors, "0", Error("replace"))).toBe(false);
+        expect(Reflect.set(aggregate, "errors", [])).toBe(false);
+        expect(Reflect.set(aggregate, "cause", cleanup)).toBe(false);
+      }
+      expect(Object.isFrozen(original)).toBe(false);
+      expect(Object.isFrozen(cleanup)).toBe(false);
+    },
+  );
+});

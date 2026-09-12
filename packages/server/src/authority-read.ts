@@ -392,7 +392,19 @@ function prepare(options: AuthorityReadOptions): Prepared {
       pagination,
     });
   } catch (error) {
-    pagination.close();
+    try {
+      pagination.close();
+    } catch (cleanup) {
+      const combined = new AggregateError(
+        [error, cleanup],
+        "Read construction and cleanup failed",
+        {
+          cause: error,
+        },
+      );
+      Object.freeze(combined.errors);
+      throw Object.freeze(combined);
+    }
     throw error;
   }
 }

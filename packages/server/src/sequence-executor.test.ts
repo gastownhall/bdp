@@ -124,7 +124,12 @@ class Queue implements LifecycleScheduler {
   }
 }
 function fixture(
-  settings: { owned?: boolean; validate?: PropertyValidator; scheduler?: LifecycleScheduler } = {},
+  settings: {
+    owned?: boolean;
+    validate?: PropertyValidator;
+    scheduler?: LifecycleScheduler;
+    empty?: boolean;
+  } = {},
 ) {
   const dir = directory();
   const descriptor = parseTypeDescriptor({
@@ -181,7 +186,10 @@ function fixture(
     lineageId: "fresh",
     minimumRetentionMs: day,
   };
-  let store = openRecoveryStore({ ...config, create: { resources, types } });
+  let store = openRecoveryStore({
+    ...config,
+    create: { resources: settings.empty ? [] : resources, types },
+  });
   stores.push(store);
   const state = {
     now: start,
@@ -2093,4 +2101,155 @@ describe("real event loop and emitted child ownership", () => {
     },
     20_000,
   );
+});
+
+describe("G11 actual S5 read entry and hook-free inspection", () => {
+  it("owns checked Scope and one synchronous facade, expires returns, and preserves callback origins", async () => {
+    const f = fixture({ empty: true }),
+      owner = f.owner();
+    expect(owner.scope).toBe(scope);
+    expect(Reflect.set(owner, "scope", "https://wrong.test/")).toBe(false);
+    const read = vi.spyOn(f.store, "read"),
+      expire = vi.spyOn(f.store, "expire"),
+      close = vi.spyOn(f.store, "close");
+    f.clock.mockClear();
+    expect(owner.inspectLifecycle()).toEqual({ busy: false, accepting: true });
+    expect(Object.isFrozen(owner.inspectLifecycle())).toBe(true);
+    expect([
+      read.mock.calls.length,
+      expire.mock.calls.length,
+      close.mock.calls.length,
+      f.clock.mock.calls.length,
+    ]).toEqual([0, 0, 0, 0]);
+    const done = submit(owner, sequence([create("read-made", { id: "beads/made" })]));
+    f.queue.drain();
+    await done;
+    read.mockClear();
+    let escaped: (() => unknown) | undefined;
+    const value = { kind: "entry-refused", reason: "not-accepting" };
+    const result = owner.withRead((reader) => {
+      expect(owner.inspectLifecycle()).toEqual({ busy: true, accepting: true });
+      expect(reader.resource("beads/made")).toBeDefined();
+      escaped = reader.resources;
+      expect(
+        owner.withRead(() => {
+          throw Error("nested callback ran");
+        }),
+      ).toMatchObject({
+        kind: "entry-refused",
+        reason: "reentrant",
+        cause: { phase: "reentrant" },
+      });
+      return value;
+    });
+    expect(result).toEqual({ kind: "read", value });
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(() => escaped?.()).toThrow(expect.objectContaining({ reason: "expired-facade" }));
+    const failure = new SequenceLifecycleError("not-accepting", Error("callback"));
+    expect(() =>
+      owner.withRead(() => {
+        throw failure;
+      }),
+    ).toThrow(failure);
+    expect(owner.inspectLifecycle()).toEqual({ busy: false, accepting: true });
+    await owner.close();
+    read.mockClear();
+    expect(
+      owner.withRead(() => {
+        throw Error("closed callback ran");
+      }),
+    ).toMatchObject({ kind: "entry-refused", reason: "not-accepting" });
+    expect(owner.inspectLifecycle()).toEqual({ busy: false, accepting: false });
+    expect(read).not.toHaveBeenCalled();
+  });
+  it("rejects actual direct async read returns before an outer envelope and owns rejection hygiene", async () => {
+    const f = fixture({ empty: true }),
+      owner = f.owner();
+    const unhandled: unknown[] = [],
+      listener = (value: unknown) => unhandled.push(value);
+    process.on("unhandledRejection", listener);
+    try {
+      for (const kind of ["resolve", "reject", "thenable"] as const) {
+        let expired: (() => unknown) | undefined;
+        let caught: unknown;
+        try {
+          owner.withRead((reader) => {
+            expired = reader.resources;
+            if (kind === "resolve") return Promise.resolve(1);
+            if (kind === "reject") return Promise.reject(Error("forbidden async"));
+            return {
+              // Explicit negative direct S6 callback result.
+              // biome-ignore lint/suspicious/noThenProperty: Intentional synchronous-entry rejection test.
+              then(resolve: (value: number) => void) {
+                resolve(1);
+              },
+            };
+          });
+        } catch (error) {
+          caught = error;
+        }
+        expect(caught).toBeInstanceOf(RecoveryStoreError);
+        expect(caught).toMatchObject({ reason: "async-callback" });
+        expect(() => expired?.()).toThrow(expect.objectContaining({ reason: "expired-facade" }));
+      }
+      await later();
+      expect(unhandled).toEqual([]);
+      expect(owner.inspectLifecycle()).toEqual({ busy: false, accepting: true });
+      expect(owner.withRead((r) => r.resources())).toEqual({ kind: "read", value: [] });
+    } finally {
+      process.off("unhandledRejection", listener);
+    }
+    await owner.close();
+  });
+  it("keeps inspection inert and busy precedence during actual member/maintenance/cancellation drain", async () => {
+    const f = fixture({ empty: true });
+    let owner: SequenceLifecycle | undefined;
+    const observations: { busy: boolean; accepting: boolean }[] = [];
+    const inspect = () => {
+      if (!owner) return;
+      const state = owner.inspectLifecycle();
+      observations.push(state);
+      expect(Object.isFrozen(state)).toBe(true);
+      expect(state.busy).toBe(true);
+      expect(
+        owner.withRead(() => {
+          throw Error("busy read ran");
+        }),
+      ).toMatchObject({ kind: "entry-refused", reason: "reentrant" });
+    };
+    const scheduler: LifecycleScheduler = {
+      turn: f.queue.turn.bind(f.queue),
+      delay(ms, callback) {
+        const cancel = f.queue.delay(ms, callback);
+        return () => {
+          inspect();
+          cancel();
+        };
+      },
+    };
+    owner = f.owner({
+      scheduler,
+      member: optionsFor(f, {
+        clock: () => {
+          inspect();
+          return f.state.now++;
+        },
+      }),
+    });
+    f.queue.tick(); // Actual maintenance.
+    const done = submit(owner, sequence([create("one"), create("two")]));
+    const closed = owner.close(); // Actual cancellation; tail still belongs to S5.
+    expect(owner.inspectLifecycle()).toEqual({ busy: false, accepting: false });
+    expect(
+      owner.withRead(() => {
+        throw Error("draining read ran");
+      }),
+    ).toMatchObject({ reason: "not-accepting" });
+    f.queue.drain();
+    await done;
+    await closed;
+    expect(observations.some((x) => x.accepting)).toBe(true);
+    expect(observations.some((x) => !x.accepting)).toBe(true);
+  });
 });
