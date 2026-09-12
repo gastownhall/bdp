@@ -140,9 +140,9 @@ export function runBdWorkspaceCommand(
 }
 
 /**
- * Seed one isolated workspace from the fixture's bd section. The pause after
- * demo-a keeps created_at ordering deterministic across hosts; it is
- * load-bearing for ordering oracles and must not be removed.
+ * Seed one isolated workspace from the fixture's bd section. Pinned bd stores
+ * creation times at one-second granularity, so separate every consecutive
+ * creation to preserve the fixture's order, as the named baseline seeder does.
  */
 export async function seedBdWorkspace(
   executable: string,
@@ -163,7 +163,8 @@ export async function seedBdWorkspace(
     );
   };
   await bd(["init", "--prefix", seed.prefix, "--skip-agents", "--skip-hooks"]);
-  for (const bead of seed.beads) {
+  for (const [index, bead] of seed.beads.entries()) {
+    if (index > 0) await new Promise((resolve) => setTimeout(resolve, 1_100));
     await bd([
       "create",
       bead.title,
@@ -175,7 +176,6 @@ export async function seedBdWorkspace(
       String(bead.priority),
       "--silent",
     ]);
-    if (bead.id === "demo-a") await new Promise((resolve) => setTimeout(resolve, 1_100));
   }
   for (const link of seed.links)
     await bd(["dep", "add", link.source, link.target, "--type", link.type]);
