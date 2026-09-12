@@ -10,15 +10,32 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current private-S5/Read-bridge Read cohort was genuinely generated from
-`90d2eb8374ba280222c33b518c92cffd4884c7a1` and committed with its matching capability constant at
-`763a6e6b91df4bed15b1e01d7c49f77967dba2b8`. Generation ran for 137.30 seconds
+The current seed-order-corrected Read cohort was genuinely generated from
+`21b7ab74a4272fde19c60af047fde6e8ddc78455` and committed with its matching capability constant at
+`4b08ebd6998d7f98c0fa692425b8f3cb29c15fc9`. Generation ran for 154.48 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37 and #38 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38 and #39 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
+
+Real-bd fixture provisioning now separates every consecutive Bead creation by
+more than one second, matching the accepted baseline's timestamp granularity.
+The original ordered readiness oracle is preserved. A measured same-second D/J
+counterexample exposed the old seed's incomplete spacing; corrected real-bd
+controls check both persisted creation order and the returned readiness order.
+A separate controlled-clock seed test checks this setup contract without claiming
+to implement or certify bd's readiness semantics. These are fixture corrections,
+not changes to the domain comparator or protocol collection-order requirements.
+The harness binding now includes the actual seeder source. This finite source list
+records its identity; it does not establish transitive closure or automatic
+current-harness drift rejection. Fresh generation and independent re-derivation
+remain required. The spacing assumes ordinary clock progression, and existing
+seed/command deadlines remain unchanged. Concurrent-seed failure cleanup remains
+a separate test-harness follow-up. When either seed fails, the remaining repair
+must abort and await both seeds before deleting their shared temporary root.
+Successful runs do not establish that failure-path behavior.
 
 The original ordered 27-definition Read seal is preserved as the prefix of the
 reviewed 42-name seal, with 41 reachable definitions and 16 roots, including the
@@ -187,8 +204,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,735 tests
-in 83 files with zero skips in 38.92 seconds; all source,
+reviewed foundation source. The final evidence head passed 3,739 tests
+in 84 files with zero skips in 46.92 seconds; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.
