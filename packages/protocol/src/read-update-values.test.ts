@@ -22,8 +22,9 @@ import {
   type ReadUpdateOperation,
 } from "./index.js";
 
-// Test formatting is explicit; the runtime owner supplies its property-location
-// mapping and the same advertised limits used for other validation failures.
+// This bare-caller test deliberately passes operation-relative occurrences through;
+// it is not a wire-location mapping witness. The runtime owner supplies properties-
+// relative wire locations and the same limits used for other validation failures.
 const admitReadUpdateOperationNumbers = (value: UnadmittedReadUpdateOperation) =>
   admitReadUpdateOperationNumbersWithBudget(value, {
     diagnostic: ({ pointer }) => ({ instanceLocation: pointer, message: "inadmissible number" }),
@@ -36,7 +37,7 @@ const problem = {
   code: "validation-failed",
   status: 422,
   retry: "never",
-  diagnostics: [{ instanceLocation: "/properties/n", message: "inadmissible number" }],
+  diagnostics: [{ instanceLocation: "/n", message: "inadmissible number" }],
 };
 const sequence = (operations: unknown[]): string => JSON.stringify({ operations });
 const create = { operation: "createBead", idempotencyKey: "create", name: "a", type };

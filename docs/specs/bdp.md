@@ -3686,7 +3686,8 @@ installed diagnostic metadata and emitted location provenance against those
 bounds before serving the configuration. A still-replayable retained diagnostic
 list constrains subsequent configuration: the authority must refuse an
 incompatible lower bound or retain a sufficient bound through lawful expiry.
-It must not truncate or reformat a retained list to fit a new configuration.
+It must not truncate or reformat a retained list to fit a new configuration
+(amended 2026-09-14, implementing the approved 2026-09-12 runtime decisions).
 
 The reference implementation selects 1 MiB request bodies, 1 MiB per Resource's
 own properties, and 8 MiB diagnostic arrays as its defaults. These are reference

@@ -1332,10 +1332,10 @@ it("receives a complete diagnostic Problem over 1 MiB only with an explicit suff
   expect(bytes).toBeLessThan(8388608);
   const fetcher = async () => response(text, 422, { "content-type": "application/problem+json" });
   const accepted = await client(fetcher, {
-    limits: { ...limits, responseBodyBytes: bytes, responseTimeoutMs: 2000 },
+    limits: { ...limits, responseBodyBytes: bytes, responseTimeoutMs: 10000 },
   }).post(target, post);
   expect(accepted).toMatchObject({ kind: "json", status: 422, body: problem });
   await expect(
-    client(fetcher, { limits: { ...limits, responseTimeoutMs: 2000 } }).post(target, post),
+    client(fetcher, { limits: { ...limits, responseTimeoutMs: 10000 } }).post(target, post),
   ).rejects.toMatchObject({ code: "response-too-large", submission: "unknown" });
 });

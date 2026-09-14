@@ -51,7 +51,10 @@ export function snapshotReadUpdateRuntimeLimits(
  *
  * This does not qualify actual R enforcement, installed emitter/location/metadata
  * correctness, complete graph/Type validity, population/lineage/old fingerprints,
- * full response bounds or mandatory transfer. S5 does not require this call.
+ * retained successful postimage properties bytes, full response bounds or mandatory
+ * transfer. Lowering B does not bound replayed successful bodies; their startup,
+ * advertisement and complete-response compatibility remains an owner obligation.
+ * S5 does not require this call.
  * resources() materializes rows and embedded owned bodies; parsing/snapshots and
  * duplicate inline content amplify memory/work. No streaming or fixed-memory bound.
  */

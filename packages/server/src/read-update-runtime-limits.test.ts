@@ -22,12 +22,14 @@ describe("conditional runtime limit snapshot", () => {
       snapshotReadUpdateRuntimeLimits({ ...bounds, propertiesBytes: 1 })
         .maximumFirstDiagnosticBytes,
     ).toBe(2118916);
+    expect(
+      snapshotReadUpdateRuntimeLimits({ ...bounds, requestBodyBytes: 1 })
+        .maximumFirstDiagnosticBytes,
+    ).toBe(2118916);
   });
   it("captures each supplied primitive once before later mutation", () => {
     const reads: string[] = [];
-    const input = Object.fromEntries(
-      Object.entries({ ...bounds, diagnosticCount: 2 }).map(([k, v]) => [k, v]),
-    );
+    const input: Record<string, number> = { ...bounds, diagnosticCount: 2 };
     const received = Object.defineProperties(
       {},
       Object.fromEntries(

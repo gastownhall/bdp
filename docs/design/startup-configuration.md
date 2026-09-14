@@ -133,7 +133,7 @@ ceilings:
 | `server.limits.page.defaultItems` | `50` | `1000` | caps accidental response fan-out when a caller omits `limit` |
 | `server.limits.page.maximumItems` | `200` | `10000` | caps per-request item materialization while the server's independent 64 MiB / 1,000,000-node snapshot guards remain authoritative |
 | `server.limits.selector.bytes` | `16384` | `65536` | bounds the worst-case percent-encoded Node request/header budget to 212,992 bytes |
-| `server.limits.selector.depth` | `32` | `128` | the configured Selector ceiling; not a ReadUpdate properties-depth bound |
+| `server.limits.selector.depth` | `32` | `128` | bounds Selector parse/evaluation depth inside the Selector byte and node ceilings; it is not a ReadUpdate properties-depth bound |
 | `server.limits.selector.nodes` | `256` | `4096` | bounds parser and evaluator work inside the Selector byte ceiling |
 | `server.limits.cursorTtlMilliseconds` | `300000` | `86400000` | caps retained snapshot lifetime at 24 hours; retained-state, byte, and node capacities remain independent hard bounds |
 
@@ -516,6 +516,12 @@ contain no user input, so they are surfaced verbatim.
 
 ## Tests
 
+The explicit ReadUpdate resolver block in `packages/config/src/index.test.ts`
+covers ordinary/null-prototype records, explicit-undefined/accessor/symbol/
+non-enumerable/unknown-field refusal, frozen captured values and no diagnostic-count
+default. `scripts/read-update-runtime-limits.test.mjs` passes the actual exported
+defaults through the actual private receiver and pins the 4,216,066-byte bound.
+
 `packages/config/src/index.test.ts` covers defaults, every precedence step
 including `--config` over `BDP_CONFIG`, the `bd` fields, the `bdpbd` production
 workspace rule, each Scope URL normalization and refusal, the derived
@@ -620,6 +626,12 @@ path must enforce the actual R before parse/claims, bind the same snapshot to
 advertisement and diagnostic receiving, and qualify installed metadata/location
 closure, graph/Type correctness, lineage and historical fingerprints before transfer.
 Mock callbacks and this helper grant no installed authority or served profile.
+
+The helper does not inspect retained successful postimage properties bytes.
+Lowering B therefore does not itself bound a replayed created/updated body, even
+when its live Resource was later changed or deleted. Compatibility of those retained
+successes with startup, advertisement and complete-response bounds remains a future
+owner qualification; this component does not invalidate or rewrite their dispositions.
 
 D bounds each member's diagnostic list. Ordinary sequence Problems do not stop later
 members: a complete response can contain several D-sized lists plus successful
