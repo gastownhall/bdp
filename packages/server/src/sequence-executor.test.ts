@@ -2643,7 +2643,8 @@ describe("explicit runtime compatibility before authority transfer", () => {
       const cap = Math.max(...ownSizes);
       if (owned) {
         const ownerRow = before.find((r) => r.id === "beads/a");
-        const ownerBody = JSON.parse(ownerRow!.bodyJson);
+        if (!ownerRow) throw Error("owned fixture is missing its source Bead");
+        const ownerBody = JSON.parse(ownerRow.bodyJson);
         const inlineProperties = ownerBody.ownedLinks[linkType][0].properties;
         expect(
           Buffer.byteLength(stringifyJsonValue(ownerBody.properties)) +
