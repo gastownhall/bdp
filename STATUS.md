@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current alias-retry-corrected Read cohort was genuinely generated from
-`2dd9918f291d03c9ab741f841f40378a5abbb8a0` and committed with its matching capability constant at
-`81266b4aaba5089000d228598fcc9b9cd838eeb0`. Generation ran for 154.83 seconds
+The current seed-cleanup-corrected Read cohort was genuinely generated from
+`5efe53d15fdbd6e593d93a717af55d0ec8f05dc7` and committed with its matching capability constant at
+`d84e09bea933db6ef6f400b9f1254ad2eb2e011b`. Generation ran for 152.35 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39 and #40 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40 and #41 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -32,10 +32,17 @@ The harness binding now includes the actual seeder source. This finite source li
 records its identity; it does not establish transitive closure or automatic
 current-harness drift rejection. Fresh generation and independent re-derivation
 remain required. The spacing assumes ordinary clock progression, and existing
-seed/command deadlines remain unchanged. Concurrent-seed failure cleanup remains
-a separate test-harness follow-up. When either seed fails, the remaining repair
-must abort and await both seeds before deleting their shared temporary root.
-Successful runs do not establish that failure-path behavior.
+seed/command deadlines remain unchanged. Both concurrent-seed callers now abort
+the sibling and await settlement of both seeds before shared-root deletion,
+preserving the original failure. Fourteen focused lifecycle/spacing controls cover
+the real helper and discriminating no-cancel/no-drain failures. On the ordinary
+POSIX test path, an independent owner records verified process identities before
+releasing the driver and owns bounded fallback cleanup. Controls include actual
+client/driver loss, success followed by a hang, and excess output after an
+acknowledged success; fallback rescue cannot turn a failed subject green.
+These controls do not establish Windows behavior, whole-host loss containment,
+simultaneous loss of every owner, or cleanup of escaped/unkillable descendants.
+Successful Read observations remain separate from this failure-path evidence.
 
 The original ordered 27-definition Read seal is preserved as the prefix of the
 reviewed 42-name seal, with 41 reachable definitions and 16 roots, including the
@@ -212,7 +219,7 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,747 tests
+reviewed foundation source. The final evidence head passed 3,759 tests
 in 84 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
