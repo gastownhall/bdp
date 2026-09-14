@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current seed-order-corrected Read cohort was genuinely generated from
-`21b7ab74a4272fde19c60af047fde6e8ddc78455` and committed with its matching capability constant at
-`4b08ebd6998d7f98c0fa692425b8f3cb29c15fc9`. Generation ran for 154.48 seconds
+The current alias-retry-corrected Read cohort was genuinely generated from
+`2dd9918f291d03c9ab741f841f40378a5abbb8a0` and committed with its matching capability constant at
+`81266b4aaba5089000d228598fcc9b9cd838eeb0`. Generation ran for 154.83 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38 and #39 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39 and #40 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -163,8 +163,16 @@ dynamic Read or ReadUpdate profile from this private bridge.
 Production authority, full startup/engine qualification, server HTTP/auth/configuration
 integration and executable ReadUpdate evidence remain separate gates. The internal
 owner does not establish actual transport disconnect handling or served write authority.
-A new-alias retry boundary and jointly feasible
-request/properties/diagnostic defaults remain pending operator decisions. Local
+The approved new-alias retry behavior is implemented as an internal component:
+original alias locators retain their recorded targets or misses, while a previously
+unrecorded locator resolves once in each retry turn for identity comparison only.
+Original disposition and successful tombstone witnesses remain unchanged; current
+Resource disclosure authorization still applies. Controls cover repoint/deletion,
+distinct misses, equal retained/expired outcomes, operation mismatch, no re-execution,
+per-turn lookup/binding behavior and real sequence continuation or fault cleanup.
+The existing ReadUpdate catalog row remains unbound; this adds no served capability.
+Request/properties/diagnostic defaults of 1/1/8 MiB were approved on 2026-09-12;
+their implementation and complete startup/configuration compatibility remain pending. Local
 crash tests and evaluator tests do not establish a complete served profile.
 The authority must also qualify worst-case patch work under its actual finite
 request and Resource bounds. An early patch-limit shortcut cannot bypass earlier
@@ -204,8 +212,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,739 tests
-in 84 files with zero skips in 46.92 seconds; all source,
+reviewed foundation source. The final evidence head passed 3,747 tests
+in 84 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.
