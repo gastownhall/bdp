@@ -34,7 +34,7 @@ import {
   emitMatrixRunForCohort,
   resolveBdExecutable as resolveExecutable,
   runBdWorkspaceCommand as runCommand,
-  seedBdWorkspace,
+  seedBdWorkspacePair,
   startControlledTypeDescriptorPublisher,
   successorDescriptorBodies,
 } from "@bdp/conformance/testing";
@@ -395,16 +395,13 @@ setTimeout(() => process.exit(0), 1500);
         await inspectBdIdentity(executable, workspace, environment, fixture, seedController.signal);
         // The workspaces are deliberately independent. Seed them concurrently so
         // host contention cannot make setup consume most of the matrix deadline.
-        await Promise.all([
-          seedWorkspace(executable, workspace, environment, fixture, seedController.signal),
-          seedWorkspace(
-            executable,
-            externalEndpointWorkspace,
-            environment,
-            fixture,
-            seedController.signal,
-          ),
-        ]);
+        await seedBdWorkspacePair(
+          executable,
+          [workspace, externalEndpointWorkspace],
+          environment,
+          fixture.bd,
+          seedController.signal,
+        );
         // Restore evidence must cross both identity boundaries: the new listener
         // gets a new Scope and a reconstructed on-disk bd workspace. The later
         // controlled deletion remains an in-memory view overlay; demo-f is never
@@ -575,6 +572,7 @@ setTimeout(() => process.exit(0), 1500);
             await scenarioTarget?.close();
           } finally {
             try {
+              // The seed pair settles both operations before this root cleanup.
               if (temporaryRoot !== undefined)
                 await rm(temporaryRoot, { recursive: true, force: true });
             } finally {
@@ -1310,16 +1308,6 @@ function assertAcceptedBdIdentity(
     )
   )
     throw new Error(`bd executable identity is not an accepted checked-in build: ${diagnostic}`);
-}
-
-async function seedWorkspace(
-  executable: string,
-  workspace: string,
-  environment: Readonly<Record<string, string>>,
-  fixture: BdFixture,
-  signal: AbortSignal,
-): Promise<void> {
-  await seedBdWorkspace(executable, workspace, environment, fixture.bd, signal);
 }
 
 async function reconstructRestoredWorkspace(source: string, destination: string): Promise<void> {

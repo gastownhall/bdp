@@ -41,7 +41,7 @@ import {
   controlledReadScopeRestoreCapability,
   resolveBdExecutable,
   runBdWorkspaceCommand,
-  seedBdWorkspace,
+  seedBdWorkspacePair,
   startControlledTypeDescriptorPublisher,
   successorDescriptorBodies,
 } from "@bdp/conformance/testing";
@@ -471,22 +471,13 @@ describe("packaged Read cohort generation", () => {
         };
       };
       const seedController = new AbortController();
-      await Promise.all([
-        seedBdWorkspace(
-          bdExecutable,
-          mainWorkspace,
-          bdEnvironment,
-          bdFixture.bd,
-          seedController.signal,
-        ),
-        seedBdWorkspace(
-          bdExecutable,
-          externalWorkspace,
-          bdEnvironment,
-          bdFixture.bd,
-          seedController.signal,
-        ),
-      ]);
+      await seedBdWorkspacePair(
+        bdExecutable,
+        [mainWorkspace, externalWorkspace],
+        bdEnvironment,
+        bdFixture.bd,
+        seedController.signal,
+      );
       await runBdWorkspaceCommand(
         bdExecutable,
         [
@@ -730,6 +721,7 @@ describe("packaged Read cohort generation", () => {
         )}\n`,
       );
     } finally {
+      // The seed pair settles both operations before this root cleanup.
       await rm(temporaryRoot, { recursive: true, force: true });
     }
   });
