@@ -6,17 +6,17 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | --- | --- | --- |
 | Read profile | Foundation #29, shared HTTP/scalar guards, iterative deep JSON and canonical URL delimiter corrections; 49 executable scenarios | Genuine current cohort: 89 passes and nine justified N/A slots across both targets, with eight explicit qualifications |
 | Read+Update profile | D1–D40 ruled; wire from #19 plus local admission, Resource/alias evaluators, exact member identity, durable SQLite state, member execution, retained disclosure and private joint Read/sequence lifecycle | Component tests cover admission, scheduled turns, replay/projection, maintenance, graceful drain and recovery; the complete source council disposition and independent correction review are complete. Full production authority/transport/schema installation and executable profile evidence remain open; no capability claim |
-| Read+Update client | Eight mutations, sequences, all nine Read variants and explicit one-hop alias resolution | 589 client tests plus independent source, lifecycle, URL and packaging reviews; this is client functionality, not a served write-profile claim |
+| Read+Update client | Eight mutations, sequences, all nine Read variants and explicit one-hop alias resolution | 590 client tests plus independent source, lifecycle, URL and packaging reviews; this is client functionality, not a served write-profile claim |
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current seed-cleanup-corrected Read cohort was genuinely generated from
-`5efe53d15fdbd6e593d93a717af55d0ec8f05dc7` and committed with its matching capability constant at
-`d84e09bea933db6ef6f400b9f1254ad2eb2e011b`. Generation ran for 152.35 seconds
+The current limits-component Read cohort was genuinely generated from
+`5131e6e85c29c7b085ffe4e56315a286337d2f28` and committed with its matching capability constant at
+`0cec984bdcef2abee79b8ec97c773962519b8876`. Generation ran for 151.10 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40 and #41 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41 and #42 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -178,9 +178,18 @@ Resource disclosure authorization still applies. Controls cover repoint/deletion
 distinct misses, equal retained/expired outcomes, operation mismatch, no re-execution,
 per-turn lookup/binding behavior and real sequence continuation or fault cleanup.
 The existing ReadUpdate catalog row remains unbound; this adds no served capability.
-Request/properties/diagnostic defaults of 1/1/8 MiB were approved on 2026-09-12;
-their implementation and complete startup/configuration compatibility remain pending. Local
-crash tests and evaluator tests do not establish a complete served profile.
+The approved 1/1/8 MiB request/properties/diagnostic defaults now have an explicit
+reference configuration resolver. The private numerical receiver validates jointly
+feasible captured bounds, and the create-only numeric adapter supplies complete
+properties-relative locations before byte accounting. An owner-only compatibility
+helper checks live own-properties and every retained diagnostic array after lawful
+caller-owned expiry. Tests preserve old numeric locations and exact retained bytes
+through reopen/current replay, and distinguish nested S5 read rejection without
+fencing the owner. This does not enforce requests, settle the held update-location
+convention, qualify installed emitters, require every startup path to scan, or
+bound retained successful postimages and complete response envelopes. Those remain
+production owner/installer/HTTP qualification gates. Local crash and evaluator tests
+do not establish a complete served profile.
 The authority must also qualify worst-case patch work under its actual finite
 request and Resource bounds. An early patch-limit shortcut cannot bypass earlier
 postimage validation or authorization; no new limit or refusal order is selected.
@@ -219,8 +228,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,759 tests
-in 84 files with zero skips; all source,
+reviewed foundation source. The final evidence head passed 3,811 tests
+in 86 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.

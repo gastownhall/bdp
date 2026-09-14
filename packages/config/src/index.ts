@@ -110,6 +110,55 @@ export class ConfigError extends Error {
   }
 }
 
+export interface ServerReadUpdateLimitsConfig {
+  readonly requestBodyBytes: number;
+  readonly propertiesBytes: number;
+  readonly diagnosticBytes: number;
+}
+
+/** Reference mutation defaults. No current CLI/file/HTTP consumer or profile grant. */
+export const DEFAULT_SERVER_READ_UPDATE_LIMITS: ServerReadUpdateLimitsConfig = Object.freeze({
+  requestBodyBytes: 1_048_576,
+  propertiesBytes: 1_048_576,
+  diagnosticBytes: 8_388_608,
+});
+
+/** Explicit receiving API, separate from StartupConfig's shipping Read limits.
+ * Only own enumerable data fields supply overrides; accessors are never invoked.
+ * This resolves numbers, not jointly feasible startup/retained-state qualification.
+ */
+export function resolveServerReadUpdateLimits(
+  input?: Partial<ServerReadUpdateLimitsConfig>,
+): ServerReadUpdateLimitsConfig {
+  const path = "server.readUpdateLimits";
+  if (input === undefined) return DEFAULT_SERVER_READ_UPDATE_LIMITS;
+  if (
+    input === null ||
+    typeof input !== "object" ||
+    (Object.getPrototypeOf(input) !== Object.prototype && Object.getPrototypeOf(input) !== null)
+  )
+    throw new ConfigError([{ path, message: `${path} must be a plain record` }]);
+  const result = { ...DEFAULT_SERVER_READ_UPDATE_LIMITS };
+  const issues: ConfigIssue[] = [];
+  for (const key of Reflect.ownKeys(input)) {
+    const descriptor = Object.getOwnPropertyDescriptor(input, key);
+    if (
+      (key !== "requestBodyBytes" && key !== "propertiesBytes" && key !== "diagnosticBytes") ||
+      !descriptor?.enumerable ||
+      !("value" in descriptor)
+    ) {
+      issues.push({ path, message: `${path} accepts only its three enumerable data fields` });
+      continue;
+    }
+    const value: unknown = descriptor.value;
+    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1)
+      issues.push({ path: `${path}.${key}`, message: `${key} must be a positive safe integer` });
+    else result[key] = value;
+  }
+  if (issues.length) throw new ConfigError(issues);
+  return Object.freeze(result);
+}
+
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 8080;
 const DEFAULT_PAGE_ITEMS = DEFAULT_SERVER_READ_LIMITS.page.defaultItems;

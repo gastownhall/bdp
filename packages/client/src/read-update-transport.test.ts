@@ -1,3 +1,4 @@
+import { parseReadUpdateProblem } from "@bdp/protocol";
 import { createServer } from "node:http";
 import { describe, expect, it } from "vitest";
 import {
@@ -1312,4 +1313,29 @@ describe("Read+Update dedicated alias transport", () => {
       ),
     ).rejects.toMatchObject({ code: "invalid-response", submission: "not-submitted" });
   });
+});
+
+it("receives a complete diagnostic Problem over 1 MiB only with an explicit sufficient receiver cap", async () => {
+  const problem = parseReadUpdateProblem({
+    type: "https://github.com/gastownhall/bdp/problems/validation",
+    code: "validation-failed",
+    status: 422,
+    retry: "never",
+    diagnostics: Array.from({ length: 2500 }, (_, i) => ({
+      message: `${i}:${"x".repeat(512)}`,
+      instanceLocation: "/x",
+    })),
+  });
+  const text = JSON.stringify(problem),
+    bytes = Buffer.byteLength(text);
+  expect(bytes).toBeGreaterThan(1048576);
+  expect(bytes).toBeLessThan(8388608);
+  const fetcher = async () => response(text, 422, { "content-type": "application/problem+json" });
+  const accepted = await client(fetcher, {
+    limits: { ...limits, responseBodyBytes: bytes, responseTimeoutMs: 10000 },
+  }).post(target, post);
+  expect(accepted).toMatchObject({ kind: "json", status: 422, body: problem });
+  await expect(
+    client(fetcher, { limits: { ...limits, responseTimeoutMs: 10000 } }).post(target, post),
+  ).rejects.toMatchObject({ code: "response-too-large", submission: "unknown" });
 });

@@ -1,3 +1,7 @@
+import {
+  assertReadUpdateRuntimeCompatibility,
+  snapshotReadUpdateRuntimeLimits,
+} from "./read-update-runtime-limits.js";
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -2358,4 +2362,330 @@ describe("G11 actual S5 read entry and hook-free inspection", () => {
     expect(observations.some((x) => x.accepting)).toBe(true);
     expect(observations.some((x) => !x.accepting)).toBe(true);
   });
+});
+
+describe("explicit runtime compatibility before authority transfer", () => {
+  const limits = { requestBodyBytes: 1048576, propertiesBytes: 1048576, diagnosticBytes: 8388608 };
+  it("preserves a retained legacy numeric location through compatibility, reopen and current S5 replay", async () => {
+    const f = fixture();
+    const carrier = (key: string) =>
+      prepareReadUpdateSequence(
+        scope,
+        `{"operations":[{"operation":"createBead","idempotencyKey":"${key}","type":"${type}","properties":{"n":9007199254740993,"m":1e9999}}]}`,
+      );
+    const currentOwner = f.owner({
+      member: {
+        ...f.member,
+        captureMemberContext: f.member.captureMemberContext.bind(f.member),
+        limits: { ...limits, diagnosticCount: 1 },
+        numericBudget: {
+          ...f.member.numericBudget,
+          diagnostics: 1,
+          diagnosticBytes: limits.diagnosticBytes,
+        },
+      },
+    });
+    const current = await execute(f, currentOwner, carrier("current-numeric"));
+    expect(results(current)[0]).toMatchObject({
+      code: "validation-failed",
+      diagnostics: [{ instanceLocation: "/n", message: "inadmissible" }],
+      diagnosticsTruncated: true,
+    });
+    await currentOwner.close();
+    f.reopen();
+    const legacy = parseReadUpdateProblem({
+      type: "https://github.com/gastownhall/bdp/problems/validation",
+      code: "validation-failed",
+      status: 422,
+      retry: "never",
+      diagnostics: [
+        {
+          instanceLocation: "/properties/n",
+          message: 'legacy:é"\\\n',
+          type,
+          schemaLocation: "https://types.test/schema#/properties/n",
+        },
+      ],
+      diagnosticsTruncated: true,
+    });
+    // Controlled legacy writer: the pre-correction create formatter could retain
+    // this operation-relative location. Real S1/S4 identity and S6 retention are
+    // used; this is not execution of old code or a fabricated branded operation.
+    controlled(f, carrier("legacy-numeric"), 0, legacy);
+    const original = retained(f.key("legacy-numeric"));
+    expect(JSON.parse(original.outcomeJson).disposition).toEqual(legacy);
+    f.reopen();
+    f.store.expire(f.state.now++);
+    const visited: string[] = [];
+    const visit = f.store.visitRetainedOutcomes.bind(f.store);
+    assertReadUpdateRuntimeCompatibility(
+      {
+        ...f.store,
+        visitRetainedOutcomes(callback) {
+          visit((row) => {
+            visited.push(row.outcomeJson);
+            callback(row);
+          });
+        },
+      },
+      limits,
+    );
+    expect(visited).toContain(original.outcomeJson);
+    expect(f.key("legacy-numeric")).toEqual(original);
+    const diagnostic = vi.fn(() => {
+      throw Error("legacy numeric formatter reran");
+    });
+    const owner = f.owner({
+      member: {
+        ...f.member,
+        captureMemberContext: f.member.captureMemberContext.bind(f.member),
+        limits,
+        numericBudget: { diagnosticBytes: limits.diagnosticBytes, diagnostic },
+      },
+    });
+    f.clock.mockClear();
+    const replay = await execute(f, owner, carrier("legacy-numeric"));
+    expect(results(replay)).toEqual([{ ...legacy, operationIndex: 0 }]);
+    expect(diagnostic).not.toHaveBeenCalled();
+    expect(f.clock).not.toHaveBeenCalled();
+    expect(f.key("legacy-numeric")).toEqual(original);
+    await owner.close();
+    f.reopen();
+    expect(f.key("legacy-numeric")).toEqual(original);
+  });
+  it("keeps complete multiprincipal S5 diagnostics at exact byte/count bounds across reopen and replay", async () => {
+    const entries = Array.from({ length: 64 }, (_, i) => ({
+      instanceLocation: "/bad",
+      schemaLocation: "https://types.test/schema#/properties/bad",
+      message: `${i}:${'é"\\\n'.repeat(80)}`,
+    }));
+    const f = fixture({
+      validate(properties, emitter) {
+        if (!properties.bad) return { valid: true };
+        let complete = true;
+        for (const entry of entries)
+          if (!emitter.emit(entry)) {
+            complete = false;
+            break;
+          }
+        return { valid: false, diagnosticsComplete: complete };
+      },
+    });
+    const owner = f.owner({
+      member: {
+        ...f.member,
+        captureMemberContext: f.member.captureMemberContext.bind(f.member),
+        limits,
+        numericBudget: { ...f.member.numericBudget, diagnosticBytes: limits.diagnosticBytes },
+      },
+    });
+    const carrier = sequence([
+      create("bad-one", { properties: { bad: true } }),
+      create("good", { id: "beads/good" }),
+      create("bad-two", { properties: { bad: true } }),
+    ]);
+    const completion = await execute(f, owner, carrier);
+    expect(codes(completion)).toEqual(["validation-failed", "created", "validation-failed"]);
+    expect(results(completion).map((r) => r.operationIndex)).toEqual([0, 1, 2]);
+    const bob = submit(owner, sequence([create("bad-one", { properties: { bad: true } })]), {
+      id: "bob",
+    });
+    f.queue.drain();
+    expect(codes(await bob)).toEqual(["validation-failed"]);
+    const retainedAlice = retained(f.key("bad-one"));
+    const retainedBob = retained(f.key("bad-one", "bob"));
+    const original = JSON.parse(retainedAlice.outcomeJson).disposition.diagnostics;
+    expect(original).toEqual(entries.map((e) => ({ ...e, type })));
+    expect(JSON.parse(retainedBob.outcomeJson).disposition.diagnostics).toEqual(original);
+    const bytes = Buffer.byteLength(stringifyJsonValue(original));
+    expect(bytes).toBe(Buffer.byteLength(JSON.stringify(original)));
+    const selected = {
+      requestBodyBytes: 256,
+      propertiesBytes: 64,
+      diagnosticBytes: bytes,
+      diagnosticCount: entries.length,
+    };
+    expect(snapshotReadUpdateRuntimeLimits(selected).maximumFirstDiagnosticBytes).toBeLessThan(
+      bytes,
+    );
+    await owner.close();
+    f.reopen();
+    const trace: string[] = [];
+    const visitedOutcomes: string[] = [];
+    const originalRead = f.store.read.bind(f.store);
+    const originalVisit = f.store.visitRetainedOutcomes.bind(f.store);
+    const traced: RecoveryStore = {
+      ...f.store,
+      read(fn) {
+        trace.push("resources-enter");
+        const result = originalRead(fn);
+        trace.push("resources-return");
+        return result;
+      },
+      visitRetainedOutcomes(fn) {
+        trace.push("retained-enter");
+        originalVisit((row) => {
+          visitedOutcomes.push(row.outcomeJson);
+          fn(row);
+        });
+        trace.push("retained-return");
+      },
+    };
+    trace.push("expire");
+    f.store.expire(f.state.now++);
+    trace.push("expiry-return");
+    assertReadUpdateRuntimeCompatibility(traced, selected);
+    expect(visitedOutcomes).toHaveLength(4);
+    expect(
+      visitedOutcomes.filter((json) => JSON.parse(json).disposition.code === "validation-failed"),
+    ).toHaveLength(3);
+    expect(trace).toEqual([
+      "expire",
+      "expiry-return",
+      "resources-enter",
+      "resources-return",
+      "retained-enter",
+      "retained-return",
+    ]);
+    expect(() =>
+      assertReadUpdateRuntimeCompatibility(f.store, { ...selected, diagnosticBytes: bytes - 1 }),
+    ).toThrow("surviving retained diagnostics");
+    expect(() =>
+      assertReadUpdateRuntimeCompatibility(f.store, {
+        ...selected,
+        diagnosticCount: entries.length - 1,
+      }),
+    ).toThrow("surviving retained diagnostics");
+    expect(f.key("bad-one")).toEqual(retainedAlice);
+    expect(f.key("bad-one", "bob")).toEqual(retainedBob);
+    expect(() =>
+      f.store.read(() => assertReadUpdateRuntimeCompatibility(f.store, selected)),
+    ).toThrow(expect.objectContaining({ name: "RecoveryStoreError", reason: "nested-access" }));
+    const nestedAdmission = f.store.admit("alice", ["nested-scan"]);
+    try {
+      expect(() =>
+        f.store.executeMember(nestedAdmission, "nested-scan", () => {
+          assertReadUpdateRuntimeCompatibility(f.store, selected);
+          throw Error("nested scan unexpectedly returned");
+        }),
+      ).toThrow(expect.objectContaining({ name: "RecoveryStoreError", reason: "nested-access" }));
+    } finally {
+      f.store.abandonAttempt(nestedAdmission);
+    }
+    const replayOwner = f.owner({
+      member: {
+        ...f.member,
+        captureMemberContext: f.member.captureMemberContext.bind(f.member),
+        limits: selected,
+        numericBudget: {
+          diagnostics: selected.diagnosticCount,
+          diagnosticBytes: selected.diagnosticBytes,
+          diagnostic: () => {
+            throw Error("reformatted retained diagnostic");
+          },
+        },
+      },
+    });
+    let scanReturned = false;
+    expect(() =>
+      replayOwner.withRead(() => {
+        assertReadUpdateRuntimeCompatibility(f.store, selected);
+        scanReturned = true;
+      }),
+    ).toThrow(expect.objectContaining({ name: "RecoveryStoreError", reason: "nested-access" }));
+    expect(scanReturned).toBe(false);
+    expect(replayOwner.inspectLifecycle()).toEqual({ busy: false, accepting: true });
+    const replay = await execute(f, replayOwner, carrier);
+    expect(results(replay)).toEqual(results(completion));
+    expect(f.key("bad-one")).toEqual(retainedAlice);
+    await replayOwner.close();
+    // A failed qualification refuses transfer and leaves all stored text unchanged.
+    f.store.close();
+    f.reopen();
+    expect(f.key("bad-one")).toEqual(retainedAlice);
+    f.store.expire(
+      Math.max(
+        retainedAlice.retainUntil,
+        retainedBob.retainUntil,
+        retained(f.key("bad-two")).retainUntil,
+        retained(f.key("good")).retainUntil,
+      ),
+    );
+    expect(f.key("bad-one").kind).toBe("unknown");
+    expect(f.key("good").kind).toBe("expired");
+    assertReadUpdateRuntimeCompatibility(f.store, { ...selected, diagnosticCount: 1 });
+  });
+  it.each([false, true])(
+    "checks every canonical row, own properties and real refusal/transfer boundaries (owned=%s)",
+    async (owned) => {
+      const f = fixture({ owned });
+      const owner = f.owner();
+      // Existing S5 accepts these explicitly controlled fixtures without the new scan.
+      const completed = await execute(
+        f,
+        owner,
+        sequence([
+          {
+            operation: "updateLinkProperties",
+            link: "links/old",
+            change: [{ op: "add", path: "/x", value: "123456789" }],
+            idempotencyKey: "large-link",
+          },
+        ]),
+      );
+      expect(codes(completed)).toEqual(["updated"]);
+      await owner.close();
+      f.reopen();
+      const before = f.store.read((r) => r.resources());
+      const ownSizes = before.map((r) =>
+        Buffer.byteLength(stringifyJsonValue(JSON.parse(r.bodyJson).properties)),
+      );
+      const cap = Math.max(...ownSizes);
+      if (owned) {
+        const ownerRow = before.find((r) => r.id === "beads/a");
+        if (!ownerRow) throw Error("owned fixture is missing its source Bead");
+        const ownerBody = JSON.parse(ownerRow.bodyJson);
+        const inlineProperties = ownerBody.ownedLinks[linkType][0].properties;
+        expect(
+          Buffer.byteLength(stringifyJsonValue(ownerBody.properties)) +
+            Buffer.byteLength(stringifyJsonValue(inlineProperties)),
+        ).toBeGreaterThan(cap);
+      }
+      f.store.expire(f.state.now++);
+      assertReadUpdateRuntimeCompatibility(f.store, { ...limits, propertiesBytes: cap });
+      expect(() =>
+        assertReadUpdateRuntimeCompatibility(f.store, { ...limits, propertiesBytes: cap - 1 }),
+      ).toThrow("live Resource properties");
+      expect(f.store.read((r) => r.resources())).toEqual(before);
+      expect(() =>
+        f.store.read(() => assertReadUpdateRuntimeCompatibility(f.store, limits)),
+      ).toThrow(expect.objectContaining({ name: "RecoveryStoreError", reason: "nested-access" }));
+      let transferred = false;
+      const qualifyThenTransfer = () => {
+        try {
+          f.store.expire(f.state.now++);
+          assertReadUpdateRuntimeCompatibility(f.store, { ...limits, propertiesBytes: cap - 1 });
+        } catch (error) {
+          f.store.close();
+          throw error;
+        }
+        transferred = true;
+        return f.owner();
+      };
+      expect(qualifyThenTransfer).toThrow("live Resource properties");
+      expect(transferred).toBe(false);
+      f.reopen();
+      expect(f.store.read((r) => r.resources())).toEqual(before);
+      assertReadUpdateRuntimeCompatibility(f.store, { ...limits, propertiesBytes: cap });
+      const accepted = f.owner({
+        member: {
+          ...f.member,
+          captureMemberContext: f.member.captureMemberContext.bind(f.member),
+          limits: { ...limits, propertiesBytes: cap },
+          numericBudget: { ...f.member.numericBudget, diagnosticBytes: limits.diagnosticBytes },
+        },
+      });
+      await accepted.close();
+    },
+  );
 });

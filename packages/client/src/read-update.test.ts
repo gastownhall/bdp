@@ -47,7 +47,7 @@ const problem = {
   code: "validation-failed",
   status: 422,
   retry: "never",
-  diagnostics: [{ message: "invalid properties", instanceLocation: "/properties/n" }],
+  diagnostics: [{ message: "invalid properties", instanceLocation: "/n" }],
 };
 function json(
   body: unknown,

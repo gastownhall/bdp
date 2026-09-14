@@ -38,8 +38,11 @@ export interface JsonNumberOccurrence {
   readonly pointer: string;
   readonly literal: string;
 }
-/** The caller supplies the actual wire entry, including its property-relative
- * location. Bounds count entries and UTF-8 bytes of the serialized list, not
+/** Occurrences are relative to the supplied document/operation. The caller supplies
+ * the actual wire entry, including its properties-relative location when required;
+ * it must obtain any needed operation context separately. The server's paired
+ * create adapter performs that mapping before accounting. Bare callers still own it.
+ * Bounds count entries and UTF-8 bytes of the serialized list, not
  * internal occurrences. Omitting both bounds explicitly requests the full list.
  */
 export interface JsonNumberDiagnosticBudget {

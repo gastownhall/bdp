@@ -1518,7 +1518,7 @@ describe("configuration, deep durable values and startup boundary", () => {
     );
     expect(result.disposition).toMatchObject({
       code: "validation-failed",
-      diagnostics: [{ message: "invalid 🌙", instanceLocation: "/properties/a" }],
+      diagnostics: [{ message: "invalid 🌙", instanceLocation: "/a" }],
       diagnosticsTruncated: true,
     });
     const state = retained(f.key("numbers"));
@@ -1656,7 +1656,7 @@ describe("whole-plan cross-boundary regression controls", () => {
   it("uses actual UTF-8 diagnostic list bytes at N/N-1 and reports truncation only for another omitted refusal", () => {
     const f = fixture();
     const message = "🌙".repeat(150);
-    const entry = { message, instanceLocation: "/properties/a" };
+    const entry = { message, instanceLocation: "/a" };
     const bytes = Buffer.byteLength(stringifyJsonValue([entry]));
     const options = (cap: number): MemberExecutorOptions => ({
       ...f.options,
@@ -2050,4 +2050,239 @@ describe("complete source-council correction batch", () => {
       for (const attempt of attempts) expect(attempt).toThrow(/expired.*facade/);
     }
   });
+});
+
+describe("runtime properties limits on actual member storage", () => {
+  for (const owned of [false, true])
+    it(`preserves atomic B/B+1, no-op and owned-source state (owned=${owned})`, () => {
+      const f = fixture({ owned });
+      const properties = { text: "é\n".repeat(10) };
+      const bytes = Buffer.byteLength(stringifyJsonValue(properties));
+      const options = {
+        ...f.options,
+        limits: { propertiesBytes: bytes, diagnosticBytes: 8388608 },
+        numericBudget: { ...f.options.numericBudget, diagnosticBytes: 8388608 },
+      };
+      expect(
+        code(f.run("createBead", { type, id: "beads/limit", properties }, "make", options)),
+      ).toBe("created");
+      const before = f.body("beads/limit");
+      expect(
+        code(
+          f.run(
+            "updateBeadProperties",
+            { bead: "beads/limit", change: [{ op: "replace", path: "", value: properties }] },
+            "noop",
+            options,
+          ),
+        ),
+      ).toBe("updated");
+      expect(f.body("beads/limit")).toBe(before);
+      const larger = { text: `${properties.text}x` };
+      expect(Buffer.byteLength(stringifyJsonValue(larger))).toBe(bytes + 1);
+      expect(
+        code(
+          f.run(
+            "createBead",
+            { type, id: "beads/over-limit", properties: larger },
+            "create-over",
+            options,
+          ),
+        ),
+      ).toBe("limit-exceeded");
+      expect(f.body("beads/over-limit")).toBeUndefined();
+      const clockBefore = f.clock.mock.calls.length;
+      expect(
+        code(
+          f.run(
+            "updateBeadProperties",
+            { bead: "beads/limit", change: [{ op: "replace", path: "", value: larger }] },
+            "over",
+            options,
+          ),
+        ),
+      ).toBe("limit-exceeded");
+      // Terminal failure retention may sample separately; no committed Resource change.
+      expect(f.clock.mock.calls.length).toBeGreaterThan(clockBefore);
+      expect(f.body("beads/limit")).toBe(before);
+      const linkInput = {
+        type: linkType,
+        id: "links/limit",
+        source: "beads/a",
+        target: "beads/b",
+        properties,
+      };
+      expect(code(f.run("createLink", linkInput, "link", options))).toBe("created");
+      expect(
+        code(
+          f.run(
+            "createLink",
+            { ...linkInput, id: "links/over-limit", properties: larger },
+            "create-link-over",
+            options,
+          ),
+        ),
+      ).toBe("limit-exceeded");
+      expect(f.body("links/over-limit")).toBeUndefined();
+      const linkBefore = f.body("links/limit"),
+        sourceBefore = f.body("beads/a");
+      expect(
+        code(
+          f.run(
+            "updateLinkProperties",
+            { link: "links/limit", change: [{ op: "replace", path: "", value: properties }] },
+            "link-noop",
+            options,
+          ),
+        ),
+      ).toBe("updated");
+      expect(
+        code(
+          f.run(
+            "updateLinkProperties",
+            { link: "links/limit", change: [{ op: "replace", path: "", value: larger }] },
+            "link-over",
+            options,
+          ),
+        ),
+      ).toBe("limit-exceeded");
+      expect(f.body("links/limit")).toBe(linkBefore);
+      expect(f.body("beads/a")).toBe(sourceBefore);
+      f.reopen();
+      expect(f.body("links/limit")).toBe(linkBefore);
+      expect(f.body("beads/a")).toBe(sourceBefore);
+    });
+  it("validates an over-bound postimage before the late size refusal and keeps numeric rejection before contracts and clocks", () => {
+    let validations = 0;
+    const f = fixture({
+      validate(_p, e) {
+        validations++;
+        return {
+          valid: false,
+          diagnosticsComplete: e.emit({
+            schemaLocation: "https://types.test/schema",
+            instanceLocation: "",
+            message: "properties root refused",
+          }),
+        };
+      },
+    });
+    const opts = {
+      ...f.options,
+      limits: { propertiesBytes: 2, diagnosticBytes: 8388608 },
+      numericBudget: { ...f.options.numericBudget, diagnosticBytes: 8388608 },
+    };
+    expect(
+      code(f.run("createBead", { type, properties: { long: "x".repeat(1000) } }, "large", opts)),
+    ).toBe("validation-failed");
+    expect(validations).toBe(1);
+    const selected = {
+      ...opts,
+      contracts: {
+        get() {
+          throw Error("contract before numeric refusal");
+        },
+      },
+    };
+    f.clock.mockClear();
+    const rejected = f.run(
+      "createBead",
+      `{"type":${JSON.stringify(type)},"properties":{"a":1e400}}`,
+      "numeric",
+      selected,
+    );
+    expect(rejected.disposition).toMatchObject({
+      code: "validation-failed",
+      diagnostics: [{ instanceLocation: "/a" }],
+    });
+    expect(f.clock).toHaveBeenCalledTimes(1); // Only retained-failure terminal time, never C.
+    const retainedBefore = f.key("numeric");
+    f.clock.mockClear();
+    const replay = f.run(
+      "createBead",
+      `{"type":${JSON.stringify(type)},"properties":{"a":1e400}}`,
+      "numeric",
+      {
+        ...selected,
+        numericBudget: {
+          diagnosticBytes: 8388608,
+          diagnostic: () => {
+            throw Error("numeric re-execution");
+          },
+        },
+      },
+    );
+    expect(replay.disposition).toEqual(rejected.disposition);
+    expect(f.key("numeric")).toEqual(retainedBefore);
+    expect(f.clock).not.toHaveBeenCalled();
+  });
+});
+
+it("keeps a complete large first diagnostic and deep valid/invalid neighbors through real member storage", () => {
+  const key = "~".repeat(1048576 - 1024);
+  const pointer = `/${"~0".repeat(key.length)}`;
+  const depth = 12000;
+  const f = fixture({
+    validate(p, emitter) {
+      if (Object.hasOwn(p, key))
+        return {
+          valid: false,
+          diagnosticsComplete: emitter.emit({
+            schemaLocation: "https://types.test/schema",
+            instanceLocation: pointer,
+            message: "invalid leaf",
+          }),
+        };
+      let value: unknown = p;
+      for (let i = 0; i < depth; i++) value = (value as Record<string, unknown>).n;
+      return value === 1
+        ? { valid: true }
+        : {
+            valid: false,
+            diagnosticsComplete: emitter.emit({
+              schemaLocation: "https://types.test/schema",
+              instanceLocation: "/n".repeat(depth),
+              message: "expected one",
+            }),
+          };
+    },
+  });
+  const opts = {
+    ...f.options,
+    limits: { propertiesBytes: 1048576, diagnosticBytes: 8388608 },
+    numericBudget: { ...f.options.numericBudget, diagnosticBytes: 8388608 },
+  };
+  const input = { type, properties: { [key]: 0 } };
+  expect(Buffer.byteLength(stringifyJsonValue(input))).toBeLessThan(1048576);
+  const large = f.run("createBead", input, "large-pointer", opts);
+  expect(large.disposition).toMatchObject({
+    code: "validation-failed",
+    diagnostics: [{ instanceLocation: pointer, message: "invalid leaf", type }],
+  });
+  expect(large.disposition).not.toHaveProperty("diagnosticsTruncated");
+  const firstBytes = Buffer.byteLength(
+    stringifyJsonValue("diagnostics" in large.disposition ? large.disposition.diagnostics : []),
+  );
+  expect(firstBytes).toBeGreaterThan(1048576);
+  expect(firstBytes).toBeLessThan(4216066);
+  const valid = JSON.parse(`${'{"n":'.repeat(depth)}1${"}".repeat(depth)}`);
+  const invalid = JSON.parse(`${'{"n":'.repeat(depth)}0${"}".repeat(depth)}`);
+  expect(
+    code(
+      f.run("createBead", { type, id: "beads/deep-limit", properties: valid }, "deep-good", opts),
+    ),
+  ).toBe("created");
+  const bad = f.run("createBead", { type, properties: invalid }, "deep-bad", opts);
+  expect(bad.disposition).toMatchObject({
+    code: "validation-failed",
+    diagnostics: [{ instanceLocation: "/n".repeat(depth), message: "expected one", type }],
+  });
+  const saved = f.body("beads/deep-limit"),
+    savedBad = f.key("deep-bad");
+  f.reopen();
+  expect(f.body("beads/deep-limit")).toBe(saved);
+  expect(f.run("createBead", { type, properties: invalid }, "deep-bad", opts).disposition).toEqual(
+    bad.disposition,
+  );
+  expect(f.key("deep-bad")).toEqual(savedBad);
 });
