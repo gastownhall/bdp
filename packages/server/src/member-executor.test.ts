@@ -16,7 +16,6 @@ import {
 import {
   runMember,
   assertRetainedOutcomeCompatible,
-  UnimplementedAliasRetryError,
   type MemberContext,
   type MemberExecutorOptions,
   type MemberTurn,
@@ -30,6 +29,7 @@ import {
   type StoreReader,
 } from "./recovery-store.js";
 import { parseMemberMetadata, type MemberCreatorBinding } from "./member-identity.js";
+import * as identityModule from "./member-identity.js";
 import * as evaluator from "./resource-evaluator.js";
 
 const scope = "https://executor.test/s/";
@@ -528,7 +528,7 @@ describe("dependency and numeric admission order", () => {
 });
 
 describe("retained witnesses, equality and private creator facts", () => {
-  it("reuses captures across repoint/direct retry, reuses a recorded miss, and stops a new locator without a wire fallback", () => {
+  it("reuses original captures and compares new locators without rewriting retained bytes", () => {
     const f = fixture();
     f.run("putAlias", { alias: "alias/current", target: "beads/a" }, "alias");
     const input = { type: linkType, source: "alias/current", target: "alias/current" };
@@ -540,8 +540,8 @@ describe("retained witnesses, equality and private creator facts", () => {
       f.run("createLink", { ...input, source: `${scope}beads/a`, target: `${scope}beads/a` })
         .storage,
     ).toBe("replayed");
-    expect(() => f.run("createLink", { ...input, source: "alias/other" })).toThrow(
-      UnimplementedAliasRetryError,
+    expect(code(f.run("createLink", { ...input, source: "alias/other" }))).toBe(
+      "idempotency-conflict",
     );
     expect(f.key()).toEqual(state);
     f.run("deleteBead", { bead: "alias/missing" }, "miss");
@@ -552,6 +552,171 @@ describe("retained witnesses, equality and private creator facts", () => {
     expect(f.body("beads/free")).toBeDefined();
     // A different operation is definitely unequal; new alias cannot force a lookup.
     expect(code(f.run("deleteBead", { bead: "alias/never" }))).toBe("idempotency-conflict");
+  });
+  it.each(["beads/a", "alias/original"])(
+    "compares new aliases for original %s, authorization, deletion and expiry",
+    (source) => {
+      const f = fixture();
+      f.run("putAlias", { alias: "alias/original", target: "beads/a" }, "original-alias");
+      const input = { type: linkType, source, target: "beads/a" };
+      const made = f.run("createLink", input);
+      expect(code(made)).toBe("created");
+      const original = retained(f.key());
+      f.run("putAlias", { alias: "alias/new", target: "beads/a" }, "new-alias");
+      const retry = { ...input, source: "alias/new" };
+      f.clock.mockClear();
+      const evaluate = vi.spyOn(evaluator, "evaluateResourceMutation");
+      expect(f.run("createLink", retry).disposition).toEqual(made.disposition);
+      expect(evaluate).not.toHaveBeenCalled();
+      expect(f.clock).not.toHaveBeenCalled();
+      f.policyState.hidden.add(`${scope}beads/a`);
+      expect(code(f.run("createLink", retry))).toBe("forbidden");
+      expect(code(f.run("createLink", { ...retry, source: "beads/b" }))).toBe(
+        "idempotency-conflict",
+      );
+      f.policyState.hidden.clear();
+      expect(f.run("createLink", retry).disposition).toEqual(made.disposition);
+      expect(f.run("createLink", retry, "key", f.options, "bob").storage).toBe("retained");
+      expect(f.key("key", "bob")).not.toEqual(original);
+      f.run("putAlias", { alias: "alias/new", target: "beads/b" }, "new-repoint");
+      expect(code(f.run("createLink", retry))).toBe("idempotency-conflict");
+      f.run("deleteAlias", { alias: "alias/original" }, "remove-original");
+      expect(f.run("createLink", input).disposition).toEqual(made.disposition);
+      expect(f.key()).toEqual(original);
+      f.store.expire(original.retainUntil);
+      const tombstone = f.key();
+      expect(tombstone.kind).toBe("expired");
+      f.run("putAlias", { alias: "alias/equal", target: "beads/a" }, "equal-alias");
+      const expired = f.run("createLink", { ...input, source: "alias/equal" });
+      expect(code(expired)).toBe("idempotency-expired");
+      expect(expired.creator).toEqual(made.creator);
+      expect(code(f.run("createLink", retry))).toBe("idempotency-conflict");
+      expect(f.key()).toEqual(tombstone);
+    },
+  );
+  it("binds only alias for retry normalization, with one lookup per new locator and early mismatch", () => {
+    const f = fixture();
+    const input = { type: linkType, source: "beads/a", target: "beads/a" };
+    f.run("createLink", input);
+    f.run("putAlias", { alias: "alias/new", target: "beads/a" }, "new");
+    f.run("putAlias", { alias: "alias/second", target: "beads/a" }, "second");
+    const read = f.store.read.bind(f.store);
+    const calls: string[] = [];
+    let captures = 0,
+      normalizing = false;
+    const diagnostic = vi.fn(() => ({ message: "unused", instanceLocation: "" }));
+    const options: MemberExecutorOptions = {
+      ...f.options,
+      numericBudget: { diagnostic },
+      captureMemberContext(reader, principal) {
+        const context = f.options.captureMemberContext(reader, principal);
+        normalizing = true;
+        return context;
+      },
+    };
+    const normalize = identityModule.normalizePreparedMemberIdentity;
+    vi.spyOn(identityModule, "normalizePreparedMemberIdentity").mockImplementation((...args) => {
+      try {
+        return normalize(...args);
+      } finally {
+        normalizing = false;
+      }
+    });
+    vi.spyOn(f.store, "read").mockImplementation((callback) =>
+      read((reader) => {
+        const facade: StoreReader = new Proxy(reader, {
+          get(target, property) {
+            if (property === "alias") {
+              if (normalizing) captures++;
+              return function (this: StoreReader, locator: string) {
+                expect(this).toBe(facade);
+                calls.push(locator);
+                return target.alias(locator);
+              };
+            }
+            // The interval starts after existing context capture returns and
+            // ends when real normalization returns, before retained disclosure.
+            if (normalizing) throw Error(`unexpected normalization access: ${String(property)}`);
+            return Reflect.get(target, property);
+          },
+        });
+        try {
+          return callback(facade);
+        } finally {
+          normalizing = false;
+        }
+      }),
+    );
+    expect(code(f.run("deleteBead", { bead: "alias/new" }, "key", options))).toBe(
+      "idempotency-conflict",
+    );
+    expect(captures).toBe(0);
+    expect(
+      f.run(
+        "createLink",
+        { ...input, source: "alias/new", target: `${scope}alias/new` },
+        "key",
+        options,
+      ).storage,
+    ).toBe("replayed");
+    expect(captures).toBe(1);
+    expect(calls).toEqual(["new"]);
+    calls.length = 0;
+    captures = 0;
+    expect(
+      f.run("createLink", { ...input, source: "alias/new", target: "alias/second" }, "key", options)
+        .storage,
+    ).toBe("replayed");
+    expect(captures).toBe(1);
+    expect(calls).toEqual(["new", "second"]);
+    calls.length = 0;
+    captures = 0;
+    expect(
+      code(
+        f.run(
+          "createLink",
+          { ...input, source: "alias/missing", target: `${scope}alias/missing` },
+          "key",
+          options,
+        ),
+      ),
+    ).toBe("idempotency-conflict");
+    expect(captures).toBe(1);
+    expect(calls).toEqual(["missing"]);
+    calls.length = 0;
+    captures = 0;
+    expect(f.run("createLink", input, "key", options).storage).toBe("replayed");
+    // Binding the adapter is allowed; a direct reference must not invoke it.
+    expect(captures).toBe(1);
+    expect(calls).toEqual([]);
+    expect(diagnostic).not.toHaveBeenCalled();
+  });
+  it("answers a foreign claim before resolving its new alias or capturing context", () => {
+    const f = fixture();
+    const carrier = f.singleton("deleteBead", { bead: "alias/new" });
+    const owner = f.store.admit("alice", carrier.keys);
+    const read = vi.spyOn(f.store, "read");
+    try {
+      expect(code(f.present(carrier))).toBe("idempotency-in-progress");
+      expect(read).not.toHaveBeenCalled();
+      expect(f.policyState.contextCalls).toBe(0);
+      expect(f.clock).not.toHaveBeenCalled();
+    } finally {
+      f.store.abandonAttempt(owner);
+    }
+  });
+  it("compares a dangling new alias without reading its deleted target as a fresh mutation", () => {
+    const f = fixture();
+    const input = { bead: "beads/free", change: [{ op: "add", path: "/n", value: 9 }] };
+    const made = f.run("updateBeadProperties", input);
+    const original = f.key();
+    f.run("putAlias", { alias: "alias/dangling", target: "beads/free" }, "alias");
+    expect(code(f.run("deleteBead", { bead: "beads/free" }, "delete"))).toBe("deleted");
+    expect(f.body("beads/free")).toBeUndefined();
+    expect(f.run("updateBeadProperties", { ...input, bead: "alias/dangling" }).disposition).toEqual(
+      made.disposition,
+    );
+    expect(f.key()).toEqual(original);
   });
   it("keeps binding for retained-forbidden creator and independently projects both retained and unknown dependents", () => {
     const f = fixture();

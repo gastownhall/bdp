@@ -225,6 +225,13 @@ describe("exact member identity normalization", () => {
     );
     expect(execution(member).input).toMatchObject({ target: { uri, revision: "opaque" } });
     expect(metadata(member).witnesses.at(-1)).toEqual({ slot: "/target/uri", kind: "direct", uri });
+    expect(
+      ready(
+        singleton("createLink", { type: linkType, source: a, target: { uri, revision: "opaque" } }),
+        0,
+        { prior: metadata(member) },
+      ).identityJson,
+    ).toBe(member.identityJson);
   });
   it("normalizes only the URI component of pins and retains exact revision spelling", () => {
     const one = ready(
@@ -346,24 +353,65 @@ describe("complete captured alias and creator witnesses", () => {
     expect(execution(moved).input).toMatchObject({ source: b, target: a });
     expect(resolveAlias).not.toHaveBeenCalled();
   });
-  it("leaves a previously unrecorded alias retry as an internal boundary without resolving it", () => {
-    const prior = metadata(ready(singleton("deleteBead", { bead: a })));
-    const resolveAlias = vi.fn(() => a);
-    const result = normalizeMemberIdentity(
-      singleton("deleteBead", { bead: "alias/new" }),
-      0,
-      context({ prior, resolveAlias }),
+  it("resolves new retry locators per turn, caches targets and misses, and preserves pins", () => {
+    const first = ready(
+      singleton("createLink", {
+        type: linkType,
+        source: a,
+        target: { uri: a, revision: "r1" },
+      }),
     );
-    expect(result).toEqual({ kind: "unimplemented-alias-retry", slot: "/bead" });
-    expect(result).not.toHaveProperty("problem");
-    expect(result).not.toHaveProperty("identityJson");
-    expect(resolveAlias).not.toHaveBeenCalled();
+    const prior = metadata(first),
+      before = JSON.stringify(prior);
+    for (const target of [a, b, undefined]) {
+      const resolveAlias = vi.fn(() => target);
+      const retry = ready(
+        singleton("createLink", {
+          type: linkType,
+          source: "alias/new",
+          target: { uri: `${scope}alias/new`, revision: "r1" },
+        }),
+        0,
+        { prior, resolveAlias },
+      );
+      expect(resolveAlias).toHaveBeenCalledExactlyOnceWith(`${scope}alias/new`);
+      expect(retry.identityJson === first.identityJson).toBe(target === a);
+      expect(retry.metadata.witnesses).toEqual([
+        { slot: "/source", kind: "alias", locator: `${scope}alias/new`, target: target ?? null },
+        {
+          slot: "/target/uri",
+          kind: "alias",
+          locator: `${scope}alias/new`,
+          target: target ?? null,
+        },
+      ]);
+    }
+    const resolveAlias = vi.fn(() => a);
+    const changedPin = ready(
+      singleton("createLink", {
+        type: linkType,
+        source: "alias/one",
+        target: { uri: "alias/two", revision: "r2" },
+      }),
+      0,
+      { prior, resolveAlias },
+    );
+    expect(resolveAlias.mock.calls).toEqual([[`${scope}alias/one`], [`${scope}alias/two`]]);
+    expect(changedPin.identityJson).not.toBe(first.identityJson);
+    expect(JSON.stringify(prior)).toBe(before);
+    expect(() =>
+      ready(singleton("deleteBead", { bead: "alias/new" }), 0, {
+        prior: metadata(ready(singleton("deleteBead", { bead: a }))),
+        resolveAlias: () => `${scope}links/wrong-kind`,
+      }),
+    ).toThrow("live alias resolution requires the canonical in-Scope Resource kind");
   });
   it("records unresolved alias identity separately per locator and never falls through on captured misses", () => {
     const member = ready(singleton("deleteBead", { bead: "alias/missing" }), 0, {
       resolveAlias: () => undefined,
     });
     const other = ready(singleton("deleteBead", { bead: "alias/else" }), 0, {
+      prior: metadata(member),
       resolveAlias: () => undefined,
     });
     expect(member.identityJson).not.toBe(other.identityJson);
@@ -389,6 +437,9 @@ describe("complete captured alias and creator witnesses", () => {
       const member = ready(carrier, 0, { resolveAlias });
       expect(member.metadata.witnesses.every((w) => w.kind === "direct")).toBe(true);
       expect(metadata(member)).toEqual(member.metadata);
+      expect(ready(carrier, 0, { prior: metadata(member), resolveAlias }).identityJson).toBe(
+        member.identityJson,
+      );
     }
     expect(resolveAlias).not.toHaveBeenCalled();
   });
