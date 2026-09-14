@@ -16,6 +16,7 @@ export {
   resolveBdExecutable,
   runBdWorkspaceCommand,
   seedBdWorkspace,
+  seedBdWorkspacePair,
 } from "./bd-workspace.js";
 
 /**

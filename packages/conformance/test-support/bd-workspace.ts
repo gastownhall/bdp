@@ -184,3 +184,32 @@ export async function seedBdWorkspace(
     else if (bead.status === "deferred") await bd(["defer", bead.id]);
   }
 }
+
+/**
+ * Seed two distinct caller-created workspaces concurrently. Rejection is a
+ * settlement barrier: cancel the sibling and drain both seeds before callers
+ * can remove their shared root. Preserve the first aggregate failure and leave
+ * the caller's controller untouched. An active creation gap drains naturally.
+ */
+export async function seedBdWorkspacePair(
+  executable: string,
+  workspaces: readonly [string, string],
+  environment: Readonly<Record<string, string>>,
+  seed: BdWorkspaceSeed,
+  parentSignal: AbortSignal,
+): Promise<void> {
+  if (path.resolve(workspaces[0]) === path.resolve(workspaces[1]))
+    throw new Error("bd seed workspaces must be distinct");
+  const localController = new AbortController();
+  const signal = AbortSignal.any([parentSignal, localController.signal]);
+  const startedSeeds = workspaces.map((workspace) =>
+    seedBdWorkspace(executable, workspace, environment, seed, signal),
+  );
+  try {
+    await Promise.all(startedSeeds);
+  } catch (failure) {
+    localController.abort(failure);
+    await Promise.allSettled(startedSeeds);
+    throw failure;
+  }
+}
