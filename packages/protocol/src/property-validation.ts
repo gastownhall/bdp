@@ -1,3 +1,6 @@
+/** Installed authorities must qualify each emitted location's actual instance
+ * provenance and encoded Type/schema/message bounds. The callback types and
+ * controlled validators do not prove installed closure or diagnostic feasibility. */
 /** Internal installed-validator receiving contract, not a BDP wire extension.
  * An installer must separately bound compiler work and speculative error storage.
  */

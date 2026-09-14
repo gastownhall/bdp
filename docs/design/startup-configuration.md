@@ -133,7 +133,7 @@ ceilings:
 | `server.limits.page.defaultItems` | `50` | `1000` | caps accidental response fan-out when a caller omits `limit` |
 | `server.limits.page.maximumItems` | `200` | `10000` | caps per-request item materialization while the server's independent 64 MiB / 1,000,000-node snapshot guards remain authoritative |
 | `server.limits.selector.bytes` | `16384` | `65536` | bounds the worst-case percent-encoded Node request/header budget to 212,992 bytes |
-| `server.limits.selector.depth` | `32` | `128` | matches the repository's bounded JSON-value depth ceiling |
+| `server.limits.selector.depth` | `32` | `128` | the configured Selector ceiling; not a ReadUpdate properties-depth bound |
 | `server.limits.selector.nodes` | `256` | `4096` | bounds parser and evaluator work inside the Selector byte ceiling |
 | `server.limits.cursorTtlMilliseconds` | `300000` | `86400000` | caps retained snapshot lifetime at 24 hours; retained-state, byte, and node capacities remain independent hard bounds |
 
@@ -563,3 +563,69 @@ starts with the ambient `BDP_*` environment stripped, so a developer who
 exports one in their shell cannot change what the smoke test proves. Failures
 surface only the failing check, never the resolved config, because
 `startup.config` can carry a bearer token in `auth.token`.
+
+
+## Explicit reference ReadUpdate limits component
+
+`resolveServerReadUpdateLimits` supplies request body 1,048,576 bytes, each
+Resource's own properties 1,048,576 bytes, and diagnostic array 8,388,608 bytes.
+It accepts only the three own enumerable data fields of a plain record; an
+explicit undefined value, accessor, unknown field or non-positive/non-safe integer
+is a configuration error. Returned numbers are captured and frozen. This separate
+config API has no CLI, environment, file or mutation HTTP consumer yet. It selects
+no diagnostic-count default and does not alter shipping Read configuration.
+
+The private server receiver snapshots R/B/D and an independently explicit optional
+count. It checks safe arithmetic and the fixed alias minimum. Its conditional
+first-diagnostic bound is `2*(R+B)+2+4096+16384+1024+256`: 4,216,066 bytes at the
+reference defaults, below 8 MiB. The metadata terms are encoded Type (4 KiB),
+schema location (16 KiB), message (1 KiB), and conservative framing. This numerical
+witness does not prove actual request enforcement or installed emitter correctness.
+Every emitter's complete required properties-relative pointer and metadata must
+have qualified provenance. Missing-property diagnostics can name their containing
+instance; no hidden path/depth limit or ordinary validation-500 fallback is allowed.
+
+The create adapter maps operation-relative numeric occurrences beneath `/properties`
+to the required properties-relative wire location before actual byte accounting,
+preserving the formatter's original occurrence. It never reads storage or samples
+time. The generic update callback is unchanged: the narrow spelling for numeric
+rejection at an unapplied append/missing-parent target remains separately held.
+The numeric placeholder-schema test is not a location-confinement guard; a future
+create-shape widening requires mapping review and retains the invariant refusal.
+
+Before transferring authority, the owner must capture one permitted time, expire
+lawfully at that time, and then invoke `assertReadUpdateRuntimeCompatibility`.
+The helper completes one live-Resource scan, returns from its reader callback, then
+visits every still-retained outcome. It performs no clock sampling or time filtering.
+It checks canonical Bead and Link rows' own properties, and whole serialized
+retained diagnostic arrays including brackets/commas. Equality passes. It refuses
+on the first violation without changing Resource, outcome, metadata or retention
+bytes; the caller closes/refuses startup on failure. A later lawful expiry followed
+by complete requalification may remove an actual expired obligation. Successful
+expired tombstones retain identity and creator witnesses. Nested S6 access remains
+an actual storage error; neither scan is permitted inside another reader/member.
+
+Resource scans currently materialize all rows and process embedded owned bodies.
+Owned Link properties are checked at the Link's own row, while memory/work also
+includes duplicate inline parsing and snapshots. There is no streaming/fixed-memory
+claim; representative scan time and peak memory require deployment qualification.
+Lowering B can reject an existing live population. Raising B can require a higher D;
+no truncation, grandfathering, silent default increase or migration is supplied.
+A future fully qualified larger configuration could permit lawful shrinking before
+another drain/qualification attempt. Old retained diagnostics are never reformatted.
+
+Current S5 does not structurally require this new scan. Component fixtures demonstrate
+both that missing gate and explicit refusal before transfer. Every future startup
+path must enforce the actual R before parse/claims, bind the same snapshot to
+advertisement and diagnostic receiving, and qualify installed metadata/location
+closure, graph/Type correctness, lineage and historical fingerprints before transfer.
+Mock callbacks and this helper grant no installed authority or served profile.
+
+D bounds each member's diagnostic list. Ordinary sequence Problems do not stop later
+members: a complete response can contain several D-sized lists plus successful
+Resources and envelope/position/name overhead. Request size and one D do not bound
+that response. A mutation client can explicitly accept a complete Problem above
+1 MiB, but generic Read and raw runner safety caps are unchanged. The raw-wire
+runner's separate 2,097,152-byte evidence ceiling needs its own reviewed design
+before large complete raw responses can be claimed. No engine or HTTP/auth/profile
+installation is provided by this component.

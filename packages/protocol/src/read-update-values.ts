@@ -355,7 +355,10 @@ export function parseReadUpdateSequenceRequest(text: string): ReadUpdateSequence
 /** Call in the member's admission/validation turn, not as sequence syntax.
  * HTTP keys, current contracts and authorization are the owner's work. The
  * explicit budget and formatter must match its advertised validation limits
- * and map operation-relative occurrences to valid property-relative diagnostics.
+ * and map operation-relative occurrences to valid properties-relative diagnostics.
+ * This generic function has no create/update-specific mapping. The private server
+ * create adapter supplies original-operation context before byte accounting; other
+ * callers still own the required wire location.
  */
 export function admitReadUpdateOperationNumbers<K extends ReadUpdateOperation>(
   value: UnadmittedReadUpdateOperation<K>,

@@ -416,7 +416,29 @@ export function prepareMemberExecution(
 ): MemberExecutionValues {
   const state = identityState.get(member);
   if (!state) throw new TypeError("expected a normalized member identity");
-  const admission = admitReadUpdateOperationNumbers(state.original, budget);
+  // S1's occurrences are operation-relative; create diagnostics name properties.
+  // Update formatting remains the caller's existing responsibility pending its
+  // separate unapplied-patch-location convention. No store read or clock here.
+  let selectedBudget = budget;
+  if (state.original.operation === "createBead" || state.original.operation === "createLink") {
+    const { diagnostics, diagnosticBytes, diagnostic } = budget;
+    selectedBudget = Object.freeze({
+      ...(diagnostics !== undefined ? { diagnostics } : {}),
+      ...(diagnosticBytes !== undefined ? { diagnosticBytes } : {}),
+      diagnostic: (occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
+        if (!occurrence.pointer.startsWith("/properties/"))
+          throw new TypeError("unexpected numeric position in admitted create operation");
+        const { message, type, schemaLocation } = diagnostic(occurrence);
+        return Object.freeze({
+          message,
+          ...(type !== undefined ? { type } : {}),
+          ...(schemaLocation !== undefined ? { schemaLocation } : {}),
+          instanceLocation: occurrence.pointer.slice("/properties".length),
+        });
+      },
+    });
+  }
+  const admission = admitReadUpdateOperationNumbers(state.original, selectedBudget);
   if (!admission.ok || state.unavailableBinding)
     return Object.freeze({ admission, unavailableBinding: state.unavailableBinding });
   const input: Record<string, unknown> = { ...admission.input };

@@ -273,7 +273,7 @@ describe("exact member identity normalization", () => {
     expect(one.identityJson).toBe(same.identityJson);
     expect(one.identityJson).not.toBe(rounded.identityJson);
     expect(prepareMemberExecution(one, budget)).toMatchObject({
-      admission: { ok: false, diagnostics: [{ instanceLocation: "/properties/n" }] },
+      admission: { ok: false, diagnostics: [{ instanceLocation: "/n" }] },
       unavailableBinding: false,
     });
     expect(prepareMemberExecution(one, budget)).not.toHaveProperty("executable");
@@ -1187,5 +1187,128 @@ describe("prepared member dependencies", () => {
       unavailableBinding: true,
     });
     expect(prepareMemberExecution(member, budget)).not.toHaveProperty("executable");
+  });
+});
+
+describe("paired create numeric diagnostic locations", () => {
+  for (const operation of ["createBead", "createLink"] as const) {
+    const input = operation === "createBead" ? { type } : { type: linkType, source: a, target: b };
+    it(`${operation} replaces wrong/missing formatter locations before byte accounting`, () => {
+      const key = `é/~/${"x".repeat(150)}`;
+      const pointer = `/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`;
+      const raw = JSON.stringify({ ...input, properties: { [key]: "BAD", "": "BAD" } }).replaceAll(
+        '"BAD"',
+        "1e400",
+      );
+      const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "create-number"));
+      const formatted = Object.freeze({
+        message: "bad",
+        type,
+        schemaLocation: "https://schema.test/#/x",
+        instanceLocation: "/wrong",
+      });
+      let calls = 0;
+      const diagnostic = function (
+        this: unknown,
+        occurrence: { pointer: string; literal: string },
+      ) {
+        expect(this).toBeUndefined();
+        calls++;
+        expect(occurrence.literal).toBe("1e400");
+        expect(occurrence.pointer.startsWith("/properties/")).toBe(true);
+        return calls === 1 ? formatted : { message: "bad" };
+      };
+      const result = prepareMemberExecution(member, { diagnostic }).admission;
+      expect(result.ok).toBe(false);
+      if (result.ok) throw Error("expected numeric rejection");
+      expect(result.diagnostics).toEqual([
+        { ...formatted, instanceLocation: pointer },
+        { message: "bad", instanceLocation: "/" },
+      ]);
+      expect(result.offending.map((o) => o.pointer)).toEqual([
+        `/properties${pointer}`,
+        "/properties/",
+      ]);
+      expect(formatted.instanceLocation).toBe("/wrong");
+      expect(calls).toBe(2);
+      const n = Buffer.byteLength(JSON.stringify([{ ...formatted, instanceLocation: pointer }]));
+      const exact = prepareMemberExecution(member, {
+        diagnostics: 1,
+        diagnosticBytes: n,
+        diagnostic: () => formatted,
+      }).admission;
+      expect(exact).toMatchObject({
+        ok: false,
+        diagnostics: [{ ...formatted, instanceLocation: pointer }],
+        diagnosticsTruncated: true,
+      });
+      expect(() =>
+        prepareMemberExecution(member, { diagnosticBytes: n - 1, diagnostic: () => formatted }),
+      ).toThrow("first entry");
+    });
+  }
+  it("captures the full upstream budget once and preserves deep complete pointers", () => {
+    const depth = 12000;
+    const raw =
+      '{"type":' +
+      JSON.stringify(type) +
+      ',"properties":' +
+      '{"x":'.repeat(depth) +
+      "1e400" +
+      "}".repeat(depth) +
+      "}";
+    const member = ready(prepareReadUpdateSingleton(scope, "createBead", raw, "deep-number"));
+    const reads = { diagnostics: 0, diagnosticBytes: 0, diagnostic: 0 };
+    let selected = 8388608;
+    const result = prepareMemberExecution(member, {
+      get diagnostics() {
+        reads.diagnostics++;
+        return 1;
+      },
+      get diagnosticBytes() {
+        reads.diagnosticBytes++;
+        return selected;
+      },
+      get diagnostic() {
+        reads.diagnostic++;
+        return (o: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
+          selected = 1;
+          expect(o.pointer).toBe(`/properties${"/x".repeat(depth)}`);
+          return { message: "bad" };
+        };
+      },
+    }).admission;
+    expect(reads).toEqual({ diagnostics: 1, diagnosticBytes: 1, diagnostic: 1 });
+    expect(result).toMatchObject({
+      ok: false,
+      diagnostics: [{ message: "bad", instanceLocation: "/x".repeat(depth) }],
+      diagnosticsTruncated: false,
+    });
+  });
+  it("rejects numeric properties roots at S1 and keeps the existing update formatter path", () => {
+    expect(() =>
+      prepareReadUpdateSingleton(
+        scope,
+        "createBead",
+        `{"type":${JSON.stringify(type)},"properties":1e400}`,
+        "root",
+      ),
+    ).toThrow();
+    const member = ready(
+      prepareReadUpdateSingleton(
+        scope,
+        "updateBeadProperties",
+        '{"bead":"beads/a","change":[{"op":"add","path":"/items/-","value":1e400}]}',
+        "update",
+      ),
+    );
+    expect(
+      prepareMemberExecution(member, {
+        diagnostic: (o) => ({ message: o.pointer, instanceLocation: "/caller-location" }),
+      }).admission,
+    ).toMatchObject({
+      ok: false,
+      diagnostics: [{ message: "/change/0/value", instanceLocation: "/caller-location" }],
+    });
   });
 });

@@ -5,6 +5,8 @@ import {
   type BdpStartupConfig,
   type BdptestStartupConfig,
   ConfigError,
+  DEFAULT_SERVER_READ_UPDATE_LIMITS,
+  resolveServerReadUpdateLimits,
   type ConformanceStartupConfig,
   formatConfigError,
   formatStartupDiagnostic,
@@ -1345,5 +1347,67 @@ describe("diagnostics", () => {
     const config = loadAsBdpbd({ BDP_BD_WORKSPACE: "/srv/bd" });
     const parsed = JSON.parse(formatStartupDiagnostic(config, "bdpbd"));
     expect(Object.keys(parsed.config).sort()).toEqual(["bd", "mode", "scope", "server"]);
+  });
+});
+
+describe("explicit reference ReadUpdate defaults", () => {
+  it("resolves omitted fields, captures overrides and leaves Read startup separate", () => {
+    expect(resolveServerReadUpdateLimits()).toEqual({
+      requestBodyBytes: 1048576,
+      propertiesBytes: 1048576,
+      diagnosticBytes: 8388608,
+    });
+    expect(resolveServerReadUpdateLimits(undefined)).toBe(DEFAULT_SERVER_READ_UPDATE_LIMITS);
+    const input = { propertiesBytes: 12 };
+    const chosen = resolveServerReadUpdateLimits(input);
+    input.propertiesBytes = 99;
+    expect(chosen).toEqual({ ...DEFAULT_SERVER_READ_UPDATE_LIMITS, propertiesBytes: 12 });
+    expect(Object.isFrozen(chosen)).toBe(true);
+    expect(Object.isFrozen(DEFAULT_SERVER_READ_UPDATE_LIMITS)).toBe(true);
+    expect(
+      resolveServerReadUpdateLimits(Object.assign(Object.create(null), { diagnosticBytes: 42 })),
+    ).toEqual({ ...DEFAULT_SERVER_READ_UPDATE_LIMITS, diagnosticBytes: 42 });
+    expect(load({}).server.limits).not.toHaveProperty("diagnosticBytes");
+  });
+  it.each([
+    null,
+    [],
+    1,
+    "1",
+    new Date(),
+    Object.create({ propertiesBytes: 1 }),
+    { propertiesBytes: undefined },
+    { requestBodyBytes: 0 },
+    { diagnosticBytes: -1 },
+    { propertiesBytes: 1.1 },
+    { propertiesBytes: NaN },
+    { diagnosticBytes: Infinity },
+    { requestBodyBytes: Number.MAX_SAFE_INTEGER + 1 },
+    { propertiesBytes: "12" },
+    { diagnosticCount: 1 },
+    { extra: 1 },
+    { [Symbol("extra")]: 1 },
+    Object.defineProperty({}, "propertiesBytes", { value: 3 }),
+  ])("rejects invalid explicit overrides %j", (input) => {
+    expect(() => resolveServerReadUpdateLimits(input as never)).toThrow(ConfigError);
+  });
+  it("never invokes an accessor to obtain an override", () => {
+    let calls = 0;
+    const input = {
+      get propertiesBytes(): number {
+        calls++;
+        throw Error("getter ran");
+      },
+    };
+    expect(() => resolveServerReadUpdateLimits(input)).toThrow(ConfigError);
+    expect(calls).toBe(0);
+  });
+  it("allows each independent positive safe override without selecting a count", () => {
+    for (const key of ["requestBodyBytes", "propertiesBytes", "diagnosticBytes"] as const)
+      expect(resolveServerReadUpdateLimits({ [key]: Number.MAX_SAFE_INTEGER })).toEqual({
+        ...DEFAULT_SERVER_READ_UPDATE_LIMITS,
+        [key]: Number.MAX_SAFE_INTEGER,
+      });
+    expect(resolveServerReadUpdateLimits()).not.toHaveProperty("diagnosticCount");
   });
 });

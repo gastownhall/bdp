@@ -3679,6 +3679,21 @@ installed contract may therefore remain describable while every attempted
 Resource value fails validation. Union endpoint constraints, minimum
 multiplicity, and tuple-uniqueness rules are not part of BDP v0.
 
+Configured request, properties and diagnostic limits must be jointly feasible:
+an authority must retain the first complete required diagnostic without
+truncating a required properties-relative JSON Pointer. It must qualify the
+installed diagnostic metadata and emitted location provenance against those
+bounds before serving the configuration. A still-replayable retained diagnostic
+list constrains subsequent configuration: the authority must refuse an
+incompatible lower bound or retain a sufficient bound through lawful expiry.
+It must not truncate or reformat a retained list to fit a new configuration.
+
+The reference implementation selects 1 MiB request bodies, 1 MiB per Resource's
+own properties, and 8 MiB diagnostic arrays as its defaults. These are reference
+configuration choices, not universal protocol maxima or a served-profile claim;
+[the startup design](../design/startup-configuration.md#explicit-reference-readupdate-limits-component)
+records their conditional feasibility and remaining qualification requirements.
+
 The descriptor deliberately does not restate generic BDP operations. The BDP
 project MAY publish one generated
 [OpenAPI 3.1 description](https://spec.openapis.org/oas/v3.1.2.html) for each
