@@ -28,11 +28,15 @@ import {
 } from "./recovery-store.js";
 import {
   assertRetainedOutcomeCompatible,
-  UnimplementedAliasRetryError,
   snapshotMemberExecutorOptions,
   type MemberExecutorOptions,
 } from "./member-executor.js";
-import { normalizeMemberIdentity, serializeMemberMetadata } from "./member-identity.js";
+import {
+  MemberMetadataError,
+  normalizeMemberIdentity,
+  serializeMemberMetadata,
+} from "./member-identity.js";
+import * as identityModule from "./member-identity.js";
 import {
   createSequenceLifecycle,
   createNodeLifecycleScheduler,
@@ -1030,54 +1034,156 @@ describe("canonical projection and real creator prefixes", () => {
     expect(f.key("maker")).not.toHaveProperty("semanticIdentityJson");
     await next.close();
   });
-  it("reuses captured alias targets and stops an unsupported new locator with cleanup and no wire fallback", async () => {
-    const f = fixture(),
+  it("continues after new-locator conflict and forbidden, then reuses an expired creator", async () => {
+    const f = fixture({ empty: true }),
       owner = f.owner();
     await execute(
       f,
       owner,
       sequence([
+        create("a", { id: "beads/a" }),
+        create("b", { id: "beads/b" }),
         {
           operation: "putAlias",
-          alias: "alias/current",
+          alias: "alias/original",
           target: "beads/a",
-          idempotencyKey: "alias",
+          idempotencyKey: "original",
         },
+        { operation: "putAlias", alias: "alias/new", target: "beads/a", idempotencyKey: "new" },
       ]),
     );
     const link = {
       operation: "createLink",
       type: linkType,
-      source: "alias/current",
-      target: "alias/current",
+      id: "links/made",
+      source: "alias/original",
+      target: "beads/a",
       idempotencyKey: "link",
+      name: "made",
     };
     const made = await execute(f, owner, sequence([link]));
-    const retainedLink = f.key("link");
-    await execute(
-      f,
-      owner,
-      sequence([
-        {
-          operation: "putAlias",
-          alias: "alias/current",
-          target: "beads/b",
-          idempotencyKey: "repoint",
-        },
-      ]),
-    );
-    expect(await execute(f, owner, sequence([link]))).toEqual(made);
-    const failed = submit(owner, sequence([{ ...link, source: "alias/unseen" }, create("tail")]));
-    f.queue.drain();
-    await expect(failed).rejects.toMatchObject({
-      phase: "member",
-      cause: expect.any(UnimplementedAliasRetryError),
-      cleanup: { kind: "returned", releasedClaims: 1 },
-    });
-    expect(f.key("link")).toEqual(retainedLink);
-    expect(f.key("tail")).toEqual({ kind: "unknown" });
+    const original = retained(f.key("link"));
+    expect(await execute(f, owner, sequence([{ ...link, source: "alias/new" }]))).toEqual(made);
+    expect(
+      codes(
+        await execute(
+          f,
+          owner,
+          sequence([
+            { ...link, source: "alias/missing" },
+            create("after-conflict", { id: "beads/after-conflict" }),
+          ]),
+        ),
+      ),
+    ).toEqual(["idempotency-conflict", "created"]);
+    f.state.hidden.add(`${scope}links/made`);
+    expect(
+      codes(
+        await execute(
+          f,
+          owner,
+          sequence([
+            { ...link, source: "alias/new" },
+            create("after-forbidden", { id: "beads/after-forbidden" }),
+          ]),
+        ),
+      ),
+    ).toEqual(["forbidden", "created"]);
+    f.state.hidden.clear();
+    expect(f.key("link")).toEqual(original);
+    f.state.now = original.retainUntil;
+    f.queue.tick(); // Actual S5 maintenance invokes S6 expiry before the retry.
+    const tombstone = f.key("link");
+    expect(tombstone.kind).toBe("expired");
+    expect(
+      codes(
+        await execute(
+          f,
+          owner,
+          sequence([
+            { ...link, source: "alias/new", name: "renamed" },
+            {
+              operation: "updateLinkProperties",
+              link: "@renamed",
+              change: [{ op: "add", path: "/later", value: true }],
+              idempotencyKey: "dependent",
+            },
+          ]),
+        ),
+      ),
+    ).toEqual(["idempotency-expired", "updated"]);
+    expect(body(f, "links/made").properties.later).toBe(true);
+    expect(f.key("link")).toEqual(tombstone);
     await owner.close();
   });
+  it.each([false, true])(
+    "rejects an invalid new alias target as an operational fault and cleans the known suffix: %s",
+    async (suffix) => {
+      const f = fixture({ empty: true }),
+        owner = f.owner();
+      await execute(f, owner, sequence([create("a", { id: "beads/a" })]));
+      const input = { bead: "beads/a", change: [{ op: "add", path: "/n", value: 1 }] };
+      const originalCarrier = prepareReadUpdateSingleton(
+        scope,
+        "updateBeadProperties",
+        stringifyJsonValue(input),
+        "update",
+      );
+      await execute(f, owner, originalCarrier);
+      const original = f.key("update");
+      const read = f.store.read.bind(f.store);
+      const alias = vi.fn(() => "links/not-a-bead");
+      let originalCause: unknown;
+      const normalize = identityModule.normalizePreparedMemberIdentity;
+      vi.spyOn(identityModule, "normalizePreparedMemberIdentity").mockImplementation((...args) => {
+        try {
+          return normalize(...args);
+        } catch (cause) {
+          originalCause = cause;
+          throw cause;
+        }
+      });
+      // The only malformed value is an operational facade return. Durable rows
+      // and the retained singleton above come through actual S1/S5/S6.
+      vi.spyOn(f.store, "read").mockImplementation((callback) =>
+        read((reader) => callback({ ...reader, alias })),
+      );
+      const retry = { ...input, bead: "alias/new" };
+      const carrier = suffix
+        ? sequence([
+            { operation: "updateBeadProperties", ...retry, idempotencyKey: "update" },
+            create("tail"),
+          ])
+        : prepareReadUpdateSingleton(
+            scope,
+            "updateBeadProperties",
+            stringifyJsonValue(retry),
+            "update",
+          );
+      const failed = submit(owner, carrier);
+      f.queue.drain();
+      const fault = await failed.then(
+        () => {
+          throw Error("expected completion rejection");
+        },
+        (error: unknown) => error,
+      );
+      expect(fault).toBeInstanceOf(SequenceLifecycleError);
+      expect(fault).toMatchObject({
+        phase: "member",
+        cause: expect.any(MemberMetadataError),
+        cleanup: { kind: "returned", releasedClaims: suffix ? 1 : 0 },
+      });
+      expect((fault as SequenceLifecycleError).cause).toBe(originalCause);
+      expect((fault as SequenceLifecycleError).cause).toMatchObject({
+        message: "live alias resolution requires the canonical in-Scope Resource kind",
+      });
+      expect(alias).toHaveBeenCalledExactlyOnceWith("new");
+      expect(f.key("update")).toEqual(original);
+      expect(f.key("tail")).toEqual({ kind: "unknown" });
+      await owner.close();
+    },
+  );
 });
 
 describe("actual scheduled policy, clocks and independent maintenance", () => {

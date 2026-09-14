@@ -23,7 +23,6 @@ import {
   type CreationBinding,
   type MemberCreatorBinding,
   type MemberMetadata,
-  type MemberReferenceSlot,
   capturedMemberAlias,
   normalizePreparedMemberIdentity,
   parseMemberMetadata,
@@ -92,14 +91,6 @@ export class MemberIntegrityError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = "MemberIntegrityError";
-  }
-}
-/** Non-wire unsupported composition boundary. Attempt owner stops and cleans
- * only its claims. No fallback Problem/creator fact may escape this exception. */
-export class UnimplementedAliasRetryError extends Error {
-  constructor(readonly slot: MemberReferenceSlot) {
-    super("unimplemented member alias retry");
-    this.name = "UnimplementedAliasRetryError";
   }
 }
 const envelopeFormat = "ru-member-outcome-1";
@@ -612,7 +603,6 @@ export function runMember(
       },
       prepared,
     );
-    if (member.kind !== "ready") throw new UnimplementedAliasRetryError(member.slot);
     const values = prepareMemberExecution(member, options.numericBudget);
     let disposition: MemberDisposition;
     if (!values.admission.ok) disposition = problem("validation-failed", values.admission);
@@ -726,23 +716,27 @@ export function runMember(
     const context = capture(options, reader, principal, principalId);
     if (metadata.operation !== operation)
       return turn(problem("idempotency-conflict"), "conflict", operation);
-    const member = normalizePreparedMemberIdentity(
+    // Only this callable and Scope enter retry normalization. Its witnesses are
+    // comparison input; no retry identity reaches executable preparation.
+    const scope = options.scope;
+    const readAlias = reader.alias.bind(reader);
+    const identityJson = normalizePreparedMemberIdentity(
       carrier,
       index,
       {
-        scope: options.scope,
+        scope,
         prior: metadata,
-        resolveAlias() {
-          throw new MemberIntegrityError("replay attempted live alias lookup");
+        resolveAlias(locator) {
+          const target = readAlias(locator.slice(scope.length + 6));
+          return target === undefined ? undefined : `${scope}${target}`;
         },
       },
       prepared,
-    );
-    if (member.kind !== "ready") throw new UnimplementedAliasRetryError(member.slot);
+    ).identityJson;
     const equal =
       state.kind === "retained"
-        ? member.identityJson === state.semanticIdentityJson
-        : recoveryIdentityFingerprint(member.identityJson) === state.fingerprint;
+        ? identityJson === state.semanticIdentityJson
+        : recoveryIdentityFingerprint(identityJson) === state.fingerprint;
     if (!equal) return turn(problem("idempotency-conflict"), "conflict", operation);
     if (state.kind === "expired")
       return turn(problem("idempotency-expired"), "expired", operation, metadata.creation);

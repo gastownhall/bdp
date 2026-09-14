@@ -418,6 +418,75 @@ function reentry(
 }
 
 describe("G11 actual committed prefixes, shared source and delivery", () => {
+  it("interleaves current alias Read with original and new retry locators through actual S5", async () => {
+    const f = fixture(false),
+      lifecycle = await f.open();
+    const facet = lifecycle.readFor({ kind: "authenticated", principal: alice });
+    await execute(f, sequence([create("a"), create("b")]));
+    await singleton(f, "putAlias", { alias: "alias/original", target: "beads/a" }, "original");
+    const input = { bead: "alias/original", change: [{ op: "replace", path: "/n", value: 7 }] };
+    const made = await singleton(f, "updateBeadProperties", input, "update");
+    expect(made).toMatchObject({ kind: "singleton", disposition: { outcome: "updated" } });
+    const original = f.store.read((reader) => reader.key("alice", "update"));
+    const repoint = submission(
+      lifecycle,
+      sequence([
+        {
+          operation: "putAlias",
+          alias: "alias/original",
+          target: "beads/b",
+          idempotencyKey: "repoint",
+        },
+        { operation: "putAlias", alias: "alias/new", target: "beads/a", idempotencyKey: "new" },
+      ]),
+    );
+    expect(await facet.resolveAlias(url("alias/original"))).toMatchObject({
+      kind: "target",
+      target: url("beads/a"),
+    });
+    f.queue.step();
+    expect(await facet.resolveAlias(url("alias/original"))).toMatchObject({
+      kind: "target",
+      target: url("beads/b"),
+    });
+    f.queue.drain();
+    expect(codes(await repoint)).toEqual(["updated", "created"]);
+    const hooks: string[] = [];
+    f.state.hook = (phase) => {
+      hooks.push(phase);
+    };
+    expect(
+      await singleton(
+        f,
+        "updateBeadProperties",
+        { ...input, bead: url("alias/original") },
+        "update",
+      ),
+    ).toEqual(made);
+    expect(
+      await singleton(f, "updateBeadProperties", { ...input, bead: "alias/new" }, "update"),
+    ).toEqual(made);
+    expect(hooks).not.toContain("member-clock");
+    expect(hooks).not.toContain("contract");
+    f.state.hidden.add(url("beads/a"));
+    expect(
+      await singleton(f, "updateBeadProperties", { ...input, bead: "alias/new" }, "update"),
+    ).toMatchObject({ kind: "singleton", disposition: { code: "forbidden" } });
+    f.state.hidden.clear();
+    await singleton(f, "putAlias", { alias: "alias/new", target: "beads/b" }, "new-repoint");
+    expect(
+      await singleton(f, "updateBeadProperties", { ...input, bead: "alias/new" }, "update"),
+    ).toMatchObject({ kind: "singleton", disposition: { code: "idempotency-conflict" } });
+    expect(await singleton(f, "updateBeadProperties", input, "update")).toEqual(made);
+    expect(f.store.read((reader) => reader.key("alice", "update"))).toEqual(original);
+    expect(f.state.memberSources.at(-1)).toBe(f.state.configuration);
+    expect(f.state.readSources.at(-1)).toBe(f.state.configuration);
+    expect(() => f.state.readers.at(-1)?.alias("original")).toThrow(/expired/);
+    f.state.hook = undefined;
+    const closed = lifecycle.close();
+    f.queue.drain();
+    await closed;
+  });
   it("observes five real prefixes, owned/alias state and atomic properties R1 before actual R2", async () => {
     const f = fixture(),
       lifecycle = await f.open(),

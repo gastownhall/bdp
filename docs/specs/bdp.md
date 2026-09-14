@@ -3990,6 +3990,10 @@ the principal may write the proposed target Bead, and a repoint or a
 delete additionally that it may write the alias's current target; when
 the current target is not visible to the principal, the alias itself is
 `resource-not-found`, disclosing nothing.
+These alias mutation authorization rules are distinct from retry identity
+comparison within a principal's key namespace under
+[Idempotency keys](#idempotency-keys); comparison grants no permission to
+perform an alias mutation or disclose a retained Resource.
 
 Alias mutation mints no version: an alias is a locator, not part of any
 Bead's durable state, so the target Bead's revision is unchanged by a put
@@ -4212,15 +4216,27 @@ Opaque external URIs and Pinned References are compared byte-exactly as
 written, a pinned `uri` spelled by `@name` or by alias having first
 resolved as the bare spelling does (amended 2026-09-08, council 12);
 `expectedRevision` and `attribution` are members of the record and
-therefore of its identity. An alias spelling admitted under
-[Alias targets](#alias-targets) normalizes to the canonical Bead URL it
-resolved to when the member was reached: the authority records that
-resolution with the member's disposition and in its tombstone, and every
-later presentation of the key compares against the recorded resolution —
-never against the spelling and never against the alias's present target —
-so a repoint between a member and its byte-identical retry changes no
-identity, exactly as a `@name` reference resolves through its creator's
-retained or expired disposition. The authority may store the normalized
+therefore of its identity. The authority MUST retain the original alias
+locators and their canonical targets or recorded misses with the member’s
+disposition and in any successful tombstone. An alias locator recorded with
+the original member retains its recorded
+canonical Bead target or recorded miss on retry, including equivalent
+canonical spellings of that locator and its use in another reference slot.
+A repoint or deletion therefore changes no identity for that locator. A
+previously unrecorded alias locator is resolved in the current retry member
+turn through a store lookup, without filtering the alias by the principal’s
+Authorization View. Its canonical Bead target participates only in comparison
+with the original identity; retained-Resource disclosure still requires current
+authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias
+resolution. A missing alias has unresolved identity specific to its canonical
+locator: two distinct missing locators are not equal merely because both
+miss, and this identity differs from the failed-creator unbound marker.
+An originally recorded miss remains a miss even if that alias is later
+assigned. Retry-time witnesses are transient comparison input: they change
+neither the original retained metadata and disposition nor a successful
+tombstone's identity, creator binding or retention. Each retry resolves an
+originally unrecorded locator anew (amended 2026-09-12).
+The authority may store the normalized
 record or an internal fingerprint; BDP does not require a public
 request-hash algorithm.
 
@@ -4299,6 +4315,15 @@ receives the original disposition. Retained problems, `deleted`
 identities, and alias results disclose no record and are returned as
 retained.
 
+Resolving a new alias locator for key comparison is an operation within the
+existing principal-bound idempotency namespace. It is not an alias GET or a
+permission to put or delete an alias under [Alias targets](#alias-targets).
+The comparison can distinguish equality from conflict against that namespace's
+original target; equality still does not authorize disclosure of a retained
+Resource. Other authenticated principals' keys remain unrelated, and the
+shared anonymous namespace caveat under [Idempotency keys](#idempotency-keys)
+continues to apply.
+
 #### Outcome retention
 
 Retention is finite. An authority retains each retained disposition for at
@@ -4311,7 +4336,8 @@ exists: a late retry may be answered by the retained disposition or by
 authority that advertises one. After the interval the authority MAY discard
 the disposition. For a disposition that committed state — `created`,
 `updated` including a semantic no-op, or `deleted` — it MUST then retain a
-compact tombstone — the key, the semantic identity's fingerprint, and, for
+compact tombstone — the key, the semantic identity's fingerprint, the original
+alias locators and their recorded targets or misses, and, for
 a creation that allocated an identity, that identity and its Resource kind,
 through which a later `@name` reference still resolves — for the lifetime
 of the logical Scope, exactly as it retains the identity non-reuse
@@ -6397,7 +6423,7 @@ Read+Update profile is not realized until every row is proved.
 | `read-update.alias.sequence-binding` | Alias members are sequence members with their own keys: a put's `target` may name a `@name` bound by an earlier Bead creation in the same sequence, a Link-bound `@name` is rejected before execution, an entry is the alias result plus `operationIndex` and never `operationName`, and alias dispositions are retained and replayed as every member's are |
 | `read-update.alias.retained-without-reauthorization` | A retained alias disposition discloses no record and is returned as retained, inside a sequence as in a singleton, without replay re-authorization |
 | `read-update.alias.reference-resolution` | An alias spelling as a `bead` subject or a Link endpoint resolves to the alias's current target when the member is reached and is stored and served canonical; one naming no live alias, or spelled as a `link` subject, fails with `resource-not-found` |
-| `read-update.alias.reference-idempotency` | The semantic identity of a member that spelled a reference by alias records the resolution: a byte-identical retry after a repoint compares against the retained resolution and receives the retained disposition |
+| `read-update.alias.reference-idempotency` | Alias retries reuse recorded targets or misses; new locators resolve in the retry turn and compare canonically, distinct missing locators differ, and original metadata and retention remain unchanged; an equal retry receives the retained disposition subject to current disclosure authorization, or `idempotency-expired` from a tombstone |
 | `read-update.sequence.order-and-partial-commit` | Members run strictly in order; a failed member leaves earlier successes committed and later independent members run |
 | `read-update.sequence.local-bindings` | A `@name` binding is usable after its creating member commits; a reference to a creating member whose retained disposition is a failure fails only its member with `binding-unavailable` |
 | `read-update.sequence.transient-predecessor` | A member whose `@name` creator ended transiently in the same request fails with `idempotency-in-progress`, retains nothing, releases its claim, and later independent members still run |
