@@ -838,14 +838,14 @@
     },
     {
       "id": "read-update.alias.reference-idempotency",
-      "title": "The semantic identity of a member that spelled a reference by alias records the resolution, so a retry after a repoint receives the retained disposition",
+      "title": "Alias retries reuse recorded targets or misses; new locators resolve in the retry turn and compare canonically, distinct missing locators differ, and original metadata and retention remain unchanged; an equal retry receives the retained disposition subject to current disclosure authorization, or `idempotency-expired` from a tombstone",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "An alias spelling admitted under [Alias targets](#alias-targets) normalizes to the canonical Bead URL it resolved to when the member was reached: the authority records that resolution with the member's disposition and in its tombstone, and every later presentation of the key compares against the recorded resolution — never against the spelling and never against the alias's present target — so a repoint between a member and its byte-identical retry changes no identity"
+          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member’s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal’s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew (amended 2026-09-12)."
         },
         {
           "source": "docs/specs/bdp.md",

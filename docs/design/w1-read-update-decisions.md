@@ -189,7 +189,10 @@ under D38 normalizes to the canonical Bead URL it resolved to when the
 member was reached; the authority records that resolution with the
 disposition and in its tombstone, and every later presentation compares
 against the recorded resolution, never the spelling and never the alias's
-present target — D24's rule for `@name`, applied to aliases. One ruled
+present target — D24's rule for `@name`, applied to aliases. **Scope of this
+historical wording:** the 2026-09-12 D38 clarification below applies this
+recorded-resolution rule to original locators; previously unrecorded retry
+locators resolve in the current retry turn. One ruled
 sentence is amended (2026-09-08, council 12): "Opaque external URIs and
 Pinned References are compared byte-exactly as written" now continues ",
 a pinned `uri` spelled by `@name` or by alias having first resolved as the
@@ -2028,7 +2031,8 @@ council 9 fixed for `@name` (Claude H2, Codex 3).
    (D24's rule); an alias spelling that names no live alias fails
    `resource-not-found`; a `link` subject spelled by alias is of the wrong
    kind (`resource-not-found`, D13); `put-alias`'s own `target` stays
-   canonical-only as ruled.
+   canonical-only as ruled. The retry wording above is historical: see the
+   2026-09-12 clarification below for previously unrecorded retry locators.
 
 **Recommendation.** Option (b), applied. It keeps the pinned model
 sentence and reuses the spelling-versus-resolution machinery council 9
@@ -2052,10 +2056,9 @@ details*: "except that a `bead` subject or a Link endpoint spelled by
 alias is admitted and resolved under Alias targets, and fails this way
 only when the spelling names no live alias (amended 2026-09-08, council
 12)". Under *Idempotency keys*: the amended Pinned-Reference sentence and
-"An alias spelling admitted under Alias targets normalizes to the
-canonical Bead URL it resolved to when the member was reached" through
-"exactly as a `@name` reference resolves through its creator's retained
-or expired disposition." Under *Normative schema bundle*: "the resolution
+the original-locator retention rule, current-turn store resolution of
+previously unrecorded locators, and transient retry witnesses, as amended
+by the 2026-09-12 clarification below. Under *Normative schema bundle*: "the resolution
 of an alias spelling to a live alias". Fixture `alias-references.json`
 (a put, an update through an alias subject, a Link created through an
 alias source, a sequence that repoints then creates a Link through the
@@ -2064,6 +2067,28 @@ alias, a retry after the repoint that matches its retained resolution, a
 alias). Catalog rows `read-update.alias.reference-resolution` and
 `read-update.alias.reference-idempotency`; the wire test's alias-aware
 reference resolution.
+
+**2026-09-12 clarification — previously unrecorded retry locators.** Donna
+accepted the distinction implemented by runtime slice A: an original locator
+retains its original canonical target or miss, while a locator absent from
+that member's original witnesses resolves in the current retry turn and
+compares canonically. A direct reference requires no alias lookup. Distinct
+missing locators retain distinct unresolved identities; the failed-creator
+unbound marker remains separate. New retry witnesses are comparison input
+only and never replace original witnesses, renew retention or cause execution.
+A later retry resolves that new locator anew. Successful expiry preserves the
+original creator binding.
+
+This clarifies D38's original-locator retry rule without changing its history,
+wire shapes or codec. Key comparison belongs to the existing principal-bound
+namespace, can distinguish equality from conflict, and grants no alias-mutation
+permission or retained-Resource disclosure. The anonymous shared namespace
+caveat remains. The normative text is in *Idempotency keys* and *Duplicate keys
+and retained dispositions*, cross-referenced from *Alias targets*; the existing
+`read-update.alias.reference-idempotency` table/catalog obligation now includes
+new-locator and missing-locator cases. The unbound Read+Update catalog remains
+unclaimable; this clarification grants no profile, engine, HTTP or production
+owner authority.
 
 ## D39 — A Bead creation on a live alias path is `alias-path-taken`
 

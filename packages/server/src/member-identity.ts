@@ -107,8 +107,7 @@ export interface NormalizedMemberIdentity {
 }
 export type MemberNormalization =
   | NormalizedMemberIdentity
-  | { readonly kind: "transient-dependency" }
-  | { readonly kind: "unimplemented-alias-retry"; readonly slot: MemberReferenceSlot };
+  | { readonly kind: "transient-dependency" };
 export interface MemberIdentityContext {
   readonly scope: string;
   /** Same synchronous member turn; no authorization or Resource-body read.
@@ -162,14 +161,14 @@ function creationKind(operation: ReadUpdateOperation): ResourceKind | undefined 
 function canonical(scope: string, spelling: string): string {
   return /^[A-Za-z][A-Za-z0-9+.-]*:/.test(spelling) ? spelling : new URL(spelling, scope).href;
 }
-function resourceId(scope: string, value: unknown, kind: ResourceKind): string {
+function resourceId(scope: string, value: unknown, kind: ResourceKind, source = "binding"): string {
   if (
     typeof value !== "string" ||
     !value.startsWith(`${scope}${kind === "bead" ? "beads" : "links"}/`)
   )
-    throw new MemberMetadataError("binding requires the canonical in-Scope Resource kind");
+    throw new MemberMetadataError(`${source} requires the canonical in-Scope Resource kind`);
   parseCanonicalHttpUrl(value);
-  assertCanonicalPathSegments(value.slice(scope.length), "binding Resource path");
+  assertCanonicalPathSegments(value.slice(scope.length), `${source} Resource path`);
   return value;
 }
 function binding(
@@ -337,14 +336,17 @@ export function normalizePreparedMemberIdentity(
       const uri = canonical(scope, ref.uri);
       if (ref.rule.alias && uri.startsWith(`${scope}alias/`)) {
         if (!aliases.has(uri)) {
-          if (prior !== undefined) {
-            const old = prior.witnesses.find((w) => w.kind === "alias" && w.locator === uri);
-            if (old?.kind !== "alias")
-              return Object.freeze({ kind: "unimplemented-alias-retry", slot: ref.slot });
+          const old = prior?.witnesses.find((w) => w.kind === "alias" && w.locator === uri);
+          if (old?.kind === "alias") {
             aliases.set(uri, old.target);
           } else {
             const target = context.resolveAlias(uri);
-            aliases.set(uri, target === undefined ? null : resourceId(scope, target, "bead"));
+            aliases.set(
+              uri,
+              target === undefined
+                ? null
+                : resourceId(scope, target, "bead", "live alias resolution"),
+            );
           }
         }
         const target = aliases.get(uri);
