@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current limits-component Read cohort was genuinely generated from
-`5131e6e85c29c7b085ffe4e56315a286337d2f28` and committed with its matching capability constant at
-`0cec984bdcef2abee79b8ec97c773962519b8876`. Generation ran for 151.10 seconds
+The current artifact-component Read cohort was genuinely generated from
+`fa003a9a4a3040dd5c61d9254b4b1c44a853edc1` and committed with its matching capability constant at
+`a07565944198dceb5a64c176f66f746f5e488c57`. Generation ran for 153.60 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41 and #42 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42 and #43 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -190,6 +190,19 @@ convention, qualify installed emitters, require every startup path to scan, or
 bound retained successful postimages and complete response envelopes. Those remain
 production owner/installer/HTTP qualification gates. Local crash and evaluator tests
 do not establish a complete served profile.
+Private contract-artifact ingestion now captures exact submitted bytes into immutable
+candidates, validates closed Type Descriptors and complete Type dependencies, and
+records a deterministic URI-and-byte digest. Type-conformance indexing is iterative
+with explicit administrative bounds and frozen work counters; ordinary Read callers
+retain the minimal structural interface and add no hidden limits. Raw schema input
+is checked only for UTF-8, lossless JSON syntax and configured admission bounds.
+It is not compiled or qualified for instance validation. Tests cover exact numeric
+conversion for descriptor fields, bounded traversal, nested immutability, dependency
+failure isolation, duplicates and exact budget boundaries. The full source council,
+finite corrections and independent correction review are complete. This private
+candidate is not an installed registry or a production ownership/ready certificate;
+schema-resource resolution, evaluator work/termination, root openness, retained
+population checks and startup installation remain unimplemented here.
 The authority must also qualify worst-case patch work under its actual finite
 request and Resource bounds. An early patch-limit shortcut cannot bypass earlier
 postimage validation or authorization; no new limit or refusal order is selected.
@@ -228,8 +241,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,811 tests
-in 86 files with zero skips; all source,
+reviewed foundation source. The final evidence head passed 3,862 tests
+in 87 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.
