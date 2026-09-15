@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current private-evaluator Read cohort was genuinely generated from
-`2cd18a24fca199da111c4da52a01fc1dcdee53d0` and committed with its matching capability constant at
-`014ca8ea1308dc5b869cd3ec18791c73924623f4`. Generation ran for 154.64 seconds
+The current private-contains Read cohort was genuinely generated from
+`6aef4689c3372f58de36564976df16bf1a8be376` and committed with its matching capability constant at
+`aea4e1c849434a7ccbd34f765950546f902b84d4`. Generation ran for 240.05 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47 and #45 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45 and #46 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -223,13 +223,19 @@ It preserves successful occurrence paths and distinguishes evaluated results fro
 named compile/instance refusals. Diagnostics carry an explicit completeness flag;
 complete annotation output, including escaped values and empty arrays, is charged
 before exposure under private policy bounded-annotation-output-2. Raw coefficient
-work and normalized retained width remain separate. The corpus accounts for 936
-official-validity comparisons, 859 annotation-policy outcomes, 469 evaluator
+work and normalized retained width remain separate. Static contains/minContains/maxContains
+evaluate every array element, compare exact counts and retain ascending matching-index
+annotations, including empty arrays. Failed trials and failed branches do not leak
+annotations or parent diagnostics; generated indexes and success links are charged
+before retention. The corpus accounts for 999
+official-validity comparisons, 859 annotation-policy outcomes, 406 evaluator
 refusals and 58 graph refusals; these are not 2,322 conformance passes. Original
-input/span integrity and actual failed expectations are separately recorded.
+input/span integrity and actual failed expectations are separately recorded. The latest
+actual 2,322-row receipt confirms exactly 63 new comparisons and seven retained
+unevaluatedItems refusal-reason changes, with no unexpected transitions.
 Source findings and native/Claude/Gemini correction reviews are dispositioned,
 with incomplete external corpus/receipt coverage stated in their reports.
-Dynamic/recursive evaluation, contains/unevaluated/regex support, full installation
+Dynamic/recursive evaluation, unevaluated/regex support, full installation
 and production engine/receiver qualification remain open. Format and contentEncoding
 retain their stated annotation policy; no held HTTP Content-Encoding ruling is
 inferred. This module exports no installed receiver or served write capability.
@@ -280,8 +286,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 6,965 tests
-in 96 files with zero skips; all source,
+reviewed foundation source. The final test-followup head passed 7,001 tests
+in 97 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.
