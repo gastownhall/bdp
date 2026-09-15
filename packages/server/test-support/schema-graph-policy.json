@@ -1,0 +1,23 @@
+{
+  "policy": "schema-resource-index-2",
+  "versionRule": "This is a private implementation revision, not a normative BDP identity law. Any edit to a pinned interpretation module or dependency lock requires conscious review of admission, graph shape, resolution, built-in closure, error and budget behavior. A behavior-changing interpretation revision must increment SCHEMA_GRAPH_POLICY and refresh these source pins together. A behavior-preserving edit may retain the policy only with an explicit reviewed justification. Do not blindly regenerate pins to make a failing test pass. Tests, comments and metadata pins are a review tripwire, not a runtime source-hash identity or a proof of complete transitive semantic closure.",
+  "revision2": "Adds safe bound validation, dependency-load containment, built-in aggregate integrity accounting, and consistent reference-error locations. These interpretation/admission changes receive a new private identity revision even where successful structural graph output is unchanged.",
+  "scope": "Pins owning graph modules, artifact ingestion, lossless JSON decoder, descriptor/canonical-URI and conformance parsing modules, protocol export surface and adjacent value/schema/error helpers, normative descriptor schema, and dependency lock. Missing $schema uses the private 2020-12 default; legacy additionalItems and bare id remain opaque, with their legacy semantics unsupported. No claim that every transitive initializer or external runtime is closed.",
+  "builtinAccounting": "Every build indexes the eight immutable built-ins and charges their work under the joint graph budget. The aggregate check is repeated and charged; there is no memoized global graph or runtime engine readiness claim.",
+  "files": {
+    "packages/server/src/installed-schema-graph.ts": "766209130f5fe9dbc028fa1be6130061e9b01f529c2559d52fe87e19e67d4032",
+    "packages/server/src/installed-schema-shape.ts": "ca08b4f31ed8a77ea92257bc5154afbf158edb7bfc2b4666b159d2b35d338b57",
+    "packages/server/src/installed-schema-uri.ts": "af0f5e99efa11f40c590bf8d85e5d7cdbb0fddeb384bc6555c68770b18d02809",
+    "packages/server/src/installed-schema-builtins.ts": "9fb097b1c5d431d7e1095523ac5fba82f591718abd217d6c8b889a3a731b08f7",
+    "packages/server/src/installed-contract-artifact.ts": "db8f3b1e0a4b8dc1a07a56bcadb66d3cdbebff114fb119becec79d11474eb7f0",
+    "packages/protocol/src/json-admission.ts": "5bd1d50ea000ca2e32ffc93e462f3123039d5ea40759d28b09799f4245d249fb",
+    "packages/protocol/src/read-values.ts": "ca91848bb179a8ea7e1dc05a777e12941ba94507700ed74e37fac4d77f413436",
+    "packages/protocol/src/type-conformance.ts": "f13f76fb51b62934353acea8cecc0ccb0a41482f96219a497e6bc9f4e6c14ab7",
+    "packages/protocol/src/index.ts": "034a63cfeeb8ce8e94c50d87512b3e83a8292f4ad5a7ff5015841e412a8a378b",
+    "packages/protocol/src/json-values.ts": "9a1cd0b12ccd41913e2874673fdb2a24ae7925d7e4e880f50cecc717dadec591",
+    "packages/protocol/src/protocol-errors.ts": "630e0554f96cb31f491458bdffc02a04160f59c7e200d1b1de644fe94f079eda",
+    "packages/protocol/src/schema-formats.ts": "ff5e19649d2d4b375eeebd0232199cd8c203566d4a7a8c04f9f6346bd27979c3",
+    "packages/protocol/schemas/bdp-v0.schema.json": "e20cfd088e836155f1a0ff00d764f8ad2e0a45e8429227bd1a1e7dcecf279ef2",
+    "pnpm-lock.yaml": "4150d8821c96dbc2cfec0b2762ff76b58318079f65fa4f5c8858ef2dd61f8d6d"
+  }
+}

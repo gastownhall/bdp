@@ -14,7 +14,8 @@
     }
   },
   "dependencies": {
-    "@bdp/protocol": "workspace:*"
+    "@bdp/protocol": "workspace:*",
+    "fast-uri": "3.1.5"
   },
   "devDependencies": {
     "vitest": "4.1.10"
