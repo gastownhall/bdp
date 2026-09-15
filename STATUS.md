@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current artifact-component Read cohort was genuinely generated from
-`fa003a9a4a3040dd5c61d9254b4b1c44a853edc1` and committed with its matching capability constant at
-`a07565944198dceb5a64c176f66f746f5e488c57`. Generation ran for 153.60 seconds
+The current schema-graph Read cohort was genuinely generated from
+`85ed8a27f0391d628c2dc2659c2d362951603bb4` and committed with its matching capability constant at
+`4d345199f2e9fb3fcadd2dc7984e3250d717fd38`. Generation ran for 217.90 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42 and #43 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44 and #47 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -201,8 +201,31 @@ conversion for descriptor fields, bounded traversal, nested immutability, depend
 failure isolation, duplicates and exact budget boundaries. The full source council,
 finite corrections and independent correction review are complete. This private
 candidate is not an installed registry or a production ownership/ready certificate;
-schema-resource resolution, evaluator work/termination, root openness, retained
-population checks and startup installation remain unimplemented here.
+instance evaluator work/termination, root openness, retained population checks and
+startup installation remain unimplemented here.
+The private schema-resource graph now indexes bounded Draft 2020-12 resources,
+anchors and references while retaining exact numeric tokens and source locations.
+It resolves static references and dynamic initial targets without evaluating instances.
+Dependency-load containment, built-in aggregate integrity, origin metadata and safe
+budget bounds are covered by source review and discriminating controls. Private
+policy revision 2 has an explicit source-review tripwire; it is not runtime source
+identity or proof of complete transitive closure. The pinned corpus retains 462
+schema groups: 444 indexed and 18 named private-subset refusals. Structural locks
+exclude retained values, so they do not establish corpus-wide losslessness or
+schema validity. All 2,322 instance outcomes remain unevaluated in this graph slice.
+Missing $schema uses the private 2020-12 default; legacy additionalItems and bare id
+remain opaque. Complete source council and bounded followup reviews are disposed.
+This graph is not an installed registry, complete JSON Schema evaluator, production
+engine adapter or served capability; those remain separate implementation gates.
+Resource validation now prepares complete installed endpoint prerequisites before
+value diagnostics, applies effective properties before endpoint constraints, and
+then reaches Scope aggregate checks. Generic visibility and unavailable-Type
+failures retain their earlier stages. Controls distinguish a later unavailable
+endpoint closure from an earlier mismatch, attempted revision allocation from
+rolled-back state, and actual S6 failure retention through close/reopen. This is
+an existing validation-order correction, not complete installed-engine or served
+write-profile qualification. Per-address callback memoization remains outside
+this change.
 The authority must also qualify worst-case patch work under its actual finite
 request and Resource bounds. An early patch-limit shortcut cannot bypass earlier
 postimage validation or authorization; no new limit or refusal order is selected.
@@ -241,8 +264,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final evidence head passed 3,862 tests
-in 87 files with zero skips; all source,
+reviewed foundation source. The final evidence head passed 4,498 tests
+in 92 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.

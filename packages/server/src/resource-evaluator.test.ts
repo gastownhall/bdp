@@ -2628,3 +2628,396 @@ describe("native context inside actual durable members", () => {
     }
   });
 });
+
+describe("staged properties before endpoint constraints", () => {
+  const requiredType = "https://types.test/endpoint-required";
+  const schema = "https://schemas.test/ordered-link";
+  const propertyDiagnostic = {
+    type: linkType,
+    message: "ordered properties rejection",
+    schemaLocation: `${schema}#/properties/valid/const`,
+    instanceLocation: "/valid",
+  };
+  function orderedFixture(side: "source" | "target" = "target", inherited = false) {
+    const constraint = { conformsTo: [requiredType], external: "none" };
+    const parent = linkDescriptor({ id: parentType, [side]: constraint });
+    const descriptor = linkDescriptor({
+      propertiesSchema: schema,
+      ...(inherited ? { conformsTo: [parentType] } : { [side]: constraint }),
+    });
+    const f = fixture([
+      beadDescriptor(),
+      beadDescriptor({ id: requiredType, conformsTo: [beadType] }),
+      ...(inherited ? [parent] : []),
+      descriptor,
+    ]);
+    const validate = vi.fn<PropertyValidator>((properties, emitter) => {
+      if (properties.valid === true) return { valid: true };
+      const complete = emitter.emit(propertyDiagnostic);
+      return { valid: false, diagnosticsComplete: complete };
+    });
+    f.contracts.set(linkType, { descriptor, validateProperties: validate });
+    f.createBead("a");
+    f.createBead("b");
+    f.createBead("good", {}, { type: requiredType });
+    return { ...f, validate, descriptor };
+  }
+  it("selects properties over a fully installed target constraint failure", () => {
+    const f = orderedFixture();
+    const writes = f.writes(),
+      allocations = f.allocations();
+    const effects = [
+      vi.spyOn(f.tx, "putResource"),
+      vi.spyOn(f.tx, "deleteResource"),
+      vi.spyOn(f.tx, "allocateResourceId"),
+      vi.spyOn(f.tx, "allocateRevision"),
+    ];
+    const problem = failure(
+      f.createLink("dual", "beads/a", "beads/b", { properties: { valid: false } }),
+      "validation-failed",
+    );
+    expect(problem.diagnostics).toEqual([propertyDiagnostic]);
+    expect(f.validate).toHaveBeenCalledTimes(1);
+    expect(f.records.has("links/dual")).toBe(false);
+    expect(f.writes()).toBe(writes);
+    expect(f.allocations()).toEqual(allocations);
+    for (const effect of effects) expect(effect).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["source", false],
+    ["target", false],
+    ["source", true],
+    ["target", true],
+  ] as const)(
+    "orders %s constraints (inherited=%s) with independent valid neighbors",
+    (side, inherited) => {
+      const f = orderedFixture(side, inherited);
+      const writes = f.writes(),
+        allocations = f.allocations();
+      const make = (valid: boolean, goodEndpoint = false) =>
+        f.createLink(
+          "ordered",
+          side === "source" && goodEndpoint ? "beads/good" : "beads/a",
+          side === "target" && goodEndpoint ? "beads/good" : "beads/b",
+          { properties: { valid } },
+        );
+      expect(failure(make(false), "validation-failed").diagnostics).toEqual([propertyDiagnostic]);
+      expect(f.validate).toHaveBeenCalledTimes(1);
+      vi.mocked(f.validate).mockClear();
+      expect(failure(make(true), "validation-failed").diagnostics).toEqual([
+        {
+          type: inherited ? parentType : linkType,
+          schemaLocation: `${inherited ? parentType : linkType}#/${side}/conformsTo`,
+          message: "in-Scope endpoint fails an effective Type constraint",
+        },
+      ]);
+      expect(f.validate).toHaveBeenCalledTimes(1);
+      expect(f.writes()).toBe(writes);
+      expect(f.allocations()).toEqual(allocations);
+      expect(f.records.has("links/ordered")).toBe(false);
+      vi.mocked(f.validate).mockClear();
+      expect(make(true, true).effect).toBe("success");
+      expect(f.validate).toHaveBeenCalledTimes(1);
+      expect(f.records.has("links/ordered")).toBe(true);
+    },
+  );
+  it("keeps hidden and absent endpoints indistinguishable before properties or permission callbacks", () => {
+    const f = orderedFixture();
+    f.hidden.add(`${scope}beads/b`);
+    f.authorized.length = 0;
+    const hidden = failure(
+      f.createLink("hidden", "beads/a", "beads/b", { properties: { valid: false } }),
+      "resource-not-found",
+    );
+    const absent = failure(
+      f.createLink("absent", "beads/a", "beads/missing", { properties: { valid: false } }),
+      "resource-not-found",
+    );
+    expect(hidden).toEqual(absent);
+    expect(f.validate).not.toHaveBeenCalled();
+    expect(f.authorized).toEqual([]);
+    expect([...f.records.keys()]).toEqual(["beads/a", "beads/b", "beads/good"]);
+  });
+  it.each([
+    ["beads/a", "links/wrong"],
+    ["urn:source", "urn:target"],
+  ])("retains generic endpoint failure before properties: %s / %s", (source, target) => {
+    const f = orderedFixture();
+    const problem = failure(
+      f.createLink("generic", source, target, { properties: { valid: false } }),
+      "validation-failed",
+    );
+    expect(problem.diagnostics?.[0]?.message).toBe(
+      source === "urn:source"
+        ? "a Link must have at least one in-Scope endpoint"
+        : "Link endpoint is not a Bead reference",
+    );
+    expect(f.validate).not.toHaveBeenCalled();
+  });
+  it.each(["missing", "missing-validator", "wrong-category"] as const)(
+    "retains unavailable required closure before property validation: %s",
+    (kind) => {
+      const f = orderedFixture();
+      if (kind === "missing") f.installed.delete(requiredType);
+      else {
+        // Deliberately unavailable registry fixtures, not legal contract updates.
+        const descriptor =
+          kind === "missing-validator"
+            ? beadDescriptor({ id: requiredType, propertiesSchema: "https://schemas.test/missing" })
+            : linkDescriptor({ id: requiredType });
+        f.installed.set(requiredType, JSON.stringify(descriptor));
+        f.contracts.set(requiredType, { descriptor });
+      }
+      for (const target of ["beads/b", "urn:outside"])
+        failure(
+          f.createLink("closure", "beads/a", target, { properties: { valid: false } }),
+          "type-not-installed",
+        );
+      expect(f.validate).not.toHaveBeenCalled();
+      expect(f.records.has("links/closure")).toBe(false);
+    },
+  );
+  it("keeps an unavailable local endpoint Type ahead of property diagnostics", () => {
+    const f = orderedFixture();
+    f.installed.delete(requiredType);
+    // The ordinary Link requirements can be complete while the actual endpoint's
+    // own declared Type is unavailable in this deliberately broken registry.
+    const descriptor = linkDescriptor({ propertiesSchema: schema });
+    f.installed.set(linkType, JSON.stringify(descriptor));
+    f.contracts.set(linkType, { descriptor, validateProperties: f.validate });
+    failure(
+      f.createLink("actual-closure", "beads/a", "beads/good", { properties: { valid: false } }),
+      "type-not-installed",
+    );
+    expect(f.validate).not.toHaveBeenCalled();
+  });
+  it("keeps a later unavailable endpoint closure ahead of an earlier source constraint mismatch", () => {
+    const f = orderedFixture("source");
+    const laterType = "https://types.test/later-target";
+    const laterDescriptor = beadDescriptor({ id: laterType, conformsTo: [beadType] });
+    const laterArtifact = JSON.stringify(laterDescriptor);
+    f.installed.set(laterType, laterArtifact);
+    f.contracts.set(laterType, { descriptor: laterDescriptor });
+    f.createBead("later", {}, { type: laterType });
+    // Deliberately broken installed registry: the source requirement is present
+    // but unsatisfied, while the later target's own Type closure is unavailable.
+    f.installed.delete(laterType);
+    const make = () =>
+      f.createLink("later-closure", "beads/a", "beads/later", { properties: { valid: true } });
+    failure(make(), "type-not-installed");
+    expect(f.validate).not.toHaveBeenCalled();
+    expect(f.records.has("links/later-closure")).toBe(false);
+    // Restoring only the missing closure exposes the earlier source mismatch.
+    f.installed.set(laterType, laterArtifact);
+    expect(failure(make(), "validation-failed").diagnostics).toEqual([
+      {
+        type: linkType,
+        schemaLocation: `${linkType}#/source/conformsTo`,
+        message: "in-Scope endpoint fails an effective Type constraint",
+      },
+    ]);
+    expect(f.validate).toHaveBeenCalledTimes(1);
+  });
+  it("validates properties before the existing external policy without dereferencing the URI", () => {
+    const f = orderedFixture();
+    const make = (valid: boolean) =>
+      f.createLink("external", "beads/a", "urn:outside", { properties: { valid } });
+    expect(failure(make(false), "validation-failed").diagnostics).toEqual([propertyDiagnostic]);
+    expect(failure(make(true), "validation-failed").diagnostics).toEqual([
+      {
+        type: linkType,
+        schemaLocation: `${linkType}#/target/external`,
+        message: "external endpoint is forbidden by Type contract",
+      },
+    ]);
+    expect(f.validate).toHaveBeenCalledTimes(2);
+    expect(f.records.has("links/external")).toBe(false);
+  });
+  it("orders property patches on an explicitly inconsistent stored Link and preserves ordinary update/noop/delete", () => {
+    const f = orderedFixture();
+    // This is seeded inconsistent state, not a Link created under this contract.
+    f.records.set("links/legacy", {
+      kind: "link",
+      id: "links/legacy",
+      source: "beads/a",
+      target: "beads/b",
+      bodyJson: stringifyJsonValue({
+        id: `${scope}links/legacy`,
+        type: linkType,
+        revision: "legacy",
+        source: `${scope}beads/a`,
+        target: `${scope}beads/b`,
+        properties: { valid: true },
+      }),
+    });
+    f.identities.add("links/legacy");
+    const beforeBodyJson = f.records.get("links/legacy")?.bodyJson;
+    expect(beforeBodyJson).toBeTypeOf("string");
+    expect(
+      failure(
+        f.execute("updateLinkProperties", {
+          link: "links/legacy",
+          change: [{ op: "replace", path: "/valid", value: false }],
+        }),
+        "validation-failed",
+      ).diagnostics,
+    ).toEqual([propertyDiagnostic]);
+    expect(f.validate).toHaveBeenCalledTimes(1);
+    vi.mocked(f.validate).mockClear();
+    expect(
+      failure(
+        f.execute("updateLinkProperties", {
+          link: "links/legacy",
+          change: [{ op: "replace", path: "", value: [] }],
+        }),
+        "validation-failed",
+      ).diagnostics,
+    ).toEqual([{ message: "resulting properties must be an object", instanceLocation: "" }]);
+    expect(f.validate).not.toHaveBeenCalled();
+    expect(f.records.get("links/legacy")?.bodyJson).toBe(beforeBodyJson);
+    expect(
+      f.createLink("good", "beads/a", "beads/good", { properties: { valid: true } }).effect,
+    ).toBe("success");
+    vi.mocked(f.validate).mockClear();
+    expect(
+      f.execute("updateLinkProperties", {
+        link: "links/good",
+        change: [{ op: "add", path: "/label", value: "updated" }],
+      }).effect,
+    ).toBe("success");
+    const revision = f.body("links/good").revision;
+    expect(
+      f.execute("updateLinkProperties", {
+        link: "links/good",
+        change: [{ op: "replace", path: "/label", value: "updated" }],
+      }).effect,
+    ).toBe("success");
+    expect(f.body("links/good").revision).toBe(revision);
+    expect(f.validate).toHaveBeenCalledTimes(2);
+    vi.mocked(f.validate).mockClear();
+    expect(f.execute("deleteLink", { link: "links/good" }).effect).toBe("success");
+    expect(f.validate).not.toHaveBeenCalled();
+  });
+  it("reaches aggregate constraints only after properties and endpoint constraints pass", () => {
+    const f = orderedFixture("source");
+    expect(
+      f.createLink("existing", "beads/good", "beads/b", { properties: { valid: true } }).effect,
+    ).toBe("success");
+    const writes = f.writes(),
+      allocations = f.allocations();
+    const resourceEffects = [
+      vi.spyOn(f.tx, "putResource"),
+      vi.spyOn(f.tx, "deleteResource"),
+      vi.spyOn(f.tx, "allocateResourceId"),
+    ];
+    const allocateRevision = vi.spyOn(f.tx, "allocateRevision");
+    const maximumEndpointMultiplicity = [
+      { endpoint: "target" as const, linkConformsTo: linkType, max: 1 },
+    ];
+    const make = (valid: boolean, source = "beads/a") =>
+      f.execute(
+        "createLink",
+        {
+          id: "links/aggregate",
+          type: linkType,
+          source,
+          target: "beads/b",
+          properties: { valid },
+        },
+        { maximumEndpointMultiplicity },
+      );
+    expect(failure(make(false), "validation-failed").diagnostics).toEqual([propertyDiagnostic]);
+    expect(allocateRevision).not.toHaveBeenCalled();
+    for (const effect of resourceEffects) expect(effect).not.toHaveBeenCalled();
+    expect(failure(make(true), "validation-failed").diagnostics?.[0]?.schemaLocation).toBe(
+      `${linkType}#/source/conformsTo`,
+    );
+    expect(allocateRevision).not.toHaveBeenCalled();
+    for (const effect of resourceEffects) expect(effect).not.toHaveBeenCalled();
+    failure(make(true, "beads/good"), "aggregate-constraint-violation");
+    // The existing aggregate stage follows one revision-allocation attempt.
+    // Fixture rollback removes retained counter changes, not spy call history.
+    expect(allocateRevision).toHaveBeenCalledTimes(1);
+    for (const effect of resourceEffects) expect(effect).not.toHaveBeenCalled();
+    expect(f.writes()).toBe(writes);
+    expect(f.allocations()).toEqual(allocations);
+    expect(f.records.has("links/aggregate")).toBe(false);
+  });
+  it("retains the ordered failure through actual S6 close/reopen without graph changes", () => {
+    const f = orderedFixture();
+    const directory = mkdtempSync(path.join(tmpdir(), "bdp-validation-order-"));
+    const configuration = {
+      directory,
+      scope,
+      installationId: "ordered-s2",
+      lineageId: "ordered-s2-lineage",
+    };
+    let store: RecoveryStore | undefined;
+    try {
+      store = openRecoveryStore({
+        ...configuration,
+        create: {
+          resources: [...f.records.values()] as StoredResource[],
+          types: Object.fromEntries(f.installed),
+        },
+      });
+      const before = store.read((r) => r.resources());
+      const parsed = parseReadUpdateRequest(
+        "createLink",
+        stringifyJsonValue({
+          id: "links/durable",
+          type: linkType,
+          source: "beads/a",
+          target: "beads/b",
+          properties: { valid: false },
+        }),
+      );
+      const numeric = admitReadUpdateOperationNumbers(parsed, {
+        diagnostic: ({ pointer }) => ({
+          message: "inadmissible fixture number",
+          instanceLocation: pointer,
+        }),
+      });
+      if (!numeric.ok) throw new Error("fixture requires actual numeric admission");
+      const admission = store.admit("alice", ["ordered"]);
+      const completion = store.executeMember(admission, "ordered", (tx) => {
+        const result = evaluateResourceMutation(
+          tx,
+          { operation: "createLink", input: numeric.input } as ResourceMutation,
+          f.options,
+        );
+        failure(result, "validation-failed");
+        return {
+          kind: "retain",
+          effect: result.effect,
+          outcomeJson: stringifyJsonValue(result.outcome),
+          // S2/S6 composition evidence only; this does not emulate S4 identity normalization.
+          semanticIdentityJson: '{"fixture":"ordered"}',
+          resolutionsJson: "[]",
+          completedAt: 0,
+          retainUntil: 86_400_000,
+        };
+      });
+      expect(completion.kind).toBe("completed");
+      const retained = store.read((r) => r.key("alice", "ordered"));
+      if (retained.kind !== "retained") throw new Error("retained fixture failure required");
+      expect(JSON.parse(retained.outcomeJson)).toMatchObject({
+        code: "validation-failed",
+        diagnostics: [propertyDiagnostic],
+      });
+      expect(retained.effect).toBe("failure");
+      expect(store.read((r) => r.resources())).toEqual(before);
+      expect(store.read((r) => r.identityWasCommitted("links/durable"))).toBe(false);
+      store.abandonAttempt(admission);
+      store.close();
+      store = openRecoveryStore(configuration);
+      expect(store.read((r) => r.key("alice", "ordered"))).toEqual(retained);
+      expect(store.read((r) => r.resources())).toEqual(before);
+      expect(store.read((r) => r.identityWasCommitted("links/durable"))).toBe(false);
+      expect(f.validate).toHaveBeenCalledTimes(1);
+    } finally {
+      store?.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
