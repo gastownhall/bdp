@@ -719,6 +719,16 @@ function evaluate(
   if (declared.describes !== resourceKind)
     bad("declared Type describes another Resource category", options);
 
+  // Resolve installed endpoint contracts before value validation, while keeping
+  // generic endpoint existence/visibility above and constraint diagnostics below
+  // effective properties (spec: staged Resource validation).
+  const endpointChecks: {
+    type: string;
+    side: "source" | "target";
+    constraint: Extract<TypeDescriptor, { describes: "link" }>["source"];
+    address: string;
+    actual: readonly InstalledResourceContract[] | undefined;
+  }[] = [];
   if (endpoints) {
     for (const entry of effective) {
       if (entry.descriptor.describes !== "link") fail("type-not-installed");
@@ -728,48 +738,14 @@ function evaluate(
         const required = constraint.conformsTo.flatMap((required) => [...contracts(required)]);
         if (required.some((contract) => contract.descriptor.describes !== "bead"))
           fail("type-not-installed");
-        if (local(scope, address) !== undefined) {
-          const bead = loadVisible(address, "bead") as BeadRecord;
-          const actual = contracts(bead.type);
-          if (
-            constraint.conformsTo.some(
-              (required) => !actual.some((contract) => contract.descriptor.id === required),
-            )
-          )
-            diagnosticFailure(
-              [
-                {
-                  type: entry.descriptor.id,
-                  schemaLocation: `${entry.descriptor.id}#/${side}/conformsTo`,
-                  message: "in-Scope endpoint fails an effective Type constraint",
-                },
-              ],
-              options.limits,
-            );
-        } else {
-          if (constraint.external === "none")
-            diagnosticFailure(
-              [
-                {
-                  type: entry.descriptor.id,
-                  schemaLocation: `${entry.descriptor.id}#/${side}/external`,
-                  message: "external endpoint is forbidden by Type contract",
-                },
-              ],
-              options.limits,
-            );
-          if (constraint.external === "bead" && !isExternalBead(address))
-            diagnosticFailure(
-              [
-                {
-                  type: entry.descriptor.id,
-                  schemaLocation: `${entry.descriptor.id}#/${side}/external`,
-                  message: "external endpoint is not bead-shaped",
-                },
-              ],
-              options.limits,
-            );
-        }
+        const bead = local(scope, address) === undefined ? undefined : loadVisible(address, "bead");
+        endpointChecks.push({
+          type: entry.descriptor.id,
+          side,
+          constraint,
+          address,
+          actual: bead === undefined ? undefined : contracts(bead.type),
+        });
       }
     }
     const sourceId = local(scope, referenceUri(endpoints.source));
@@ -784,6 +760,48 @@ function evaluate(
         ? (input.properties ?? {})
         : {};
   if (!deleting) validatePropertyContracts(effective, properties, options.limits, fault);
+  for (const { type: declaringType, side, constraint, address, actual } of endpointChecks) {
+    if (actual !== undefined) {
+      if (
+        constraint.conformsTo.some(
+          (required) => !actual.some((contract) => contract.descriptor.id === required),
+        )
+      )
+        diagnosticFailure(
+          [
+            {
+              type: declaringType,
+              schemaLocation: `${declaringType}#/${side}/conformsTo`,
+              message: "in-Scope endpoint fails an effective Type constraint",
+            },
+          ],
+          options.limits,
+        );
+    } else {
+      if (constraint.external === "none")
+        diagnosticFailure(
+          [
+            {
+              type: declaringType,
+              schemaLocation: `${declaringType}#/${side}/external`,
+              message: "external endpoint is forbidden by Type contract",
+            },
+          ],
+          options.limits,
+        );
+      if (constraint.external === "bead" && !isExternalBead(address))
+        diagnosticFailure(
+          [
+            {
+              type: declaringType,
+              schemaLocation: `${declaringType}#/${side}/external`,
+              message: "external endpoint is not bead-shaped",
+            },
+          ],
+          options.limits,
+        );
+    }
+  }
   const sourceDescriptor = source
     ? contracts(source.type).find((entry) => entry.descriptor.id === source?.type)?.descriptor
     : undefined;
