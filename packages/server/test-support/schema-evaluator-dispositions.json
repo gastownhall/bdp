@@ -1,0 +1,3179 @@
+{
+  "stage": "private-static-evaluator-oracle-1",
+  "originalManifestSha256": "a68dc96c9c4f2a43abd0088ae66298b5fab6e2821f18be66fbc58e263c07a6b7",
+  "groups": [
+    {
+      "file": "tests/draft2020-12/additionalProperties.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/additionalProperties.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/additionalProperties.json",
+      "group": 2,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/additionalProperties.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/additionalProperties.json",
+      "group": 4,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/additionalProperties.json",
+      "group": 5,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/additionalProperties.json",
+      "group": 6,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/additionalProperties.json",
+      "group": 7,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/additionalProperties.json",
+      "group": 8,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 3,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 4,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 5,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 6,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 7,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 8,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 9,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 10,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/allOf.json",
+      "group": 11,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anchor.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anchor.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anchor.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anchor.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anyOf.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anyOf.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anyOf.json",
+      "group": 2,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anyOf.json",
+      "group": 3,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anyOf.json",
+      "group": 4,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anyOf.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anyOf.json",
+      "group": 6,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/anyOf.json",
+      "group": 7,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/boolean_schema.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/boolean_schema.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 0,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 2,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 4,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 5,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 6,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 7,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 8,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 9,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 10,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 11,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 12,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 13,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 14,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 15,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/const.json",
+      "group": 16,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/contains.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/contains.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/contains.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/contains.json",
+      "group": 3,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/contains.json",
+      "group": 4,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/contains.json",
+      "group": 5,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/contains.json",
+      "group": 6,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/content.json",
+      "group": 0,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contentMediaType"
+    },
+    {
+      "file": "tests/draft2020-12/content.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/content.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contentMediaType"
+    },
+    {
+      "file": "tests/draft2020-12/content.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contentMediaType"
+    },
+    {
+      "file": "tests/draft2020-12/default.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/default.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/default.json",
+      "group": 2,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/defs.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/dependentRequired.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dependentRequired.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dependentRequired.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dependentRequired.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dependentSchemas.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dependentSchemas.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dependentSchemas.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dependentSchemas.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 4,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 5,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 6,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 7,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 8,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 9,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 10,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "nonqualified-cycle"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 11,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 12,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 13,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 14,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 15,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 16,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 17,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 18,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 19,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/dynamicRef.json",
+      "group": 20,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-dynamic"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 2,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 4,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 5,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 6,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 7,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 8,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 9,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 10,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 11,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 12,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 13,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 14,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/enum.json",
+      "group": 15,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/exclusiveMaximum.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/exclusiveMinimum.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 4,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 6,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 7,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 8,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 9,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 10,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 11,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 12,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 13,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 14,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 15,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 16,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 17,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/format.json",
+      "group": 18,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 3,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 4,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 6,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 7,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 8,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 9,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 10,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/if-then-else.json",
+      "group": 11,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/infinite-loop-detection.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 4,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 6,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 7,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 8,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/items.json",
+      "group": 9,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/maxContains.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-maxContains"
+    },
+    {
+      "file": "tests/draft2020-12/maxContains.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/maxContains.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/maxContains.json",
+      "group": 3,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/maxContains.json",
+      "group": 4,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/maxItems.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/maxItems.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/maxLength.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/maxLength.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/maxProperties.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/maxProperties.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/maxProperties.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/maximum.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/maximum.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/minContains.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-minContains"
+    },
+    {
+      "file": "tests/draft2020-12/minContains.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/minContains.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/minContains.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/minContains.json",
+      "group": 4,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/minContains.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/minContains.json",
+      "group": 6,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/minContains.json",
+      "group": 7,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/minItems.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/minItems.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/minLength.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/minLength.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/minProperties.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/minProperties.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/minimum.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/minimum.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/multipleOf.json",
+      "group": 0,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/multipleOf.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/multipleOf.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/multipleOf.json",
+      "group": 3,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/multipleOf.json",
+      "group": 4,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/not.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/not.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/not.json",
+      "group": 2,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/not.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/not.json",
+      "group": 4,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/not.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/not.json",
+      "group": 6,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/not.json",
+      "group": 7,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/not.json",
+      "group": 8,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 2,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 3,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 4,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 5,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 6,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 7,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 8,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 9,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/oneOf.json",
+      "group": 10,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/anchor.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/bignum.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/bignum.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/bignum.json",
+      "group": 2,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/bignum.json",
+      "group": 3,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/bignum.json",
+      "group": 4,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/bignum.json",
+      "group": 5,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/bignum.json",
+      "group": 6,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/cross-draft.json",
+      "group": 0,
+      "cases": [0],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-dialect"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-transitional-dependencies"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-transitional-dependencies"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-transitional-dependencies"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-transitional-dependencies"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 4,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-transitional-dependencies"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-transitional-dependencies"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 6,
+      "cases": [0, 1, 2, 3],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-transitional-dependencies"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dynamicRef.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-cross-resource-pointer"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 4,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 5,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 6,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 7,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 8,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 9,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 10,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 11,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 12,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 13,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 14,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 15,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 16,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 17,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 18,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/optional/ecmascript-regex.json",
+      "group": 19,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/optional/float-overflow.json",
+      "group": 0,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/date-time.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/date.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+        48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
+        71, 72, 73, 74, 75, 76, 77, 78, 79, 80
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/duration.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+        48, 49, 50, 51
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/ecmascript-regex.json",
+      "group": 0,
+      "cases": [0],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/ecmascript-regex.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/ecmascript-regex.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/ecmascript-regex.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/ecmascript-regex.json",
+      "group": 4,
+      "cases": [0],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/ecmascript-regex.json",
+      "group": 5,
+      "cases": [0, 1, 2],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/email.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+        48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/hostname.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/hostname.json",
+      "group": 1,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/idn-email.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/idn-hostname.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+        48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
+        71, 72, 73, 74, 75, 76, 77
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/idn-hostname.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/ipv4.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/ipv6.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+        48, 49, 50
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/iri-reference.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/iri.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/json-pointer.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/regex.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/relative-json-pointer.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/time.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+        48, 49, 50, 51, 52, 53, 54
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/unknown.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/uri-reference.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/uri-template.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/uri.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format/uuid.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28
+      ],
+      "disposition": "annotation-policy-outcome"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format-assertion.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-dialect"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format-assertion.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-dialect"
+    },
+    {
+      "file": "tests/draft2020-12/optional/id.json",
+      "group": 0,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/no-schema.json",
+      "group": 0,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/optional/non-bmp-regex.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/optional/non-bmp-regex.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-reference-position"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-reference-position"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-reference-position"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-reference-position"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 4,
+      "cases": [0, 1],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-reference-position"
+    },
+    {
+      "file": "tests/draft2020-12/optional/unknownKeyword.json",
+      "group": 0,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/pattern.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/pattern.json",
+      "group": 1,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/pattern.json",
+      "group": 2,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/patternProperties.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/patternProperties.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/patternProperties.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/patternProperties.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/patternProperties.json",
+      "group": 4,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/patternProperties.json",
+      "group": 5,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/prefixItems.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/prefixItems.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/prefixItems.json",
+      "group": 2,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/prefixItems.json",
+      "group": 3,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/properties.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/properties.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/properties.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/properties.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/properties.json",
+      "group": 4,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/properties.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/propertyNames.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/propertyNames.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/propertyNames.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/propertyNames.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/propertyNames.json",
+      "group": 4,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/propertyNames.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "nonqualified-cycle"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 4,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 5,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 6,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-pattern"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 7,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 8,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 9,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 10,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 11,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "nonqualified-cycle"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 12,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 13,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 14,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 15,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 16,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 17,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 18,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 19,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 20,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 21,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "nonqualified-cycle"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 22,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 23,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 24,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 25,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 26,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 27,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 28,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 29,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 30,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 31,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 32,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 33,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 34,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/ref.json",
+      "group": 35,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 4,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 5,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 6,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 7,
+      "cases": [0, 1, 2],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 8,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 9,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 10,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 11,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 12,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 13,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/refRemote.json",
+      "group": 14,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/required.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/required.json",
+      "group": 1,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/required.json",
+      "group": 2,
+      "cases": [0],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/required.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/required.json",
+      "group": 4,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 0,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 4,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 6,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 7,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 8,
+      "cases": [0, 1],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 9,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/type.json",
+      "group": 10,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 2,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 3,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 4,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 5,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 6,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 7,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 8,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 9,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 10,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 11,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 12,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 13,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 14,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 15,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 16,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 17,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 18,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 19,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 20,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 21,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 22,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 23,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 24,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-contains"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 25,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 26,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 27,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedItems.json",
+      "group": 28,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedItems"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 0,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 1,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 2,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 3,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 4,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 5,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 6,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 7,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 8,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 9,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 10,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 11,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 12,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 13,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 14,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 15,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 16,
+      "cases": [0, 1, 2, 3],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 17,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 18,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 19,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 20,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 21,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 22,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 23,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 24,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 25,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 26,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 27,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 28,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 29,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 30,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 31,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 32,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 33,
+      "cases": [0, 1, 2, 3, 4, 5, 6],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 34,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 35,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 36,
+      "cases": [0, 1, 2, 3, 4, 5],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 37,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 38,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 39,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 40,
+      "cases": [0, 1, 2],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 41,
+      "cases": [0],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 42,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-patternProperties"
+    },
+    {
+      "file": "tests/draft2020-12/unevaluatedProperties.json",
+      "group": 43,
+      "cases": [0, 1],
+      "disposition": "explicit-private-refusal",
+      "phase": "compile",
+      "reason": "unsupported-unevaluatedProperties"
+    },
+    {
+      "file": "tests/draft2020-12/uniqueItems.json",
+      "group": 0,
+      "cases": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27
+      ],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/uniqueItems.json",
+      "group": 1,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/uniqueItems.json",
+      "group": 2,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/uniqueItems.json",
+      "group": 3,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/uniqueItems.json",
+      "group": 4,
+      "cases": [0, 1, 2, 3, 4, 5, 6, 7],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/uniqueItems.json",
+      "group": 5,
+      "cases": [0, 1, 2, 3, 4],
+      "disposition": "official-validity-compared"
+    },
+    {
+      "file": "tests/draft2020-12/vocabulary.json",
+      "group": 0,
+      "cases": [0, 1, 2],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-dialect"
+    },
+    {
+      "file": "tests/draft2020-12/vocabulary.json",
+      "group": 1,
+      "cases": [0, 1],
+      "disposition": "retained-graph-refusal",
+      "phase": "compile",
+      "reason": "graph:unsupported-dialect"
+    }
+  ]
+}

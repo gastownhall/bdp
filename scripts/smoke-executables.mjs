@@ -1,5 +1,7 @@
+import { createRequire } from "node:module";
+import { assertServerExports, isolatedWorkspace } from "./smoke-safety.mjs";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -137,6 +139,18 @@ async function installPackedWorkspace() {
       "authority-read.d.ts.map",
       "authority-read.js",
       "authority-read.js.map",
+      "installed-schema-decimal.d.ts",
+      "installed-schema-decimal.d.ts.map",
+      "installed-schema-decimal.js",
+      "installed-schema-decimal.js.map",
+      "installed-schema-evaluator.d.ts",
+      "installed-schema-evaluator.d.ts.map",
+      "installed-schema-evaluator.js",
+      "installed-schema-evaluator.js.map",
+      "installed-schema-value.d.ts",
+      "installed-schema-value.d.ts.map",
+      "installed-schema-value.js",
+      "installed-schema-value.js.map",
       "installed-schema-builtins.d.ts",
       "installed-schema-builtins.d.ts.map",
       "installed-schema-builtins.js",
@@ -236,8 +250,23 @@ async function installPackedWorkspace() {
     const installedServerManifest = JSON.parse(
       await readFile(path.join(installedServerRoot, "package.json"), "utf8"),
     );
-    if (JSON.stringify(installedServerManifest.exports ?? {}).includes("test-support"))
-      throw new Error("packed server must not export test-support files");
+    assertServerExports(installedServerManifest);
+    const consumer = createRequire(path.join(installRoot, "consumer.cjs"));
+    if (
+      (await realpath(consumer.resolve("@bdp/server"))) !==
+      (await realpath(path.join(installedServerRoot, "dist", "index.js")))
+    )
+      throw new Error("packed server public root does not resolve to its approved entry");
+    for (const module of installedServerOutput.filter(
+      (name) => name.startsWith("installed-schema-") && name.endsWith(".js"),
+    )) {
+      try {
+        consumer.resolve(`@bdp/server/dist/${module}`);
+        throw new Error("packed private schema module unexpectedly resolves");
+      } catch (error) {
+        if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
+      }
+    }
 
     const capabilityUrl = pathToFileURL(
       path.join(
@@ -415,9 +444,7 @@ function runServe(executable, entry, extraEnv = {}, args = ["--serve"]) {
 async function provideBdWorkspace(temporaryRoot) {
   const supplied = process.env.BDP_E2E_BD_WORKSPACE;
   if (supplied !== undefined && supplied !== "") {
-    if (path.resolve(supplied) === workspaceRoot)
-      throw new Error("BDP_E2E_BD_WORKSPACE must not be the repository working tree");
-    return supplied;
+    return isolatedWorkspace(supplied, workspaceRoot);
   }
   const minted = path.join(temporaryRoot, "bd-smoke-workspace");
   await mkdir(minted, { recursive: true });
