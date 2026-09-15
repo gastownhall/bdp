@@ -24,6 +24,7 @@ export class SchemaGraphError extends Error {
   constructor(
     readonly code: string,
     readonly node?: number,
+    readonly descriptor?: string,
   ) {
     super(`schema resource index refused: ${code}`);
     this.name = "SchemaGraphError";
@@ -71,7 +72,7 @@ export class GraphBudget {
     this.counts[key] += n;
   }
   bound(key: SchemaGraphCounter, n: number): void {
-    if (n > this.limits[key]) refuseGraph(`limit-${key}`);
+    if (!Number.isSafeInteger(n) || n < 0 || n > this.limits[key]) refuseGraph(`limit-${key}`);
     this.counts[key] = Math.max(this.counts[key], n);
   }
 }

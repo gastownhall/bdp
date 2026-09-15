@@ -1,0 +1,149 @@
+{
+  "scope": "Separate private subset explanation and regression expectation, not upstream conformance metadata or an independent validity oracle. Original manifest and raw fixtures remain unchanged.",
+  "groups": [
+    {
+      "file": "tests/draft2020-12/optional/cross-draft.json",
+      "group": 0,
+      "code": "unsupported-dialect",
+      "privateBasis": "This private graph slice admits only its pinned 2020-12 dialect. Selecting 2019-09 or a custom meta-schema is outside that subset; refusal is not evidence that the schema or its instances are invalid.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 0,
+      "code": "unsupported-transitional-dependencies",
+      "privateBasis": "Private compatibility policy intentionally refuses both legacy dependencies forms. The upstream optional compatibility cases remain unchanged and their validation outcomes remain unexecuted.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 1,
+      "code": "unsupported-transitional-dependencies",
+      "privateBasis": "Private compatibility policy intentionally refuses both legacy dependencies forms. The upstream optional compatibility cases remain unchanged and their validation outcomes remain unexecuted.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 2,
+      "code": "unsupported-transitional-dependencies",
+      "privateBasis": "Private compatibility policy intentionally refuses both legacy dependencies forms. The upstream optional compatibility cases remain unchanged and their validation outcomes remain unexecuted.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 3,
+      "code": "unsupported-transitional-dependencies",
+      "privateBasis": "Private compatibility policy intentionally refuses both legacy dependencies forms. The upstream optional compatibility cases remain unchanged and their validation outcomes remain unexecuted.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 4,
+      "code": "unsupported-transitional-dependencies",
+      "privateBasis": "Private compatibility policy intentionally refuses both legacy dependencies forms. The upstream optional compatibility cases remain unchanged and their validation outcomes remain unexecuted.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 5,
+      "code": "unsupported-transitional-dependencies",
+      "privateBasis": "Private compatibility policy intentionally refuses both legacy dependencies forms. The upstream optional compatibility cases remain unchanged and their validation outcomes remain unexecuted.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dependencies-compatibility.json",
+      "group": 6,
+      "code": "unsupported-transitional-dependencies",
+      "privateBasis": "Private compatibility policy intentionally refuses both legacy dependencies forms. The upstream optional compatibility cases remain unchanged and their validation outcomes remain unexecuted.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/dynamicRef.json",
+      "group": 0,
+      "code": "unsupported-cross-resource-pointer",
+      "privateBasis": "Private pointer-resolution policy refuses crossing an embedded resource boundary by an outer-resource pointer. This administrative limitation is not a general JSON Schema invalidity verdict.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format-assertion.json",
+      "group": 0,
+      "code": "unsupported-dialect",
+      "privateBasis": "This private graph slice admits only its pinned 2020-12 dialect. Selecting 2019-09 or a custom meta-schema is outside that subset; refusal is not evidence that the schema or its instances are invalid.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/format-assertion.json",
+      "group": 1,
+      "code": "unsupported-dialect",
+      "privateBasis": "This private graph slice admits only its pinned 2020-12 dialect. Selecting 2019-09 or a custom meta-schema is outside that subset; refusal is not evidence that the schema or its instances are invalid.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 0,
+      "code": "unsupported-reference-position",
+      "privateBasis": "Private graph traversal indexes only known schema-bearing positions. Targets under opaque unknown keywords or examples remain unsupported; this does not establish normative invalidity.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 1,
+      "code": "unsupported-reference-position",
+      "privateBasis": "Private graph traversal indexes only known schema-bearing positions. Targets under opaque unknown keywords or examples remain unsupported; this does not establish normative invalidity.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 2,
+      "code": "unsupported-reference-position",
+      "privateBasis": "Private graph traversal indexes only known schema-bearing positions. Targets under opaque unknown keywords or examples remain unsupported; this does not establish normative invalidity.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 3,
+      "code": "unsupported-reference-position",
+      "privateBasis": "Private graph traversal indexes only known schema-bearing positions. Targets under opaque unknown keywords or examples remain unsupported; this does not establish normative invalidity.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
+      "group": 4,
+      "code": "unsupported-reference-position",
+      "privateBasis": "Private graph traversal indexes only known schema-bearing positions. Targets under opaque unknown keywords or examples remain unsupported; this does not establish normative invalidity.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/vocabulary.json",
+      "group": 0,
+      "code": "unsupported-dialect",
+      "privateBasis": "This private graph slice admits only its pinned 2020-12 dialect. Selecting 2019-09 or a custom meta-schema is outside that subset; refusal is not evidence that the schema or its instances are invalid.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    },
+    {
+      "file": "tests/draft2020-12/vocabulary.json",
+      "group": 1,
+      "code": "unsupported-dialect",
+      "privateBasis": "This private graph slice admits only its pinned 2020-12 dialect. Selecting 2019-09 or a custom meta-schema is outside that subset; refusal is not evidence that the schema or its instances are invalid.",
+      "schemaValidity": "not-determined",
+      "instanceEvaluation": "not-executed"
+    }
+  ]
+}
