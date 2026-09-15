@@ -17,7 +17,9 @@ import {
 } from "./installed-schema-shape.js";
 import { checkAnchor, resolveSchemaUri, type ResolvedSchemaUri } from "./installed-schema-uri.js";
 
-export const SCHEMA_GRAPH_POLICY = "schema-resource-index-1";
+/** Private implementation revision, not a normative BDP version. See the
+ * source-pin guard/version rule in test-support/schema-graph-policy.json. */
+export const SCHEMA_GRAPH_POLICY = "schema-resource-index-2";
 const DIALECT = "https://json-schema.org/draft/2020-12/schema";
 const deferred = Object.freeze([
   "string-semantics",
@@ -173,6 +175,14 @@ export function buildInstalledSchemaGraph(
 }
 function build(input: ContractArtifactBundleInput, b: GraphBudget): SchemaGraphCandidate {
   const artifact = ingestContractArtifacts(input);
+  // Verify the aggregate against the same immutable rows indexed below. Keep
+  // this per-build and charged; no shared parsed prelude or readiness cache.
+  const builtinHash = createHash("sha256");
+  for (const doc of BUILTIN_SCHEMA_DOCUMENTS) {
+    b.charge("scanWork", doc.uri.length + doc.sha256.length + 2);
+    builtinHash.update(`${doc.uri}\0${doc.sha256}\n`);
+  }
+  if (builtinHash.digest("hex") !== BUILTIN_SCHEMA_DIGEST) refuseGraph("internal-invariant");
   const documents = [
     ...artifact.artifacts
       .filter((a) => a.kind === "schema")
@@ -200,7 +210,7 @@ function build(input: ContractArtifactBundleInput, b: GraphBudget): SchemaGraphC
   };
   const childPointer = (parent: number, key: string): number => {
     const id = positions.get(parent)?.get(key);
-    if (id === undefined) throw new Error("missing literal position");
+    if (id === undefined) refuseGraph("internal-invariant");
     return id;
   };
   const nodes: SchemaNode[] = [],
@@ -226,7 +236,7 @@ function build(input: ContractArtifactBundleInput, b: GraphBudget): SchemaGraphC
     b.charge("schemaBytes", size);
     const bytes = Buffer.from(doc.bytesBase64, "base64");
     if (createHash("sha256").update(bytes).digest("hex") !== doc.sha256)
-      throw new Error("builtin bytes changed");
+      refuseGraph("internal-invariant");
     const value = decodeJsonDocument(
       new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes),
     );
@@ -237,7 +247,7 @@ function build(input: ContractArtifactBundleInput, b: GraphBudget): SchemaGraphC
     const pending = [{ id: root, value, depth: 0 }];
     while (pending.length) {
       const item = pending.pop();
-      if (!item) throw new Error("literal stack");
+      if (!item) refuseGraph("internal-invariant");
       b.charge("scanWork");
       if (
         item.value === null ||
@@ -266,7 +276,7 @@ function build(input: ContractArtifactBundleInput, b: GraphBudget): SchemaGraphC
     }[] = [{ pointer: document.pointer }];
     while (pending.length) {
       const item = pending.pop();
-      if (!item) throw new Error("schema stack");
+      if (!item) refuseGraph("internal-invariant");
       const value = values[item.pointer] as LosslessJsonValue;
       schema(value);
       b.charge("nodes");
@@ -426,57 +436,68 @@ function build(input: ContractArtifactBundleInput, b: GraphBudget): SchemaGraphC
   const resolve = (
     base: string,
     raw: string,
+    location: number | string,
   ): { resolved: ResolvedSchemaUri; target: number; dynamic: boolean } => {
-    const resolved = resolveSchemaUri(base, raw, b);
-    retain(resolved.uri);
-    b.charge("scanWork", resolved.resource.length);
-    const rid = identities.get(resolved.resource);
-    if (rid === undefined) refuseGraph("missing-resource");
-    const resource = resources[rid] as SchemaResource;
-    let target = resource.node;
-    if (resolved.fragmentKind === "plain-name") {
-      const found = resource.anchors[resolved.fragment];
-      if (found === undefined) refuseGraph("missing-anchor");
-      target = found;
-    } else if (resolved.fragmentKind === "pointer") {
-      let p = (nodes[target] as SchemaNode).documentPointer;
-      for (const rawToken of resolved.fragment.slice(1).split("/")) {
-        b.charge("pointerSteps");
-        b.charge("scanWork", rawToken.length + 1);
-        let token = "";
-        for (let i = 0; i < rawToken.length; i++) {
-          const c = rawToken[i];
-          if (c !== "~") token += c;
-          else {
-            const next = rawToken[++i];
-            if (next !== "0" && next !== "1") refuseGraph("pointer");
-            token += next === "0" ? "~" : "/";
+    try {
+      const resolved = resolveSchemaUri(base, raw, b);
+      retain(resolved.uri);
+      b.charge("scanWork", resolved.resource.length);
+      const rid = identities.get(resolved.resource);
+      if (rid === undefined) refuseGraph("missing-resource");
+      const resource = resources[rid] as SchemaResource;
+      let target = resource.node;
+      if (resolved.fragmentKind === "plain-name") {
+        const found = resource.anchors[resolved.fragment];
+        if (found === undefined) refuseGraph("missing-anchor");
+        target = found;
+      } else if (resolved.fragmentKind === "pointer") {
+        let p = (nodes[target] as SchemaNode).documentPointer;
+        for (const rawToken of resolved.fragment.slice(1).split("/")) {
+          b.charge("pointerSteps");
+          b.charge("scanWork", rawToken.length + 1);
+          let token = "";
+          for (let i = 0; i < rawToken.length; i++) {
+            const c = rawToken[i];
+            if (c !== "~") token += c;
+            else {
+              const next = rawToken[++i];
+              if (next !== "0" && next !== "1") refuseGraph("pointer");
+              token += next === "0" ? "~" : "/";
+            }
           }
+          const value = values[p];
+          if (Array.isArray(value) && !/^(0|[1-9][0-9]*)$/.test(token)) refuseGraph("pointer");
+          const next = positions.get(p)?.get(token);
+          if (next === undefined) refuseGraph("pointer");
+          p = next;
+          const crossed = resourceAt.get(p);
+          if (crossed !== undefined && crossed !== rid)
+            refuseGraph("unsupported-cross-resource-pointer");
         }
-        const value = values[p];
-        if (Array.isArray(value) && !/^(0|[1-9][0-9]*)$/.test(token)) refuseGraph("pointer");
-        const next = positions.get(p)?.get(token);
-        if (next === undefined) refuseGraph("pointer");
-        p = next;
-        const crossed = resourceAt.get(p);
-        if (crossed !== undefined && crossed !== rid)
-          refuseGraph("unsupported-cross-resource-pointer");
+        const found = nodeAt.get(p);
+        if (found === undefined) refuseGraph("unsupported-reference-position");
+        target = found;
       }
-      const found = nodeAt.get(p);
-      if (found === undefined) refuseGraph("unsupported-reference-position");
-      target = found;
+      return {
+        resolved,
+        target,
+        dynamic:
+          resolved.fragmentKind === "plain-name" &&
+          Object.hasOwn(resource.dynamicAnchors, resolved.fragment),
+      };
+    } catch (error) {
+      if (error instanceof SchemaGraphError)
+        throw new SchemaGraphError(
+          error.code,
+          error.node ?? (typeof location === "number" ? location : undefined),
+          error.descriptor ?? (typeof location === "string" ? location : undefined),
+        );
+      throw error;
     }
-    return {
-      resolved,
-      target,
-      dynamic:
-        resolved.fragmentKind === "plain-name" &&
-        Object.hasOwn(resource.dynamicAnchors, resolved.fragment),
-    };
   };
   for (const ref of unresolved) {
     const node = nodes[ref.node] as SchemaNode;
-    const r = resolve((resources[node.resource] as SchemaResource).canonicalUri, ref.raw);
+    const r = resolve((resources[node.resource] as SchemaResource).canonicalUri, ref.raw, ref.node);
     const dynamic = ref.keyword === "$dynamicRef" && r.dynamic;
     references.push(
       Object.freeze({
@@ -493,7 +514,7 @@ function build(input: ContractArtifactBundleInput, b: GraphBudget): SchemaGraphC
   for (const d of artifact.descriptors)
     if (d.propertiesSchema !== undefined) {
       b.charge("descriptorRoots");
-      const r = resolve(d.id, d.propertiesSchema);
+      const r = resolve(d.id, d.propertiesSchema, d.id);
       descriptorRoots.push(
         Object.freeze({
           descriptor: d.id,

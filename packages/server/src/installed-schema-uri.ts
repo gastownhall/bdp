@@ -6,11 +6,18 @@ import { type GraphBudget, SchemaGraphError, refuseGraph } from "./installed-sch
 // The pinned dependency closes over this registry in lib/schemes.js. Its public
 // SCHEMES export can be replaced independently, so inspect the original module's
 // data property and retain that reference. Never freeze or modify shared state.
-const schemeModule: unknown = createRequire(import.meta.url)("fast-uri/lib/schemes.js");
-const registry: unknown =
-  schemeModule !== null && typeof schemeModule === "object" && !isProxy(schemeModule)
-    ? Object.getOwnPropertyDescriptor(schemeModule, "SCHEMES")?.value
-    : undefined;
+// This private path is an explicit reviewed coupling to fast-uri 3.1.5.
+// A removed/export-blocked path refuses graph construction, not module loading.
+const registry: unknown = (() => {
+  try {
+    const module: unknown = createRequire(import.meta.url)("fast-uri/lib/schemes.js");
+    return module !== null && typeof module === "object" && !isProxy(module)
+      ? Object.getOwnPropertyDescriptor(module, "SCHEMES")?.value
+      : undefined;
+  } catch {
+    return undefined;
+  }
+})();
 const generic = Object.freeze({ resolve: uri.resolve, parse: uri.parse, serialize: uri.serialize });
 function checkRegistry(): void {
   if (

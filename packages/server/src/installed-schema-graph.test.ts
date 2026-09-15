@@ -13,6 +13,8 @@ import {
   SCHEMA_GRAPH_POLICY,
 } from "./installed-schema-graph.js";
 import {
+  GraphBudget,
+  SchemaGraphError,
   SCHEMA_GRAPH_CEILINGS,
   SCHEMA_KEYWORDS,
   type SchemaGraphLimits,
@@ -235,7 +237,15 @@ describe("private immutable schema graph draft", () => {
     ['{"$recursiveRef":"#"}', "unsupported-recursive-keyword"],
     ['{"$recursiveAnchor":true}', "unsupported-recursive-keyword"],
     ['{"$id":"https://json-schema.org/draft/2020-12/schema"}', "resource-collision"],
-  ])("explicitly refuses %s as %s", (s, code) => expect(() => graph(s)).toThrow(code));
+  ])("explicitly refuses %s as %s", (s, code) => {
+    try {
+      graph(s);
+      throw new Error("expected refusal");
+    } catch (error) {
+      expect(error).toBeInstanceOf(SchemaGraphError);
+      expect((error as SchemaGraphError).code).toBe(code);
+    }
+  });
   it("records explicit/default/inherited dialect and ignores ordinary required vocabularies", () => {
     const g = graph(
       '{"$schema":"https://json-schema.org:443/draft/2020-12/schema#","$vocabulary":{"https://unknown.test/vocab":true},"$defs":{"a":{"$id":"child"}}}',
@@ -308,7 +318,7 @@ describe("private immutable schema graph draft", () => {
         { ...input("{}"), schemas: [], descriptors: [descriptor] },
         SCHEMA_GRAPH_CEILINGS,
       ),
-    ).toThrow("schema");
+    ).toThrow("schema resource index refused: missing-resource");
   });
   it("binds immutable builtins, exact artifact bytes and policy into identity", () => {
     expect(BUILTIN_SCHEMA_DOCUMENTS).toHaveLength(8);
@@ -322,10 +332,9 @@ describe("private immutable schema graph draft", () => {
       for (const k of Object.keys(meta.properties ?? {})) keywordNames.add(k);
     }
     expect(digest.digest("hex")).toBe(BUILTIN_SCHEMA_DIGEST);
-    // Exact fixed meta-schema census plus the explicitly refused compatibility keyword.
-    expect(new Set(Object.keys(SCHEMA_KEYWORDS))).toEqual(
-      new Set([...keywordNames, "dependencies"]),
-    );
+    // Exact fixed meta-schema census; compatibility refusal is asserted separately.
+    expect(new Set(Object.keys(SCHEMA_KEYWORDS))).toEqual(keywordNames);
+    expect(SCHEMA_KEYWORDS.dependencies).toBe("unsupported");
     const g = graph("{}");
     expect(g.identity).toBe(
       createHash("sha256")
@@ -394,5 +403,117 @@ describe("private immutable schema graph draft", () => {
       "limit-location",
     );
     expect(() => graph(s, { ...SCHEMA_GRAPH_CEILINGS, depth: 4095 })).toThrow("limit-depth");
+  });
+  it("binds descriptor membership, descriptor schema targets, and retrieval URI to identity", () => {
+    const descriptor = (target: string) =>
+      row(
+        JSON.stringify({
+          id: "https://types.test/bead",
+          name: "Bead",
+          describes: "bead",
+          conformsTo: [],
+          propertiesSchema: target,
+        }),
+        "https://types.test/bead",
+      );
+    const base = input('{"$defs":{"a":{},"b":{}}}');
+    const plain = buildInstalledSchemaGraph(base, SCHEMA_GRAPH_CEILINGS);
+    const a = buildInstalledSchemaGraph(
+      { ...base, descriptors: [descriptor(`${retrieval}#/$defs/a`)] },
+      SCHEMA_GRAPH_CEILINGS,
+    );
+    const other = buildInstalledSchemaGraph(
+      { ...base, descriptors: [descriptor(`${retrieval}#/$defs/b`)] },
+      SCHEMA_GRAPH_CEILINGS,
+    );
+    expect(a.identity).not.toBe(plain.identity);
+    expect(other.identity).not.toBe(a.identity);
+    expect(other.descriptorRoots[0]?.node).not.toBe(a.descriptorRoots[0]?.node);
+    const moved = buildInstalledSchemaGraph(
+      { ...input("{}"), schemas: [row("{}", "https://schema.test/other")] },
+      SCHEMA_GRAPH_CEILINGS,
+    );
+    expect(moved.identity).not.toBe(graph("{}").identity);
+  });
+  it.each([NaN, Infinity, -Infinity, -1, 0.5, Number.MAX_SAFE_INTEGER + 1])(
+    "refuses invalid bound amount %s without poisoning counters",
+    (amount) => {
+      const budget = new GraphBudget(SCHEMA_GRAPH_CEILINGS);
+      expect(() => budget.bound("depth", amount)).toThrow(
+        "schema resource index refused: limit-depth",
+      );
+      expect(budget.counts.depth).toBe(0);
+      budget.bound("depth", 1);
+      expect(budget.counts.depth).toBe(1);
+    },
+  );
+  it("preserves node and descriptor locations on reference refusals without copying input into messages", () => {
+    for (const [raw, code] of [
+      ["https://missing.test/", "missing-resource"],
+      ["#missing", "missing-anchor"],
+      ["#/~2", "pointer"],
+      ["#/const/x", "unsupported-reference-position"],
+      ["#/$defs/child", "unsupported-cross-resource-pointer"],
+      ["#%FF", "uri-fragment"],
+      ["x".repeat(2049), "limit-uriBytes"],
+    ]) {
+      try {
+        graph(JSON.stringify({ const: { x: {} }, $defs: { child: { $id: "child" } }, $ref: raw }));
+        throw new Error("expected refusal");
+      } catch (error) {
+        expect(error).toBeInstanceOf(SchemaGraphError);
+        expect(error).toMatchObject({ code, node: 0 });
+        expect((error as SchemaGraphError).descriptor).toBeUndefined();
+        expect((error as Error).message).toBe(`schema resource index refused: ${code}`);
+      }
+    }
+    const descriptor = row(
+      '{"id":"https://types.test/bead","name":"Bead","describes":"bead","conformsTo":[],"propertiesSchema":"https://missing.test/"}',
+      "https://types.test/bead",
+    );
+    try {
+      buildInstalledSchemaGraph(
+        { ...input("{}"), descriptors: [descriptor] },
+        SCHEMA_GRAPH_CEILINGS,
+      );
+      throw new Error("expected refusal");
+    } catch (error) {
+      expect(error).toBeInstanceOf(SchemaGraphError);
+      expect(error).toMatchObject({
+        code: "missing-resource",
+        descriptor: "https://types.test/bead",
+      });
+      expect((error as SchemaGraphError).node).toBeUndefined();
+      expect((error as Error).message).toBe("schema resource index refused: missing-resource");
+    }
+  });
+  it("retains ingestion's named malformed-byte, JSON and depth refusals ahead of graph indexing", () => {
+    const run = (bytes: Uint8Array) => () =>
+      buildInstalledSchemaGraph(
+        { ...input("{}"), schemas: [{ retrievalUri: retrieval, utf8Bytes: bytes }] },
+        SCHEMA_GRAPH_CEILINGS,
+      );
+    expect(run(Uint8Array.of(0xff))).toThrow("contract artifact ingestion refused: utf8");
+    expect(run(Buffer.from("{"))).toThrow("contract artifact ingestion refused: json-syntax");
+    expect(run(Buffer.from("\ufeff{}"))).toThrow(
+      "contract artifact ingestion refused: json-syntax",
+    );
+    // The protocol decoder is iterative; the administrative ingestion layer
+    // owns the per-artifact byte/depth caps before the graph's second decode.
+    const deep = `${'{"not":'.repeat(100_000)}true${"}".repeat(100_000)}`;
+    expect(Buffer.byteLength(deep)).toBeLessThan(CONTRACT_ARTIFACT_CEILINGS.artifactBytes);
+    expect(run(Buffer.from(deep))).toThrow("contract artifact ingestion refused: limit");
+  });
+  it.each([
+    "https://Schema.Test:443/root",
+    "https://schema.test:443/root",
+    "https://schema.test/%72oot",
+  ])("refuses noncanonical retrieval URI before alias indexing: %s", (retrievalUri) => {
+    expect(() =>
+      buildInstalledSchemaGraph(
+        { ...input("{}"), schemas: [row("{}", retrievalUri)] },
+        SCHEMA_GRAPH_CEILINGS,
+      ),
+    ).toThrow("contract artifact ingestion refused: retrieval-uri");
   });
 });

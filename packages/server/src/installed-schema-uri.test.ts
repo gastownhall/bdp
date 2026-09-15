@@ -133,4 +133,18 @@ describe("bounded generic URI identity", () => {
     expect(() => resolveSchemaUri("https://a.test/", "", b)).toThrow("limit-uriWork");
     expect(b.counts.uriCalls).toBe(1);
   });
+  it("keeps cumulative URI work independent from per-URI and call ceilings", () => {
+    const uri = `https://a.test/${"a".repeat(2048 - "https://a.test/".length)}`;
+    const budget = new GraphBudget(SCHEMA_GRAPH_CEILINGS);
+    const work = (uri.length + uri.length + 1) ** 2;
+    expect(Math.floor(SCHEMA_GRAPH_CEILINGS.uriWork / work)).toBe(3);
+    for (let i = 0; i < 3; i++) expect(resolveSchemaUri(uri, uri, budget).uri).toBe(uri);
+    expect(budget.counts.uriWork).toBe(3 * work);
+    expect(() => resolveSchemaUri(uri, uri, budget)).toThrow(
+      "schema resource index refused: limit-uriWork",
+    );
+    expect(budget.counts.uriWork).toBe(3 * work);
+    expect(budget.counts.uriCalls).toBe(4);
+    expect(budget.counts.uriBytes).toBe(2048);
+  });
 });

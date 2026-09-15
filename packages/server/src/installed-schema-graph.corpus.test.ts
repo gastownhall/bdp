@@ -7,7 +7,12 @@ import {
   CONTRACT_ARTIFACT_CEILINGS,
   type ContractArtifactInput,
 } from "./installed-contract-artifact.js";
-import { buildInstalledSchemaGraph, formatSchemaPointer } from "./installed-schema-graph.js";
+import { schemaGraphStructure } from "../test-support/schema-graph-structure.js";
+import {
+  buildInstalledSchemaGraph,
+  formatSchemaPointer,
+  SCHEMA_GRAPH_POLICY,
+} from "./installed-schema-graph.js";
 import {
   GraphBudget,
   isSchemaObject,
@@ -47,6 +52,25 @@ const spanPins: {
     sha256: string;
   }[];
 } = JSON.parse(readFileSync(new URL("schema-spans.json", root), "utf8"));
+const structurePins: {
+  groups: ({ file: string; group: number } & ReturnType<typeof schemaGraphStructure>)[];
+} = JSON.parse(
+  readFileSync(new URL("../test-support/schema-graph-structures.json", import.meta.url), "utf8"),
+);
+const refusalPins: {
+  groups: {
+    file: string;
+    group: number;
+    code: string;
+    privateBasis: string;
+    schemaValidity: string;
+    instanceEvaluation: string;
+  }[];
+} = JSON.parse(
+  readFileSync(new URL("../test-support/schema-graph-refusal-basis.json", import.meta.url), "utf8"),
+);
+const refusals = new Map(refusalPins.groups.map((g) => [`${g.file}:${g.group}`, g]));
+const structures = new Map(structurePins.groups.map((g) => [`${g.file}:${g.group}`, g]));
 const fileText = new Map<string, string>();
 for (const file of manifest.files) {
   const bytes = readFileSync(new URL(file.path, root));
@@ -114,6 +138,29 @@ describe("pinned official graph inputs (instance outcomes remain deferred)", () 
     expect(spanPins.spans).toHaveLength(462);
     expect(new Set(spanPins.spans.map((s) => `${s.file}:${s.group}`)).size).toBe(462);
     expect(manifest.groups).toHaveLength(462);
+    expect(structures.size).toBe(444);
+    expect(structurePins.groups).toHaveLength(444);
+    expect(new Set(structures.keys())).toEqual(
+      new Set(
+        manifest.groups
+          .filter((g) => g.graphDisposition === "planned-index-support")
+          .map((g) => `${g.file}:${g.group}`),
+      ),
+    );
+    expect(refusalPins.groups).toHaveLength(18);
+    expect(refusals.size).toBe(18);
+    expect(new Set(refusals.keys())).toEqual(
+      new Set(
+        manifest.groups
+          .filter((g) => g.graphDisposition !== "planned-index-support")
+          .map((g) => `${g.file}:${g.group}`),
+      ),
+    );
+    for (const refusal of refusalPins.groups) {
+      expect(refusal.privateBasis.length).toBeGreaterThan(0);
+      expect(refusal.schemaValidity).toBe("not-determined");
+      expect(refusal.instanceEvaluation).toBe("not-executed");
+    }
     expect(manifest.cases).toHaveLength(2322);
     expect(new Set(manifest.groups.map((g) => `${g.file}:${g.group}`)).size).toBe(462);
     expect(new Set(manifest.cases.map((g) => `${g.file}:${g.group}:${g.case}`)).size).toBe(2322);
@@ -192,7 +239,14 @@ describe("pinned official graph inputs (instance outcomes remain deferred)", () 
       const target = g.nodes[edge.target];
       if (!target) throw new Error("missing target");
       let root = target.documentPointer;
-      while (g.pointers[root]?.parent !== null) root = g.pointers[root]?.parent ?? -1;
+      let steps = 0;
+      while (true) {
+        const parent = g.pointers[root]?.parent;
+        if (parent === undefined || ++steps > g.pointers.length)
+          throw new Error("broken pointer chain");
+        if (parent === null) break;
+        root = parent;
+      }
       expect(edge.kind).toBe(kind);
       expect(edge.anchor ?? "").toBe(anchor);
       expect(edge.fragmentKind).toBe(group === 4 || group === 18 ? "pointer" : "plain-name");
@@ -217,11 +271,17 @@ describe("pinned official graph inputs (instance outcomes remain deferred)", () 
       };
       if (group.graphDisposition === "planned-index-support") {
         const graph = buildInstalledSchemaGraph(input, SCHEMA_GRAPH_CEILINGS);
-        expect(graph.stage).toBe("schema-resource-index-1");
+        expect(graph.stage).toBe(SCHEMA_GRAPH_POLICY);
+        // Implementation-derived structural regression, not independent validity.
+        const expected = structures.get(`${group.file}:${group.group}`);
+        if (!expected) throw new Error("missing structural regression lock");
+        const { file: _file, group: _group, ...shape } = expected;
+        expect(schemaGraphStructure(graph)).toEqual(shape);
         expect(graph.receipt.deferred).toContain("instance-evaluation");
       } else {
-        const expected = group.reason.split(":", 1)[0];
-        const code = expected === "unsupported-custom-dialect" ? "unsupported-dialect" : expected;
+        const refusal = refusals.get(`${group.file}:${group.group}`);
+        if (!refusal) throw new Error("missing private refusal basis");
+        const code = refusal.code;
         expect(() => buildInstalledSchemaGraph(input, SCHEMA_GRAPH_CEILINGS)).toThrow(
           `schema resource index refused: ${code}`,
         );
