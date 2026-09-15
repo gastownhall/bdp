@@ -151,6 +151,9 @@ importers:
       '@bdp/protocol':
         specifier: workspace:*
         version: link:../protocol
+      fast-uri:
+        specifier: 3.1.5
+        version: 3.1.5
     devDependencies:
       vitest:
         specifier: 4.1.10
