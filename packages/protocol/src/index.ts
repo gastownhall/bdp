@@ -25,6 +25,9 @@ export {
 export {
   createTypeConformanceIndex,
   type TypeConformanceIndex,
+  type MeasuredTypeConformanceIndex,
+  type TypeConformanceLimits,
+  type TypeConformanceStatistics,
 } from "./type-conformance.js";
 export {
   parseLinkHeader,
