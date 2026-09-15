@@ -401,8 +401,6 @@ describe("private supported static evaluator", () => {
   it.each([
     '{"pattern":"(a+)+$"}',
     '{"contentMediaType":"text/plain"}',
-    '{"contains":true}',
-    '{"minContains":0}',
     '{"unevaluatedProperties":true}',
     '{"$dynamicAnchor":"x","$dynamicRef":"#x"}',
     '{"$ref":"#"}',

@@ -50,7 +50,6 @@ const annotationPolicy = Object.freeze({
 const deferred = Object.freeze([
   "full-vocabulary",
   "dynamic",
-  "contains",
   "unevaluated",
   "regex",
   "mime",
@@ -147,9 +146,6 @@ function refusal(
 const excluded = new Set([
   "pattern",
   "patternProperties",
-  "contains",
-  "minContains",
-  "maxContains",
   "unevaluatedItems",
   "unevaluatedProperties",
   "contentMediaType",
@@ -572,6 +568,51 @@ function evaluate(
         }
         if (applied) annotate("items", true);
       }
+      const contains = target("contains");
+      if (contains !== undefined) {
+        b.work();
+        b.charge("logicalBytes", 64);
+        const matched: JsonNumberLiteral[] = [];
+        for (let i = 0; i < v.length; i++) {
+          // A bounded instance index needs at most 16 decimal digits. Reserve
+          // its construction work before making even the temporary lookup key.
+          b.work(16);
+          const index = String(i);
+          const child = yield {
+            node: contains,
+            instance: current.children.get(index) as number,
+            path: "contains",
+          };
+          if (child.valid) {
+            b.work(index.length + 1);
+            b.charge("valueNodes");
+            b.charge("logicalBytes", 64 + 16 + 2 * index.length);
+            matched.push(new JsonNumberLiteral(index));
+            b.charge("logicalBytes", 32 + 2 * "contains".length);
+            fact.successes.push({ fact: child, path: "contains" });
+          }
+          // A failed trial is not a parent assertion failure. Visit every item
+          // even after a minimum succeeds or a maximum is exceeded.
+        }
+        const count = decimal(String(matched.length), b.work, b.limits.coefficientDigits);
+        const min = obj.minContains;
+        const minimum = min instanceof JsonNumberLiteral ? numberValue(min, b) : undefined;
+        const zeroMinimum =
+          minimum !== undefined &&
+          compareDecimal(minimum, decimal("0", b.work, b.limits.coefficientDigits), b.work) === 0;
+        if (matched.length === 0 && !zeroMinimum) fail("contains");
+        if (minimum !== undefined && compareDecimal(count, minimum, b.work) < 0)
+          fail("minContains");
+        const max = obj.maxContains;
+        if (
+          max instanceof JsonNumberLiteral &&
+          compareDecimal(count, numberValue(max, b), b.work) > 0
+        )
+          fail("maxContains");
+        // Always-array annotation makes its length the adjacent count operand.
+        // Projection discards all annotations if the enclosing result is invalid.
+        annotate("contains", Object.freeze(matched));
+      }
     }
     for (const k of node.keywords) {
       b.work();
@@ -764,6 +805,9 @@ const known = new Set([
   "propertyNames",
   "prefixItems",
   "items",
+  "contains",
+  "minContains",
+  "maxContains",
   "type",
   "enum",
   "const",

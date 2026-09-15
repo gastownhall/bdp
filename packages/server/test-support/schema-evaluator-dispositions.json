@@ -322,57 +322,43 @@
       "file": "tests/draft2020-12/contains.json",
       "group": 0,
       "cases": [0, 1, 2, 3, 4, 5],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/contains.json",
       "group": 1,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/contains.json",
       "group": 2,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/contains.json",
       "group": 3,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/contains.json",
       "group": 4,
       "cases": [0, 1, 2, 3],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/contains.json",
       "group": 5,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/contains.json",
       "group": 6,
       "cases": [0],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/content.json",
@@ -998,41 +984,31 @@
       "file": "tests/draft2020-12/maxContains.json",
       "group": 0,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-maxContains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/maxContains.json",
       "group": 1,
       "cases": [0, 1, 2, 3, 4],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/maxContains.json",
       "group": 2,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/maxContains.json",
       "group": 3,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/maxContains.json",
       "group": 4,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/maxItems.json",
@@ -1092,65 +1068,49 @@
       "file": "tests/draft2020-12/minContains.json",
       "group": 0,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-minContains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/minContains.json",
       "group": 1,
       "cases": [0, 1, 2, 3, 4],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/minContains.json",
       "group": 2,
       "cases": [0, 1, 2, 3, 4, 5],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/minContains.json",
       "group": 3,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/minContains.json",
       "group": 4,
       "cases": [0, 1, 2, 3],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/minContains.json",
       "group": 5,
       "cases": [0, 1, 2, 3],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/minContains.json",
       "group": 6,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/minContains.json",
       "group": 7,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contains"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/minItems.json",
@@ -2710,7 +2670,7 @@
       "cases": [0, 1, 2],
       "disposition": "explicit-private-refusal",
       "phase": "compile",
-      "reason": "unsupported-contains"
+      "reason": "unsupported-unevaluatedItems"
     },
     {
       "file": "tests/draft2020-12/unevaluatedItems.json",
@@ -2734,7 +2694,7 @@
       "cases": [0, 1, 2, 3],
       "disposition": "explicit-private-refusal",
       "phase": "compile",
-      "reason": "unsupported-contains"
+      "reason": "unsupported-unevaluatedItems"
     },
     {
       "file": "tests/draft2020-12/unevaluatedItems.json",
