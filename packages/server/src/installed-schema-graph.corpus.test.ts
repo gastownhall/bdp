@@ -282,6 +282,11 @@ describe("pinned official graph inputs (instance outcomes remain deferred)", () 
         const refusal = refusals.get(`${group.file}:${group.group}`);
         if (!refusal) throw new Error("missing private refusal basis");
         const code = refusal.code;
+        // Both records describe private refusals, not upstream schema validity.
+        const originalCode = group.reason.split(":", 1)[0];
+        expect(code).toBe(
+          originalCode === "unsupported-custom-dialect" ? "unsupported-dialect" : originalCode,
+        );
         expect(() => buildInstalledSchemaGraph(input, SCHEMA_GRAPH_CEILINGS)).toThrow(
           `schema resource index refused: ${code}`,
         );

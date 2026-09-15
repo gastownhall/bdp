@@ -4,7 +4,9 @@ import type { SchemaGraphCandidate } from "../src/installed-schema-graph.js";
 /** Implementation-derived structural regression lock, never an independent
  * JSON Schema validity oracle. Raw input bytes and official outcomes are pinned
  * separately. Exclude policy/identity/counters so their administrative changes
- * do not disguise a change to indexed nodes, positions or reference targets. */
+ * do not disguise a change to indexed nodes, positions or reference targets.
+ * Retained node and keyword values are also excluded: these locks do not prove
+ * corpus-wide losslessness or correctness of indexed values. */
 export function schemaGraphStructure(graph: SchemaGraphCandidate) {
   const structure = {
     pointers: graph.pointers,

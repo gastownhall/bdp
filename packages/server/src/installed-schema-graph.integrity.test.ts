@@ -25,7 +25,7 @@ describe("graph dependency and built-in integrity containment", () => {
       resolveSchemaUri("https://schema.test/", "child", new GraphBudget(SCHEMA_GRAPH_CEILINGS)),
     ).toThrow("schema resource index refused: uri-handler-registry");
   });
-  it.each(["aggregate", "bytes"])(
+  it.each(["aggregate", "bytes", "bytes-and-matching-sha"])(
     "names the internal invariant for changed built-in %s",
     async (failure) => {
       vi.resetModules();
@@ -36,7 +36,16 @@ describe("graph dependency and built-in integrity containment", () => {
           : {
               ...source,
               BUILTIN_SCHEMA_DOCUMENTS: source.BUILTIN_SCHEMA_DOCUMENTS.map((row, index) =>
-                index === 0 ? { ...row, bytesBase64: "e30=" } : row,
+                index === 0
+                  ? {
+                      ...row,
+                      bytesBase64: "e30=",
+                      sha256:
+                        failure === "bytes-and-matching-sha"
+                          ? "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+                          : row.sha256,
+                    }
+                  : row,
               ),
             };
       });
