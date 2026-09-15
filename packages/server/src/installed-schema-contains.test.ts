@@ -38,6 +38,41 @@ const diagnostic = (keyword: string) => ({
 });
 
 describe("bounded static contains", () => {
+  it("orders contradictory count diagnostics minContains before maxContains", () => {
+    const r = evaluate('{"contains":{"const":1},"minContains":3,"maxContains":1}', "[1,1]");
+    expect(r).toMatchObject({
+      valid: false,
+      diagnostics: [diagnostic("minContains"), diagnostic("maxContains")],
+      diagnosticsComplete: true,
+    });
+  });
+  it("enforces raw coefficient width for count bounds without a floating-point shortcut", () => {
+    for (const keyword of ["minContains", "maxContains"]) {
+      const healthy = compile(`{"contains":true,"${keyword}":${"9".repeat(4096)}}`).evaluateUtf8(
+        bytes("[0]"),
+      );
+      expect(healthy).toMatchObject({
+        kind: "evaluated",
+        valid: keyword === "maxContains",
+        counters: { coefficientDigits: 4096 },
+      });
+      expect(
+        compile(`{"contains":true,"${keyword}":${"9".repeat(4097)}}`).evaluateUtf8(bytes("[0]")),
+      ).toMatchObject({
+        kind: "refused",
+        phase: "instance",
+        reason: "limit-coefficientDigits",
+      });
+    }
+  });
+  it("contains includes matching elements already covered by prefixItems", () => {
+    const r = evaluate('{"prefixItems":[{"const":9}],"contains":{"type":"integer"}}', "[9,1]");
+    expect(r.valid).toBe(true);
+    expect(r.annotations.map((a) => [a.keyword, a.value])).toEqual([
+      ["prefixItems", new JsonNumberLiteral("0")],
+      ["contains", [new JsonNumberLiteral("0"), new JsonNumberLiteral("1")]],
+    ]);
+  });
   it("visits a late child after maxContains has already failed", () => {
     const c = compile('{"contains":{"minimum":0},"maxContains":0}', {
       ...EVALUATOR_CEILINGS,
