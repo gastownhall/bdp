@@ -21,6 +21,12 @@ import {
   type CompilationOutcome,
   type EvaluationOutcome,
 } from "./installed-schema-evaluator.js";
+const inputIntegrity = {
+  manifest: false,
+  fileHashes: false,
+  schemaSpans: false,
+  instanceSpans: false,
+};
 const root = new URL("../test-support/schema-graph-corpus/", import.meta.url);
 const manifest: {
   files: { path: string; sha256: string }[];
@@ -48,6 +54,7 @@ const expectedManifest: {
 // The original manifest digest pins case identities and official expected flags.
 if (hash(readFileSync(new URL("manifest.json", root))) !== expectedManifest.originalManifestSha256)
   throw new Error("changed original corpus manifest; review the private evaluator oracle");
+inputIntegrity.manifest = true;
 const caseKey = (c: { file: string; group: number; case: number }) =>
   JSON.stringify([c.file, c.group, c.case]);
 const expectedByCase = new Map<string, ExpectedDisposition>();
@@ -79,6 +86,7 @@ for (const file of manifest.files) {
   if (hash(bytes) !== file.sha256) throw new Error("changed official corpus");
   fileText.set(file.path, bytes.toString("utf8"));
 }
+inputIntegrity.fileHashes = true;
 const remote = new Map(
   [...fileText]
     .filter(([name]) => name.startsWith("remotes/"))
@@ -199,6 +207,14 @@ it("oracle accepts its expected refusal and rejects changed phase, reason or out
       diagnosticsComplete: true,
       annotations: [],
       counters: EVALUATOR_CEILINGS,
+      annotationPolicy: {
+        revision: "bounded-annotation-output-2",
+        format: "annotation-only",
+        contentEncoding: "annotation-only-no-decoding",
+        output: "complete-or-refused",
+        encodedBytes: "JSON.stringify-UTF8-lossless-number-objects",
+        order: "graph-edge-occurrence-order",
+      },
       deferred: [
         "full-vocabulary",
         "dynamic",
@@ -215,6 +231,31 @@ it("oracle accepts its expected refusal and rejects changed phase, reason or out
     }),
   ).toThrow();
 });
+function assertSchemaSpans(
+  text: string,
+  spans: readonly { start: number; end: number; text: string }[],
+  expected: readonly LosslessJsonValue[],
+): void {
+  expect(spans).toHaveLength(expected.length);
+  for (let i = 0; i < spans.length; i++) {
+    const span = spans[i];
+    if (!span) throw new Error("missing schema span");
+    expect(text.slice(span.start, span.end)).toBe(span.text);
+    expect(decodeJsonDocument(span.text)).toEqual(expected[i]);
+  }
+}
+it("schema span oracle rejects dropped, shifted and altered schema spans", () => {
+  const text = '[{"schema":true,"tests":[]},{"schema":false,"tests":[]}]';
+  const spans = schemaSpans(text);
+  expect(() => assertSchemaSpans(text, spans, [true, false])).not.toThrow();
+  expect(() => assertSchemaSpans(text, spans.slice(1), [true, false])).toThrow();
+  expect(() => assertSchemaSpans(text, [...spans].reverse(), [true, false])).toThrow();
+  const first = spans[0];
+  if (!first) throw new Error("missing control span");
+  expect(() =>
+    assertSchemaSpans(text, [{ ...first, text: "false" }, spans[1] as typeof first], [true, false]),
+  ).toThrow();
+});
 it("pins every original scalar/schema case span and expected flag", () => {
   expect(manifest.cases).toHaveLength(2322);
   expect(manifest.groups).toHaveLength(462);
@@ -222,8 +263,17 @@ it("pins every original scalar/schema case span and expected flag", () => {
   for (const [file, spans] of values) {
     const text = fileText.get(file) as string;
     const parsed = decodeJsonDocument(text) as readonly {
+      schema: LosslessJsonValue;
       tests: readonly { data: LosslessJsonValue; valid: boolean }[];
     }[];
+    const schemaRows = schemas.get(file);
+    if (!schemaRows) throw new Error("missing schema spans");
+    expect(schemaRows).toHaveLength(manifest.groups.filter((g) => g.file === file).length);
+    assertSchemaSpans(
+      text,
+      schemaRows,
+      parsed.map((g) => g.schema),
+    );
     for (const span of spans) {
       expect(text.slice(span.start, span.end)).toBe(span.text);
       expect(decodeJsonDocument(span.text)).toEqual(parsed[span.group]?.tests[span.case]?.data);
@@ -232,6 +282,8 @@ it("pins every original scalar/schema case span and expected flag", () => {
     for (const c of manifest.cases.filter((c) => c.file === file))
       expect(parsed[c.group]?.tests[c.case]?.valid).toBe(c.officialValid);
   }
+  inputIntegrity.schemaSpans = true;
+  inputIntegrity.instanceSpans = true;
 });
 for (const c of manifest.cases)
   it(`${c.file} group ${c.group} case ${c.case}`, () => {
@@ -266,49 +318,71 @@ for (const c of manifest.cases)
       instanceByteStart: Buffer.byteLength((fileText.get(c.file) as string).slice(0, value.start)),
       instanceByteEnd: Buffer.byteLength((fileText.get(c.file) as string).slice(0, value.end)),
       outcome: outcome.kind,
+      ...(outcome.kind === "refused"
+        ? { phase: outcome.phase, reason: outcome.reason }
+        : { actualValid: outcome.valid, counters: outcome.counters }),
     };
     records.push(record);
-    const group = manifest.groups.find((g) => g.file === c.file && g.group === c.group);
-    if (!group) throw new Error("missing group");
-    const expected = expectedByCase.get(caseKey(c));
-    if (!expected) throw new Error("missing private evaluator expectation");
-    assertExpectedOutcome(expected, outcome);
-    record.disposition = expected.disposition;
-    if (outcome.kind === "refused") {
-      record.phase = outcome.phase;
-      record.reason = outcome.reason;
-      expect(group.graphDisposition).toBe(
-        expected.disposition === "retained-graph-refusal"
-          ? "planned-refusal"
-          : "planned-index-support",
-      );
-      return;
-    }
-    expect(group.graphDisposition).toBe("planned-index-support");
-    record.actualValid = outcome.valid;
-    record.counters = outcome.counters;
-    if (expected.disposition === "annotation-policy-outcome") {
-      expect(c.file).toContain("/optional/format/");
-      const parsed = decodeJsonDocument(schema.text) as Record<string, LosslessJsonValue>;
-      expect(
-        Object.keys(parsed).filter((k) => !["format", "$schema", "description"].includes(k)),
-      ).toEqual([]);
-      expect(outcome.valid).toBe(true);
-    } else {
-      expect(expected.disposition).toBe("official-validity-compared");
-      expect(outcome.valid).toBe(c.officialValid);
+    record.expectationMet = false;
+    try {
+      const group = manifest.groups.find((g) => g.file === c.file && g.group === c.group);
+      if (!group) throw new Error("missing group");
+      const expected = expectedByCase.get(caseKey(c));
+      if (!expected) throw new Error("missing private evaluator expectation");
+      record.disposition = expected.disposition;
+      assertExpectedOutcome(expected, outcome);
+      if (outcome.kind === "refused") {
+        expect(group.graphDisposition).toBe(
+          expected.disposition === "retained-graph-refusal"
+            ? "planned-refusal"
+            : "planned-index-support",
+        );
+        record.expectationMet = true;
+        return;
+      }
+      expect(group.graphDisposition).toBe("planned-index-support");
+      if (expected.disposition === "annotation-policy-outcome") {
+        expect(c.file).toContain("/optional/format/");
+        const parsed = decodeJsonDocument(schema.text) as Record<string, LosslessJsonValue>;
+        expect(
+          Object.keys(parsed).filter((k) => !["format", "$schema", "description"].includes(k)),
+        ).toEqual([]);
+        expect(outcome.valid).toBe(true);
+      } else {
+        expect(expected.disposition).toBe("official-validity-compared");
+        expect(outcome.valid).toBe(c.officialValid);
+      }
+      record.expectationMet = true;
+    } catch (error) {
+      record.failure = "case-expectation-mismatch";
+      throw error;
     }
   });
 afterAll(() => {
-  expect(records).toHaveLength(2322);
   const output = process.env.BDP_PRIVATE_SCHEMA_CORPUS_RECEIPT;
   if (output)
     writeFileSync(
       output,
       `${JSON.stringify(
-        { stage: "private-static-instance-results-1", officialInputsUnchanged: true, records },
+        {
+          stage: "private-static-instance-results-1",
+          evidencePolicy: "case-expectations-and-input-integrity-2",
+          verificationScope:
+            "Case assertions and input integrity; runner test report remains authoritative for the full suite",
+          inputIntegrity: { ...inputIntegrity },
+          officialInputsUnchanged: inputIntegrity.manifest && inputIntegrity.fileHashes,
+          allExpectationsMet:
+            Object.values(inputIntegrity).every(Boolean) &&
+            records.length === manifest.cases.length &&
+            records.every((r) => r.expectationMet === true),
+          expectedCases: manifest.cases.length,
+          recordedCases: records.length,
+          failedCases: records.filter((r) => r.expectationMet !== true).length,
+          records,
+        },
         null,
         2,
       )}\n`,
     );
+  expect(records).toHaveLength(2322);
 });

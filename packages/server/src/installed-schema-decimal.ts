@@ -1,6 +1,7 @@
 /** Private exact decimal arithmetic. Exponents stay signed digit strings. */
 export type DigitCharge = (units: number) => void;
 export interface Decimal {
+  readonly sourceCoefficientDigits: number;
   readonly negative: boolean;
   readonly coefficient: string;
   readonly exponent: string;
@@ -64,11 +65,23 @@ export function decimal(literal: string, charge: DigitCharge, coefficientLimit: 
   const mantissa = e < 0 ? text : text.slice(0, e),
     exp = e < 0 ? "0" : text.slice(e + 1);
   const dot = mantissa.indexOf(".");
+  // Preserve the conservative literal-width guard, measured before constructing
+  // the coefficient. Leading zeroes do not count; trailing zeroes still require work.
+  let sourceCoefficientDigits = 0;
+  for (const c of mantissa) {
+    if (c !== "." && (sourceCoefficientDigits > 0 || c !== "0")) sourceCoefficientDigits++;
+  }
+  sourceCoefficientDigits = Math.max(1, sourceCoefficientDigits);
+  if (sourceCoefficientDigits > coefficientLimit) throw new DecimalLimitError();
   let coefficient = strip(mantissa.replace(".", ""));
-  if (coefficient.length > coefficientLimit) throw new DecimalLimitError();
   let exponent = addInteger(exp, String(dot < 0 ? 0 : -(mantissa.length - dot - 1)), charge);
   if (coefficient === "0")
-    return Object.freeze({ negative: false, coefficient: "0", exponent: "0" });
+    return Object.freeze({
+      sourceCoefficientDigits,
+      negative: false,
+      coefficient: "0",
+      exponent: "0",
+    });
   let end = coefficient.length;
   while (end > 0 && coefficient[end - 1] === "0") {
     charge(1);
@@ -76,7 +89,7 @@ export function decimal(literal: string, charge: DigitCharge, coefficientLimit: 
   }
   exponent = addInteger(exponent, String(coefficient.length - end), charge);
   coefficient = coefficient.slice(0, end);
-  return Object.freeze({ negative, coefficient, exponent });
+  return Object.freeze({ sourceCoefficientDigits, negative, coefficient, exponent });
 }
 export class DecimalLimitError extends Error {}
 export function compareDecimal(a: Decimal, b: Decimal, charge: DigitCharge): number {

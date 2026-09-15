@@ -34,9 +34,19 @@ import {
   equalValue,
   numberValue,
   pointer,
+  chargeAnnotationBytes,
 } from "./installed-schema-value.js";
 export { EVALUATOR_CEILINGS, type EvaluatorLimits } from "./installed-schema-value.js";
 const stage = "private-static-schema-evaluation-1";
+// Private administrative output policy revision; no new BDP validity rule.
+const annotationPolicy = Object.freeze({
+  revision: "bounded-annotation-output-2",
+  format: "annotation-only",
+  contentEncoding: "annotation-only-no-decoding",
+  output: "complete-or-refused",
+  encodedBytes: "JSON.stringify-UTF8-lossless-number-objects",
+  order: "graph-edge-occurrence-order",
+} as const);
 const deferred = Object.freeze([
   "full-vocabulary",
   "dynamic",
@@ -81,6 +91,7 @@ export type EvaluationOutcome =
       readonly annotations: readonly Annotation[];
       readonly counters: EvaluatorLimits;
       readonly deferred: typeof deferred;
+      readonly annotationPolicy: typeof annotationPolicy;
     }
   | {
       readonly kind: "refused";
@@ -93,6 +104,7 @@ export type CompilationOutcome =
       readonly kind: "compiled";
       readonly stage: typeof stage;
       readonly deferred: typeof deferred;
+      readonly annotationPolicy: typeof annotationPolicy;
       readonly evaluateUtf8: (input: Uint8Array) => EvaluationOutcome;
     }
   | Extract<EvaluationOutcome, { kind: "refused" }>;
@@ -230,6 +242,7 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
       kind: "compiled",
       stage,
       deferred,
+      annotationPolicy,
       evaluateUtf8: (bytes: Uint8Array) => {
         try {
           return evaluate(graph, root, children, refs, bytes, new EvaluationBudget(limits));
@@ -629,6 +642,9 @@ function evaluate(
     return `/${parts.reverse().join("/")}`;
   };
   b.bound("frames", 1);
+  // Even an empty annotation array has an encoded representation.
+  b.charge("annotationBytes", 2);
+  b.charge("occurrences");
   const pending: { fact: Fact; path: Path | null }[] = [{ fact: result, path: null }];
   while (pending.length) {
     b.bound("frames", pending.length);
@@ -641,19 +657,22 @@ function evaluate(
         const schemaLocation = location(graph, f.node, a.keyword, b),
           instanceLocation = pointer(instances, f.instance, b);
         b.charge("logicalBytes", 64 + 2 * (schemaLocation.length + instanceLocation.length));
-        annotations.push(
-          Object.freeze({
-            ...a,
-            schemaLocation,
-            instanceLocation,
-            validationPath: renderPath(appendPath(occurrence.path, escapePointer(a.keyword))),
-          }),
-        );
+        const entry = Object.freeze({
+          ...a,
+          schemaLocation,
+          instanceLocation,
+          validationPath: renderPath(appendPath(occurrence.path, escapePointer(a.keyword))),
+        });
+        b.charge("annotations");
+        if (annotations.length) b.charge("annotationBytes");
+        chargeAnnotationBytes(entry, b);
+        annotations.push(entry);
       }
       for (let i = f.successes.length - 1; i >= 0; i--) {
         const child = f.successes[i] as Child;
         b.work(child.path.length);
         b.bound("frames", pending.length + 1);
+        b.charge("occurrences");
         pending.push({ fact: child.fact, path: appendPath(occurrence.path, child.path) });
       }
     } else {
@@ -684,6 +703,7 @@ function evaluate(
         const child = f.failures[i] as Child;
         b.charge("logicalBytes", 32);
         b.bound("frames", pending.length + 1);
+        b.charge("occurrences");
         pending.push({ fact: child.fact, path: null });
       }
     }
@@ -697,6 +717,7 @@ function evaluate(
     annotations: Object.freeze(annotations),
     counters: Object.freeze({ ...b.counts }),
     deferred,
+    annotationPolicy,
   });
 }
 const escapePointer = (key: string): string => key.replace(/~/g, "~0").replace(/\//g, "~1");

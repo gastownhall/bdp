@@ -98,7 +98,7 @@ export function instanceSpans(
       return;
     }
     if (c === '"') quoted();
-    else while (at < text.length && !"/ \t\r\n,]}".includes(text[at] as string)) at++;
+    else while (at < text.length && !" \t\r\n,]}".includes(text[at] as string)) at++;
     if (capture) out.push({ group, case: index, start, end: at, text: text.slice(start, at) });
   };
   value("root", -1, -1, false);

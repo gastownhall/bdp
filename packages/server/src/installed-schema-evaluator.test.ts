@@ -7,7 +7,12 @@ import {
 } from "./installed-schema-evaluator.js";
 import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import { SCHEMA_GRAPH_CEILINGS } from "./installed-schema-shape.js";
-import { EvaluationBudget, EvaluationMemo, instanceIndex } from "./installed-schema-value.js";
+import {
+  EvaluationBudget,
+  EvaluationMemo,
+  instanceIndex,
+  chargeAnnotationBytes,
+} from "./installed-schema-value.js";
 import { instanceSpans } from "../test-support/schema-graph-spans.js";
 const bytes = (s: string) => new TextEncoder().encode(s);
 function compile(schema: string, limits: EvaluatorLimits = EVALUATOR_CEILINGS) {
@@ -29,6 +34,181 @@ function evaluate(schema: string, input: string) {
   return c.evaluateUtf8(bytes(input));
 }
 describe("private supported static evaluator", () => {
+  it.each(["true", "false"])("counts empty annotation output for %s at two bytes", (schema) => {
+    for (const capacity of [2, 1, 0]) {
+      const c = compile(schema, { ...EVALUATOR_CEILINGS, annotationBytes: capacity });
+      if (c.kind !== "compiled") throw new Error(c.reason);
+      const outcome = c.evaluateUtf8(bytes("null"));
+      expect(outcome).toMatchObject(
+        capacity === 2
+          ? {
+              kind: "evaluated",
+              valid: schema === "true",
+              annotations: [],
+              counters: { annotations: 0, annotationBytes: 2 },
+              diagnosticsComplete: true,
+            }
+          : { kind: "refused", phase: "instance", reason: "limit-annotationBytes" },
+      );
+      if (outcome.kind === "evaluated") {
+        expect(outcome.diagnostics).toHaveLength(schema === "true" ? 0 : 1);
+        expect(outcome.counters.annotationBytes).toBe(
+          Buffer.byteLength(JSON.stringify(outcome.annotations)),
+        );
+      }
+    }
+  });
+
+  it("counts actual escaped annotation JSON bytes without serializing amplified output", () => {
+    const value = {
+      'q"\\': [
+        '\u0000\n\b\t\f\r\\"😀é中\ud800',
+        new JsonNumberLiteral("1e9999"),
+        null,
+        true,
+        false,
+        { x: [] },
+      ],
+    };
+    const encoded = Buffer.byteLength(JSON.stringify(value));
+    for (const delta of [0, -1]) {
+      const b = new EvaluationBudget({ ...EVALUATOR_CEILINGS, annotationBytes: encoded + delta });
+      if (delta) expect(() => chargeAnnotationBytes(value, b)).toThrow("limit-annotationBytes");
+      else {
+        chargeAnnotationBytes(value, b);
+        expect(b.counts.annotationBytes).toBe(encoded);
+      }
+    }
+  });
+  it("charges every annotation occurrence and its exact public representation", () => {
+    const schema = '{"items":{"default":{"v":1.0,"s":"é"}}}',
+      input = "[0,1]";
+    const result = evaluate(schema, input);
+    if (result.kind !== "evaluated") throw new Error(result.reason);
+    expect(result.counters.annotations).toBe(3); // items plus two defaults
+    expect(result.counters.annotationBytes).toBe(
+      Buffer.byteLength(JSON.stringify(result.annotations)),
+    );
+    for (const key of ["annotations", "annotationBytes", "occurrences"] as const) {
+      for (const delta of [0, -1]) {
+        const c = compile(schema, { ...EVALUATOR_CEILINGS, [key]: result.counters[key] + delta });
+        if (c.kind !== "compiled") throw new Error(c.reason);
+        const outcome = c.evaluateUtf8(bytes(input));
+        expect(outcome).toMatchObject(
+          delta
+            ? { kind: "refused", phase: "instance", reason: `limit-${key}` }
+            : { kind: "evaluated", valid: true },
+        );
+      }
+    }
+  });
+  it.each(["true", "false"])("charges projected occurrences before retaining %s facts", (child) => {
+    const schema = `{"$defs":{"s":${child}},"allOf":[{"$ref":"#/$defs/s"},{"$ref":"#/$defs/s"}]}`;
+    const result = evaluate(schema, "null");
+    if (result.kind !== "evaluated") throw new Error(result.reason);
+    expect(result.counters.occurrences).toBe(5);
+    for (const delta of [0, -1]) {
+      const c = compile(schema, { ...EVALUATOR_CEILINGS, occurrences: 5 + delta });
+      if (c.kind !== "compiled") throw new Error(c.reason);
+      expect(c.evaluateUtf8(bytes("null"))).toMatchObject(
+        delta
+          ? { kind: "refused", phase: "instance", reason: "limit-occurrences" }
+          : { kind: "evaluated", valid: child === "true" },
+      );
+    }
+  });
+  it("bounds projection amplification before exhausting general work", () => {
+    const defs: Record<string, unknown> = { a0: { title: "shared" } };
+    for (let i = 1; i <= 10; i++)
+      defs[`a${i}`] = { allOf: [{ $ref: `#/$defs/a${i - 1}` }, { $ref: `#/$defs/a${i - 1}` }] };
+    const c = compile(JSON.stringify({ $defs: defs, $ref: "#/$defs/a10" }), {
+      ...EVALUATOR_CEILINGS,
+      occurrences: 100,
+    });
+    if (c.kind !== "compiled") throw new Error(c.reason);
+    expect(c.evaluateUtf8(bytes("null"))).toMatchObject({
+      kind: "refused",
+      phase: "instance",
+      reason: "limit-occurrences",
+    });
+  });
+  it("exposes annotation-only policy without inventing content validation assertions", () => {
+    const c = compile('{"format":"email","contentEncoding":"base64"}');
+    if (c.kind !== "compiled") throw new Error(c.reason);
+    expect(c.annotationPolicy).toMatchObject({
+      revision: "bounded-annotation-output-2",
+      format: "annotation-only",
+      contentEncoding: "annotation-only-no-decoding",
+      output: "complete-or-refused",
+    });
+    const result = c.evaluateUtf8(bytes('"not email or base64"'));
+    expect(result).toMatchObject({
+      kind: "evaluated",
+      valid: true,
+      annotationPolicy: c.annotationPolicy,
+    });
+    if (result.kind !== "evaluated") throw new Error(result.reason);
+    expect(result.annotations.map((a) => a.keyword)).toEqual(["format", "contentEncoding"]);
+  });
+
+  it("refuses amplified annotation output before exposing a complete result", () => {
+    const c = compile(JSON.stringify({ items: { default: "x".repeat(600_000) } }));
+    if (c.kind !== "compiled") throw new Error(c.reason);
+    expect(c.evaluateUtf8(bytes("[0,1]"))).toMatchObject({
+      kind: "refused",
+      phase: "instance",
+      reason: "limit-annotationBytes",
+    });
+  });
+  it("reports both pre-normalization coefficient width and retained normalized width", () => {
+    const c = compile('{"type":"integer"}');
+    if (c.kind !== "compiled") throw new Error(c.reason);
+    const result = c.evaluateUtf8(bytes("12000"));
+    expect(result).toMatchObject({
+      kind: "evaluated",
+      valid: true,
+      counters: { coefficientDigits: 5, normalizedCoefficientDigits: 2 },
+    });
+    expect(c.evaluateUtf8(bytes(`1${"0".repeat(4096)}`))).toMatchObject({
+      kind: "refused",
+      phase: "instance",
+      reason: "limit-coefficientDigits",
+    });
+    expect(c.evaluateUtf8(bytes("1e4096"))).toMatchObject({ kind: "evaluated", valid: true });
+  });
+  it.each([NaN, Infinity, -1, 0.5, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects invalid bound value %s without corrupting the counter",
+    (n) => {
+      const b = new EvaluationBudget(EVALUATOR_CEILINGS);
+      expect(() => b.bound("work", n)).toThrow("limit-work");
+      expect(b.counts.work).toBe(0);
+      b.charge("work", EVALUATOR_CEILINGS.work);
+      expect(() => b.charge("work")).toThrow("limit-work");
+    },
+  );
+  it.each(["diagnostics", "diagnosticBytes"] as const)(
+    "retains first-diagnostic-fit refusal with zero %s and a valid neighbor",
+    (key) => {
+      for (const schema of ["true", "false"]) {
+        const c = compile(schema, { ...EVALUATOR_CEILINGS, [key]: 0 });
+        if (c.kind !== "compiled") throw new Error(c.reason);
+        expect(c.evaluateUtf8(bytes("null"))).toMatchObject(
+          schema === "true"
+            ? { kind: "evaluated", valid: true, diagnostics: [], diagnosticsComplete: true }
+            : { kind: "refused", phase: "instance", reason: "first-diagnostic-fit" },
+        );
+      }
+    },
+  );
+  it("preserves deterministic graph occurrence order with distinct annotations", () => {
+    const result = evaluate('{"allOf":[{"title":"first"},{"title":"second"}]}', "null");
+    if (result.kind !== "evaluated") throw new Error(result.reason);
+    expect(result.annotations.map((a) => [a.value, a.validationPath])).toEqual([
+      ["second", "/allOf/1/title"],
+      ["first", "/allOf/0/title"],
+    ]);
+  });
+
   it("reserves a memo key and entry before retaining either at the private boundary", () => {
     const tooSmall = new EvaluationMemo(
       new EvaluationBudget({ ...EVALUATOR_CEILINGS, logicalBytes: 5 }),

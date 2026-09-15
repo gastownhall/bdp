@@ -7,8 +7,13 @@ export const EVALUATOR_CEILINGS = Object.freeze({
   states: 1048576,
   frames: 1048576,
   logicalBytes: 16777216,
+  // Leading-zero-stripped coefficient width before trailing-zero normalization.
   coefficientDigits: 4096,
+  normalizedCoefficientDigits: 4096,
   work: 16777216,
+  occurrences: 65536,
+  annotations: 1024,
+  annotationBytes: 1048576,
   diagnostics: 1024,
   diagnosticBytes: 1048576,
 });
@@ -61,7 +66,8 @@ export class EvaluationBudget {
     this.counts[key] += n;
   }
   bound(key: keyof EvaluatorLimits, n: number): void {
-    if (n > this.limits[key]) throw new EvaluationRefusal(`limit-${key}`);
+    if (!Number.isSafeInteger(n) || n < 0 || n > this.limits[key])
+      throw new EvaluationRefusal(`limit-${key}`);
     this.counts[key] = Math.max(this.counts[key], n);
   }
   work = (n = 1): void => this.charge("work", n);
@@ -179,7 +185,8 @@ export function objectValue(v: LosslessJsonValue): v is Record<string, LosslessJ
 }
 export function numberValue(v: JsonNumberLiteral, b: EvaluationBudget): Decimal {
   const result = decimal(v.literal, b.work, b.limits.coefficientDigits);
-  b.bound("coefficientDigits", result.coefficient.length);
+  b.bound("coefficientDigits", result.sourceCoefficientDigits);
+  b.bound("normalizedCoefficientDigits", result.coefficient.length);
   return result;
 }
 export function equalValue(
@@ -235,4 +242,68 @@ export function pointer(nodes: readonly Instance[], id: number, b: EvaluationBud
     current = nodes[current.parent];
   }
   return parts.length ? `/${parts.reverse().join("/")}` : "";
+}
+
+/** Charge the JSON.stringify UTF-8 representation of one owned annotation entry,
+ * without constructing its serialized value. JsonNumberLiteral is intentionally
+ * counted as its actual {literal: string} output object, never as a rounded Number.
+ * The caller charges the outer annotation-array punctuation and entry count.
+ * Each repeated occurrence is charged again, even when schema values are shared.
+ * This bounds default JSON output; arbitrary consumer replacers are not covered. */
+export function chargeAnnotationBytes(value: LosslessJsonValue, b: EvaluationBudget): void {
+  const add = (n: number): void => {
+    b.charge("annotationBytes", n);
+    b.work(n);
+  };
+  const string = (s: string): void => {
+    add(2);
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      if (c === 34 || c === 92 || [8, 9, 10, 12, 13].includes(c)) add(2);
+      else if (c < 32) add(6);
+      else if (c < 128) add(1);
+      else if (c < 2048) add(2);
+      else if (
+        c >= 0xd800 &&
+        c <= 0xdbff &&
+        i + 1 < s.length &&
+        s.charCodeAt(i + 1) >= 0xdc00 &&
+        s.charCodeAt(i + 1) <= 0xdfff
+      ) {
+        add(4);
+        i++;
+      } else if (c >= 0xd800 && c <= 0xdfff) add(6);
+      else add(3);
+    }
+  };
+  const pending: LosslessJsonValue[] = [];
+  const push = (v: LosslessJsonValue): void => {
+    b.charge("logicalBytes", 16);
+    b.bound("frames", pending.length + 1);
+    pending.push(v);
+  };
+  push(value);
+  while (pending.length) {
+    b.work();
+    const v = pending.pop();
+    if (v === undefined) throw new Error("annotation value");
+    if (v === null) add(4);
+    else if (typeof v === "boolean") add(v ? 4 : 5);
+    else if (typeof v === "string") string(v);
+    else if (Array.isArray(v)) {
+      add(2 + Math.max(0, v.length - 1));
+      for (const item of v) push(item);
+    } else {
+      // These are immutable parser/annotation-owned JSON objects, not caller callbacks.
+      const keys = Object.keys(v);
+      b.work(keys.length);
+      b.charge("logicalBytes", 16 * keys.length);
+      add(2 + Math.max(0, keys.length - 1));
+      for (const key of keys) {
+        string(key);
+        add(1);
+        push((v as Record<string, LosslessJsonValue>)[key] as LosslessJsonValue);
+      }
+    }
+  }
 }
