@@ -12,6 +12,7 @@ import { SCHEMA_GRAPH_CEILINGS } from "./installed-schema-shape.js";
 
 const uri = "https://test.example/schema";
 const bytes = (s: string) => new TextEncoder().encode(s);
+const registerNoPattern = () => undefined;
 function admit(schema: string, limits: EvaluatorLimits = EVALUATOR_CEILINGS) {
   return compilePrivateSchemaEvaluator({
     bundle: {
@@ -83,7 +84,7 @@ describe("independent recursion qualification accounting", () => {
     // Logical: containers192 + three records192 + six retained ID slots96.
     const exact = { work: 84, logicalBytes: 480, states: 3, frames: 2 };
     const b = new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact });
-    expect(qualifyStaticRecursion(nodes, 0, children, new Map(), b)).toBe(false);
+    expect(qualifyStaticRecursion(nodes, 0, children, new Map(), b, registerNoPattern)).toBe(false);
     expect(b.counts).toMatchObject(exact);
     for (const key of ["work", "logicalBytes", "states", "frames"] as const)
       expect(() =>
@@ -93,12 +94,20 @@ describe("independent recursion qualification accounting", () => {
           children,
           new Map(),
           new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact, [key]: exact[key] - 1 }),
+          registerNoPattern,
         ),
       ).toThrow(`limit-${key}`);
   });
   it("names a missing scheduled node on malformed internal input", () => {
     expect(() =>
-      qualifyStaticRecursion([], 0, new Map(), new Map(), new EvaluationBudget(EVALUATOR_CEILINGS)),
+      qualifyStaticRecursion(
+        [],
+        0,
+        new Map(),
+        new Map(),
+        new EvaluationBudget(EVALUATOR_CEILINGS),
+        registerNoPattern,
+      ),
     ).toThrow("recursion invariant: missing node");
   });
   it("names an unreachable index mismatch on malformed internal input", () => {
@@ -109,6 +118,7 @@ describe("independent recursion qualification accounting", () => {
         new Map(),
         new Map(),
         new EvaluationBudget(EVALUATOR_CEILINGS),
+        registerNoPattern,
       ),
     ).toThrow("recursion invariant: missing indexed node");
   });
@@ -116,7 +126,9 @@ describe("independent recursion qualification accounting", () => {
     const nodes = Array.from({ length: 1 + unreachable }, (_, i) => node(i));
     const exact = { logicalBytes: 288, states: 1, frames: 1, work: 22 + 4 * unreachable };
     const b = new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact });
-    expect(qualifyStaticRecursion(nodes, 0, new Map(), new Map(), b)).toBe(false);
+    expect(qualifyStaticRecursion(nodes, 0, new Map(), new Map(), b, registerNoPattern)).toBe(
+      false,
+    );
     expect(b.counts).toMatchObject(exact);
     for (const key of ["logicalBytes", "states", "frames", "work"] as const)
       expect(() =>
@@ -126,6 +138,7 @@ describe("independent recursion qualification accounting", () => {
           new Map(),
           new Map(),
           new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact, [key]: exact[key] - 1 }),
+          registerNoPattern,
         ),
       ).toThrow(`limit-${key}`);
   });
@@ -148,7 +161,7 @@ describe("independent recursion qualification accounting", () => {
       ? { work: 121, logicalBytes: 576, states: 4, frames: 2 }
       : { work: 64, logicalBytes: 384, states: 2, frames: 1 };
     const b = new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact });
-    expect(qualifyStaticRecursion(nodes, 0, new Map(), edges, b)).toBe(false);
+    expect(qualifyStaticRecursion(nodes, 0, new Map(), edges, b, registerNoPattern)).toBe(false);
     expect(b.counts).toMatchObject(exact);
     for (const key of ["work", "logicalBytes", "states", "frames"] as const)
       expect(() =>
@@ -158,6 +171,7 @@ describe("independent recursion qualification accounting", () => {
           new Map(),
           edges,
           new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact, [key]: exact[key] - 1 }),
+          registerNoPattern,
         ),
       ).toThrow(`limit-${key}`);
   });
@@ -227,7 +241,7 @@ describe("guarded static recursion", () => {
       admit(JSON.stringify({ $defs: { dynamic: { $dynamicAnchor: "d" } }, allOf: children })),
     ).toMatchObject({ kind: "refused", phase: "compile", reason: "unsupported-dynamic" });
   });
-  it("pins mark-on-scheduling precedence against builtin pattern", () => {
+  it("executes builtin patterns and retains a co-reachable true-dynamic refusal", () => {
     const target = "https://json-schema.org/draft/2020-12/meta/core#/$defs/anchorString";
     expect(
       admit(
@@ -237,9 +251,19 @@ describe("guarded static recursion", () => {
         }),
       ),
     ).toMatchObject({ kind: "refused", phase: "compile", reason: "unsupported-dynamic" });
-    expect(admit(JSON.stringify({ $ref: target }))).toMatchObject({
-      reason: "unsupported-pattern",
-    });
+    expect(admit(JSON.stringify({ $ref: target }))).toMatchObject({ kind: "compiled" });
+    for (const [value, valid] of [
+      ["a", true],
+      ["foo_1", true],
+      ["1foo", false],
+      ["-a", false],
+    ] as const)
+      expect(evaluate(JSON.stringify({ $ref: target }), JSON.stringify(value)).valid).toBe(valid);
+  });
+  it("admits the former recursive pattern fixture with invalid leaves", () => {
+    const schema = '{"properties":{"x":{"$ref":"#"}},"pattern":"x"}';
+    expect(evaluate(schema, '{"x":"x"}').valid).toBe(true);
+    expect(evaluate(schema, '{"x":"y"}').valid).toBe(false);
   });
   it("keeps property-name IDs separate while locations name containing objects", () => {
     const r = evaluate(
@@ -285,7 +309,7 @@ describe("guarded static recursion", () => {
     ).toBe(false);
   });
   it.each([
-    ['{"properties":{"x":{"$ref":"#"}},"pattern":"x"}', "unsupported-pattern"],
+    ['{"properties":{"x":{"$ref":"#"}},"pattern":"(?=x)"}', "unsupported-pattern"],
     [
       '{"properties":{"x":{"$ref":"#"}},"$defs":{"unused":{"patternProperties":{"x":true}}}}',
       "unsupported-patternProperties",
@@ -358,9 +382,9 @@ describe("guarded static recursion", () => {
       valid: true,
     });
   });
-  it("identifies actual compiled/evaluated/refused stage2 outcomes", () => {
+  it("identifies actual compiled/evaluated/refused stage3 outcomes", () => {
     const c = compile("true");
-    expect(c.stage).toBe("private-static-schema-evaluation-2");
+    expect(c.stage).toBe("private-static-schema-evaluation-3");
     expect(c.evaluateUtf8(bytes("null")).stage).toBe(c.stage);
     expect(admit('{"$ref":"#"}').stage).toBe(c.stage);
     expect(c.evaluateUtf8(bytes("{"))).toMatchObject({

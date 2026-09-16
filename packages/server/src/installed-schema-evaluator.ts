@@ -1,6 +1,12 @@
 /** Private guarded static subset, not an installed Type/receiver or full dialect.
  * Compilation and each invocation own independent budgets. No user callback,
  * code generation, schema-pattern RegExp, fetch, registry or production wiring. */
+import {
+  compilePattern,
+  matchPattern,
+  PATTERN_POLICY,
+  type PatternProgram,
+} from "./installed-schema-pattern.js";
 import { qualifyStaticRecursion } from "./installed-schema-recursion.js";
 import { isProxy } from "node:util/types";
 import { JsonNumberLiteral, type LosslessJsonValue } from "@bdp/protocol";
@@ -39,7 +45,7 @@ import {
   chargeAnnotationBytes,
 } from "./installed-schema-value.js";
 export { EVALUATOR_CEILINGS, type EvaluatorLimits } from "./installed-schema-value.js";
-const stage = "private-static-schema-evaluation-2";
+const stage = "private-static-schema-evaluation-3";
 // Private administrative output policy revision; no new BDP validity rule.
 const annotationPolicy = Object.freeze({
   revision: "bounded-annotation-output-2",
@@ -87,6 +93,11 @@ interface Annotation {
   readonly instanceLocation: string;
   readonly validationPath: string;
 }
+/** Pattern scratch alone costs 256 + 64*S logical bytes per actual match.
+ * At the 16,777,216 ceiling, S=2/10/100/765/4096 permits at most
+ * 43690/18724/2520/340/63 completed calls. These are upper bounds only:
+ * other logical allocations and work limits can refuse earlier. This is
+ * cumulative allocation accounting, not peak heap or a success guarantee. */
 export type EvaluationOutcome =
   | {
       readonly kind: "evaluated";
@@ -98,6 +109,9 @@ export type EvaluationOutcome =
       readonly counters: EvaluatorLimits;
       readonly deferred: typeof deferred;
       readonly annotationPolicy: typeof annotationPolicy;
+      // limit-patternUnits/limit-patternStates are fixed policy ceilings, not
+      // caller-settable EvaluatorLimits keys. Scratch is charged cumulatively.
+      readonly patternPolicy: typeof PATTERN_POLICY;
     }
   | {
       readonly kind: "refused";
@@ -111,6 +125,10 @@ export type CompilationOutcome =
       readonly stage: typeof stage;
       readonly deferred: typeof deferred;
       readonly annotationPolicy: typeof annotationPolicy;
+      // Fixed patternUnits/patternStates limits are not EvaluatorLimits keys.
+      // Admission qualifies all supplied declarations, including unused ones;
+      // immutable builtin patterns register only when reached.
+      readonly patternPolicy: typeof PATTERN_POLICY;
       readonly evaluateUtf8: (input: Uint8Array) => EvaluationOutcome;
     }
   | Extract<EvaluationOutcome, { kind: "refused" }>;
@@ -150,7 +168,7 @@ function refusal(
               : "local-failure";
   return Object.freeze({ kind: "refused", stage, phase, reason });
 }
-const excluded = new Set(["pattern", "patternProperties"]);
+const excluded = new Set(["patternProperties"]);
 export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOutcome {
   try {
     const fields = data(input, ["bundle", "graphLimits", "entry", "limits"]);
@@ -189,22 +207,52 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
       list.push(edge);
       refs.set(edge.node, list);
     }
+    // All supplied programs are retained under the compile budget, including
+    // unused declarations. Trusted builtin programs are registered only by R.
+    let programs: Map<number, PatternProgram> | undefined;
+    const registerPattern = (id: number, value: unknown): void => {
+      budget.work(2);
+      if (typeof value !== "string") throw new Error("pattern invariant: certified declaration");
+      if (!programs) {
+        budget.work();
+        budget.charge("logicalBytes", 64);
+        programs = new Map();
+      }
+      budget.work();
+      if (programs.has(id)) return;
+      const program = compilePattern(value, budget);
+      budget.work();
+      budget.charge("logicalBytes", 32);
+      programs.set(id, program);
+    };
     for (const node of graph.nodes) {
       budget.work(9 + node.keywords.length);
       const resource = graph.resources[node.resource];
       // String-semantic qualification includes unused supplied schema declarations.
       if (BUILTIN_SCHEMA_DOCUMENTS.some((builtin) => builtin.uri === resource?.artifact)) continue;
       for (const k of node.keywords)
-        if (k.name === "pattern" || k.name === "patternProperties")
-          throw new EvaluationRefusal(`unsupported-${k.name}`);
+        if (k.name === "patternProperties")
+          throw new EvaluationRefusal("unsupported-patternProperties");
+        else if (k.name === "pattern") {
+          budget.work();
+          registerPattern(node.id, k.value);
+        }
     }
-    const collectLocations = qualifyStaticRecursion(graph.nodes, root, children, refs, budget);
+    const collectLocations = qualifyStaticRecursion(
+      graph.nodes,
+      root,
+      children,
+      refs,
+      budget,
+      registerPattern,
+    );
     const limits = budget.limits;
     return Object.freeze({
       kind: "compiled",
       stage,
       deferred,
       annotationPolicy,
+      patternPolicy: PATTERN_POLICY,
       evaluateUtf8: (bytes: Uint8Array) => {
         try {
           return evaluate(
@@ -215,6 +263,7 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
             bytes,
             new EvaluationBudget(limits),
             collectLocations,
+            programs,
           );
         } catch (error) {
           return refusal(error, "instance");
@@ -252,6 +301,7 @@ function evaluate(
   bytes: Uint8Array,
   b: EvaluationBudget,
   collectLocations: boolean,
+  programs: ReadonlyMap<number, PatternProgram> | undefined,
 ): Extract<EvaluationOutcome, { kind: "evaluated" }> {
   const instances = instanceIndex(bytes, b);
   const memo = new EvaluationMemo<Fact>(b);
@@ -333,7 +383,14 @@ function evaluate(
       b.work();
       const name = k.name,
         x = k.value;
-      if (name === "type") {
+      if (name === "pattern") {
+        if (typeof v === "string") {
+          b.work();
+          const program = programs?.get(nodeId);
+          if (!program) throw new Error("pattern invariant: compiled program");
+          if (!matchPattern(program, v, b)) fail(name);
+        }
+      } else if (name === "type") {
         const types = typeof x === "string" ? [x] : (x as readonly string[]);
         const actual =
           v instanceof JsonNumberLiteral
@@ -863,6 +920,7 @@ function evaluate(
     counters: Object.freeze({ ...b.counts }),
     deferred,
     annotationPolicy,
+    patternPolicy: PATTERN_POLICY,
   });
 }
 const escapePointer = (key: string): string => key.replace(/~/g, "~0").replace(/\//g, "~1");
@@ -886,6 +944,7 @@ function location(
   return value;
 }
 const known = new Set([
+  "pattern",
   "$id",
   "$schema",
   "$ref",

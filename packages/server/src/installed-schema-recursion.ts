@@ -47,6 +47,7 @@ export function qualifyStaticRecursion(
   children: ReadonlyMap<number, readonly ChildEdge[]>,
   refs: ReadonlyMap<number, readonly SchemaReference[]>,
   budget: EvaluationBudget,
+  registerPattern: (node: number, value: unknown) => void,
 ): boolean {
   budget.work();
   budget.charge("logicalBytes", 64);
@@ -125,8 +126,13 @@ export function qualifyStaticRecursion(
     for (let i = 0; i < node.keywords.length; i++) {
       budget.work();
       const keyword = node.keywords[i]?.name;
-      if (keyword === "pattern" || keyword === "patternProperties")
-        throw new EvaluationRefusal(`unsupported-${keyword}`);
+      if (keyword === "patternProperties")
+        throw new EvaluationRefusal("unsupported-patternProperties");
+      if (keyword === "pattern") {
+        if (!registerPattern) throw new Error("pattern invariant: registration owner");
+        budget.work();
+        registerPattern(node.id, node.keywords[i]?.value);
+      }
       if (keyword === "unevaluatedItems" || keyword === "unevaluatedProperties")
         collectLocations = true;
     }

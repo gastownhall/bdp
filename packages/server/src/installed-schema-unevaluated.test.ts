@@ -283,10 +283,18 @@ describe("bounded static unevaluated locations", () => {
     expect(base.annotationPolicy.revision).toBe("bounded-annotation-output-2");
   });
   it.each([
-    ['{"unevaluatedProperties":{"pattern":"x"}}', "unsupported-pattern"],
+    ['{"unevaluatedProperties":{"pattern":"(?=x)"}}', "unsupported-pattern"],
     ['{"unevaluatedItems":{"$dynamicAnchor":"x","$dynamicRef":"#x"}}', "unsupported-dynamic"],
   ])("retains the qualified refusal for %s", (schema, reason) => {
     expect(() => compile(schema)).toThrow(`compile: ${reason}`);
+  });
+  it("executes the former literal-pattern refusal fixture", () => {
+    expect(evaluate('{"unevaluatedProperties":{"pattern":"x"}}', '{"k":"x"}')).toMatchObject({
+      valid: true,
+    });
+    expect(evaluate('{"unevaluatedProperties":{"pattern":"x"}}', '{"k":"y"}')).toMatchObject({
+      valid: false,
+    });
   });
   it("admits recursive unevaluated items with an invalid leaf neighbor", () => {
     const c = compile('{"type":"array","unevaluatedItems":{"$ref":"#"}}');
