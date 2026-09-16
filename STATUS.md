@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current private-contains Read cohort was genuinely generated from
-`6aef4689c3372f58de36564976df16bf1a8be376` and committed with its matching capability constant at
-`aea4e1c849434a7ccbd34f765950546f902b84d4`. Generation ran for 240.05 seconds
+The current private-unevaluated Read cohort was genuinely generated from
+`a0f02b7bd6169e6ff3a56aeffeab58b0379f28e6` and committed with its matching capability constant at
+`64d877557b637919f91436c7e0e04f8f86c09730`. Generation ran for 154.19 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45 and #46 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46 and #48 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -227,15 +227,21 @@ work and normalized retained width remain separate. Static contains/minContains/
 evaluate every array element, compare exact counts and retain ascending matching-index
 annotations, including empty arrays. Failed trials and failed branches do not leak
 annotations or parent diagnostics; generated indexes and success links are charged
-before retention. The corpus accounts for 999
-official-validity comparisons, 859 annotation-policy outcomes, 406 evaluator
-refusals and 58 graph refusals; these are not 2,322 conformance passes. Original
-input/span integrity and actual failed expectations are separately recorded. The latest
-actual 2,322-row receipt confirms exactly 63 new comparisons and seven retained
-unevaluatedItems refusal-reason changes, with no unexpected transitions.
+before retention. Static unevaluatedProperties and unevaluatedItems now inspect
+only locations not covered by successful same-instance evaluations. Immutable
+coverage summaries propagate through static references and applicable branches;
+failed schemas export no coverage. Container, entry, candidate and traversal work
+are charged, including discarded work. Already-invalid parents follow an explicit
+private diagnostic/work convention, not a universal JSON Schema output rule.
+The corpus accounts for 1,162 official-validity comparisons, 859 annotation-policy
+outcomes, 243 evaluator refusals and 58 graph refusals; these are not 2,322
+conformance passes. Original input/span integrity and actual failed expectations
+are separately recorded. The latest actual 2,322-row receipt confirms exactly
+163 new comparisons and 13 retained-refusal reason changes, with no unexpected
+transitions; all 1,858 previously evaluated counter maps remain unchanged.
 Source findings and native/Claude/Gemini correction reviews are dispositioned,
 with incomplete external corpus/receipt coverage stated in their reports.
-Dynamic/recursive evaluation, unevaluated/regex support, full installation
+Dynamic/recursive evaluation, regex support, full installation
 and production engine/receiver qualification remain open. Format and contentEncoding
 retain their stated annotation policy; no held HTTP Content-Encoding ruling is
 inferred. This module exports no installed receiver or served write capability.
@@ -286,8 +292,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The final test-followup head passed 7,001 tests
-in 97 files with zero skips; all source,
+reviewed foundation source. The committed evidence successor passed 7,062 tests
+in 98 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.

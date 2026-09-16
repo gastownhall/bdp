@@ -157,9 +157,9 @@ it("pins an exact private evaluator disposition for every original case", () => 
   for (const expected of expectedByCase.values())
     counts[expected.disposition] = (counts[expected.disposition] ?? 0) + 1;
   expect(counts).toEqual({
-    "official-validity-compared": 999,
+    "official-validity-compared": 1162,
     "annotation-policy-outcome": 859,
-    "explicit-private-refusal": 406,
+    "explicit-private-refusal": 243,
     "retained-graph-refusal": 58,
   });
 });
@@ -218,7 +218,6 @@ it("oracle accepts its expected refusal and rejects changed phase, reason or out
       deferred: [
         "full-vocabulary",
         "dynamic",
-        "unevaluated",
         "regex",
         "mime",
         "production-work-and-heap",
