@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current guarded-recursion successor Read cohort was genuinely generated from
-`48573f049c99492ea40125331953e41ea71c0cb1` and committed with its matching capability constant at
-`60fb24f30c33129b1097c45e23dc7f2da4b54265`. Generation ran for 153.80 seconds
+The current bounded-pattern successor Read cohort was genuinely generated from
+`2474f6ec5288dbc9af0e4cb8153a8f2c767eb438` and committed with its matching capability constant at
+`7349cac6cc13f5e7852e328784e96411719e8fee`. Generation ran for 153.76 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49 and #50 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49, #50 and #51 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -247,23 +247,36 @@ reachable evaluation graph, then proves that retained non-descending edges form
 a DAG. Same-instance and propertyNames cycles remain conservatively refused;
 unreferenced reserved definitions do not create evaluation edges. Qualification
 uses bounded iterative work, logical storage, states and frames; the existing
-runtime and output-budget policy remain unchanged. Private evaluation stage2
+runtime and output-budget policy remain unchanged. Private evaluation stage3
 records this expanded subset, independently of graph/output/content policies.
-The corpus accounts for 1,193 official-validity comparisons, 859 annotation-policy
-outcomes, 212 evaluator refusals and 58 graph refusals; these are not 2,322
+Bounded pattern assertions now use a Unicode-aware, case-sensitive, unanchored
+regular subset with explicit parser/compiler stacks and a finite-state matcher.
+The private policy bounded-ecma2020-regular-subset-1 fixes 4,096 UTF-16 source
+units and 4,096 compiled instructions; these are profile limits, not caller limit
+keys. Every supplied declaration is qualified, including unused declarations;
+trusted builtin patterns are registered only when reached. Each matcher invocation
+charges cumulative logical scratch of 256 + 64 times its instruction count,
+including misses. Other work and allocation limits may refuse earlier; this is
+not a peak-heap guarantee. No native backtracking engine is invoked.
+The corpus accounts for 1,262 official-validity comparisons, 859 annotation-policy
+outcomes, 143 evaluator refusals and 58 graph refusals; these are not 2,322
 conformance passes. Original input/span integrity and actual failed expectations
 are separately recorded. The latest actual 2,322-row receipt confirms exactly
-16 new comparisons, with 2,306 complete rows and all 2,036 previously evaluated
-counter maps unchanged. Forty-five focused recursion controls include literal
-helper accounting, exact compile-work boundaries, malformed internal inputs,
-productive child cycles, conservative refusals and runtime output limits.
+69 new comparisons and four reason-only changes, with 2,249 other complete rows
+and all 2,052 previously evaluated counter maps unchanged. All 2,322 rows are
+also unchanged by the final tests/type/comments correction. The 183 pattern
+controls include independent character tables, exact and one-below budgets,
+Unicode boundary cases, hostile-pattern accounting, and a source-derived
+32-call address-pattern scratch/work control. All 482 focused controls pass.
 Source council findings are dispositioned: native review approves, the scoped
-Gemini approval retains its read limits, and Claude's conditional review is
-closed by four targeted test additions and explicit coverage qualifications.
-Original verdicts and post-red test limitations remain preserved in the evidence.
-True dynamic-reference evaluation, regex support, full installation and production
-engine/receiver qualification remain open. Format retains its annotation policy;
-no held HTTP Content-Encoding ruling is inferred.
+external approval retains its read limits, and the conditional external review
+is closed by independent review of targeted tests, required internal registration
+and explicit allocation/coverage qualifications. Original verdicts and prior
+failed expectations remain preserved in the evidence.
+PatternProperties, Unicode property escapes, true dynamic-reference evaluation,
+full installation and production engine/receiver qualification remain open.
+Format retains its annotation policy; no held HTTP Content-Encoding ruling is
+inferred.
 This module exports no installed receiver or served write capability.
 Resource validation now prepares complete installed endpoint prerequisites before
 value diagnostics, applies effective properties before endpoint constraints, and
@@ -312,8 +325,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The committed evidence successor passed 7,148 tests
-in 100 files with zero skips; all source,
+reviewed foundation source. The committed evidence successor passed 7,335 tests
+in 101 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.
