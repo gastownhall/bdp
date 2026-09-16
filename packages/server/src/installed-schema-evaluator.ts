@@ -1,6 +1,7 @@
-/** Private static acyclic subset, not an installed Type/receiver or full dialect.
+/** Private guarded static subset, not an installed Type/receiver or full dialect.
  * Compilation and each invocation own independent budgets. No user callback,
  * code generation, schema-pattern RegExp, fetch, registry or production wiring. */
+import { qualifyStaticRecursion } from "./installed-schema-recursion.js";
 import { isProxy } from "node:util/types";
 import { JsonNumberLiteral, type LosslessJsonValue } from "@bdp/protocol";
 import {
@@ -38,7 +39,7 @@ import {
   chargeAnnotationBytes,
 } from "./installed-schema-value.js";
 export { EVALUATOR_CEILINGS, type EvaluatorLimits } from "./installed-schema-value.js";
-const stage = "private-static-schema-evaluation-1";
+const stage = "private-static-schema-evaluation-2";
 // Private administrative output policy revision; no new BDP validity rule.
 const annotationPolicy = Object.freeze({
   revision: "bounded-annotation-output-2",
@@ -150,7 +151,6 @@ function refusal(
   return Object.freeze({ kind: "refused", stage, phase, reason });
 }
 const excluded = new Set(["pattern", "patternProperties"]);
-const reserved = new Set(["$defs", "definitions", "contentSchema"]);
 export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOutcome {
   try {
     const fields = data(input, ["bundle", "graphLimits", "entry", "limits"]);
@@ -198,48 +198,7 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
         if (k.name === "pattern" || k.name === "patternProperties")
           throw new EvaluationRefusal(`unsupported-${k.name}`);
     }
-    const colors = new Map<number, number>();
-    let collectLocations = false;
-    budget.bound("frames", 1);
-    const pending: { id: number; exit: boolean }[] = [{ id: root, exit: false }];
-    while (pending.length) {
-      budget.bound("frames", pending.length);
-      const frame = pending.pop();
-      if (!frame) throw new Error("compile frame");
-      budget.work();
-      if (frame.exit) {
-        colors.set(frame.id, 2);
-        continue;
-      }
-      const color = colors.get(frame.id);
-      if (color === 1) throw new EvaluationRefusal("nonqualified-cycle");
-      if (color === 2) continue;
-      const node = graph.nodes[frame.id];
-      if (!node) throw new Error("compile node");
-      budget.charge("states");
-      budget.charge("logicalBytes", 64);
-      colors.set(frame.id, 1);
-      budget.bound("frames", pending.length + 1);
-      pending.push({ id: frame.id, exit: true });
-      // Use the reachable DFS, never the all-node string-semantic preflight.
-      // Bare then/else remain conservatively reachable here, though run ignores
-      // them without if. Reserved unreferenced definitions do not enable coverage.
-      for (const k of node.keywords) {
-        if (excluded.has(k.name)) throw new EvaluationRefusal(`unsupported-${k.name}`);
-        if (k.name === "unevaluatedItems" || k.name === "unevaluatedProperties")
-          collectLocations = true;
-      }
-      for (const edge of refs.get(frame.id) ?? []) {
-        if (edge.kind === "dynamic-anchor") throw new EvaluationRefusal("unsupported-dynamic");
-        budget.bound("frames", pending.length + 1);
-        pending.push({ id: edge.target, exit: false });
-      }
-      for (const edge of children.get(frame.id) ?? [])
-        if (!reserved.has(edge.keyword)) {
-          budget.bound("frames", pending.length + 1);
-          pending.push({ id: edge.target, exit: false });
-        }
-    }
+    const collectLocations = qualifyStaticRecursion(graph.nodes, root, children, refs, budget);
     const limits = budget.limits;
     return Object.freeze({
       kind: "compiled",

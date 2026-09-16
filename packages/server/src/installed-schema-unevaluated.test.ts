@@ -285,9 +285,13 @@ describe("bounded static unevaluated locations", () => {
   it.each([
     ['{"unevaluatedProperties":{"pattern":"x"}}', "unsupported-pattern"],
     ['{"unevaluatedItems":{"$dynamicAnchor":"x","$dynamicRef":"#x"}}', "unsupported-dynamic"],
-    ['{"unevaluatedItems":{"$ref":"#"}}', "nonqualified-cycle"],
   ])("retains the qualified refusal for %s", (schema, reason) => {
     expect(() => compile(schema)).toThrow(`compile: ${reason}`);
+  });
+  it("admits recursive unevaluated items with an invalid leaf neighbor", () => {
+    const c = compile('{"type":"array","unevaluatedItems":{"$ref":"#"}}');
+    expect(c.evaluateUtf8(bytes("[[[]]]"))).toMatchObject({ kind: "evaluated", valid: true });
+    expect(c.evaluateUtf8(bytes("[[1]]"))).toMatchObject({ kind: "evaluated", valid: false });
   });
   it.each([
     ['{"unevaluatedItems":{"minimum":0}}', "[-1,123]", "[-1,12]"],

@@ -532,9 +532,7 @@
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 10,
       "cases": [0],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "nonqualified-cycle"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
@@ -2080,9 +2078,7 @@
       "file": "tests/draft2020-12/ref.json",
       "group": 0,
       "cases": [0, 1, 2, 3],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "nonqualified-cycle"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/ref.json",
@@ -2150,9 +2146,7 @@
       "file": "tests/draft2020-12/ref.json",
       "group": 11,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "nonqualified-cycle"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/ref.json",
@@ -2212,9 +2206,7 @@
       "file": "tests/draft2020-12/ref.json",
       "group": 21,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "nonqualified-cycle"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/ref.json",
@@ -2870,9 +2862,7 @@
       "file": "tests/draft2020-12/unevaluatedProperties.json",
       "group": 33,
       "cases": [0, 1, 2, 3, 4, 5, 6],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "nonqualified-cycle"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/unevaluatedProperties.json",
