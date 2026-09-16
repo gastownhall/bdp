@@ -406,8 +406,15 @@ describe("private supported static evaluator", () => {
     '{"unevaluatedProperties":{"pattern":"x"}}',
     '{"$dynamicAnchor":"x","$dynamicRef":"#x"}',
     '{"$ref":"#"}',
-    '{"$defs":{"x":{"items":{"$ref":"#/$defs/x"}}},"$ref":"#/$defs/x"}',
   ])("refuses before evaluation %s", (schema) => expect(compile(schema).kind).toBe("refused"));
+  it("admits guarded recursive items with an invalid leaf neighbor", () => {
+    const c = compile(
+      '{"$defs":{"x":{"type":"array","items":{"$ref":"#/$defs/x"}}},"$ref":"#/$defs/x"}',
+    );
+    if (c.kind !== "compiled") throw new Error(c.reason);
+    expect(c.evaluateUtf8(bytes("[[[]]]"))).toMatchObject({ kind: "evaluated", valid: true });
+    expect(c.evaluateUtf8(bytes("[[1]]"))).toMatchObject({ kind: "evaluated", valid: false });
+  });
   it.each(['{"contentMediaType":1}', '{"contentMediaType":{}}'])(
     "retains the precise graph shape refusal for %s",
     (schema) =>
