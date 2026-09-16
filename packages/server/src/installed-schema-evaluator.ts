@@ -44,6 +44,9 @@ const annotationPolicy = Object.freeze({
   revision: "bounded-annotation-output-2",
   format: "annotation-only",
   contentEncoding: "annotation-only-no-decoding",
+  contentRevision: "annotation-only-content-1",
+  contentMediaType: "annotation-only-no-media-type-parsing",
+  contentSchema: "annotation-only-with-adjacent-media-type-no-validation",
   output: "complete-or-refused",
   encodedBytes: "JSON.stringify-UTF8-lossless-number-objects",
   order: "graph-edge-occurrence-order",
@@ -54,6 +57,7 @@ const deferred = Object.freeze([
   "full-vocabulary",
   "dynamic",
   "regex",
+  // Media/content processing remains deferred; declared annotation values are retained.
   "mime",
   "production-work-and-heap",
   "root-openness",
@@ -145,7 +149,7 @@ function refusal(
               : "local-failure";
   return Object.freeze({ kind: "refused", stage, phase, reason });
 }
-const excluded = new Set(["pattern", "patternProperties", "contentMediaType"]);
+const excluded = new Set(["pattern", "patternProperties"]);
 const reserved = new Set(["$defs", "definitions", "contentSchema"]);
 export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOutcome {
   try {
@@ -191,7 +195,7 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
       // String-semantic qualification includes unused supplied schema declarations.
       if (BUILTIN_SCHEMA_DOCUMENTS.some((builtin) => builtin.uri === resource?.artifact)) continue;
       for (const k of node.keywords)
-        if (k.name === "pattern" || k.name === "patternProperties" || k.name === "contentMediaType")
+        if (k.name === "pattern" || k.name === "patternProperties")
           throw new EvaluationRefusal(`unsupported-${k.name}`);
     }
     const colors = new Map<number, number>();
@@ -762,7 +766,13 @@ function evaluate(
         ].includes(k.name)
       )
         annotate(k.name, k.value);
-      else if (k.name === "contentEncoding" && typeof v === "string") annotate(k.name, k.value);
+      else if (
+        typeof v === "string" &&
+        (k.name === "contentEncoding" ||
+          k.name === "contentMediaType" ||
+          (k.name === "contentSchema" && typeof obj.contentMediaType === "string"))
+      )
+        annotate(k.name, k.value);
       else if (!knownKeyword(k.name)) annotate(k.name, k.value);
     }
     if (fact.valid) fact.locations?.seal();
