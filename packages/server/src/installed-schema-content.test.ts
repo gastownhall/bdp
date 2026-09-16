@@ -179,7 +179,10 @@ describe("private Content annotations without media processing", () => {
       '{"contentMediaType":"text/plain","contentSchema":{"$ref":"https://missing.test/"}}',
       "graph:missing-resource",
     ],
-    ['{"contentMediaType":"text/plain","contentSchema":{"pattern":"x"}}', "unsupported-pattern"],
+    [
+      '{"contentMediaType":"text/plain","contentSchema":{"pattern":"(?=x)"}}',
+      "unsupported-pattern",
+    ],
     [
       '{"contentMediaType":"text/plain","$defs":{"unused":{"patternProperties":{"x":true}}}}',
       "unsupported-patternProperties",
@@ -207,6 +210,13 @@ describe("private Content annotations without media processing", () => {
     expect(evaluate('{"$defs":{"unused":{"contentMediaType":"text/plain"}}}')).toMatchObject({
       valid: true,
       annotations: [],
+    });
+  });
+  it("qualifies a supported reserved pattern without executing content", () => {
+    const r = evaluate('{"contentMediaType":"text/plain","contentSchema":{"pattern":"x"}}', '"y"');
+    expect(r.valid).toBe(true);
+    expect(r.annotations.find((a) => a.keyword === "contentSchema")?.value).toEqual({
+      pattern: "x",
     });
   });
   it("does not discover content-schema declarations inside unknown opaque annotation data", () => {

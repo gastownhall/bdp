@@ -402,11 +402,27 @@ describe("private supported static evaluator", () => {
     expect(r.diagnostics[0]?.instanceLocation).toBe("/a~1~0");
   });
   it.each([
-    '{"pattern":"(a+)+$"}',
-    '{"unevaluatedProperties":{"pattern":"x"}}',
+    '{"pattern":"(?=x)"}',
+    '{"unevaluatedProperties":{"pattern":"(?=x)"}}',
     '{"$dynamicAnchor":"x","$dynamicRef":"#x"}',
     '{"$ref":"#"}',
   ])("refuses before evaluation %s", (schema) => expect(compile(schema).kind).toBe("refused"));
+  it("preserves former pattern refusal fixtures as executed assertions", () => {
+    for (const [input, valid] of [
+      ["a".repeat(128), true],
+      [`${"a".repeat(128)}b`, false],
+    ] as const)
+      expect(evaluate('{"pattern":"(a+)+$"}', JSON.stringify(input))).toMatchObject({
+        kind: "evaluated",
+        valid,
+      });
+    expect(evaluate('{"unevaluatedProperties":{"pattern":"x"}}', '{"k":"x"}')).toMatchObject({
+      valid: true,
+    });
+    expect(evaluate('{"unevaluatedProperties":{"pattern":"x"}}', '{"k":"y"}')).toMatchObject({
+      valid: false,
+    });
+  });
   it("admits guarded recursive items with an invalid leaf neighbor", () => {
     const c = compile(
       '{"$defs":{"x":{"type":"array","items":{"$ref":"#/$defs/x"}}},"$ref":"#/$defs/x"}',
@@ -424,11 +440,12 @@ describe("private supported static evaluator", () => {
         reason: "graph:keyword-shape",
       }),
   );
-  it("admits static dynamicRef and rejects unused pattern declarations", () => {
+  it("admits static dynamicRef and qualifies every unused pattern declaration", () => {
     expect(
       evaluate('{"$defs":{"x":{"$anchor":"x","type":"integer"}},"$dynamicRef":"#x"}', "1"),
     ).toMatchObject({ kind: "evaluated", valid: true });
-    expect(compile('{"$defs":{"x":{"pattern":"x"}}}')).toMatchObject({
+    expect(compile('{"$defs":{"x":{"pattern":"x"}}}')).toMatchObject({ kind: "compiled" });
+    expect(compile('{"$defs":{"x":{"pattern":"(?=x)"}}}')).toMatchObject({
       kind: "refused",
       phase: "compile",
       reason: "unsupported-pattern",

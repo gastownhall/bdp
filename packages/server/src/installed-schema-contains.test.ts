@@ -123,8 +123,16 @@ describe("bounded static contains", () => {
     }
   });
   it("keeps unsupported contains children refused beside a supported neighbor", () => {
-    expect(() => compile('{"contains":{"pattern":"x"}}')).toThrow("unsupported-pattern");
-    expect(() => compile('{"contains":{"unevaluatedItems":{"pattern":"x"}}}')).toThrow(
+    expect(evaluate('{"contains":{"pattern":"x"}}', '["x"]')).toMatchObject({ valid: true });
+    expect(evaluate('{"contains":{"pattern":"x"}}', '["y"]')).toMatchObject({ valid: false });
+    expect(evaluate('{"contains":{"unevaluatedItems":{"pattern":"x"}}}', '[["x"]]')).toMatchObject({
+      valid: true,
+    });
+    expect(evaluate('{"contains":{"unevaluatedItems":{"pattern":"x"}}}', '[["y"]]')).toMatchObject({
+      valid: false,
+    });
+    expect(() => compile('{"contains":{"pattern":"(?=x)"}}')).toThrow("unsupported-pattern");
+    expect(() => compile('{"contains":{"unevaluatedItems":{"pattern":"(?=x)"}}}')).toThrow(
       "unsupported-pattern",
     );
     expect(evaluate('{"contains":{"const":"x"}}', '["x"]')).toMatchObject({ valid: true });
