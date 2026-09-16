@@ -184,8 +184,8 @@ describe("private Content annotations without media processing", () => {
       "unsupported-pattern",
     ],
     [
-      '{"contentMediaType":"text/plain","$defs":{"unused":{"patternProperties":{"x":true}}}}',
-      "unsupported-patternProperties",
+      '{"contentMediaType":"text/plain","$defs":{"unused":{"patternProperties":{"(?=x)":true}}}}',
+      "unsupported-pattern",
     ],
     [
       '{"contentMediaType":"text/plain","contentSchema":{"$ref":"#/contentSchema"},"$ref":"#/contentSchema"}',

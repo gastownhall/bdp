@@ -65,17 +65,18 @@ describe("bounded Unicode pattern assertion", () => {
   it("admits unused supplied supported patterns without executing them", () => {
     expect(evaluate({ $defs: { unused: { pattern: "^x$" } } }, "y").valid).toBe(true);
   });
-  it("retains unsupported declarations and the protected patternProperties boundary", () => {
+  it("retains unsupported declarations and the unsupported pattern-key boundary", () => {
     for (const schema of [{ pattern: "\\p{Letter}" }, { $defs: { unused: { pattern: "(?=x)" } } }])
       expect(compile(schema)).toMatchObject({
         kind: "refused",
         phase: "compile",
         reason: "unsupported-pattern",
       });
-    expect(compile({ patternProperties: {} })).toMatchObject({
+    expect(compile({ patternProperties: { "(?=x)": true } })).toMatchObject({
       kind: "refused",
-      reason: "unsupported-patternProperties",
+      reason: "unsupported-pattern",
     });
+    expect(compile({ patternProperties: {} }).kind).toBe("compiled");
   });
 });
 
@@ -411,7 +412,7 @@ describe("complete bounded profile controls", () => {
       const r = evaluate({ pattern: "x" }, input);
       expect(r.annotations).toEqual([]);
       expect(r.counters.annotationBytes).toBe(2);
-      expect(r.stage).toBe("private-static-schema-evaluation-3");
+      expect(r.stage).toBe("private-static-schema-evaluation-4");
       expect(r.patternPolicy).toBe("bounded-ecma2020-regular-subset-1");
       expect(Object.hasOwn(EVALUATOR_CEILINGS, "patternUnits")).toBe(false);
       expect(Object.hasOwn(EVALUATOR_CEILINGS, "patternStates")).toBe(false);

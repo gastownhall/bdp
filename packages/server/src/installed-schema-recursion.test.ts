@@ -65,6 +65,36 @@ function ref(
     anchor: "x",
   };
 }
+it("passes the actual owner ID and declaration identity to the required PP registrar", () => {
+  const declaration = Object.freeze({});
+  const owner: SchemaNode = {
+    ...node(2),
+    value: { title: "owner", patternProperties: declaration },
+    keywords: [
+      { name: "title", value: "owner", pointer: 2 },
+      { name: "patternProperties", value: declaration, pointer: 3 },
+    ],
+  };
+  const seen: [number, unknown][] = [];
+  expect(
+    qualifyStaticRecursion(
+      [node(0), node(1), owner],
+      2,
+      new Map(),
+      new Map(),
+      new EvaluationBudget(EVALUATOR_CEILINGS),
+      registerNoPattern,
+      (id, value) => {
+        seen.push([id, value]);
+      },
+    ),
+  ).toBe(false);
+  // Node2 differs from PP keyword index1: passing i instead of node.id fails.
+  expect(seen).toHaveLength(1);
+  expect(seen[0]?.[0]).toBe(2);
+  expect(seen[0]?.[1]).toBe(declaration);
+});
+
 describe("independent recursion qualification accounting", () => {
   it("charges reserved, descending and retained child edges independently", () => {
     // Isolated graph-cost fixture: no keyword inspection costs. End-to-end
@@ -84,7 +114,17 @@ describe("independent recursion qualification accounting", () => {
     // Logical: containers192 + three records192 + six retained ID slots96.
     const exact = { work: 84, logicalBytes: 480, states: 3, frames: 2 };
     const b = new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact });
-    expect(qualifyStaticRecursion(nodes, 0, children, new Map(), b, registerNoPattern)).toBe(false);
+    expect(
+      qualifyStaticRecursion(
+        nodes,
+        0,
+        children,
+        new Map(),
+        b,
+        registerNoPattern,
+        registerNoPattern,
+      ),
+    ).toBe(false);
     expect(b.counts).toMatchObject(exact);
     for (const key of ["work", "logicalBytes", "states", "frames"] as const)
       expect(() =>
@@ -94,6 +134,7 @@ describe("independent recursion qualification accounting", () => {
           children,
           new Map(),
           new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact, [key]: exact[key] - 1 }),
+          registerNoPattern,
           registerNoPattern,
         ),
       ).toThrow(`limit-${key}`);
@@ -107,6 +148,7 @@ describe("independent recursion qualification accounting", () => {
         new Map(),
         new EvaluationBudget(EVALUATOR_CEILINGS),
         registerNoPattern,
+        registerNoPattern,
       ),
     ).toThrow("recursion invariant: missing node");
   });
@@ -119,6 +161,7 @@ describe("independent recursion qualification accounting", () => {
         new Map(),
         new EvaluationBudget(EVALUATOR_CEILINGS),
         registerNoPattern,
+        registerNoPattern,
       ),
     ).toThrow("recursion invariant: missing indexed node");
   });
@@ -126,9 +169,17 @@ describe("independent recursion qualification accounting", () => {
     const nodes = Array.from({ length: 1 + unreachable }, (_, i) => node(i));
     const exact = { logicalBytes: 288, states: 1, frames: 1, work: 22 + 4 * unreachable };
     const b = new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact });
-    expect(qualifyStaticRecursion(nodes, 0, new Map(), new Map(), b, registerNoPattern)).toBe(
-      false,
-    );
+    expect(
+      qualifyStaticRecursion(
+        nodes,
+        0,
+        new Map(),
+        new Map(),
+        b,
+        registerNoPattern,
+        registerNoPattern,
+      ),
+    ).toBe(false);
     expect(b.counts).toMatchObject(exact);
     for (const key of ["logicalBytes", "states", "frames", "work"] as const)
       expect(() =>
@@ -138,6 +189,7 @@ describe("independent recursion qualification accounting", () => {
           new Map(),
           new Map(),
           new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact, [key]: exact[key] - 1 }),
+          registerNoPattern,
           registerNoPattern,
         ),
       ).toThrow(`limit-${key}`);
@@ -161,7 +213,9 @@ describe("independent recursion qualification accounting", () => {
       ? { work: 121, logicalBytes: 576, states: 4, frames: 2 }
       : { work: 64, logicalBytes: 384, states: 2, frames: 1 };
     const b = new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact });
-    expect(qualifyStaticRecursion(nodes, 0, new Map(), edges, b, registerNoPattern)).toBe(false);
+    expect(
+      qualifyStaticRecursion(nodes, 0, new Map(), edges, b, registerNoPattern, registerNoPattern),
+    ).toBe(false);
     expect(b.counts).toMatchObject(exact);
     for (const key of ["work", "logicalBytes", "states", "frames"] as const)
       expect(() =>
@@ -171,6 +225,7 @@ describe("independent recursion qualification accounting", () => {
           new Map(),
           edges,
           new EvaluationBudget({ ...EVALUATOR_CEILINGS, ...exact, [key]: exact[key] - 1 }),
+          registerNoPattern,
           registerNoPattern,
         ),
       ).toThrow(`limit-${key}`);
@@ -311,8 +366,8 @@ describe("guarded static recursion", () => {
   it.each([
     ['{"properties":{"x":{"$ref":"#"}},"pattern":"(?=x)"}', "unsupported-pattern"],
     [
-      '{"properties":{"x":{"$ref":"#"}},"$defs":{"unused":{"patternProperties":{"x":true}}}}',
-      "unsupported-patternProperties",
+      '{"properties":{"x":{"$ref":"#"}},"$defs":{"unused":{"patternProperties":{"(?=x)":true}}}}',
+      "unsupported-pattern",
     ],
     ['{"properties":{"x":{"$ref":"https://missing.test/"}}}', "graph:missing-resource"],
     ['{"items":12}', "graph:schema-shape"],
@@ -382,9 +437,9 @@ describe("guarded static recursion", () => {
       valid: true,
     });
   });
-  it("identifies actual compiled/evaluated/refused stage3 outcomes", () => {
+  it("identifies actual compiled/evaluated/refused stage4 outcomes", () => {
     const c = compile("true");
-    expect(c.stage).toBe("private-static-schema-evaluation-3");
+    expect(c.stage).toBe("private-static-schema-evaluation-4");
     expect(c.evaluateUtf8(bytes("null")).stage).toBe(c.stage);
     expect(admit('{"$ref":"#"}').stage).toBe(c.stage);
     expect(c.evaluateUtf8(bytes("{"))).toMatchObject({

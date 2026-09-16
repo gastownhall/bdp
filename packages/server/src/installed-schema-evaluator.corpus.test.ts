@@ -157,9 +157,9 @@ it("pins an exact private evaluator disposition for every original case", () => 
   for (const expected of expectedByCase.values())
     counts[expected.disposition] = (counts[expected.disposition] ?? 0) + 1;
   expect(counts).toEqual({
-    "official-validity-compared": 1262,
+    "official-validity-compared": 1345,
     "annotation-policy-outcome": 859,
-    "explicit-private-refusal": 143,
+    "explicit-private-refusal": 60,
     "retained-graph-refusal": 58,
   });
 });
@@ -172,7 +172,7 @@ it.each(["official-validity-compared", "annotation-policy-outcome"] as const)(
       expect(() =>
         assertExpectedOutcome(expected, {
           kind: "refused",
-          stage: "private-static-schema-evaluation-3",
+          stage: "private-static-schema-evaluation-4",
           phase: "instance",
           reason,
         }),
@@ -186,7 +186,7 @@ it("oracle accepts its expected refusal and rejects changed phase, reason or out
   if (!expected || !("reason" in expected)) throw new Error("missing refused oracle control");
   const refusal = {
     kind: "refused" as const,
-    stage: "private-static-schema-evaluation-3" as const,
+    stage: "private-static-schema-evaluation-4" as const,
     phase: expected.phase,
     reason: expected.reason,
   };
@@ -202,7 +202,7 @@ it("oracle accepts its expected refusal and rejects changed phase, reason or out
     assertExpectedOutcome(expected, {
       kind: "evaluated",
       patternPolicy: "bounded-ecma2020-regular-subset-1",
-      stage: "private-static-schema-evaluation-3",
+      stage: "private-static-schema-evaluation-4",
       valid: true,
       diagnostics: [],
       diagnosticsComplete: true,

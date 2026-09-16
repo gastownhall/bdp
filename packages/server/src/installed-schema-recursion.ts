@@ -8,9 +8,9 @@ import { type EvaluationBudget, EvaluationRefusal } from "./installed-schema-val
 type ChildEdge = SchemaGraphCandidate["children"][number];
 type Edge = ChildEdge | SchemaReference;
 
-/** Only these seven calls select strict JSON children. propertyNames creates a
- * terminal synthetic string but is conservatively retained; relation tags are
- * insufficient (patternProperties has no qualified runtime implementation). */
+/** Only these eight calls select strict JSON children. propertyNames creates a
+ * terminal synthetic string but is conservatively retained. Explicit runtime
+ * child selection, rather than relation tags alone, justifies descent. */
 function classify(edge: Edge): "reserved" | "descent" | "retained" {
   switch (edge.keyword) {
     case "$defs":
@@ -18,6 +18,7 @@ function classify(edge: Edge): "reserved" | "descent" | "retained" {
     case "contentSchema":
       return "reserved";
     case "properties":
+    case "patternProperties":
     case "additionalProperties":
     case "prefixItems":
     case "items":
@@ -48,6 +49,7 @@ export function qualifyStaticRecursion(
   refs: ReadonlyMap<number, readonly SchemaReference[]>,
   budget: EvaluationBudget,
   registerPattern: (node: number, value: unknown) => void,
+  registerPatternProperties: (node: number, value: unknown) => void,
 ): boolean {
   budget.work();
   budget.charge("logicalBytes", 64);
@@ -126,8 +128,12 @@ export function qualifyStaticRecursion(
     for (let i = 0; i < node.keywords.length; i++) {
       budget.work();
       const keyword = node.keywords[i]?.name;
-      if (keyword === "patternProperties")
-        throw new EvaluationRefusal("unsupported-patternProperties");
+      if (keyword === "patternProperties") {
+        if (!registerPatternProperties)
+          throw new Error("patternProperties invariant: registration owner");
+        budget.work();
+        registerPatternProperties(node.id, node.keywords[i]?.value);
+      }
       if (keyword === "pattern") {
         if (!registerPattern) throw new Error("pattern invariant: registration owner");
         budget.work();

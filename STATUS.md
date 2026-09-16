@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current bounded-pattern successor Read cohort was genuinely generated from
-`2474f6ec5288dbc9af0e4cb8153a8f2c767eb438` and committed with its matching capability constant at
-`7349cac6cc13f5e7852e328784e96411719e8fee`. Generation ran for 153.76 seconds
+The current patternProperties successor Read cohort was genuinely generated from
+`e2284990cd9a2223c36a60396f7b4f69cd159f3a` and committed with its matching capability constant at
+`d748b7059a5ebe0fa7998b0f29de0537262b0d1d`. Generation ran for 154.13 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49, #50 and #51 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49, #50, #51 and #52 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -241,13 +241,13 @@ Embedded content is never decoded or validated. The existing graph still indexes
 contentSchema and preserves reference/refusal closure. Private content policy
 annotation-only-content-1 is separate from the unchanged output policy revision.
 Static recursion is admitted when every cycle descends through a finite JSON
-child: properties, additionalProperties, prefixItems, items, contains,
+child: properties, patternProperties, additionalProperties, prefixItems, items, contains,
 unevaluatedProperties or unevaluatedItems. The qualifier first discovers the
 reachable evaluation graph, then proves that retained non-descending edges form
 a DAG. Same-instance and propertyNames cycles remain conservatively refused;
 unreferenced reserved definitions do not create evaluation edges. Qualification
 uses bounded iterative work, logical storage, states and frames; the existing
-runtime and output-budget policy remain unchanged. Private evaluation stage3
+runtime and output-budget policy remain unchanged. Private evaluation stage4
 records this expanded subset, independently of graph/output/content policies.
 Bounded pattern assertions now use a Unicode-aware, case-sensitive, unanchored
 regular subset with explicit parser/compiler stacks and a finite-state matcher.
@@ -258,23 +258,39 @@ trusted builtin patterns are registered only when reached. Each matcher invocati
 charges cumulative logical scratch of 256 + 64 times its instruction count,
 including misses. Other work and allocation limits may refuse earlier; this is
 not a peak-heap guarantee. No native backtracking engine is invoked.
-The corpus accounts for 1,262 official-validity comparisons, 859 annotation-policy
-outcomes, 143 evaluator refusals and 58 graph refusals; these are not 2,322
-conformance passes. Original input/span integrity and actual failed expectations
-are separately recorded. The latest actual 2,322-row receipt confirms exactly
-69 new comparisons and four reason-only changes, with 2,249 other complete rows
-and all 2,052 previously evaluated counter maps unchanged. All 2,322 rows are
-also unchanged by the final tests/type/comments correction. The 183 pattern
-controls include independent character tables, exact and one-below budgets,
-Unicode boundary cases, hostile-pattern accounting, and a source-derived
-32-call address-pattern scratch/work control. All 482 focused controls pass.
-Source council findings are dispositioned: native review approves, the scoped
-external approval retains its read limits, and the conditional external review
-is closed by independent review of targeted tests, required internal registration
-and explicit allocation/coverage qualifications. Original verdicts and prior
-failed expectations remain preserved in the evidence.
-PatternProperties, Unicode property escapes, true dynamic-reference evaluation,
-full installation and production engine/receiver qualification remain open.
+PatternProperties uses the same bounded matcher for object names. All matching
+subschemas apply, including overlaps and adjacent properties. Recognition excludes
+matching names from additionalProperties even when their subschemas fail; only
+whole-keyword successful coverage feeds unevaluatedProperties. Empty maps emit
+an empty matched-name annotation on objects, and nonobjects are unaffected.
+Compile-owned immutable programs and invocation-owned matching state preserve
+repeated references, strict child recursion and complete output accounting.
+The corpus accounts for 1,345 official-validity comparisons, 859 annotation-policy
+outcomes, 60 evaluator refusals and 58 graph refusals; these are not 2,322
+conformance passes. The actual final receipt confirms exactly 83 new comparisons
+and nine reason-only changes, with 2,230 other complete rows and all 2,121
+previously evaluated counter maps unchanged. All 2,322 final rows are also
+byte-identical to the preliminary source receipt.
+The 52 new patternProperties controls cover overlaps, recognition versus
+successful coverage, locations, ordering and output refusals. Prewritten
+16-property/two-program limits of 789173 work and 8398948 logical bytes, and
+15-property limits of 739869 work and 7874066 logical bytes, passed unchanged.
+These are cumulative logical policies, not peak heap guarantees. The initial
+534 focused/affected checks passed; the test-only council successor adds an
+exact registrar-argument control, with all 47 recursion tests passing.
+Native source review approves. The scoped external approval retains its read
+limits; the conditional external review is closed by independent full-corpus
+verification and the reviewed registrar control. Original verdicts, failed
+expectations and orchestration failures remain preserved. No external review
+is credited with later execution evidence or complete transitive source coverage.
+The exact evidence child passed all nine release gates: 7,388 tests in 102 files,
+with no failures or skips, plus build, typecheck, lint, formatting, dependency
+boundaries, smoke, readiness preflight and evidence verification. Source and
+emitted pins were independently checked; the fresh Read recipe explicitly pins
+the Command Line Tools directory, with the prior-recipe comparison correction
+retained. The original Read qualifications remain in the sealed artifact.
+Unicode property escapes, true dynamic-reference evaluation, full installation
+and production engine/receiver qualification remain open.
 Format retains its annotation policy; no held HTTP Content-Encoding ruling is
 inferred.
 This module exports no installed receiver or served write capability.
@@ -325,8 +341,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The committed evidence successor passed 7,335 tests
-in 101 files with zero skips; all source,
+reviewed foundation source. The committed evidence successor passed 7,388 tests
+in 102 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.

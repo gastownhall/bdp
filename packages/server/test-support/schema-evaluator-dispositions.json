@@ -6,17 +6,13 @@
       "file": "tests/draft2020-12/additionalProperties.json",
       "group": 0,
       "cases": [0, 1, 2, 3, 4, 5],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/additionalProperties.json",
       "group": 1,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/additionalProperties.json",
@@ -1522,31 +1518,25 @@
       "cases": [0, 1, 2, 3],
       "disposition": "explicit-private-refusal",
       "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "reason": "unsupported-pattern"
     },
     {
       "file": "tests/draft2020-12/optional/ecmascript-regex.json",
       "group": 16,
       "cases": [0, 1, 2, 3],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/optional/ecmascript-regex.json",
       "group": 17,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/optional/ecmascript-regex.json",
       "group": 18,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/optional/ecmascript-regex.json",
@@ -1554,7 +1544,7 @@
       "cases": [0, 1, 2],
       "disposition": "explicit-private-refusal",
       "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "reason": "unsupported-pattern"
     },
     {
       "file": "tests/draft2020-12/optional/float-overflow.json",
@@ -1824,9 +1814,7 @@
       "file": "tests/draft2020-12/optional/non-bmp-regex.json",
       "group": 1,
       "cases": [0, 1, 2, 3, 4],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/optional/refOfUnknownKeyword.json",
@@ -1898,41 +1886,31 @@
       "file": "tests/draft2020-12/patternProperties.json",
       "group": 0,
       "cases": [0, 1, 2, 3, 4, 5, 6],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/patternProperties.json",
       "group": 1,
       "cases": [0, 1, 2, 3, 4, 5],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/patternProperties.json",
       "group": 2,
       "cases": [0, 1, 2, 3],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/patternProperties.json",
       "group": 3,
       "cases": [0, 1, 2, 3, 4],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/patternProperties.json",
       "group": 4,
       "cases": [0],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/patternProperties.json",
@@ -1940,7 +1918,7 @@
       "cases": [0, 1],
       "disposition": "explicit-private-refusal",
       "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "reason": "unsupported-pattern"
     },
     {
       "file": "tests/draft2020-12/prefixItems.json",
@@ -1976,9 +1954,7 @@
       "file": "tests/draft2020-12/properties.json",
       "group": 1,
       "cases": [0, 1, 2, 3, 4, 5, 6, 7],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/properties.json",
@@ -2648,9 +2624,7 @@
       "file": "tests/draft2020-12/unevaluatedProperties.json",
       "group": 4,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/unevaluatedProperties.json",
@@ -2674,9 +2648,7 @@
       "file": "tests/draft2020-12/unevaluatedProperties.json",
       "group": 8,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/unevaluatedProperties.json",
@@ -2840,9 +2812,7 @@
       "file": "tests/draft2020-12/unevaluatedProperties.json",
       "group": 35,
       "cases": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/unevaluatedProperties.json",
@@ -2866,9 +2836,7 @@
       "file": "tests/draft2020-12/unevaluatedProperties.json",
       "group": 39,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/unevaluatedProperties.json",
@@ -2886,9 +2854,7 @@
       "file": "tests/draft2020-12/unevaluatedProperties.json",
       "group": 42,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-patternProperties"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/unevaluatedProperties.json",
