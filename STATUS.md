@@ -247,7 +247,7 @@ reachable evaluation graph, then proves that retained non-descending edges form
 a DAG. Same-instance and propertyNames cycles remain conservatively refused;
 unreferenced reserved definitions do not create evaluation edges. Qualification
 uses bounded iterative work, logical storage, states and frames; the existing
-runtime and output-budget policy remain unchanged. Private evaluation stage4
+runtime and output-budget policy remain unchanged. Private evaluation stage5
 records this expanded subset, independently of graph/output/content policies.
 Bounded pattern assertions now use a Unicode-aware, case-sensitive, unanchored
 regular subset with explicit parser/compiler stacks and a finite-state matcher.
@@ -265,32 +265,30 @@ whole-keyword successful coverage feeds unevaluatedProperties. Empty maps emit
 an empty matched-name annotation on objects, and nonobjects are unaffected.
 Compile-owned immutable programs and invocation-owned matching state preserve
 repeated references, strict child recursion and complete output accounting.
-The corpus accounts for 1,345 official-validity comparisons, 859 annotation-policy
-outcomes, 60 evaluator refusals and 58 graph refusals; these are not 2,322
-conformance passes. The actual final receipt confirms exactly 83 new comparisons
-and nine reason-only changes, with 2,230 other complete rows and all 2,121
-previously evaluated counter maps unchanged. All 2,322 final rows are also
-byte-identical to the preliminary source receipt.
-The 52 new patternProperties controls cover overlaps, recognition versus
-successful coverage, locations, ordering and output refusals. Prewritten
-16-property/two-program limits of 789173 work and 8398948 logical bytes, and
-15-property limits of 739869 work and 7874066 logical bytes, passed unchanged.
-These are cumulative logical policies, not peak heap guarantees. The initial
-534 focused/affected checks passed; the test-only council successor adds an
-exact registrar-argument control, with all 47 recursion tests passing.
-Native source review approves. The scoped external approval retains its read
-limits; the conditional external review is closed by independent full-corpus
-verification and the reviewed registrar control. Original verdicts, failed
-expectations and orchestration failures remain preserved. No external review
-is credited with later execution evidence or complete transitive source coverage.
-The exact evidence child passed all nine release gates: 7,388 tests in 102 files,
-with no failures or skips, plus build, typecheck, lint, formatting, dependency
-boundaries, smoke, readiness preflight and evidence verification. Source and
-emitted pins were independently checked; the fresh Read recipe explicitly pins
-the Command Line Tools directory, with the prior-recipe comparison correction
-retained. The original Read qualifications remain in the sealed artifact.
-Unicode property escapes, true dynamic-reference evaluation, full installation
-and production engine/receiver qualification remain open.
+Dynamic-reference evaluation now specializes immutable first-binding contexts
+before evaluation. Runtime memo identity uses the specialized state while
+annotations and locations retain original schema identity. Termination is proved
+on the expanded state graph; non-descending cycles remain refused. Private
+evaluation stage5 records this bounded subset, not full dialect conformance.
+The final corpus accounts for 1,386 official-validity comparisons, 859
+annotation-policy outcomes, 19 evaluator refusals and 58 graph refusals.
+Exactly 41 fixed official dynamic cases now compare; all 2,281 other complete
+rows and 2,204 prior evaluated counter maps remain unchanged. The final 2,322
+rows match the frozen source observation. Prewritten D1–D8 logical budget
+controls passed unchanged; these are not peak-heap guarantees.
+Native source review approves; Gemini's favorable review retains its recorded
+scope limits. Claude's actual source attempt returned a session-limit error,
+not a review. This missing review remains a disclosed residual risk; the branch
+is a draft and has not been approved for release.
+Source commit b24dc53e generated fresh Read evidence; its artifact/constant child
+483049f8 passed all nine local gates, including 7,467 tests with zero failures
+or skips, build, typecheck, lint, formatting, boundaries, smoke, readiness
+preflight and evidence verification. The genuine Read cohort records 89 passes,
+9 not-applicable rows and eight explicit qualifications. Its generator identity
+is not relabeled as the later evidence child. Original failures and review
+limits remain retained. Hosted checks and release review are still pending.
+Unicode property escapes, full installation and production engine/receiver
+qualification remain open.
 Format retains its annotation policy; no held HTTP Content-Encoding ruling is
 inferred.
 This module exports no installed receiver or served write capability.
@@ -341,8 +339,6 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The committed evidence successor passed 7,388 tests
-in 102 files with zero skips; all source,
-packaged smoke, seven readiness preflight cases and evidence verification passed.
-Source council corrections and genuine successor observations are complete.
-Publication requires independent artifact review and exact hosted checks.
+reviewed foundation source. The dynamic-source evidence child passed 7,467 tests
+with zero failures or skips and all nine local gates. Missing Claude source review
+and exact hosted checks remain open; no release or downstream activation is implied.
