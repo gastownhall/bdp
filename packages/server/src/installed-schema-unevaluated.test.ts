@@ -284,7 +284,7 @@ describe("bounded static unevaluated locations", () => {
   });
   it.each([
     ['{"unevaluatedProperties":{"pattern":"(?=x)"}}', "unsupported-pattern"],
-    ['{"unevaluatedItems":{"$dynamicAnchor":"x","$dynamicRef":"#x"}}', "unsupported-dynamic"],
+    ['{"unevaluatedItems":{"$dynamicAnchor":"x","$dynamicRef":"#x"}}', "nonqualified-cycle"],
   ])("retains the qualified refusal for %s", (schema, reason) => {
     expect(() => compile(schema)).toThrow(`compile: ${reason}`);
   });

@@ -344,7 +344,7 @@ describe("complete bounded profile controls", () => {
       reason: "limit-patternStates",
     });
     expect(compile({ $ref: "https://json-schema.org/draft/2020-12/meta/core" })).toMatchObject({
-      reason: "unsupported-dynamic",
+      kind: "compiled",
     });
     // Every supplied program is retained/charged, even where root evaluation cannot reach it.
     const schema = {
@@ -412,7 +412,7 @@ describe("complete bounded profile controls", () => {
       const r = evaluate({ pattern: "x" }, input);
       expect(r.annotations).toEqual([]);
       expect(r.counters.annotationBytes).toBe(2);
-      expect(r.stage).toBe("private-static-schema-evaluation-4");
+      expect(r.stage).toBe("private-schema-evaluation-5");
       expect(r.patternPolicy).toBe("bounded-ecma2020-regular-subset-1");
       expect(Object.hasOwn(EVALUATOR_CEILINGS, "patternUnits")).toBe(false);
       expect(Object.hasOwn(EVALUATOR_CEILINGS, "patternStates")).toBe(false);
