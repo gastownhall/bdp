@@ -139,6 +139,9 @@ describe("private supported static evaluator", () => {
       revision: "bounded-annotation-output-2",
       format: "annotation-only",
       contentEncoding: "annotation-only-no-decoding",
+      contentRevision: "annotation-only-content-1",
+      contentMediaType: "annotation-only-no-media-type-parsing",
+      contentSchema: "annotation-only-with-adjacent-media-type-no-validation",
       output: "complete-or-refused",
     });
     const result = c.evaluateUtf8(bytes('"not email or base64"'));
@@ -400,12 +403,20 @@ describe("private supported static evaluator", () => {
   });
   it.each([
     '{"pattern":"(a+)+$"}',
-    '{"contentMediaType":"text/plain"}',
     '{"unevaluatedProperties":{"pattern":"x"}}',
     '{"$dynamicAnchor":"x","$dynamicRef":"#x"}',
     '{"$ref":"#"}',
     '{"$defs":{"x":{"items":{"$ref":"#/$defs/x"}}},"$ref":"#/$defs/x"}',
   ])("refuses before evaluation %s", (schema) => expect(compile(schema).kind).toBe("refused"));
+  it.each(['{"contentMediaType":1}', '{"contentMediaType":{}}'])(
+    "retains the precise graph shape refusal for %s",
+    (schema) =>
+      expect(compile(schema)).toMatchObject({
+        kind: "refused",
+        phase: "compile",
+        reason: "graph:keyword-shape",
+      }),
+  );
   it("admits static dynamicRef and rejects unused pattern declarations", () => {
     expect(
       evaluate('{"$defs":{"x":{"$anchor":"x","type":"integer"}},"$dynamicRef":"#x"}', "1"),

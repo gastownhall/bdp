@@ -364,9 +364,7 @@
       "file": "tests/draft2020-12/content.json",
       "group": 0,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contentMediaType"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/content.json",
@@ -378,17 +376,13 @@
       "file": "tests/draft2020-12/content.json",
       "group": 2,
       "cases": [0, 1, 2, 3],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contentMediaType"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/content.json",
       "group": 3,
       "cases": [0, 1, 2, 3, 4, 5, 6, 7],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-contentMediaType"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/default.json",
