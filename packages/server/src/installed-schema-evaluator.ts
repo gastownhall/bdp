@@ -45,7 +45,7 @@ import {
   chargeAnnotationBytes,
 } from "./installed-schema-value.js";
 export { EVALUATOR_CEILINGS, type EvaluatorLimits } from "./installed-schema-value.js";
-const stage = "private-static-schema-evaluation-3";
+const stage = "private-static-schema-evaluation-4";
 // Private administrative output policy revision; no new BDP validity rule.
 const annotationPolicy = Object.freeze({
   revision: "bounded-annotation-output-2",
@@ -168,7 +168,11 @@ function refusal(
               : "local-failure";
   return Object.freeze({ kind: "refused", stage, phase, reason });
 }
-const excluded = new Set(["patternProperties"]);
+interface PatternProperty {
+  readonly member: string;
+  readonly target: number;
+  readonly program: PatternProgram;
+}
 export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOutcome {
   try {
     const fields = data(input, ["bundle", "graphLimits", "entry", "limits"]);
@@ -225,15 +229,68 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
       budget.charge("logicalBytes", 32);
       programs.set(id, program);
     };
+    // Compile-owned, lazily allocated and never mutated after this compilation
+    // returns. Frozen records/arrays are shared; each invocation owns its matches.
+    // A readonly Map view is not a claim that Object.freeze seals Map entries.
+    let propertyPrograms: Map<number, readonly PatternProperty[]> | undefined;
+    const registerPatternProperties = (id: number, value: unknown): void => {
+      budget.work(2); // R0: certified map and owning node
+      if (
+        typeof value !== "object" ||
+        value === null ||
+        Array.isArray(value) ||
+        value instanceof JsonNumberLiteral ||
+        graph.nodes[id]?.id !== id
+      )
+        throw new Error("patternProperties invariant: certified declaration");
+      if (!propertyPrograms) {
+        budget.work(); // R1
+        budget.charge("logicalBytes", 64);
+        propertyPrograms = new Map();
+      }
+      budget.work(); // R2: an empty registered array is also present
+      if (propertyPrograms.get(id) !== undefined) return;
+      budget.work(); // R3
+      budget.charge("logicalBytes", 64);
+      const records: PatternProperty[] = [];
+      budget.work();
+      const edges = children.get(id);
+      let i = 0;
+      for (;;) {
+        budget.work(); // R4 includes the terminal inspection
+        if (!edges || i === edges.length) break;
+        budget.work(2);
+        const edge = edges[i++];
+        if (!edge || edge.keyword !== "patternProperties") continue;
+        budget.work(3); // R5: member, indexed target, certified relation
+        if (
+          typeof edge.member !== "string" ||
+          !Number.isSafeInteger(edge.target) ||
+          graph.nodes[edge.target]?.id !== edge.target ||
+          edge.relation !== "object-value"
+        )
+          throw new Error("patternProperties invariant: certified edge");
+        const program = compilePattern(edge.member, budget);
+        budget.work(3);
+        budget.charge("logicalBytes", 80); // frozen record64 + retained slot16
+        records.push(Object.freeze({ member: edge.member, target: edge.target, program }));
+      }
+      budget.work(records.length + 1); // R6
+      Object.freeze(records);
+      budget.work();
+      budget.charge("logicalBytes", 32);
+      propertyPrograms.set(id, records);
+    };
     for (const node of graph.nodes) {
       budget.work(9 + node.keywords.length);
       const resource = graph.resources[node.resource];
       // String-semantic qualification includes unused supplied schema declarations.
       if (BUILTIN_SCHEMA_DOCUMENTS.some((builtin) => builtin.uri === resource?.artifact)) continue;
       for (const k of node.keywords)
-        if (k.name === "patternProperties")
-          throw new EvaluationRefusal("unsupported-patternProperties");
-        else if (k.name === "pattern") {
+        if (k.name === "patternProperties") {
+          budget.work();
+          registerPatternProperties(node.id, k.value);
+        } else if (k.name === "pattern") {
           budget.work();
           registerPattern(node.id, k.value);
         }
@@ -245,6 +302,7 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
       refs,
       budget,
       registerPattern,
+      registerPatternProperties,
     );
     const limits = budget.limits;
     return Object.freeze({
@@ -264,6 +322,7 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
             new EvaluationBudget(limits),
             collectLocations,
             programs,
+            propertyPrograms,
           );
         } catch (error) {
           return refusal(error, "instance");
@@ -302,6 +361,7 @@ function evaluate(
   b: EvaluationBudget,
   collectLocations: boolean,
   programs: ReadonlyMap<number, PatternProgram> | undefined,
+  propertyPrograms: ReadonlyMap<number, readonly PatternProperty[]> | undefined,
 ): Extract<EvaluationOutcome, { kind: "evaluated" }> {
   const instances = instanceIndex(bytes, b);
   const memo = new EvaluationMemo<Fact>(b);
@@ -595,6 +655,75 @@ function evaluate(
         if (!tracked) b.charge("logicalBytes", 16 * names.length);
         annotate("properties", Object.freeze(names));
       }
+      // Absent PP retains the existing charged path exactly. Recognition is
+      // independent of successful coverage: even a failing matched child is not
+      // additional. Programs belong to compilation; these containers do not.
+      let matchedProperties: Map<number, string> | undefined;
+      if (Object.hasOwn(obj, "patternProperties")) {
+        b.work(2); // T0
+        const records = propertyPrograms?.get(nodeId);
+        if (!records) throw new Error("patternProperties invariant: compiled records");
+        b.work(); // T1
+        b.charge("logicalBytes", 64);
+        matchedProperties = new Map();
+        b.work();
+        b.charge("logicalBytes", 64);
+        const matchedNames: string[] = [];
+        b.work();
+        let patternsValid = true;
+        b.work(); // T2: reverse Object.keys(schema-map) graph order
+        const recordIterator = records.values();
+        for (;;) {
+          b.work();
+          const nextRecord = recordIterator.next();
+          if (nextRecord.done) break;
+          b.work();
+          const record = nextRecord.value;
+          b.work();
+          const keyIterator = current.children.entries();
+          for (;;) {
+            b.work();
+            const nextKey = keyIterator.next();
+            if (nextKey.done) break;
+            b.work();
+            const [name, id] = nextKey.value;
+            const yes = matchPattern(record.program, name, b);
+            b.work();
+            if (!yes) continue;
+            b.work(); // T3: unique names, but every match evaluates its child
+            const prior = matchedProperties.has(id);
+            if (!prior) {
+              b.work(2);
+              b.charge("logicalBytes", 48);
+              matchedProperties.set(id, name);
+              matchedNames.push(name);
+            }
+            // T4 reserves both fixed pointer replacements and final path before
+            // constructing them. Existing take/projection charges remain below.
+            const n = record.member.length;
+            b.work(18 + 6 * n);
+            b.charge("logicalBytes", 36 + 12 * n);
+            const path = `patternProperties/${escapePointer(record.member)}`;
+            const child = yield { node: record.target, instance: id, path };
+            take(child, path);
+            b.work(2); // T5: no short circuit after either success or failure
+            if (!child.valid) patternsValid = false;
+          }
+        }
+        if (tracked && patternsValid) {
+          b.work(); // T6: commit only whole-keyword successful coverage
+          const iterator = matchedProperties.keys();
+          for (;;) {
+            b.work();
+            const next = iterator.next();
+            if (next.done) break;
+            b.work();
+            locations().mark(next.value);
+          }
+        }
+        b.work(matchedNames.length + 1); // T7
+        annotate("patternProperties", Object.freeze(matchedNames));
+      }
       const extra = target("additionalProperties");
       if (extra !== undefined) {
         const applied: string[] = [];
@@ -605,6 +734,10 @@ function evaluate(
         for (const [key, id] of current.children) {
           b.work(key.length + 1);
           if (!known.has(key)) {
+            if (matchedProperties) {
+              b.work(); // T8, only otherwise-undeclared names with PP present
+              if (matchedProperties.has(id)) continue;
+            }
             if (tracked) b.charge("logicalBytes", 16);
             applied.push(key);
             const child = yield { node: extra, instance: id, path: "additionalProperties" };
@@ -945,6 +1078,7 @@ function location(
 }
 const known = new Set([
   "pattern",
+  "patternProperties",
   "$id",
   "$schema",
   "$ref",
@@ -995,5 +1129,5 @@ const known = new Set([
   "contentMediaType",
 ]);
 function knownKeyword(name: string): boolean {
-  return known.has(name) || excluded.has(name);
+  return known.has(name);
 }
