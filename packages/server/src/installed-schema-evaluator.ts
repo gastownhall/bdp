@@ -26,6 +26,7 @@ import {
 import {
   EvaluationBudget,
   EvaluationMemo,
+  EvaluationLocations,
   EvaluationRefusal,
   type EvaluatorLimits,
   type Instance,
@@ -47,10 +48,11 @@ const annotationPolicy = Object.freeze({
   encodedBytes: "JSON.stringify-UTF8-lossless-number-objects",
   order: "graph-edge-occurrence-order",
 } as const);
+// Admitting static unevaluated keywords intentionally removes that broad deferred
+// label from every outcome. Annotation representation/order remains revision 2.
 const deferred = Object.freeze([
   "full-vocabulary",
   "dynamic",
-  "unevaluated",
   "regex",
   "mime",
   "production-work-and-heap",
@@ -143,13 +145,7 @@ function refusal(
               : "local-failure";
   return Object.freeze({ kind: "refused", stage, phase, reason });
 }
-const excluded = new Set([
-  "pattern",
-  "patternProperties",
-  "unevaluatedItems",
-  "unevaluatedProperties",
-  "contentMediaType",
-]);
+const excluded = new Set(["pattern", "patternProperties", "contentMediaType"]);
 const reserved = new Set(["$defs", "definitions", "contentSchema"]);
 export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOutcome {
   try {
@@ -199,6 +195,7 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
           throw new EvaluationRefusal(`unsupported-${k.name}`);
     }
     const colors = new Map<number, number>();
+    let collectLocations = false;
     budget.bound("frames", 1);
     const pending: { id: number; exit: boolean }[] = [{ id: root, exit: false }];
     while (pending.length) {
@@ -220,8 +217,14 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
       colors.set(frame.id, 1);
       budget.bound("frames", pending.length + 1);
       pending.push({ id: frame.id, exit: true });
-      for (const k of node.keywords)
+      // Use the reachable DFS, never the all-node string-semantic preflight.
+      // Bare then/else remain conservatively reachable here, though run ignores
+      // them without if. Reserved unreferenced definitions do not enable coverage.
+      for (const k of node.keywords) {
         if (excluded.has(k.name)) throw new EvaluationRefusal(`unsupported-${k.name}`);
+        if (k.name === "unevaluatedItems" || k.name === "unevaluatedProperties")
+          collectLocations = true;
+      }
       for (const edge of refs.get(frame.id) ?? []) {
         if (edge.kind === "dynamic-anchor") throw new EvaluationRefusal("unsupported-dynamic");
         budget.bound("frames", pending.length + 1);
@@ -241,7 +244,15 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
       annotationPolicy,
       evaluateUtf8: (bytes: Uint8Array) => {
         try {
-          return evaluate(graph, root, children, refs, bytes, new EvaluationBudget(limits));
+          return evaluate(
+            graph,
+            root,
+            children,
+            refs,
+            bytes,
+            new EvaluationBudget(limits),
+            collectLocations,
+          );
         } catch (error) {
           return refusal(error, "instance");
         }
@@ -268,6 +279,7 @@ interface Fact {
   failures: Child[];
   successes: Child[];
   annotations: { keyword: string; value: LosslessJsonValue }[];
+  locations?: EvaluationLocations;
 }
 function evaluate(
   graph: SchemaGraphCandidate,
@@ -276,6 +288,7 @@ function evaluate(
   refs: Map<number, (typeof graph.references)[number][]>,
   bytes: Uint8Array,
   b: EvaluationBudget,
+  collectLocations: boolean,
 ): Extract<EvaluationOutcome, { kind: "evaluated" }> {
   const instances = instanceIndex(bytes, b);
   const memo = new EvaluationMemo<Fact>(b);
@@ -284,6 +297,7 @@ function evaluate(
     const node = graph.nodes[nodeId] as SchemaNode,
       current = instances[instanceId] as Instance,
       v = current.value;
+    const tracked = collectLocations && (objectValue(v) || Array.isArray(v));
     const fact: Fact = {
       node: nodeId,
       instance: instanceId,
@@ -294,6 +308,29 @@ function evaluate(
       annotations: [],
     };
     b.charge("logicalBytes", 96);
+    const locations = (): EvaluationLocations =>
+      (fact.locations ??= EvaluationLocations.create(instanceId, Array.isArray(v), b));
+    const candidates = <T>(): T[] => {
+      b.charge("logicalBytes", 64);
+      return [];
+    };
+    const stage = <T>(list: T[] | undefined, value: T): void => {
+      if (list) {
+        b.work();
+        b.charge("logicalBytes", 16);
+        list.push(value);
+      }
+    };
+    const merge = (child: Fact): void => {
+      if (tracked && child.valid && child.locations) locations().merge(child.locations);
+    };
+    const commit = (list: readonly number[] | undefined, valid: boolean): void => {
+      if (list && valid)
+        for (let i = 0; i < list.length; i++) {
+          b.work();
+          locations().mark(list[i] as number);
+        }
+    };
     const fail = (keyword: string): void => {
       fact.valid = false;
       b.charge("logicalBytes", 16);
@@ -324,8 +361,11 @@ function evaluate(
       });
     const target = (key: string, member?: string) =>
       targets(key).find((e) => e.member === member)?.target;
-    for (const ref of refs.get(nodeId) ?? [])
-      take(yield { node: ref.target, instance: instanceId, path: ref.keyword }, ref.keyword);
+    for (const ref of refs.get(nodeId) ?? []) {
+      const child = yield { node: ref.target, instance: instanceId, path: ref.keyword };
+      take(child, ref.keyword);
+      merge(child);
+    }
     for (const k of node.keywords) {
       b.work();
       const name = k.name,
@@ -455,10 +495,16 @@ function evaluate(
       const good = evaluated.filter((x) => x.fact.valid);
       if (keyword === "allOf") {
         for (const x of evaluated) take(x.fact, x.path);
+        if (tracked && good.length === evaluated.length)
+          for (const x of evaluated) {
+            b.work();
+            merge(x.fact);
+          }
       } else if (keyword === "anyOf" ? good.length > 0 : good.length === 1) {
         for (const x of good) {
           b.charge("logicalBytes", 32);
           fact.successes.push(x);
+          merge(x.fact);
         }
       } else {
         fail(keyword);
@@ -480,49 +526,78 @@ function evaluate(
       if (result.valid) {
         b.charge("logicalBytes", 32);
         fact.successes.push({ fact: result, path: "if" });
+        merge(result);
       }
       const key = result.valid ? "then" : "else",
         selected = target(key);
-      if (selected !== undefined)
-        take(yield { node: selected, instance: instanceId, path: key }, key);
+      if (selected !== undefined) {
+        const child = yield { node: selected, instance: instanceId, path: key };
+        take(child, key);
+        merge(child);
+      }
     }
     if (objectValue(v)) {
+      const dependencies = tracked ? candidates<Fact>() : undefined;
+      let dependenciesValid = true;
       for (const e of targets("dependentSchemas"))
         if (Object.hasOwn(v, e.member as string)) {
           const path = `dependentSchemas/${escapePointer(e.member as string)}`;
-          take(yield { node: e.target, instance: instanceId, path }, path);
+          const child = yield { node: e.target, instance: instanceId, path };
+          take(child, path);
+          dependenciesValid = dependenciesValid && child.valid;
+          stage(dependencies, child);
+        }
+      if (dependencies && dependenciesValid)
+        for (let i = 0; i < dependencies.length; i++) {
+          b.work();
+          merge(dependencies[i] as Fact);
         }
       const properties = targets("properties"),
-        names: string[] = [];
+        names: string[] = [],
+        propertyIds = tracked ? candidates<number>() : undefined;
+      let propertiesValid = true;
       for (const e of properties) {
         const id = current.children.get(e.member as string);
         if (id !== undefined) {
+          if (tracked) b.charge("logicalBytes", 16);
           names.push(e.member as string);
           const path = `properties/${escapePointer(e.member as string)}`;
-          take(yield { node: e.target, instance: id, path }, path);
+          const child = yield { node: e.target, instance: id, path };
+          take(child, path);
+          propertiesValid = propertiesValid && child.valid;
+          stage(propertyIds, id);
         }
       }
+      commit(propertyIds, propertiesValid);
       if (Object.hasOwn(obj, "properties")) {
-        b.charge("logicalBytes", 16 * names.length);
+        // Tracked name slots were charged before each push; freezing reuses the array.
+        // The untracked path retains its original aggregate charge.
+        if (!tracked) b.charge("logicalBytes", 16 * names.length);
         annotate("properties", Object.freeze(names));
       }
       const extra = target("additionalProperties");
       if (extra !== undefined) {
         const applied: string[] = [];
+        const extraIds = tracked ? candidates<number>() : undefined;
+        let extraValid = true;
         const known = new Set(properties.map((e) => e.member));
         b.work(properties.length);
         for (const [key, id] of current.children) {
           b.work(key.length + 1);
           if (!known.has(key)) {
+            if (tracked) b.charge("logicalBytes", 16);
             applied.push(key);
-            take(
-              yield { node: extra, instance: id, path: "additionalProperties" },
-              "additionalProperties",
-            );
+            const child = yield { node: extra, instance: id, path: "additionalProperties" };
+            take(child, "additionalProperties");
+            extraValid = extraValid && child.valid;
+            stage(extraIds, id);
           }
         }
-        b.charge("logicalBytes", 16 * applied.length);
+        // Reuse the tracked name slots already charged before push, with no copy.
+        // The untracked path retains its original aggregate charge.
+        if (!tracked) b.charge("logicalBytes", 16 * applied.length);
         annotate("additionalProperties", Object.freeze(applied));
+        commit(extraIds, extraValid);
       }
       const propertyNames = target("propertyNames");
       if (propertyNames !== undefined)
@@ -542,37 +617,45 @@ function evaluate(
     }
     if (Array.isArray(v)) {
       const prefix = targets("prefixItems");
+      const prefixIds = tracked ? candidates<number>() : undefined;
+      let prefixValid = true;
       let used = 0;
       for (const e of prefix) {
         const id = current.children.get(e.member as string);
         if (id !== undefined) {
           used++;
           const path = `prefixItems/${e.member}`;
-          take(yield { node: e.target, instance: id, path }, path);
+          const child = yield { node: e.target, instance: id, path };
+          take(child, path);
+          prefixValid = prefixValid && child.valid;
+          stage(prefixIds, id);
         }
       }
       if (used > 0) annotate("prefixItems", new JsonNumberLiteral(String(used - 1)));
+      commit(prefixIds, prefixValid);
       const items = target("items");
       if (items !== undefined) {
         let applied = false;
+        let itemsValid = true;
         for (let i = prefix.length; i < v.length; i++) {
           applied = true;
-          take(
-            yield {
-              node: items,
-              instance: current.children.get(String(i)) as number,
-              path: "items",
-            },
-            "items",
-          );
+          const child = yield {
+            node: items,
+            instance: current.children.get(String(i)) as number,
+            path: "items",
+          };
+          take(child, "items");
+          itemsValid = itemsValid && child.valid;
         }
         if (applied) annotate("items", true);
+        if (tracked && applied && itemsValid) locations().markAllItems();
       }
       const contains = target("contains");
       if (contains !== undefined) {
         b.work();
         b.charge("logicalBytes", 64);
         const matched: JsonNumberLiteral[] = [];
+        const matchedIds = tracked ? candidates<number>() : undefined;
         for (let i = 0; i < v.length; i++) {
           // A bounded instance index needs at most 16 decimal digits. Reserve
           // its construction work before making even the temporary lookup key.
@@ -590,6 +673,7 @@ function evaluate(
             matched.push(new JsonNumberLiteral(index));
             b.charge("logicalBytes", 32 + 2 * "contains".length);
             fact.successes.push({ fact: child, path: "contains" });
+            stage(matchedIds, child.instance);
           }
           // A failed trial is not a parent assertion failure. Visit every item
           // even after a minimum succeeds or a maximum is exceeded.
@@ -601,6 +685,9 @@ function evaluate(
           minimum !== undefined &&
           compareDecimal(minimum, decimal("0", b.work, b.limits.coefficientDigits), b.work) === 0;
         if (matched.length === 0 && !zeroMinimum) fail("contains");
+        // Contains success is independent of adjacent count failures and of
+        // unrelated Fact failures. A later invalid Fact still exports nothing.
+        commit(matchedIds, matched.length > 0 || zeroMinimum);
         if (minimum !== undefined && compareDecimal(count, minimum, b.work) < 0)
           fail("minContains");
         const max = obj.maxContains;
@@ -612,6 +699,52 @@ function evaluate(
         // Always-array annotation makes its length the adjacent count operand.
         // Projection discards all annotations if the enclosing result is invalid.
         annotate("contains", Object.freeze(matched));
+      }
+    }
+    // These commit points define this private evaluator's invalid-parent
+    // diagnostics, not a universal output law. Failed keyword candidates are
+    // never incoming coverage; all discarded work remains charged.
+    // With no coverage container, optional chaining performs no membership lookup.
+    // Each object or array candidate traversal still consumes work below.
+    if (tracked && objectValue(v)) {
+      const unevaluated = target("unevaluatedProperties");
+      if (unevaluated !== undefined) {
+        const names = candidates<string>();
+        const ids = candidates<number>();
+        let valid = true;
+        for (const [key, id] of current.children) {
+          b.work(key.length + 1);
+          if (fact.locations?.covers(id)) continue;
+          stage(names, key);
+          stage(ids, id);
+          const child = yield { node: unevaluated, instance: id, path: "unevaluatedProperties" };
+          take(child, "unevaluatedProperties");
+          valid = valid && child.valid;
+        }
+        if (valid) {
+          commit(ids, true);
+          // stage already charged these name slots; freezing reuses them without a copy.
+          annotate("unevaluatedProperties", Object.freeze(names));
+        }
+      }
+    }
+    if (tracked && Array.isArray(v)) {
+      const unevaluated = target("unevaluatedItems");
+      if (unevaluated !== undefined && !fact.locations?.allItems) {
+        let applied = false;
+        let valid = true;
+        for (const id of current.children.values()) {
+          b.work();
+          if (fact.locations?.covers(id)) continue;
+          applied = true;
+          const child = yield { node: unevaluated, instance: id, path: "unevaluatedItems" };
+          take(child, "unevaluatedItems");
+          valid = valid && child.valid;
+        }
+        if (applied && valid) {
+          locations().markAllItems();
+          annotate("unevaluatedItems", true);
+        }
       }
     }
     for (const k of node.keywords) {
@@ -632,6 +765,8 @@ function evaluate(
       else if (k.name === "contentEncoding" && typeof v === "string") annotate(k.name, k.value);
       else if (!knownKeyword(k.name)) annotate(k.name, k.value);
     }
+    if (fact.valid) fact.locations?.seal();
+    else delete fact.locations;
     return fact;
   }
   const stack: { key: string; iterator: Generator<Request, Fact, Fact>; next?: Fact }[] = [];
@@ -805,6 +940,8 @@ const known = new Set([
   "propertyNames",
   "prefixItems",
   "items",
+  "unevaluatedItems",
+  "unevaluatedProperties",
   "contains",
   "minContains",
   "maxContains",

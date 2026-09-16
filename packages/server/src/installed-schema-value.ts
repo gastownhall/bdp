@@ -25,7 +25,9 @@ export class EvaluationRefusal extends Error {
 }
 /** logicalBytes is cumulative logical allocation, never reclaimed: 64-byte value/
  * call records, 96-byte facts, 16-byte name/failure slots, 32-byte links/annotations/memo entries,
- * and two bytes per retained JS string unit (or actual encoded diagnostic bytes).
+ * 64-byte coverage/candidate containers, 32-byte unique coverage entries,
+ * 16-byte candidate slots, and two bytes per retained JS string unit
+ * (or actual encoded diagnostic bytes).
  * It is neither JS heap measurement nor a parser/immutable-graph allocation cap. */
 export class EvaluationBudget {
   readonly limits: EvaluatorLimits;
@@ -109,6 +111,74 @@ export class EvaluationMemo<T> {
       value = Math.floor(value / 10);
     } while (value !== 0);
     return digits;
+  }
+}
+/** Invocation-private coverage of one exact instance's immediate children.
+ * Sealing protects memoized summaries; freezing a Set would not protect its entries.
+ * Duplicate insert attempts and traversals cost work even when storage is reused. */
+export class EvaluationLocations {
+  readonly #entries = new Set<number>();
+  readonly #owner: number;
+  readonly #array: boolean;
+  readonly #budget: EvaluationBudget;
+  #allItems = false;
+  #sealed = false;
+  private constructor(owner: number, array: boolean, budget: EvaluationBudget) {
+    this.#owner = owner;
+    this.#array = array;
+    this.#budget = budget;
+  }
+  static create(owner: number, array: boolean, budget: EvaluationBudget): EvaluationLocations {
+    budget.charge("logicalBytes", 64);
+    return new EvaluationLocations(owner, array, budget);
+  }
+  mark(id: number): void {
+    if (this.#sealed) throw new Error("coverage-sealed");
+    this.#budget.work();
+    const present = this.#entries.has(id);
+    this.#budget.work(); // Every insertion attempt, including duplicates.
+    if (!present) {
+      this.#budget.charge("logicalBytes", 32);
+      this.#entries.add(id);
+    }
+  }
+  covers(id: number): boolean {
+    this.#budget.work();
+    return this.#allItems || this.#entries.has(id);
+  }
+  markAllItems(): void {
+    if (this.#sealed) throw new Error("coverage-sealed");
+    if (!this.#array) throw new Error("coverage-array");
+    this.#budget.work();
+    this.#allItems = true;
+  }
+  get allItems(): boolean {
+    this.#budget.work();
+    return this.#allItems;
+  }
+  merge(child: EvaluationLocations): void {
+    if (this.#sealed) throw new Error("coverage-sealed");
+    this.#budget.work();
+    if (
+      this.#owner !== child.#owner ||
+      this.#array !== child.#array ||
+      this.#budget !== child.#budget
+    )
+      throw new Error("coverage-instance");
+    if (!child.#sealed) throw new Error("coverage-unsealed");
+    if (child.#allItems) this.markAllItems();
+    this.#budget.work();
+    const entries = child.#entries.values();
+    for (;;) {
+      this.#budget.work();
+      const next = entries.next();
+      if (next.done) break;
+      this.mark(next.value);
+    }
+  }
+  seal(): void {
+    this.#budget.work();
+    this.#sealed = true;
   }
 }
 const typedLength = Object.getOwnPropertyDescriptor(
