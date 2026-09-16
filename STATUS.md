@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current private-Content Read cohort was genuinely generated from
-`826512a3f9b423ef97cecb3eb2304428333546be` and committed with its matching capability constant at
-`177201bb0f0255fd1c6c7fd64d71e5cc046c3f7f`. Generation ran for 152.65 seconds
+The current guarded-recursion successor Read cohort was genuinely generated from
+`48573f049c99492ea40125331953e41ea71c0cb1` and committed with its matching capability constant at
+`60fb24f30c33129b1097c45e23dc7f2da4b54265`. Generation ran for 153.80 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48 and #49 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49 and #50 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -217,8 +217,8 @@ Missing $schema uses the private 2020-12 default; legacy additionalItems and bar
 remain opaque. Complete source council and bounded followup reviews are disposed.
 This graph is not an installed registry, complete JSON Schema evaluator, production
 engine adapter or served capability; those remain separate implementation gates.
-The private instance evaluator now applies a bounded static, acyclic subset over
-this graph, using exact decimal comparisons and invocation-local memoization.
+The private instance evaluator now applies a bounded static subset over this
+graph, using exact decimal comparisons and invocation-local memoization.
 It preserves successful occurrence paths and distinguishes evaluated results from
 named compile/instance refusals. Diagnostics carry an explicit completeness flag;
 complete annotation output, including escaped values and empty arrays, is charged
@@ -240,20 +240,30 @@ encoding without synthesizing an annotation; bare contentSchema is ignored.
 Embedded content is never decoded or validated. The existing graph still indexes
 contentSchema and preserves reference/refusal closure. Private content policy
 annotation-only-content-1 is separate from the unchanged output policy revision.
-The corpus accounts for 1,177 official-validity comparisons, 859 annotation-policy
-outcomes, 228 evaluator refusals and 58 graph refusals; these are not 2,322
+Static recursion is admitted when every cycle descends through a finite JSON
+child: properties, additionalProperties, prefixItems, items, contains,
+unevaluatedProperties or unevaluatedItems. The qualifier first discovers the
+reachable evaluation graph, then proves that retained non-descending edges form
+a DAG. Same-instance and propertyNames cycles remain conservatively refused;
+unreferenced reserved definitions do not create evaluation edges. Qualification
+uses bounded iterative work, logical storage, states and frames; the existing
+runtime and output-budget policy remain unchanged. Private evaluation stage2
+records this expanded subset, independently of graph/output/content policies.
+The corpus accounts for 1,193 official-validity comparisons, 859 annotation-policy
+outcomes, 212 evaluator refusals and 58 graph refusals; these are not 2,322
 conformance passes. Original input/span integrity and actual failed expectations
 are separately recorded. The latest actual 2,322-row receipt confirms exactly
-15 new comparisons, with 2,307 complete rows and all 2,021 previously evaluated
-counter maps unchanged. Forty focused Content controls include independent
-annotation accounting, exact adjacency, lossless values and failure suppression.
-Source council findings are dispositioned. Native and Claude reviews approve;
-Gemini's original dissent remains recorded, with its sole graph-policy finding
-rejected after exact released/current graph byte comparison. Optional coverage
-and external/dynamic consumer-search limits remain explicit in review evidence.
-Dynamic/recursive evaluation, regex support, full installation
-and production engine/receiver qualification remain open. Format retains its
-annotation policy; no held HTTP Content-Encoding ruling is inferred.
+16 new comparisons, with 2,306 complete rows and all 2,036 previously evaluated
+counter maps unchanged. Forty-five focused recursion controls include literal
+helper accounting, exact compile-work boundaries, malformed internal inputs,
+productive child cycles, conservative refusals and runtime output limits.
+Source council findings are dispositioned: native review approves, the scoped
+Gemini approval retains its read limits, and Claude's conditional review is
+closed by four targeted test additions and explicit coverage qualifications.
+Original verdicts and post-red test limitations remain preserved in the evidence.
+True dynamic-reference evaluation, regex support, full installation and production
+engine/receiver qualification remain open. Format retains its annotation policy;
+no held HTTP Content-Encoding ruling is inferred.
 This module exports no installed receiver or served write capability.
 Resource validation now prepares complete installed endpoint prerequisites before
 value diagnostics, applies effective properties before endpoint constraints, and
@@ -302,8 +312,8 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The committed evidence successor passed 7,103 tests
-in 99 files with zero skips; all source,
+reviewed foundation source. The committed evidence successor passed 7,148 tests
+in 100 files with zero skips; all source,
 packaged smoke, seven readiness preflight cases and evidence verification passed.
 Source council corrections and genuine successor observations are complete.
 Publication requires independent artifact review and exact hosted checks.
