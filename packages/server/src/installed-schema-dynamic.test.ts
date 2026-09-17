@@ -1007,6 +1007,56 @@ it("fresh expanded-state ceiling distinguishes13 specialized states from12 origi
   expect(() => invoke(12)).toThrow("limit-states");
 });
 
+it("bounds the Kahn ready stack independently of the reach stack", () => {
+  const f: Fixture = {
+    nodes: Array.from({ length: 5 }, (_, id) => node(id, 0, {})),
+    resources: [resource(0, 0, {})],
+    children: new Map(),
+    refs: new Map(),
+  };
+  child(f, 0, 1, "properties");
+  child(f, 1, 2, "properties");
+  child(f, 1, 3, "properties");
+  child(f, 3, 4, "allOf");
+  // Reach scheduling peaks at two pending states. Removing descent edges
+  // leaves four zero-indegree seeds (0, 1, 2, 3) for the Kahn ready stack.
+  const invoke = (frames: number) => {
+    const budget = new EvaluationBudget({ ...EVALUATOR_CEILINGS, frames });
+    const result = qualifyDynamicRecursion(
+      f.nodes,
+      f.resources,
+      0,
+      f.children,
+      f.refs,
+      budget,
+      () => undefined,
+      () => undefined,
+    );
+    return { result, budget };
+  };
+  expect(() => invoke(3)).toThrow("limit-frames");
+  const { result, budget } = invoke(4);
+  expect(result.states).toHaveLength(5);
+  expect(budget.counts.frames).toBe(4);
+});
+
+it("refuses a resource vector whose identity does not match its index", () => {
+  const f = fixture(1);
+  f.resources[0] = resource(1, 0, { n: 1 });
+  expect(() =>
+    qualifyDynamicRecursion(
+      f.nodes,
+      f.resources,
+      0,
+      f.children,
+      f.refs,
+      new EvaluationBudget(EVALUATOR_CEILINGS),
+      () => undefined,
+      () => undefined,
+    ),
+  ).toThrow("dynamic invariant: resource index");
+});
+
 it("decorative names preserve public validity while intentionally splitting contexts", () => {
   const B = "https://dynamic.test/b";
   const c = compile(
