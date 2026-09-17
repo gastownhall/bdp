@@ -35,6 +35,9 @@ What's in this repository:
 - a black-box conformance suite, and a sealed evidence artifact proving the
   Read profile against both implementations (see [STATUS.md](STATUS.md)).
 
+Try the [three-minute BDP Read walkthrough](docs/read-demo.md) to follow Links
+and run the same readiness client against both servers.
+
 Conformance claims are backed by committed, CI-verified evidence — never by
 assertion. See `packages/conformance/matrices/README.md` for how that
 works. Open protocol questions are recorded at the end of the draft so
