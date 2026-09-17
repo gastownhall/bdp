@@ -4,33 +4,35 @@
 // Its corpus is deliberately the existing conformance fixture, not user data.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createConfiguredBdptestReadServer } from "../apps/bdptest/dist/server-composition.js";
+import { createBdProcessScopePort } from "../packages/adapter-bd/dist/index.js";
 import { BdpClient, createFetchTransport } from "../packages/client/dist/index.js";
 import { loadStartupConfig } from "../packages/config/dist/index.js";
-import { createBdProcessScopePort } from "../packages/adapter-bd/dist/index.js";
 import {
   admitReadServerProfile,
-  createReadServer,
-  createNodeHttpServer,
-  listenNodeHttpServer,
   closeNodeHttpServer,
+  createNodeHttpServer,
+  createPublicReadControls,
+  createReadServer,
+  listenNodeHttpServer,
 } from "../packages/server/dist/index.js";
-import { createConfiguredBdptestReadServer } from "../apps/bdptest/dist/server-composition.js";
 import {
-  spawnChild,
-  terminateChild,
   assertStartupDiagnostic,
   parseExactJson,
+  spawnChild,
+  terminateChild,
 } from "./e2e-ready.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const args = process.argv.slice(2);
-const output = path.resolve(args[0] ?? "demo-read-output");
-const executable = args[1] === undefined ? undefined : path.resolve(args[1]);
-if (args.length > 2)
+if (args.length < 1 || args.length > 2) {
   throw new Error("Usage: node scripts/demo-read.mjs NEW_OUTPUT_DIRECTORY [PINNED_BD_EXECUTABLE]");
+}
+const output = path.resolve(args[0]);
+const executable = args[1] === undefined ? undefined : path.resolve(args[1]);
 const backend = executable === undefined ? "bdptest" : "bdpbd";
 const port = Number(process.env.BDP_DEMO_PORT ?? "19280");
 assert(Number.isInteger(port) && port > 1024 && port < 65536, "invalid BDP_DEMO_PORT");
@@ -87,8 +89,8 @@ async function command(commandPath, argv, cwd, environment) {
   try {
     const result = await record.result;
     commands.push({ command: commandPath, argv, cwd, ...result });
-    assert.equal(result.code, 0, result.stderr);
     controller.signal.throwIfAborted();
+    assert.equal(result.code, 0, result.stderr);
     return result;
   } finally {
     controller.signal.removeEventListener("abort", abort);
@@ -121,7 +123,6 @@ try {
     GIT_CONFIG_GLOBAL: path.join(home, ".gitconfig"),
     BD_NON_INTERACTIVE: "1",
     CI: "true",
-    DEVELOPER_DIR: process.env.DEVELOPER_DIR ?? "/Library/Developer/CommandLineTools",
   };
   let oracle = fixture.expectations.readyJson;
   if (executable !== undefined) {
@@ -142,13 +143,26 @@ try {
       identity.host_local.sha256,
       "this local walkthrough requires the recorded bd binary; no automatic rebaseline",
     );
-    await writeFile(
-      path.join(output, "bd-identity.json"),
-      JSON.stringify({ executable, sha256, provenance: identity.source_provenance }, null, 2),
-    );
     const version = await command(executable, ["version", "--json"], workspace, environment);
     assert.deepEqual(JSON.parse(version.stdout), identity.portable.version_json);
-    say("Preparing a fresh real bd workspace using the recorded fixture (about 15 seconds).");
+    await writeFile(
+      path.join(output, "bd-identity.json"),
+      JSON.stringify(
+        {
+          executable,
+          realpath: await realpath(executable),
+          sha256,
+          version: JSON.parse(version.stdout),
+          provenance: identity.source_provenance,
+          admission: "capture-host artifact only; not portable version admission",
+        },
+        null,
+        2,
+      ),
+    );
+    say(
+      "Preparing a fresh real bd workspace using the recorded fixture (about 30 seconds end to end).",
+    );
     // Same commands and 1.1-second creation spacing as the approved matrix seeder.
     // Run through the supervised command recorder so failures retain stderr.
     const bd = (args) =>
@@ -181,11 +195,23 @@ try {
       environment,
     );
     oracle = JSON.parse(direct.stdout);
+    const config = loadStartupConfig({
+      role: "bdpbd",
+      env: {
+        BDP_SCOPE_URL: scope,
+        BDP_SERVER_PORT: String(port),
+        BDP_SERVER_ADVERTISED_PROFILE: "read",
+        BDP_BD_WORKSPACE: workspace,
+        BDP_BD_EXECUTABLE: executable,
+      },
+    });
     server = createReadServer({
       scope,
       target: "bdpbd",
       admittedProfile: admitReadServerProfile("read", "bdpbd"),
       port: createBdProcessScopePort(scope, { executable, workspace, environment }),
+      advertisedLimits: config.server.limits,
+      readControls: createPublicReadControls({ scope, limits: config.server.limits }),
     });
   } else {
     const config = loadStartupConfig({
@@ -334,6 +360,7 @@ try {
     }
   }
   if (cleanup.length > 0) {
+    say(`CLEANUP FAILED: ${cleanup.join("; ")}`);
     successful = false;
     process.exitCode = 1;
   }

@@ -23,15 +23,19 @@ set `BDP_DEMO_PORT` if that port is occupied. Each run stops its listener and
 owned child processes before returning. Each command has a 30-second deadline;
 the walkthrough has a 120-second abort deadline.
 
-For the second implementation, pass the recorded Homebrew `bd` 1.0.5 executable:
+For the second implementation on the original capture host, pass its recorded
+Homebrew `bd` 1.0.5 executable:
 
 ```sh
 node scripts/demo-read.mjs /tmp/bdp-demo-real-bd-1 /opt/homebrew/bin/bd
 ```
 
+This is intentionally a **capture-host-artifact-only** mode, tested on Donna's
+Mac; it is not the repository's portable bd version-admission policy. Other
+Homebrew bottles and CI source builds are refused even when they report 1.0.5.
 This mode checks the executable's SHA-256 against the recorded baseline before
 executing it. It deliberately refuses other builds rather than silently changing
-the comparison. The real-bd setup takes around 15 seconds. It creates fresh
+the comparison. The real-bd run takes about 30 seconds end to end. It creates fresh
 isolated test data under `/tmp`, with its own HOME and Git configuration, then
 copies that state into the output directory and removes the temporary root.
 It does not use an existing Beads workspace. A fresh output directory is needed
@@ -68,12 +72,14 @@ fixture; this walkthrough explains the smaller B → A → C chain.
 BDP responses, request paths/statuses observed by the HTTP listener, exact CLI
 stdout/stderr, native setup commands, oracle comparisons, and cleanup errors.
 It is demo evidence, not a new conformance certification or wire-byte capture.
-`isolated-state/` retains the test workspace and its isolated configuration.
+In real-bd mode, `isolated-state/` retains the test database and its isolated
+configuration. Reference mode retains an empty workspace and isolated config.
 
 The reference mode uses the shipping reference-server composition and its
 normal Read admission check. The real-bd mode composes the shipping HTTP server
-and process adapter, with the same Read admission and an explicit isolated child
-environment. It does not substitute a fake bd executable or a canned transport.
+and process adapter, with the same Read admission, advertised limits and public
+Read controls as `bdpbd`, plus an explicit isolated child environment. This is
+an in-process composition; the `bdpbd` CLI itself is not launched. It does not substitute a fake bd executable or a canned transport.
 The separate CLI is the actual built `apps/bdp` executable in both modes.
 
 **This demonstrates BDP Read and dependency-Link traversal today.** It does not
@@ -82,3 +88,14 @@ new managed engine. Fixture data is seeded through native bd commands. Ordinary
 Read here does not specifically exercise PR54's dynamic schema-reference work.
 Those are separate integration milestones; do not describe this as the full
 memory/history demo.
+
+To exercise the capture-host real-bd regression test explicitly:
+
+```sh
+BDP_DEMO_BD_EXECUTABLE=/opt/homebrew/bin/bd pnpm exec vitest run scripts/demo-read.test.mjs
+```
+
+The test checks the recorded seed command sequence, real readiness parity and
+advertised limits. Tests skip when the packaged client has not been built.
+The `/tmp` isolation root is deliberate: it avoids ancestor `.beads` discovery
+under user home directories; this walkthrough is qualified on the capture Mac.
