@@ -1,6 +1,15 @@
 import { execFileSync, spawn } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
+import { runInNewContext } from "node:vm";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -445,7 +454,9 @@ finally {
   if (lateFailure && result.ok) result = { ok: false, error: lateFailure, subject: result };
   const receipt = { result, supervisionError: lateFailure, contained, released, closed, closeCode, closeSignal, signals, seedPids, seedPidsObserved: seedPids.length, cleanupError, outputBytes, outputTail: output.slice(-4096), ownerPid: process.pid, driverPid: child?.pid };
   // Preserve failed cleanup evidence as well as successful absence observations.
-  writeFileSync(path.join(directory, "owner-receipt.json"), JSON.stringify(receipt));
+  const receiptPath = path.join(directory, "owner-receipt.json");
+  writeFileSync(receiptPath + ".tmp", JSON.stringify(receipt));
+  renameSync(receiptPath + ".tmp", receiptPath);
   if (cleanupError) {
     child?.stdin?.destroy(); child?.stdout?.destroy(); child?.stderr?.destroy();
     if (child?.connected) child.disconnect(); child?.unref();
@@ -456,13 +467,58 @@ finally {
 
 const lifecycleClient = `
 import { spawn } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, renameSync } from "node:fs";
 import path from "node:path";
 const [source, directory, mode] = process.argv.slice(2);
 const child = spawn(process.execPath, [path.join(directory, "owner.mjs"), source, directory, mode], { detached: true, stdio: ["ignore", "ignore", "ignore", "ipc"] });
-writeFileSync(path.join(directory, "owner-client.json"), JSON.stringify({ ownerPid: child.pid, clientPid: process.pid }));
+const clientPath = path.join(directory, "owner-client.json");
+writeFileSync(clientPath + ".tmp", JSON.stringify({ ownerPid: child.pid, clientPid: process.pid }));
+renameSync(clientPath + ".tmp", clientPath);
 child.on("message", () => {});
 `;
+
+describe("lifecycle record publication", () => {
+  it.each([
+    ["owner-receipt.json", "receiptPath", lifecycleOwner],
+    ["owner-client.json", "clientPath", lifecycleClient],
+  ])("keeps %s invisible until its JSON is complete", async (name, localPath, source) => {
+    const directory = await mkdtemp(path.join(tmpdir(), "bdp-record-publication-"));
+    const finalPath = path.join(directory, name);
+    const receipt = { ownerPid: 42, clientPid: 43 };
+    // Execute the generated fixture's actual publication statements. Interpose
+    // after opening the destination but before writing bytes: this is the exact
+    // boundary at which an existsSync-based reader could otherwise see empty JSON.
+    const publication = source
+      .split("\n")
+      .filter((line) => line.includes(name) || line.includes(localPath))
+      .join("\n");
+    let writes = 0;
+    try {
+      runInNewContext(publication, {
+        directory,
+        path,
+        receipt,
+        child: { pid: receipt.ownerPid },
+        process: { pid: receipt.clientPid },
+        renameSync,
+        writeFileSync: (destination: string, data: string) => {
+          const fd = openSync(destination, "w");
+          try {
+            writes++;
+            expect(existsSync(finalPath)).toBe(false);
+            writeFileSync(fd, data);
+          } finally {
+            closeSync(fd);
+          }
+        },
+      });
+      expect(writes).toBe(1);
+      expect(JSON.parse(readFileSync(finalPath, "utf8"))).toEqual(receipt);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+});
 
 interface LifecycleReceipt {
   result: { ok: boolean; error?: string };
