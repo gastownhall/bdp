@@ -241,6 +241,7 @@ export function qualifyDynamicRecursion(
   const width = ordered.length;
   for (const resource of resources) {
     budget.work(6 + width);
+    if (resource.id !== vectors.length) throw new Error("dynamic invariant: resource index");
     budget.charge("logicalBytes", 80 + 16 * width);
     const vector: number[] = [];
     for (const name of ordered) {
