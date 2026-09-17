@@ -479,6 +479,7 @@ child.on("message", () => {});
 
 describe("lifecycle record publication", () => {
   it.each([
+    ["owner-driver.json", "recordPath", lifecycleOwner],
     ["owner-receipt.json", "receiptPath", lifecycleOwner],
     ["owner-client.json", "clientPath", lifecycleClient],
   ])("keeps %s invisible until its JSON is complete", async (name, localPath, source) => {
@@ -498,6 +499,7 @@ describe("lifecycle record publication", () => {
         directory,
         path,
         receipt,
+        identity: receipt,
         child: { pid: receipt.ownerPid },
         process: { pid: receipt.clientPid },
         renameSync,
