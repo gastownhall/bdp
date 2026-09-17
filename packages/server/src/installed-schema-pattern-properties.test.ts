@@ -376,7 +376,7 @@ describe("patternProperties names, occurrences and coverage", () => {
       });
     expect(
       compile({ patternProperties: { never: { $dynamicAnchor: "d", $dynamicRef: "#d" } } }),
-    ).toMatchObject({ kind: "refused", reason: "unsupported-dynamic" });
+    ).toMatchObject({ kind: "refused", reason: "nonqualified-cycle" });
   });
 });
 

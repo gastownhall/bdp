@@ -1,4 +1,4 @@
-/** Private guarded static subset, not an installed Type/receiver or full dialect.
+/** Private guarded schema subset, not an installed Type/receiver or full dialect.
  * Compilation and each invocation own independent budgets. No user callback,
  * code generation, schema-pattern RegExp, fetch, registry or production wiring. */
 import {
@@ -7,7 +7,11 @@ import {
   PATTERN_POLICY,
   type PatternProgram,
 } from "./installed-schema-pattern.js";
-import { qualifyStaticRecursion } from "./installed-schema-recursion.js";
+import {
+  qualifyStaticRecursion,
+  qualifyDynamicRecursion,
+  type DynamicQualification,
+} from "./installed-schema-recursion.js";
 import { isProxy } from "node:util/types";
 import { JsonNumberLiteral, type LosslessJsonValue } from "@bdp/protocol";
 import {
@@ -21,6 +25,7 @@ import {
   formatSchemaPointer,
   type SchemaGraphCandidate,
   type SchemaNode,
+  type SchemaReference,
 } from "./installed-schema-graph.js";
 import { type SchemaGraphLimits, SchemaGraphError } from "./installed-schema-shape.js";
 import {
@@ -45,7 +50,7 @@ import {
   chargeAnnotationBytes,
 } from "./installed-schema-value.js";
 export { EVALUATOR_CEILINGS, type EvaluatorLimits } from "./installed-schema-value.js";
-const stage = "private-static-schema-evaluation-4";
+const stage = "private-schema-evaluation-5";
 // Private administrative output policy revision; no new BDP validity rule.
 const annotationPolicy = Object.freeze({
   revision: "bounded-annotation-output-2",
@@ -62,7 +67,6 @@ const annotationPolicy = Object.freeze({
 // label from every outcome. Annotation representation/order remains revision 2.
 const deferred = Object.freeze([
   "full-vocabulary",
-  "dynamic",
   "regex",
   // Media/content processing remains deferred; declared annotation values are retained.
   "mime",
@@ -295,15 +299,33 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
           registerPattern(node.id, k.value);
         }
     }
-    const collectLocations = qualifyStaticRecursion(
-      graph.nodes,
-      root,
-      children,
-      refs,
-      budget,
-      registerPattern,
-      registerPatternProperties,
-    );
+    let collectLocations: boolean;
+    let specialization: DynamicQualification | undefined;
+    try {
+      collectLocations = qualifyStaticRecursion(
+        graph.nodes,
+        root,
+        children,
+        refs,
+        budget,
+        registerPattern,
+        registerPatternProperties,
+      );
+    } catch (error) {
+      if (!(error instanceof EvaluationRefusal) || error.code !== "unsupported-dynamic")
+        throw error;
+      specialization = qualifyDynamicRecursion(
+        graph.nodes,
+        graph.resources,
+        root,
+        children,
+        refs,
+        budget,
+        registerPattern,
+        registerPatternProperties,
+      );
+      collectLocations = specialization.collectLocations;
+    }
     const limits = budget.limits;
     return Object.freeze({
       kind: "compiled",
@@ -323,6 +345,7 @@ export function compilePrivateSchemaEvaluator(input: Compilation): CompilationOu
             collectLocations,
             programs,
             propertyPrograms,
+            specialization,
           );
         } catch (error) {
           return refusal(error, "instance");
@@ -362,11 +385,27 @@ function evaluate(
   collectLocations: boolean,
   programs: ReadonlyMap<number, PatternProgram> | undefined,
   propertyPrograms: ReadonlyMap<number, readonly PatternProperty[]> | undefined,
+  specialization: DynamicQualification | undefined,
 ): Extract<EvaluationOutcome, { kind: "evaluated" }> {
   const instances = instanceIndex(bytes, b);
   const memo = new EvaluationMemo<Fact>(b);
   // All mutable state, including IDs and memoized facts, belongs to this invocation.
-  function* run(nodeId: number, instanceId: number): Generator<Request, Fact, Fact> {
+  function* run(evaluationId: number, instanceId: number): Generator<Request, Fact, Fact> {
+    let nodeId = evaluationId;
+    if (specialization) {
+      b.work(2);
+      const state = specialization.states[evaluationId];
+      if (!state) throw new Error("dynamic invariant: runtime state");
+      nodeId = state.node;
+    }
+    const transition = (target: number, reference?: SchemaReference): number => {
+      if (!specialization) return target;
+      b.work(2);
+      const state = specialization.states[evaluationId];
+      const selected = reference ? state?.refs.get(reference) : state?.children.get(target);
+      if (selected === undefined) throw new Error("dynamic invariant: runtime transition");
+      return selected;
+    };
     const node = graph.nodes[nodeId] as SchemaNode,
       current = instances[instanceId] as Instance,
       v = current.value;
@@ -435,7 +474,11 @@ function evaluate(
     const target = (key: string, member?: string) =>
       targets(key).find((e) => e.member === member)?.target;
     for (const ref of refs.get(nodeId) ?? []) {
-      const child = yield { node: ref.target, instance: instanceId, path: ref.keyword };
+      const child = yield {
+        node: transition(ref.target, ref),
+        instance: instanceId,
+        path: ref.keyword,
+      };
       take(child, ref.keyword);
       merge(child);
     }
@@ -568,7 +611,7 @@ function evaluate(
       const evaluated: Child[] = [];
       for (const edge of branch) {
         const path = `${keyword}/${edge.member}`;
-        const child = yield { node: edge.target, instance: instanceId, path };
+        const child = yield { node: transition(edge.target), instance: instanceId, path };
         b.charge("logicalBytes", 32 + 2 * path.length);
         evaluated.push({ fact: child, path });
       }
@@ -597,12 +640,12 @@ function evaluate(
     }
     const not = target("not");
     if (not !== undefined) {
-      const result = yield { node: not, instance: instanceId, path: "not" };
+      const result = yield { node: transition(not), instance: instanceId, path: "not" };
       if (result.valid) fail("not");
     }
     const condition = target("if");
     if (condition !== undefined) {
-      const result = yield { node: condition, instance: instanceId, path: "if" };
+      const result = yield { node: transition(condition), instance: instanceId, path: "if" };
       if (result.valid) {
         b.charge("logicalBytes", 32);
         fact.successes.push({ fact: result, path: "if" });
@@ -611,7 +654,7 @@ function evaluate(
       const key = result.valid ? "then" : "else",
         selected = target(key);
       if (selected !== undefined) {
-        const child = yield { node: selected, instance: instanceId, path: key };
+        const child = yield { node: transition(selected), instance: instanceId, path: key };
         take(child, key);
         merge(child);
       }
@@ -622,7 +665,7 @@ function evaluate(
       for (const e of targets("dependentSchemas"))
         if (Object.hasOwn(v, e.member as string)) {
           const path = `dependentSchemas/${escapePointer(e.member as string)}`;
-          const child = yield { node: e.target, instance: instanceId, path };
+          const child = yield { node: transition(e.target), instance: instanceId, path };
           take(child, path);
           dependenciesValid = dependenciesValid && child.valid;
           stage(dependencies, child);
@@ -642,7 +685,7 @@ function evaluate(
           if (tracked) b.charge("logicalBytes", 16);
           names.push(e.member as string);
           const path = `properties/${escapePointer(e.member as string)}`;
-          const child = yield { node: e.target, instance: id, path };
+          const child = yield { node: transition(e.target), instance: id, path };
           take(child, path);
           propertiesValid = propertiesValid && child.valid;
           stage(propertyIds, id);
@@ -704,7 +747,7 @@ function evaluate(
             b.work(18 + 6 * n);
             b.charge("logicalBytes", 36 + 12 * n);
             const path = `patternProperties/${escapePointer(record.member)}`;
-            const child = yield { node: record.target, instance: id, path };
+            const child = yield { node: transition(record.target), instance: id, path };
             take(child, path);
             b.work(2); // T5: no short circuit after either success or failure
             if (!child.valid) patternsValid = false;
@@ -740,7 +783,11 @@ function evaluate(
             }
             if (tracked) b.charge("logicalBytes", 16);
             applied.push(key);
-            const child = yield { node: extra, instance: id, path: "additionalProperties" };
+            const child = yield {
+              node: transition(extra),
+              instance: id,
+              path: "additionalProperties",
+            };
             take(child, "additionalProperties");
             extraValid = extraValid && child.valid;
             stage(extraIds, id);
@@ -765,7 +812,10 @@ function evaluate(
             children: new Map(),
             actual: instanceId,
           });
-          take(yield { node: propertyNames, instance: id, path: "propertyNames" }, "propertyNames");
+          take(
+            yield { node: transition(propertyNames), instance: id, path: "propertyNames" },
+            "propertyNames",
+          );
         }
     }
     if (Array.isArray(v)) {
@@ -778,7 +828,7 @@ function evaluate(
         if (id !== undefined) {
           used++;
           const path = `prefixItems/${e.member}`;
-          const child = yield { node: e.target, instance: id, path };
+          const child = yield { node: transition(e.target), instance: id, path };
           take(child, path);
           prefixValid = prefixValid && child.valid;
           stage(prefixIds, id);
@@ -793,7 +843,7 @@ function evaluate(
         for (let i = prefix.length; i < v.length; i++) {
           applied = true;
           const child = yield {
-            node: items,
+            node: transition(items),
             instance: current.children.get(String(i)) as number,
             path: "items",
           };
@@ -815,7 +865,7 @@ function evaluate(
           b.work(16);
           const index = String(i);
           const child = yield {
-            node: contains,
+            node: transition(contains),
             instance: current.children.get(index) as number,
             path: "contains",
           };
@@ -870,7 +920,11 @@ function evaluate(
           if (fact.locations?.covers(id)) continue;
           stage(names, key);
           stage(ids, id);
-          const child = yield { node: unevaluated, instance: id, path: "unevaluatedProperties" };
+          const child = yield {
+            node: transition(unevaluated),
+            instance: id,
+            path: "unevaluatedProperties",
+          };
           take(child, "unevaluatedProperties");
           valid = valid && child.valid;
         }
@@ -890,7 +944,11 @@ function evaluate(
           b.work();
           if (fact.locations?.covers(id)) continue;
           applied = true;
-          const child = yield { node: unevaluated, instance: id, path: "unevaluatedItems" };
+          const child = yield {
+            node: transition(unevaluated),
+            instance: id,
+            path: "unevaluatedItems",
+          };
           take(child, "unevaluatedItems");
           valid = valid && child.valid;
         }
@@ -935,7 +993,8 @@ function evaluate(
     b.bound("frames", stack.length + 1);
     stack.push({ key, iterator: run(node, instance) });
   };
-  push(root, 0, memo.key(root, 0));
+  const entry = specialization?.entry ?? root;
+  push(entry, 0, memo.key(entry, 0));
   let result: Fact | undefined;
   while (stack.length) {
     b.work();

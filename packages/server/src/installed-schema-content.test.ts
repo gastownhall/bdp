@@ -193,7 +193,7 @@ describe("private Content annotations without media processing", () => {
     ],
     [
       '{"contentMediaType":"text/plain","contentSchema":{"$dynamicAnchor":"slot","$dynamicRef":"#slot"},"$ref":"#/contentSchema"}',
-      "unsupported-dynamic",
+      "nonqualified-cycle",
     ],
   ])("preserves the exact compile refusal %s", (schema, reason) => {
     expect(admit(bytes(schema))).toMatchObject({ kind: "refused", phase: "compile", reason });
@@ -355,7 +355,6 @@ describe("private Content annotations without media processing", () => {
     });
     expect(r.deferred).toEqual([
       "full-vocabulary",
-      "dynamic",
       "regex",
       "mime",
       "production-work-and-heap",

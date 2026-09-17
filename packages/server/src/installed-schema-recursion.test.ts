@@ -289,14 +289,17 @@ describe("guarded static recursion", () => {
       reason: "nonqualified-cycle",
     });
   });
-  it.each([false, true])("checks reachable dynamic before cycles with reverse=%s", (reverse) => {
-    const children = [{ $ref: "#" }, { $dynamicRef: "#d" }];
-    if (reverse) children.reverse();
-    expect(
-      admit(JSON.stringify({ $defs: { dynamic: { $dynamicAnchor: "d" } }, allOf: children })),
-    ).toMatchObject({ kind: "refused", phase: "compile", reason: "unsupported-dynamic" });
-  });
-  it("executes builtin patterns and retains a co-reachable true-dynamic refusal", () => {
+  it.each([false, true])(
+    "refuses the retained cycle after dynamic qualification with reverse=%s",
+    (reverse) => {
+      const children = [{ $ref: "#" }, { $dynamicRef: "#d" }];
+      if (reverse) children.reverse();
+      expect(
+        admit(JSON.stringify({ $defs: { dynamic: { $dynamicAnchor: "d" } }, allOf: children })),
+      ).toMatchObject({ kind: "refused", phase: "compile", reason: "nonqualified-cycle" });
+    },
+  );
+  it("executes builtin patterns and retains a co-reachable dynamic self-cycle", () => {
     const target = "https://json-schema.org/draft/2020-12/meta/core#/$defs/anchorString";
     expect(
       admit(
@@ -305,7 +308,7 @@ describe("guarded static recursion", () => {
           allOf: [{ $ref: target }, { $dynamicAnchor: "x", $dynamicRef: "#x" }],
         }),
       ),
-    ).toMatchObject({ kind: "refused", phase: "compile", reason: "unsupported-dynamic" });
+    ).toMatchObject({ kind: "refused", phase: "compile", reason: "nonqualified-cycle" });
     expect(admit(JSON.stringify({ $ref: target }))).toMatchObject({ kind: "compiled" });
     for (const [value, valid] of [
       ["a", true],
@@ -373,7 +376,7 @@ describe("guarded static recursion", () => {
     ['{"items":12}', "graph:schema-shape"],
     [
       '{"properties":{"x":{"$ref":"#"}},"$dynamicAnchor":"d","$dynamicRef":"#d"}',
-      "unsupported-dynamic",
+      "nonqualified-cycle",
     ],
   ])("keeps unsupported neighbor %s", (schema, reason) =>
     expect(admit(schema)).toMatchObject({ kind: "refused", phase: "compile", reason }),
@@ -437,9 +440,9 @@ describe("guarded static recursion", () => {
       valid: true,
     });
   });
-  it("identifies actual compiled/evaluated/refused stage4 outcomes", () => {
+  it("identifies actual compiled/evaluated/refused stage5 outcomes", () => {
     const c = compile("true");
-    expect(c.stage).toBe("private-static-schema-evaluation-4");
+    expect(c.stage).toBe("private-schema-evaluation-5");
     expect(c.evaluateUtf8(bytes("null")).stage).toBe(c.stage);
     expect(admit('{"$ref":"#"}').stage).toBe(c.stage);
     expect(c.evaluateUtf8(bytes("{"))).toMatchObject({

@@ -402,9 +402,7 @@
       "file": "tests/draft2020-12/defs.json",
       "group": 0,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dependentRequired.json",
@@ -458,9 +456,7 @@
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 0,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
@@ -478,9 +474,7 @@
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 3,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
@@ -492,17 +486,13 @@
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 5,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 6,
       "cases": [0],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
@@ -520,9 +510,7 @@
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 9,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
@@ -534,57 +522,43 @@
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 11,
       "cases": [0, 1, 2, 3],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 12,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 13,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 14,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 15,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 16,
       "cases": [0, 1, 2],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 17,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
@@ -596,17 +570,13 @@
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 19,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/dynamicRef.json",
       "group": 20,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/enum.json",
@@ -2056,9 +2026,7 @@
       "file": "tests/draft2020-12/ref.json",
       "group": 6,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/ref.json",
@@ -2532,9 +2500,7 @@
       "file": "tests/draft2020-12/unevaluatedItems.json",
       "group": 18,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/unevaluatedItems.json",
@@ -2726,9 +2692,7 @@
       "file": "tests/draft2020-12/unevaluatedProperties.json",
       "group": 21,
       "cases": [0, 1],
-      "disposition": "explicit-private-refusal",
-      "phase": "compile",
-      "reason": "unsupported-dynamic"
+      "disposition": "official-validity-compared"
     },
     {
       "file": "tests/draft2020-12/unevaluatedProperties.json",
