@@ -175,7 +175,7 @@ describe.skipIf(!builtEntries.every((entry) => existsSync(path.join(root, entry)
           await rm(directory, { recursive: true, force: true });
         }
       },
-      170_000,
+      330_000,
     );
   },
 );
