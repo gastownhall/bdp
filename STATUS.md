@@ -276,17 +276,24 @@ Exactly 41 fixed official dynamic cases now compare; all 2,281 other complete
 rows and 2,204 prior evaluated counter maps remain unchanged. The final 2,322
 rows match the frozen source observation. Prewritten D1–D8 logical budget
 controls passed unchanged; these are not peak-heap guarantees.
-Native source review approves; Gemini's favorable review retains its recorded
-scope limits. Claude's actual source attempt returned a session-limit error,
-not a review. This missing review remains a disclosed residual risk; the branch
-is a draft and has not been approved for release.
-Source commit b24dc53e generated fresh Read evidence; its artifact/constant child
-483049f8 passed all nine local gates, including 7,467 tests with zero failures
+Native source review and independent correction review approve this source.
+Actual Claude source review found two low issues: a missing discriminating
+ready-stack budget test and a missing resource identity/index invariant.
+Correction commit 8ad8bf0a addresses both; actual Claude correction review
+completed with no findings. The new test rejects a mutant deleting only the
+ready-stack bound. The invariant uses the existing work charge, preserving all
+2,322 corpus records and counters byte-for-byte. Historical failed review
+attempts remain retained; Gemini is excluded from the current review matrix.
+Source commit 8ad8bf0a generated fresh Read evidence; its artifact/constant child
+4cca889c passed all nine local gates, including 7,469 tests with zero failures
 or skips, build, typecheck, lint, formatting, boundaries, smoke, readiness
 preflight and evidence verification. The genuine Read cohort records 89 passes,
-9 not-applicable rows and eight explicit qualifications. Its generator identity
-is not relabeled as the later evidence child. Original failures and review
-limits remain retained. Hosted checks and release review are still pending.
+9 not-applicable rows and eight unchanged explicit qualifications, preserving
+the packaged/in-process distinction. Its generator identity remains 8ad8bf0a,
+not the later evidence child. Exact source maps and tool pins remained stable
+through each run. Original failures and review limits remain retained. Hosted
+checks and the release decision are still pending; no downstream activation
+is implied.
 Unicode property escapes, full installation and production engine/receiver
 qualification remain open.
 Format retains its annotation policy; no held HTTP Content-Encoding ruling is
@@ -339,6 +346,7 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The dynamic-source evidence child passed 7,467 tests
-with zero failures or skips and all nine local gates. Missing Claude source review
-and exact hosted checks remain open; no release or downstream activation is implied.
+reviewed foundation source. The reviewed dynamic-source correction's evidence
+child 4cca889c passed 7,469 tests with zero failures or skips and all nine local
+gates. Actual Claude source and correction reviews are complete. Exact hosted
+checks and the release decision remain open; no downstream activation is implied.
