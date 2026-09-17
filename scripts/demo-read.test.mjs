@@ -4,7 +4,10 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.setConfig({ testTimeout: 170_000 });
+
 import { spawnChild, terminateChild } from "./e2e-ready.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -26,7 +29,7 @@ async function run(args, port = undefined) {
     cwd: root,
     env: { PATH: process.env.PATH, BDP_DEMO_PORT: String(port) },
     stdio: ["ignore", "pipe", "pipe"],
-    timeoutMs: args.length > 1 ? 90_000 : 20_000,
+    timeoutMs: 150_000,
   });
   try {
     return await child.result;
@@ -34,7 +37,15 @@ async function run(args, port = undefined) {
     await terminateChild(child);
   }
 }
-describe.skipIf(!existsSync(path.join(root, "apps/bdp/dist/main.js")))(
+const builtEntries = [
+  "apps/bdp/dist/main.js",
+  "apps/bdptest/dist/server-composition.js",
+  "packages/adapter-bd/dist/index.js",
+  "packages/client/dist/index.js",
+  "packages/config/dist/index.js",
+  "packages/server/dist/index.js",
+];
+describe.skipIf(!builtEntries.every((entry) => existsSync(path.join(root, entry))))(
   "runnable Read walkthrough",
   () => {
     it("uses actual HTTP Links and a separate packaged ready client, then closes its listener", async () => {
@@ -145,12 +156,26 @@ describe.skipIf(!existsSync(path.join(root, "apps/bdp/dist/main.js")))(
           expect(JSON.parse(evidence.commands.at(-1).stdout)).toEqual(
             JSON.parse(evidence.commands.at(-2).stdout),
           );
-          expect(evidence.responses[0].value.limits).toBeDefined();
+          const referenceOutput = path.join(directory, "reference");
+          const reference = await run([referenceOutput]);
+          assert.equal(reference.code, 0, reference.stderr + reference.stdout);
+          const referenceEvidence = JSON.parse(
+            await readFile(path.join(referenceOutput, "result.json"), "utf8"),
+          );
+          expect(evidence.responses[0].value.limits).toEqual(
+            referenceEvidence.responses[0].value.limits,
+          );
+          expect(evidence.responses.at(-1).value.code).toBe("limit-exceeded");
+          expect(evidence.http.at(-1)).toMatchObject({
+            phase: "public-control",
+            method: "GET",
+            status: 413,
+          });
         } finally {
           await rm(directory, { recursive: true, force: true });
         }
       },
-      100_000,
+      170_000,
     );
   },
 );

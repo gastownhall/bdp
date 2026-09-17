@@ -28,7 +28,7 @@ import {
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const args = process.argv.slice(2);
-if (args.length < 1 || args.length > 2) {
+if (args.length < 1 || args.length > 2 || args[0] === "") {
   throw new Error("Usage: node scripts/demo-read.mjs NEW_OUTPUT_DIRECTORY [PINNED_BD_EXECUTABLE]");
 }
 const output = path.resolve(args[0]);
@@ -325,6 +325,16 @@ try {
       ? "   Result matches the checked-in fixture oracle."
       : "   Result exactly matches a separate direct 'bd ready --limit 0 --json' invocation.",
   );
+  activePhase = "public-control";
+  const excessiveLimit = discovery.limits.page.maximumItems + 1;
+  const refusal = await fetch(`${discovery.beads}?limit=${excessiveLimit}`, {
+    signal: controller.signal,
+  });
+  const problem = await refusal.json();
+  assert.equal(refusal.status, 413);
+  assert.equal(problem.code, "limit-exceeded");
+  responses.push({ request: "over-limit-public-control", value: problem });
+  say("5. Ask for an over-limit page: the public server refuses it with limit-exceeded.");
   assert.equal(listenerFailure, undefined);
   successful = true;
 } catch (error) {

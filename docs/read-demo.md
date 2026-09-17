@@ -56,7 +56,9 @@ retained; native setup commands are recorded alongside the Read demonstration.
    actual `bdp bd ready --json` process reads the server over HTTP and returns
    J, D, A. B is absent. The output is checked against the fixture oracle, or,
    for the real-bd server, against an independent direct `bd ready` invocation.
-5. **“We changed the server implementation without changing the client.”**
+5. **“The server enforces the limits it advertises.”** An actual over-limit
+   HTTP request receives `413 limit-exceeded`.
+6. **“We changed the server implementation without changing the client.”**
    Repeat using the real-bd command. The IDs and data come from a real isolated
    bd database; the same packaged BDP client still computes readiness.
 
@@ -99,3 +101,9 @@ The test checks the recorded seed command sequence, real readiness parity and
 advertised limits. Tests skip when the packaged client has not been built.
 The `/tmp` isolation root is deliberate: it avoids ancestor `.beads` discovery
 under user home directories; this walkthrough is qualified on the capture Mac.
+
+The demo retains a copied seed recipe for transparent command capture; the
+opt-in test compares its commands to fixture-derived expectations, not directly
+to the matrix seeder implementation. Shared seeder extraction is deferred. The
+test supervisor waits longer than the script's 120-second abort deadline so
+the script can record failures and clean up its owned state.
