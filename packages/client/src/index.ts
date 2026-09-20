@@ -1,3 +1,4 @@
+import { SessionCore } from "./continuations.js";
 import {
   type BdpContinuationScope,
   captureReadRequest,
@@ -844,6 +845,7 @@ export class BdpClient {
   private readonly externalTypeDescriptorPolicy: ExternalTypeDescriptorRuntime | undefined;
   private readonly operations = new Map<AbortController, Promise<void>>();
   private readonly transportSettlements = new Set<Promise<void>>();
+  private readonly sessionCore = new SessionCore();
   private readonly readSession: ReadSession;
   private readonly transportSettlementTimeoutMs: number;
   private state: "open" | "closing" | "closed" = "open";
@@ -855,7 +857,7 @@ export class BdpClient {
     const ownedOptions = snapshotClientOptions(options);
     assertCanonicalScope(ownedOptions.scope);
     this.scope = ownedOptions.scope;
-    this.readSession = new ReadSession(this.scope);
+    this.readSession = new ReadSession(this.scope, this.sessionCore);
     this.transport = ownedOptions.transport;
     this.externalTypeDescriptorPolicy = ownedOptions.externalTypeDescriptorPolicy;
     this.transportSettlementTimeoutMs = ownedOptions.transportSettlementTimeoutMs;
@@ -1087,7 +1089,7 @@ export class BdpClient {
       .then(() => boundedSettlement(transports, this.transportSettlementTimeoutMs))
       .then(() => {
         this.transportSettlements.clear();
-        this.readSession.clear();
+        this.sessionCore.clear();
         this.state = "closed";
       });
     return this.closePromise;
