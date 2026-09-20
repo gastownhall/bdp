@@ -55,6 +55,7 @@ import {
   establishReadConformanceEvidenceForTesting,
 } from "@bdp/server/testing";
 import { describe, expect, it } from "vitest";
+import { withMatrixLifecycle } from "../test-support/matrix-lifecycle.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const readText = (relativePath: string): string =>
@@ -349,240 +350,281 @@ setTimeout(() => process.exit(0), 1500);
 
   it.runIf(runRealBdMatrix)(
     "passes every checked-in plan through an isolated public bd CLI workspace (requires local pinned bd or BDP_BD_MATRIX_EXECUTABLE)",
-    async () => {
+    async ({ signal: testSignal }) => {
       const withdrawEvidence = establishReadConformanceEvidenceForTesting("bdpbd");
-      const seedController = new AbortController();
-      const seedTimer = setTimeout(
-        () => seedController.abort(new Error("bdpbd seed exceeded its total deadline")),
-        60_000,
-      );
-      seedTimer.unref();
+      let seedTimer: NodeJS.Timeout | undefined;
       let temporaryRoot: string | undefined;
       let scenarioTarget: ReturnType<typeof createRawHttpScenarioTarget> | undefined;
       let descriptorPublisher:
         | Awaited<ReturnType<typeof startControlledTypeDescriptorPublisher>>
         | undefined;
       let controlledSession: ControlledReadActionSession | undefined;
-      try {
-        temporaryRoot = await mkdtemp(path.join(tmpdir(), "bdp-bdpbd-matrix-"));
-        const home = path.join(temporaryRoot, "home");
-        const workspace = path.join(temporaryRoot, "workspace");
-        const restoredWorkspace = path.join(temporaryRoot, "restored-workspace");
-        const externalEndpointWorkspace = path.join(temporaryRoot, "external-endpoint-workspace");
-        await Promise.all([mkdir(home), mkdir(workspace), mkdir(externalEndpointWorkspace)]);
-        const gitconfig = path.join(home, "gitconfig");
-        await writeFile(
-          gitconfig,
-          "[user]\n\tname = bdp-conformance\n\temail = bdp-conformance@invalid\n",
-        );
-        const environment = {
-          PATH: process.env.PATH ?? "",
-          TMPDIR: process.env.TMPDIR ?? tmpdir(),
-          HOME: home,
-          GIT_CONFIG_GLOBAL: gitconfig,
-          GIT_CONFIG_SYSTEM: "/dev/null",
-          BD_NON_INTERACTIVE: "1",
-          CI: "true",
-        };
-        const executable = await resolveExecutable(
-          configuredBdExecutable ?? implicitLocalBdExecutable ?? "bd",
-          environment.PATH,
-        );
-        const artifactBundle = createReadArtifactBundle(
-          "packages/conformance/fixtures/read-bdpbd-v1.json",
-        );
-        const fixture = artifactBundle.fixture as BdFixture;
-        await inspectBdIdentity(executable, workspace, environment, fixture, seedController.signal);
-        // The workspaces are deliberately independent. Seed them concurrently so
-        // host contention cannot make setup consume most of the matrix deadline.
-        await seedBdWorkspacePair(
-          executable,
-          [workspace, externalEndpointWorkspace],
-          environment,
-          fixture.bd,
-          seedController.signal,
-        );
-        // Restore evidence must cross both identity boundaries: the new listener
-        // gets a new Scope and a reconstructed on-disk bd workspace. The later
-        // controlled deletion remains an in-memory view overlay; demo-f is never
-        // physically deleted from either bd database.
-        await reconstructRestoredWorkspace(workspace, restoredWorkspace);
-        await runCommand(
-          executable,
-          [
-            "--actor",
-            fixture.bd.actor,
-            "dep",
-            "add",
-            "demo-f",
-            "external:beads:mol-run-assignee",
-            "--type",
-            "related",
-          ],
-          externalEndpointWorkspace,
-          environment,
-          { signal: seedController.signal },
-        );
-        const realBdReadyTitles = await expectRealBdReadyOracle(
-          executable,
-          workspace,
-          environment,
-          fixture,
-          seedController.signal,
-        );
-        clearTimeout(seedTimer);
-
-        const createMatrixPort = (scopeUrl: string, workspacePath: string) =>
-          createBdProcessScopePort(scopeUrl, {
-            executable,
-            workspace: workspacePath,
-            environment,
-            timeoutMs: commandTimeoutMs,
-            maxOutputBytes: commandMaxOutputBytes,
-          });
-        scenarioTarget = createRawHttpScenarioTarget(async (scenario, _scope, _seed, bound) => {
-          const advertisedLimits = scenario.setup.requires.includes(
-            controlledReadAdvertisedLimitsCapability,
-          );
-          const controlled =
-            scenario.setup.requires.includes(controlledReadCapability) ||
-            scenario.setup.requires.includes(controlledReadScopeRestoreCapability) ||
-            scenario.setup.requires.includes(controlledReadProblemCapability) ||
-            advertisedLimits;
-          const externalEndpointScenario = scenario.setup.requires.includes(
-            controlledReadExternalEndpointCapability,
-          );
-          // Each scenario owns a fresh adapter cache, while the external row also owns its workspace.
-          const sessionPort = createMatrixPort(
-            scope,
-            externalEndpointScenario ? externalEndpointWorkspace : workspace,
-          );
-          const session = await startBdpbdSession(
-            sessionPort,
-            bound,
-            scenario.setup.requires.includes("unexpected-internal-fault"),
-            scenario.setup.requires.includes(controlledReadProblemCapability),
-            advertisedLimits ? DEFAULT_SERVER_READ_LIMITS : undefined,
-            controlled
-              ? (session) => {
-                  controlledSession = session;
-                }
-              : undefined,
-            () => {
-              controlledSession = undefined;
+      let readinessSession: Awaited<ReturnType<typeof startBdpbdSession>> | undefined;
+      await withMatrixLifecycle(
+        {
+          signal: testSignal,
+          workTimeoutMs: 90_000,
+          report: (event) => process.stderr.write(`BDP_MATRIX_PHASE ${JSON.stringify(event)}\n`),
+          cleanup: [
+            { phase: "cleanup/seed-timer", run: () => clearTimeout(seedTimer) },
+            {
+              phase: "cleanup/readiness-session",
+              run: async () => readinessSession?.close(new AbortController().signal),
             },
-            (restoredScope) => createMatrixPort(restoredScope, restoredWorkspace),
+            {
+              phase: "cleanup/descriptor-publisher",
+              run: async () => descriptorPublisher?.close(),
+            },
+            { phase: "cleanup/scenario-target", run: async () => scenarioTarget?.close() },
+            {
+              phase: "cleanup/private-root",
+              run: async () => {
+                if (temporaryRoot !== undefined)
+                  await rm(temporaryRoot, { recursive: true, force: true });
+              },
+            },
+            { phase: "cleanup/withdraw-admission", run: withdrawEvidence },
+          ],
+        },
+        async ({ signal, phase, cleanupPhase }) => {
+          const seedController = new AbortController();
+          const seedSignal = AbortSignal.any([signal, seedController.signal]);
+          seedTimer = setTimeout(
+            () => seedController.abort(new Error("bdpbd seed exceeded its total deadline")),
+            60_000,
           );
-          return session;
-        });
-        const referenceFixture = createReadArtifactBundle(
-          "packages/conformance/fixtures/read-reference-v1.json",
-        ).fixture as ReferenceFixture;
-        if (
-          artifactBundle.manifest.scenarios.some((scenario) =>
-            scenario.setup.requires.includes(controlledReadExternalTypePublisherCapability),
-          )
-        ) {
-          if (!fixture.capabilities.includes(controlledReadExternalTypePublisherCapability))
-            throw new Error("bdpbd fixture lacks its external Type publisher capability");
-          descriptorPublisher = await startControlledTypeDescriptorPublisher([
-            ...fixture.typeDescriptors,
-            ...successorDescriptorBodies(fixture),
-          ]);
-        }
+          seedTimer.unref();
+          phase("setup/private-root");
+          temporaryRoot = await mkdtemp(path.join(tmpdir(), "bdp-bdpbd-matrix-"));
+          const home = path.join(temporaryRoot, "home");
+          const workspace = path.join(temporaryRoot, "workspace");
+          const restoredWorkspace = path.join(temporaryRoot, "restored-workspace");
+          const externalEndpointWorkspace = path.join(temporaryRoot, "external-endpoint-workspace");
+          phase("setup/directories");
+          await Promise.all([mkdir(home), mkdir(workspace), mkdir(externalEndpointWorkspace)]);
+          const gitconfig = path.join(home, "gitconfig");
+          phase("setup/gitconfig");
+          await writeFile(
+            gitconfig,
+            "[user]\n\tname = bdp-conformance\n\temail = bdp-conformance@invalid\n",
+          );
+          const environment = {
+            PATH: process.env.PATH ?? "",
+            TMPDIR: process.env.TMPDIR ?? tmpdir(),
+            HOME: home,
+            GIT_CONFIG_GLOBAL: gitconfig,
+            GIT_CONFIG_SYSTEM: "/dev/null",
+            BD_NON_INTERACTIVE: "1",
+            CI: "true",
+          };
+          phase("setup/resolve-bd");
+          const executable = await resolveExecutable(
+            configuredBdExecutable ?? implicitLocalBdExecutable ?? "bd",
+            environment.PATH,
+          );
+          const artifactBundle = createReadArtifactBundle(
+            "packages/conformance/fixtures/read-bdpbd-v1.json",
+          );
+          const fixture = artifactBundle.fixture as BdFixture;
+          phase("seed/identity");
+          await inspectBdIdentity(executable, workspace, environment, fixture, seedSignal);
+          // The workspaces are deliberately independent. Seed them concurrently so
+          // host contention cannot make setup consume most of the matrix deadline.
+          phase("seed/parallel-workspaces");
+          await seedBdWorkspacePair(
+            executable,
+            [workspace, externalEndpointWorkspace],
+            environment,
+            fixture.bd,
+            seedSignal,
+          );
+          // Restore evidence must cross both identity boundaries: the new listener
+          // gets a new Scope and a reconstructed on-disk bd workspace. The later
+          // controlled deletion remains an in-memory view overlay; demo-f is never
+          // physically deleted from either bd database.
+          phase("seed/restore-copy");
+          await reconstructRestoredWorkspace(workspace, restoredWorkspace);
+          phase("seed/external-dependency");
+          await runCommand(
+            executable,
+            [
+              "--actor",
+              fixture.bd.actor,
+              "dep",
+              "add",
+              "demo-f",
+              "external:beads:mol-run-assignee",
+              "--type",
+              "related",
+            ],
+            externalEndpointWorkspace,
+            environment,
+            { signal: seedSignal },
+          );
+          phase("seed/ready-oracle");
+          const realBdReadyTitles = await expectRealBdReadyOracle(
+            executable,
+            workspace,
+            environment,
+            fixture,
+            seedSignal,
+          );
+          clearTimeout(seedTimer);
 
-        const schema = JSON.parse(readText("schemas/bdp-v0.schema.json")) as Record<
-          string,
-          unknown
-        >;
-        const schemaValidator = createJsonSchemaValidator(schema);
-        const clientActions = createBdpClientScenarioActionExecutor({
-          fetchImplementation: scenarioTarget.fetch,
-          ...(descriptorPublisher === undefined
-            ? {}
-            : { externalTypeDescriptorFetchImplementation: descriptorPublisher.fetch }),
-        });
-        const result = await runConformanceMatrix({
-          scope,
-          profile: "read",
-          seed: 0,
-          artifactBundle,
-          execute: scenarioTarget.execute,
-          actionExecutor: createControlledReadActionExecutor(
-            scenarioTarget.fetch,
-            clientActions,
-            () => controlledSession,
-            schemaValidator,
-          ),
-          harness: scenarioTarget.harness,
-          schemaValidator,
-          declaredTargetLabel: "in-process-bdpbd-real-bd-non-attesting",
-        });
-
-        const resultsById = new Map(result.scenarios.map((scenario) => [scenario.id, scenario]));
-        for (const plan of artifactBundle.manifest.scenarios) {
-          const observed = resultsById.get(plan.id);
-          const declared = new Set(
-            (artifactBundle.fixture as { readonly capabilities?: readonly string[] })
-              .capabilities ?? [],
-          );
-          const inapplicable = (plan.applicability?.requires ?? []).filter(
-            (capability) => !declared.has(capability),
-          );
-          if (inapplicable.length > 0) {
-            expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
-              state: "not-applicable",
+          phase("matrix/setup");
+          const createMatrixPort = (scopeUrl: string, workspacePath: string) =>
+            createBdProcessScopePort(scopeUrl, {
+              executable,
+              workspace: workspacePath,
+              environment,
+              timeoutMs: commandTimeoutMs,
+              maxOutputBytes: commandMaxOutputBytes,
             });
-            continue;
+          scenarioTarget = createRawHttpScenarioTarget(
+            async (scenario, _scope, _seed, bound, preparingSignal) => {
+              preparingSignal.throwIfAborted();
+              phase(`scenario/${scenario.id}/start-session`);
+              const advertisedLimits = scenario.setup.requires.includes(
+                controlledReadAdvertisedLimitsCapability,
+              );
+              const controlled =
+                scenario.setup.requires.includes(controlledReadCapability) ||
+                scenario.setup.requires.includes(controlledReadScopeRestoreCapability) ||
+                scenario.setup.requires.includes(controlledReadProblemCapability) ||
+                advertisedLimits;
+              const externalEndpointScenario = scenario.setup.requires.includes(
+                controlledReadExternalEndpointCapability,
+              );
+              // Each scenario owns a fresh adapter cache, while the external row also owns its workspace.
+              const sessionPort = createMatrixPort(
+                scope,
+                externalEndpointScenario ? externalEndpointWorkspace : workspace,
+              );
+              const session = await startBdpbdSession(
+                sessionPort,
+                bound,
+                scenario.setup.requires.includes("unexpected-internal-fault"),
+                scenario.setup.requires.includes(controlledReadProblemCapability),
+                advertisedLimits ? DEFAULT_SERVER_READ_LIMITS : undefined,
+                controlled
+                  ? (session) => {
+                      controlledSession = session;
+                    }
+                  : undefined,
+                () => {
+                  controlledSession = undefined;
+                },
+                (restoredScope) => createMatrixPort(restoredScope, restoredWorkspace),
+              );
+              return session;
+            },
+          );
+          const referenceFixture = createReadArtifactBundle(
+            "packages/conformance/fixtures/read-reference-v1.json",
+          ).fixture as ReferenceFixture;
+          if (
+            artifactBundle.manifest.scenarios.some((scenario) =>
+              scenario.setup.requires.includes(controlledReadExternalTypePublisherCapability),
+            )
+          ) {
+            if (!fixture.capabilities.includes(controlledReadExternalTypePublisherCapability))
+              throw new Error("bdpbd fixture lacks its external Type publisher capability");
+            phase("matrix/descriptor-publisher");
+            descriptorPublisher = await startControlledTypeDescriptorPublisher([
+              ...fixture.typeDescriptors,
+              ...successorDescriptorBodies(fixture),
+            ]);
           }
-          expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
-            state: "pass",
-          });
-        }
-        expect(
-          result.scenarios
-            .filter(({ id }) => !artifactBundle.manifest.scenarios.some((plan) => plan.id === id))
-            .every(
-              ({ state, category }) => state === "harness-error" && category === "not-implemented",
-            ),
-        ).toBe(true);
-        expect(result.claimEligible).toBe(false);
-        await emitMatrixRunForCohort("bdpbd", result);
 
-        const readinessSession = await startBdpbdSession(
-          createMatrixPort(scope, workspace),
-          fixture,
-        );
-        try {
+          const schema = JSON.parse(readText("schemas/bdp-v0.schema.json")) as Record<
+            string,
+            unknown
+          >;
+          const schemaValidator = createJsonSchemaValidator(schema);
+          const clientActions = createBdpClientScenarioActionExecutor({
+            fetchImplementation: scenarioTarget.fetch,
+            ...(descriptorPublisher === undefined
+              ? {}
+              : { externalTypeDescriptorFetchImplementation: descriptorPublisher.fetch }),
+          });
+          const matrixHarness = scenarioTarget.harness;
+          phase("matrix/run");
+          const result = await runConformanceMatrix({
+            signal,
+            scope,
+            profile: "read",
+            seed: 0,
+            artifactBundle,
+            execute: scenarioTarget.execute,
+            actionExecutor: createControlledReadActionExecutor(
+              scenarioTarget.fetch,
+              clientActions,
+              () => controlledSession,
+              schemaValidator,
+            ),
+            harness: {
+              prepare: async (...args) => {
+                phase(`scenario/${args[0].id}/prepare`);
+                return matrixHarness.prepare(...args);
+              },
+              cleanup: async (...args) => {
+                cleanupPhase(`scenario/${args[0].id}/cleanup`);
+                return matrixHarness.cleanup(...args);
+              },
+            },
+            schemaValidator,
+            declaredTargetLabel: "in-process-bdpbd-real-bd-non-attesting",
+          });
+
+          phase("matrix/assertions");
+          const resultsById = new Map(result.scenarios.map((scenario) => [scenario.id, scenario]));
+          for (const plan of artifactBundle.manifest.scenarios) {
+            const observed = resultsById.get(plan.id);
+            const declared = new Set(
+              (artifactBundle.fixture as { readonly capabilities?: readonly string[] })
+                .capabilities ?? [],
+            );
+            const inapplicable = (plan.applicability?.requires ?? []).filter(
+              (capability) => !declared.has(capability),
+            );
+            if (inapplicable.length > 0) {
+              expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
+                state: "not-applicable",
+              });
+              continue;
+            }
+            expect(observed, `${plan.id}: ${JSON.stringify(observed)}`).toMatchObject({
+              state: "pass",
+            });
+          }
+          expect(
+            result.scenarios
+              .filter(({ id }) => !artifactBundle.manifest.scenarios.some((plan) => plan.id === id))
+              .every(
+                ({ state, category }) =>
+                  state === "harness-error" && category === "not-implemented",
+              ),
+          ).toBe(true);
+          expect(result.claimEligible).toBe(false);
+          phase("matrix/emit");
+          await emitMatrixRunForCohort("bdpbd", result);
+
+          phase("readiness/start-session");
+          readinessSession = await startBdpbdSession(createMatrixPort(scope, workspace), fixture);
+          phase("readiness/http-oracle");
           await expectPublicReadinessEquivalence(
             readinessSession.dialRoute.port,
             fixture,
             referenceFixture,
             realBdReadyTitles,
+            signal,
           );
-        } finally {
-          await readinessSession.close(new AbortController().signal);
-        }
-      } finally {
-        clearTimeout(seedTimer);
-        try {
-          await descriptorPublisher?.close();
-        } finally {
-          try {
-            await scenarioTarget?.close();
-          } finally {
-            try {
-              // The seed pair settles both operations before this root cleanup.
-              if (temporaryRoot !== undefined)
-                await rm(temporaryRoot, { recursive: true, force: true });
-            } finally {
-              withdrawEvidence();
-            }
-          }
-        }
-      }
+        },
+      );
     },
-    90_000,
+    // The successful-work budget remains 90s; the second 90s is emergency
+    // cleanup reserve, not permission to continue matrix work after abort.
+    180_000,
   );
 });
 
@@ -1215,6 +1257,7 @@ async function expectPublicReadinessEquivalence(
   fixture: BdFixture,
   reference: ReferenceFixture,
   realBdReadyTitles: readonly string[],
+  signal: AbortSignal,
 ): Promise<void> {
   const dialFetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const semanticUrl =
@@ -1234,7 +1277,7 @@ async function expectPublicReadinessEquivalence(
   }) as typeof fetch;
   const client = new BdpClient({ scope, transport: createFetchTransport(dialFetch) });
   try {
-    const page = await client.perform({ kind: "collection", collection: "beads" });
+    const page = await client.perform({ kind: "collection", collection: "beads" }, { signal });
     if ("code" in page) throw new Error(`public bdpbd status read failed: ${page.code}`);
     const actualStatuses = Object.fromEntries(
       page.items.map(({ properties }) => [properties.title, properties.status]),
@@ -1248,7 +1291,10 @@ async function expectPublicReadinessEquivalence(
     expect(actualStatuses).toEqual(expectedStatuses);
     expect(actualStatuses).toEqual(referenceStatuses);
 
-    const ready = await readyBeadsFromClient(client, { blockingLinkType: BLOCKING_LINK_TYPE_ID });
+    const ready = await readyBeadsFromClient(client, {
+      blockingLinkType: BLOCKING_LINK_TYPE_ID,
+      signal,
+    });
     if ("code" in ready) throw new Error(`public bdpbd readiness failed: ${ready.code}`);
     const readyTitles = ready.map(({ bead }) => bead.properties.title);
     expect(readyTitles).toEqual(fixture.expectations.readyTitles);

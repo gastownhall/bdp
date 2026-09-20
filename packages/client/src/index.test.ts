@@ -1380,7 +1380,7 @@ describe("BdpClient", () => {
     expect(transport.urls).toEqual([]);
   });
 
-  it("does not misclassify an internal response-parser failure as transport rejection", async () => {
+  it("brands unexpected response-body inspection failures without losing their cause", async () => {
     const parserFailure = new Error("parser infrastructure failed");
     const body = {
       get items(): never {
@@ -1390,9 +1390,9 @@ describe("BdpClient", () => {
     };
     const client = new BdpClient({ scope: SCOPE, transport: new RecordingTransport(body) });
 
-    await expect(client.perform({ kind: "collection", collection: "beads" })).rejects.toBe(
-      parserFailure,
-    );
+    const failure = client.perform({ kind: "collection", collection: "beads" });
+    await expect(failure).rejects.toBeInstanceOf(BdpClientTransportError);
+    await expect(failure).rejects.toMatchObject({ cause: { cause: parserFailure } });
   });
 
   it("owns a request before asynchronous discovery can observe caller mutation", async () => {

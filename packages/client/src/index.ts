@@ -1,4 +1,14 @@
 import {
+  captureHistoryRequest,
+  type HistoryRequest,
+  type HistoryResultFor,
+  HistorySession,
+} from "./history-session.js";
+
+export type { HistoryRequest, HistoryResultFor } from "./history-session.js";
+
+import { SessionCore } from "./continuations.js";
+import {
   type BdpContinuationScope,
   captureReadRequest,
   isWithinScope,
@@ -844,7 +854,9 @@ export class BdpClient {
   private readonly externalTypeDescriptorPolicy: ExternalTypeDescriptorRuntime | undefined;
   private readonly operations = new Map<AbortController, Promise<void>>();
   private readonly transportSettlements = new Set<Promise<void>>();
+  private readonly sessionCore = new SessionCore();
   private readonly readSession: ReadSession;
+  private readonly historySession: HistorySession;
   private readonly transportSettlementTimeoutMs: number;
   private state: "open" | "closing" | "closed" = "open";
   private closePromise: Promise<void> | undefined;
@@ -855,7 +867,8 @@ export class BdpClient {
     const ownedOptions = snapshotClientOptions(options);
     assertCanonicalScope(ownedOptions.scope);
     this.scope = ownedOptions.scope;
-    this.readSession = new ReadSession(this.scope);
+    this.readSession = new ReadSession(this.scope, this.sessionCore);
+    this.historySession = new HistorySession(this.scope, this.sessionCore);
     this.transport = ownedOptions.transport;
     this.externalTypeDescriptorPolicy = ownedOptions.externalTypeDescriptorPolicy;
     this.transportSettlementTimeoutMs = ownedOptions.transportSettlementTimeoutMs;
@@ -881,6 +894,40 @@ export class BdpClient {
     try {
       detachCallerAbort = relayAbort(ownedOptions.signal, operation);
       return await this.dispatch(ownedRequest, operation.signal, continuationScope);
+    } catch (error) {
+      if (operation.signal.aborted) {
+        throw new BdpClientOperationAbortedError({ cause: operation.signal.reason });
+      }
+      throw error;
+    } finally {
+      detachCallerAbort();
+      this.operations.delete(operation);
+      completion.resolve();
+    }
+  }
+
+  /** Explicit body-only History access on a Read-profile target advertising v1.
+   * Callers request each page themselves; no hidden retry, restart or body fetch. */
+  async performHistory<Request extends HistoryRequest>(
+    request: Request,
+    options: PerformOptions = {},
+  ): Promise<HistoryResultFor<Request>> {
+    if (this.state !== "open") throw new BdpClientClosedError();
+    const ownedOptions = snapshotPerformOptions(options);
+    const continuationScope = this.ownedContinuationScope(ownedOptions.continuationScope);
+    if (ownedOptions.signal !== undefined && abortSignalAborted(ownedOptions.signal)) {
+      throw new BdpClientOperationAbortedError({ cause: abortSignalReason(ownedOptions.signal) });
+    }
+    const ownedRequest = legacyReadSession(() => captureHistoryRequest(request));
+
+    const operation = new AbortController();
+    const completion = deferred();
+    this.operations.set(operation, completion.promise);
+    let detachCallerAbort: () => void = () => undefined;
+
+    try {
+      detachCallerAbort = relayAbort(ownedOptions.signal, operation);
+      return await this.dispatchHistory(ownedRequest, operation.signal, continuationScope);
     } catch (error) {
       if (operation.signal.aborted) {
         throw new BdpClientOperationAbortedError({ cause: operation.signal.reason });
@@ -964,7 +1011,9 @@ export class BdpClient {
       );
       if (result.kind === "problem")
         return clientProblem(validatedTransportProblem(result)) as ReadResultFor<Request>;
-      const validated = legacyReadSession(() => prepared.validate(result.body));
+      const validated = legacyReadSession(() =>
+        validateTransportBody(() => prepared.validate(result.body)),
+      );
       if (validated.kind === "refusal")
         return clientProblem(
           readProblem(validated.refusal.code, validated.refusal.detail),
@@ -976,6 +1025,46 @@ export class BdpClient {
           ? committed.value
           : clientProblem(readProblem(committed.refusal.code, committed.refusal.detail))
       ) as ReadResultFor<Request>;
+    } finally {
+      prepared.release();
+    }
+  }
+
+  private async dispatchHistory<Request extends HistoryRequest>(
+    request: Request,
+    signal: AbortSignal,
+    owner: BdpContinuationScope | undefined,
+  ): Promise<HistoryResultFor<Request>> {
+    const prepared = legacyReadSession(() => this.historySession.prepare(request, owner));
+    try {
+      const discovery = await this.getDiscovery(signal);
+      if (isBdpClientProblem(discovery)) return discovery as HistoryResultFor<Request>;
+      const routed = legacyReadSession(() => prepared.route(discovery));
+      if (routed.kind === "refusal")
+        return clientProblem(
+          readProblem(routed.refusal.code, routed.refusal.detail),
+        ) as HistoryResultFor<Request>;
+      if (signal.aborted) throw signal.reason;
+      const result = await this.invokeTransport(
+        () => this.transport.perform<unknown>(routed.value, { scope: this.scope, signal }),
+        signal,
+      );
+      if (result.kind === "problem")
+        return clientProblem(validatedTransportProblem(result)) as HistoryResultFor<Request>;
+      const validated = legacyReadSession(() =>
+        validateTransportBody(() => prepared.validate(result.body)),
+      );
+      if (validated.kind === "refusal")
+        return clientProblem(
+          readProblem(validated.refusal.code, validated.refusal.detail),
+        ) as HistoryResultFor<Request>;
+      if (signal.aborted) throw signal.reason;
+      const committed = legacyReadSession(() => prepared.commit(validated.value));
+      return (
+        committed.kind === "success"
+          ? committed.value
+          : clientProblem(readProblem(committed.refusal.code, committed.refusal.detail))
+      ) as HistoryResultFor<Request>;
     } finally {
       prepared.release();
     }
@@ -1087,7 +1176,7 @@ export class BdpClient {
       .then(() => boundedSettlement(transports, this.transportSettlementTimeoutMs))
       .then(() => {
         this.transportSettlements.clear();
-        this.readSession.clear();
+        this.sessionCore.clear();
         this.state = "closed";
       });
     return this.closePromise;
@@ -1490,6 +1579,17 @@ export {
   type ReadUpdateTransportPostOptions,
 } from "./read-update-transport.js";
 export type { AbsoluteHttpUrl, ReadDiscovery, ReadProblem, ReadRequest, ReadResultFor };
+
+/** Body inspection belongs to the transport boundary too: nested hostile
+ * getters must not impersonate a public local client failure. */
+function validateTransportBody<T>(validate: () => T): T {
+  try {
+    return validate();
+  } catch (error) {
+    if (error instanceof ReadSessionLocalError) throw error;
+    throw new BdpClientTransportError({ cause: error });
+  }
+}
 
 /** Translate neutral shared failures only at the legacy public boundary. */
 function legacyReadSession<T>(action: () => T): T {
