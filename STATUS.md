@@ -10,13 +10,13 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
 
-The current patternProperties successor Read cohort was genuinely generated from
-`e2284990cd9a2223c36a60396f7b4f69cd159f3a` and committed with its matching capability constant at
-`d748b7059a5ebe0fa7998b0f29de0537262b0d1d`. Generation ran for 154.13 seconds
+The current Read walkthrough integration cohort was genuinely generated from
+`17bbf7724c482d37c102221d52b93170f141c328` and committed with its matching capability constant at
+`53e62e9cf43b8fc98308a531c1b263823f1ebc4b`. Generation ran for 160.68 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49, #50, #51 and #52 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49, #50, #51, #52, #53 and #54 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -34,8 +34,8 @@ current-harness drift rejection. Fresh generation and independent re-derivation
 remain required. The spacing assumes ordinary clock progression, and existing
 seed/command deadlines remain unchanged. Both concurrent-seed callers now abort
 the sibling and await settlement of both seeds before shared-root deletion,
-preserving the original failure. Fourteen focused lifecycle/spacing controls cover
-the real helper and discriminating no-cancel/no-drain failures. On the ordinary
+preserving the original failure. Seventeen focused lifecycle, spacing and publication
+controls cover the real helper and discriminating no-cancel/no-drain failures. On the ordinary
 POSIX test path, an independent owner records verified process identities before
 releasing the driver and owns bounded fallback cleanup. Controls include actual
 client/driver loss, success followed by a hang, and excess output after an
@@ -43,6 +43,14 @@ acknowledged success; fallback rescue cannot turn a failed subject green.
 These controls do not establish Windows behavior, whole-host loss containment,
 simultaneous loss of every owner, or cleanup of escaped/unkillable descendants.
 Successful Read observations remain separate from this failure-path evidence.
+The integration test run exposed an inherited exists-before-JSON race in lifecycle
+receipt publication. The two remaining direct publications now use sibling
+files and atomic rename, matching the driver identity record. Three deterministic
+controls execute the actual generated publication statements and reject direct-write
+mutants at the reader-visible prewrite boundary. This establishes complete process
+visibility on the tested filesystem, not power-loss durability. Native and actual
+Claude review are complete, including Claude's third-record coverage suggestion.
+The original failed run and its eventual cleanup evidence remain retained.
 
 The original ordered 27-definition Read seal is preserved as the prefix of the
 reviewed 42-name seal, with 41 reachable definitions and 16 roots, including the
@@ -291,9 +299,10 @@ preflight and evidence verification. The genuine Read cohort records 89 passes,
 9 not-applicable rows and eight unchanged explicit qualifications, preserving
 the packaged/in-process distinction. Its generator identity remains 8ad8bf0a,
 not the later evidence child. Exact source maps and tool pins remained stable
-through each run. Original failures and review limits remain retained. Hosted
-checks and the release decision are still pending; no downstream activation
-is implied.
+through each run. Original failures and review limits remain retained. PR #54
+subsequently passed exact-head hosted checks and merged ordinarily at
+`8a918e90d4b72973bce760bcc88b1d5325dc5dfa`; this does not imply downstream
+activation.
 Unicode property escapes, full installation and production engine/receiver
 qualification remain open.
 Format retains its annotation policy; no held HTTP Content-Encoding ruling is
@@ -346,7 +355,29 @@ artifacts alone. No historical artifact has been rehashed into new evidence.
 Transactional #20 merged at `741829b6423ed70fd23676576459ad9f6215d027` and
 History wire #30 at `1fe8cf32afabd02ca62d86548409f82dd756e357`, both with green
 merged-main CI. This successor preserves their ordinary merge ancestry and every
-reviewed foundation source. The reviewed dynamic-source correction's evidence
-child 4cca889c passed 7,469 tests with zero failures or skips and all nine local
-gates. Actual Claude source and correction reviews are complete. Exact hosted
-checks and the release decision remain open; no downstream activation is implied.
+reviewed foundation source. PR #54 is merged; its dynamic-schema evidence and
+reviews remain historical provenance. The walkthrough branch incorporated that
+main head with an ordinary merge, preserving its four reviewed demo files unchanged.
+It adds the inherited lifecycle publication correction described above.
+
+Final walkthrough source `17bbf7724c482d37c102221d52b93170f141c328` generated the
+current genuine Read cohort. Its artifact/constant child
+`53e62e9cf43b8fc98308a531c1b263823f1ebc4b` passed all nine local gates, including
+7,476 tests across 104 files with zero failures or skips. All four walkthrough
+tests executed, including the pinned real-bd path. The 2,322-row schema corpus,
+including dispositions and counters, remains byte-identical to the historical
+final observation. Tool pins and all 502 tracked source paths matched the exact
+commits; the later STATUS-only reporting change is not misidentified as the gated
+head. Native and actual Claude review findings are addressed.
+
+An earlier generation attempt hit the unchanged real-bd matrix's 90-second test
+limit. Its failure and private cleanup evidence remain retained; the precise cause
+is unresolved. An unchanged focused matrix then passed 15/15, followed by the
+successful fresh generation and nine gates under the original deadlines. No timeout
+was enlarged to obtain this release proof. Exact hosted checks and the release
+decision for the walkthrough remain open; no downstream activation is implied.
+
+The walkthrough shows dependency Links and readiness through BDP HTTP and the
+packaged client. It does not exercise dynamic schema validation, the new Beads
+graph rows, linked Memories, History traversal or served writes. Existing Read
+qualifications and numeric-model, Encoding and NM4 holds remain unchanged.
