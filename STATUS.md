@@ -6,17 +6,17 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | --- | --- | --- |
 | Read profile | Foundation #29, shared HTTP/scalar guards, iterative deep JSON and canonical URL delimiter corrections; 49 executable scenarios | Genuine current cohort: 89 passes and nine justified N/A slots across both targets, with eight explicit qualifications |
 | Read+Update profile | D1–D40 ruled; wire from #19 plus local admission, Resource/alias evaluators, exact member identity, durable SQLite state, member execution, retained disclosure and private joint Read/sequence lifecycle | Component tests cover admission, scheduled turns, replay/projection, maintenance, graceful drain and recovery; the complete source council disposition and independent correction review are complete. Full production authority/transport/schema installation and executable profile evidence remain open; no capability claim |
-| Read+Update client | Eight mutations, sequences, all nine Read variants and explicit one-hop alias resolution | 590 client tests plus independent source, lifecycle, URL and packaging reviews; this is client functionality, not a served write-profile claim |
+| Read+Update client | Eight mutations, sequences, all nine Read variants and explicit one-hop alias resolution | 658 client tests, including the additive History paths, plus independent source, lifecycle, URL and packaging reviews; this is client functionality, not a served write-profile claim |
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
-| Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | No History server/client/adapter realization, capability admission or runtime evidence |
+| Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | Read-profile body client implements exact old Beads/Links and explicit versions paging; controlled HTTP walkthrough exercises the actual SDK. No History server/adapter realization, capability admission or executable History conformance evidence |
 
-The current Read walkthrough integration cohort was genuinely generated from
-`17bbf7724c482d37c102221d52b93170f141c328` and committed with its matching capability constant at
-`53e62e9cf43b8fc98308a531c1b263823f1ebc4b`. Generation ran for 160.68 seconds
+The current History-client/demo integration Read cohort was genuinely generated from
+`dff218067f05570da0238de374e5da489ca51cdb` and committed with its matching capability constant at
+`ef672c4d812acf0255e01ea825cc44bc62f5c16e`. Generation ran for 151.81 seconds
 against the clean, built integration. It recorded 36 packaged/11 self-certified
 reference passes and 34 packaged/eight self-certified bd passes, with two/seven
 N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49, #50, #51, #52, #53 and #54 cohorts remain
+The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49, #50, #51, #52, #53, #54 and #55 cohorts remain
 historical provenance.
 The five foundation source ancestries, including #24, remain preserved.
 
@@ -381,3 +381,39 @@ The walkthrough shows dependency Links and readiness through BDP HTTP and the
 packaged client. It does not exercise dynamic schema validation, the new Beads
 graph rows, linked Memories, History traversal or served writes. Existing Read
 qualifications and numeric-model, Encoding and NM4 holds remain unchanged.
+
+
+History client and walkthrough integration (2026-09-20): the additive Read-profile
+body client supports exact historical Beads and Links plus explicit versions-page
+continuations. Opaque revisions are encoded once; continuation ownership, selection,
+limits, cycles and lifecycle are checked without inventing cross-page ancestry or
+snapshot rules. Unexpected body inspection faults remain separate from lifecycle
+and protocol Problems. The default Read+Update session behavior is preserved.
+This does not implement History HTTP metadata, HEAD/cache/CORS behavior, Lineage,
+a retained-history backend, or an advertised History capability.
+
+The [controlled History walkthrough](docs/history-client-demo.md) sends seven real
+HTTP requests through the actual SDK and reports five observations: two versions
+pages, an exact old Bead, a separately selected old Link with its opaque target pin,
+and revision-unretained without retry or current fallback. Its source-defined
+responses are deliberate fixture data. Nine acceptance tests cover the successful
+walkthrough, startup cancellation, original failure identity, fresh output ownership
+and artifact publication before PASS. Actual Beads managed graph persistence is a
+separate demonstration; this fixture does not connect retained History to Beads.
+
+A failed first reseal exposed a missing total cancellation/drain path in the real-bd
+matrix test. Its reviewed correction preserves the 90-second work budget, propagates
+one signal through all phases, waits for work settlement and attempts every cleanup
+step before reporting failure. The 180-second Vitest emergency bound reserves a
+separate 90 seconds for cleanup. Monotonic phase diagnostics identify future stalls;
+the original slow phase remains unknown. The helper bytes are now included in the
+matrix harness binding. Focused controls and the actual matrix passed; the failed
+run remains historical evidence, not a successful observation.
+
+The clean combined source and evidence child above passed all nine local gates:
+7,566 tests across 108 files, zero failures/skips/todos, build, typecheck, lint,
+format, package boundaries, executable smoke, readiness preflight and evidence
+verification. The 2,322-row schema corpus is byte-identical to the preceding final
+corpus. All 89 Read pass rows, nine N/A slots, eight qualifications and the existing
+self-certification distinction remain intact. These remain Read observations and
+do not grant History or write-profile conformance.

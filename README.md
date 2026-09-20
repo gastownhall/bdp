@@ -37,6 +37,9 @@ What's in this repository:
 
 Try the [three-minute BDP Read walkthrough](docs/read-demo.md) to follow Links
 and run the same readiness client against both servers.
+The [controlled History client walkthrough](docs/history-client-demo.md) follows
+versions pages and requests old Beads and Links through the actual SDK against
+an explicit HTTP fixture.
 
 Conformance claims are backed by committed, CI-verified evidence — never by
 assertion. See `packages/conformance/matrices/README.md` for how that
