@@ -38,6 +38,28 @@ describe("Read observation harness provenance", () => {
     expect(after.matrix.bdpbd).not.toBe(before.matrix.bdpbd);
   });
 
+  it("binds the matrix lifecycle helper only in the bdpbd matrix", () => {
+    const before = deriveReadHarnessBindings(read);
+    const after = deriveReadHarnessBindings((source) =>
+      source === "apps/bdpbd/test-support/matrix-lifecycle.ts"
+        ? Buffer.from("changed deadline and cleanup observer")
+        : read(source),
+    );
+    expect(after.packaged).toBe(before.packaged);
+    expect(after.matrix.bdptest).toBe(before.matrix.bdptest);
+    expect(after.matrix.bdpbd).not.toBe(before.matrix.bdpbd);
+  });
+
+  it("fails closed when the bdpbd matrix lifecycle helper is missing", () => {
+    expect(() =>
+      deriveReadHarnessBindings((source) => {
+        if (source === "apps/bdpbd/test-support/matrix-lifecycle.ts")
+          throw new Error("missing matrix lifecycle observer");
+        return read(source);
+      }),
+    ).toThrow("missing matrix lifecycle observer");
+  });
+
   it.each(READ_OBSERVER_SUPPORT_PATHS)(
     "fails closed when executed support %s is missing",
     (missingSource) => {

@@ -18,9 +18,11 @@ export function deriveReadHarnessBindings(read: (source: string) => Uint8Array) 
   const support = READ_OBSERVER_SUPPORT_PATHS.map(read);
   const digest = (parts: readonly Uint8Array[]) =>
     createHash("sha256").update(Buffer.concat(parts)).digest("hex");
-  const matrix = (target: string) =>
+  const matrix = (target: "bdptest" | "bdpbd") =>
     digest([
       read(`apps/${target}/src/read-matrix.test.ts`),
+      // This deadline/cleanup observer is executed only by the bdpbd matrix.
+      ...(target === "bdpbd" ? [read("apps/bdpbd/test-support/matrix-lifecycle.ts")] : []),
       read("packages/server/test-support/testing.ts"),
       ...support,
     ]);
