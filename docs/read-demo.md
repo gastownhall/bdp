@@ -107,3 +107,34 @@ opt-in test compares its commands to fixture-derived expectations, not directly
 to the matrix seeder implementation. Shared seeder extraction is deferred. The
 test supervisor waits longer than the script's 120-second abort deadline so
 the script can record failures and clean up its owned state.
+
+
+## Optional History client boundary
+
+`BdpClient.performHistory` can explicitly enumerate retained versions or fetch one exact old Bead/Link body from a **Read-profile target that advertises `historicalResolution: { version: 1 }`**. The current demo servers do not advertise or serve this capability. The client tests use controlled History responses; they do not qualify a Beads History provider or the native memory proposal.
+
+```ts
+const traversal = client.createContinuationScope();
+const first = await client.performHistory(
+  { kind: "versions", resource: "bead", id: beadId, limit: 2 },
+  { continuationScope: traversal },
+);
+if (!isBdpClientProblem(first) && first.next !== null) {
+  const next = await client.performHistory(
+    { kind: "versions", resource: "bead", id: beadId, continuation: first.next },
+    { continuationScope: traversal },
+  );
+  // Display returned order and metadata; page order does not establish ancestry.
+}
+const old = await client.performHistory({
+  kind: "revision", resource: "bead", id: beadId, revision: selectedRevision,
+});
+```
+
+Each call performs only the requested read. Listing a revision does not promise permission, availability or a retained complete body later. Exact reads preserve carried context and pins, or return the authority's validated Problem; they never fall back to the current record. Revisions are opaque strings, including reserved characters; lossy URL encoding is refused. This API uses the existing Read discovery parser, so ReadUpdate/Transactional targets require their own future wrapper support.
+
+Use distinct continuation scopes for independent traversals. If two History traversals under the same owner (including the default owner) receive the same continuation URL, the second publication fails with a local request error while the first remains usable. An abandoned default-owner cursor cannot be forgotten and may block restarting the same enumeration until `close()`; use an explicit scope whenever a traversal may be abandoned. Explicit scopes permit `forgetContinuations(traversal)`; that forgets available cursors while preserving in-flight leases. Terminal pages release their traversal state, and `close()` clears all state. The shared local bounds remain 1,024 continuation contexts and 10,000 cursor-history entries; reaching them is a local capacity error, not cursor expiry or retention loss. Restarting an enumeration is not guaranteed to bypass these bounds. No bodies, window bounds or cross-page revision set are cached.
+
+An explicit initial limit is forwarded and preserved in issued continuations. An omitted limit stays omitted; the client does not infer defaults or fabricate a limit-exceeded response from advertised maxima. A server-added limit on an issued continuation bounds that requested page, without becoming a new equality constraint on later continuation URLs. Schema-valid terminal participation values are also returned as received; the client does not infer cross-page fence state. Window values are returned as received, without claiming client verification of a stable server snapshot or hidden erasure facts. Ordinary RFC 9457 extensions survive validated Problems, subject to the protocol's known erased-pointer restrictions.
+
+This is a **body-only API**. Cache-Control, ETag, BDP-History-Lineage, navigation Link headers and HEAD are outside this transport slice. Pagination plus selected-revision retrieval is not direct predecessor/successor navigation. No History server capability or History catalog conformance pass is added by these SDK tests.

@@ -21,6 +21,13 @@ export class ReadSessionLocalError extends Error {
     super(message);
   }
 }
+/** Unexpected exceptions during untrusted body inspection, distinct from the
+ * lifecycle checks surrounding that inspection. Never a local request failure. */
+export class ReadSessionBodyInspectionError extends Error {
+  constructor(cause: unknown) {
+    super("response body inspection failed", { cause });
+  }
+}
 export class ReadSessionRequestError extends ReadSessionLocalError {
   constructor(message: string) {
     super("request", message);
@@ -39,6 +46,12 @@ export interface BdpContinuationScope {
 }
 
 export type ContinuationContext =
+  | {
+      readonly kind: "history-versions";
+      readonly resource: "bead" | "link";
+      readonly subject: AbsoluteHttpUrl;
+      readonly limit: number | undefined;
+    }
   | { readonly kind: "collection"; readonly collection: "beads" | "links" | "types" }
   | {
       readonly kind: "bead-links";
@@ -51,6 +64,8 @@ export class ContinuationRegistryError extends Error {}
 export class ContinuationRegistryProtocolError extends ContinuationRegistryError {}
 
 export class ContinuationRegistryCapacityError extends ContinuationRegistryError {}
+
+export class ContinuationRegistryOwnershipError extends ContinuationRegistryError {}
 
 export interface ContinuationLease {
   readonly url: AbsoluteHttpUrl;
@@ -136,6 +151,26 @@ export class ContinuationRegistry {
       throw new ContinuationRegistryProtocolError(
         "the continuation URL is ambiguous across incident-Link directions",
       );
+    // Independent History traversals cannot share one issued URL under one
+    // owner: the caller must supply distinct scopes. This is local ownership,
+    // not a claim that the server response violates the protocol.
+    if (
+      context.kind === "history-versions" &&
+      next !== null &&
+      (candidates?.some(
+        (candidate) => candidate.owner === owner && candidate.context.kind === "history-versions",
+      ) ||
+        [...this.leases].some(
+          (candidate) =>
+            candidate !== lease &&
+            candidate.owner === owner &&
+            candidate.url === next &&
+            candidate.context.kind === "history-versions",
+        ))
+    )
+      throw new ContinuationRegistryOwnershipError(
+        "independent History traversals sharing a continuation URL require distinct continuation scopes",
+      );
     const additions = next === null ? 0 : 1;
     const consumed = lease === undefined ? 0 : 1;
     if (this.size - consumed + additions > MAXIMUM_CONTINUATION_CONTEXTS)
@@ -204,6 +239,12 @@ export class ContinuationRegistry {
 
 function sameContinuationContext(left: ContinuationContext, right: ContinuationContext): boolean {
   if (left.kind !== right.kind) return false;
+  if (left.kind === "history-versions" && right.kind === "history-versions")
+    return (
+      left.resource === right.resource &&
+      left.subject === right.subject &&
+      left.limit === right.limit
+    );
   if (left.kind === "collection" && right.kind === "collection")
     return left.collection === right.collection;
   if (left.kind !== "bead-links" || right.kind !== "bead-links") return false;

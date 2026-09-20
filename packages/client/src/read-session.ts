@@ -3,9 +3,11 @@ import {
   type ContinuationContext,
   type ContinuationRegistry,
   ContinuationRegistryCapacityError,
+  ContinuationRegistryOwnershipError,
   ContinuationRegistryProtocolError,
   type ContinuationReservation,
   localRefusal,
+  ReadSessionBodyInspectionError,
   ReadSessionLocalError,
   type ReadSessionRefusal,
   ReadSessionRequestError,
@@ -599,12 +601,11 @@ function validateReadBody(
       },
     });
   } catch (error) {
-    if (error instanceof ReadSessionLocalError) throw error;
     if (
       !(error instanceof ProtocolArtifactValidationError) &&
       !(error instanceof ReadResponseValidationError)
     )
-      throw error;
+      throw new ReadSessionBodyInspectionError(error);
     return {
       kind: "problem",
       problem: localRefusal(
@@ -779,6 +780,8 @@ export class ReadSession {
               owner,
             );
           } catch (error) {
+            if (error instanceof ContinuationRegistryOwnershipError)
+              throw new ReadSessionRequestError(error.message);
             if (error instanceof ContinuationRegistryCapacityError)
               throw new ReadSessionLocalError(
                 "capacity",
