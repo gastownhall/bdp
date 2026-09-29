@@ -1,7 +1,8 @@
 # Extending Beads Beyond Issues
+
 <!-- Working draft for Donna. Edit freely. This is a blog draft, not a specification or a claim that proposed Beads features have shipped. -->
 
-This post is about work that is in progress, not work that's already been done.  The work is pretty impactful, so sharing it now while we are at the early phases of implementation makes a lot of sense. This blog entry is a snapshot in time - as always, look at [gastownhall/beads](https://github.com/gastownhall/beads) for the authoritative state of the world.
+This post is about work that is in progress, not work that's already been done. The work is pretty impactful, so sharing it now while we are at the early phases of implementation makes a lot of sense. This blog entry is a snapshot in time - as always, look at [gastownhall/beads](https://github.com/gastownhall/beads) for the authoritative state of the world.
 
 ## Beads, Issues, and Dependencies, oh my!
 
@@ -11,7 +12,7 @@ Steve [introduced Beads in October 2025](https://steve-yegge.medium.com/introduc
 
 What's interesting is how naturally beads fit into an agent's work. An agent can record something it discovered, connect it to work already in progress, and ask what's ready to do next. When that agent runs out of context, the work is still there. The community that creates and maintains beads have given us a useful foundation, and they've done it without requiring every coding agent to grow its own project management system.
 
-Beads was originally built as a way to track work for both agents and humans. As users look to expand the utility of beads, there are numerous scenarios emerging that don't fit neatly into the way beads organizes information.  The primary way information is modeled in beads today is as *Issues*, and the relationships between Issues are modeled as *Dependencies*.
+Beads was originally built as a way to track work for both agents and humans. As users look to expand the utility of beads, there are numerous scenarios emerging that don't fit neatly into the way beads organizes information. The primary way information is modeled in beads today is as _Issues_, and the relationships between Issues are modeled as _Dependencies_.
 
 An Issue comes with some fairly specific expectations. Someone can claim it. It can be blocked. Eventually, someone may close it. These are useful semantics when the thing you're modeling is work.
 
@@ -59,7 +60,7 @@ Types make these distinctions something tools can understand. In BDP, a Bead or 
 
 Before a store accepts a Link of a particular Type, that Type has to be known to the store. User-defined Types are part of the direction, but inventing a new name in a create command doesn't install a new contract. BDP requires the validation contract to be installed ahead of the write, so admitting a Link doesn't depend on fetching a schema from somebody else's server at that moment.
 
-BDP calls the owning boundary a *Scope*. A Scope has a canonical URL, and each Bead and Link belongs to exactly one Scope. For example, within `https://beads.example/team/`, the local identity `beads/release-policy` resolves to `https://beads.example/team/beads/release-policy`. Links have their own identities under `links/`. The rest of the path is an identifier; slashes don't secretly create folders or nested Scopes.
+BDP calls the owning boundary a _Scope_. A Scope has a canonical URL, and each Bead and Link belongs to exactly one Scope. For example, within `https://beads.example/team/`, the local identity `beads/release-policy` resolves to `https://beads.example/team/beads/release-policy`. Links have their own identities under `links/`. The rest of the path is an identifier; slashes don't secretly create folders or nested Scopes.
 
 Once created, that canonical identity stays with the record. Where aliases are supported, a friendly name can resolve to it and later be repointed. Stored References use the canonical identity, so repointing an alias doesn't quietly rewrite existing relationships. This gives us two useful concepts: the thing itself and a name we use to find it.
 
@@ -80,6 +81,46 @@ There is also the more immediate problem of two agents editing the same record. 
 HTTP already has useful machinery here. BDP exposes a Resource revision as an opaque `ETag`, which a client can use for conditional reads. For BDP mutation commands, the caller supplies `expectedRevision` for the Resource it intends to change. Putting `If-Match` on an operation URL doesn't guard every Bead named inside that request.
 
 An ETag by itself doesn't promise that the server kept yesterday's record. Retained history needs an additional contract: an old address must continue to mean the same state, and a store that can no longer serve that state must say so. It must never substitute the current version. BDP's historical resolution capability makes that promise explicit; clients discover whether a store offers it. Revision tokens are opaque to callers, so none of this requires a client to understand Dolt commit hashes or another engine's internal version numbers.
+
+## Try it out and let us know what you think!
+
+If you'd like to try the functionality as we build it, you can! We have [a branch](TODO) that implements some initial functionality. To see it in action, try some of the following commands:
+
+TODO:Donna to double-check these commands
+
+```sh
+# create a new memory bead
+$ bd remember "call your mom on mother's day"
+...output including bead id...
+
+# create a new version of the memory
+$ bd update <<bd-id>> "Call your mom on Mother's Day!"
+
+# see the history of a bead
+$ bd history <<bd-id>>
+...output...
+
+# create and link an issue bead
+$ bd create "build a phone app"
+...output including bead id...
+$ bd link <<memory-bd-id>> <<issue-bd-id>>
+
+# see your beads on wire via the Beads Protocol (BDP)
+$ bd serve
+...output to include local service port...
+$ curl https://localhost:<<port>>/...
+...output of the memory and issue beads...
+```
+
+If you'd like your agents to be able to automatically create and use memories, add the following to your AGENTS.md:
+
+```markdown
+TODO:Stephanie
+```
+
+In our tests, these rules work pretty well with Claude Code and Codex and we'd be interested in hear your experience.
+
+In fact, we'd love to hear about your experience across the board about this new memory, versioning and beads protocol functionality. If you having joined the Gas Town Hall Discord, please join and jump into the `#beads` and `#memory-beads` channels to report on what worked and didn't. Also, feel free to log bugs on the beads repo with prefixes like `[Memory]` or `[BDP]` and memory the branch by name so we can see how things are going.
 
 ## Where are we?
 
