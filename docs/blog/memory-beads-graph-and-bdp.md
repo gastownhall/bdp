@@ -112,15 +112,34 @@ $ curl https://localhost:<<port>>/...
 ...output of the memory and issue beads...
 ```
 
-If you'd like your agents to be able to automatically create and use memories, add the following to your AGENTS.md:
+If you'd like your agents to save and reuse memories on their own, add this to the top of your AGENTS.md. On Claude Code, put it in CLAUDE.md instead, unless your CLAUDE.md imports AGENTS.md:
 
 ```markdown
-TODO:Stephanie
+## Durable storage
+
+You have your own memory. It lives in beads: `bd remember` stores a fact and `bd recall` or `bd memories` reads it back, and its contents are available to you in later sessions in this project.
 ```
 
-In our tests, these rules work pretty well with Claude Code and Codex and we'd be interested in hear your experience.
+Reading memories back already works. `bd prime`, which `bd setup claude` runs at the start of every session, loads saved memories into the agent's context. Getting the agent to save anything in the first place is the hard part, and how hard depends on the agent.
 
-In fact, we'd love to hear about your experience across the board about this new memory, versioning and beads protocol functionality. If you having joined the Gas Town Hall Discord, please join and jump into the `#beads` and `#memory-beads` channels to report on what worked and didn't. Also, feel free to log bugs on the beads repo with prefixes like `[Memory]` or `[BDP]` and memory the branch by name so we can see how things are going.
+We measured it with short project tasks in which the agent learns a fact that a later session will need, counting the sessions where it saved something with `bd remember`:
+
+| Agent                    | Beads' current text | With the paragraph | Paragraph and Stop hook |
+| ------------------------ | ------------------- | ------------------ | ----------------------- |
+| Claude Code, Opus        | 48 of 48            | not tested         | not tested              |
+| Claude Code, Haiku       | 16 of 48            | not tested         | not tested              |
+| Claude Code, Sonnet      | 1 of 48             | 56 of 96           | 96 of 96                |
+| Codex CLI, default model | 6 of 6              | 6 of 6             | no hook yet             |
+
+On Claude Code, the model makes most of the difference. With the text beads ships today, Opus saves memories every time and Sonnet almost never does, and the paragraph only gets Sonnet about halfway, with the count moving from run to run. So for Claude Code we added a Stop hook. When the agent tries to finish, the hook blocks it once with this reminder:
+
+> Before you finish: if this session produced anything a later session in this project will need, save it now with `bd remember "<fact>"`. If there is nothing to save, just finish.
+
+It fires at the first finish of every session, and after that only when the agent has used a tool since the last reminder, so a plain back-and-forth chat doesn't get nagged. With the paragraph and the hook together, Sonnet saved a memory in all 96 sessions. We've only run the hook on Sonnet, the model that needed it most. The paragraph is in [versioned-beads/beads#43](https://github.com/versioned-beads/beads/pull/43) and the hook in [versioned-beads/beads#61](https://github.com/versioned-beads/beads/pull/61). Once both merge, `bd setup claude` installs them and you won't need to edit anything by hand.
+
+Codex saved a memory in every session of our small pilot (12 sessions on Codex CLI 0.158.0), with or without the paragraph. Twelve sessions is too few to call it settled, but we haven't seen a reason to build a Codex hook yet. If your Codex agents skip memory, we'd like to hear about it.
+
+In fact, we'd love to hear about your experience across the board about this new memory, versioning and beads protocol functionality. If you haven't joined the Gas Town Hall Discord, please join and jump into the `#beads` and `#memory-beads` channels to report on what worked and didn't. Also, feel free to log bugs on the beads repo with prefixes like `[Memory]` or `[BDP]` and mention the branch by name so we can see how things are going.
 
 ## Where are we?
 
