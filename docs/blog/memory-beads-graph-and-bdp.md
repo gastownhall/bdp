@@ -1,7 +1,5 @@
 # Extending Beads Beyond Issues
 
-<!-- Working draft for Donna. Edit freely. This is a blog draft, not a specification or a claim that proposed Beads features have shipped. -->
-
 ## Beads, Issues, and Dependencies, oh my!
 
 Beads has been a wildly successful way to keep agents on task. But tasks aren't the only things we need them to remember.
@@ -121,7 +119,7 @@ Retained history needs a clear contract: an old address must continue to mean th
 
 ## Try it out and let us know what you think!
 
-If you'd like to try this as we build it, you can! Our [integration branch](https://github.com/versioned-beads/beads/tree/integration) has the first pieces ready to explore, including local version listing. This is a preview: some of the model described above is still being implemented, and this work hasn't landed in upstream Beads yet. The [graph CLI guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-cli.md) walks through the commands as they land; the [technical reference](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-preview.md) records their bounds and unsupported operations. Both can evolve after this post is published.
+If you'd like to try this as we build it, you can! Our [integration branch](https://github.com/versioned-beads/beads/tree/integration) has the preview ready to explore. Some of the model described above is still being implemented, and this work hasn't landed in upstream Beads yet. The [graph CLI guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-cli.md) walks through the commands; the [technical reference](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-preview.md) records their bounds and unsupported operations. Both can evolve after this post is published.
 
 Use `bd` built from the integration branch, rather than a released Beads binary. From a fresh parent directory, build with Go 1.26.7 or the toolchain selected by the repo:
 
@@ -142,17 +140,13 @@ dolt sql-server --host 127.0.0.1 --port 3306 --data-dir "$PWD/memory-beads-dolt"
 
 Start the Beads example in a **new** directory with no existing `.beads` workspace; this preview does not migrate an existing Issue database or an older graph-preview schema. BDP serving currently requires shared-server mode. For an embedded-only CLI walkthrough, see the [graph CLI guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-cli.md).
 
-> **Draft review note:** Local version listing is on `integration` through [PR #68](https://github.com/versioned-beads/beads/pull/68). The `bd types`, short-ID, `bd list`, compact `bd memories`, and renamed Type-flag behavior shown below passed an installed-process walkthrough on the proposed [PR #72](https://github.com/versioned-beads/beads/pull/72) build, including BDP reads and paginated enumeration, but #72 has not landed. The graph-workspace Stop hook change is separately pending in [PR #70](https://github.com/versioned-beads/beads/pull/70). Repeat this entire recipe against the final `integration` commit before publication.
-
-<!-- Publication gate: validate this complete installed-process recipe at the final integration commit after CLI PR72 lands. Do not publish it as a working recipe while its command surface exists only in an open PR. Reconcile graph Stop-hook wording with PR70's final disposition. -->
-
 ```sh
 mkdir memory-beads-demo
 cd memory-beads-demo
 git init
 bd init --graph-mode link --scope-url http://127.0.0.1:8765/demo/ \
   --server --external --server-host 127.0.0.1 --server-port 3306 \
-  --server-user root --skip-hooks --non-interactive
+  --server-user root --non-interactive
 
 # Inspect the capabilities and limits of this build.
 bd status --graph
@@ -193,9 +187,9 @@ curl --fail 'http://127.0.0.1:8765/demo/beads/?limit=1'
 
 The collection response includes `items` and a `next` URL. Follow that complete URL until `next` is null to enumerate the collection. The [Python example](https://github.com/versioned-beads/beads/tree/integration/examples/bdp-read) demonstrates BDP reads and pagination using the standard library. Scripts read through BDP HTTP; they do not need to invoke the CLI. The local listener uses HTTP, not HTTPS.
 
-Graph initialization also installs guidance in `AGENTS.md`, including Stephanie Jarmak's instructions for remembering useful knowledge. Our integration tests check that the guidance is installed and that its example commands work. The example above explicitly uses `--skip-hooks`, so it does not install a Claude Stop hook. Automatic hook registration in new graph workspaces is proposed in [PR #70](https://github.com/versioned-beads/beads/pull/70) and remains pending. Whether an agent chooses the right things to remember is something we'd like your help evaluating. Try it with your agent and tell us what it saves, what it retrieves, and what it misses.
+Graph initialization also installs guidance in `AGENTS.md`, including Stephanie Jarmak's instructions for remembering useful knowledge, and registers the Claude Stop hook in a new workspace. An existing graph workspace can run `bd setup claude` to install the hook. Whether an agent chooses the right things to remember is something we'd like your help evaluating. Try it with your agent and tell us what it saves, what it retrieves, and what it misses.
 
-The integration branch brings Memory creation and editing, mixed Issue/Memory Links, local version listing, and BDP HTTP reads together. The CLI usability changes in the example are still under review in [PR #72](https://github.com/versioned-beads/beads/pull/72). HTTP writes and HTTP History are still ahead. The [graph CLI guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-cli.md) is the evolving command walkthrough once that PR lands; the [technical reference](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-preview.md) has the detailed matrix and limits.
+The integration branch brings Memory creation and editing, mixed Issue/Memory Links, local version listing, and BDP HTTP reads together. HTTP writes and HTTP History are still ahead. The [graph CLI guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-cli.md) is the evolving command walkthrough; the [technical reference](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-preview.md) has the detailed matrix and limits.
 
 Try the workflow on a small project and tell us where it helps—or gets in your way. Join the conversation in the Gas Town Hall Discord's `#beads` and `#memory-beads` channels, or [file a Beads issue](https://github.com/gastownhall/beads/issues) with a `[Memory]` or `[BDP]` prefix. Include the integration commit you tried so we can reproduce what you saw.
 
@@ -207,5 +201,3 @@ Try the workflow on a small project and tell us where it helps—or gets in your
 - [Generic graph CLI proposal](https://github.com/gastownhall/beads/issues/6703)
 - [BDP specification](../specs/bdp.md)
 - [Repository implementation status](../../STATUS.md)
-
-<!-- Editorial reminders: deletion, repinning, nominal Issue Types, metadata placement, and compatibility defaults still need reconciliation across proposals. Do not present an open choice as settled. Keep the implementation plan/review in donnabox/beads. -->
