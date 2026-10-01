@@ -17,6 +17,29 @@ across all bead and link types.
 This uniformity and adherence to HTTP and JSON norms lowers the bar of
 entry for people, systems, and agents to interact with beads.
 
+## Architecture and design authority
+
+BDP owns the abstract data model and its semantics as well as the wire
+protocol. Shared concepts such as Resource and Type identity, conformance,
+references, versioning, and the meaning of current and historical states
+are defined in the [BDP specification](docs/specs/bdp.md).
+
+Beads owns its CLI, storage design, and product and operator workflows.
+For overlapping decisions, the boundary is whether independent BDP
+implementations must agree for the data to mean the same thing: BDP
+defines those semantics and invariants; Beads chooses how to implement
+and expose them. This does not require BDP to prescribe storage layouts
+or administration interfaces.
+
+Beads implementation experience can motivate changes to the model, but
+shared model and protocol decisions are made explicitly in this repository
+and reflected in the specification. Shipping a Beads behavior does not by
+itself make that behavior part of BDP. Vendored BDP schemas, examples, and
+fixtures in Beads are pinned copies of upstream artifacts, not independent
+sources of design authority.
+
+## Protocol and reference implementation
+
 A protocol also carries the two problems no single bead-store
 implementation can solve alone: **versioning** — naming and citing exact
 states of a bead with tokens that survive copying, syncing, and storage
