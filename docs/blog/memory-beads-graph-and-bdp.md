@@ -121,13 +121,30 @@ Retained history needs a clear contract: an old address must continue to mean th
 
 ## Try it out and let us know what you think!
 
-If you'd like to try this as we build it, you can! Our [integration branch](https://github.com/versioned-beads/beads/tree/integration) has the first pieces ready to explore. This is a preview: some of the model described above is still being implemented, and this work hasn't landed in upstream Beads yet. The [graph preview guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-preview.md) describes the supported commands and current limits.
+If you'd like to try this as we build it, you can! Our [integration branch](https://github.com/versioned-beads/beads/tree/integration) has the first pieces ready to explore. This is a preview: some of the model described above is still being implemented, and this work hasn't landed in upstream Beads yet. The [graph CLI guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-cli.md) walks through the current commands; the [technical reference](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-preview.md) records their bounds and unsupported operations. Both can evolve after this post is published.
 
-Use `bd` built from the integration branch, rather than a released Beads binary. Start in a new directory with no existing `.beads` workspace; this preview does not migrate an existing Issue database. The example below uses a fresh workspace and an ordinary Dolt SQL server already running at `127.0.0.1:3306`. BDP serving currently requires this shared-server mode. For an embedded-only CLI walkthrough, see the [graph preview guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-preview.md).
+Use `bd` built from the integration branch, rather than a released Beads binary. From a fresh parent directory, build with Go 1.26.7 or the toolchain selected by the repo:
+
+```sh
+git clone --branch integration https://github.com/versioned-beads/beads.git
+cd beads
+CGO_ENABLED=1 go build -tags gms_pure_go -o ./bd ./cmd/bd
+export PATH="$PWD:$PATH"
+cd ..
+```
+
+In another terminal, start an ordinary Dolt SQL server using a new data directory; leave it running during the walkthrough:
+
+```sh
+mkdir -p memory-beads-dolt
+dolt sql-server --host 127.0.0.1 --port 3306 --data-dir "$PWD/memory-beads-dolt"
+```
+
+Start the Beads example in a **new** directory with no existing `.beads` workspace; this preview does not migrate an existing Issue database or an older graph-preview schema. BDP serving currently requires shared-server mode. For an embedded-only CLI walkthrough, see the [graph CLI guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-cli.md).
 
 > **Draft review note:** This walkthrough includes the agreed CLI defaults that are still being implemented. It has not yet passed end-to-end validation; the final command sequence and build instructions will be checked against the publication commit.
 
-<!-- Publication gate: Donna requires optional IDs for create/remember, a body-derived title when --title is absent, and unconditional-by-default remember updates and Memory source writes. The guard-free commands below describe the approved behavior; that default is NOT implemented in the last inspected integration commit165a108e. Do not publish as a working recipe until implementation and installed-process CI pass. Explicit IDs/titles remain valid; simplify them after generated-ID support lands. Execute this whole recipe at the publication pin. -->
+<!-- Publication gate: validate this complete installed-process recipe at the final integration commit after CLI PR71/72 land. Do not publish it as a working recipe while its command surface exists only in open PRs. -->
 
 ```sh
 mkdir memory-beads-demo
@@ -139,21 +156,24 @@ bd init --graph-mode link --scope-url http://127.0.0.1:8765/demo/ \
 
 # Inspect the capabilities and limits of this build.
 bd status --graph
+bd types
 
 # Record the current code flow policy and read it back.
 bd remember "Base new work on our fork's integration branch and target PRs there. Merge only after CI passes." \
   --id beads/code-flow-policy --title "Code flow policy"
-bd recall beads/code-flow-policy
+bd recall code-flow-policy
 
 # Update the same Memory when the integration target changes.
 bd remember "Base new work on Jim's integration branch and target PRs there. Merge only after CI passes." \
-  --update beads/code-flow-policy
+  --update code-flow-policy
+bd versions code-flow-policy
 
 # Track adopting the new policy as work, and link the policy to that Issue.
-bd create "Move new work to Jim's integration branch" --id beads/adopt-integration
-bd link beads/code-flow-policy beads/adopt-integration \
-  --resource-type http://127.0.0.1:8765/demo/types/preview-related-v2
-bd links beads/code-flow-policy
+bd create "Move new work to Jim's integration branch" --id adopt-integration
+bd link code-flow-policy adopt-integration \
+  --link-type types/preview-related-v2
+bd links code-flow-policy
+bd list --format records-json --all
 
 # Start the read-only BDP endpoint. Leave this running.
 bd serve --readonly --addr 127.0.0.1:8765
@@ -161,9 +181,7 @@ bd serve --readonly --addr 127.0.0.1:8765
 
 A Memory owns its outgoing informational Links, so changing one also changes the Memory's version. By default, these writes accept the current state; no guard flag is required. For an edit based on a previously read version, use `--if-source-revision TOKEN` on a Link write or `--if-revision TOKEN` on a Memory body update. A stale token rejects the change. Explicit `--unconditional-source` and `--unconditional` remain available to spell out the default.
 
-`bd history` is not yet supported in graph mode. You can read an exact saved version with `bd show BEAD --version TOKEN` and compare two saved versions with `bd compare BEAD --from TOKEN --to TOKEN`. Save the tokens before and after your edit; `bd memories` searches current Memories, not their history.
-
-<!-- Publication gate: assess Jim's existing History/versions implementation for graph Memory support. Replace the unsupported statement only after the command and its required CI coverage land. -->
+`bd versions BEAD` lists versions newest first in graph mode; `bd history BEAD` is an alias there. Each row carries an opaque version token and a store-local ordering number. Use the **token** with `bd show BEAD --version TOKEN` or `bd compare BEAD --from TOKEN --to TOKEN`; the number is not a portable version address. `bd memories` searches current Memories, not their history. BDP HTTP History and restoration are still ahead.
 
 In another terminal, read and enumerate the Beads through BDP HTTP:
 
@@ -177,7 +195,7 @@ The collection response includes `items` and a `next` URL. Follow that complete 
 
 Graph initialization also installs guidance in `AGENTS.md`, including Stephanie Jarmak's instructions for remembering useful knowledge. Our integration tests check that the guidance is installed and that its example commands work. Whether an agent chooses the right things to remember is something we'd like your help evaluating. Try it with your agent and tell us what it saves, what it retrieves, and what it misses.
 
-The integration branch brings Memory creation and editing, mixed Issue/Memory Links, and BDP HTTP reads together. HTTP writes and the full History contract are still ahead. The [graph preview guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-preview.md) has the detailed command matrix and limitations.
+The integration branch brings Memory creation and editing, mixed Issue/Memory Links, local version listing, and BDP HTTP reads together. HTTP writes and HTTP History are still ahead. The [graph CLI guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-cli.md) is the evolving command walkthrough; the [technical reference](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-preview.md) has the detailed matrix and limits.
 
 Try the workflow on a small project and tell us where it helps—or gets in your way. Join the conversation in the Gas Town Hall Discord's `#beads` and `#memory-beads` channels, or [file a Beads issue](https://github.com/gastownhall/beads/issues) with a `[Memory]` or `[BDP]` prefix. Include the integration commit you tried so we can reproduce what you saw.
 
