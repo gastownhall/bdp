@@ -142,7 +142,7 @@ dolt sql-server --host 127.0.0.1 --port 3306 --data-dir "$PWD/memory-beads-dolt"
 
 Start the Beads example in a **new** directory with no existing `.beads` workspace; this preview does not migrate an existing Issue database or an older graph-preview schema. BDP serving currently requires shared-server mode. For an embedded-only CLI walkthrough, see the [graph CLI guide](https://github.com/versioned-beads/beads/blob/integration/docs/reference/graph-cli.md).
 
-> **Draft review note:** This walkthrough includes the agreed CLI defaults that are still being implemented. It has not yet passed end-to-end validation; the final command sequence and build instructions will be checked against the publication commit.
+> **Draft review note:** This walkthrough passed end to end with the proposed PR #72 build in a fresh shared-server workspace, including BDP reads and paginated enumeration. Repeat it against the final integration commit before publication; the CLI changes are not yet landed there.
 
 <!-- Publication gate: validate this complete installed-process recipe at the final integration commit after CLI PR71/72 land. Do not publish it as a working recipe while its command surface exists only in open PRs. -->
 
