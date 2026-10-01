@@ -81,7 +81,7 @@ This is where the Bead Protocol, or [BDP](https://github.com/gastownhall/bdp), c
 
 Types make these distinctions something tools can understand. In BDP, a Bead or Link has one declared Type, identified by a URL. Its Type descriptor can supply a JSON Schema for its properties and, for a Link, constraints on its endpoints. A Type can also conform to other Types, but it must satisfy every contract it declares.
 
-BDP calls the owning boundary a _Scope_. A Scope has a canonical URL, and each Bead and Link belongs to exactly one Scope. For example, within `https://beads.example/team/`, the local identity `beads/code-flow-policy` resolves to `https://beads.example/team/beads/code-flow-policy`. Links have their own identities under `links/`. The rest of the path is an identifier; slashes don't secretly create folders or nested Scopes.
+BDP calls the owning boundary a _Scope_. A Scope has a canonical base URL, and each Bead and Link belongs to exactly one Scope. For example, within `https://beads.example/team/`, the local identity `beads/code-flow-policy` resolves to `https://beads.example/team/beads/code-flow-policy`. Links have their own identities under `links/`. The rest of the path is an identifier; slashes don't secretly create folders or nested Scopes.
 
 A Link can cross a Scope boundary. The project can keep a Link from its implementation Issue to the team's code flow policy without importing the team's entire database. At least one endpoint belongs to the Scope holding the Link; an endpoint outside it is carried as a Reference, which is the URL to the Bead in another Scope. Reading that target is a separate operation, with its own availability and authorization checks. The URL tells us where to find the Bead; access still requires permission.
 
@@ -140,20 +140,20 @@ bd init --graph-mode link --scope-url http://127.0.0.1:8765/demo/ \
 # Inspect the capabilities and limits of this build.
 bd status --graph
 
-# Create a Memory and read its body.
-bd remember "call your mom on mother's day" \
-  --id beads/mothers-day --title "Mother's Day"
-bd recall beads/mothers-day
+# Record the current code flow policy and read it back.
+bd remember "Base new work on our fork's integration branch and target PRs there. Merge only after CI passes." \
+  --id beads/code-flow-policy --title "Code flow policy"
+bd recall beads/code-flow-policy
 
-# Replace the body.
-bd remember "Call your mom on Mother's Day!" \
-  --update beads/mothers-day
+# Update the same Memory when the integration target changes.
+bd remember "Base new work on Jim's integration branch and target PRs there. Merge only after CI passes." \
+  --update beads/code-flow-policy
 
-# Create an Issue and link the Memory to it.
-bd create "build a phone app" --id beads/phone-app
-bd link beads/mothers-day beads/phone-app \
+# Track adopting the new policy as work, and link the policy to that Issue.
+bd create "Move new work to Jim's integration branch" --id beads/adopt-integration
+bd link beads/code-flow-policy beads/adopt-integration \
   --resource-type http://127.0.0.1:8765/demo/types/preview-related-v2
-bd links beads/mothers-day
+bd links beads/code-flow-policy
 
 # Start the read-only BDP endpoint. Leave this running.
 bd serve --readonly --addr 127.0.0.1:8765
@@ -168,8 +168,8 @@ A Memory owns its outgoing informational Links, so changing one also changes the
 In another terminal, read and enumerate the Beads through BDP HTTP:
 
 ```sh
-curl --fail http://127.0.0.1:8765/demo/beads/mothers-day
-curl --fail http://127.0.0.1:8765/demo/beads/phone-app
+curl --fail http://127.0.0.1:8765/demo/beads/code-flow-policy
+curl --fail http://127.0.0.1:8765/demo/beads/adopt-integration
 curl --fail 'http://127.0.0.1:8765/demo/beads/?limit=1'
 ```
 
