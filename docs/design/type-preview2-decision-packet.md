@@ -4,6 +4,7 @@ Prepared October 3; updated October 4, 2026. Owner: Trish. Product decisions: Do
 Plan of record: [BDP #59](https://github.com/gastownhall/bdp/issues/59).
 Draft: [PR #60](https://github.com/gastownhall/bdp/pull/60),
 [Type design](type-lifecycle-preview2.md).
+Initial [review disposition](type-preview2-review.md) records corrections and remaining gates.
 Release coordination: [Preview 2 #7170](https://github.com/gastownhall/beads/issues/7170).
 
 **Required contribution:** a reviewed, publishable Type specification/design
@@ -22,7 +23,7 @@ The draft is available now for review of:
 3. Directional compatibility, including changes of meaning with identical
    structure; conformance claims do not become true merely by passing a schema.
 4. Installation, update, removal, migration, and packaging decision tables;
-   26 proposed acceptance cases; current implementation versus NYI.
+   32 proposed acceptance cases; current implementation versus NYI.
 5. Integration with CLI PR102 without changing its command specification or
    implementing Type commands there.
 
@@ -47,6 +48,13 @@ recorded; the detailed compatibility mechanism remains a proposal.
 for every decision, exact examples and acceptance cases, an honest capability
 table, and links from the release/CLI documentation to its one authoritative
 home. Include the README authority statement and a review disposition.
+
+Completion is checkable: all D01–D12 dispositions are recorded; included cases
+have one chosen outcome; deferred features are explicitly excluded; review
+findings have dispositions; CLI and release owners acknowledge the exact document
+commit. The target is the requested design/specification draft. An adopted BDP
+amendment additionally requires aligned canonical prose/schema, problem and
+conformance surfaces, fixtures and compatibility handling; it is not claimed here.
 
 Proposed checkpoints: October 4 model/compatibility review; October 5–8 product
 rulings and revised cases; October 9 review of the decided draft and CLI seam;
