@@ -38,6 +38,12 @@ itself make that behavior part of BDP. Vendored BDP schemas, examples, and
 fixtures in Beads are pinned copies of upstream artifacts, not independent
 sources of design authority.
 
+The [Preview 2 Type design draft](docs/design/type-lifecycle-preview2.md)
+explores versioned Type definitions and lifecycle rules. It is a proposal,
+not an amendment to the current specification or a claim of implementation.
+Its [decision packet](docs/design/type-preview2-decision-packet.md) identifies
+the product rulings and release gates still needed.
+
 ## Protocol and reference implementation
 
 A protocol also carries the two problems no single bead-store
