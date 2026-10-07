@@ -12,9 +12,11 @@ does not supply this Resource member.
 
 The two available council reviews compared the Graph CLI draft with public
 BDP v0. Gemini produced no review, so this table records source-checked seams,
-not a three-provider consensus. The CLI draft is reviewed in
-`versioned-beads/beads#102` at `30b6cd58e04d148c370e5cd405e7e0feb706117b`;
-the BDP baseline is `gastownhall/bdp:main` at
+not a three-provider consensus. The council reviewed the frozen CLI draft at
+`72c559e7bd0a9976d98c5adbfa7c3aad30b4f80d`; its corrections are tracked
+in `versioned-beads/beads#102`, now at
+`9e57686f796002c5e933a24e0ceb2d3942005dcc`. The BDP baseline is
+`gastownhall/bdp:main` at
 `182f1fcf8a01d896976bff3c9e3fb87c596c6ca6`.
 
 | Seam | Disposition before a normative BDP patch |
