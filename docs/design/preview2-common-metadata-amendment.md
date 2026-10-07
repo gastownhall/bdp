@@ -8,6 +8,23 @@ No BDP implementation is deployed, so the wire contract can still be amended
 coherently before a conformance claim. Trish's Type proposal is provisional and
 does not supply this Resource member.
 
+## Joint CLI/BDP review crosswalk
+
+The two available council reviews compared the Graph CLI draft with public
+BDP v0. Gemini produced no review, so this table records source-checked seams,
+not a three-provider consensus. The CLI draft is reviewed in
+`versioned-beads/beads#102` at `30b6cd58e04d148c370e5cd405e7e0feb706117b`;
+the BDP baseline is `gastownhall/bdp:main` at
+`182f1fcf8a01d896976bff3c9e3fb87c596c6ca6`.
+
+| Seam | Disposition before a normative BDP patch |
+| --- | --- |
+| Multi-Issue partial success | The CLI now states per-target results and exit 1 after a mixed batch. BDP `sequence` already has per-operation outcomes; no new wire batch guarantee follows from the CLI spelling. |
+| Removed Link marker | BDP deletion mints no Resource version. The CLI draft now distinguishes a local deletion event from citable `versions` rows; its pinned implementation still emits a non-citable marker and needs correction. Do not add a BDP deletion version to match that implementation bug. |
+| Owned source guards | The installed blocking Dependency is owned by its Issue source; an informational Link can be Memory-owned without being Issue-owned. Preserve BDP's declared-ownership source revision rule. The CLI's native Issue policy guard is not a new generic BDP ownership rule. |
+| Issue classification | The preview CLI adapts ordinary `task`/`bug` classification through one Issue Bead Type and an `issue_type` property. BDP's nominal Type collection model remains distinct. Reconcile the adapter with the Type owner before claiming generic Type migration. |
+| Common Resource metadata | This is the normative gap addressed by the proposed contract and migration inventory below. No schema or wire claim is made by this packet. |
+
 ## Proposed contract
 
 1. `metadata` is a JSON object on every Bead and Link record, including an
