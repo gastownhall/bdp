@@ -15,7 +15,7 @@ BDP v0. Gemini produced no review, so this table records source-checked seams,
 not a three-provider consensus. The council reviewed the frozen CLI draft at
 `72c559e7bd0a9976d98c5adbfa7c3aad30b4f80d`; its corrections are tracked
 in `versioned-beads/beads#102`, now at
-`3b1a9909f881e15dae7f3261567fbef23475a5c5`. The BDP baseline is
+`ecefcaa3d0b9b5801cd9935aaa45f95a2a7f992c`. The BDP baseline is
 `gastownhall/bdp:main` at
 `182f1fcf8a01d896976bff3c9e3fb87c596c6ca6`.
 
@@ -25,6 +25,7 @@ in `versioned-beads/beads#102`, now at
 | Removed Link marker | BDP deletion mints no Resource version. The CLI draft distinguishes a local deletion event from citable `versions` rows. The pinned integration build still emits a non-citable marker; [draft fork PR #73](https://github.com/donnabox/beads/pull/73) omits it from CLI Resource-version rows while retaining identity and prior snapshots, pending combined-source qualification. Do not add a BDP deletion version to match the old projection. |
 | Owned source guards | The installed blocking Dependency is owned by its Issue source; an informational Link can be Memory-owned without being Issue-owned. Preserve BDP's declared-ownership source revision rule. The CLI's native Issue policy guard is not a new generic BDP ownership rule. |
 | Observed Issue close guard | Combined [draft fork PR #74](https://github.com/donnabox/beads/pull/74) compares one observed complete graph Issue revision before delegating to the native close writer, including on an already-closed retry. This is CLI compare-and-set parity for an Issue lifecycle command; it does not add a BDP `close` operation or change BDP's generic update guard. The combined candidate still awaits exact-source qualification and review. |
+| Last-touched Issue workflow | Combined [draft fork PR #75](https://github.com/donnabox/beads/pull/75) keeps a workspace-local selector for interactive no-ID update/close and the next claimed Issue. It is CLI state, not a Resource member or BDP wire operation; scripts still require an ID unless they opt into the fallback. The draft awaits complete qualification and review. |
 | Issue classification | The preview CLI adapts ordinary `task`/`bug` classification through one Issue Bead Type and an `issue_type` property. BDP's nominal Type collection model remains distinct. Reconcile the adapter with the Type owner before claiming generic Type migration. |
 | Common Resource metadata | This is the normative gap addressed by the proposed contract and migration inventory below. No schema or wire claim is made by this packet. |
 
