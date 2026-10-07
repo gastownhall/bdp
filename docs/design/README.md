@@ -18,6 +18,10 @@ waves are internal sequencing labels, not protocol concepts.
 - [Component specifications](./component-specifications.md) defines the
   responsibilities and acceptance criteria for `bdp`, `bdptest`, `bdpbd`, and
   the conformance kit.
+- [Preview 2 common metadata amendment](./preview2-common-metadata-amendment.md)
+  prepares the Resource metadata changes needed to align the Graph CLI and BDP
+  drafts. Its proposed operation names and wire semantics are not normative
+  until the spec, both schema copies, fixtures and conformance catalog agree.
 - [Client interface and Scope port](./client-scope-port-interface.md) records
   the Gate 0 item 9 design finding: the current interface hypothesis, the
   closed typed-result and discriminated-failure surface gaps that Gate 0
