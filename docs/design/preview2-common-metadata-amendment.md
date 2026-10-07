@@ -29,7 +29,15 @@ in `versioned-beads/beads#102`, now at
 | Issue classification | The preview CLI adapts ordinary `task`/`bug` classification through one Issue Bead Type and an `issue_type` property. BDP's nominal Type collection model remains distinct. Reconcile the adapter with the Type owner before claiming generic Type migration. |
 | Common Resource metadata | This is the normative gap addressed by the proposed contract and migration inventory below. No schema or wire claim is made by this packet. |
 
-## Proposed contract
+## Decided contract (Donna, 2026-10-07)
+
+Donna chose one atomic Resource update for properties and metadata. Every
+Resource read exposes `metadata: {}` when no metadata properties have been set,
+including a retained state written before this member existed. That read
+projection does not rewrite retained bytes or mint a revision. An update may
+clear metadata back to `{}`; the clear is a semantic no-op when it is already
+empty. The normative spec, schemas, fixtures and conformance cases must move
+together before this packet can be called implemented.
 
 1. `metadata` is a JSON object on every Bead and Link record, including an
    empty `{}` on creation when no metadata was supplied. It is distinct from
@@ -49,33 +57,32 @@ in `versioned-beads/beads#102`, now at
 4. Creation accepts an optional metadata object. An update can atomically
    change properties and metadata under one `expectedRevision` and one
    transaction-local operation result. Omitting either plane preserves it.
-   For CLI parity, metadata replacement/merge/key-set/key-unset must have one
-   unambiguous ordered definition; `--metadata` merges top-level keys and
-   set/unset can combine with unset last. This should be specified as a
-   single metadata change grammar rather than implicit JSON Merge Patch.
+   A root replacement with `{}` clears metadata. The existing ordered JSON
+   Pointer Property Change grammar is a suitable wire grammar for each plane;
+   CLI merge/set/unset flags can lower to it without implicit JSON Merge Patch.
 5. No deletion version, timestamp, cascade or restoration behavior follows
    from this amendment. Existing incident-Link refusal and retained identity
    rules stand.
 
-## Recommended wire operation shape for review
+## Decided wire operation shape
 
 Rename the current `update-bead-properties` and `update-link-properties`
 singletons to `update-bead` and `update-link`. Their request records accept
 optional `propertiesChange` and `metadataChange` members; at least one must
 be present. This avoids a misleading operation name and admits one atomic
-properties-plus-metadata edit. Keep the existing JSON Pointer property-change
-grammar under `propertiesChange`; define a separate metadata-change grammar
-for top-level merge, set and unset. `expectedRevision`, attribution,
+properties-plus-metadata edit. Use the existing ordered JSON Pointer
+`propertyChange` grammar for both members, applied independently to their
+respective objects. A metadata `replace` at the root path `""` with `{}` clears
+it. `expectedRevision`, attribution,
 change-context, idempotency and source-result behavior are unchanged. Since
 there are no deployed BDP implementations, the renaming cost is in spec,
 schema, fixtures and conformance rather than external clients. The alternative
 is two metadata-specific singleton operations, but Read+Update `sequence` is
 non-atomic and would not express the CLI's combined edit as one operation.
 
-This operation shape is a recommendation, not a settled normative rule. It
-should be decided before updating the BDP discovery directory, JSON schemas
-and conformance IDs. In particular, do not publish a schema accepting metadata
-records while the operation and no-op semantics remain unspecified.
+This shape is decided for the pending normative patch. Do not publish a schema
+accepting metadata records until the operation, no-op and retained-read
+semantics are reflected in the implementation and conformance artifacts.
 
 ## Exact fanout for the normative amendment
 
@@ -92,13 +99,8 @@ receipts until a replacement is independently reviewed. The protocol's
 existing `revision` token remains the canonical current-state guard; CLI
 `bd versions` row `version` and local ordering number do not rename it.
 
-## Decisions before normative patch
+## Held boundary
 
-- Confirm the unified operation names and `propertiesChange` spelling (or
-  explicitly choose the two-operation alternative).
-- Confirm whether an empty metadata object is always emitted or may be omitted
-  from old retained records; the recommendation is always emitted for new v0
-  records, with explicit legacy-read disposition rather than fabricated data.
 - Keep the Type design boundary: the preview CLI's single Issue Bead Type plus
   `issue_type` property is an adapter for ordinary `bd`, not a change to BDP's
   nominal Type model. Any generic Type migration is owned by the Type design.
