@@ -492,7 +492,6 @@ deferral. D01–D12 remain the stable decision identifiers.
 | T33 | Propose B in A's major family; B rejects an A-valid instance or changes its meaning without transformation | Confirmed family rule: B cannot qualify within that family; publication enforcement and cross-major treatment remain open | D05 |
 | T34 | Propose B in A's major family; a B-valid instance violates A's documented structural or semantic guarantees | Confirmed family rule: B cannot qualify within that family; identical schemas alone do not establish compatibility | D05 |
 | T35 | B adds an optional typed field whose name A allowed as an arbitrary extension; A permits an incompatible value whether or not any stored instance uses it | Same-family compatibility fails universally if B rejects or reinterprets any A-permitted value; a clean or empty Scope does not rescue it | D05 |
-
 | T36 | Create/read a definition for a Link Type as a Type Bead | The definition resource is a Bead; its described instances are Links with intrinsic Type affiliation and Bead endpoints | D01, D02 |
 | T37 | Publish a Type Bead version under a newer metatype | Existing definitions retain their metatype pins; a reader may return data without supporting new validation semantics; admission requires supported semantics under the chosen bootstrap policy | D01, D04, D07 |
 | T38 | Update only the affiliation pin while properties are identical | New resource state is observable in revision/history/events; it is not a property no-op; owned-Link source effects remain D06 | D03, D06, D08, D12 |
