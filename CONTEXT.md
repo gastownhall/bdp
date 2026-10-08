@@ -31,13 +31,14 @@ A Bead whose versions contain Type definitions describing Bead or Link instances
 _Avoid_: Link definition as a Link
 
 **Type affiliation**:
-The intrinsic association of a resource version with its nominal Type identity and
+Under the proposed new model, the intrinsic association of a resource version with its nominal Type identity and
 exact governing definition version.
 _Avoid_: affiliation Link
 
 **Type compatibility family**:
-An ordered family of definitions preserving both earlier valid data and earlier
-consumers' structural and semantic guarantees.
+An ordered family of definitions required to preserve both earlier valid data and
+earlier consumers' structural and semantic guarantees; declared membership and
+trusted evidence of compliance remain distinct.
 _Avoid_: identical definitions
 
 **Type adoption**:

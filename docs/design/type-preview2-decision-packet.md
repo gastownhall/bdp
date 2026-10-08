@@ -33,7 +33,7 @@ write-up replaces the accumulating dated narrative with one model:
 - Installation, defaults, adoption, deactivation, erasure, migration and packaging
   are separate actions, with a BDP/Beads ownership boundary and explicit open choices.
 
-There are 12 decision areas and 42 acceptance cases. These are design examples,
+There are 12 decision areas and 47 acceptance cases. These are design examples,
 not executed tests. The ready/NYI table distinguishes source observations from
 proposed behavior. Canonical BDP and Beads runtime are unchanged.
 
@@ -55,9 +55,9 @@ records them in #59; Janet and the CLI owner reconcile release and interface sea
 
 The October 4 [initial council record](type-preview2-review.md) and earlier October 8
 [brittleness map](type-brittleness-map-20261008.md) are historical. They did not
-review this complete consolidated write-up. A fresh Codex + Claude council is
-being run on this revision; Gemini is omitted at Donna's request because it is
-unavailable. Its disposition will be linked here when complete. Review does not
+review this complete consolidated write-up. A fresh Codex + Claude council reviewed the consolidated snapshot; Gemini was
+omitted at Donna's request because it was unavailable. Findings, corrections and
+final-review limits are in the [October 8 council record](type-preview2-council-20261008.md). Review does not
 constitute product or release acceptance.
 
 ## Monday October 12 candidate
