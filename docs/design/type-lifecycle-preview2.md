@@ -55,17 +55,20 @@ publication authority and retry policy remain open. A floating nominal filter
 matches the Type identity across versions; a pinned nominal filter matches
 identity plus definition version. Neither filter implies conformance matching.
 
-Donna suggested allowing properties and the explicit Type selection in the same
-update, potentially through `--bead-type` / `--link-type`. The shared design
-should validate the resulting properties against the selected definition and
-commit properties and affiliation together, or change neither. That atomic
-combined-update rule is a proposed consequence for review; concrete CLI flags,
-graph-wide repair and compatibility policies remain undecided. No command or
-runtime behavior is implemented by this ruling.
+Donna accepted allowing properties and explicit Type selection in the same
+update, validating the resulting properties against the selected definition and
+committing both together or neither. `--bead-type` / `--link-type` on update
+remain candidate CLI spellings. This confirms atomicity of that combined update;
+it does not settle arbitrary graph-wide repair, incident-Link policy, source
+ownership effects or compatibility. No command or runtime behavior is implemented
+by this ruling.
 
 The agreed foundation also requires each exact Type definition to describe
 immutable structure and semantics. Types-as-Beads remains the favored direction
 under discussion, not a completed metatype or publication design.
+
+The [brittleness map](type-brittleness-map-20261008.md) reviews interacting risks
+under these latest decisions; its suggestions are not additional product rulings.
 
 ## 2. Verified baseline and scope of inspection
 

@@ -33,10 +33,15 @@ Donna confirmed that updates to existing Beads and Links never implicitly move
 their stored Type pin. An explicit Type selection is required. Pinned input
 selects an exact definition; floating input resolves to a stored pin. Nominal
 filters match exact identity/version when pinned and all versions of the identity
-when floating. Combined property-and-Type updates and their CLI flags are proposed;
-validation/atomicity and graph consequences still need their detailed contract.
+when floating. Donna also accepted one combined property-and-Type update with
+resulting-state validation and all-or-nothing commit. CLI flag spellings and
+broader graph-repair/ownership/compatibility consequences remain open.
 The [dated ruling in the draft](type-lifecycle-preview2.md#october-8-ruling--explicit-affiliation-updates)
 separates these decisions from the remaining questions.
+
+Review the [brittleness map](type-brittleness-map-20261008.md) before selecting
+isolated mechanisms: constraint matching, graph validity and owned-source
+versioning have coupled consequences.
 
 ## Decisions to take in order
 
