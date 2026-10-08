@@ -1,7 +1,7 @@
 # Type lifecycle for Beads Graph Preview 2 — design draft
 
 Status: **proposal for review, not adopted BDP semantics**. Prepared October 3,
-2026; updated October 4 by Trish for [BDP #59](https://github.com/gastownhall/bdp/issues/59).
+2026; updated October 8 by Trish for [BDP #59](https://github.com/gastownhall/bdp/issues/59).
 Delivery PR: [#60](https://github.com/gastownhall/bdp/pull/60).
 [Decision packet](type-preview2-decision-packet.md) summarizes the review and
 Monday October 12 EOD Pacific candidate plan.
@@ -35,7 +35,7 @@ The October 1–3 design conversation establishes different levels of authority:
 | Every stored affiliation is pinned to a Type version | Explicit working assumption requested by Donna; representation and adoption rules remain open |
 | A resource retains one stable Type identity while its affiliation pin may evolve | Working design Donna agreed to explore, not a finalized prohibition on all future retyping |
 | Types become Beads with versions under a stable identity | Hypothesis under evaluation; no final choice or bootstrap rule |
-| Compatibility is directional and includes semantics as well as structure | Direction explored; Donna specifically required same-structure/changed-meaning cases |
+| Within a major-version family, preserve both earlier data and earlier consumer contracts, structurally and semantically | Confirmed October 8; see section 4. Family encoding, evidence and enforcement remain open |
 | Compatibility encoded through pinned conformance, author declarations, or version labels | Trish proposals only; no mechanism approved |
 | Installation/removal/migration/package behavior | Unruled; recommendations and acceptance cases below are conditional |
 | Instance updates preserve affiliation unless explicitly set | Confirmed October 8; see the dated ruling below. Combined property/Type update syntax remains a proposal |
@@ -190,10 +190,45 @@ its unavailable/erased outcomes before a concrete discriminator schema is drafte
 
 ## 4. Compatibility between definition versions
 
-Two directional questions must be named separately:
+### October 8 ruling — both compatibility guarantees within a major family
+
+Donna favored compatibility within major-version families and confirmed that the
+family must promise both existing-data acceptance and preservation of earlier
+consumers' expectations. Both guarantees include semantics, not merely shape.
+For an earlier definition A and later B within that family:
+
+1. Every instance valid under A must remain valid under B without transforming
+   its data or changing its meaning. Changing the explicit affiliation pin is
+   distinct from transforming the payload.
+2. Every instance valid under B must satisfy the structural and semantic
+   guarantees consumers of A are entitled to rely on. Extension tolerance must
+   come from A's contract, not be retroactively assumed.
+
+These promises concern the Type contract. They do not bypass exact-affiliation
+predicates, authorization, concurrency guards, or independent Scope policies.
+Adoption remains explicit; publishing a compatible version moves no instance.
+A violation of either promise is outside the same compatibility family. What
+crossing that boundary permits for a stable Type identity remains a decision.
+
+SemVer is the candidate designation, not yet an adopted wire format or mechanism.
+Major/minor/patch assignment, exact immutable version identity, family membership,
+publisher authority, evidence/enforcement, and false-claim handling remain open.
+Exact revisions still freeze the complete definition; a family preserves earlier
+contracts while allowing only evolution meeting both guarantees.
+
+Consequences to test: a newly required property breaks old-data acceptance;
+expanding a previously closed enum breaks old-consumer guarantees; dollars-to-cents
+breaks semantics even with identical schemas. Adding an optional field is not
+inherently safe: if A permits arbitrary extension properties, an old valid instance
+may already use that name with a value B rejects or interprets differently. This
+exposes the need for deliberate extension rules; it does not decide those rules.
+
+The two directional questions remain separately useful for reasoning about
+changes across family boundaries:
 
 - **Acceptance of existing data:** does each instance valid under A satisfy B's
-  structural constraints? A per-instance check is weaker than this universal claim.
+  structural constraints and retain its meaning without transformation? A per-instance
+  check is weaker than this universal claim.
 - **Substitution for a required contract:** does every B instance satisfy A's
   structural obligations AND preserve A's meaning and guarantees?
 
@@ -291,7 +326,7 @@ its file format or distribution channel normative BDP.
 | D02 / identity | Define stable Type identity, category stability, URL/location rules and legacy `types/` identities/absent pins without rewriting retained records | Mapping of legacy descriptors without breaking references | Preserve existing identities; do not silently move them to `beads/` |
 | D03 / version addressing | Exact discriminator and historical addressing; cross-authority version identity/minting authority and divergence detection; token meaning, absent pins, retention and unavailable outcomes | Persistence/indexing and lookup | Choose an exact durable binding; no invented revision-to-version conversion |
 | D04 / closure | Pin parent definitions, endpoint contracts and schemas; distinguish conformance cycles, recursive schema references and metatype bootstrap; define bounded resolution/evaluation and integrity evidence | Offline validator and bounded acquisition | Complete closure installed before admission, with no validation-time network |
-| D05 / compatibility | Define substitution and separate existing-data acceptance claims, same/different-identity conformance, semantic claims, issuer authority and withdrawal | Validation and explanatory diagnostics | Explicit contract evidence, never version-order inference; distinguish false semantic claims from schema failures |
+| D05 / compatibility | Both acceptance and semantic substitution within a major family are confirmed; define family encoding, same/different-identity conformance, claim evidence, issuer authority and withdrawal | Validation and explanatory diagnostics | Explicit contract evidence, never version-order inference; distinguish false semantic claims from schema failures |
 | D06 / Link integrity | Choose current/historical endpoint validation, incompatible-adoption behavior, ownership matching and limits, source-version effects and external bounds | Transactional incident checks and repair UX | Preserve local integrity and make any graph repair explicit |
 | D07 / installation | Define installed/admissible state, atomicity, idempotent reinstall, same-version conflict and concurrent admission | Operator interface, permissions, cache and catalog transaction | Same exact closure is idempotent; conflicting content under one definition version is rejected; partial installation grants no admission |
 | D08 / updates | Publication/default selection versus instance adoption; ordinary edits; documentation-only changes; retry binding | Selection defaults, publication/update workflow | Publication leaves instances alone; resolve convenience selections once per admitted operation; retain resolved pins across replay |
@@ -356,6 +391,9 @@ unresolved choice with one expected outcome or an explicit deferred boundary.
 | T30 | Install an unsupported schema dialect/required vocabulary, closed-root schema, or invalid explicit/wildcard ownership bounds | Existing v0 validation refusals preserved unless specifically amended; partial installation grants no mutation admission | D04, D07, D12 |
 | T31 | Parent and child definitions evolve together; an old pinned parent is then deactivated or purged | Explicit publication/adoption ordering and transaction boundary; fixed child closure cannot drift; dependency/retention policy applies | D04, D08–D10 |
 | T32 | Proposed Type-definition erasure propagates to a replica that holds dependent instances | Explicitly amend/map current erasure records, changefeed, disclosure and dependent-data rules; no resurrection, silent rebinding or unannounced weakening of retention | D03, D09, D12 |
+| T33 | Propose B in A's major family; B rejects an A-valid instance or changes its meaning without transformation | Confirmed family rule: B cannot qualify within that family; publication enforcement and cross-major treatment remain open | D05 |
+| T34 | Propose B in A's major family; a B-valid instance violates A's documented structural or semantic guarantees | Confirmed family rule: B cannot qualify within that family; identical schemas alone do not establish compatibility | D05 |
+| T35 | B adds an optional typed field whose name A allowed as an arbitrary extension; an A-valid instance already uses an incompatible value | Optionality alone does not establish same-family compatibility; both guarantees must hold, including the existing value's meaning | D05 |
 
 ## 8. Ready / NYI / release gates
 
@@ -370,7 +408,7 @@ approved them.
 | Fixed four/six-Type installation and discovery | Existing documented behavior | Implemented in source | Recommend preserving; qualification and any change decision owned by release lane |
 | User-defined Bead/Link installation | Decisions/cases drafted; D01–D04/D07/D11 open | NYI | Specification coverage required; implementation optional |
 | Stable Type versions and stored affiliation pins | Working assumption; D01–D04/D12 open | NYI | Specification coverage required |
-| Compatibility and semantic-change rules | Directional cases drafted; D05/D06 open | NYI for proposed version relationships | Specification coverage required |
+| Compatibility and semantic-change rules | Both same-family guarantees confirmed; mechanism and D06 open | NYI for proposed version relationships | Specification coverage required |
 | Update/publication/default selection | Preserve-unless-explicitly-set confirmed October 8; other D08 choices open | NYI | Specification coverage required |
 | Deactivate/remove/retain | D09 choices drafted | NYI | Specification coverage required |
 | Instance migration/adoption/rollback | D10 choices drafted | NYI | Specification coverage required; no engine promised |

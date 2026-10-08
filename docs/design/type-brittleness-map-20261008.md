@@ -29,6 +29,16 @@ Canonical BDP main was rechecked as
 contract; this map evaluates a proposed successor, not current implementation.
 Current spec citations below refer to that baseline.
 
+## Subsequent October 8 compatibility ruling
+
+After this review, Donna confirmed both existing-data acceptance and preservation
+of earlier consumers' structural and semantic guarantees within the proposed
+major-version family. See the [current ruling](type-lifecycle-preview2.md#october-8-ruling--both-compatibility-guarantees-within-a-major-family).
+The map and external review below remain historical analysis of the preceding
+unconstrained-version proposal. B02/B04/B06 are now constrained within a family;
+cross-family behavior and reference matching remain open. Version labels alone
+are not proof of compliance, and no SemVer wire representation is selected.
+
 ## The whole map
 
 Priority means leverage on the rest of the design, not an implementation schedule.

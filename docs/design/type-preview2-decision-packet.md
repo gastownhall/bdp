@@ -23,7 +23,7 @@ The draft is available now for review of:
 3. Directional compatibility, including changes of meaning with identical
    structure; conformance claims do not become true merely by passing a schema.
 4. Installation, update, removal, migration, and packaging decision tables;
-   32 proposed acceptance cases; current implementation versus NYI.
+   35 acceptance cases (including confirmed family-rule outcomes); current implementation versus NYI.
 5. Integration with CLI PR102 without changing its command specification or
    implementing Type commands there.
 
@@ -38,6 +38,14 @@ resulting-state validation and all-or-nothing commit. CLI flag spellings and
 broader graph-repair/ownership/compatibility consequences remain open.
 The [dated ruling in the draft](type-lifecycle-preview2.md#october-8-ruling--explicit-affiliation-updates)
 separates these decisions from the remaining questions.
+
+Donna also confirmed **both** guarantees for the proposed major-version family:
+old valid data remains valid without transformation or semantic reinterpretation,
+and new instances preserve earlier consumers' structural and semantic guarantees.
+See [the compatibility ruling](type-lifecycle-preview2.md#october-8-ruling--both-compatibility-guarantees-within-a-major-family).
+SemVer encoding, family membership/evidence, enforcement and cross-major behavior
+remain open. An optional field addition is not automatically compatible if old
+valid extension data already occupies that name.
 
 Review the [brittleness map](type-brittleness-map-20261008.md) before selecting
 isolated mechanisms: constraint matching, graph validity and owned-source
