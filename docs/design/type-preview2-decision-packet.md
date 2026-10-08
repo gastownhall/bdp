@@ -1,109 +1,96 @@
 # Preview 2 Type design — decision packet
 
-Prepared October 3; updated October 8, 2026. Owner: Trish. Product decisions: Donna.
+Updated October 8, 2026. Owner: Trish. Product decisions: Donna.
 Plan of record: [BDP #59](https://github.com/gastownhall/bdp/issues/59).
-Draft: [PR #60](https://github.com/gastownhall/bdp/pull/60),
-[Type design](type-lifecycle-preview2.md).
-Initial [review disposition](type-preview2-review.md) records corrections and remaining gates.
+Delivery: [PR60](https://github.com/gastownhall/bdp/pull/60).
 Release coordination: [Preview 2 #7170](https://github.com/gastownhall/beads/issues/7170).
 
-**Required contribution:** a reviewed, publishable Type specification/design
-draft for the Monday October 12 EOD Pacific candidate. Type implementation
-is optional and waits on product decisions. The release's separate mandatory
-CLI implementation gate belongs to its CLI owner.
+## Complete design for review
 
-## Sunday October 4 review — requested as tomorrow on October 3
+Read [Versioned Types as Beads](type-lifecycle-preview2.md). The consolidated
+write-up replaces the accumulating dated narrative with one model:
 
-The draft is available now for review of:
+- Types are represented by Beads, including definitions whose instances are Links.
+  A distinguished intrinsic affiliation field and finite built-in metatype bootstrap
+  avoid replacing affiliation with Links. Exact bootstrap and administrative policy
+  remain open.
+- Stable nominal identity, resource revision, exact Type definition and major-version
+  family have separate meanings. Exact definitions freeze structure and semantics.
+- Stored new-model affiliations are exact. Explicit floating write selections resolve
+  to exact pins; omitted update selections preserve the current pin. Properties and
+  explicit Type adoption commit together or neither. Affiliation-only changes are
+  observable resource state.
+- A major family guarantees both that old data remains valid without transformation
+  or reinterpretation and that new instances honor earlier consumers' structural
+  and semantic guarantees. SemVer is the candidate designation; exact encoding,
+  claim evidence/enforcement and cross-major behavior remain open.
+- Authors can design extension points with open records, optional fields and explicit
+  tolerance rules. The document gives both a compatible extension example and cases
+  that violate one of the two promises.
+- Nominal filters, contract satisfaction, exact affiliation, conformance, endpoint
+  requirements and ownership are distinct. Compatibility does not silently decide
+  matching, graph repair or independent Scope policies.
+- Installation, defaults, adoption, deactivation, erasure, migration and packaging
+  are separate actions, with a BDP/Beads ownership boundary and explicit open choices.
 
-1. BDP authority over the abstract model versus Beads authority over CLI,
-   persistence, acquisition, and operator workflows.
-2. Stable Type identity, versioned definitions, and exact affiliation in
-   stored resource versions; these are a working design, not current BDP law.
-3. Directional compatibility, including changes of meaning with identical
-   structure; conformance claims do not become true merely by passing a schema.
-4. Installation, update, removal, migration, and packaging decision tables;
-   35 acceptance cases (including confirmed family-rule outcomes); current implementation versus NYI.
-5. Integration with CLI PR102 without changing its command specification or
-   implementing Type commands there.
+There are 12 decision areas and 42 acceptance cases. These are design examples,
+not executed tests. The ready/NYI table distinguishes source observations from
+proposed behavior. Canonical BDP and Beads runtime are unchanged.
 
-## October 8 decision update
+## Remaining decisions with the widest consequences
 
-Donna confirmed that updates to existing Beads and Links never implicitly move
-their stored Type pin. An explicit Type selection is required. Pinned input
-selects an exact definition; floating input resolves to a stored pin. Nominal
-filters match exact identity/version when pinned and all versions of the identity
-when floating. Donna also accepted one combined property-and-Type update with
-resulting-state validation and all-or-nothing commit. CLI flag spellings and
-broader graph-repair/ownership/compatibility consequences remain open.
-The [dated ruling in the draft](type-lifecycle-preview2.md#october-8-ruling--explicit-affiliation-updates)
-separates these decisions from the remaining questions.
-
-Donna also confirmed **both** guarantees for the proposed major-version family:
-old valid data remains valid without transformation or semantic reinterpretation,
-and new instances preserve earlier consumers' structural and semantic guarantees.
-See [the compatibility ruling](type-lifecycle-preview2.md#october-8-ruling--both-compatibility-guarantees-within-a-major-family).
-SemVer encoding, family membership/evidence, enforcement and cross-major behavior
-remain open. An optional field addition is not automatically compatible if old
-valid extension data already occupies that name.
-
-Review the [brittleness map](type-brittleness-map-20261008.md) before selecting
-isolated mechanisms: constraint matching, graph validity and owned-source
-versioning have coupled consequences.
-
-## Decisions to take in order
-
-| Review batch | Decisions | Recommendation to consider, not an adopted rule |
+| Area | Agreed direction | Still needed |
 | --- | --- | --- |
-| Identity and meaning | D01–D04: Types as Beads/metatype; stable addresses; exact version addressing; complete dependency closure | Preserve stable affiliation; bind each stored resource version to an exact definition and fixed dependencies. Decide bootstrap and legacy identity treatment before specifying wire encoding. |
-| Compatibility and graph integrity | D05–D06: conformance declarations and trust; current versus historical endpoint validation | Keep structural acceptance and semantic substitution separate. Never infer compatibility from revision order or version labels. Decide endpoint validation independently of Type pins. |
-| Installation and update | D07–D08: admission, publication authority, idempotence, defaults and documentation refresh | Explicit, bounded installation; no request-time fetch; publication leaves existing instance meaning unchanged; property edits preserve affiliation pins unless adoption is requested. |
-| Removal and migration | D09–D10: deactivation, discovery, existing edits, retention/erasure, atomicity and rollback | Separate withdrawing future use from destroying retained definitions. Require explicit adoption and graph validation; do not design an automatic migration engine before these rules are decided. |
-| Packaging and product surface | D11–D12: portable unit, provenance/trust, distribution, authoring and discovery | Review an offline complete-closure bundle as a candidate. Hash integrity alone supplies no publisher trust. Keep CLI syntax and storage layout in Beads. |
+| D01–D04 identity and definition closure | Types-as-Beads model, exact immutable meaning, intrinsic affiliation | Bootstrap and placement, exact cross-authority addressing, legacy pins, dependency representation and admission |
+| D05 compatibility | Both structural and semantic guarantees within a major family | Family/label binding, evidence, authority, enforcement and false-claim handling; relationship to conformance |
+| D06 graph integrity | Type adoption must account for applicable relationship/ownership obligations | Contract versus exact matching, historical state, affected-resource checks, profile-specific repair/refusal and source guards |
+| D07–D08 installation and update | Publication leaves instances alone; adoption explicit and atomic per resource | Installation admission, defaults, floating resolution granularity and replay binding |
+| D09–D10 removal and migration | Preserve historical meaning; separate deactivation from destruction | Operation outcomes, retention/erasure exceptions, cross-major adoption, bulk/rollback boundaries |
+| D11–D12 packaging and surfaces | Exact portable meaning; CLI/storage realization belongs to Beads | Shared interchange scope, trust, wire/events/query forms and old-client behavior |
 
-Donna owns all product rulings. Trish records their exact disposition in #59;
-Janet and the CLI owner reconcile the resulting interface boundary. No row
-is implementation authorization. Discussion assent to pinned storage is
-recorded; the detailed compatibility mechanism remains a proposal.
+No open row authorizes implementation. Donna supplies product rulings; Trish
+records them in #59; Janet and the CLI owner reconcile release and interface seams.
 
-## What can make Monday October 12's candidate
+## Review evidence
 
-**Planned mandatory artifact:** the reconciled BDP design document, disposition
-for every decision, exact examples and acceptance cases, an honest capability
-table, and links from the release/CLI documentation to its one authoritative
-home. Include the README authority statement and a review disposition.
+The October 4 [initial council record](type-preview2-review.md) and earlier October 8
+[brittleness map](type-brittleness-map-20261008.md) are historical. They did not
+review this complete consolidated write-up. A fresh Codex + Claude council is
+being run on this revision; Gemini is omitted at Donna's request because it is
+unavailable. Its disposition will be linked here when complete. Review does not
+constitute product or release acceptance.
 
-Completion is checkable: all D01–D12 dispositions are recorded; included cases
-have one chosen outcome; deferred features are explicitly excluded; review
-findings have dispositions; CLI and release owners acknowledge the exact document
-commit. The target is the requested design/specification draft. An adopted BDP
-amendment additionally requires aligned canonical prose/schema, problem and
-conformance surfaces, fixtures and compatibility handling; it is not claimed here.
+## Monday October 12 candidate
 
-Proposed checkpoints: October 4 model/compatibility review; October 5–8 product
-rulings and revised cases; October 9 review of the decided draft and CLI seam;
-October 12 final source refresh, review disposition, documentation freeze and
-release-owner acceptance. These are proposed work checkpoints, not confirmed
-reviewer bookings.
+The mandatory artifact is the reviewed, publishable Type specification/design
+draft, including the settled model, explicit dispositions/deferred boundaries,
+examples, ready/NYI table and one authoritative BDP home. Implementation remains
+optional and requires a separately approved slice. The graph CLI gate is separate.
 
-**Optional:** implementation only if a separately approved bounded slice can
-pass its own review, exact-source tests and combined release qualification.
-No Type implementation is currently committed to the candidate. Cutting it
-must not cut the mandatory Type document.
+A settled specification requires every included behavior to have one expected
+outcome and all D01–D12 decisions to be resolved or explicitly deferred within an
+accepted publication scope. Source and review evidence must identify the frozen
+commit; CLI and release owners must acknowledge that candidate. The prior request
+for an October 4 initial review was met with the earlier draft; October 9 review
+and October 12 freeze remain proposed checkpoints, not booked commitments.
 
-**Current readiness:** ready for design discussion; not yet an adopted
-specification or an implementation-ready contract. Publication as an explicitly
-labeled design draft can retain deferred questions if Donna and the release
-owner accept that scope. If foundational identity, version addressing, or
-compatibility decisions remain unresolved, do not claim a settled Type spec:
-escalate the release disposition through #59 and the bus. A document existing
-is not by itself proof that the mandatory Type gate has passed.
+This rewrite is ready for design review. It is not yet a wire-complete,
+implementation-ready contract. Publication as a bounded design draft may retain
+open mechanisms if Donna and the release owner accept that scope. An adopted BDP
+amendment additionally requires aligned canonical prose/schema, fixtures,
+conformance surfaces and client transition behavior. Document presence alone does
+not discharge the release gate.
 
-## Verification and boundaries
+## Source and work boundaries
 
-On October 3, checked BDP main `182f1fcf`, PR60 `9310bf45`, Beads integration
-`ad54537e`, and CLI PR102 `6753ad7c` against GitHub. PR72 is now merged.
-BDP main, PR60 and Beads integration were reconfirmed unchanged October 4.
-The full SHAs and source links are in the design draft. This work changes only
-BDP documentation. It does not modify PR102, Beads runtime, any database, or
-the manual playground. Source inspection is not runtime qualification.
+October 8 remote refresh: BDP main `182f1fcf8a01d896976bff3c9e3fb87c596c6ca6`,
+pre-rewrite PR60 `7b6c959c4f8739adc8b2659c86a3caed694b1429`, Beads integration
+`356275a13290064fe903ace31984c14d1b9f7ad4`, CLI PR102
+`94d880d4b7bdb87468281c1a7453b94387aacb2e`. Targeted Type catalog/reader/reference
+inspection still shows fixed initialization and arbitrary installation NYI.
+This is source evidence, not fresh runtime qualification.
+
+No graph CLI PR102, manual playground, shared database or Jim's History work was
+edited. Runtime architecture tracker [Beads #7403](https://github.com/gastownhall/beads/issues/7403)
+is a coordination reference; Vickie's earlier Type-first questions are deferred
+following the Rust BDP client/CLI/packs direction. They do not block this write-up.

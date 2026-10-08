@@ -1,331 +1,396 @@
-# Type lifecycle for Beads Graph Preview 2 — design draft
+# Versioned Types as Beads — Preview 2 design
 
-Status: **proposal for review, not adopted BDP semantics**. Prepared October 3,
-2026; updated October 8 by Trish for [BDP #59](https://github.com/gastownhall/bdp/issues/59).
-Delivery PR: [#60](https://github.com/gastownhall/bdp/pull/60).
-[Decision packet](type-preview2-decision-packet.md) summarizes the review and
-Monday October 12 EOD Pacific candidate plan.
+Updated October 8, 2026. Owner: Trish. Product decisions: Donna.
+Plan of record: [BDP #59](https://github.com/gastownhall/bdp/issues/59).
+Delivery: [PR60](https://github.com/gastownhall/bdp/pull/60).
+[Decision packet](type-preview2-decision-packet.md).
 
-The Type document is mandatory for Preview 2; Type implementation is optional
-and awaits product decisions. Existing BDP v0 remains authoritative until an
-explicit specification amendment is approved. Examples below describe the
-proposed abstract model and are not valid new wire formats or runnable commands.
+**Status:** consolidated design proposal incorporating the operator's positions;
+not an adopted BDP amendment or an implemented feature. Types-as-Beads is the
+model developed by this document. Its exact bootstrap, wire representation,
+administrative policy and remaining decisions are explicitly open below.
+The Type document is mandatory for Monday October 12 EOD Pacific; implementation
+is optional and awaits separate product decisions. Canonical BDP v0 remains
+`docs/specs/bdp.md` until an approved amendment reconciles it with this design.
 
-## 1. Authority, requirements and decision status
+## 1. Purpose, authority and decisions
 
-BDP owns shared data meaning: identity, affiliation, Type versions if adopted,
-conformance, validation, history and relationship invariants. Beads owns CLI
-syntax, storage layouts, acquisition mechanisms and operator experience. The
-[README](../../README.md#architecture-and-design-authority) records this
-boundary. Implementation experience can motivate an upstream decision; it
-does not silently change the shared model.
+Users need to add Bead and Link Types, evolve their definitions, and remove them
+from use. Existing instances and relationships must remain intelligible while
+that happens. Requiring a completely new nominal Type for every contract change
+makes ordinary evolution difficult; silently changing an existing contract makes
+stored data ambiguous. The design separates stable identity, immutable exact
+versions and compatible evolution within a major-version family.
 
-Users need to add Bead and Link Types, update their definitions, and remove
-them from use. The design must preserve intelligible current and retained
-data while making those operations practical. It must distinguish structural
-validation from meaning, Type definition publication from instance adoption,
-and administrative availability from destruction of historical evidence.
+BDP owns the shared abstract model, meaning, protocol and observable validation
+outcomes. Beads owns CLI spellings, storage, acquisition and operator workflows.
+The [README authority boundary](../../README.md#architecture-and-design-authority)
+applies. Implementation behavior does not silently become BDP semantics.
 
-The October 1–3 design conversation establishes different levels of authority:
-
-| Item | Status |
+| Position | Status in this design |
 | --- | --- |
-| BDP owns the abstract model and protocol; Beads owns implementation/product surfaces | Agreed direction; recorded in the README proposal |
-| Authoring convenience is distinct from precision in stored state | Explicitly agreed |
-| Every stored affiliation is pinned to a Type version | Explicit working assumption requested by Donna; representation and adoption rules remain open |
-| A resource retains one stable Type identity while its affiliation pin may evolve | Working design Donna agreed to explore, not a finalized prohibition on all future retyping |
-| Types become Beads with versions under a stable identity | Hypothesis under evaluation; no final choice or bootstrap rule |
-| Within a major-version family, preserve both earlier data and earlier consumer contracts, structurally and semantically | Confirmed October 8; see section 4. Family encoding, evidence and enforcement remain open |
-| Compatibility encoded through pinned conformance, author declarations, or version labels | Trish proposals only; no mechanism approved |
-| Installation/removal/migration/package behavior | Unruled; recommendations and acceptance cases below are conditional |
-| Instance updates preserve affiliation unless explicitly set | Confirmed October 8; see the dated ruling below. Combined property/Type update syntax remains a proposal |
+| Types are represented by versioned Beads, including Types describing Links | Model requested for this complete write-up; exact bootstrap/placement/publication design open |
+| Beads and Links retain a distinguished intrinsic Type field | Agreed direction; it is not replaced by an ordinary Link |
+| Nominal Type affiliation stays stable while its exact definition pin can evolve | Working model; cross-identity reclassification remains outside this proposal |
+| Each new-model resource version stores an exact Type definition pin | Agreed; legacy absent-pin interpretation and exact wire/address form open |
+| Writes may explicitly select pinned or floating Types; omission on update preserves the existing exact pin | Agreed; resolution authority/timing and retry details open |
+| Properties and explicit Type selection can change atomically | Agreed per-resource resulting-state validation; no arbitrary graph-repair guarantee inferred |
+| Floating nominal filters match identity; pinned filters match identity plus exact version | Agreed; neither filter means conformance or a major-version range |
+| Exact Type versions freeze structure and semantics | Agreed; all contract-bearing dependencies must have fixed meaning |
+| Within a major family, preserve both old data and old consumers' structural and semantic guarantees | Agreed; SemVer is the candidate designation, not yet an approved encoding or enforcement mechanism |
+| Authors can design extensibility using open records, optional fields and explicit tolerance rules | Agreed approach; additions still must satisfy both compatibility guarantees |
+| Installation, removal, graph integrity, migration and packaging details | Decision ledger below; recommendations are not additional rulings |
 
-## October 8 ruling — explicit affiliation updates
+## 2. Identity, versions and Type affiliation
 
-Donna confirmed: an existing Bead or Link never changes its Type affiliation
-implicitly during an update. Omitting the Type selection preserves the exact
-stored pin, even after a newer definition is published. Changing affiliation
-requires explicitly supplying a Type selection. Under the working stable nominal
-identity model, this changes the definition version, not the Type identity.
+Four things must remain distinct: a resource's identity, its resource version,
+its nominal Type identity, and the exact Type definition governing that version.
+A fifth concept, the compatibility family, groups definition versions that honor
+the guarantees in section 4. It is not an exact definition address.
 
-Pinned input selects an exact definition; floating input selects the current
-definition and is resolved to an exact pin for storage. The definition chosen
-must remain the one used for validation and commit; exact selection timing,
-publication authority and retry policy remain open. A floating nominal filter
-matches the Type identity across versions; a pinned nominal filter matches
-identity plus definition version. Neither filter implies conformance matching.
-
-Donna accepted allowing properties and explicit Type selection in the same
-update, validating the resulting properties against the selected definition and
-committing both together or neither. `--bead-type` / `--link-type` on update
-remain candidate CLI spellings. This confirms atomicity of that combined update;
-it does not settle arbitrary graph-wide repair, incident-Link policy, source
-ownership effects or compatibility. No command or runtime behavior is implemented
-by this ruling.
-
-The agreed foundation also requires each exact Type definition to describe
-immutable structure and semantics. Types-as-Beads remains the favored direction
-under discussion, not a completed metatype or publication design.
-
-The [brittleness map](type-brittleness-map-20261008.md) reviews interacting risks
-under these latest decisions; its suggestions are not additional product rulings.
-
-## 2. Verified baseline and scope of inspection
-
-GitHub heads were read on October 3, 2026; BDP main, PR60 and Beads integration
-were reconfirmed unchanged on October 4 before publication. These are evidence
-for this draft, not promises about subsequent branch state.
-
-| Source | Exact head / state |
-| --- | --- |
-| [BDP main](https://github.com/gastownhall/bdp/tree/182f1fcf8a01d896976bff3c9e3fb87c596c6ca6) | `182f1fcf8a01d896976bff3c9e3fb87c596c6ca6` |
-| BDP PR60 before this contribution | `9310bf45d1f53c12017f755df5f57c70b3a5df07`, open draft |
-| [Beads integration](https://github.com/versioned-beads/beads/tree/ad54537e7cb38ec5c2cf2c8d00735099d024d0d1) | `ad54537e7cb38ec5c2cf2c8d00735099d024d0d1` |
-| [CLI PR102](https://github.com/versioned-beads/beads/pull/102) | `6753ad7cea7af431ef22517ae3af2b4758f74514`, open |
-| Historical graph CLI PR72 / Donna's source branch | `9a17ee9d1659aa88f247a9bd06c4284bf5ea30ba`, PR72 now merged; this is no longer the integration baseline |
-
-Current [BDP Types](https://github.com/gastownhall/bdp/blob/182f1fcf8a01d896976bff3c9e3fb87c596c6ca6/docs/specs/bdp.md#types)
-bind a Type ID to one immutable semantic contract. Resource `type` is immutable;
-contract changes require a new Type ID. Validation installs and pins the full
-closure before request admission and uses it offline. Human documentation can
-change separately. The installation mechanism is outside v0, but evolution already has a binding
-rule: changing Resource category, conformance, properties constraints or Link
-endpoint constraints requires a new Type ID. The working stable-identity,
-versioned-definition model contradicts that rule and requires an explicit
-amendment; it is not merely filling an unspecified installation interface.
-
-Existing v0 also retains exact artifacts while live or retained representations
-refer to them, and at least Type ID plus fingerprint for the logical Scope's
-lifetime. It forbids rebinding contract-bearing content at an existing ID.
-Any proposal weakening these obligations must identify and amend them explicitly.
-Type-definition erasure cannot be assumed to inherit Bead-version erasure without
-mapping its replica/changefeed and dependent-resource consequences.
-
-Existing install validation remains the baseline: JSON Schema 2020-12;
-required vocabularies implemented or installation rejected; open root properties
-schemas; closed descriptor objects; cross-member descriptor validation such as
-explicit ownership bounds not exceeding a wildcard bound. Resolution is bounded
-by descriptor count/size, closure depth, schema count/size, reference depth,
-retrieval time and compiled-validator resources. The current mutation refusal
-for unavailable closures is `type-not-installed`; whether deactivation or
-post-erasure unavailability needs a different outcome remains D09/D12.
-
-Current BDP reference pins record provenance; they do not automatically select
-a historical endpoint for integrity validation. In-Scope Link endpoints identify
-live Beads; external endpoints are opaque. The proposed Type pin cannot silently
-change these separate Reference and Link rules.
-
-Repository roles: `gastownhall/beads` is upstream and hosts the public release
-tracker; `donnabox/beads` holds Donna's contribution branches;
-`versioned-beads/beads:integration` is the Preview integration hub (issues disabled).
-
-Current Beads source evidence:
-
-- [Type readers](https://github.com/versioned-beads/beads/blob/ad54537e7cb38ec5c2cf2c8d00735099d024d0d1/internal/storage/graphstore/types_read.go)
-  enumerate persisted descriptors, fix bindings at initialization, and reject
-  unsupported custom Type lookup.
-- [Installed-set checks](https://github.com/versioned-beads/beads/blob/ad54537e7cb38ec5c2cf2c8d00735099d024d0d1/internal/storage/graphstore/informational_types.go)
-  accept the legacy four or current six descriptors; partial, unknown or
-  replaced sets are invalid. Reads never install examples into an old workspace.
-- [Technical reference](https://github.com/versioned-beads/beads/blob/ad54537e7cb38ec5c2cf2c8d00735099d024d0d1/docs/reference/graph-preview.md)
-  documents discovery and fixed Type authoring, with arbitrary installation
-  unavailable. `--type` is Issue classification; `--bead-type`/`--link-type`
-  select graph Types. These concepts must remain distinct.
-
-This inspection establishes source/documented behavior, not a new runtime test
-result. The October 1 [vendor scan](bdp-vendor-sync-20261001.md) remains a dated
-comparison of its stated heads; it is not recast as an October 3 full comparison.
-
-## 3. Proposed abstract model
-
-In the working design a resource's stable identity, its own version, its Type
-identity, and the governing Type definition version are separate concepts:
+The following notation is explanatory, not a proposed wire format:
 
 ```text
-Invoice Type identity
-  definition A: amount means dollars
-  definition B: amount means cents
+Invoice                         stable Type identity; represented by a Type Bead
+  definition a [family 1]       immutable structure and meaning
+  definition b [family 1]       compatible successor to a
+  definition c [family 2]       potentially breaking successor
 
-invoice-123, resource version 1 -> Invoice definition A
-invoice-123, resource version 2 -> Invoice definition B
+invoice-123 / state x  -> Invoice / definition a
+invoice-123 / state y  -> Invoice / definition b   (explicit adoption)
 ```
 
-The second resource version is hypothetical adoption, not an automatic effect
-of publishing B. Whether its value must be transformed is a migration decision.
-Legacy current and retained records have no definition pin in today's model.
-D02/D03 must define that absent-pin state, any mapping from the installed legacy
-contract, and how new successor versions become pinned. This draft does not
-backfill or rewrite retained records, guess a definition version, or treat
-missing historical pins as corruption by default.
-A schema accepting both `amount: 100` values proves no semantic equivalence.
+Publishing b changes neither state x nor any instance still using a. Producing
+state y changes the stored affiliation explicitly. Publishing c does not grant
+permission to cross the major boundary; that migration policy remains open.
 
-Proposed invariants, subject to D01–D04 and D08:
+An exact definition version freezes its complete structure and semantics. A
+compatibility family preserves prior guarantees while allowing compatible
+recognition or use of extension points. Different exact versions may have
+identical contracts; a documentation edit does not force instance adoption.
+Human SemVer labels, opaque resource revisions, concurrency guards and exact
+historical addresses must not be conflated. D03/D05 must bind any label to an
+immutable definition and specify who may mint it and how conflicts are detected.
 
-1. Each Bead or Link version committed under the adopted new model identifies
-   one stable Type and an exact definition version. The resource's Type identity stays fixed in this working
-   model; its Type-version pin may change only through an explicit adoption rule.
-2. Publishing a Type definition never rewrites existing affiliations or changes
-   how a retained resource version is interpreted.
-3. The chosen definition's semantic dependency closure is fixed: parent Types,
-   endpoint requirements and referenced schemas cannot silently float. Pinning
-   only a top-level descriptor is insufficient.
-4. Updates preserve the existing affiliation pin unless explicitly set. Donna
-   confirmed this October 8; a property edit alone never adopts a new definition.
-5. An authoring surface may resolve an unpinned Type selection before commit;
-   it records and reports the exact chosen definition. Default selection,
-   concurrent publication and retry behavior require D07–D08; no "latest" value
-   is stored as a substitute for an exact binding.
+A generic reader can traverse Beads and Links and compare nominal Type identity
+without interpreting Type definitions. Validation or domain interpretation needs
+the appropriate definition and supported semantics. Returning an unfamiliar Type
+Bead as data does not imply the reader can execute its validation rules.
 
-If Types become Beads, they can reuse resource history and authorship concepts.
-They still need constrained publication, a bootstrap/metatype rule, and rules
-for administrative availability. A Type describing Links remains a Bead whose
-definition describes Links; this does not erase the Bead/Link category boundary.
-Reusing the model does not authorize ordinary unrestricted edits to executable
-validation policy. D01 must decide which generic operations apply to Type Beads.
+Legacy records without definition pins remain a separate, named transition
+problem. No retained record is rewritten, no old pin is guessed, and absence is
+not declared corruption merely because the new model uses exact pins. D02/D03/D12
+must define legacy matching and how later resource versions enter the new model.
 
-The examples intentionally do not choose `revision` versus a retained-version
-address. BDP currently distinguishes revision guards, version/history addressing,
-and reference provenance. D03 must define a durable exact-definition lookup and
-its unavailable/erased outcomes before a concrete discriminator schema is drafted.
+## 3. Types as Beads
 
-## 4. Compatibility between definition versions
+### Representation and rationale
+
+A Type is represented by a Bead with stable identity and versioned definition
+content. Each retained Type Bead version provides one immutable definition. Its
+contract-bearing content includes the described resource category, property
+constraints, field and overall semantics, conformance requirements, endpoint
+requirements for Link Types, and ownership declarations for Bead Types.
+This lists conceptual content, not new descriptor member names.
+
+A Type Bead describing Links is itself a **Bead**. The instances it describes
+are Links. Its own affiliation names the metatype governing Type definitions;
+the instance Links' affiliation names the Link definition it provides. Links
+remain non-endpoints under the existing model. The intrinsic Type field works
+on both Beads and Links without introducing a dependency on typed affiliation
+Links or making Links into valid endpoints.
+
+Using Beads gives Type definitions the same identity, version and history model
+as ordinary data. It also permits ordinary graph relationships involving the
+Type Bead, subject to normal rules. An affiliation is nevertheless an intrinsic
+dependency, not an ordinary incident Link. Deletion and retention cannot rely
+solely on incident-Link checks to find the resources using a definition.
+
+The alternative, separately versioned descriptors, still needs identity,
+compatibility, dependency closure, availability and administration. The Bead
+representation reuses existing concepts; it does not eliminate those obligations.
+
+### Metatype and finite bootstrap
+
+The Type of a Type Bead is a distinguished metatype. An intrinsic, built-in
+bootstrap definition is acceptable; the system need not discover an infinite
+chain of definitions before it can understand its first Type. The concrete
+identity, initial self-reference/seed arrangement and initialization procedure
+remain D01 decisions. No self-typing wire convention is specified here.
+
+The metatype can itself have versions. A Type definition retains its exact
+metatype affiliation just as any other Bead retains its Type pin. Publishing a
+new metatype version does not reinterpret old definitions. An implementation
+must support the required vocabulary and semantics before admitting definitions
+that use it. Bead versioning is not a mechanism for automatically installing new
+validator capabilities or executing arbitrary code.
+
+### Publication authority, placement and availability
+
+Editing a Type Bead, publishing its definition, installing that definition into
+a Scope, and admitting it for instance use are distinct actions. Ordinary Bead
+operations do not imply unrestricted permission to change validation policy.
+The exact authorization and admission boundaries remain D01/D07 decisions.
+
+Type Beads might live in a dedicated Scope or share a data Scope. This is open;
+no URL rewrite or special repository layout follows merely from choosing Beads.
+Globally recognizable identity and coherent exact definitions across Scopes are
+required regardless of placement. Different local defaults or installed versions
+are not themselves inconsistent; different contract content under the same
+claimed exact identity is. Local installed artifacts may satisfy a globally
+named definition without validation-time network lookup.
+
+Exact meaning does not guarantee continued availability. The existing retention
+baseline remains in force until explicitly amended. Generic deletion, hiding,
+deactivation and erasure of Type Beads need separate treatment for intrinsic
+users, dependent Types, historical records and replicated evidence (section 7).
+
+## 4. Compatibility families and semantic versioning
 
 ### October 8 ruling — both compatibility guarantees within a major family
 
-Donna favored compatibility within major-version families and confirmed that the
-family must promise both existing-data acceptance and preservation of earlier
-consumers' expectations. Both guarantees include semantics, not merely shape.
-For an earlier definition A and later B within that family:
+For every earlier definition A and later definition B within one major family:
 
-1. Every instance valid under A must remain valid under B without transforming
-   its data or changing its meaning. Changing the explicit affiliation pin is
-   distinct from transforming the payload.
-2. Every instance valid under B must satisfy the structural and semantic
-   guarantees consumers of A are entitled to rely on. Extension tolerance must
-   come from A's contract, not be retroactively assumed.
+1. **Existing-data acceptance:** every A-valid instance remains valid under B
+   without transforming its data or changing the meaning previously guaranteed
+   for that data. Explicitly changing the affiliation pin is not a payload transform.
+2. **Preservation of earlier contracts:** every B-valid instance satisfies the
+   structural and semantic guarantees consumers of A are entitled to rely on.
+   Extension tolerance must be part of A's contract, not assumed retrospectively.
 
-These promises concern the Type contract. They do not bypass exact-affiliation
-predicates, authorization, concurrency guards, or independent Scope policies.
-Adoption remains explicit; publishing a compatible version moves no instance.
-A violation of either promise is outside the same compatibility family. What
-crossing that boundary permits for a stable Type identity remains a decision.
+Both are required. The promise applies to every earlier family member, not only
+the immediate predecessor. It covers Bead and Link contracts, including units,
+relationships, conformance and ownership obligations; it is not schema equality.
+It protects documented guarantees, not incidental assumptions made by a consumer
+in contradiction to the contract.
 
-SemVer is the candidate designation, not yet an adopted wire format or mechanism.
-Major/minor/patch assignment, exact immutable version identity, family membership,
-publisher authority, evidence/enforcement, and false-claim handling remain open.
-Exact revisions still freeze the complete definition; a family preserves earlier
-contracts while allowing only evolution meeting both guarantees.
+For an unchanged representation and validation context, requiring structural
+acceptance in both directions means the accepted instance sets are equal. That
+is intentional: compatible versions may use different schema text, improve
+explanation, recognize existing extension space, or enable clients to make more
+use of it, but cannot newly reject an old valid value or admit a value the earlier
+contract prohibited. Semantic preservation is an additional obligation.
 
-Consequences to test: a newly required property breaks old-data acceptance;
-expanding a previously closed enum breaks old-consumer guarantees; dollars-to-cents
-breaks semantics even with identical schemas. Adding an optional field is not
-inherently safe: if A permits arbitrary extension properties, an old valid instance
-may already use that name with a value B rejects or interprets differently. This
-exposes the need for deliberate extension rules; it does not decide those rules.
+These promises do not bypass exact-affiliation predicates, independent Scope
+policies, authorization, concurrency guards or capability checks. They do not
+make adoption implicit or prove that a missing definition is available.
 
-The two directional questions remain separately useful for reasoning about
-changes across family boundaries:
+### Author-designed extension points
 
-- **Acceptance of existing data:** does each instance valid under A satisfy B's
-  structural constraints and retain its meaning without transformation? A per-instance
-  check is weaker than this universal claim.
-- **Substitution for a required contract:** does every B instance satisfy A's
-  structural obligations AND preserve A's meaning and guarantees?
+Authors can use familiar JSON Schema techniques—open records, optional fields,
+and constrained extension areas—to leave room for compatible evolution. BDP sets
+the compatibility obligation rather than prescribing a universally extensible
+schema. A consumer's handling of unknown fields/values and absent optional fields
+must also be part of the semantic contract.
 
-| Change from A to B, all other constraints unchanged | Every A value structurally valid under B? | Every B value structurally valid under A? | Semantic substitution of B for A? |
+For example, A can permit an optional map of display labels, with arbitrary keys
+and string values, where unrecognized entries are ignored by consumers and all
+entries remain uninterpreted display text. B can document a previously unnamed
+key and a client can choose to display it. If B preserves every previously valid
+string and its meaning, and does not require the key, both guarantees can hold.
+This is use of a deliberately available extension point.
+
+In contrast, making an optional field required invalidates old data. Adding a
+new value to a previously closed enum breaks old contractual expectations. Even
+adding an optional field can fail if older open records permitted arbitrary
+values at that name and B now rejects or reinterprets those values. Open records
+are useful extension machinery, not proof that every additive edit is compatible.
+
+| Change from A to B | Old-data acceptance | Earlier-consumer guarantees | Same-family conclusion |
 | --- | --- | --- | --- |
-| Add `paused` to allowed `open`/`closed` status values | Yes | No | Not generally; old consumers may require two states |
-| Remove `closed` from those allowed values | No | Yes | Requires a meaning/guarantee review; schema inclusion alone is insufficient |
-| Make an existing optional field required | Not generally | Yes | Requires review of semantics and guarantees |
-| Dollars become cents, unchanged numeric schema | Yes | Yes | No for unchanged values interpreted under the new units |
-| Link meaning changes from reviewed-by to approved-by, same shape | Yes | Yes | No automatic claim; the relationship meaning changed |
-| Documentation correction with no meaning or constraint change | Yes | Yes | Yes only if it truly changes no contract meaning |
+| Add paused to a closed open/closed enum | Preserved | Violated | Breaking |
+| Remove closed from that enum | Violated | Structural narrowing alone is insufficient | Breaking |
+| Require a formerly optional property | Generally violated | Must also review semantics | Breaking |
+| Dollars become cents with the same numeric schema | Shape preserved, old meaning changed | Violated | Breaking |
+| reviewed-by becomes approved-by with unchanged Link shape | Shape preserved, old meaning changed | Violated | Breaking |
+| Recognize an already-permitted optional display-label key without further constraints or meaning changes | Preserved | Preserved | Compatible |
+| Add an optional typed field where old data could contain other values | Not guaranteed | Not sufficient by itself | No automatic compatibility |
+| Improve documentation without changing any guarantee | Preserved | Preserved | Compatible; exact version can still differ |
 
-Proposed D05 mechanism: explicit conformance to an exact required contract,
-with intersection validation of applicable structural contracts. Nodes would
-be `(Type identity, definition version)` so B can conform to A under one stable
-identity without being an identity-level self-cycle. No member name or wire
-encoding is selected here. Conformance across Bead/Link categories remains
-disallowed in this proposal. Whether this relation also spans different stable
-Type identities, its transitivity, and cycle handling must be decided explicitly.
-D04/D05 must also decide how a diamond reaching two versions of the same Type
-is treated: intersect both exact contracts or reject that combination. An
-implicit "latest wins" rule would violate exact closure binding. A blanket
-one-version-per-identity rule would also preclude the proposed B-conforms-to-A
-relationship under one identity, so it cannot be adopted incidentally.
+### Role and limits of SemVer
 
-Intersection conformance would express substitution only. It cannot express
-that all old A data is accepted by a wider B contract: forcing B to conform to
-A would remove the very widening in question. D05 must decide whether and how
-acceptance-of-existing-data claims are represented separately; a per-instance
-validation result is not a universal or semantic acceptance claim.
+SemVer's major/minor/patch designation is the candidate way to communicate family
+membership and compatible evolution. The accepted requirement here is the pair
+of guarantees, not a finalized version-label grammar, range syntax or patch/minor
+classification algorithm. A semantic change such as dollars-to-cents cannot be
+made compatible by calling it a patch or a bug fix. Published exact definitions
+remain immutable even when their claims turn out to be mistaken.
 
-Schema checks enforce only part of conformance. Semantic compatibility is an
-authored assertion whose issuer, authority, provenance and treatment of false
-or withdrawn claims require D05. A self-declared label is not proof. Version
-numbers may be useful human labels; their ordering or a claimed semver range
-does not itself establish either relation above. Opaque revision tokens are
-not ordered version numbers.
+A major boundary permits us to identify breaking evolution, but does not choose
+how an instance migrates across it. Whether one stable Type identity spans major
+families is the working direction; allowed cross-major adoption, data transforms
+and graph repair still need D02/D06/D10 decisions. The existing floating nominal
+filter spans the identity's versions and families; it must not promise one shared
+contract across that entire result.
 
-## 5. Bead and Link consequences
+A SemVer designation is distinct from a Bead revision and needs an exact binding
+and publication authority. Neither a label, a schema check nor a signature proves
+arbitrary semantic compatibility. D05 must define assertion authority, evidence,
+structural checks, handling of false claims and withdrawal of trust. Withdrawing
+trust changes current admission policy; it must not silently rewrite a retained
+definition or pretend a historically made assertion never existed.
 
-A Link definition version governs its properties and endpoint requirements.
-Publishing a new Link Type version leaves existing Link versions governed by
-their previous definitions. Adoption of another definition is separately
-validated, including both endpoints and applicable Scope constraints.
+### Compatibility versus conformance
 
-Example: `assigned-to@A` requires Person; B broadens that requirement to Actor.
-Old Links may be accepted by B, while a B Link targeting an Organization does
-not necessarily satisfy A. Broadening endpoint acceptance is not substitution
-for the narrower contract. Bead Type evolution can cause the same issue while
-the endpoint's stable Type identity remains unchanged.
+Compatibility-family membership and conformance are separate concepts. The
+former promises both directions above between ordered family members. Conformance
+to a contract expresses satisfaction of that contract and need not establish that
+all its old data is accepted by the conforming definition.
 
-D06 must decide both the state examined and how integrity is maintained:
+One candidate mechanism uses exact `(Type identity, definition version)` nodes
+and intersected structural contracts. It must not confuse B conforming to earlier
+A with a nominal self-cycle. Same/different-identity relations, transitivity,
+version diamonds and deduplication require D04/D05 decisions. Intersecting two
+contracts cannot express a widening that the old contract forbids; assigning a
+later version number cannot override that restriction. No latest-wins rule or
+one-version-per-identity restriction is silently adopted.
 
-| Question | Choices requiring a ruling |
+## 5. Affiliation inputs, storage and matching
+
+### October 8 ruling — explicit affiliation updates
+
+Every resource version committed under the new model carries an exact Type
+binding. Authoring convenience does not weaken stored precision. A write may
+explicitly provide an exact selection or a floating identity selection. Omission
+on an existing-resource update preserves its exact stored pin, including when a
+newer compatible definition exists. Explicit floating selection requests selection
+of the currently chosen definition; it is not an identity assertion or a no-op.
+
+| Surface / input | Shared meaning | Remaining detail |
+| --- | --- | --- |
+| Create with an exact Type selection | Validate and store that exact definition | Binding/address representation and unavailable outcomes |
+| Create with a floating Type selection | Resolve to one definition, validate and store the exact pin | Selection authority and resolution point |
+| Update omitting Type selection | Keep the existing exact pin | Ordinary validation and availability policy |
+| Update explicitly selecting an exact Type | Adopt that definition with the resulting properties, or reject unchanged | Cross-major policy, capability and graph checks |
+| Update explicitly selecting a floating Type | Resolve and explicitly adopt the chosen definition, or reject unchanged | Meaning of current, family selection and replay binding |
+| Floating nominal Type filter | Match the Type identity across definitions and major families | Legacy absent-pin treatment |
+| Pinned nominal Type filter | Match the exact identity/definition pair | Pin representation and legacy transition |
+
+Properties and explicit Type selection may be changed in one operation. Validate
+the resulting state under the selected definition and commit both or neither;
+do not require the intermediate properties to satisfy both definitions. An
+actual pin change is durable state even when properties are unchanged: revisions,
+guards, events, history, snapshots and replicas must observe it. Exact event and
+record schemas remain D03/D12. Re-selecting the already stored exact pin adds no
+affiliation change; ordinary property/owned-state change rules still apply.
+
+This does not authorize arbitrary multi-resource transactions or bulk adoption.
+D08/D12 must specify selection timing for singletons, sequence members and bulk
+carriers, and how idempotent replay preserves any selection it already committed.
+A client-facing command is not automatically a transaction boundary. CLI spellings
+such as update --bead-type or --link-type remain Beads decisions.
+
+### Requirements are not nominal filters
+
+Each constraint location needs its own fixed matching contract:
+
+| Location | Distinctions to settle |
 | --- | --- |
-| What state does an endpoint requirement examine? | Current Bead state; explicitly resolved historical state for an endpoint pin; or another specified rule. Current provenance-only pins do not supply the second behavior. |
-| What if adopting a Type version breaks a live in-Scope Link requirement? | Reject the adoption; require one atomic graph repair; or admit explicitly invalid Links with defined query/read semantics. No choice is adopted here. |
-| Are compatible versions accepted automatically? | Exact requirement only; accepted conformance evidence; or an explicitly defined compatibility policy. Stable identity alone is insufficient. |
-| What about external endpoints? | Preserve current opacity or introduce a separate, expressly scoped validation contract. No cross-authority transaction guarantee is implied. |
+| conformsTo | Exact required contract versus a nominal/family predicate; closure/evidence and version diamonds |
+| Link source/target requirements | Exact declared affiliation versus satisfaction of a required contract; which endpoint state is examined |
+| ownsOutgoing | Identity, exact-version or conformance matching; explicit/wildcard membership and bounds |
+| Scope aggregate counts, including linkConformsTo | Which versions qualify, counting across legacy/new records, and admission checks |
+| Conformance queries and saved selectors | Matching semantics, available evidence, record-shape compatibility and trust policy |
 
-Trish recommends preserving graph validity with explicit atomic repair for
-affected local relationships. That recommendation includes checking relevant
-incident Links when an endpoint adopts a new definition; validating only the
-edited resource would be insufficient. Historical resource pins must retain
-their meaning even if current graph rules change. Deleting old definitions or
-revalidating all incident Links on read is not an implicit solution.
+A pinned requirement for A's **contract** could accept B through an approved
+compatibility/conformance rule. A requirement for **exact declared affiliation A**
+would not. Same-family guarantees make the first practical but do not make the
+second true. No reference grammar is selected by this distinction.
 
-Owned Links add another dependency. Current BDP declares `ownsOutgoing` in
-Bead Types, keyed by Link Type identity with explicit and wildcard bounds;
-every owned-Link mutation versions its source. D06 must decide whether the
-new ownership declarations match Link Type identity, exact definition, or
-accepted conformance. Bead adoption that adds/removes ownership or lowers a
-bound can change the source's aggregate state even if all endpoint constraints
-still pass. Advancing an owned Link's Type pin likewise needs explicit source
-guards, source-version effects and retained serialization rules. No implicit
-ownership transfer or new source-version rule is adopted here.
+Contract-bearing parents, schemas, metatypes and requirement definitions must
+have fixed meaning. A fixed identity predicate can intentionally match future
+versions without resolving a floating validation contract. Similarly, a family
+predicate can be fixed while future definitions qualify under its rules; evidence
+and trust still need design. Pinning a top-level definition while dynamically
+resolving its governing meaning would violate immutability.
 
-## 6. Lifecycle decisions and ownership
+## 6. Links, ownership and graph validity
 
-Every row is open unless its status explicitly says otherwise. Donna supplies
-product rulings; Trish records accepted/deferred/rejected dispositions in #59
-and this draft. Recommending an option does not authorize implementation.
+Link definitions evolve using the same Type Bead model and compatibility rules.
+For example, broadening assigned-to endpoints from Person to Actor may accept old
+Links while admitting Organization targets an old contract forbade. That is not
+same-family compatibility unless the earlier contract already allowed it.
+Type affiliation adoption is distinct from changing a Link's source/target pin;
+existing endpoint repinning rules are not changed by this design.
 
-For D07–D11, the BDP column specifies shared observable meaning and admission
-outcomes, including what a stored pin denotes after an administrative action.
-Beads chooses acquisition transports, operator trust configuration, concrete
-bundle/container format, signing tools, cache layout and transactional storage
-mechanisms. A standardized cross-implementation interchange format would require
-an explicit BDP scope decision; an offline Beads package proposal does not make
-its file format or distribution channel normative BDP.
+Compatibility reduces relationship breakage where requirements concern preserved
+contracts. It does not resolve every exact-affiliation requirement, independent
+Scope policy or cross-major change. D06 must choose whether validity is checked
+at creation/write time, continuously across affected writes, or against an
+explicit historical state, and how to repair or refuse incompatible operations.
+A fixed predicate can change truth as its floating endpoint changes. A historical
+resource version does not itself supply a whole historical graph snapshot.
+Current endpoint provenance pins do not automatically select historical validation.
+
+Consider Invoice A and an incoming approval Link requiring A. An explicit change
+to breaking Invoice C might satisfy C while invalidating the Link. Updating the
+Link first might fail against A. If the Link is owned, its source is another
+resource whose state must be accounted for. Per-resource atomic properties-plus-
+Type adoption does not solve this connected case. D06/D10 must define a practical
+repair boundary or refusal policy, with honest limits for each protocol profile.
+No cross-authority atomic repair or remote validation is implied; external Link
+endpoints remain opaque unless a separate amendment changes that rule.
+
+Ownership declarations are part of the contract. Changing Type versions can
+alter aggregate membership or bounds; changing an owned Link's affiliation can
+change the source's complete versioned owned-Link record. Source guards, version
+effects and retained serialization need explicit rules. Identity-keyed ownership
+can be a fixed nominal predicate while each owned Link retains its own exact Type
+pin; those ideas are not inherently contradictory. Exact-version ownership may
+instead move a Link between explicit and wildcard buckets and change its bound.
+
+Existing aggregate limits also need review: creating or adopting a Link that
+adds/drops a conformance relation can affect applicable counts. Publishing a
+new definition alone does not change the closure of an already pinned instance.
+Additional minimum counts, cycles, uniqueness and lifecycle-transition rules
+remain unapproved extensions. A transition across two Type definitions needs a
+choice of governing contract; a pin alone does not answer it.
+
+## 7. Installation, updates, removal, migration and packaging
+
+A Type's administrative lifecycle consists of distinct actions. Publishing a
+version does not install it everywhere; installation does not select it as a
+default; selecting a default does not migrate instances. The following is the
+complete decision surface, not an invented command set.
+
+| Action | Shared BDP obligation/direction | Still to decide |
+| --- | --- | --- |
+| Author/publish | New immutable definition under stable identity; no rebinding of existing exact meaning | Publisher authority, governance, labeling, Type Bead operation admission |
+| Install | Validate supported definition and complete contract closure before mutation admission; retain local exact artifacts | Atomic catalog admission, conflict/idempotence outcomes, administrative surface |
+| Choose default | Select what explicit floating authoring input resolves to | Per-Scope versus publisher policy, family bounds, concurrent publication and replay |
+| Adopt | Explicit new instance version; resulting-state validation; property/affiliation atomicity | Cross-major rules, affected graph boundary, owned-source guards |
+| Deactivate/hide | Distinguish admission for new uses from discovery and access to retained exact contracts | Create/read/edit/delete/reactivate outcomes, errors and trust withdrawal |
+| Purge/erase | Never silently rebind an exact identity; preserve existing retention duties unless expressly amended | Legal/operational erasure policy, dependency handling, replica/changefeed/disclosure effects |
+| Migrate/rollback | Preserve historical resource versions; transformations and adoption explicit | Planning/execution boundary, concurrent changes, partial/bulk results, coordinated repairs; rollback is a new change, not history rewriting |
+| Package | Portable exact meaning and a resolvable dependency closure | Standard interchange scope, concrete bundle, transport, trust and supported vocabulary limits |
+
+A generic Type Bead delete cannot ignore intrinsic affiliations or dependent
+Types. Deactivation must not silently reinterpret stored values. Under existing
+retention duties, required artifacts remain while live or retained records need
+them. Any erasure exception must specify what dependent reads, writes and deletion
+can still do. Otherwise removing a source definition can prevent owned-Link
+removal, which prevents deleting the source: an administrative dead end.
+
+The baseline remains bounded, offline validation from installed artifacts, with
+no mutation-time fetch or automatic execution of package-provided migrations.
+Data integrity hashes do not establish publisher authority or semantic correctness.
+Beads chooses caches, storage transactions, acquisition transport, concrete signing
+tools and operator UX. A shared interchange format would require its own BDP
+scope decision; no archive extension, executable hook or new CLI is selected here.
+
+## 8. Decision ledger
+
+Confirmed positions above constrain these decisions; open cells are not
+implementation permission. Donna rules on shared behavior; Beads owners choose
+realization. Every included behavior needs a chosen outcome or explicit deferral
+before the document is presented as a settled specification.
 
 | ID / topic | BDP decision needed | Beads realization after that decision | Proposed review direction |
 | --- | --- | --- | --- |
-| D01 / Types as Beads | Adopt or reject first-class Type Beads; define metatype/bootstrap, publication rights and allowed generic operations | Catalog representation and operator permissions | Reuse the version model if bootstrap and policy can be stated without an infinite regress |
+| D01 / Types as Beads | Types-as-Beads is the model developed here; decide exact metatype/bootstrap, publication rights, placement and generic-operation admission | Catalog representation and operator permissions | Use Bead identity/history with a distinguished intrinsic affiliation field and finite intrinsic bootstrap; do not equate editing a definition with installing it |
 | D02 / identity | Define stable Type identity, category stability, URL/location rules and legacy `types/` identities/absent pins without rewriting retained records | Mapping of legacy descriptors without breaking references | Preserve existing identities; do not silently move them to `beads/` |
 | D03 / version addressing | Exact discriminator and historical addressing; cross-authority version identity/minting authority and divergence detection; token meaning, absent pins, retention and unavailable outcomes | Persistence/indexing and lookup | Choose an exact durable binding; no invented revision-to-version conversion |
-| D04 / closure | Pin parent definitions, endpoint contracts and schemas; distinguish conformance cycles, recursive schema references and metatype bootstrap; define bounded resolution/evaluation and integrity evidence | Offline validator and bounded acquisition | Complete closure installed before admission, with no validation-time network |
+| D04 / closure | Freeze contract-bearing dependencies; distinguish exact contracts from fixed nominal/family predicates; distinguish conformance cycles, recursive schema references and metatype bootstrap; define bounded resolution/evaluation and integrity evidence | Offline validator and bounded acquisition | Complete closure installed before admission, with no validation-time network |
 | D05 / compatibility | Both acceptance and semantic substitution within a major family are confirmed; define family encoding, same/different-identity conformance, claim evidence, issuer authority and withdrawal | Validation and explanatory diagnostics | Explicit contract evidence, never version-order inference; distinguish false semantic claims from schema failures |
 | D06 / Link integrity | Choose current/historical endpoint validation, incompatible-adoption behavior, ownership matching and limits, source-version effects and external bounds | Transactional incident checks and repair UX | Preserve local integrity and make any graph repair explicit |
 | D07 / installation | Define installed/admissible state, atomicity, idempotent reinstall, same-version conflict and concurrent admission | Operator interface, permissions, cache and catalog transaction | Same exact closure is idempotent; conflicting content under one definition version is rejected; partial installation grants no admission |
@@ -335,27 +400,12 @@ its file format or distribution channel normative BDP.
 | D11 / packaging | Portable identity/meaning, exact closure agreement, dependency conflicts and accepted publication authority; decide whether shared interchange is in scope | Bundle/manifest serialization, import/export, distribution transports, trust configuration, signature mechanisms and limits | Consider an offline bundle of one or more definitions plus complete dependencies. Hashes establish integrity, not publisher authority |
 | D12 / surfaces | Protocol discriminator forms, version discovery, identity/version matching in filters and Scope multiplicity policies, errors and old-client behavior | CLI names/flags, output, database schema and rollout | Specify shared outcomes first; do not assign new commands or overload Issue `--type` here |
 
-For removal, treating deactivation as a switch that invalidates all old values
-would defeat the proposed pinning model. If physical purge or erasure makes a
-definition unavailable, its identity must not be reused or rebound to different
-content; required disclosure and dependent-resource behavior remain D03/D09
-decisions. The current live/retained-artifact and Scope-lifetime ID/fingerprint duties
-remain binding. Purging artifacts still referenced, deleting the lifetime
-fingerprint, or applying erasure to Type definitions would need an explicit
-amendment and a replica/changefeed propagation contract; none is authorized by
-this draft.
 
-For packaging, an installable unit must resolve where every referenced artifact
-comes from, how bytes are verified and who is trusted to publish them. Network
-retrieval, executable migration code and signatures are not silently included.
-Package trust, permission scope and resource bounds must be decided before
-accepting third-party material. No package format or file extension is approved.
+## 9. Acceptance cases
 
-## 7. Acceptance cases to settle before implementation
-
-These are proposed specification examples, **not executed tests**. Expected
-outcomes depend on the named decisions. An approved draft must replace each
-unresolved choice with one expected outcome or an explicit deferred boundary.
+These are design cases, not executed tests. Confirmed outcomes express only the
+positions above; other rows identify choices still needing one outcome or explicit
+deferral. D01–D12 remain the stable decision identifiers.
 
 | Case | Given / action | Expected outcome to approve | Decisions |
 | --- | --- | --- | --- |
@@ -365,9 +415,9 @@ unresolved choice with one expected outcome or an explicit deferred boundary.
 | T04 | Create using an unpinned authoring selection while another definition is published | One exact pin recorded and reported; selection timing and retry outcome fixed | D03, D08, D12 |
 | T05 | Publish definition B while current and retained instances use A | Those instances retain their exact meaning and A binding | D03, D04, D08 |
 | T06 | Update a Bead or Link pinned to A after B publication, omitting Type selection | Confirmed October 8: the exact A pin remains; no implicit adoption | D08 |
-| T07 | A permits open/closed; B adds paused | Existing data acceptance distinguished from substitution for A; no automatic conformance | D05 |
-| T08 | Amount changes dollars→cents with identical schema | Schema success cannot establish semantic compatibility or authorize unchanged adoption | D05, D10 |
-| T09 | Link meaning changes reviewed-by→approved-by without shape changes | Semantic incompatibility remains visible; no inference from structural equality | D05 |
+| T07 | A permits only open/closed; B adds paused | B cannot qualify for the same family: old-data acceptance holds but old-contract substitution fails | D05 |
+| T08 | Amount changes dollars→cents with identical schema | Same-family compatibility fails on meaning; a major-boundary migration may need an explicit value transformation | D05, D10 |
+| T09 | Link meaning changes reviewed-by→approved-by without shape changes | Same-family compatibility fails on meaning; identical shape does not authorize substitution | D05 |
 | T10 | Endpoint adopts a definition that no longer meets an incident Link requirement | Chosen reject/atomic-repair/invalid-Link policy applies with an explicit concurrency boundary | D06, D10 |
 | T11 | Link has an endpoint pin to an old Bead state while current state has evolved | Validation uses exactly the chosen state; provenance-only pin is never silently treated as historical resolution | D03, D06 |
 | T12 | Deactivate an in-use Type, then create, read, edit, delete and reactivate | Separate, explicit outcomes for all operations; no implicit artifact deletion | D07–D09 |
@@ -395,29 +445,62 @@ unresolved choice with one expected outcome or an explicit deferred boundary.
 | T34 | Propose B in A's major family; a B-valid instance violates A's documented structural or semantic guarantees | Confirmed family rule: B cannot qualify within that family; identical schemas alone do not establish compatibility | D05 |
 | T35 | B adds an optional typed field whose name A allowed as an arbitrary extension; an A-valid instance already uses an incompatible value | Optionality alone does not establish same-family compatibility; both guarantees must hold, including the existing value's meaning | D05 |
 
-## 8. Ready / NYI / release gates
+| T36 | Create/read a definition for a Link Type as a Type Bead | The definition resource is a Bead; its described instances are Links with intrinsic Type affiliation and Bead endpoints | D01, D02 |
+| T37 | Publish a Type Bead version under a newer metatype | Existing definitions retain their metatype pins; a reader may return data without supporting new validation semantics; admission requires supported semantics under the chosen bootstrap policy | D01, D04, D07 |
+| T38 | Update only the affiliation pin while properties are identical | New resource state is observable in revision/history/events; it is not a property no-op; owned-Link source effects remain D06 | D03, D06, D08, D12 |
+| T39 | Apply pinned and floating nominal filters over instances using two definitions and two major families | Pinned matches exact affiliation; floating matches the nominal identity across all versions/families, without claiming homogeneous meaning | D03, D12 |
+| T40 | An earlier open contract permits optional string-valued display labels at arbitrary keys; a successor documents one key while preserving every value and its display-label meaning | Both guarantees can hold; clients may recognize more of a preexisting extension space without schema narrowing or semantic reinterpretation | D05 |
+| T41 | A declared compatible successor meets A's contract but a Link explicitly requires exact affiliation A | Compatibility does not establish exact-pin equality; exact affiliation and contract satisfaction must have separate semantics | D05, D06 |
+| T42 | Publish C compatible with B but violating an older A in the same major family | C cannot qualify for that family; the promise applies to every earlier member, not merely the immediate predecessor | D05 |
 
-"Implemented in source" below means observed in the checked integration and
-its reference documentation. It does not assert a new runtime qualification.
-"Drafted" means text/cases exist; it does not mean Donna or the Review Team
-approved them.
+## 10. Verified baseline and implementation readiness
 
-| Capability or artifact | Design readiness | Runtime status at checked Beads head | Preview 2 commitment |
-| --- | --- | --- | --- |
-| Authority boundary | Agreed direction, README draft | Documentation only | Required document |
-| Fixed four/six-Type installation and discovery | Existing documented behavior | Implemented in source | Recommend preserving; qualification and any change decision owned by release lane |
-| User-defined Bead/Link installation | Decisions/cases drafted; D01–D04/D07/D11 open | NYI | Specification coverage required; implementation optional |
-| Stable Type versions and stored affiliation pins | Working assumption; D01–D04/D12 open | NYI | Specification coverage required |
-| Compatibility and semantic-change rules | Both same-family guarantees confirmed; mechanism and D06 open | NYI for proposed version relationships | Specification coverage required |
-| Update/publication/default selection | Preserve-unless-explicitly-set confirmed October 8; other D08 choices open | NYI | Specification coverage required |
-| Deactivate/remove/retain | D09 choices drafted | NYI | Specification coverage required |
-| Instance migration/adoption/rollback | D10 choices drafted | NYI | Specification coverage required; no engine promised |
-| Package round trip, trust and distribution | D11 choices drafted; no format selected | NYI | Specification coverage required; importer optional |
-| Protocol forms and CLI/storage mapping | D12 seam identified | NYI for proposed model | Reviewed mapping or explicit deferral required |
-| Product decisions and Review Team acceptance | Pending | Not applicable | Required before claiming a settled specification |
-| Exact candidate integration/runtime proof | Not run by this lane | Unqualified here | Required only for implementation claims; release owner governs combined gates |
+Remote heads checked October 8 for this consolidated rewrite:
 
-## 9. Amendment and integration map
+| Source | Exact head |
+| --- | --- |
+| Canonical BDP main | `182f1fcf8a01d896976bff3c9e3fb87c596c6ca6` |
+| PR60 before consolidation | `7b6c959c4f8739adc8b2659c86a3caed694b1429` |
+| Beads integration | `356275a13290064fe903ace31984c14d1b9f7ad4` |
+| CLI PR102 (open) | `94d880d4b7bdb87468281c1a7453b94387aacb2e` |
+
+Current [BDP Types](https://github.com/gastownhall/bdp/blob/182f1fcf8a01d896976bff3c9e3fb87c596c6ca6/docs/specs/bdp.md#types)
+bind one immutable semantic contract to a Type ID. Resource type is immutable;
+contract changes require another identity. Versioned affiliation intentionally
+requires an amendment. Current BDP uses JSON Schema 2020-12, open-root property
+schemas, closed descriptor objects, supported vocabularies, cross-member bounds
+checks and bounded installed closure resolution. None of those constraints is
+silently waived. Generic Reference pins record provenance; current in-Scope Link
+endpoints must be live Beads and external endpoints are opaque.
+
+BDP retains exact artifacts while live or retained representations depend on them
+and at least Type ID/fingerprint for the logical Scope lifetime. This proposal
+does not authorize weakening retention or reusing identities. Type-definition
+erasure needs explicit mapping to the existing retained-history/changefeed rules.
+
+At the refreshed Beads integration head, the
+[Type readers](https://github.com/versioned-beads/beads/blob/356275a13290064fe903ace31984c14d1b9f7ad4/internal/storage/graphstore/types_read.go),
+[installed-set checks](https://github.com/versioned-beads/beads/blob/356275a13290064fe903ace31984c14d1b9f7ad4/internal/storage/graphstore/informational_types.go)
+and [technical reference](https://github.com/versioned-beads/beads/blob/356275a13290064fe903ace31984c14d1b9f7ad4/docs/reference/graph-preview.md)
+still show the fixed four/six-descriptor catalog, immutable initialized bindings,
+no arbitrary Type installation, and no read-time installation into old workspaces.
+This targeted source refresh is not a runtime test or full repository audit.
+`--type` remains Issue classification; graph Type selectors are distinct.
+The October 1 [vendor comparison](bdp-vendor-sync-20261001.md) remains historical.
+
+| Capability | Design state | Runtime evidence / Preview 2 |
+| --- | --- | --- |
+| Authority boundary | Agreed and recorded | Documentation only; mandatory |
+| Fixed Type catalog/discovery | Existing behavior | Observed in current source; release qualification belongs to Janet |
+| Types as Beads/metatype | Coherent model; D01–D04 details open | NYI for proposed lifecycle; document mandatory, implementation optional |
+| Exact stored affiliation / explicit atomic adoption | Shared positions recorded; wire/profile details open | Proposed versioned behavior NYI |
+| Both structural and semantic family guarantees | Confirmed obligation; encoding/evidence/enforcement open | NYI; schema success is not semantic proof |
+| Matching, conformance and Link/ownership integrity | Distinctions and failure cases documented; D05/D06/D12 open | Proposed versioned behavior NYI |
+| Arbitrary installation, removal, migration, packaging | Lifecycle surface and choices documented | NYI; no implementation selected |
+| Acceptance cases | 42 design cases; some settled principles, remaining outcomes conditional | Not executed runtime tests |
+| Review and publication | Council evidence linked from decision packet | Not product/Review Team/release acceptance |
+
+## 11. Amendment and publication gates
 
 After product decisions, an actual BDP amendment must reconcile at least:
 the Beads/Links immutable-member rules; Types and descriptor identity;
