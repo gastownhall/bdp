@@ -15,7 +15,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#revisions",
-          "selectedText": "If applying an update produces a `properties` value that is equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to the value immediately before that operation, then the operation retains the existing revision and emits no `updated` Event."
+          "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision and emits no `updated` Event."
         },
         {
           "source": "docs/specs/bdp.md",

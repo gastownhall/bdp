@@ -236,10 +236,10 @@
               }
             },
             {
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/task-42",
               "expectedRevision": "task-42-r7",
-              "change": [
+              "propertiesChange": [
                 {
                   "op": "replace",
                   "path": "/status",

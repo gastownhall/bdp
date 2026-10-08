@@ -796,6 +796,7 @@ function expectLogicalReadinessEquivalence(
       source: sourceId,
       target: targetId,
       properties: {},
+      metadata: {},
     });
     return [
       toFixtureId(id),

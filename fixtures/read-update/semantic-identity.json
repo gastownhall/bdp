@@ -7,7 +7,12 @@
     {
       "id": "equivalent-spelling-and-defaults-are-the-same-identity",
       "condition": "The retained w1-note-cite member spelled its source as @note, which bound beads/decision-108; this singleton spells that identity as a durable local reference, omits properties (the protocol default is an empty object), and presents the same key. Identity is compared after resolution, canonicalization, and default expansion, so the retained disposition answers.",
-      "retained": [{ "from": "read-update-sequence-idempotent-retry/original", "index": 1 }],
+      "retained": [
+        {
+          "from": "read-update-sequence-idempotent-retry/original",
+          "index": 1
+        }
+      ],
       "request": {
         "method": "POST",
         "target": "operations/create-link",
@@ -21,7 +26,10 @@
           "type": "https://work.example/types/cites",
           "source": "beads/decision-108",
           "target": "https://github.example/issues/130",
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -37,10 +45,14 @@
             "id": "https://beads.example/acme/links/cites-109",
             "type": "https://work.example/types/cites",
             "revision": "cites-109-r1",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "status": "claimed"
+            },
             "source": "https://beads.example/acme/beads/decision-108",
             "target": "https://github.example/issues/130",
-            "properties": {}
+            "properties": {},
+            "metadata": {}
           },
           "source": "https://beads.example/acme/beads/decision-108",
           "sourceRevision": "decision-108-r2"
@@ -51,7 +63,11 @@
       "id": "renamed-label-is-the-same-identity",
       "condition": "The label is excluded from identity: w1-note-create presented under the name decision answers from its retained disposition, carrying the present member's operationName.",
       "retained": [
-        { "from": "read-update-sequence-idempotent-retry/original", "index": 0, "at": 0 }
+        {
+          "from": "read-update-sequence-idempotent-retry/original",
+          "index": 0,
+          "at": 0
+        }
       ],
       "request": {
         "method": "POST",
@@ -72,7 +88,10 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -94,11 +113,15 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }
@@ -123,9 +146,15 @@
         "body": {
           "type": "https://work.example/types/cites",
           "source": "beads/decision-108",
-          "target": { "uri": "https://github.example/issues/130", "revision": "abc123" },
+          "target": {
+            "uri": "https://github.example/issues/130",
+            "revision": "abc123"
+          },
           "properties": {},
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -161,7 +190,10 @@
           "source": "beads/decision-108",
           "target": "https://github.example/issues/130",
           "properties": {},
-          "attribution": { "principal": "human:janet", "status": "claimed" }
+          "attribution": {
+            "principal": "human:janet",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -184,20 +216,31 @@
       "id": "two-operation-patch-is-retained",
       "request": {
         "method": "POST",
-        "target": "operations/update-bead-properties",
+        "target": "operations/update-bead",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "w1-task-9-close"
         },
-        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "schema": "#/$defs/updateBeadRequest",
         "body": {
           "bead": "beads/task-9",
-          "change": [
-            { "op": "replace", "path": "/status", "value": "closed" },
-            { "op": "add", "path": "/priority", "value": 1 }
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "closed"
+            },
+            {
+              "op": "add",
+              "path": "/priority",
+              "value": 1
+            }
           ],
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -213,12 +256,16 @@
             "id": "https://beads.example/acme/beads/task-9",
             "type": "https://work.example/types/task",
             "revision": "task-9-r2",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "status": "claimed"
+            },
             "properties": {
               "title": "Sort the semantic-identity cases",
               "status": "closed",
               "priority": 1
-            }
+            },
+            "metadata": {}
           }
         }
       }
@@ -228,20 +275,31 @@
       "condition": "Array order is preserved by normalization: the same two patch operations in the other order are a different record.",
       "request": {
         "method": "POST",
-        "target": "operations/update-bead-properties",
+        "target": "operations/update-bead",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "w1-task-9-close"
         },
-        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "schema": "#/$defs/updateBeadRequest",
         "body": {
           "bead": "beads/task-9",
-          "change": [
-            { "op": "add", "path": "/priority", "value": 1 },
-            { "op": "replace", "path": "/status", "value": "closed" }
+          "propertiesChange": [
+            {
+              "op": "add",
+              "path": "/priority",
+              "value": 1
+            },
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "closed"
+            }
           ],
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -265,21 +323,32 @@
       "condition": "expectedRevision is part of the operation record and therefore of its identity.",
       "request": {
         "method": "POST",
-        "target": "operations/update-bead-properties",
+        "target": "operations/update-bead",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "w1-task-9-close"
         },
-        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "schema": "#/$defs/updateBeadRequest",
         "body": {
           "bead": "beads/task-9",
           "expectedRevision": "task-9-r1",
-          "change": [
-            { "op": "replace", "path": "/status", "value": "closed" },
-            { "op": "add", "path": "/priority", "value": 1 }
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "closed"
+            },
+            {
+              "op": "add",
+              "path": "/priority",
+              "value": 1
+            }
           ],
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {

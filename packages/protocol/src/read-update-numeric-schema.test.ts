@@ -4,10 +4,10 @@ import { readCanonicalSchemaBundle } from "./read-values.js";
 
 const roots = [
   "createBead",
-  "updateBeadProperties",
+  "updateBead",
   "deleteBead",
   "createLink",
-  "updateLinkProperties",
+  "updateLink",
   "deleteLink",
   "putAlias",
   "deleteAlias",

@@ -19,6 +19,7 @@ const bead = {
   type: "https://types.example/task",
   revision: "r1",
   properties: {},
+  metadata: {},
 };
 const link = {
   id: `${scope}links/team/l`,
@@ -27,6 +28,7 @@ const link = {
   source: bead.id,
   target: "urn:external",
   properties: {},
+  metadata: {},
 };
 const descriptor = {
   id: `${scope}descriptors/task`,

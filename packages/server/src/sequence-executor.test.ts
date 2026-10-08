@@ -352,9 +352,9 @@ function controlled(
   }
 }
 const update = (key: string, extra = {}) => ({
-  operation: "updateBeadProperties",
+  operation: "updateBead",
   bead: "beads/free",
-  change: [{ op: "replace", path: "", value: { n: 0 } }],
+  propertiesChange: [{ op: "replace", path: "", value: { n: 0 } }],
   idempotencyKey: key,
   ...extra,
 });
@@ -612,16 +612,16 @@ describe("configuration, atomic admission and projection", () => {
         idempotencyKey: "l",
       },
       {
-        operation: "updateLinkProperties",
+        operation: "updateLink",
         link: "@edge",
-        change: [{ op: "replace", path: "", value: {} }],
+        propertiesChange: [{ op: "replace", path: "", value: {} }],
         idempotencyKey: "ul",
       },
       { operation: "deleteLink", link: "@edge", idempotencyKey: "dl" },
       {
-        operation: "updateBeadProperties",
+        operation: "updateBead",
         bead: "@made",
-        change: [{ op: "replace", path: "", value: {} }],
+        propertiesChange: [{ op: "replace", path: "", value: {} }],
         idempotencyKey: "ub",
       },
       { operation: "putAlias", alias: "alias/new-alias", target: "@made", idempotencyKey: "pa" },
@@ -694,10 +694,10 @@ describe("configuration, atomic admission and projection", () => {
       owner,
       prepareReadUpdateSingleton(
         scope,
-        "updateBeadProperties",
+        "updateBead",
         stringifyJsonValue({
           bead: "beads/free",
-          change: [{ op: "replace", path: "", value: { n: 0 } }],
+          propertiesChange: [{ op: "replace", path: "", value: { n: 0 } }],
         }),
         "statusless",
       ),
@@ -982,9 +982,9 @@ describe("canonical projection and real creator prefixes", () => {
     const carrier = sequence([
       create("maker", { id: "beads/made", name: "made" }),
       {
-        operation: "updateBeadProperties",
+        operation: "updateBead",
         bead: "@made",
-        change: [{ op: "add", path: "/n", value: 1 }],
+        propertiesChange: [{ op: "add", path: "/n", value: 1 }],
         idempotencyKey: "dependent",
       },
     ]);
@@ -1020,9 +1020,9 @@ describe("canonical projection and real creator prefixes", () => {
     const expired = sequence([
       create("maker", { id: "beads/made", name: "old" }),
       {
-        operation: "updateBeadProperties",
+        operation: "updateBead",
         bead: "@old",
-        change: [{ op: "add", path: "/after", value: 2 }],
+        propertiesChange: [{ op: "add", path: "/after", value: 2 }],
         idempotencyKey: "after-expiry",
       },
     ]);
@@ -1107,9 +1107,9 @@ describe("canonical projection and real creator prefixes", () => {
           sequence([
             { ...link, source: "alias/new", name: "renamed" },
             {
-              operation: "updateLinkProperties",
+              operation: "updateLink",
               link: "@renamed",
-              change: [{ op: "add", path: "/later", value: true }],
+              propertiesChange: [{ op: "add", path: "/later", value: true }],
               idempotencyKey: "dependent",
             },
           ]),
@@ -1126,10 +1126,10 @@ describe("canonical projection and real creator prefixes", () => {
       const f = fixture({ empty: true }),
         owner = f.owner();
       await execute(f, owner, sequence([create("a", { id: "beads/a" })]));
-      const input = { bead: "beads/a", change: [{ op: "add", path: "/n", value: 1 }] };
+      const input = { bead: "beads/a", propertiesChange: [{ op: "add", path: "/n", value: 1 }] };
       const originalCarrier = prepareReadUpdateSingleton(
         scope,
-        "updateBeadProperties",
+        "updateBead",
         stringifyJsonValue(input),
         "update",
       );
@@ -1155,15 +1155,10 @@ describe("canonical projection and real creator prefixes", () => {
       const retry = { ...input, bead: "alias/new" };
       const carrier = suffix
         ? sequence([
-            { operation: "updateBeadProperties", ...retry, idempotencyKey: "update" },
+            { operation: "updateBead", ...retry, idempotencyKey: "update" },
             create("tail"),
           ])
-        : prepareReadUpdateSingleton(
-            scope,
-            "updateBeadProperties",
-            stringifyJsonValue(retry),
-            "update",
-          );
+        : prepareReadUpdateSingleton(scope, "updateBead", stringifyJsonValue(retry), "update");
       const failed = submit(owner, carrier);
       f.queue.drain();
       const fault = await failed.then(
@@ -1845,7 +1840,7 @@ describe("deep actual results and controlled retained extensions", () => {
     const deep = `${'{"child":'.repeat(depth)}1${"}".repeat(depth)}`;
     const carrier = prepareReadUpdateSequence(
       scope,
-      `{"operations":[{"operation":"createBead","id":"beads/deep","type":"${type}","properties":${deep},"idempotencyKey":"deep-create","name":"made"},{"operation":"updateBeadProperties","bead":"@made","change":[{"op":"add","path":"/other","value":${deep}}],"idempotencyKey":"deep-update"}]}`,
+      `{"operations":[{"operation":"createBead","id":"beads/deep","type":"${type}","properties":${deep},"idempotencyKey":"deep-create","name":"made"},{"operation":"updateBead","bead":"@made","propertiesChange":[{"op":"add","path":"/other","value":${deep}}],"idempotencyKey":"deep-update"}]}`,
     );
     const owner = f.owner();
     const first = await execute(f, owner, carrier);
@@ -2626,9 +2621,9 @@ describe("explicit runtime compatibility before authority transfer", () => {
         owner,
         sequence([
           {
-            operation: "updateLinkProperties",
+            operation: "updateLink",
             link: "links/old",
-            change: [{ op: "add", path: "/x", value: "123456789" }],
+            propertiesChange: [{ op: "add", path: "/x", value: "123456789" }],
             idempotencyKey: "large-link",
           },
         ]),

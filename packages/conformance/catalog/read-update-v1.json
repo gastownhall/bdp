@@ -97,15 +97,15 @@
       ]
     },
     {
-      "id": "read-update.singleton.update-bead-properties",
-      "title": "update-bead-properties applies the patch and retains the revision on a semantic no-op",
+      "id": "read-update.singleton.update-bead",
+      "title": "update-bead applies the patch and retains the revision on a semantic no-op",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#property-change-values",
-          "selectedText": "Applying the patch must yield a JSON object satisfying every effective Type schema."
+          "selectedText": "Applying the properties patch must yield a JSON object satisfying every effective Type schema. The metadata patch must yield a JSON object."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -174,8 +174,8 @@
       ]
     },
     {
-      "id": "read-update.singleton.update-link-properties",
-      "title": "update-link-properties returns the Link postimage; an unowned Link's update versions no endpoint",
+      "id": "read-update.singleton.update-link",
+      "title": "update-link returns the Link postimage; an unowned Link's update versions no endpoint",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
@@ -266,7 +266,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "a write whose `properties` are a no-op mints no revision and records no attribution."
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
         }
       ]
     },
@@ -284,7 +284,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "a write whose `properties` are a no-op mints no revision and records no attribution."
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1217,7 +1217,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "expands protocol defaults such as an omitted `properties`, preserves the order of `change` and every other array, ignores JSON object member order, and excludes `idempotencyKey` and `name`"
+          "selectedText": "expands creation defaults so omitted `properties` and omitted common `metadata` each compare as `{}`, preserves the order of each change array and every other array, ignores JSON object member order, and excludes `idempotencyKey` and `name`"
         },
         {
           "source": "docs/specs/bdp.md",

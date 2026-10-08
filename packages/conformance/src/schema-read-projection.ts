@@ -92,6 +92,7 @@ export const READ_SCHEMA_SEALED_DEFINITIONS: readonly string[] = Object.freeze([
   "typeSummary",
   "typesInventory",
   "properties",
+  "metadata",
   "beadRecord",
   "linkRecord",
   "beadCollection",
@@ -121,6 +122,10 @@ export const READ_SCHEMA_SEALED_DEFINITIONS: readonly string[] = Object.freeze([
   "historyWindow",
   "jsonPointer",
   "revision",
+  "currentBeadRecord",
+  "currentLinkRecord",
+  "currentBeadCollection",
+  "currentLinkCollection",
 ]);
 
 export interface ReadSchemaProjection {

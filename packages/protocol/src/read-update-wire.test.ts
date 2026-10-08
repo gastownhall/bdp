@@ -48,7 +48,7 @@ const READ_UPDATE_PROBLEM_ROWS: readonly (readonly [string, string, number, stri
 ];
 
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{1,256}$/;
-const LINK_OPERATIONS = new Set(["createLink", "updateLinkProperties", "deleteLink"]);
+const LINK_OPERATIONS = new Set(["createLink", "updateLink", "deleteLink"]);
 const ALIAS_OPERATIONS = new Set(["putAlias", "deleteAlias"]);
 /** The reference domain's only owned Link Type: `decision` owns `cites`. */
 const OWNED_LINK_TYPE = "https://work.example/types/cites";
@@ -206,8 +206,8 @@ describe("Read+Update wire fixtures", () => {
       "operations/delete-link",
       "operations/put-alias",
       "operations/sequence",
-      "operations/update-bead-properties",
-      "operations/update-link-properties",
+      "operations/update-bead",
+      "operations/update-link",
     ]);
   });
 
@@ -449,14 +449,14 @@ describe("shapes the bundle now rejects", () => {
     ],
     ["createBeadRequest", "a supplied @name id", { id: "@x", type: "https://t.example/t" }],
     [
-      "updateBeadPropertiesRequest",
+      "updateBeadRequest",
       "a patch path that is not a JSON Pointer",
-      { bead: "beads/1", change: [{ op: "remove", path: "not-a-pointer" }] },
+      { bead: "beads/1", propertiesChange: [{ op: "remove", path: "not-a-pointer" }] },
     ],
     [
-      "updateBeadPropertiesRequest",
+      "updateBeadRequest",
       "a patch path with an invalid escape",
-      { bead: "beads/1", change: [{ op: "remove", path: "/~2" }] },
+      { bead: "beads/1", propertiesChange: [{ op: "remove", path: "/~2" }] },
     ],
     [
       "mutationResult",
@@ -640,10 +640,10 @@ describe("shapes the bundle now rejects", () => {
       "a directory without the alias targets",
       {
         createBead: "create-bead",
-        updateBeadProperties: "update-bead-properties",
+        updateBead: "update-bead",
         deleteBead: "delete-bead",
         createLink: "create-link",
-        updateLinkProperties: "update-link-properties",
+        updateLink: "update-link",
         deleteLink: "delete-link",
         sequence: "sequence",
       },
@@ -671,8 +671,8 @@ describe("shapes the bundle now rejects", () => {
       "sequence pinned @name",
     );
     expectValid(
-      "#/$defs/updateBeadPropertiesRequest",
-      { bead: "beads/1", change: [{ op: "remove", path: "/a~1b/~0c" }] },
+      "#/$defs/updateBeadRequest",
+      { bead: "beads/1", propertiesChange: [{ op: "remove", path: "/a~1b/~0c" }] },
       "escaped pointer",
     );
     expectValid(
@@ -748,10 +748,10 @@ describe("shapes the bundle now rejects", () => {
 describe("the alias targets", () => {
   const SIX = [
     ["createBead", "create-bead"],
-    ["updateBeadProperties", "update-bead-properties"],
+    ["updateBead", "update-bead"],
     ["deleteBead", "delete-bead"],
     ["createLink", "create-link"],
-    ["updateLinkProperties", "update-link-properties"],
+    ["updateLink", "update-link"],
     ["deleteLink", "delete-link"],
   ] as const;
 
@@ -785,10 +785,10 @@ describe("the alias targets", () => {
     expect(propertiesOf("sequenceDeleteAlias").operation).toEqual({ const: "deleteAlias" });
     expect((def("sequenceMember").oneOf as SchemaRecord[]).map((branch) => branch.$ref)).toEqual([
       "#/$defs/sequenceCreateBead",
-      "#/$defs/sequenceUpdateBeadProperties",
+      "#/$defs/sequenceUpdateBead",
       "#/$defs/sequenceDeleteBead",
       "#/$defs/sequenceCreateLink",
-      "#/$defs/sequenceUpdateLinkProperties",
+      "#/$defs/sequenceUpdateLink",
       "#/$defs/sequenceDeleteLink",
       "#/$defs/sequencePutAlias",
       "#/$defs/sequenceDeleteAlias",
@@ -816,10 +816,10 @@ describe("the alias targets", () => {
 
 const SINGLETON_OPERATIONS: ReadonlyMap<string, string> = new Map([
   ["operations/create-bead", "createBead"],
-  ["operations/update-bead-properties", "updateBeadProperties"],
+  ["operations/update-bead", "updateBead"],
   ["operations/delete-bead", "deleteBead"],
   ["operations/create-link", "createLink"],
-  ["operations/update-link-properties", "updateLinkProperties"],
+  ["operations/update-link", "updateLink"],
   ["operations/delete-link", "deleteLink"],
   ["operations/put-alias", "putAlias"],
   ["operations/delete-alias", "deleteAlias"],

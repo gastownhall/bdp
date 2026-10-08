@@ -25,14 +25,26 @@
                 "title": "A different decision under a reused key",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             },
             {
               "idempotencyKey": "w1-task-7-status",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/task-7",
-              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "closed"
+                }
+              ],
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -62,12 +74,16 @@
                 "id": "https://beads.example/acme/beads/task-7",
                 "type": "https://work.example/types/task",
                 "revision": "task-7-r3",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "properties": {
                   "title": "Review the retention ruling",
                   "status": "closed",
                   "priority": 2
-                }
+                },
+                "metadata": {}
               }
             }
           ]
@@ -78,7 +94,11 @@
       "id": "replay-after-conflict-returns-the-retained-disposition-unchanged",
       "condition": "The conflicting presentation changed nothing: the original record under w1-note-create still answers from its retained disposition.",
       "retained": [
-        { "from": "read-update-sequence-idempotent-retry/original", "index": 0, "at": 0 }
+        {
+          "from": "read-update-sequence-idempotent-retry/original",
+          "index": 0,
+          "at": 0
+        }
       ],
       "request": {
         "method": "POST",
@@ -99,7 +119,10 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -121,11 +144,15 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }
@@ -247,7 +274,10 @@
                 "title": "Archive the 2025 decisions",
                 "status": "open"
               },
-              "attribution": { "principal": "agent:archivist", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:archivist",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -294,7 +324,10 @@
                 "title": "Archive the 2024 decisions",
                 "status": "open"
               },
-              "attribution": { "principal": "agent:archivist", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:archivist",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -335,10 +368,19 @@
           "operations": [
             {
               "idempotencyKey": "w0-epic-2-close-2026-01-05",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/epic-2",
-              "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
-              "attribution": { "principal": "agent:archivist", "status": "claimed" }
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "closed"
+                }
+              ],
+              "attribution": {
+                "principal": "agent:archivist",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -359,11 +401,15 @@
                 "id": "https://beads.example/acme/beads/epic-2",
                 "type": "https://work.example/types/epic",
                 "revision": "epic-2-r2",
-                "attribution": { "principal": "agent:archivist", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:archivist",
+                  "status": "claimed"
+                },
                 "properties": {
                   "title": "2025 decisions",
                   "status": "closed"
-                }
+                },
+                "metadata": {}
               }
             }
           ]

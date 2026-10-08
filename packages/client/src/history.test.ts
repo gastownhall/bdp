@@ -80,14 +80,30 @@ describe("explicit body-only History client", () => {
     "reads %s with pins and context unchanged, without current preflight",
     async (name) => {
       const body = fixture<BeadRecord | LinkRecord>(name);
-      const { client, calls } = clientWith(() => body);
+      // The serving authority projects legacy retained bytes before sending
+      // them; the client must receive the current complete wire shape.
+      const served = {
+        ...body,
+        metadata: {},
+        ...(name === "exact-bead"
+          ? {
+              ownedLinks: Object.fromEntries(
+                Object.entries((body as BeadRecord).ownedLinks ?? {}).map(([type, links]) => [
+                  type,
+                  links.map((link) => ({ ...link, metadata: {} })),
+                ]),
+              ),
+            }
+          : {}),
+      };
+      const { client, calls } = clientWith(() => served);
       const result = await client.performHistory({
         kind: "revision",
         resource: name === "exact-bead" ? "bead" : "link",
         id: body.id,
         revision: body.revision,
       });
-      expect(result).toEqual(body);
+      expect(result).toEqual(served);
       expect(calls).toEqual([
         `${scope}bdp.json`,
         `${body.id}?${new URLSearchParams({ revision: body.revision })}`,
@@ -112,7 +128,13 @@ describe("explicit body-only History client", () => {
                 JSON.stringify(
                   url === `${scope}bdp.json`
                     ? discovery()
-                    : { id, type: "https://work.example/types/memory", revision, properties: {} },
+                    : {
+                        id,
+                        type: "https://work.example/types/memory",
+                        revision,
+                        properties: {},
+                        metadata: {},
+                      },
                 ),
                 { headers: { "content-type": "application/json" } },
               );
@@ -142,6 +164,7 @@ describe("explicit body-only History client", () => {
       type: "https://work.example/types/memory",
       revision: new URL(url).searchParams.get("revision"),
       properties: {},
+      metadata: {},
     }));
     const request = { ...exact, revision: "captured" };
     const pending = client.performHistory(request);
@@ -529,6 +552,7 @@ describe("explicit body-only History client", () => {
                         type: "https://work.example/types/memory",
                         revision: "old",
                         properties: mode === "bytes" ? { text: "x".repeat(5000) } : deep,
+                        metadata: {},
                       },
                 ),
                 { headers: { "content-type": "application/json" } },

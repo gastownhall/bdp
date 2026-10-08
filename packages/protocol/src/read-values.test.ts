@@ -5,6 +5,7 @@ import {
   parseBeadRecord,
   parseCanonicalHttpUrl,
   parseCanonicalScope,
+  parseLinkCollection,
   parseLinkRecord,
   parsePropertiesRecord,
   parseReadDiscovery,
@@ -70,6 +71,7 @@ describe("Read envelope parsing", () => {
       source,
       target: { uri: `${scope}beads/demo-a`, revision: "pin-a-r1" },
       properties: {},
+      metadata: {},
     };
     const parsed = parseLinkRecord(record);
     source.revision = "tampered";
@@ -160,6 +162,7 @@ describe("Read envelope parsing", () => {
       type: "https://work.example/types/task",
       revision: "1",
       properties: { title: "A" },
+      metadata: {},
     };
     const link = {
       id: `${scope}links/blocks-a-b`,
@@ -168,11 +171,32 @@ describe("Read envelope parsing", () => {
       source: `${scope}beads/a`,
       target: { uri: "urn:external:b", revision: "cited-1" },
       properties: {},
+      metadata: {},
     };
     const parsed = parseBeadCollection({ items: [bead], next: null });
 
-    expect(parseBeadRecord(bead)).toEqual(bead);
-    expect(parseLinkRecord(link)).toEqual(link);
+    expect(parseBeadRecord(bead)).toEqual({ ...bead, metadata: {} });
+    expect(parseLinkRecord(link)).toEqual({ ...link, metadata: {} });
+    const { metadata: _beadMetadata, ...beadWithoutMetadata } = bead;
+    const { metadata: _linkMetadata, ...linkWithoutMetadata } = link;
+    expect(parseBeadRecord(beadWithoutMetadata)).toEqual(bead);
+    expect(parseLinkRecord(linkWithoutMetadata)).toEqual(link);
+    expect(parseBeadCollection({ items: [beadWithoutMetadata], next: null }).items[0]).toEqual(
+      bead,
+    );
+    expect(parseLinkCollection({ items: [linkWithoutMetadata], next: null }).items[0]).toEqual(
+      link,
+    );
+    expect(
+      parseBeadRecord({
+        ...beadWithoutMetadata,
+        ownedLinks: { [link.type]: [linkWithoutMetadata] },
+      }).ownedLinks?.[link.type]?.[0],
+    ).toEqual(link);
+    expect(beadWithoutMetadata).not.toHaveProperty("metadata");
+    expect(linkWithoutMetadata).not.toHaveProperty("metadata");
+    expect(() => parseBeadRecord({ ...beadWithoutMetadata, metadata: null })).toThrow();
+    expect(() => parseLinkRecord({ ...linkWithoutMetadata, metadata: [] })).toThrow();
     expect(Object.isFrozen(parsed.items[0]?.properties)).toBe(true);
     expect(() => parseBeadRecord({ ...bead, revision: "" })).toThrow();
     expect(() => parseBeadRecord({ ...bead, extra: true })).toThrow();
@@ -252,6 +276,7 @@ describe("Resource properties parsing", () => {
         type: "https://work.example/types/task",
         revision: "a😀z",
         properties,
+        metadata: {},
       }).revision,
     ).toBe("a😀z");
   });
@@ -314,6 +339,7 @@ describe("Resource properties parsing", () => {
       type: "https://work.example/types/task",
       revision: "r1",
       properties: { deep: JSON.parse(`${"[".repeat(256)}1${"]".repeat(256)}`) as unknown },
+      metadata: {},
     };
     expect(parseBeadRecord(bead).revision).toBe("r1");
     expect(() => parseBeadRecord({ ...bead, extra: true })).toThrow("additional properties");
@@ -516,6 +542,7 @@ describe("Type artifact parsing", () => {
       type: "https://work.example/types/decision",
       revision: "1",
       properties: {},
+      metadata: {},
       ownedLinks: { "https://user:pw@work.example/types/cites": [] },
     };
     expect(() => parseBeadRecord(record)).toThrow();
@@ -526,13 +553,14 @@ describe("Type artifact parsing", () => {
       source: `${scope}beads/demo-f`,
       target: `${scope}beads/demo-a`,
       properties: {},
+      metadata: {},
     };
     expect(
       parseBeadRecord({
         ...record,
         ownedLinks: { "https://work.example/types/cites": [ownedLink] },
       }).ownedLinks,
-    ).toEqual({ "https://work.example/types/cites": [ownedLink] });
+    ).toEqual({ "https://work.example/types/cites": [{ ...ownedLink, metadata: {} }] });
     expect(() =>
       parseBeadRecord({
         ...record,

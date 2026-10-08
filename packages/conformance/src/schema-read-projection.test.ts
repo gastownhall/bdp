@@ -31,11 +31,11 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
  * RP1: the digest of the committed bundle's sealed definition set — the value
  * the successor cohort must observe and bind as `schemaReadProjection`.
  * This pin is a schema regression check, not evidence. It moves only when the
- * text of one of the 42 sealed definitions, or the sealed list itself, changes;
+ * text of one of the 47 sealed definitions, or the sealed list itself, changes;
  * a failure here is the re-seal trigger, seen before the gate sees it.
  */
 const COMMITTED_READ_SCHEMA_PROJECTION =
-  "0feaa86a2ba5180d6396e1b52b0b2ee339b0a79a0650ecc0c0e6045b17d053e7";
+  "26db67b2f8611a641df6b44bc42959bf047a9efc8b2d5a7d665fc3dd47d631a7";
 
 type Json = Record<string, unknown>;
 
@@ -413,13 +413,17 @@ describe("Read schema projection", () => {
     );
   });
 
-  it("projects the committed bundle: the 42 sealed definitions, the derived roots, and the pinned digest", () => {
+  it("projects the committed bundle: the 47 sealed definitions, the derived roots, and the pinned digest", () => {
     const committed = committedBundle();
     const roots = committedRoots();
     expect(roots).toEqual([
       "beadCollection",
       "beadRecord",
       "changeContext",
+      "currentBeadCollection",
+      "currentBeadRecord",
+      "currentLinkCollection",
+      "currentLinkRecord",
       "historicalBeadRecord",
       "historicalLinkRecord",
       "historyCapability",
@@ -435,10 +439,10 @@ describe("Read schema projection", () => {
       "typesInventory",
     ]);
 
-    // The sealed list: 42 distinct names, every one a definition of the
+    // The sealed list: 47 distinct names, every one a definition of the
     // committed bundle, digested in this order.
-    expect(READ_SCHEMA_SEALED_DEFINITIONS).toHaveLength(42);
-    expect(new Set(READ_SCHEMA_SEALED_DEFINITIONS).size).toBe(42);
+    expect(READ_SCHEMA_SEALED_DEFINITIONS).toHaveLength(47);
+    expect(new Set(READ_SCHEMA_SEALED_DEFINITIONS).size).toBe(47);
     expect(Object.keys(defs(committed))).toEqual(
       expect.arrayContaining([...READ_SCHEMA_SEALED_DEFINITIONS]),
     );
@@ -447,10 +451,10 @@ describe("Read schema projection", () => {
     expect(projection.definitions).toEqual(READ_SCHEMA_SEALED_DEFINITIONS);
     expect(projection.digest).toBe(COMMITTED_READ_SCHEMA_PROJECTION);
 
-    // The finding behind RP1: Read reaches 41 of the 42 sealed definitions.
+    // The finding behind RP1: Read reaches 46 of the 47 sealed definitions.
     // Nothing references the profile token enum — discovery pins the constant
     // `read` — yet it is sealed, so a token added there moves the digest.
-    expect(projection.reachable).toHaveLength(41);
+    expect(projection.reachable).toHaveLength(46);
     expect(projection.reachable).toEqual(expect.arrayContaining([...roots]));
     expect(
       READ_SCHEMA_SEALED_DEFINITIONS.filter((name) => !projection.reachable.includes(name)),

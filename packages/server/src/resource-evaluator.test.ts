@@ -23,6 +23,7 @@ import {
 } from "@bdp/protocol";
 import {
   evaluateResourceMutation,
+  readStoredResource,
   type EvaluatorStoredResource,
   type InstalledResourceContract,
   type ResourceEvaluationOptions,
@@ -197,6 +198,109 @@ function failure(result: ReturnType<ReturnType<typeof fixture>["execute"]>, code
 }
 
 describe("pure member Resource evaluation", () => {
+  it("updates properties and metadata atomically, clears to empty, and preserves a no-op revision", () => {
+    const f = fixture();
+    f.createBead("a", { title: "before" }, { metadata: { owner: "team" } });
+    const before = f.body("beads/a");
+    const writes = f.writes();
+    const changed = f.execute("updateBead", {
+      bead: "beads/a",
+      expectedRevision: before.revision,
+      propertiesChange: [{ op: "replace", path: "/title", value: "after" }],
+      metadataChange: [{ op: "add", path: "/reviewed", value: true }],
+    });
+    expect(changed.effect).toBe("success");
+    expect(f.writes()).toBe(writes + 1);
+    const after = f.body("beads/a");
+    expect(after.revision).not.toBe(before.revision);
+    expect(after.properties).toEqual({ title: "after" });
+    expect(after.metadata).toEqual({ owner: "team", reviewed: true });
+    failure(
+      f.execute("updateBead", {
+        bead: "beads/a",
+        expectedRevision: before.revision,
+        metadataChange: [{ op: "replace", path: "", value: {} }],
+      }),
+      "revision-mismatch",
+    );
+    const cleared = f.execute("updateBead", {
+      bead: "beads/a",
+      metadataChange: [{ op: "replace", path: "", value: {} }],
+    });
+    expect(cleared.effect).toBe("success");
+    const empty = f.body("beads/a");
+    expect(empty.metadata).toEqual({});
+    const count = f.writes();
+    const noOp = f.execute("updateBead", {
+      bead: "beads/a",
+      metadataChange: [{ op: "replace", path: "", value: {} }],
+    });
+    expect(noOp.effect).toBe("success");
+    expect(f.body("beads/a").revision).toBe(empty.revision);
+    expect(f.writes()).toBe(count);
+  });
+  it("projects legacy missing metadata without rewriting retained bytes", () => {
+    const f = fixture();
+    f.createBead("a", { title: "old" });
+    const current = f.records.get("beads/a");
+    if (!current) throw new Error("missing fixture Bead");
+    const legacy = {
+      ...current,
+      bodyJson: JSON.stringify(
+        Object.fromEntries(
+          Object.entries(JSON.parse(current.bodyJson) as Record<string, unknown>).filter(
+            ([name]) => name !== "metadata",
+          ),
+        ),
+      ),
+    };
+    f.records.set("beads/a", legacy);
+    expect(readStoredResource(legacy, scope).metadata).toEqual({});
+    expect(f.records.get("beads/a")?.bodyJson).toBe(legacy.bodyJson);
+  });
+  it("versions an owned Link and its source once for a metadata-only update", () => {
+    const f = fixture([
+      beadDescriptor({ ownsOutgoing: { [linkType]: { max: 8 } } }),
+      linkDescriptor(),
+    ]);
+    f.createBead("a");
+    f.createBead("b");
+    f.createLink("edge");
+    const linkBefore = f.body("links/edge");
+    const sourceBefore = f.body("beads/a");
+    const writes = f.writes();
+    const result = f.execute("updateLink", {
+      link: "links/edge",
+      expectedRevision: linkBefore.revision,
+      metadataChange: [{ op: "add", path: "/note", value: "reviewed" }],
+    });
+    expect(result.effect).toBe("success");
+    const linkAfter = f.body("links/edge");
+    const sourceAfter = f.body("beads/a");
+    expect(linkAfter.metadata).toEqual({ note: "reviewed" });
+    expect(linkAfter.revision).not.toBe(linkBefore.revision);
+    expect(sourceAfter.revision).not.toBe(sourceBefore.revision);
+    expect(
+      "ownedLinks" in sourceAfter ? sourceAfter.ownedLinks?.[linkType]?.[0] : undefined,
+    ).toMatchObject(linkAfter);
+    expect(f.writes()).toBe(writes + 2);
+    failure(
+      f.execute("updateLink", {
+        link: "links/edge",
+        expectedRevision: linkBefore.revision,
+        metadataChange: [{ op: "replace", path: "", value: {} }],
+      }),
+      "revision-mismatch",
+    );
+    const count = f.writes();
+    const noOp = f.execute("updateLink", {
+      link: "links/edge",
+      metadataChange: [{ op: "replace", path: "/note", value: "reviewed" }],
+    });
+    expect(noOp.effect).toBe("success");
+    expect(f.writes()).toBe(count);
+    expect(f.body("beads/a").revision).toBe(sourceAfter.revision);
+  });
   it("creates, patches and deletes both kinds, returning schema-valid final identities", () => {
     const f = fixture();
     f.createBead("a", { title: "a" });
@@ -207,13 +311,13 @@ describe("pure member Resource evaluation", () => {
       source: `${scope}beads/a`,
       target: { uri: `${scope}beads/b`, revision: "provenance-not-a-CAS" },
     });
-    f.execute("updateBeadProperties", {
+    f.execute("updateBead", {
       bead: "beads/a",
-      change: [{ op: "replace", path: "/title", value: "new" }],
+      propertiesChange: [{ op: "replace", path: "/title", value: "new" }],
     });
-    f.execute("updateLinkProperties", {
+    f.execute("updateLink", {
       link: "links/edge",
-      change: [{ op: "add", path: "/n", value: 1 }],
+      propertiesChange: [{ op: "add", path: "/n", value: 1 }],
     });
     const last = f.body("links/edge");
     expect(last.revision).not.toBe(link.revision);
@@ -248,20 +352,17 @@ describe("pure member Resource evaluation", () => {
     const allocated = f.allocations();
     const writes = f.writes();
     const raw =
-      '{"bead":"beads/a","change":[{"op":"replace","path":"/n","value":1e0},{"op":"replace","path":"/zero","value":-0.0},{"op":"replace","path":"/nested","value":{"b":[2.0],"a":1}}],"changeContext":{"message":"ignored no-op"}}';
-    const admitted = admitReadUpdateOperationNumbers(
-      parseReadUpdateRequest("updateBeadProperties", raw),
-      {
-        diagnostic: ({ pointer }) => ({
-          message: "inadmissible number",
-          instanceLocation: pointer,
-        }),
-      },
-    );
+      '{"bead":"beads/a","propertiesChange":[{"op":"replace","path":"/n","value":1e0},{"op":"replace","path":"/zero","value":-0.0},{"op":"replace","path":"/nested","value":{"b":[2.0],"a":1}}],"changeContext":{"message":"ignored no-op"}}';
+    const admitted = admitReadUpdateOperationNumbers(parseReadUpdateRequest("updateBead", raw), {
+      diagnostic: ({ pointer }) => ({
+        message: "inadmissible number",
+        instanceLocation: pointer,
+      }),
+    });
     if (!admitted.ok) throw new Error("admissible test numbers");
     const result = evaluateResourceMutation(
       f.tx,
-      { operation: "updateBeadProperties", input: admitted.input },
+      { operation: "updateBead", input: admitted.input },
       f.options,
     );
     expect(result.outcome).toMatchObject({ outcome: "updated", resource: before });
@@ -277,28 +378,28 @@ describe("pure member Resource evaluation", () => {
     const writes = f.writes();
     failure(
       f.execute(
-        "updateBeadProperties",
+        "updateBead",
         {
           bead: "beads/a",
           expectedRevision: "stale",
-          change: [{ op: "replace", path: "/n", value: 2 }],
+          propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
         },
         { policy: { ...f.options.policy, canWrite: () => false } },
       ),
       "forbidden",
     );
     failure(
-      f.execute("updateBeadProperties", {
+      f.execute("updateBead", {
         bead: "beads/a",
         expectedRevision: "stale",
-        change: [{ op: "replace", path: "/n", value: 2 }],
+        propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
       }),
       "revision-mismatch",
     );
     failure(
-      f.execute("updateBeadProperties", {
+      f.execute("updateBead", {
         bead: "beads/a",
-        change: [{ op: "replace", path: "/missing", value: 2 }],
+        propertiesChange: [{ op: "replace", path: "/missing", value: 2 }],
       }),
       "validation-failed",
     );
@@ -312,17 +413,17 @@ describe("pure member Resource evaluation", () => {
     f.hidden.add(`${scope}beads/b`);
     f.authorized.length = 0;
     const hidden = failure(
-      f.execute("updateBeadProperties", {
+      f.execute("updateBead", {
         bead: "beads/b",
-        change: [{ op: "remove", path: "/missing" }],
+        propertiesChange: [{ op: "remove", path: "/missing" }],
       }),
       "resource-not-found",
     );
     expect(hidden).toEqual(
       failure(
-        f.execute("updateBeadProperties", {
+        f.execute("updateBead", {
           bead: "beads/unknown",
-          change: [{ op: "remove", path: "/missing" }],
+          propertiesChange: [{ op: "remove", path: "/missing" }],
         }),
         "resource-not-found",
       ),
@@ -349,9 +450,9 @@ describe("pure member Resource evaluation", () => {
     f.aliases.set("taken", "beads/a");
     failure(f.createBead("a", {}, { type: "https://missing.test/type" }), "identity-taken");
     failure(f.createBead("taken", {}, { type: "https://missing.test/type" }), "alias-path-taken");
-    const result = f.execute("updateBeadProperties", {
+    const result = f.execute("updateBead", {
       bead: "alias/taken",
-      change: [{ op: "replace", path: "", value: {} }],
+      propertiesChange: [{ op: "replace", path: "", value: {} }],
     });
     expect(result.outcome).toMatchObject({ resource: { id: `${scope}beads/a` } });
     f.aliases.delete("taken");
@@ -902,9 +1003,9 @@ describe("pure member Resource evaluation", () => {
   it("supports all three patch operations, escaped names and arrays without prototype mutation", () => {
     const f = fixture();
     f.createBead("a", { list: [1, 3], "a/b": { "~x": 1 } });
-    const result = f.execute("updateBeadProperties", {
+    const result = f.execute("updateBead", {
       bead: "beads/a",
-      change: [
+      propertiesChange: [
         { op: "add", path: "/list/1", value: 2 },
         { op: "remove", path: "/list/0" },
         { op: "replace", path: "/a~1b/~0x", value: 7 },
@@ -917,7 +1018,7 @@ describe("pure member Resource evaluation", () => {
     );
     expect(Object.hasOwn(Object.prototype, "polluted")).toBe(false);
     failure(
-      f.execute("updateBeadProperties", { bead: "beads/a", change: [{ op: "remove", path: "" }] }),
+      f.execute("updateBead", { bead: "beads/a", propertiesChange: [{ op: "remove", path: "" }] }),
       "validation-failed",
     );
   });
@@ -925,12 +1026,12 @@ describe("pure member Resource evaluation", () => {
     const f = fixture();
     f.createBead("a", { n: 1 });
     const limits = { ...f.options.limits, patchOperations: 0 };
-    const input = { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 2 }] };
+    const input = { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] };
     failure(
-      f.execute("updateBeadProperties", { ...input, expectedRevision: "wrong" }, { limits }),
+      f.execute("updateBead", { ...input, expectedRevision: "wrong" }, { limits }),
       "revision-mismatch",
     );
-    const problem = failure(f.execute("updateBeadProperties", input, { limits }), "limit-exceeded");
+    const problem = failure(f.execute("updateBead", input, { limits }), "limit-exceeded");
     expect(problem.status).toBe(413);
     expect(f.body("beads/a").properties).toEqual({ n: 1 });
   });
@@ -963,9 +1064,9 @@ describe("pure member Resource evaluation", () => {
     expect(Object.hasOwn(result.outcome, "resolutions")).toBe(false);
     expect(Object.isFrozen(result.resolutions)).toBe(true);
     f.aliases.set("current", "beads/b");
-    const update = f.execute("updateBeadProperties", {
+    const update = f.execute("updateBead", {
       bead: "alias/current",
-      change: [{ op: "replace", path: "", value: {} }],
+      propertiesChange: [{ op: "replace", path: "", value: {} }],
     });
     expect(update.resolutions).toEqual([
       { inputPointer: "/bead", original: "alias/current", resolved: `${scope}beads/b` },
@@ -995,17 +1096,17 @@ describe("pure member Resource evaluation", () => {
     f.createBead("b");
     const expectedRevision = f.body("beads/a").revision;
     expect(
-      f.execute("updateBeadProperties", {
+      f.execute("updateBead", {
         bead: "beads/a",
         expectedRevision,
-        change: [{ op: "replace", path: "/n", value: 1 }],
+        propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
       }).effect,
     ).toBe("success");
     failure(
-      f.execute("updateBeadProperties", {
+      f.execute("updateBead", {
         bead: "beads/a",
         expectedRevision,
-        change: [{ op: "replace", path: "/n", value: 2 }],
+        propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
       }),
       "revision-mismatch",
     );
@@ -1020,15 +1121,15 @@ describe("pure member Resource evaluation", () => {
     const attribution = { principal: "urn:claimed-author", status: "claimed" };
     f.createBead("a", { n: 1 }, { attribution });
     const before = f.body("beads/a");
-    f.execute("updateBeadProperties", {
+    f.execute("updateBead", {
       bead: "beads/a",
-      change: [{ op: "replace", path: "/n", value: 1 }],
+      propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
       attribution: { principal: "urn:different", status: "unknown" },
     });
     expect(f.body("beads/a")).toEqual(before);
-    f.execute("updateBeadProperties", {
+    f.execute("updateBead", {
       bead: "beads/a",
-      change: [{ op: "replace", path: "/n", value: 2 }],
+      propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
     });
     expect(f.body("beads/a").attribution).toBeUndefined();
   });
@@ -1045,8 +1146,8 @@ describe("pure member Resource evaluation", () => {
     });
     const before = f.body("beads/a");
     f.execute(
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "replace", path: "", value: {} }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "", value: {} }] },
       { recordChangeContext: true, observeCommitTime: () => Date.parse("2026-09-11T00:00:00Z") },
     );
     expect(f.body("beads/a")).toEqual(before);
@@ -1101,16 +1202,16 @@ describe("owned Link and Scope aggregate effects", () => {
       message: { state: "present", value: "create" },
     });
     const counters = f.allocations();
-    f.execute("updateLinkProperties", {
+    f.execute("updateLink", {
       link: "links/edge",
-      change: [{ op: "replace", path: "", value: {} }],
+      propertiesChange: [{ op: "replace", path: "", value: {} }],
       changeContext: { message: "not a version" },
     });
     expect(f.body("beads/a")).toEqual(source);
     expect(f.allocations()).toEqual(counters);
-    f.execute("updateLinkProperties", {
+    f.execute("updateLink", {
       link: "links/edge",
-      change: [{ op: "add", path: "/n", value: 1 }],
+      propertiesChange: [{ op: "add", path: "/n", value: 1 }],
     });
     expect(f.body("beads/a").revision).not.toBe(source.revision);
     expect(f.body("links/edge").changeContext).toBeUndefined();
@@ -1166,9 +1267,9 @@ describe("owned Link and Scope aggregate effects", () => {
       ownedLinks: { [linkType]: [{ id: `${scope}links/a` }, { id: `${scope}links/z` }] },
     });
     expect(
-      f.execute("updateBeadProperties", {
+      f.execute("updateBead", {
         bead: "beads/a",
-        change: [{ op: "add", path: "/ok", value: true }],
+        propertiesChange: [{ op: "add", path: "/ok", value: true }],
       }).effect,
     ).toBe("success");
   });
@@ -1183,9 +1284,9 @@ describe("owned Link and Scope aggregate effects", () => {
     f.hidden.add(`${scope}beads/b`);
     f.authorized.length = 0;
     failure(
-      f.execute("updateBeadProperties", {
+      f.execute("updateBead", {
         bead: "beads/a",
-        change: [{ op: "remove", path: "/missing" }],
+        propertiesChange: [{ op: "remove", path: "/missing" }],
       }),
       "resource-not-found",
     );
@@ -1237,8 +1338,8 @@ describe("owned Link and Scope aggregate effects", () => {
     f.hidden.clear();
     expect(
       f.execute(
-        "updateLinkProperties",
-        { link: "links/child", change: [{ op: "replace", path: "", value: {} }] },
+        "updateLink",
+        { link: "links/child", propertiesChange: [{ op: "replace", path: "", value: {} }] },
         { maximumEndpointMultiplicity },
       ).effect,
     ).toBe("success");
@@ -1310,15 +1411,15 @@ describe("deep admitted Resource round trips", () => {
       store = openRecoveryStore(configuration);
       expect(store.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(created);
       expect(
-        submit("noop", "updateBeadProperties", {
+        submit("noop", "updateBead", {
           bead: "beads/deep",
-          change: [{ op: "replace", path: "", value: properties }],
+          propertiesChange: [{ op: "replace", path: "", value: properties }],
         }).changed,
       ).toEqual([]);
       expect(store.read((tx) => tx.resource("beads/deep")?.bodyJson)).toBe(created);
-      submit("patch", "updateBeadProperties", {
+      submit("patch", "updateBead", {
         bead: "beads/deep",
-        change: [{ op: "replace", path: `/nested${"/0".repeat(12_000)}`, value: 8 }],
+        propertiesChange: [{ op: "replace", path: `/nested${"/0".repeat(12_000)}`, value: 8 }],
       });
       const patched = store.read((tx) => tx.resource("beads/deep")?.bodyJson);
       expect(patched).toContain(`"properties":{"nested":${nestedText.replace("7", "8")}}`);
@@ -1343,18 +1444,18 @@ describe("deep admitted Resource round trips", () => {
     const before = f.records.get("beads/deep");
     expect(before?.bodyJson).toContain(`"properties":{"nested":${nestedText}}`);
     const revision = f.body("beads/deep").revision;
-    const noop = f.execute("updateBeadProperties", {
+    const noop = f.execute("updateBead", {
       bead: "beads/deep",
-      change: [{ op: "replace", path: "", value: { nested } }],
+      propertiesChange: [{ op: "replace", path: "", value: { nested } }],
     });
     expect(noop.effect).toBe("success");
     expect(noop.changed).toEqual([]);
     expect(f.body("beads/deep").revision).toBe(revision);
     const path = `/nested${"/1".repeat(depth)}/n`;
-    const updated = f.execute("updateBeadProperties", {
+    const updated = f.execute("updateBead", {
       bead: "beads/deep",
       expectedRevision: revision,
-      change: [{ op: "replace", path, value: 8 }],
+      propertiesChange: [{ op: "replace", path, value: 8 }],
     });
     expect(updated.effect).toBe("success");
     expect(f.body("beads/deep").revision).not.toBe(revision);
@@ -1371,8 +1472,8 @@ describe("deep admitted Resource round trips", () => {
     const retained = f.records.get("beads/deep")?.bodyJson;
     failure(
       f.execute(
-        "updateBeadProperties",
-        { bead: "beads/deep", change: [{ op: "add", path: "/small", value: true }] },
+        "updateBead",
+        { bead: "beads/deep", propertiesChange: [{ op: "add", path: "/small", value: true }] },
         { limits: { ...f.options.limits, propertiesBytes: 100 } },
       ),
       "limit-exceeded",
@@ -1401,16 +1502,16 @@ describe("deep admitted Resource round trips", () => {
     );
     const oldRevision = f.body("links/deep").revision;
     expect(
-      f.execute("updateLinkProperties", {
+      f.execute("updateLink", {
         link: "links/deep",
-        change: [{ op: "replace", path: "", value: { nested } }],
+        propertiesChange: [{ op: "replace", path: "", value: { nested } }],
       }).changed,
     ).toEqual([]);
     expect(f.body("links/deep").revision).toBe(oldRevision);
     expect(
-      f.execute("updateLinkProperties", {
+      f.execute("updateLink", {
         link: "links/deep",
-        change: [{ op: "add", path: "/changed", value: true }],
+        propertiesChange: [{ op: "add", path: "/changed", value: true }],
       }).effect,
     ).toBe("success");
     const updatedSource = f.body("beads/a");
@@ -1479,7 +1580,7 @@ describe("native S2 council corrections", () => {
     const f = fixture();
     f.createBead("a", { n: 1 });
     const before = f.records.get("beads/a")?.bodyJson;
-    const result = f.execute("updateBeadProperties", { bead: "beads/a", change });
+    const result = f.execute("updateBead", { bead: "beads/a", propertiesChange: change });
     if (valid) {
       expect(result.effect).toBe("success");
       expect(f.body("beads/a").properties).toEqual({ n: 2 });
@@ -1507,9 +1608,9 @@ describe("native S2 council corrections", () => {
         { message: "resulting properties must be an object", instanceLocation: "" },
       ];
       const bytes = Buffer.byteLength(JSON.stringify(expected));
-      const input = { bead: "beads/a", change };
+      const input = { bead: "beads/a", propertiesChange: change };
       const result = failure(
-        f.execute("updateBeadProperties", input, {
+        f.execute("updateBead", input, {
           limits: { diagnosticCount: 1, diagnosticBytes: bytes },
         }),
         "validation-failed",
@@ -1518,7 +1619,7 @@ describe("native S2 council corrections", () => {
       expect(Buffer.byteLength(JSON.stringify(result.diagnostics))).toBe(bytes);
       expect(result).not.toHaveProperty("diagnosticsTruncated");
       expect(() =>
-        f.execute("updateBeadProperties", input, { limits: { diagnosticBytes: bytes - 1 } }),
+        f.execute("updateBead", input, { limits: { diagnosticBytes: bytes - 1 } }),
       ).toThrow("diagnostic configuration cannot retain one complete diagnostic");
       expect(f.records.get("beads/a")?.bodyJson).toBe(before);
       expect(f.writes()).toBe(writes);
@@ -2006,10 +2107,10 @@ describe("late native context materialization", () => {
     const calls: string[] = [];
     failure(
       f.execute(
-        "updateLinkProperties",
+        "updateLink",
         {
           link: "links/edge",
-          change,
+          propertiesChange: change,
           ...(scenario.cas ? { expectedRevision: scenario.cas } : {}),
         },
         {
@@ -2077,8 +2178,8 @@ describe("late native context materialization", () => {
       const clock = vi.fn(() => milliseconds + 1000);
       const options = { recordChangeContext, observeCommitTime: clock };
       const updated = f.execute(
-        "updateLinkProperties",
-        { link: "links/edge", change, changeContext: { agent: null } },
+        "updateLink",
+        { link: "links/edge", propertiesChange: change, changeContext: { agent: null } },
         options,
       );
       expect(updated).toMatchObject({ effect: "success", changed: ["links/edge", "beads/a"] });
@@ -2092,15 +2193,19 @@ describe("late native context materialization", () => {
       const writes = f.writes();
       for (const changeContext of [undefined, {}, { message: "ignored" }, { agent: null }]) {
         const linkNoOp = f.execute(
-          "updateLinkProperties",
-          { link: "links/edge", change, ...(changeContext === undefined ? {} : { changeContext }) },
+          "updateLink",
+          {
+            link: "links/edge",
+            propertiesChange: change,
+            ...(changeContext === undefined ? {} : { changeContext }),
+          },
           options,
         );
         const beadNoOp = f.execute(
-          "updateBeadProperties",
+          "updateBead",
           {
             bead: "beads/a",
-            change: [{ op: "replace", path: "/source", value: "kept" }],
+            propertiesChange: [{ op: "replace", path: "/source", value: "kept" }],
             ...(changeContext === undefined ? {} : { changeContext }),
           },
           options,
@@ -2227,14 +2332,14 @@ describe("native context inside actual durable members", () => {
   const cases: ContextCase[] = [
     ["createBead", { id: "beads/new", type: beadType }, true, ["beads/new"]],
     [
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "add", path: "/changed", value: true }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "add", path: "/changed", value: true }] },
       true,
       ["beads/a"],
     ],
     [
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 0 }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 0 }] },
       true,
       [],
     ],
@@ -2246,14 +2351,17 @@ describe("native context inside actual durable members", () => {
         owned ? ["links/new", "beads/a"] : ["links/new"],
       ],
       [
-        "updateLinkProperties",
-        { link: "links/existing", change: [{ op: "add", path: "/changed", value: true }] },
+        "updateLink",
+        {
+          link: "links/existing",
+          propertiesChange: [{ op: "add", path: "/changed", value: true }],
+        },
         owned,
         owned ? ["links/existing", "beads/a"] : ["links/existing"],
       ],
       [
-        "updateLinkProperties",
-        { link: "links/existing", change: [{ op: "replace", path: "", value: {} }] },
+        "updateLink",
+        { link: "links/existing", propertiesChange: [{ op: "replace", path: "", value: {} }] },
         owned,
         [],
       ],
@@ -2326,7 +2434,7 @@ describe("native context inside actual durable members", () => {
                   });
                 else expect(context).toBeUndefined();
               }
-              if (operation === "updateBeadProperties" && owned) {
+              if (operation === "updateBead" && owned) {
                 const source = JSON.parse(
                   resources.find((resource) => resource.id === "beads/a")?.bodyJson ?? "null",
                 ) as ResourceRecord;
@@ -2414,10 +2522,10 @@ describe("native context inside actual durable members", () => {
       const result = submitContextMember(
         store,
         "key",
-        "updateLinkProperties",
+        "updateLink",
         {
           link: "links/existing",
-          change: [{ op: "add", path: "/n", value: 1 }],
+          propertiesChange: [{ op: "add", path: "/n", value: 1 }],
           changeContext: { agent: null, message: "" },
         },
         {
@@ -2855,9 +2963,9 @@ describe("staged properties before endpoint constraints", () => {
     expect(beforeBodyJson).toBeTypeOf("string");
     expect(
       failure(
-        f.execute("updateLinkProperties", {
+        f.execute("updateLink", {
           link: "links/legacy",
-          change: [{ op: "replace", path: "/valid", value: false }],
+          propertiesChange: [{ op: "replace", path: "/valid", value: false }],
         }),
         "validation-failed",
       ).diagnostics,
@@ -2866,9 +2974,9 @@ describe("staged properties before endpoint constraints", () => {
     vi.mocked(f.validate).mockClear();
     expect(
       failure(
-        f.execute("updateLinkProperties", {
+        f.execute("updateLink", {
           link: "links/legacy",
-          change: [{ op: "replace", path: "", value: [] }],
+          propertiesChange: [{ op: "replace", path: "", value: [] }],
         }),
         "validation-failed",
       ).diagnostics,
@@ -2880,16 +2988,16 @@ describe("staged properties before endpoint constraints", () => {
     ).toBe("success");
     vi.mocked(f.validate).mockClear();
     expect(
-      f.execute("updateLinkProperties", {
+      f.execute("updateLink", {
         link: "links/good",
-        change: [{ op: "add", path: "/label", value: "updated" }],
+        propertiesChange: [{ op: "add", path: "/label", value: "updated" }],
       }).effect,
     ).toBe("success");
     const revision = f.body("links/good").revision;
     expect(
-      f.execute("updateLinkProperties", {
+      f.execute("updateLink", {
         link: "links/good",
-        change: [{ op: "replace", path: "/label", value: "updated" }],
+        propertiesChange: [{ op: "replace", path: "/label", value: "updated" }],
       }).effect,
     ).toBe("success");
     expect(f.body("links/good").revision).toBe(revision);
