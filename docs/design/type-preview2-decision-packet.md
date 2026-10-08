@@ -1,6 +1,6 @@
 # Preview 2 Type design — decision packet
 
-Prepared October 3; updated October 4, 2026. Owner: Trish. Product decisions: Donna.
+Prepared October 3; updated October 8, 2026. Owner: Trish. Product decisions: Donna.
 Plan of record: [BDP #59](https://github.com/gastownhall/bdp/issues/59).
 Draft: [PR #60](https://github.com/gastownhall/bdp/pull/60),
 [Type design](type-lifecycle-preview2.md).
@@ -26,6 +26,17 @@ The draft is available now for review of:
    32 proposed acceptance cases; current implementation versus NYI.
 5. Integration with CLI PR102 without changing its command specification or
    implementing Type commands there.
+
+## October 8 decision update
+
+Donna confirmed that updates to existing Beads and Links never implicitly move
+their stored Type pin. An explicit Type selection is required. Pinned input
+selects an exact definition; floating input resolves to a stored pin. Nominal
+filters match exact identity/version when pinned and all versions of the identity
+when floating. Combined property-and-Type updates and their CLI flags are proposed;
+validation/atomicity and graph consequences still need their detailed contract.
+The [dated ruling in the draft](type-lifecycle-preview2.md#october-8-ruling--explicit-affiliation-updates)
+separates these decisions from the remaining questions.
 
 ## Decisions to take in order
 

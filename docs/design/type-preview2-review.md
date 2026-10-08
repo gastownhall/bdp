@@ -3,6 +3,12 @@
 October 4, 2026. Plan: [BDP #59](https://github.com/gastownhall/bdp/issues/59).
 Delivery: [PR60](https://github.com/gastownhall/bdp/pull/60).
 
+## Subsequent changes
+
+October 8 adds the operator's explicit-affiliation-update ruling and updates T06
+and the decision packet. The October 4 review and document digests below are
+historical and do not attest to this later revision.
+
 ## Scope and limits
 
 The initial review council used native Codex, external Claude, and Gemini via

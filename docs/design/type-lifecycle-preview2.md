@@ -38,6 +38,34 @@ The October 1–3 design conversation establishes different levels of authority:
 | Compatibility is directional and includes semantics as well as structure | Direction explored; Donna specifically required same-structure/changed-meaning cases |
 | Compatibility encoded through pinned conformance, author declarations, or version labels | Trish proposals only; no mechanism approved |
 | Installation/removal/migration/package behavior | Unruled; recommendations and acceptance cases below are conditional |
+| Instance updates preserve affiliation unless explicitly set | Confirmed October 8; see the dated ruling below. Combined property/Type update syntax remains a proposal |
+
+## October 8 ruling — explicit affiliation updates
+
+Donna confirmed: an existing Bead or Link never changes its Type affiliation
+implicitly during an update. Omitting the Type selection preserves the exact
+stored pin, even after a newer definition is published. Changing affiliation
+requires explicitly supplying a Type selection. Under the working stable nominal
+identity model, this changes the definition version, not the Type identity.
+
+Pinned input selects an exact definition; floating input selects the current
+definition and is resolved to an exact pin for storage. The definition chosen
+must remain the one used for validation and commit; exact selection timing,
+publication authority and retry policy remain open. A floating nominal filter
+matches the Type identity across versions; a pinned nominal filter matches
+identity plus definition version. Neither filter implies conformance matching.
+
+Donna suggested allowing properties and the explicit Type selection in the same
+update, potentially through `--bead-type` / `--link-type`. The shared design
+should validate the resulting properties against the selected definition and
+commit properties and affiliation together, or change neither. That atomic
+combined-update rule is a proposed consequence for review; concrete CLI flags,
+graph-wide repair and compatibility policies remain undecided. No command or
+runtime behavior is implemented by this ruling.
+
+The agreed foundation also requires each exact Type definition to describe
+immutable structure and semantics. Types-as-Beads remains the favored direction
+under discussion, not a completed metatype or publication design.
 
 ## 2. Verified baseline and scope of inspection
 
@@ -138,8 +166,8 @@ Proposed invariants, subject to D01–D04 and D08:
 3. The chosen definition's semantic dependency closure is fixed: parent Types,
    endpoint requirements and referenced schemas cannot silently float. Pinning
    only a top-level descriptor is insufficient.
-4. Ordinary property edits preserve the existing affiliation pin unless adoption
-   is requested. This is a recommendation, not a decision already made by Donna.
+4. Updates preserve the existing affiliation pin unless explicitly set. Donna
+   confirmed this October 8; a property edit alone never adopts a new definition.
 5. An authoring surface may resolve an unpinned Type selection before commit;
    it records and reports the exact chosen definition. Default selection,
    concurrent publication and retry behavior require D07–D08; no "latest" value
@@ -298,7 +326,7 @@ unresolved choice with one expected outcome or an explicit deferred boundary.
 | T03 | Reinstall the same exact definition/closure; then try different content under the same version | First is idempotent; second refuses without replacing the original | D03, D07 |
 | T04 | Create using an unpinned authoring selection while another definition is published | One exact pin recorded and reported; selection timing and retry outcome fixed | D03, D08, D12 |
 | T05 | Publish definition B while current and retained instances use A | Those instances retain their exact meaning and A binding | D03, D04, D08 |
-| T06 | Perform a property edit on an A instance after B publication | Recommended: A remains governing contract; no implicit adoption | D08 |
+| T06 | Update a Bead or Link pinned to A after B publication, omitting Type selection | Confirmed October 8: the exact A pin remains; no implicit adoption | D08 |
 | T07 | A permits open/closed; B adds paused | Existing data acceptance distinguished from substitution for A; no automatic conformance | D05 |
 | T08 | Amount changes dollars→cents with identical schema | Schema success cannot establish semantic compatibility or authorize unchanged adoption | D05, D10 |
 | T09 | Link meaning changes reviewed-by→approved-by without shape changes | Semantic incompatibility remains visible; no inference from structural equality | D05 |
@@ -340,7 +368,7 @@ approved them.
 | User-defined Bead/Link installation | Decisions/cases drafted; D01–D04/D07/D11 open | NYI | Specification coverage required; implementation optional |
 | Stable Type versions and stored affiliation pins | Working assumption; D01–D04/D12 open | NYI | Specification coverage required |
 | Compatibility and semantic-change rules | Directional cases drafted; D05/D06 open | NYI for proposed version relationships | Specification coverage required |
-| Update/publication/default selection | D08 cases drafted | NYI | Specification coverage required |
+| Update/publication/default selection | Preserve-unless-explicitly-set confirmed October 8; other D08 choices open | NYI | Specification coverage required |
 | Deactivate/remove/retain | D09 choices drafted | NYI | Specification coverage required |
 | Instance migration/adoption/rollback | D10 choices drafted | NYI | Specification coverage required; no engine promised |
 | Package round trip, trust and distribution | D11 choices drafted; no format selected | NYI | Specification coverage required; importer optional |
