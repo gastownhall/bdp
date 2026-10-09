@@ -593,7 +593,7 @@
             "revision": "9c1e-r1",
             "digest": {
               "scheme": "sha-256-jcs",
-              "value": "5e34ceb5dabdca08822ee32862214e9c92de6c2c395fc63964c97fded50030a3"
+              "value": "0862b88ecf0ebc07b4dee8aae428be0308cf030672036f3dbdee0f57a664e7ff"
             }
           },
           {
@@ -601,7 +601,7 @@
             "revision": "dec-9-r2",
             "digest": {
               "scheme": "sha-256-jcs",
-              "value": "84d844516ff305e9ad934aa120bbbcfd0d4faec51c7e1e5fe3d0f3da07cc2051"
+              "value": "0770136fbe6f77dff6930feae2f4214354471990685f6d430eee8c2a0fccec09"
             }
           }
         ],

@@ -887,6 +887,9 @@ where the writer of the current version was not). There is deliberately
 no basis that asserts authentication: a value meaning "the authority
 verified this principal" would be an authority claim, which this member
 never carries — that vocabulary belongs to the future attested member.
+If `attribution` is present, both `principal` and `basis` are required.
+An absent `attribution` means no principal was recorded; an absent `basis`
+inside a present attribution is invalid, not an implicit third value.
 Attribution is **per version**: it is supplied with a write (the
 `attribution` input on every version-minting operation — creating,
 updating, set mutation, and an owned-Link deletion that mints the source's

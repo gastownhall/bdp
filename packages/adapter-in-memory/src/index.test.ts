@@ -750,6 +750,7 @@ describe("reference fixture Scope port", () => {
     // Junk shapes refuse.
     expect(load({ principal: "", basis: "writer-supplied" })).toThrow();
     expect(load({ principal: "agent:x", basis: "verified" })).toThrow("basis must be one of");
+    expect(load({ principal: "agent:x", status: "claimed" })).toThrow();
     expect(load({ principal: "agent:x" })).toThrow();
     expect(load({ principal: "agent:x", basis: "writer-supplied", extra: 1 })).toThrow();
     expect(load("agent:x")).toThrow();

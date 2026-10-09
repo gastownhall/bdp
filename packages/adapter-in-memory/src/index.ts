@@ -480,7 +480,12 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       ...(localId === "demo-j-k"
         ? { attribution: { principal: "svc:reference-realization", basis: "unknown" as const } }
         : localId === "external-target"
-          ? { attribution: { principal: "agent:reference-wildcard", basis: "writer-supplied" as const } }
+          ? {
+              attribution: {
+                principal: "agent:reference-wildcard",
+                basis: "writer-supplied" as const,
+              },
+            }
           : {}),
       source: resolveEndpoint(String(source)),
       target: resolveEndpoint(String(target)),

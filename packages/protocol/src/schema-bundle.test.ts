@@ -465,6 +465,10 @@ describe("BDP v0 schema bundle", () => {
       attribution: { principal: "agent:x", basis: "verified" },
     });
     expectInvalid("beadRecord", { ...beadRecord(), attribution: { principal: "agent:x" } });
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      attribution: { principal: "agent:x", status: "claimed" },
+    });
     expectInvalid("beadRecord", { ...beadRecord(), attribution: { basis: "writer-supplied" } });
     expectInvalid("beadRecord", {
       ...beadRecord(),
