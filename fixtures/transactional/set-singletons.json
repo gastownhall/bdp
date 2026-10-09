@@ -24,7 +24,7 @@
           },
           "attribution": {
             "principal": "human:donna",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -96,7 +96,7 @@
           ],
           "attribution": {
             "principal": "human:donna",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -155,7 +155,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -233,7 +233,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -270,7 +270,7 @@
                 },
                 "attribution": {
                   "principal": "agent:prior",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 }
               }
             }
@@ -290,7 +290,7 @@
           },
           "attribution": {
             "principal": "agent:prior",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       ]

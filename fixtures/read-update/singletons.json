@@ -24,7 +24,7 @@
           },
           "attribution": {
             "principal": "human:janet",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -43,7 +43,7 @@
             "revision": "t-1-r1",
             "attribution": {
               "principal": "human:janet",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "properties": {
               "title": "Draft the singleton fixtures",
@@ -78,7 +78,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -97,7 +97,7 @@
             "revision": "t-1-r1",
             "attribution": {
               "principal": "human:janet",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "properties": {
               "title": "Draft the singleton fixtures",
@@ -165,7 +165,7 @@
           "properties": {},
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -184,7 +184,7 @@
             "revision": "cites-110-r1",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/decision-7",
             "target": {
@@ -222,7 +222,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -241,7 +241,7 @@
             "revision": "cites-110-r2",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/decision-7",
             "target": {
@@ -282,7 +282,7 @@
           ],
           "attribution": {
             "principal": "human:janet",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -301,7 +301,7 @@
             "revision": "cites-110-r2",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/decision-7",
             "target": {
@@ -334,7 +334,7 @@
           "expectedRevision": "cites-110-r2",
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -414,7 +414,7 @@
           },
           "attribution": {
             "principal": "human:janet",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -433,7 +433,7 @@
             "revision": "t-2-r1",
             "attribution": {
               "principal": "human:janet",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "properties": {
               "title": "Check the media-type parameter",
@@ -589,7 +589,7 @@
           },
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -747,7 +747,7 @@
           },
           "attribution": {
             "principal": "human:janet",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -766,7 +766,7 @@
             "revision": "t-1-r1",
             "attribution": {
               "principal": "human:janet",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "properties": {
               "title": "Draft the singleton fixtures",

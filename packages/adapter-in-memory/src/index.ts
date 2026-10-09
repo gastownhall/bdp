@@ -1,8 +1,8 @@
 import {
   type AbsoluteHttpUrl,
-  ATTRIBUTION_STATUSES,
+  ATTRIBUTION_BASES,
   type Attribution,
-  type AttributionStatus,
+  type AttributionBasis,
   compareCanonicalIds,
   referenceUri,
   type BeadCollectionRequest as BeadCollectionOperation,
@@ -382,7 +382,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       // Carried attribution, in lockstep with the portable fixture: demo-a
       // claims a fixture author; everything else records none.
       ...(localId === "demo-a"
-        ? { attribution: { principal: "agent:fixture-author", status: "claimed" as const } }
+        ? { attribution: { principal: "agent:fixture-author", basis: "writer-supplied" as const } }
         : {}),
       properties: parsePropertiesRecord({
         id: localId,
@@ -475,12 +475,12 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       type,
       revision: "1",
       // demo-j-k carries `unknown`-status attribution (lockstep with the
-      // portable fixture), while external-target carries claimed attribution
+      // portable fixture), while external-target carries writer-supplied attribution
       // through both the first-class and wildcard-owned inline planes.
       ...(localId === "demo-j-k"
-        ? { attribution: { principal: "svc:reference-realization", status: "unknown" as const } }
+        ? { attribution: { principal: "svc:reference-realization", basis: "unknown" as const } }
         : localId === "external-target"
-          ? { attribution: { principal: "agent:reference-wildcard", status: "claimed" as const } }
+          ? { attribution: { principal: "agent:reference-wildcard", basis: "writer-supplied" as const } }
           : {}),
       source: resolveEndpoint(String(source)),
       target: resolveEndpoint(String(target)),
@@ -659,19 +659,19 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
 }
 
 /**
- * Parses an optional carried-attribution member: exactly { principal, status }
- * with a nonempty principal and a status from the closed vocabulary. Bytes are
+ * Parses an optional carried-attribution member: exactly { principal, basis }
+ * with a nonempty principal and a basis from the closed vocabulary. Bytes are
  * preserved; the realization asserts, the protocol attests nothing.
  */
 function readFixtureAttribution(value: unknown, path: string): Attribution | undefined {
   if (value === undefined) return undefined;
   const record = readRecord(value, path);
-  requireAllowedKeys(record, ["principal", "status"], path);
+  requireAllowedKeys(record, ["principal", "basis"], path);
   const principal = readNonemptyString(record.principal, `${path}.principal`);
-  const status = readNonemptyString(record.status, `${path}.status`);
-  if (!(ATTRIBUTION_STATUSES as readonly string[]).includes(status))
-    throw new Error(`${path}.status must be one of ${ATTRIBUTION_STATUSES.join(", ")}`);
-  return Object.freeze({ principal, status: status as AttributionStatus });
+  const basis = readNonemptyString(record.basis, `${path}.basis`);
+  if (!(ATTRIBUTION_BASES as readonly string[]).includes(basis))
+    throw new Error(`${path}.basis must be one of ${ATTRIBUTION_BASES.join(", ")}`);
+  return Object.freeze({ principal, basis: basis as AttributionBasis });
 }
 
 /**

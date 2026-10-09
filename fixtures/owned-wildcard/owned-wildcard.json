@@ -79,7 +79,7 @@
       "revision": "mem-1-r3",
       "attribution": {
         "principal": "agent:recall",
-        "status": "claimed"
+        "basis": "writer-supplied"
       },
       "properties": {
         "title": "Owned Links version their source",
@@ -95,7 +95,7 @@
             "revision": "contradicts-7-r1",
             "attribution": {
               "principal": "agent:recall",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/mem-1",
             "target": "https://beads.example/acme/beads/mem-2",
@@ -112,7 +112,7 @@
             "revision": "supports-3-r2",
             "attribution": {
               "principal": "agent:recall",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/mem-1",
             "target": {
@@ -128,7 +128,7 @@
             "revision": "supports-9-r1",
             "attribution": {
               "principal": "agent:recall",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/mem-1",
             "target": "https://beads.example/acme/beads/mem-2",

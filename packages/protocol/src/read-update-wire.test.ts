@@ -587,7 +587,7 @@ describe("shapes the bundle now rejects", () => {
     [
       "deleteAliasRequest",
       "an alias delete carrying attribution",
-      { alias: "alias/x", attribution: { principal: "p", status: "claimed" } },
+      { alias: "alias/x", attribution: { principal: "p", basis: "writer-supplied" } },
     ],
     [
       "sequenceRequest",

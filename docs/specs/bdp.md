@@ -874,17 +874,17 @@ distinct name; `attribution` never becomes it.
 ```text
 Attribution {
   principal   // nonempty opaque string naming who the version is attributed to
-  status      // "claimed" | "unknown"
+  basis       // "writer-supplied" | "unknown"
 }
 ```
 
-`status` records the realization's basis for the value, not a BDP
-guarantee, and v0 defines exactly two: `claimed` — the principal was
+`basis` records the realization's basis for the value, not a BDP
+guarantee, and v0 defines exactly two: `writer-supplied` — the principal was
 supplied by the writer of that version, as written; `unknown` — the
 principal is carried from data whose relationship to this version the
 realization cannot establish (an imported record; a creator recorded
 where the writer of the current version was not). There is deliberately
-no status that asserts authentication: a value meaning "the authority
+no basis that asserts authentication: a value meaning "the authority
 verified this principal" would be an authority claim, which this member
 never carries — that vocabulary belongs to the future attested member.
 Attribution is **per version**: it is supplied with a write (the
@@ -2920,7 +2920,7 @@ A Bead record is:
   "id": "https://beads.example/acme/beads/task-42",
   "type": "https://work.example/types/task",
   "revision": "opaque-task-revision",
-  "attribution": { "principal": "agent:planner", "status": "claimed" },
+  "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
   "properties": {
     "title": "Specify BDP mutation",
     "status": "open"
@@ -3837,7 +3837,7 @@ plus one required `idempotencyKey`:
         "title": "Adopt sequence envelopes",
         "status": "proposed"
       },
-      "attribution": { "principal": "agent:planner", "status": "claimed" }
+      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
     },
     {
       "idempotencyKey": "w1-adr-cite",
@@ -3849,7 +3849,7 @@ plus one required `idempotencyKey`:
         "revision": "8f0e2b"
       },
       "properties": {},
-      "attribution": { "principal": "agent:planner", "status": "claimed" }
+      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
     },
     {
       "idempotencyKey": "w1-task-42-close",
@@ -3863,7 +3863,7 @@ plus one required `idempotencyKey`:
           "value": "closed"
         }
       ],
-      "attribution": { "principal": "agent:planner", "status": "claimed" }
+      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
     }
   ]
 }
@@ -4139,7 +4139,7 @@ An entry is the member's mutation result, its alias result under
         "id": "https://beads.example/acme/beads/adr-104",
         "type": "https://work.example/types/decision",
         "revision": "opaque-adr-revision-1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "properties": {
           "title": "Adopt sequence envelopes",
           "status": "proposed"
@@ -4156,7 +4156,7 @@ An entry is the member's mutation result, its alias result under
         "id": "https://beads.example/acme/links/cites-105",
         "type": "https://work.example/types/cites",
         "revision": "opaque-cites-revision-1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "source": "https://beads.example/acme/beads/adr-104",
         "target": {
           "uri": "https://github.example/issues/123",
@@ -4756,10 +4756,10 @@ discriminator selects one of the eight generic operation records:
     },
     "attribution": {
       "type": "object",
-      "required": ["principal", "status"],
+      "required": ["principal", "basis"],
       "properties": {
         "principal": { "type": "string", "minLength": 1 },
-        "status": { "enum": ["claimed", "unknown"] }
+        "basis": { "enum": ["writer-supplied", "unknown"] }
       },
       "additionalProperties": false
     },
@@ -5114,7 +5114,7 @@ per selected Resource, in declaration order:
         "id": "https://beads.example/acme/beads/dec-9",
         "type": "https://work.example/types/decision",
         "revision": "dec-9-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "properties": { "title": "Adopt owned Links", "status": "proposed" },
         "ownedLinks": { "https://work.example/types/cites": [] }
       }
@@ -5127,7 +5127,7 @@ per selected Resource, in declaration order:
         "id": "https://beads.example/acme/links/9c1e",
         "type": "https://work.example/types/cites",
         "revision": "9c1e-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "source": "https://beads.example/acme/beads/dec-9",
         "target": "https://beads.example/acme/beads/task-42",
         "properties": { "role": "evidence" }

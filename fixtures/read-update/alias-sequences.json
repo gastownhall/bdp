@@ -30,7 +30,7 @@
               ],
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -59,7 +59,7 @@
                 "revision": "note-120-r2",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Alias mutation joins Read+Update",
@@ -118,7 +118,7 @@
               ],
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -147,7 +147,7 @@
                 "revision": "note-120-r2",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Alias mutation joins Read+Update",
@@ -189,7 +189,7 @@
           },
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -208,7 +208,7 @@
             "revision": "alias-mutation-r1",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "properties": {
               "title": "Take the released alias path",
@@ -243,7 +243,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -295,7 +295,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -326,7 +326,7 @@
                 "revision": "task-119-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Second, committed",

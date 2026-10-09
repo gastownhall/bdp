@@ -58,7 +58,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -77,7 +77,7 @@
             "revision": "task-13-r2",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "properties": {
               "title": "Track the alias-spelled references",
@@ -107,7 +107,7 @@
           "properties": {},
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -126,7 +126,7 @@
             "revision": "relates-117-r1",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/task-13",
             "target": "https://beads.example/acme/beads/task-14",
@@ -164,7 +164,7 @@
               "properties": {},
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -194,7 +194,7 @@
                 "revision": "relates-118-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "source": "https://beads.example/acme/beads/task-14",
                 "target": "https://beads.example/acme/beads/task-13",
@@ -231,7 +231,7 @@
           "properties": {},
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -250,7 +250,7 @@
             "revision": "relates-117-r1",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/task-13",
             "target": "https://beads.example/acme/beads/task-14",
@@ -283,7 +283,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -326,7 +326,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },

@@ -699,7 +699,7 @@
             "metadata": {},
             "attribution": {
               "principal": "agent:reference-wildcard",
-              "status": "claimed"
+              "basis": "writer-supplied"
             }
           }
         ]
@@ -708,11 +708,11 @@
     "attribution": {
       "bead": {
         "principal": "agent:fixture-author",
-        "status": "claimed"
+        "basis": "writer-supplied"
       },
       "link": {
         "principal": "svc:reference-realization",
-        "status": "unknown"
+        "basis": "unknown"
       }
     },
     "wildcard-descriptors": {
@@ -1098,7 +1098,7 @@
       "revision": "1",
       "attribution": {
         "principal": "agent:fixture-author",
-        "status": "claimed"
+        "basis": "writer-supplied"
       },
       "properties": {
         "id": "demo-a",
@@ -1413,7 +1413,7 @@
       "revision": "1",
       "attribution": {
         "principal": "svc:reference-realization",
-        "status": "unknown"
+        "basis": "unknown"
       },
       "source": "beads/demo-j",
       "target": "beads/demo-k",
@@ -1438,7 +1438,7 @@
       },
       "attribution": {
         "principal": "agent:reference-wildcard",
-        "status": "claimed"
+        "basis": "writer-supplied"
       }
     },
     {

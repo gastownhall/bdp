@@ -50,7 +50,7 @@
                     "revision": "dec-9-r2",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "properties": {
                       "title": "Adopt owned Links",
@@ -64,7 +64,7 @@
                           "revision": "9c1e-r1",
                           "attribution": {
                             "principal": "agent:planner",
-                            "status": "claimed"
+                            "basis": "writer-supplied"
                           },
                           "source": "https://beads.example/acme/beads/dec-9",
                           "target": "https://beads.example/acme/beads/task-42",
@@ -85,7 +85,7 @@
                     "revision": "9c1e-r1",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42",
@@ -127,7 +127,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     }
                   }
                 },
@@ -147,7 +147,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42"
@@ -211,7 +211,7 @@
                         "revision": "9c1e-r1",
                         "attribution": {
                           "principal": "agent:planner",
-                          "status": "claimed"
+                          "basis": "writer-supplied"
                         },
                         "source": "https://beads.example/acme/beads/dec-9",
                         "target": "https://beads.example/acme/beads/task-42",
@@ -222,7 +222,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     }
                   }
                 },
@@ -542,7 +542,7 @@
               "revision": "9c1e-r2",
               "attribution": {
                 "principal": "agent:erasure-administrator",
-                "status": "claimed"
+                "basis": "writer-supplied"
               },
               "source": "https://beads.example/owned-erasure/beads/dec-9",
               "target": "https://beads.example/owned-erasure/beads/task-42",
@@ -560,7 +560,7 @@
               "revision": "dec-9-owned-corrected-r3",
               "attribution": {
                 "principal": "agent:erasure-administrator",
-                "status": "claimed"
+                "basis": "writer-supplied"
               },
               "properties": {
                 "title": "Adopt owned Links",
@@ -574,7 +574,7 @@
                     "revision": "9c1e-r2",
                     "attribution": {
                       "principal": "agent:erasure-administrator",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/owned-erasure/beads/dec-9",
                     "target": "https://beads.example/owned-erasure/beads/task-42",
@@ -629,7 +629,7 @@
               ],
               "attribution": {
                 "principal": "agent:erasure-administrator",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           },
@@ -663,13 +663,13 @@
                   ],
                   "attribution": {
                     "principal": "agent:erasure-administrator",
-                    "status": "claimed"
+                    "basis": "writer-supplied"
                   }
                 }
               },
               "attribution": {
                 "principal": "agent:erasure-administrator",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           }

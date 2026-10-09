@@ -818,7 +818,7 @@ describe("G4 complete current ownership and observed integrity", () => {
           if (fault === "revision") value.revision = "different";
           if (fault === "properties") value.properties = { extra: 1 };
           if (fault === "attribution")
-            value.attribution = { principal: "urn:test:different", status: "unknown" };
+            value.attribution = { principal: "urn:test:different", basis: "unknown" };
           if (fault === "context")
             value.changeContext.committedAt.value = "2001-01-01T00:00:00.000Z";
           if (fault === "pin") value.target.revision = "other-pin";

@@ -1771,7 +1771,7 @@ describe("whole-plan cross-boundary regression controls", () => {
     );
     const attributable = f.singleton(
       "createBead",
-      { type, attribution: { principal: "human:alice", status: "claimed" } },
+      { type, attribution: { principal: "human:alice", basis: "writer-supplied" } },
       "actor",
     );
     f.present(attributable);
@@ -1779,7 +1779,7 @@ describe("whole-plan cross-boundary regression controls", () => {
       code(
         f.run(
           "createBead",
-          { type, attribution: { principal: "human:bob", status: "claimed" } },
+          { type, attribution: { principal: "human:bob", basis: "writer-supplied" } },
           "actor",
         ),
       ),

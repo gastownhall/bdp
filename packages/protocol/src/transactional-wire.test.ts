@@ -2127,7 +2127,7 @@ describe("Transactional correction regression probes", () => {
       event.id = `${event.id}-earlier`;
       data.previousRevision = `${data.previousRevision}-before`;
       data.revision = `${data.revision}-intermediate`;
-      data.attribution = { principal: "human:earlier-author", status: "claimed" };
+      data.attribution = { principal: "human:earlier-author", basis: "writer-supplied" };
       const owned = data.ownedLink as JsonRecord | undefined;
       if (owned !== undefined) {
         const link = owned.link as JsonRecord;

@@ -1188,15 +1188,15 @@
     },
     "attribution": {
       "type": "object",
-      "required": ["principal", "status"],
+      "required": ["principal", "basis"],
       "properties": {
         "principal": {
           "type": "string",
           "minLength": 1
         },
-        "status": {
+        "basis": {
           "type": "string",
-          "enum": ["claimed", "unknown"]
+          "enum": ["writer-supplied", "unknown"]
         }
       },
       "additionalProperties": false

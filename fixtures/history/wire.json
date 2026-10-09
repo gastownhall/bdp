@@ -132,7 +132,7 @@
         },
         "attribution": {
           "principal": "donna",
-          "status": "claimed"
+          "basis": "writer-supplied"
         },
         "changeContext": {
           "committedAt": {
@@ -165,7 +165,7 @@
               },
               "attribution": {
                 "principal": "donna",
-                "status": "claimed"
+                "basis": "writer-supplied"
               },
               "changeContext": {
                 "committedAt": {
@@ -205,7 +205,7 @@
         },
         "attribution": {
           "principal": "donna",
-          "status": "claimed"
+          "basis": "writer-supplied"
         },
         "changeContext": {
           "committedAt": {
@@ -730,7 +730,7 @@
           },
           "attribution": {
             "principal": "donna",
-            "status": "claimed"
+            "basis": "writer-supplied"
           },
           "changeContext": {
             "committedAt": {
@@ -773,7 +773,7 @@
           },
           "attribution": {
             "principal": "donna",
-            "status": "claimed"
+            "basis": "writer-supplied"
           },
           "changeContext": {
             "committedAt": {
