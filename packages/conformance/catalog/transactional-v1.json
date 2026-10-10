@@ -957,7 +957,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#events-and-event-sources",
-          "selectedText": "Exactly one of the two members is present in any `updated` delta."
+          "selectedText": "at least one of `change` and `metadataChange`"
         }
       ]
     },
@@ -970,7 +970,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#events-and-event-sources",
-          "selectedText": "For `updated`, it is the owned Link's delta — the Link's `id` and `type`, its `previousRevision` and fresh `revision`, the committed `change`, and the Link's new version's `attribution` when one was recorded"
+          "selectedText": "`change` and/or `metadataChange`"
         }
       ]
     },
@@ -1356,7 +1356,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#version-erasure",
-          "selectedText": "For the owning Bead's successor induced by an owned Link's correction or deletion, its `updated` fact instead carries only `ownedLink`, never both delta forms."
+          "selectedText": "For the owning Bead's successor induced by an owned Link's correction or deletion, its `updated` fact instead carries only `ownedLink`, never a direct object delta."
         }
       ]
     },

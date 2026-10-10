@@ -1,0 +1,109 @@
+# Draft BDP v0 amendment: common Resource metadata
+
+This is a review packet for the normative BDP spec, schemas and conformance
+artifacts. It does not change the current v0 wire contract. The Graph CLI
+Specification (Draft) requires a common top-level metadata object on Beads and
+informational Links; current BDP v0 describes only Type-validated `properties`.
+No BDP implementation is deployed, so the wire contract can still be amended
+coherently before a conformance claim. Trish's Type proposal is provisional and
+does not supply this Resource member.
+
+## Joint CLI/BDP review crosswalk
+
+The two available council reviews compared the Graph CLI draft with public
+BDP v0. Gemini produced no review, so this table records source-checked seams,
+not a three-provider consensus. The council reviewed the frozen CLI draft at
+`72c559e7bd0a9976d98c5adbfa7c3aad30b4f80d`; its corrections are tracked
+in `versioned-beads/beads#102`, now at
+`ecefcaa3d0b9b5801cd9935aaa45f95a2a7f992c`. The BDP baseline is
+`gastownhall/bdp:main` at
+`182f1fcf8a01d896976bff3c9e3fb87c596c6ca6`.
+
+| Seam | Disposition before a normative BDP patch |
+| --- | --- |
+| Multi-Issue partial success | The CLI now states per-target results and exit 1 after a mixed batch. BDP `sequence` already has per-operation outcomes; no new wire batch guarantee follows from the CLI spelling. |
+| Removed Link marker | BDP deletion mints no Resource version. The CLI draft distinguishes a local deletion event from citable `versions` rows. The pinned integration build still emits a non-citable marker; [draft fork PR #73](https://github.com/donnabox/beads/pull/73) omits it from CLI Resource-version rows while retaining identity and prior snapshots, pending combined-source qualification. Do not add a BDP deletion version to match the old projection. |
+| Owned source guards | The installed blocking Dependency is owned by its Issue source; an informational Link can be Memory-owned without being Issue-owned. Preserve BDP's declared-ownership source revision rule. The CLI's native Issue policy guard is not a new generic BDP ownership rule. |
+| Observed Issue close guard | Combined [draft fork PR #74](https://github.com/donnabox/beads/pull/74) compares one observed complete graph Issue revision before delegating to the native close writer, including on an already-closed retry. This is CLI compare-and-set parity for an Issue lifecycle command; it does not add a BDP `close` operation or change BDP's generic update guard. The combined candidate still awaits exact-source qualification and review. |
+| Last-touched Issue workflow | Combined [draft fork PR #75](https://github.com/donnabox/beads/pull/75) keeps a workspace-local selector for interactive no-ID update/close and the next claimed Issue. It is CLI state, not a Resource member or BDP wire operation; scripts still require an ID unless they opt into the fallback. The draft awaits complete qualification and review. |
+| Issue classification | The preview CLI adapts ordinary `task`/`bug` classification through one Issue Bead Type and an `issue_type` property. BDP's nominal Type collection model remains distinct. Reconcile the adapter with the Type owner before claiming generic Type migration. |
+| Common Resource metadata | This is the normative gap addressed by the proposed contract and migration inventory below. No schema or wire claim is made by this packet. |
+
+## Decided contract (Donna, 2026-10-07)
+
+Donna chose one atomic Resource update for properties and metadata. Every
+Resource read exposes `metadata: {}` when no metadata properties have been set,
+including a retained state written before this member existed. That read
+projection does not rewrite retained bytes or mint a revision. An update may
+clear metadata back to `{}`; the clear is a semantic no-op when it is already
+empty. The normative spec, schemas, fixtures and conformance cases must move
+together before this packet can be called implemented.
+
+1. `metadata` is a JSON object on every Bead and Link record, including an
+   empty `{}` on creation when no metadata was supplied. It is distinct from
+   `properties`, `attribution`, Type descriptors, and transport metadata.
+   Resource metadata is client-authored state; the authority does not infer
+   timestamps, provenance, actor names or Type classification from it.
+2. The same admissible-number, validation, authorization, revision, no-op,
+   retained-address and exact-read rules that govern mutable `properties`
+   govern `metadata`. An actual metadata change mints one Resource revision
+   and one `updated` Event. A semantically equal update retains the revision
+   and attribution. A mutation of an owned Link also versions its declared
+   source; an unowned Link does not. No target Bead revision changes.
+3. Resource selectors may test singular paths under `metadata`. The field is
+   present in collection records, History snapshots, authorized exact reads,
+   comparison inputs and owned Link projections. Its content is not a
+   replacement for Type validation of `properties`.
+4. Creation accepts an optional metadata object. An update can atomically
+   change properties and metadata under one `expectedRevision` and one
+   transaction-local operation result. Omitting either plane preserves it.
+   A root replacement with `{}` clears metadata. The existing ordered JSON
+   Pointer Property Change grammar is a suitable wire grammar for each plane;
+   CLI merge/set/unset flags can lower to it without implicit JSON Merge Patch.
+5. No deletion version, timestamp, cascade or restoration behavior follows
+   from this amendment. Existing incident-Link refusal and retained identity
+   rules stand.
+
+## Decided wire operation shape
+
+Rename the current `update-bead-properties` and `update-link-properties`
+singletons to `update-bead` and `update-link`. Their request records accept
+optional `propertiesChange` and `metadataChange` members; at least one must
+be present. This avoids a misleading operation name and admits one atomic
+properties-plus-metadata edit. Use the existing ordered JSON Pointer
+`propertyChange` grammar for both members, applied independently to their
+respective objects. A metadata `replace` at the root path `""` with `{}` clears
+it. `expectedRevision`, attribution,
+change-context, idempotency and source-result behavior are unchanged. Since
+there are no deployed BDP implementations, the renaming cost is in spec,
+schema, fixtures and conformance rather than external clients. The alternative
+is two metadata-specific singleton operations, but Read+Update `sequence` is
+non-atomic and would not express the CLI's combined edit as one operation.
+
+This shape is decided for the pending normative patch. Do not publish a schema
+accepting metadata records until the operation, no-op and retained-read
+semantics are reflected in the implementation and conformance artifacts.
+
+## Exact fanout for the normative amendment
+
+| Family | Migrate together | Validation |
+| --- | --- | --- |
+| Model and wire prose | `docs/specs/bdp.md` Bead/Link model, revisions, selectors, operations, Events, Resource records, History and Read+Update/Transactional profile tables | Review each member against the Graph CLI draft and the existing owned-Link rules |
+| Schemas and generated copies | `schemas/bdp-v0.schema.json` and byte-identical `packages/protocol/schemas/bdp-v0.schema.json`; discovery and singleton/sequence request definitions | Schema sync and package tests; positive and negative record/update validation |
+| Examples and fixtures | `fixtures/read-update/*`, `fixtures/transactional/*`, `fixtures/history/*`, relevant reference-domain and owned-Link examples | Validate every changed fixture against the changed schema |
+| Conformance | `packages/conformance/catalog/*`, runner action names, wire projection helpers, lockstep tests and matrices | Catalog/fixture/manifest tests; no claim of runtime conformance from catalog presence |
+| Vendored Beads copy | Explicit follow-up after public BDP review and source pin; no automatic vendor drift | Exact hash and whole-tree verification at the Beads integration point |
+
+Preserve as compatibility evidence the current BDP v0 examples and failed
+receipts until a replacement is independently reviewed. The protocol's
+existing `revision` token remains the canonical current-state guard; CLI
+`bd versions` row `version` and local ordering number do not rename it.
+
+## Held boundary
+
+- Keep the Type design boundary: the preview CLI's single Issue Bead Type plus
+  `issue_type` property is an adapter for ordinary `bd`, not a change to BDP's
+  nominal Type model. Any generic Type migration is owned by the Type design.
+
+These decisions do not authorize a schema-v6 Beads workspace migration. That
+local migration needs its own compatibility and data-preservation plan.

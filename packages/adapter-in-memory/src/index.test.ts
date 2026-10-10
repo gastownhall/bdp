@@ -124,6 +124,7 @@ describe("reference fixture Scope port", () => {
             type: task.id,
             revision: "7",
             properties: { title: "Reviewed fixture", status: "open" },
+            metadata: {},
           },
         ],
         next: null,
@@ -674,6 +675,7 @@ describe("reference fixture Scope port", () => {
           source: `${scope}beads/d`,
           target: `${scope}beads/e`,
           properties: {},
+          metadata: {},
         },
         {
           id: `${scope}links/two`,
@@ -682,6 +684,7 @@ describe("reference fixture Scope port", () => {
           source: `${scope}beads/d`,
           target: { uri: "urn:external:w", revision: "w-9" },
           properties: {},
+          metadata: {},
         },
       ],
     });

@@ -344,7 +344,28 @@ export { storedRecord as readStoredResource };
 
 function storedRecord(stored: EvaluatorStoredResource, scope: string): ResourceRecord {
   const value = JSON.parse(stored.bodyJson) as unknown;
-  const record = stored.kind === "bead" ? parseBeadRecord(value) : parseLinkRecord(value);
+  // Legacy retained bodies have no common metadata member. Project the empty
+  // object for reads without changing their stored bytes or revision token.
+  const withMetadata = (candidate: unknown): unknown =>
+    candidate && typeof candidate === "object" && !Array.isArray(candidate)
+      ? { ...candidate, metadata: "metadata" in candidate ? candidate.metadata : {} }
+      : candidate;
+  let projected = withMetadata(value);
+  if (stored.kind === "bead" && projected && typeof projected === "object") {
+    const bead = projected as Record<string, unknown>;
+    const owned = bead.ownedLinks;
+    if (owned && typeof owned === "object" && !Array.isArray(owned))
+      projected = {
+        ...bead,
+        ownedLinks: Object.fromEntries(
+          Object.entries(owned).map(([type, links]) => [
+            type,
+            Array.isArray(links) ? links.map(withMetadata) : links,
+          ]),
+        ),
+      };
+  }
+  const record = stored.kind === "bead" ? parseBeadRecord(projected) : parseLinkRecord(projected);
   if (resourcePath(scope, record.id, stored.kind) !== stored.id)
     throw new Error("stored Resource identity differs from its index");
   return record;
@@ -754,11 +775,18 @@ function evaluate(
   }
   const properties = deleting
     ? (before?.properties ?? {})
-    : "change" in input
-      ? patch(before?.properties ?? {}, input.change, options)
+    : "propertiesChange" in input && input.propertiesChange !== undefined
+      ? patch(before?.properties ?? {}, input.propertiesChange, options)
       : "properties" in input
         ? (input.properties ?? {})
-        : {};
+        : (before?.properties ?? {});
+  const commonMetadata = deleting
+    ? (before?.metadata ?? {})
+    : "metadataChange" in input && input.metadataChange !== undefined
+      ? patch(before?.metadata ?? {}, input.metadataChange, options)
+      : "metadata" in input
+        ? (input.metadata ?? {})
+        : (before?.metadata ?? {});
   if (!deleting) validatePropertyContracts(effective, properties, options.limits, fault);
   for (const { type: declaringType, side, constraint, address, actual } of endpointChecks) {
     if (actual !== undefined) {
@@ -809,7 +837,11 @@ function evaluate(
     sourceDescriptor?.describes === "bead" ? sourceDescriptor.ownsOutgoing : undefined;
   const owned =
     ownership !== undefined && (Object.hasOwn(ownership, type) || Object.hasOwn(ownership, "*"));
-  const noOp = !creating && !deleting && equal(properties, before?.properties);
+  const noOp =
+    !creating &&
+    !deleting &&
+    equal(properties, before?.properties) &&
+    equal(commonMetadata, before?.metadata ?? {});
   const contextInput = "changeContext" in input ? input.changeContext : undefined;
   // Protocol defaults: omitted and {} both carry only undetermined states.
   const needsContext =
@@ -837,6 +869,7 @@ function evaluate(
         type,
         revision: revision as string,
         properties,
+        commonMetadata,
         metadata: metadata(before),
         endpoints,
       };
@@ -913,6 +946,7 @@ function evaluate(
         type: source.type,
         revision: sourceRevision,
         properties: source.properties,
+        commonMetadata: source.metadata ?? {},
         metadata: metadata(source),
         endpoints: undefined,
       },
@@ -972,11 +1006,15 @@ function evaluate(
     fail("revision-mismatch");
   if (deleting && resourceKind === "bead" && tx.incidentLinks(id).length)
     fail("incident-links-exist");
-  if ("change" in input) {
+  if ("propertiesChange" in input || "metadataChange" in input) {
     const limits = options.limits;
-    if (limits.patchOperations !== undefined && input.change.length > limits.patchOperations)
+    const changes = [
+      ...("propertiesChange" in input ? (input.propertiesChange ?? []) : []),
+      ...("metadataChange" in input ? (input.metadataChange ?? []) : []),
+    ];
+    if (limits.patchOperations !== undefined && changes.length > limits.patchOperations)
       fail("limit-exceeded");
-    for (const change of input.change)
+    for (const change of changes)
       if (
         (limits.patchPathBytes !== undefined &&
           Buffer.byteLength(change.path) > limits.patchPathBytes) ||
@@ -1049,6 +1087,7 @@ interface VersionRecipe {
   readonly type: string;
   readonly revision: string;
   readonly properties: BeadRecord["properties"];
+  readonly commonMetadata: NonNullable<BeadRecord["metadata"]>;
   readonly endpoints: { readonly source: Reference; readonly target: Reference } | undefined;
   readonly metadata: {
     readonly attribution?: Attribution;
@@ -1077,6 +1116,7 @@ function materializeVersion(
     type: recipe.type,
     revision: recipe.revision,
     properties: recipe.properties,
+    metadata: recipe.commonMetadata,
     ...(recipe.metadata.attribution === undefined
       ? {}
       : { attribution: recipe.metadata.attribution }),
