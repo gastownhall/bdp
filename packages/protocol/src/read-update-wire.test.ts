@@ -68,6 +68,8 @@ interface RetainedEntry {
 
 interface FixtureExchange {
   readonly id: string;
+  /** An illustrative prior record for patch examples; never an observed store read. */
+  readonly priorResource?: JsonRecord;
   /** A narrated precondition — an assumption the example rests on, never an observation. */
   readonly condition?: string;
   /** A canonical Scope URL other than the fixture's, for a restored-Scope example. */
@@ -185,6 +187,7 @@ describe("Read+Update wire fixtures", () => {
       "read-update-carrier-rejections",
       "read-update-discovery",
       "read-update-idempotency-recovery",
+      "read-update-property-metadata-changes",
       "read-update-semantic-identity",
       "read-update-sequence-dependent-bindings",
       "read-update-sequence-idempotency-dispositions",
@@ -335,6 +338,91 @@ describe("Read+Update wire fixtures", () => {
       });
     });
   }
+});
+
+describe("illustrative property and metadata replacement examples", () => {
+  const fixture = fixtures.find(({ id }) => id === "read-update-property-metadata-changes");
+  if (fixture === undefined) throw new Error("missing property/metadata fixture");
+
+  function applyExampleChange(before: JsonRecord, changes: readonly JsonRecord[] | undefined) {
+    let result: unknown = structuredClone(before);
+    for (const change of changes ?? []) {
+      if (change.path === "") {
+        expect(change.op).toBe("replace");
+        result = structuredClone(change.value);
+      } else {
+        expect(change.op).toBe("add");
+        expect(change.path).toMatch(/^\/[A-Za-z]+$/);
+        expect(result).toBeTypeOf("object");
+        (result as JsonRecord)[(change.path as string).slice(1)] = structuredClone(change.value);
+      }
+    }
+    return result;
+  }
+
+  it("keeps both patch documents and all narrated postimages internally consistent", () => {
+    expect(fixture.exchanges.length).toBe(10);
+    for (const exchange of fixture.exchanges) {
+      const before = exchange.priorResource;
+      if (before === undefined) throw new Error(`${exchange.id}: missing prior record`);
+      const input = exchange.request.body as JsonRecord;
+      const properties = applyExampleChange(
+        before.properties as JsonRecord,
+        input.propertiesChange as readonly JsonRecord[] | undefined,
+      );
+      const metadata = applyExampleChange(
+        before.metadata as JsonRecord,
+        input.metadataChange as readonly JsonRecord[] | undefined,
+      );
+      if (exchange.response.status === 422) {
+        expect(
+          Array.isArray(properties) ||
+            properties === null ||
+            typeof properties !== "object" ||
+            Array.isArray(metadata) ||
+            metadata === null ||
+            typeof metadata !== "object",
+          exchange.id,
+        ).toBe(true);
+        expect(exchange.response.body.code, exchange.id).toBe("validation-failed");
+        continue;
+      }
+      const after = exchange.response.body.resource as JsonRecord;
+      expect(after.properties, exchange.id).toEqual(properties);
+      expect(after.metadata, exchange.id).toEqual(metadata);
+      expect(after.id, exchange.id).toBe(before.id);
+      expect(after.type, exchange.id).toBe(before.type);
+      const noOp =
+        JSON.stringify(properties) === JSON.stringify(before.properties) &&
+        JSON.stringify(metadata) === JSON.stringify(before.metadata);
+      if (noOp) {
+        expect(after.revision, exchange.id).toBe(before.revision);
+        expect(after.attribution, exchange.id).toEqual(before.attribution);
+      } else {
+        expect(after.revision, exchange.id).not.toBe(before.revision);
+        expect(after.attribution, exchange.id).toEqual(input.attribution);
+      }
+    }
+  });
+
+  it("accepts root replacements on either document and rejects malformed patches on either Resource kind", () => {
+    for (const [schemaRef, subject] of [
+      ["#/$defs/updateBeadRequest", { bead: "beads/a" }],
+      ["#/$defs/updateLinkRequest", { link: "links/a" }],
+    ] as const) {
+      for (const field of ["propertiesChange", "metadataChange"] as const) {
+        const valid = { ...subject, [field]: [{ op: "replace", path: "", value: {} }] };
+        expectValid(schemaRef, valid, `${schemaRef} ${field} root replacement`);
+        for (const invalid of [
+          { ...subject, [field]: [] },
+          { ...subject, [field]: [{ op: "replace", path: "" }] },
+          { ...subject, [field]: [{ op: "replace", path: "/bad~2", value: {} }] },
+        ]) {
+          expect(compiledDefinition(schemaRef)(invalid), `${schemaRef} ${field}`).toBe(false);
+        }
+      }
+    }
+  });
 });
 
 describe("Read+Update advertised limits", () => {
