@@ -207,6 +207,14 @@ async function installPackedWorkspace() {
       "sequence-executor.d.ts.map",
       "sequence-executor.js",
       "sequence-executor.js.map",
+      "development.d.ts",
+      "development.d.ts.map",
+      "development.js",
+      "development.js.map",
+      "development-authority.d.ts",
+      "development-authority.d.ts.map",
+      "development-authority.js",
+      "development-authority.js.map",
       "index.d.ts",
       "index.d.ts.map",
       "index.js",
@@ -265,6 +273,11 @@ async function installPackedWorkspace() {
       (await realpath(path.join(installedServerRoot, "dist", "index.js")))
     )
       throw new Error("packed server public root does not resolve to its approved entry");
+    if (
+      (await realpath(consumer.resolve("@bdp/server/development"))) !==
+      (await realpath(path.join(installedServerRoot, "dist", "development.js")))
+    )
+      throw new Error("packed development facade does not resolve to its explicit entry");
     for (const module of installedServerOutput.filter(
       (name) => name.startsWith("installed-schema-") && name.endsWith(".js"),
     )) {

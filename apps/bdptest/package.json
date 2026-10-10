@@ -8,7 +8,8 @@
     "dist"
   ],
   "bin": {
-    "bdptest": "./dist/main.js"
+    "bdptest": "./dist/main.js",
+    "bdptest-development": "./dist/development-main.js"
   },
   "dependencies": {
     "@bdp/adapter-in-memory": "workspace:*",

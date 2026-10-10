@@ -4,15 +4,20 @@ import path from "node:path";
 import { expect, it } from "vitest";
 import { assertServerExports, isolatedWorkspace } from "./smoke-safety.mjs";
 
-it("pins the allowed public package root and refuses missing or broad exports", () => {
-  const exports = { ".": { types: "./dist/index.d.ts", default: "./dist/index.js" } };
+it("pins the root and explicit development facade and refuses missing or broad exports", () => {
+  const exports = {
+    ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
+    "./development": { types: "./dist/development.d.ts", default: "./dist/development.js" },
+  };
   expect(() => assertServerExports({ exports })).not.toThrow();
   for (const candidate of [
     undefined,
     { ...exports, "./dist/*": "./dist/*" },
     { ...exports, "./private": "./dist/installed-schema-evaluator.js" },
   ])
-    expect(() => assertServerExports({ exports: candidate })).toThrow("root-only surface");
+    expect(() => assertServerExports({ exports: candidate })).toThrow(
+      "explicit development surface",
+    );
 });
 it("refuses root, descendants and symlink aliases while accepting an external sibling", async () => {
   const temporary = await mkdtemp(path.join(tmpdir(), "bdp-smoke-safety-"));

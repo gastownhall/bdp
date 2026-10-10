@@ -48,6 +48,8 @@ function collectWorkspaceSourceAliases(): Record<string, string> {
     }
     const testingEntry = path.join(packageDir, "test-support", "testing.ts");
     if (existsSync(testingEntry)) aliases[`${name}/testing`] = testingEntry;
+    if (name === "@bdp/server")
+      aliases[`${name}/development`] = path.join(packageDir, "src/development.ts");
     aliases[name] = sourceEntry;
   }
   return aliases;
