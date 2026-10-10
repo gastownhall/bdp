@@ -10,7 +10,9 @@ The first commit relocates every original level-two/three section exactly once,
 without changing its body. Two former model/protocol container headings become
 level-three headings; their GitHub anchors are unchanged. Later clarification
 commits split mixed-profile sections and make existing applicability explicit.
-No protocol version, schema, runtime, fixture or acceptance claim changes here.
+No protocol version, schema or runtime change is introduced by the editorial
+commits. The integration follow-up migrates evidence citations and their
+source-selection tests without changing case semantics.
 
 ## Original section accounting
 
@@ -185,17 +187,40 @@ The clarification pass checked:
   identified only profile splits/clarifications in endpoint liveness, limits,
   CORS and conditional/HEAD behavior; the obligations remain in their owning
   parts. This is a preservation check, not proof of complete semantic equivalence.
-- `git diff --check` passes. No schema, runtime, fixture or catalog files changed.
+- `git diff --check` passes. No schema or runtime files changed by this
+  editorial work. Integration fixture correction `a9bcf9ed` was merged before
+  running the artifact checks below.
 
-**Integration gate:** an offline audit of 522 spec citations in the conformance
-catalogs found **94 citations requiring migration** after sections were split.
-All 94 matched the integration base. Sixty-eight still have an exact-text
-candidate at a new anchor; 26 need a reviewed selection reflecting the local
-profile wording. Browser anchor compatibility does not satisfy these
-section-scoped evidence selectors. Do not claim conformance or a green test
-suite until the integration owner updates those citations and runs the relevant
-catalog checks. This editorial branch intentionally does not modify those
-artifacts.
+## Citation integration and verification
 
-No runtime tests were run for this document-only change. No runtime behavior,
-implementation completion, Preview 2 parity or qualification is claimed.
+The initial audit found 94 of 522 section-scoped spec citations needing
+migration. The integration follow-up moved 68 exact selections and reviewed
+26 selections whose wording was split by profile. Where one original selection
+covered several profiles, it now cites each applicable paragraph separately;
+no obligation was dropped to make a selector match. Read-only selections no
+longer include transaction-only clauses, while their Transactional scenarios
+retain both the inherited Read rule and the Transactional extension.
+
+The five affected catalogs preserve every scenario ID, order, title, kind,
+profile and non-citation field. Three maintained HTTP-gap objects in
+`w1-transactional-packet.md` mirror their updated canonical citations. The
+Read+Update and Transactional wire tests compose the three separate problem
+tables before making the same row/count/schema/fixture assertions as before.
+No case, assertion or fixture expectation was removed.
+
+Verified with **Node 24.16.0 / pnpm 11.20.0**, after a frozen-lockfile install:
+
+- `pnpm exec vitest run packages/conformance packages/protocol`: **41 files,
+  1,629 tests passed**. The first run exposed six stale section-extraction or
+  packet-mirror failures; the source selectors and mirrors were corrected and
+  the full selected suite rerun successfully.
+- `pnpm typecheck`: passed.
+- Formatter checks for all changed catalog JSON and test files: passed.
+- Canonical and package schema files are byte-identical.
+- Catalog non-citation fields and conformance-table text remain unchanged.
+- `git diff --check`: passed.
+
+These checks validate specification/artifact consistency and the selected
+protocol/conformance tooling. They do not establish a shipping write-profile
+implementation, cross-product CLI parity or Preview 2 qualification. The
+entire repository test suite was not run for this editorial slice.

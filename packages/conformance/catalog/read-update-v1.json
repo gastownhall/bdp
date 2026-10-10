@@ -9,7 +9,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#scope-discovery-and-human-documentation",
+          "anchor": "#discovery-profile-membership",
           "selectedText": "`operations` is required in Read+Update and Transactional and prohibited in Read. The history, receipt, snapshot, changefeed, and Event members are required only in Transactional and prohibited in both lower profiles."
         }
       ]
@@ -22,12 +22,12 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#scope-discovery-and-human-documentation",
+          "anchor": "#discovery-profile-membership",
           "selectedText": "| `aliases` | optional | required | required |"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#scope-discovery-and-human-documentation",
+          "anchor": "#discovery-profile-membership",
           "selectedText": "The `aliases` member is optional in Read, where it appears exactly when the authority serves alias resolution, and required in Read+Update and Transactional, which offer the alias targets under [Alias targets](#alias-targets) and therefore serve alias resolution"
         },
         {
@@ -45,12 +45,12 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#advertised-limits",
+          "anchor": "#transactional-limits",
           "selectedText": "the Read+Update discovery document's `limits` is `readUpdateAdvertisedLimits`, a closed definition of its own that shares every limit primitive with `advertisedLimits`, restates the `page`, `request`, `resource`, `selector`, `patch`, and `sequence` groups unchanged, carries the `validation` group, and rejects the `transaction` group and the Transactional `retention.receipt` and `retention.replay` members"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#advertised-limits",
+          "anchor": "#transactional-limits",
           "selectedText": "the Read discovery document's `limits` is `advertisedLimits`, which admits no `validation` group"
         },
         {
@@ -60,8 +60,8 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#advertised-limits",
-          "selectedText": "the group is mutation surface: it is not advertised by a Read discovery document, and a Read+Update or Transactional authority that omits diagnostics beyond a bound MUST advertise it"
+          "anchor": "#mutation-limits",
+          "selectedText": "the group is mutation surface: it is not advertised by a Read discovery document, and a Read+Update authority that omits diagnostics beyond a bound MUST advertise it"
         }
       ]
     },
@@ -110,7 +110,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-results",
-          "selectedText": "A semantic no-op update, defined under [Revisions](#revisions), succeeds with outcome `updated` and the retained revision."
+          "selectedText": "A semantic no-op update, defined under [Mutation revisions and guards](#mutation-revisions-and-guards), succeeds with outcome `updated` and the retained revision."
         }
       ]
     },
@@ -155,7 +155,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#carried-attribution",
+          "anchor": "#attribution-on-mutations",
           "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
         }
       ]
@@ -201,7 +201,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`incident-links-exist`: a Bead deletion reached while a live Link is incident upon the Bead."
         }
       ]
@@ -214,7 +214,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`incident-links-exist`: a Bead deletion reached while a live Link is incident upon the Bead. A non-disclosing authority withholds the hidden Links that caused it."
         }
       ]
@@ -232,7 +232,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#batch-local-resource-references",
+          "anchor": "#sequence-local-resource-references",
           "selectedText": "The pin is provenance, not a constraint: an authority stores and echoes it byte-identically, compares it only for equality, and performs no semantic validation, dereferencing, or interpretation"
         }
       ]
@@ -255,7 +255,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#batch-local-resource-references",
+          "anchor": "#sequence-local-resource-references",
           "selectedText": "Creating or deleting a Link does not mutate an in-Scope endpoint Bead or change that Bead's Resource revision"
         }
       ]
@@ -306,7 +306,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#batch-local-resource-references",
+          "anchor": "#sequence-local-resource-references",
           "selectedText": "Creating or deleting a Link does not mutate an in-Scope endpoint Bead or change that Bead's Resource revision"
         }
       ]
@@ -324,12 +324,17 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
-          "selectedText": "then the operation retains the existing revision and emits no `updated` Event"
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#carried-attribution",
+          "anchor": "#conformance-profiles-and-reading-guide",
+          "selectedText": "Read+Update has no durable Mutation Receipts and no BDP Events."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#attribution-on-mutations",
           "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
         }
       ]
@@ -342,12 +347,12 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#carried-attribution",
+          "anchor": "#attribution-on-mutations",
           "selectedText": "An operation that mints more than one version records its one attribution on every version it mints"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#carried-attribution",
+          "anchor": "#attribution-on-mutations",
           "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
         },
         {
@@ -370,7 +375,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`revision-mismatch`: the member's `expectedRevision` is not the Resource's current revision."
         }
       ]
@@ -383,13 +388,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
+          "anchor": "#mutation-revisions-and-guards",
           "selectedText": "The authority applies the operation only if the Resource still has that revision."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#validation-and-results",
-          "selectedText": "At commit, the authority also ensures that concurrent transactions cannot jointly violate those invariants."
+          "selectedText": "At commit, the authority also ensures that concurrent mutations cannot jointly violate those invariants."
         }
       ]
     },
@@ -401,7 +406,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "A member's subject Resource or in-Scope endpoint Bead that does not exist or is not visible in the request's Authorization View fails with the Read profile's `resource-not-found`, under the same non-disclosure rule"
         }
       ]
@@ -481,7 +486,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`unsupported-media-type`: a mutation-target request whose body media type is not `application/json` or is not declared; media-type parameters such as `charset` are ignored."
         }
       ]
@@ -632,17 +637,17 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "an alias put whose path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope, a deleted one included, fails the same way, while a Bead creation whose supplied `id` has the `{id-path}` of a live alias is `alias-path-taken`"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`alias-path-taken`: a Bead creation whose supplied `id` has the `{id-path}` of a live alias, under [Alias targets](#alias-targets). The path is held by an alias rather than by a committed identity, so the condition clears when the alias is deleted and the retry disposition is `after-state-change`, where `identity-taken`'s is `never`."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#aliases",
+          "anchor": "#alias-mutation-model",
           "selectedText": "They share it because the realizations the alias root fronts share one — in the beads realization, keys and aliases occupy one project-wide namespace — so the invariant is imported from the store rather than required by resolution, which spelling alone decides."
         }
       ]
@@ -673,7 +678,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#scopes-and-identity",
+          "anchor": "#creation-and-identity-allocation",
           "selectedText": "An authority-allocated local ID is a single opaque segment, and for a Bead never one that is a live alias path under [Aliases](#aliases)"
         }
       ]
@@ -696,7 +701,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "an endpoint or target reference of the wrong category — an alias, a Link, or an external URI as an alias put's `target`, or a Link path as a Link endpoint — is `validation-failed`"
         }
       ]
@@ -719,12 +724,12 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "a subject reference — `bead`, `link`, or the `alias` member of an alias record — whose spelling has the wrong root is `resource-not-found`, since the subject does not exist as the required kind"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "An alias put whose canonical `target` names a Bead that does not exist or is not visible, and an alias delete whose alias is unknown, fail the same way: aliases are not an enumeration oracle."
         }
       ]
@@ -742,7 +747,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "a value that is not a reference shape at all — neither a relative path nor an absolute URL under the local-ID grammar, or a `@name` where none is admitted — is carrier syntax, `malformed-request`"
         },
         {
@@ -783,7 +788,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "A member the principal may not perform fails with `forbidden`"
         }
       ]
@@ -890,12 +895,12 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#aliases",
+          "anchor": "#alias-mutation-model",
           "selectedText": "A reference written using an alias is resolved to the canonical Bead URL when the authority admits the write; stored and served references are always canonical, so aliases never appear in Resource data."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "except that a `bead` subject or a Link endpoint spelled by alias is admitted and resolved under [Alias targets](#alias-targets), and fails this way only when the spelling names no live alias"
         }
       ]
@@ -1036,7 +1041,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#sequence-problem-envelopes",
           "selectedText": "Each failed member contains the same Problem Details shape with its would-be `status`, its zero-based `operationIndex`, and, when the member declared one, its `operationName`."
         },
         {
@@ -1100,22 +1105,22 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#normative-schema-bundle",
+          "anchor": "#schema-validity-and-mutation-admission",
           "selectedText": "The bundle validates wire shape, not admission."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#normative-schema-bundle",
+          "anchor": "#schema-validity-and-mutation-admission",
           "selectedText": "Scope containment of durable references, Resource kind, `@name` resolution and its kind, ownership — whether `source` and `sourceRevision` apply to a Link result — correspondence between a result and its request"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#normative-schema-bundle",
+          "anchor": "#schema-validity-and-mutation-admission",
           "selectedText": "the resolution of an alias spelling to a live alias, and, for an alias member, whether a put's `target` is a canonical Bead reference and whether its alias path is taken"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind — the subject does not exist as the required kind"
         }
       ]
@@ -1498,7 +1503,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
         },
         {
@@ -1521,12 +1526,12 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`validation-failed`: the mutation is well-formed but its result is not admissible"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#descriptor-resolution-and-installation",
+          "anchor": "#descriptor-installation-for-mutation",
           "selectedText": "A mutation that names an unavailable Type fails as `type-not-installed`; the mutation does not initiate installation."
         }
       ]
@@ -1539,17 +1544,17 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "When the failure is an effective Type contract, every entry names the failing effective Type in `type` and the failed keyword in `schemaLocation`"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "an authority that omits entries beyond a bound MUST advertise that bound, keeps at least one entry in evaluation order, and sets `diagnosticsTruncated` to `true`"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#link-endpoint-constraints",
+          "anchor": "#type-validation-and-diagnostics",
           "selectedText": "A Resource validation failure returns a bounded diagnostic list identifying the failing effective Type and schema location"
         }
       ]
@@ -1567,17 +1572,17 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`identity-taken`: a supplied `id` whose canonical Resource URL was ever committed in the logical Scope, including a deleted one."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "This is inherently an existence signal for the identity the creator chose, hidden or deleted alike"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "An alias put is a cheaper existence probe than a creation — it allocates no Resource, mints no version, and is deletable — gated only by permission to put aliases, which is therefore what that permission grants."
         }
       ]
@@ -1590,12 +1595,12 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#scope-aggregate-constraints",
+          "anchor": "#aggregate-constraint-enforcement",
           "selectedText": "Authorities MUST produce serializable outcomes when concurrent mutations could cross a maximum."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`aggregate-constraint-violation`: the mutation would violate a Scope aggregate policy — in BDP v0, a maximum endpoint multiplicity."
         }
       ]
@@ -1639,13 +1644,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#http-consistency-caching-and-cors-fields",
-          "selectedText": "its CORS policy MUST allow every BDP-defined non-safelisted request field used by its advertised profile, including `Idempotency-Key`"
+          "anchor": "#readupdate-http-field-support",
+          "selectedText": "When cross-origin access is enabled, the CORS policy MUST allow the `Idempotency-Key` request field."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#http-consistency-caching-and-cors-fields",
-          "selectedText": "It MUST expose `Link`, `ETag`, `Retry-After`, `Cache-Control`"
+          "selectedText": "It MUST expose `Link`, `ETag`, `Retry-After`, and `Cache-Control` when applicable."
         }
       ]
     }
