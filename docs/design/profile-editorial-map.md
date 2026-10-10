@@ -100,7 +100,53 @@ base-profile definition; extension headings live in their owning profile.
 
 ## Clarification ledger
 
-Pending the boundary-clarification pass.
+The clarification commit makes these existing profile boundaries local:
+
+| Original mixed material | Read location | Update addition | Transactional addition |
+| --- | --- | --- | --- |
+| Identity, aliases and References | Scopes and identity; Beads and Links | Creation and identity allocation; Alias mutation model; Sequence-local Resource references | Transaction-local Resource references; Atomic operation extensions |
+| Revisions | Revisions (opaque comparison, numeric values, retained addresses) | Mutation revisions and guards; Numeric admission; Revision allocation failures | Transactional revision visibility; Transactional revision and History extensions |
+| Attribution and change context | Carried attribution; Immutable change context | Attribution on mutations; History context on mutation results | History context in receipts and Events |
+| Authorization | Authorization views (projection and closure) | Mutation authorization | Authorization fences; Set authorization and retained receipts |
+| Discovery, limits and schema | Scope discovery; Advertised limits; Normative schema bundle | Read+Update discovery; Read+Update schema and limits; Mutation limits | Transactional discovery/limits; Discovery profile membership; Profile schema inventory |
+| Problems | Problem details (Read codes and HTTP-native responses) | Read+Update problem details; Sequence problem envelopes | Transactional problem details |
+| HTTP | HTTP consistency; Conditional reads and HEAD | Mutation command preconditions; Read+Update consistency/field support; Mutation response media negotiation | Transactional HTTP consistency/field support; Transactional conditional reads; Mutation response negotiation |
+| Types | Type meaning, descriptor representation, effective contracts | Installed Type contracts; Descriptor installation for mutation; Type validation and diagnostics | Existing staged validation and serializable outcomes |
+| Operation records/directory | No mutation dependency | Operation record schema; Operation Directory and singleton targets | Batch operation record schema; Transactional operation directory and singletons |
+| History recovery | Controlled-copy erasure and truthful retained history | Operation-local version production | History and Transactional erasure |
+
+The old `batch-local-resource-references` anchor is retained explicitly before
+**Sequence-local Resource references**; the atomic interpretation now appears
+in Part III. An existing dangling `references` link now resolves to an explicit
+anchor on the Reference definition.
+
+The revision-mismatch sentence now says an Update operation fails without
+changing state; Part III states whole-transaction rollback. The deletion
+precondition now describes a separately committing sequence and its race,
+while atomic cascade guidance lives in Part III. These are consequences of
+the existing profile contract, not new execution modes.
+
+Read's authorization/caching/HTTP text no longer demands exposed epochs,
+checkpoints or replica-bootstrap snapshots. Transactional retains those laws.
+Stable pagination remains a Read guarantee. The Read History diagnosis no
+longer names an epoch to explain why an authority replacement alone cannot
+prove a version's loss. Retained-address law is unchanged.
+
+The obsolete sequence paragraph saying implementation must wait for rulings
+is replaced by the resolved decision-ledger reference. The historical ledger
+already states those rulings landed. A stale `claimed|unknown` mention in
+History context is aligned with the integrated `basis: writer-supplied|unknown`
+contract. Metadata documents and basis-bearing examples remain preserved.
+
+Lower-profile idempotency now states its token grammar locally rather than
+requiring an Event/checkpoint definition. Mutation results no longer explain
+themselves by a changefeed tombstone; the equivalence remains explicit in
+Part III.
+
+The conformance tables remain a shared index, byte-identical and in their
+original order, with a local applicability summary in each profile. They are
+not new definitions needed to understand Read or Update. This preserves case
+identity while catalog evidence citations are migrated separately.
 
 ## Questions reserved for design
 
@@ -112,8 +158,44 @@ Pending the boundary-clarification pass.
   response. The cumulative contract includes these explicit response changes.
 - Any uncertainty in protocol behavior exposed during extraction must be recorded
   here for a ruling rather than resolved by invented wire semantics.
+- The Read `advertisedLimits` schema historically accepts some limit groups
+  whose capabilities are not in minimum Read. This round preserves the existing
+  schema and capability-applicability rule; tightening schema admission belongs
+  in a separately reviewed conformance change.
+- `include=links` remains outside minimum Read and is documented as an optional
+  bounded aggregate. No new minimum requirement is introduced.
+- The first round preserves many dated rationale paragraphs and the shared
+  conformance index. Removing historical commentary and independently packaging
+  each profile are later editorial slices, not completion claims here.
 
 ## Validation
 
 The mechanical relocation accounts for all 61 original blocks exactly once.
-Profile-boundary validation and anchor checks are recorded after clarification.
+The clarification pass checked:
+
+- All **84 original heading anchors** remain available; 143 anchors exist in
+  the reorganized document. The renamed local-reference heading retains its
+  original anchor explicitly.
+- All **182 internal Markdown links** resolve. Read and Read+Update contain
+  **zero internal links to later-profile definitions**.
+- All relative file links resolve from `docs/specs/`.
+- Every original top-level section is accounted for above. The conformance
+  matrix/row tables are byte-identical to the integration base.
+- An exact-text audit of paragraphs containing capitalized normative keywords
+  identified only profile splits/clarifications in endpoint liveness, limits,
+  CORS and conditional/HEAD behavior; the obligations remain in their owning
+  parts. This is a preservation check, not proof of complete semantic equivalence.
+- `git diff --check` passes. No schema, runtime, fixture or catalog files changed.
+
+**Integration gate:** an offline audit of 522 spec citations in the conformance
+catalogs found **94 citations requiring migration** after sections were split.
+All 94 matched the integration base. Sixty-eight still have an exact-text
+candidate at a new anchor; 26 need a reviewed selection reflecting the local
+profile wording. Browser anchor compatibility does not satisfy these
+section-scoped evidence selectors. Do not claim conformance or a green test
+suite until the integration owner updates those citations and runs the relevant
+catalog checks. This editorial branch intentionally does not modify those
+artifacts.
+
+No runtime tests were run for this document-only change. No runtime behavior,
+implementation completion, Preview 2 parity or qualification is claimed.
