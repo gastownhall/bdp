@@ -1524,7 +1524,7 @@ describe("G11 source qualification and private containment", () => {
     expect(pending).toHaveLength(1);
     await Promise.all(pending);
   });
-  it("exposes only frozen lifecycle/facet handles and preserves the package public export map", async () => {
+  it("keeps lifecycle internals private alongside the explicit development facade", async () => {
     const f = fixture(),
       actual = planeModule.createAuthorityReadPlane;
     let privatePlane: AuthorityReadPlane | undefined;
@@ -1546,6 +1546,7 @@ describe("G11 source qualification and private containment", () => {
     ) as { exports: unknown };
     expect(manifest.exports).toEqual({
       ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
+      "./development": { types: "./dist/development.d.ts", default: "./dist/development.js" },
     });
   });
 });
