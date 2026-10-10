@@ -149,8 +149,8 @@ Readiness remains client-owned domain behavior, computed from generic Bead
 and Link reads.
 
 The Read+Update profile retains the existing `create-bead`,
-`update-bead-properties`, `delete-bead`, `create-link`,
-`update-link-properties`, and `delete-link` operation URLs and request-record
+`update-bead`, `delete-bead`, `create-link`,
+`update-link`, and `delete-link` operation URLs and request-record
 shapes, and adds the two alias targets, `put-alias` and `delete-alias`,
 defined under [Alias targets](#alias-targets) (amended 2026-09-08). It does
 not introduce collection `POST` or direct Resource `PUT`/`PATCH`/`DELETE`.
@@ -259,9 +259,9 @@ profile, and each of its sections says so in a banner.
 
 A **Bead** is the unit of shared state in this model: one identified,
 typed thing — a task, a bug, a decision, a memory — whose content is a
-single JSON `properties` document and, when its Type owns outgoing Link
+JSON `properties` and common `metadata` documents and, when its Type owns outgoing Link
 Types, the owned Links made from it. Beads are what people and agents read,
-create, and update, and every change to a Bead's properties produces a new
+create, and update, and every change to either document produces a new
 named version of it.
 
 A **Link** is a first-class directed relationship — one Issue depends on
@@ -269,7 +269,7 @@ another, a memory cites a source, a task is assigned to a person. At least
 one of its two endpoints is a Bead in the Link's own Scope; the other may
 instead reference something outside it. Links are not
 authored inside either endpoint: a Link has its own identity, its own
-type, and its own `properties`, and creating or deleting one never changes
+type, and its own `properties` and common `metadata`, and creating or deleting one never changes
 the Beads it connects — except that a source whose Type owns the Link's
 type is versioned by every owned-Link mutation and inlines the owned
 Links' records as derived data, under [Owned Links](#owned-links). Beads and Links together form a graph, and a bounded, owned
@@ -283,6 +283,7 @@ Bead {
   id: BeadId
   type: BeadTypeId
   properties: JsonObject
+  metadata: JsonObject  // common, Type-independent; {} when empty
   attribution?  // carried per version; data, not evidence
   ownedLinks?   // owned-Links plane; owning Types only
 }
@@ -298,12 +299,13 @@ Link {
   source: Reference
   target: Reference
   properties: JsonObject
+  metadata: JsonObject  // common, Type-independent; {} when empty
   attribution?  // carried per version; data, not evidence
 }
 ```
 
 For a Bead, `id` and `type` are immutable. For a Link, `id`, `type`,
-`source`, and `target` are immutable. `properties` may be updated, and a
+`source`, and `target` are immutable. `properties` and common `metadata` may be updated, and a
 Bead's `ownedLinks` plane changes only through its owned Links.
 Assigning a new value to an immutable member is not an update. Because a
 Link's endpoints are immutable, repointing or re-pinning an owned
@@ -697,14 +699,16 @@ read, mutate, or traverse it.
 
 ### Revisions
 
-Every successful create — and every update that changes `properties` or,
-for a Bead whose Type owns outgoing Link Types, its owned Links —
+Every successful create — and every update that changes `properties`,
+common `metadata`, or, for a Bead whose Type owns outgoing Link Types,
+its owned Links —
 produces a fresh opaque Resource revision. A client compares revisions only for
 equality and must not derive meaning from their spelling. If applying an
-update produces a `properties` value that is equal, under the JSON
-value-comparison rules of RFC 6902 Section 4.6, to the value immediately
+update leaves both `properties` and common `metadata` equal, under the JSON
+value-comparison rules of RFC 6902 Section 4.6, to their values immediately
 before that operation, then the operation retains the existing revision and
-emits no `updated` Event.
+emits no `updated` Event. A change to either value is one Resource
+transition, with one new revision and one `updated` Event.
 
 That comparison is over **exact decimal values**. Two JSON numbers are the
 same value if and only if the decimal values their literals denote are
@@ -870,19 +874,19 @@ distinct name; `attribution` never becomes it.
 ```text
 Attribution {
   principal   // nonempty opaque string naming who the version is attributed to
-  status      // "claimed" | "unknown"
+  basis       // "writer-supplied" | "unknown"
 }
 ```
 
-`status` records the realization's basis for the value, not a BDP
-guarantee, and v0 defines exactly two: `claimed` — the principal was
+`basis` records the realization's basis for the value, not a BDP
+guarantee, and v0 defines exactly two: `writer-supplied` — the principal was
 supplied by the writer of that version, as written; `unknown` — the
 principal is carried from data whose relationship to this version the
 realization cannot establish (an imported record; a creator recorded
 where the writer of the current version was not). There is deliberately
-no status that asserts authentication: a value meaning "the authority
+no basis that asserts authentication: a value meaning "the authority
 verified this principal" would be an authority claim, which this member
-never carries — that vocabulary belongs to the future attested member.
+never carries — that vocabulary belongs to the future attested member. If `attribution` is present, both `principal` and `basis` are required; absent `attribution` means no principal was recorded, while absent `basis` inside a present attribution is invalid.
 Attribution is **per version**: it is supplied with a write (the
 `attribution` input on every version-minting operation — creating,
 updating, set mutation, and an owned-Link deletion that mints the source's
@@ -894,7 +898,7 @@ Link versions both the Link and its source, and both carry it; deleting an
 owned Link mints no Link version (deletion never does) and versions only
 the source, which carries it. It is outside `properties`, never part of
 the `properties` view, and takes no part in the semantic no-op
-comparison: a write whose `properties` are a no-op mints no revision and
+comparison: a write whose `properties` and common `metadata` changes are both no-ops mints no revision and
 records no attribution. The member is absent when no attribution was
 recorded. Principal identifiers SHOULD be namespaced opaque strings — for
 example `agent:…`, `human:…`, `svc:…` — so agents, humans, and service
@@ -956,17 +960,21 @@ disposition is re-authorized for disclosure when it is replayed, under
 
 A **Property Change** is an ordered
 [RFC 6902 JSON Patch](https://www.rfc-editor.org/rfc/rfc6902.html) applied to
-one JSON `properties` object. BDP v0 admits only `add`, `replace`, and
-`remove`. Paths are JSON Pointers relative to `properties`. Operations
+one JSON object. A Resource update can apply one to `properties`, one to
+common `metadata`, or both atomically. Each path is a JSON Pointer relative
+to its selected object. BDP v0 admits only `add`, `replace`, and
+`remove`. Operations within each array
 execute in order, with RFC 6902 object and array semantics. `replace` and
 `remove` require their targets to exist. `move`, `copy`, and `test` are not
 part of BDP v0.
 
 Assigning JSON `null` and removing a member are distinct operations. The
-patch must yield a JSON object, and the authority validates that complete
-result — not merely the changed members — against every effective Type
-contract. Advertised limits bound the patch operation count, the path size
-and depth, and the resulting representation size.
+patch must yield a JSON object. The authority validates the complete
+`properties` result — not merely its changed members — against every effective
+Type contract; `metadata` has no Type schema. An update that leaves both
+objects unchanged is a no-op. Advertised limits bound the combined patch
+operation count, the path size and depth, and the resulting representation
+size.
 ### Batch-local Resource references
 
 > **Profile distinction.**
@@ -1049,6 +1057,7 @@ every Resource's durable state, under [Aliases](#aliases).
   id?,
   type,
   properties = {},
+  metadata = {},
   attribution?
 ) -> BeadState
 ```
@@ -1058,9 +1067,10 @@ canonical Resource URL must never previously have been committed for any
 Resource in the logical Scope. Deletion does not make it available again.
 
 ```text
-UpdateBeadProperties(
+UpdateBead(
   bead,
-  change,
+  propertiesChange?,
+  metadataChange?,  // at least one change array is required
   expectedRevision?,
   attribution?
 ) -> BeadState
@@ -1089,6 +1099,7 @@ in the same Mutation Transaction.
   source,
   target,
   properties = {},
+  metadata = {},
   attribution?
 ) -> LinkState
 ```
@@ -1101,9 +1112,10 @@ pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
 `uri` alone.
 
 ```text
-UpdateLinkProperties(
+UpdateLink(
   link,
-  change,
+  propertiesChange?,
+  metadataChange?,  // at least one change array is required
   expectedRevision?,
   attribution?
 ) -> LinkState
@@ -1726,7 +1738,7 @@ materialize or index a projection without changing its contents or order.
 The model defines five domain-independent Event Types:
 
 - **created** — a Bead or Link began to exist;
-- **updated** — the mutable properties of a Bead or Link changed, or an
+- **updated** — the mutable properties or common metadata of a Bead or Link changed, or an
   owned Link of a Bead changed;
 - **deleted** — a Bead or Link ceased to exist;
 - **linked** — a Link became incident upon a Bead; and
@@ -1744,6 +1756,7 @@ The lifecycle Event deltas are:
 CreatedData {
   revision: Revision
   properties: JsonObject
+  metadata: JsonObject             // newly emitted Events: {} when empty
   attribution?: Attribution   // the created version's carried attribution
   source?: Reference
   target?: Reference
@@ -1752,7 +1765,8 @@ CreatedData {
 UpdatedData {
   previousRevision: Revision
   revision: Revision
-  change?: PropertyChange        // exactly one of change and ownedLink
+  change?: PropertyChange        // changes properties
+  metadataChange?: PropertyChange // changes common metadata
   ownedLink?: OwnedLinkChange
   attribution?: Attribution      // the new version's carried attribution
 }
@@ -1769,7 +1783,8 @@ OwnedLinkDelta {
   type: TypeId
   previousRevision: Revision     // the Link's revisions, not the source's
   revision: Revision
-  change: PropertyChange
+  change?: PropertyChange       // changes the Link's properties
+  metadataChange?: PropertyChange // changes the Link's common metadata
   attribution?: Attribution      // the Link's new version's carried attribution
 }
 
@@ -1784,9 +1799,16 @@ DeletedData {
 }
 ```
 
+A newly emitted `created` Event carries `metadata`, including `{}` when
+empty. A previously retained Event may lack the member; replay preserves
+that Event's bytes and does not synthesize a new Event or revision. The
+schema admits this historical form so old Event records remain readable.
+
 An owned-Link change produces an `updated` Event on the source Bead with
-its fresh revision; its delta carries `ownedLink` in place of `change`.
-Exactly one of the two members is present in any `updated` delta. No single
+its fresh revision; its delta carries `ownedLink` in place of `change` and
+`metadataChange`. Otherwise, at least one of `change` and `metadataChange`
+is present; both may be present for one atomic Resource update. An updated
+owned-Link delta follows the same rule. No single
 operation changes both a Bead's `properties` and one of its owned Links, and
 every owned-Link mutation mints its own source version, so a Mutation
 Transaction that changes both — or that changes two owned Links of one
@@ -1800,7 +1822,7 @@ after the transition, because creation is the delta from absence, so its
 `revision` is the Link's fresh revision and its `attribution`, when present,
 is the Link's own. For `updated`, it is the owned Link's delta — the Link's
 `id` and `type`, its `previousRevision` and fresh `revision`, the committed
-`change`, and the Link's new version's `attribution` when one was recorded —
+`change` and/or `metadataChange`, and the Link's new version's `attribution` when one was recorded —
 the same delta the Link's own `updated` fact carries, so that neither fact
 carries the Link's properties in full. For `deleted`, it is the deleted
 Link's identity — `id`, `type`, and its final live `revision` — because
@@ -2898,11 +2920,12 @@ A Bead record is:
   "id": "https://beads.example/acme/beads/task-42",
   "type": "https://work.example/types/task",
   "revision": "opaque-task-revision",
-  "attribution": { "principal": "agent:planner", "status": "claimed" },
+  "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
   "properties": {
     "title": "Specify BDP mutation",
     "status": "open"
-  }
+  },
+  "metadata": {}
 }
 ```
 
@@ -2917,7 +2940,8 @@ A Link record is:
   "target": "https://beads.example/acme/beads/person-7",
   "properties": {
     "since": "2026-08-04"
-  }
+  },
+  "metadata": {}
 }
 ```
 
@@ -2935,7 +2959,14 @@ Bead's absolute canonical URL, an out-of-Scope endpoint's `uri` is its
 opaque absolute URI, and either may be a Pinned Reference. `revision` is protocol metadata rather than mutable Bead or Link
 state, and so is `attribution`: when present it is the per-version carried
 attribution defined under [Carried attribution](#carried-attribution),
-beside `revision` and outside `properties`. `id`, `type`, `revision`, and, for Links, `source` and `target` are
+beside `revision` and outside `properties`. Common `metadata` is a mutable,
+Type-independent JSON object on both Resource kinds. It is distinct from
+Type-validated `properties` and from per-version `attribution` and
+`changeContext`. Successful reads always expose `metadata`: `{}` means no
+members are set. A retained pre-metadata version that lacks the member is
+projected with `metadata: {}` on reads without rewriting stored bytes or
+minting a revision; a later metadata update starts from that empty object.
+`id`, `type`, `revision`, and, for Links, `source` and `target` are
 returned on every successful read. That does not mean they are accepted as
 update targets. An implementation may store local identifiers internally.
 That choice does not alter the response spelling.
@@ -3806,7 +3837,7 @@ plus one required `idempotencyKey`:
         "title": "Adopt sequence envelopes",
         "status": "proposed"
       },
-      "attribution": { "principal": "agent:planner", "status": "claimed" }
+      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
     },
     {
       "idempotencyKey": "w1-adr-cite",
@@ -3818,21 +3849,21 @@ plus one required `idempotencyKey`:
         "revision": "8f0e2b"
       },
       "properties": {},
-      "attribution": { "principal": "agent:planner", "status": "claimed" }
+      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
     },
     {
       "idempotencyKey": "w1-task-42-close",
-      "operation": "updateBeadProperties",
+      "operation": "updateBead",
       "bead": "beads/task-42",
       "expectedRevision": "opaque-task-revision",
-      "change": [
+      "propertiesChange": [
         {
           "op": "replace",
           "path": "/status",
           "value": "closed"
         }
       ],
-      "attribution": { "principal": "agent:planner", "status": "claimed" }
+      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
     }
   ]
 }
@@ -3872,8 +3903,8 @@ the request that first presented the keys. Re-keying a creating member
 changes the identity of every member that references its binding: a client
 that corrects a creator presents new keys for its dependents as well. The
 bundle defines the envelope as `sequenceRequest`
-and its members as `sequenceCreateBead`, `sequenceUpdateBeadProperties`,
-`sequenceDeleteBead`, `sequenceCreateLink`, `sequenceUpdateLinkProperties`,
+and its members as `sequenceCreateBead`, `sequenceUpdateBead`,
+`sequenceDeleteBead`, `sequenceCreateLink`, `sequenceUpdateLink`,
 `sequenceDeleteLink`, `sequencePutAlias`, and `sequenceDeleteAlias`.
 
 Once the authority has admitted a sequence — validated its carrier and
@@ -4108,7 +4139,7 @@ An entry is the member's mutation result, its alias result under
         "id": "https://beads.example/acme/beads/adr-104",
         "type": "https://work.example/types/decision",
         "revision": "opaque-adr-revision-1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "properties": {
           "title": "Adopt sequence envelopes",
           "status": "proposed"
@@ -4125,7 +4156,7 @@ An entry is the member's mutation result, its alias result under
         "id": "https://beads.example/acme/links/cites-105",
         "type": "https://work.example/types/cites",
         "revision": "opaque-cites-revision-1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "source": "https://beads.example/acme/beads/adr-104",
         "target": {
           "uri": "https://github.example/issues/123",
@@ -4217,8 +4248,9 @@ The **semantic identity** of a member is its operation kind — from
 record. Before comparison the authority resolves and canonicalizes durable
 references, resolves each `@name` reference to the identity its creating
 member bound — taken from that member's fresh, retained, or expired
-disposition, never from the spelling — expands protocol defaults such as an
-omitted `properties`, preserves the order of `change` and every other
+disposition, never from the spelling — expands creation defaults so omitted
+`properties` and omitted common `metadata` each compare as `{}`, preserves
+the order of each change array and every other
 array, ignores JSON object member order, and excludes `idempotencyKey` and
 `name`, and compares the normalized records under the JSON value-equality
 rules of RFC 6902 Section 4.6. A reference that resolves to no identity
@@ -4496,8 +4528,8 @@ remain semantic.
 A batch request body conforms to the bundle's `batchRequest` definition:
 exactly one member, `operations`, an array of one or more operation records,
 each conforming to `batchOperation` — the closed eight-record union whose
-`operation` discriminator selects `createBead`, `updateBeadProperties`,
-`deleteBead`, `createLink`, `updateLinkProperties`, `deleteLink`,
+`operation` discriminator selects `createBead`, `updateBead`,
+`deleteBead`, `createLink`, `updateLink`, `deleteLink`,
 `updateWhere`, or `deleteWhere`. Each record composes the operation's
 member definition shared with the Read+Update singleton and sequence
 records — `createBeadMembers` through `deleteLinkMembers`, plus
@@ -4690,10 +4722,10 @@ discriminator selects one of the eight generic operation records:
   "title": "BDP batch operation",
   "oneOf": [
     { "$ref": "#/$defs/createBead" },
-    { "$ref": "#/$defs/updateBeadProperties" },
+    { "$ref": "#/$defs/updateBead" },
     { "$ref": "#/$defs/deleteBead" },
     { "$ref": "#/$defs/createLink" },
-    { "$ref": "#/$defs/updateLinkProperties" },
+    { "$ref": "#/$defs/updateLink" },
     { "$ref": "#/$defs/deleteLink" },
     { "$ref": "#/$defs/updateWhere" },
     { "$ref": "#/$defs/deleteWhere" }
@@ -4724,10 +4756,10 @@ discriminator selects one of the eight generic operation records:
     },
     "attribution": {
       "type": "object",
-      "required": ["principal", "status"],
+      "required": ["principal", "basis"],
       "properties": {
         "principal": { "type": "string", "minLength": 1 },
-        "status": { "enum": ["claimed", "unknown"] }
+        "basis": { "enum": ["writer-supplied", "unknown"] }
       },
       "additionalProperties": false
     },
@@ -4736,6 +4768,9 @@ discriminator selects one of the eight generic operation records:
       "format": "uri"
     },
     "properties": {
+      "type": "object"
+    },
+    "metadata": {
       "type": "object"
     },
     "expectedRevision": {
@@ -4791,17 +4826,20 @@ discriminator selects one of the eight generic operation records:
         "id": { "$ref": "#/$defs/resourceReference" },
         "type": { "$ref": "#/$defs/typeId" },
         "properties": { "$ref": "#/$defs/properties" },
+        "metadata": { "$ref": "#/$defs/metadata" },
         "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     },
-    "updateBeadProperties": {
+    "updateBead": {
       "type": "object",
-      "required": ["operation", "bead", "change"],
+      "required": ["operation", "bead"],
+      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }],
       "properties": {
-        "operation": { "const": "updateBeadProperties" },
+        "operation": { "const": "updateBead" },
         "bead": { "$ref": "#/$defs/resourceReference" },
-        "change": { "$ref": "#/$defs/change" },
+        "propertiesChange": { "$ref": "#/$defs/change" },
+        "metadataChange": { "$ref": "#/$defs/change" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
         "attribution": { "$ref": "#/$defs/attribution" }
       },
@@ -4828,17 +4866,20 @@ discriminator selects one of the eight generic operation records:
         "source": { "$ref": "#/$defs/reference" },
         "target": { "$ref": "#/$defs/reference" },
         "properties": { "$ref": "#/$defs/properties" },
+        "metadata": { "$ref": "#/$defs/metadata" },
         "attribution": { "$ref": "#/$defs/attribution" }
       },
       "additionalProperties": false
     },
-    "updateLinkProperties": {
+    "updateLink": {
       "type": "object",
-      "required": ["operation", "link", "change"],
+      "required": ["operation", "link"],
+      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }],
       "properties": {
-        "operation": { "const": "updateLinkProperties" },
+        "operation": { "const": "updateLink" },
         "link": { "$ref": "#/$defs/resourceReference" },
-        "change": { "$ref": "#/$defs/change" },
+        "propertiesChange": { "$ref": "#/$defs/change" },
+        "metadataChange": { "$ref": "#/$defs/change" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
         "attribution": { "$ref": "#/$defs/attribution" }
       },
@@ -4886,7 +4927,8 @@ discriminator selects one of the eight generic operation records:
 
 `id` appears on both creation records because identity and Type are both
 immutable. Omitting `id` asks the authority to allocate it. Omitting `type` is
-never permitted. `properties` defaults to an empty object when omitted.
+never permitted. `properties` and common `metadata` each default to an empty
+object when omitted at creation; the resulting record exposes both.
 
 `bead` and `link` contain a durable local ID, an absolute canonical Resource
 URL, or, in a batch only, an `@label` of the required Resource kind. `source`
@@ -4911,21 +4953,25 @@ and singleton request bodies share one field vocabulary.
 
 ### Property-change values
 
-BDP represents a Property Change as a bounded
+BDP represents each change as a bounded
 [RFC 6902 JSON Patch](https://www.rfc-editor.org/rfc/rfc6902.html) applied to
-the Resource's `properties` object. It admits only `add`, `replace`, and
+one Resource object. `propertiesChange` targets `properties` and
+`metadataChange` targets common `metadata`; each JSON Pointer is relative to
+its own complete object. A Resource update supplies at least one of these
+arrays and may supply both in the same atomic operation. An omitted array
+leaves its object unchanged. A change admits only `add`, `replace`, and
 `remove`. The other patch operations — `move`, `copy`, and `test` — are
 excluded from BDP v0. Operations execute in array order. `add` has RFC 6902
 object replacement and array insertion/append semantics. `replace` and
-`remove` fail when the target does not exist. JSON Pointer evaluation is
-relative to the complete `properties` value.
+`remove` fail when the target does not exist. A root-pointer `replace` with
+`{}` clears either object, including common `metadata`.
 
 ```json
 {
-  "operation": "updateBeadProperties",
+  "operation": "updateBead",
   "bead": "beads/task-42",
   "expectedRevision": "opaque-revision",
-  "change": [
+  "propertiesChange": [
     {
       "op": "replace",
       "path": "/status",
@@ -4940,14 +4986,18 @@ relative to the complete `properties` value.
       "path": "/resolution",
       "value": null
     }
+  ],
+  "metadataChange": [
+    { "op": "add", "path": "/reviewedBy", "value": "agent:planner" }
   ]
 }
 ```
 
 This distinguishes assigning JSON `null` from removing a member. Applying the
-patch must yield a JSON object satisfying every effective Type schema. If the
-result equals the immediately preceding `properties` value under RFC 6902
-Section 4.6 JSON comparison, the operation is a no-op. It preserves the
+properties patch must yield a JSON object satisfying every effective Type
+schema. The metadata patch must yield a JSON object. If both results equal
+their respective preceding objects under RFC 6902 Section 4.6 JSON
+comparison, the operation is a no-op. It preserves the
 Resource revision and emits no `updated` Event. Number equality in that
 comparison, and the admissibility of every number literal a change carries,
 are defined under [Revisions](#revisions).
@@ -5064,7 +5114,7 @@ per selected Resource, in declaration order:
         "id": "https://beads.example/acme/beads/dec-9",
         "type": "https://work.example/types/decision",
         "revision": "dec-9-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "properties": { "title": "Adopt owned Links", "status": "proposed" },
         "ownedLinks": { "https://work.example/types/cites": [] }
       }
@@ -5077,7 +5127,7 @@ per selected Resource, in declaration order:
         "id": "https://beads.example/acme/links/9c1e",
         "type": "https://work.example/types/cites",
         "revision": "9c1e-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "source": "https://beads.example/acme/beads/dec-9",
         "target": "https://beads.example/acme/beads/task-42",
         "properties": { "role": "evidence" }
@@ -5469,10 +5519,10 @@ initial children are:
 
 ```text
 POST operations/create-bead
-POST operations/update-bead-properties
+POST operations/update-bead
 POST operations/delete-bead
 POST operations/create-link
-POST operations/update-link-properties
+POST operations/update-link
 POST operations/delete-link
 POST operations/put-alias
 POST operations/delete-alias
@@ -5489,10 +5539,10 @@ For a Transactional Scope the response is:
 ```json
 {
   "createBead": "create-bead",
-  "updateBeadProperties": "update-bead-properties",
+  "updateBead": "update-bead",
   "deleteBead": "delete-bead",
   "createLink": "create-link",
-  "updateLinkProperties": "update-link-properties",
+  "updateLink": "update-link",
   "deleteLink": "delete-link",
   "putAlias": "put-alias",
   "deleteAlias": "delete-alias",
@@ -5511,10 +5561,10 @@ and `sequence` (amended 2026-09-08):
 ```json
 {
   "createBead": "create-bead",
-  "updateBeadProperties": "update-bead-properties",
+  "updateBead": "update-bead",
   "deleteBead": "delete-bead",
   "createLink": "create-link",
-  "updateLinkProperties": "update-link-properties",
+  "updateLink": "update-link",
   "deleteLink": "delete-link",
   "putAlias": "put-alias",
   "deleteAlias": "delete-alias",
@@ -5540,8 +5590,8 @@ Transactional singleton requests require
 Within the Transactional profile, the singleton and batch forms have identical
 allocation, patch, validation, authorization, idempotency, concurrency, event,
 and deletion semantics. The Read+Update profile preserves the existing
-`create-bead`, `update-bead-properties`, `delete-bead`, `create-link`,
-`update-link-properties`, and `delete-link` target names and their operation
+`create-bead`, `update-bead`, `delete-bead`, `create-link`,
+`update-link`, and `delete-link` target names and their operation
 request records, adds the alias targets `put-alias` and `delete-alias`
 under [Alias targets](#alias-targets), and adds `sequence`. Each
 Read+Update singleton requires an `Idempotency-Key` HTTP field. It returns
@@ -5554,8 +5604,8 @@ also does not include `batch`.
 Concretely, each Read+Update singleton target accepts `POST` with an
 `application/json` body containing its operation record with `operation`
 and `name` removed — the bundle defines `createBeadRequest`,
-`updateBeadPropertiesRequest`, `deleteBeadRequest`, `createLinkRequest`,
-`updateLinkPropertiesRequest`, `deleteLinkRequest`, `putAliasRequest`, and
+`updateBeadRequest`, `deleteBeadRequest`, `createLinkRequest`,
+`updateLinkRequest`, `deleteLinkRequest`, `putAliasRequest`, and
 `deleteAliasRequest` — and one required
 `Idempotency-Key` field carrying a key under
 [Idempotency keys](#idempotency-keys). A singleton never accepts `@name`,
@@ -5779,6 +5829,13 @@ serialization of the erased version's complete Resource record — the
 record the authority served for that revision, `attribution` and
 `ownedLinks` included and the `links` aggregate excluded — with JCS's
 ES6 number serialization and its UTF-16 code-unit member ordering. Under
+the current Resource contract this record includes common `metadata`, even
+when it is `{}`. A digest already committed for a pre-metadata version remains
+bound to that version's original pre-projection record, which lacked the
+member. Projecting `{}` for a later History read does not rewrite that
+version or its erasure digest; verification of that historical digest uses
+the retained original record, never the later compatibility projection.
+Under
 the number model of [Revisions](#revisions) every admitted number is a
 binary64 value, so every record has exactly one canonical serialization
 and one digest, and implementations agree on it without a BDP-specific
@@ -5792,7 +5849,7 @@ record that escaped the contract, never a reason to hold the content.
 
 The **erased content** of a version is its record less its lineage marker
 — everything but `id`, `type`, and `revision`: `properties`,
-`attribution`, a Link's `source`, `target`, and pin, and a source Bead's
+common `metadata`, `attribution`, a Link's `source`, `target`, and pin, and a source Bead's
 inline owned-Link records. The lineage marker, the erasure record, and the
 digest survive erasure everywhere; the erased content survives nowhere.
 
@@ -5813,21 +5870,25 @@ content. When the group commits a successor, the successor's `updated`
 fact is the delta from a version whose content must not exist, and an
 ordinary Property Change — its `remove` and `replace` paths and prior
 values — would disclose it. The successor's fact therefore carries the
-content-free delta form: `change` is exactly one `replace` at the root
-pointer `""` whose `value` is the successor's complete `properties`, and
+content-free delta form for each changed object: `change` is exactly one
+`replace` at the root pointer `""` whose `value` is the successor's complete
+`properties` when properties changed, and `metadataChange` is the same root
+replacement with the successor's complete common `metadata` when metadata
+changed. An atomic update of both objects carries both replacements, and
 `previousRevision` is the erased revision. The successor MUST differ in the durable state that determines its
-revision — `properties` and, for a Bead, its complete inline owned-Link
+revision — `properties`, common `metadata`, and, for a Bead, its complete inline owned-Link
 set — or the group tombstones the Resource instead. An owned-set change
 can mint a source Bead revision with unchanged Bead properties.
 
-The root-replacement `change` above applies to a successor produced by a
-property correction. For the owning Bead's successor induced by an owned
+The root-replacement deltas above apply to a successor produced by a
+property or common-metadata correction. For the owning Bead's successor induced by an owned
 Link's correction or deletion, its `updated` fact instead carries only
-`ownedLink`, never both delta forms. An owned Link's property correction
-uses the content-free root replacement in its own `updated` fact and in
-the nested `ownedLink.link.change` of the source's fact; deletion uses the
+`ownedLink`, never a direct object delta. An owned Link's property or
+common-metadata correction uses the corresponding content-free root
+replacement in its own `updated` fact and in the nested owned-Link delta of
+the source's fact; deletion uses the
 identity-only deleted transition. The source's new postimage carries the
-complete resulting owned set. These are the existing exclusive delta
+complete resulting owned set. These are the exclusive owned-Link and direct-object delta
 forms, not permission to rewrite an erased version in place or expose its
 partial content (amended 2026-09-08, council 13).
 
@@ -6183,17 +6244,21 @@ affected Resource `subject` and `subjectType`, an opaque `transaction`
 identifier, an RFC 3339 `time`, and a Type-specific `data` object. Event data
 contains deltas rather than Resource snapshots:
 
-- `created` carries `revision`, the complete initial `properties`, and the
+- Newly emitted `created` carries `revision`, the complete initial `properties` and common
+  `metadata` (`{}` when empty), and the
   created version's `attribution` when one was recorded. For a
   Link it also carries the `source` and `target` endpoint references, with a
   stored pin preserved byte-identically.
-- `updated` carries `previousRevision`, `revision`, exactly one of `change`
-  and `ownedLink`, and the new version's `attribution` when one was
-  recorded. `change` uses the same committed Property Change representation
+- `updated` carries `previousRevision`, `revision`, either `ownedLink` or at
+  least one of `change` and `metadataChange`, and the new version's
+  `attribution` when one was recorded. `change` targets `properties`;
+  `metadataChange` targets common `metadata`. Both may appear for one atomic
+  Resource update and use the same committed Property Change representation
   accepted by singleton DML. `ownedLink` carries one owned-Link transition
   of the source Bead: `operation` is `created`, `updated`, or `deleted`, and
   `link` is the owned Link's complete record for the first, its own delta —
-  `id`, `type`, `previousRevision`, `revision`, `change`, and `attribution`
+  `id`, `type`, `previousRevision`, `revision`, `change` and/or
+  `metadataChange`, and `attribution`
   when recorded — for the second, and its identity — `id`, `type`, and final
   live `revision` — for the third.
 - `deleted` carries only `revision`, meaning the final live Resource
@@ -6404,11 +6469,14 @@ Read+Update profile is not realized until every row is proved.
 | `read-update.discovery.limits` | Read+Update discovery `limits` carries no `transaction` group and no `retention.receipt` or `retention.replay` |
 | `read-update.discovery.operation-directory` | The directory lists exactly eight singleton targets — the six Resource targets plus `put-alias` and `delete-alias` — and `sequence` |
 | `read-update.singleton.create-bead` | `create-bead` returns the created postimage; omitted `id` is allocated, supplied `id` is honored |
-| `read-update.singleton.update-bead-properties` | `update-bead-properties` applies the patch, returns the postimage and fresh revision, and retains the revision on a semantic no-op |
+| `read-update.singleton.update-bead` | `update-bead` applies the patch, returns the postimage and fresh revision, and retains the revision on a semantic no-op |
+| `read-update.singleton.document-patch-merge-replace` | On both Beads and Links, top-level `add` replaces only the named member while root `replace` replaces the complete selected `properties` or `metadata` object; `{}` clears that object |
+| `read-update.singleton.document-patch-atomicity` | One update changes `properties` and `metadata` atomically under one revision; an equal combined result retains the revision and attribution |
+| `read-update.singleton.document-patch-validation` | A patch yielding a non-object document or Type-invalid `properties` fails the whole update without changing either document |
 | `read-update.singleton.delete-bead` | `delete-bead` returns the deleted identity, the identity then reads as `404`, and a live incident Link fails it with `incident-links-exist` |
 | `read-update.singleton.incident-links-nondisclosure` | A Bead deletion blocked by hidden incident Links fails with `incident-links-exist` and withholds the hidden Links that caused it |
 | `read-update.singleton.create-link` | `create-link` resolves endpoint spellings to canonical URLs and echoes a pin byte-identically |
-| `read-update.singleton.update-link-properties` | `update-link-properties` returns the Link postimage; an unowned Link's update moves only the Link's own revision and versions no endpoint |
+| `read-update.singleton.update-link` | `update-link` returns the Link postimage; an unowned Link's update moves only the Link's own revision and versions no endpoint |
 | `read-update.singleton.delete-link` | `delete-link` returns the deleted identity and the Link then reads as `404` |
 | `read-update.singleton.owned-link-source-revision` | An effectful owned-Link creation, update, or deletion carries `source` and `sourceRevision` and versions the source; an unowned one carries neither and versions no endpoint |
 | `read-update.singleton.owned-link-no-op` | A semantic no-op update of an owned Link retains the Link's revision and attribution and reports the source's unchanged revision in `sourceRevision` |

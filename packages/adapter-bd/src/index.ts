@@ -282,9 +282,10 @@ export function createBdProcessScopePort(
           id: beadId(nativeId),
           type: beadType,
           ...(typeof createdBy === "string" && createdBy.length > 0
-            ? { attribution: { principal: createdBy, status: "unknown" as const } }
+            ? { attribution: { principal: createdBy, basis: "unknown" as const } }
             : {}),
           properties: projectBdReadyProperties(row),
+          metadata: {},
         } as const;
         return { ...bead, revision: projectedResourceRevision(bead) } satisfies BeadRecord;
       });
@@ -324,6 +325,7 @@ export function createBdProcessScopePort(
           source: beadId(sourceLocalId),
           target: target === undefined ? targetId : beadId(targetId),
           properties: {},
+          metadata: {},
         } as const;
         nextLinks.push({ ...link, revision: projectedResourceRevision(link) });
       };

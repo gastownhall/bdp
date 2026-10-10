@@ -201,6 +201,7 @@ describe("Read server contract", () => {
         type: "https://work.example/types/task",
         revision: "1",
         properties: { status: "open" },
+        metadata: {},
       }));
       const port: ScopePort = {
         perform: async () => scopePortSuccess({ items, next: null } as never),
@@ -521,7 +522,10 @@ describe("Read server contract", () => {
     const server = readServer(port);
     const result = await server.perform({ kind: "collection", collection: "beads" });
     source.properties.status = "closed";
-    expect(result).toEqual({ items: [{ ...source, properties: { status: "open" } }], next: null });
+    expect(result).toEqual({
+      items: [{ ...source, properties: { status: "open" }, metadata: {} }],
+      next: null,
+    });
     expect(Object.isFrozen(result)).toBe(true);
   });
 

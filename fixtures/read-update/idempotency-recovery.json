@@ -26,7 +26,10 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             }
           ]
         }
@@ -57,7 +60,11 @@
       "id": "replay-after-visibility-is-restored-returns-the-retained-disposition",
       "condition": "After a grant restores visibility: the original disposition answers unchanged. The View change never re-namespaced or cleared the key.",
       "retained": [
-        { "from": "read-update-sequence-idempotent-retry/original", "index": 0, "at": 0 }
+        {
+          "from": "read-update-sequence-idempotent-retry/original",
+          "index": 0,
+          "at": 0
+        }
       ],
       "request": {
         "method": "POST",
@@ -78,7 +85,10 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             }
           ]
         }
@@ -100,11 +110,15 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "basis": "writer-supplied"
+                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }
@@ -136,7 +150,10 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             }
           ]
         }
@@ -158,11 +175,15 @@
                 "id": "https://beads.example/acme/beads/decision-114",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-114-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "basis": "writer-supplied"
+                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }
@@ -175,7 +196,12 @@
     {
       "id": "cross-carrier-key-equivalence",
       "condition": "The original sequence member resubmitted through the singleton carrier under the same key: one namespace, one semantic identity (name is excluded), so the retained disposition answers as a direct response.",
-      "retained": [{ "from": "read-update-sequence-idempotent-retry/original", "index": 0 }],
+      "retained": [
+        {
+          "from": "read-update-sequence-idempotent-retry/original",
+          "index": 0
+        }
+      ],
       "request": {
         "method": "POST",
         "target": "operations/create-bead",
@@ -191,7 +217,10 @@
             "title": "Record the retention ruling",
             "status": "proposed"
           },
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -207,11 +236,15 @@
             "id": "https://beads.example/acme/beads/decision-108",
             "type": "https://work.example/types/decision",
             "revision": "decision-108-r1",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
             "properties": {
               "title": "Record the retention ruling",
               "status": "proposed"
             },
+            "metadata": {},
             "ownedLinks": {
               "https://work.example/types/cites": []
             }
@@ -223,7 +256,11 @@
       "id": "retained-across-restart-and-failover",
       "condition": "The authority restarted, then failed over to a replica, preserving its recovery state. Every mutation route consults the same authoritative key state, so the retained disposition answers unchanged and nothing executes twice.",
       "retained": [
-        { "from": "read-update-sequence-idempotent-retry/original", "index": 0, "at": 0 }
+        {
+          "from": "read-update-sequence-idempotent-retry/original",
+          "index": 0,
+          "at": 0
+        }
       ],
       "request": {
         "method": "POST",
@@ -244,7 +281,10 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             }
           ]
         }
@@ -266,11 +306,15 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "basis": "writer-supplied"
+                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }
@@ -349,7 +393,10 @@
                 "title": "Plan the recovery fixtures",
                 "status": "open"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             },
             {
               "idempotencyKey": "w1-plan-blocks",
@@ -358,7 +405,10 @@
               "source": "@plan",
               "target": "beads/task-42",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             }
           ]
         }
@@ -380,11 +430,15 @@
                 "id": "https://beads.example/acme/beads/task-115",
                 "type": "https://work.example/types/task",
                 "revision": "task-115-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "basis": "writer-supplied"
+                },
                 "properties": {
                   "title": "Plan the recovery fixtures",
                   "status": "open"
-                }
+                },
+                "metadata": {}
               }
             },
             {
@@ -394,10 +448,14 @@
                 "id": "https://beads.example/acme/links/blocks-116",
                 "type": "https://work.example/types/blocks",
                 "revision": "blocks-116-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "basis": "writer-supplied"
+                },
                 "source": "https://beads.example/acme/beads/task-115",
                 "target": "https://beads.example/acme/beads/task-42",
-                "properties": {}
+                "properties": {},
+                "metadata": {}
               }
             }
           ]
@@ -427,7 +485,10 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             }
           ]
         }
@@ -449,11 +510,15 @@
                 "id": "https://beads.example/acme-restored/beads/decision-1",
                 "type": "https://work.example/types/decision",
                 "revision": "restored-decision-1-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "basis": "writer-supplied"
+                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }

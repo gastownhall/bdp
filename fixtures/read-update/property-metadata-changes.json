@@ -1,0 +1,784 @@
+{
+  "fixtureVersion": 1,
+  "id": "read-update-property-metadata-changes",
+  "description": "Illustrative Bead and unowned Link update exchanges: per-key JSON Patch add preserves other top-level members, root replacement drops them, {} clears both documents, equal replacements retain revisions and attribution, and a non-object result rejects the entire update. Prior records are narrated assumptions; not evidence.",
+  "scope": "https://beads.example/acme/",
+  "exchanges": [
+    {
+      "id": "bead-shallow-merge-both",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/beads/task-500",
+        "type": "https://work.example/types/task",
+        "revision": "task-500-r1",
+        "attribution": {
+          "principal": "human:donna",
+          "basis": "writer-supplied"
+        },
+        "properties": {
+          "title": "Review patch grammar",
+          "status": "open",
+          "obsolete": true
+        },
+        "metadata": {
+          "owner": "team",
+          "stale": "yes"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-bead-shallow-merge-both"
+        },
+        "schema": "#/$defs/updateBeadRequest",
+        "body": {
+          "bead": "beads/task-500",
+          "expectedRevision": "task-500-r1",
+          "propertiesChange": [
+            {
+              "op": "add",
+              "path": "/status",
+              "value": "closed"
+            }
+          ],
+          "metadataChange": [
+            {
+              "op": "add",
+              "path": "/reviewed",
+              "value": true
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/beads/task-500",
+            "type": "https://work.example/types/task",
+            "revision": "task-500-r2",
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
+            "properties": {
+              "title": "Review patch grammar",
+              "status": "closed",
+              "obsolete": true
+            },
+            "metadata": {
+              "owner": "team",
+              "stale": "yes",
+              "reviewed": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bead-replace-both-roots",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/beads/task-500",
+        "type": "https://work.example/types/task",
+        "revision": "task-500-r2",
+        "attribution": {
+          "principal": "agent:planner",
+          "basis": "writer-supplied"
+        },
+        "properties": {
+          "title": "Review patch grammar",
+          "status": "closed",
+          "obsolete": true
+        },
+        "metadata": {
+          "owner": "team",
+          "stale": "yes",
+          "reviewed": true
+        }
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-bead-replace-both-roots"
+        },
+        "schema": "#/$defs/updateBeadRequest",
+        "body": {
+          "bead": "beads/task-500",
+          "expectedRevision": "task-500-r2",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {
+                "title": "Review patch grammar",
+                "status": "closed"
+              }
+            }
+          ],
+          "metadataChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {
+                "reviewed": true
+              }
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/beads/task-500",
+            "type": "https://work.example/types/task",
+            "revision": "task-500-r3",
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
+            "properties": {
+              "title": "Review patch grammar",
+              "status": "closed"
+            },
+            "metadata": {
+              "reviewed": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bead-clear-metadata",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/beads/task-500",
+        "type": "https://work.example/types/task",
+        "revision": "task-500-r3",
+        "attribution": {
+          "principal": "agent:planner",
+          "basis": "writer-supplied"
+        },
+        "properties": {
+          "title": "Review patch grammar",
+          "status": "closed"
+        },
+        "metadata": {
+          "reviewed": true
+        }
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-bead-clear-metadata"
+        },
+        "schema": "#/$defs/updateBeadRequest",
+        "body": {
+          "bead": "beads/task-500",
+          "expectedRevision": "task-500-r3",
+          "metadataChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {}
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/beads/task-500",
+            "type": "https://work.example/types/task",
+            "revision": "task-500-r4",
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
+            "properties": {
+              "title": "Review patch grammar",
+              "status": "closed"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "bead-equal-root-replacements-no-op",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/beads/task-500",
+        "type": "https://work.example/types/task",
+        "revision": "task-500-r4",
+        "attribution": {
+          "principal": "agent:planner",
+          "basis": "writer-supplied"
+        },
+        "properties": {
+          "title": "Review patch grammar",
+          "status": "closed"
+        },
+        "metadata": {}
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-bead",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-bead-equal-root-replacements-no-op"
+        },
+        "schema": "#/$defs/updateBeadRequest",
+        "body": {
+          "bead": "beads/task-500",
+          "expectedRevision": "task-500-r4",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {
+                "title": "Review patch grammar",
+                "status": "closed"
+              }
+            }
+          ],
+          "metadataChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {}
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/beads/task-500",
+            "type": "https://work.example/types/task",
+            "revision": "task-500-r4",
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
+            "properties": {
+              "title": "Review patch grammar",
+              "status": "closed"
+            },
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "link-shallow-merge-both",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/links/relates-501",
+        "type": "https://work.example/types/relates",
+        "revision": "relates-501-r1",
+        "attribution": {
+          "principal": "human:donna",
+          "basis": "writer-supplied"
+        },
+        "source": "https://beads.example/acme/beads/task-500",
+        "target": "https://beads.example/acme/beads/task-499",
+        "properties": {
+          "note": "initial",
+          "tag": "keep"
+        },
+        "metadata": {
+          "owner": "team",
+          "stale": "yes"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-link-shallow-merge-both"
+        },
+        "schema": "#/$defs/updateLinkRequest",
+        "body": {
+          "link": "links/relates-501",
+          "expectedRevision": "relates-501-r1",
+          "propertiesChange": [
+            {
+              "op": "add",
+              "path": "/note",
+              "value": "revised"
+            }
+          ],
+          "metadataChange": [
+            {
+              "op": "add",
+              "path": "/reviewed",
+              "value": true
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/links/relates-501",
+            "type": "https://work.example/types/relates",
+            "revision": "relates-501-r2",
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
+            "source": "https://beads.example/acme/beads/task-500",
+            "target": "https://beads.example/acme/beads/task-499",
+            "properties": {
+              "note": "revised",
+              "tag": "keep"
+            },
+            "metadata": {
+              "owner": "team",
+              "stale": "yes",
+              "reviewed": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "link-replace-both-roots",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/links/relates-501",
+        "type": "https://work.example/types/relates",
+        "revision": "relates-501-r2",
+        "attribution": {
+          "principal": "agent:planner",
+          "basis": "writer-supplied"
+        },
+        "source": "https://beads.example/acme/beads/task-500",
+        "target": "https://beads.example/acme/beads/task-499",
+        "properties": {
+          "note": "revised",
+          "tag": "keep"
+        },
+        "metadata": {
+          "owner": "team",
+          "stale": "yes",
+          "reviewed": true
+        }
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-link-replace-both-roots"
+        },
+        "schema": "#/$defs/updateLinkRequest",
+        "body": {
+          "link": "links/relates-501",
+          "expectedRevision": "relates-501-r2",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {
+                "note": "final"
+              }
+            }
+          ],
+          "metadataChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {
+                "reviewed": true
+              }
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/links/relates-501",
+            "type": "https://work.example/types/relates",
+            "revision": "relates-501-r3",
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
+            "source": "https://beads.example/acme/beads/task-500",
+            "target": "https://beads.example/acme/beads/task-499",
+            "properties": {
+              "note": "final"
+            },
+            "metadata": {
+              "reviewed": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "link-clear-both-roots",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/links/relates-501",
+        "type": "https://work.example/types/relates",
+        "revision": "relates-501-r3",
+        "attribution": {
+          "principal": "agent:planner",
+          "basis": "writer-supplied"
+        },
+        "source": "https://beads.example/acme/beads/task-500",
+        "target": "https://beads.example/acme/beads/task-499",
+        "properties": {
+          "note": "final"
+        },
+        "metadata": {
+          "reviewed": true
+        }
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-link-clear-both-roots"
+        },
+        "schema": "#/$defs/updateLinkRequest",
+        "body": {
+          "link": "links/relates-501",
+          "expectedRevision": "relates-501-r3",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {}
+            }
+          ],
+          "metadataChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {}
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/links/relates-501",
+            "type": "https://work.example/types/relates",
+            "revision": "relates-501-r4",
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
+            "source": "https://beads.example/acme/beads/task-500",
+            "target": "https://beads.example/acme/beads/task-499",
+            "properties": {},
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "link-equal-root-replacements-no-op",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/links/relates-501",
+        "type": "https://work.example/types/relates",
+        "revision": "relates-501-r4",
+        "attribution": {
+          "principal": "agent:planner",
+          "basis": "writer-supplied"
+        },
+        "source": "https://beads.example/acme/beads/task-500",
+        "target": "https://beads.example/acme/beads/task-499",
+        "properties": {},
+        "metadata": {}
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-link-equal-root-replacements-no-op"
+        },
+        "schema": "#/$defs/updateLinkRequest",
+        "body": {
+          "link": "links/relates-501",
+          "expectedRevision": "relates-501-r4",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {}
+            }
+          ],
+          "metadataChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": {}
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/mutationResult",
+        "body": {
+          "outcome": "updated",
+          "resource": {
+            "id": "https://beads.example/acme/links/relates-501",
+            "type": "https://work.example/types/relates",
+            "revision": "relates-501-r4",
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
+            "source": "https://beads.example/acme/beads/task-500",
+            "target": "https://beads.example/acme/beads/task-499",
+            "properties": {},
+            "metadata": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "link-nonobject-properties-rejected",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/links/relates-501",
+        "type": "https://work.example/types/relates",
+        "revision": "relates-501-r4",
+        "attribution": {
+          "principal": "human:donna",
+          "basis": "writer-supplied"
+        },
+        "source": "https://beads.example/acme/beads/task-500",
+        "target": "https://beads.example/acme/beads/task-499",
+        "properties": {},
+        "metadata": {}
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-link-nonobject-properties-rejected"
+        },
+        "schema": "#/$defs/updateLinkRequest",
+        "body": {
+          "link": "links/relates-501",
+          "expectedRevision": "relates-501-r4",
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": []
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/validation",
+          "code": "validation-failed",
+          "status": 422,
+          "retry": "never",
+          "detail": "the resulting Resource document must be a JSON object",
+          "diagnostics": [
+            {
+              "instanceLocation": "",
+              "message": "resulting document must be an object"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "link-atomic-nonobject-metadata-rejected",
+      "condition": "The illustrative priorResource is the complete visible record before this request; it is a fixture assumption, not an observed store read.",
+      "priorResource": {
+        "id": "https://beads.example/acme/links/relates-501",
+        "type": "https://work.example/types/relates",
+        "revision": "relates-501-r4",
+        "attribution": {
+          "principal": "human:donna",
+          "basis": "writer-supplied"
+        },
+        "source": "https://beads.example/acme/beads/task-500",
+        "target": "https://beads.example/acme/beads/task-499",
+        "properties": {},
+        "metadata": {}
+      },
+      "request": {
+        "method": "POST",
+        "target": "operations/update-link",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "idempotency-key": "p2-link-atomic-nonobject-metadata-rejected"
+        },
+        "schema": "#/$defs/updateLinkRequest",
+        "body": {
+          "link": "links/relates-501",
+          "expectedRevision": "relates-501-r4",
+          "propertiesChange": [
+            {
+              "op": "add",
+              "path": "/new",
+              "value": "would-apply"
+            }
+          ],
+          "metadataChange": [
+            {
+              "op": "replace",
+              "path": "",
+              "value": null
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
+        }
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "content-type": "application/problem+json",
+          "cache-control": "private, no-store"
+        },
+        "schema": "#/$defs/readUpdateProblem",
+        "body": {
+          "type": "https://github.com/gastownhall/bdp/problems/validation",
+          "code": "validation-failed",
+          "status": 422,
+          "retry": "never",
+          "detail": "the resulting Resource document must be a JSON object",
+          "diagnostics": [
+            {
+              "instanceLocation": "",
+              "message": "resulting document must be an object"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

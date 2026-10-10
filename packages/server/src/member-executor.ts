@@ -96,10 +96,10 @@ export class MemberIntegrityError extends Error {
 const envelopeFormat = "ru-member-outcome-1";
 const operations: readonly ReadUpdateOperation[] = [
   "createBead",
-  "updateBeadProperties",
+  "updateBead",
   "deleteBead",
   "createLink",
-  "updateLinkProperties",
+  "updateLink",
   "deleteLink",
   "putAlias",
   "deleteAlias",

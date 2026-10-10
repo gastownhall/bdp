@@ -508,7 +508,7 @@
         [
           "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_DD4UJ_I7SO3dc6XWpLfJgGtAXKkZQXVknUWHavfs3gc",
+          "sha256_FlSOgclGgWfTrYsSI1GUOYqj1sLcjGIpmL4-DGwxb_4",
           "beads/demo-b",
           "",
           "beads/demo-a",
@@ -518,7 +518,7 @@
         [
           "links/b64_ZGVtby1h/b64_ZGVtby1j/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_qBFYW9JintFG74XeOqD5LJD6WY2InkI7A-WxLH0XZoc",
+          "sha256_Ev1FidXvDUgVo5H5fZMDp7NQc9HnuttC7HteJWJELv0",
           "beads/demo-a",
           "",
           "beads/demo-c",
@@ -528,7 +528,7 @@
         [
           "links/b64_ZGVtby1k/b64_ZGVtby1j/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_Xk1f94AIaKtMd6E0Ix6cZ8vk7EdUITgjxDhUJUqeCGc",
+          "sha256_3aCuLwI1uNkWaIoTEzSltA40ZDV4FqOrsnkis8ktKDM",
           "beads/demo-d",
           "",
           "beads/demo-c",
@@ -538,7 +538,7 @@
         [
           "links/b64_ZGVtby1m/b64_ZGVtby1l/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_oSIf8_qOIk2yvdVk1BpcruqJOUHy77aRLDEok9E_2Ao",
+          "sha256_U7J-6iBrJ0lCUbpVdmcjwSwDTCOVWjXi1QjD4J-tI20",
           "beads/demo-f",
           "",
           "beads/demo-e",
@@ -548,7 +548,7 @@
         [
           "links/b64_ZGVtby1l/b64_ZGVtby1m/b64_cmVsYXRlZA",
           "types/related",
-          "sha256_opSosgC78qYE-aElmxZ5VqE37d0O7pbzCfSVaQcyNoQ",
+          "sha256_6_vX8A1hgixKCfHMOfMszt39F5gmWND58hZW8oTHisY",
           "beads/demo-e",
           "",
           "beads/demo-f",
@@ -558,7 +558,7 @@
         [
           "links/b64_ZGVtby1p/b64_ZGVtby1h/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_L3svcS8QsedvjtpTwK8fTq_zqh5bPzBXuuFmEaMMVA0",
+          "sha256_bOOiIuBkrTtVV86NMxJyxNXPodVbwuq-9nVcAG51kbY",
           "beads/demo-i",
           "",
           "beads/demo-a",
@@ -568,7 +568,7 @@
         [
           "links/b64_ZGVtby1p/b64_ZGVtby1j/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_OTfZkHw-_YiGOHz3SqzK0B_tR8UO8dtYEZPCEmiyewU",
+          "sha256_mekz-pRCc9gbI5az3radXOsCoBeSlzjUTdGEVIVvM_g",
           "beads/demo-i",
           "",
           "beads/demo-c",
@@ -578,7 +578,7 @@
         [
           "links/b64_ZGVtby1q/b64_ZGVtby1j/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_odxEPnL2O7WhDNizLL-aP91fCH_wtS4igM2KGM6wrRo",
+          "sha256_fTSOpLkrvq4GcKjj_1ygegeLSqPL2Zye61eoTHx43zw",
           "beads/demo-j",
           "",
           "beads/demo-c",
@@ -588,7 +588,7 @@
         [
           "links/b64_ZGVtby1q/b64_ZGVtby1r/b64_YmxvY2tz",
           "https://work.example/types/blocks",
-          "sha256_FhD5IkHtE5DID6xBsSqBkrKTe3vVGlm721bZHiDEvhw",
+          "sha256_fSuDnwNqRA0zU43S5e5kr2TatTgfD8jObzd8Za7y1C0",
           "beads/demo-j",
           "",
           "beads/demo-k",
@@ -758,7 +758,7 @@
     "attribution": {
       "bead": {
         "principal": "bdp-conformance",
-        "status": "unknown"
+        "basis": "unknown"
       }
     },
     "wildcard-descriptors": {
@@ -1114,10 +1114,10 @@
     },
     "numeric-model": {
       "declaration": {
-        "name": "bdpbd-projected-resource-v1",
+        "name": "bdpbd-projected-resource-v2",
         "numberModel": "IEEE-754-binary64-ECMAScript-JSON",
         "source": "packages/adapter-bd/README.md",
-        "description": "bdpbd-projected-resource-v1 uses IEEE-754-binary64-ECMAScript-JSON numbers: native JSON is parsed into JavaScript binary64 values and finite numbers are serialized with ECMAScript JSON.stringify (shortest round-trip form, negative zero as 0). The preimage is the complete projected Resource excluding only its revision member: id, type, attribution when present, properties, and Link endpoints when present. Objects use UTF-16 code-unit lexical key order recursively, arrays retain order, and strings use ECMAScript JSON.stringify escaping. The UTF-8 bytes are SHA-256 hashed and encoded as unpadded base64url with the sha256_ prefix. This local discipline does not claim RFC 8785/I-JSON conformance: the reader has no duplicate-member or lone-surrogate admission guarantee. It changes no token bytes and introduces no discovery member. Read observations cover numeric values actually returned by the supported bd projection, not write admission or arbitrary decimal preservation."
+        "description": "bdpbd-projected-resource-v2 uses IEEE-754-binary64-ECMAScript-JSON numbers: native JSON is parsed into JavaScript binary64 values and finite numbers are serialized with ECMAScript JSON.stringify (shortest round-trip form, negative zero as 0). The preimage is the complete projected Resource excluding only its revision member: id, type, common metadata, attribution when present, properties, and Link endpoints when present. Objects use UTF-16 code-unit lexical key order recursively, arrays retain order, and strings use ECMAScript JSON.stringify escaping. The UTF-8 bytes are SHA-256 hashed and encoded as unpadded base64url with the sha256_ prefix. This local discipline does not claim RFC 8785/I-JSON conformance: the reader has no duplicate-member or lone-surrogate admission guarantee. Adding common metadata to the complete projected Resource changes content-derived revision tokens, including when metadata is empty; existing tokens are historical and must not be relabeled. This v2 discipline introduces no discovery member. Read observations cover numeric values actually returned by the supported bd projection, not write admission or arbitrary decimal preservation."
       },
       "input": {
         "ids": ["beads/demo-a", "beads/demo-c", "links/b64_ZGVtby1i/b64_ZGVtby1h/b64_YmxvY2tz"],

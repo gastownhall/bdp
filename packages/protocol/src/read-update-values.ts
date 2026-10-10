@@ -28,10 +28,10 @@ import type { ReadUpdateProblem } from "./read-update-problems.js";
 /** RU wire roots are separate from both Read registries. Parsing is not admission. */
 export const READ_UPDATE_VALUE_SCHEMA_REFS = Object.freeze({
   createBead: "#/$defs/createBeadRequest",
-  updateBeadProperties: "#/$defs/updateBeadPropertiesRequest",
+  updateBead: "#/$defs/updateBeadRequest",
   deleteBead: "#/$defs/deleteBeadRequest",
   createLink: "#/$defs/createLinkRequest",
-  updateLinkProperties: "#/$defs/updateLinkPropertiesRequest",
+  updateLink: "#/$defs/updateLinkRequest",
   deleteLink: "#/$defs/deleteLinkRequest",
   putAlias: "#/$defs/putAliasRequest",
   deleteAlias: "#/$defs/deleteAliasRequest",
@@ -46,10 +46,10 @@ export const READ_UPDATE_VALUE_SCHEMA_REFS = Object.freeze({
 } as const);
 export type ReadUpdateOperation =
   | "createBead"
-  | "updateBeadProperties"
+  | "updateBead"
   | "deleteBead"
   | "createLink"
-  | "updateLinkProperties"
+  | "updateLink"
   | "deleteLink"
   | "putAlias"
   | "deleteAlias";
@@ -67,10 +67,12 @@ export interface ReadUpdateInputs {
     readonly type: string;
     readonly id?: string;
     readonly properties?: Readonly<Record<string, AdmittedJsonValue>>;
+    readonly metadata?: Readonly<Record<string, AdmittedJsonValue>>;
   };
-  readonly updateBeadProperties: MintInput & {
+  readonly updateBead: MintInput & {
     readonly bead: string;
-    readonly change: PropertyChange;
+    readonly propertiesChange?: PropertyChange;
+    readonly metadataChange?: PropertyChange;
     readonly expectedRevision?: string;
   };
   readonly deleteBead: { readonly bead: string; readonly expectedRevision?: string };
@@ -80,10 +82,12 @@ export interface ReadUpdateInputs {
     readonly source: ReadUpdateInputReference;
     readonly target: ReadUpdateInputReference;
     readonly properties?: Readonly<Record<string, AdmittedJsonValue>>;
+    readonly metadata?: Readonly<Record<string, AdmittedJsonValue>>;
   };
-  readonly updateLinkProperties: MintInput & {
+  readonly updateLink: MintInput & {
     readonly link: string;
-    readonly change: PropertyChange;
+    readonly propertiesChange?: PropertyChange;
+    readonly metadataChange?: PropertyChange;
     readonly expectedRevision?: string;
   };
   readonly deleteLink: MintInput & { readonly link: string; readonly expectedRevision?: string };
@@ -218,10 +222,10 @@ export function parseReadUpdateRequest<K extends ReadUpdateOperation>(
   if (
     ![
       "createBead",
-      "updateBeadProperties",
+      "updateBead",
       "deleteBead",
       "createLink",
-      "updateLinkProperties",
+      "updateLink",
       "deleteLink",
       "putAlias",
       "deleteAlias",
@@ -235,10 +239,10 @@ export function parseReadUpdateRequest<K extends ReadUpdateOperation>(
 }
 const REFERENCE_FIELDS: Readonly<Record<ReadUpdateOperation, readonly string[]>> = {
   createBead: ["id"],
-  updateBeadProperties: ["bead"],
+  updateBead: ["bead"],
   deleteBead: ["bead"],
   createLink: ["id", "source", "target"],
-  updateLinkProperties: ["link"],
+  updateLink: ["link"],
   deleteLink: ["link"],
   putAlias: ["target"],
   deleteAlias: [],
@@ -321,9 +325,9 @@ export function parseReadUpdateSequenceRequest(text: string): ReadUpdateSequence
         ? { source: "bead", target: "bead" }
         : kind === "putAlias"
           ? { target: "bead" }
-          : kind === "updateBeadProperties" || kind === "deleteBead"
+          : kind === "updateBead" || kind === "deleteBead"
             ? { bead: "bead" }
-            : kind === "updateLinkProperties" || kind === "deleteLink"
+            : kind === "updateLink" || kind === "deleteLink"
               ? { link: "link" }
               : {};
     for (const [field, resourceKind] of Object.entries(expected)) {
@@ -420,11 +424,13 @@ export function parseReadUpdateOperationDirectory(value: unknown): ReadUpdateOpe
     "operationDirectory",
   ) as unknown as ReadUpdateOperationDirectory;
 }
-function validateResultResource(result: Readonly<Record<string, unknown>>): void {
+function validateResultResource(
+  result: Readonly<Record<string, unknown>>,
+): BeadRecord | LinkRecord | undefined {
+  let projected: BeadRecord | LinkRecord | undefined;
   if (result.resource !== undefined) {
     const resource = result.resource as Record<string, unknown>;
-    if ("source" in resource) parseLinkRecord(resource);
-    else parseBeadRecord(resource);
+    projected = "source" in resource ? parseLinkRecord(resource) : parseBeadRecord(resource);
   }
   if (result.source !== undefined) parseCanonicalHttpUrl(result.source);
   if (result.deleted !== undefined) {
@@ -434,11 +440,15 @@ function validateResultResource(result: Readonly<Record<string, unknown>>): void
   }
   if (result.alias !== undefined) parseCanonicalHttpUrl(result.alias);
   if (result.target !== undefined) parseCanonicalHttpUrl(result.target);
+  return projected;
 }
 export function parseReadUpdateMutationResult(value: unknown): ReadUpdateMutationResult {
   const result = parseReadUpdateShape(value, "mutationResult");
-  validateResultResource(result);
-  return result as unknown as ReadUpdateMutationResult;
+  const resource = validateResultResource(result);
+  return Object.freeze({
+    ...result,
+    ...(resource === undefined ? {} : { resource }),
+  }) as unknown as ReadUpdateMutationResult;
 }
 export function parseReadUpdateAliasResult(value: unknown): ReadUpdateAliasResult {
   const result = parseReadUpdateShape(value, "aliasResult");
@@ -453,14 +463,21 @@ export function parseReadUpdateSequenceResponse(
   const entries = result.results as readonly Readonly<Record<string, unknown>>[];
   if (expected && entries.length !== expected.operations.length)
     throw new ProtocolArtifactValidationError("sequence response count differs from request");
-  for (const [index, entry] of entries.entries()) {
+  const projectedEntries = entries.map((entry, index) => {
     if (entry.operationIndex !== index)
       throw new ProtocolArtifactValidationError(
         "sequence response indexes must match declaration order",
       );
     if (expected && entry.operationName !== expected.operations[index]?.name)
       throw new ProtocolArtifactValidationError("sequence response name differs from request");
-    if (entry.outcome !== undefined) validateResultResource(entry);
-  }
-  return result as unknown as ReadUpdateSequenceResponse;
+    const resource = entry.outcome !== undefined ? validateResultResource(entry) : undefined;
+    return Object.freeze({
+      ...entry,
+      ...(resource === undefined ? {} : { resource }),
+    });
+  });
+  return Object.freeze({
+    ...result,
+    results: Object.freeze(projectedEntries),
+  }) as unknown as ReadUpdateSequenceResponse;
 }

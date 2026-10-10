@@ -19,10 +19,19 @@
           "operations": [
             {
               "idempotencyKey": "w1-q-note-accept",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/note-120",
-              "change": [{ "op": "replace", "path": "/status", "value": "accepted" }],
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "accepted"
+                }
+              ],
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             },
             {
               "idempotencyKey": "w1-q-note-alias-delete",
@@ -48,11 +57,15 @@
                 "id": "https://beads.example/acme/beads/note-120",
                 "type": "https://work.example/types/decision",
                 "revision": "note-120-r2",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "basis": "writer-supplied"
+                },
                 "properties": {
                   "title": "Alias mutation joins Read+Update",
                   "status": "accepted"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }
@@ -71,8 +84,16 @@
       "id": "retained-alias-disposition-replayed-inside-a-sequence",
       "condition": "The same sequence retried under the same keys. Member 0's retained postimage is re-authorized for disclosure against the present view, as every retained record is; member 1's alias result discloses no record and is returned as retained without re-authorization, as a deleted identity is. Nothing executes.",
       "retained": [
-        { "from": "delete-alias-inside-a-sequence", "index": 0, "at": 0 },
-        { "from": "delete-alias-inside-a-sequence", "index": 1, "at": 1 }
+        {
+          "from": "delete-alias-inside-a-sequence",
+          "index": 0,
+          "at": 0
+        },
+        {
+          "from": "delete-alias-inside-a-sequence",
+          "index": 1,
+          "at": 1
+        }
       ],
       "request": {
         "method": "POST",
@@ -86,10 +107,19 @@
           "operations": [
             {
               "idempotencyKey": "w1-q-note-accept",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/note-120",
-              "change": [{ "op": "replace", "path": "/status", "value": "accepted" }],
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/status",
+                  "value": "accepted"
+                }
+              ],
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             },
             {
               "idempotencyKey": "w1-q-note-alias-delete",
@@ -115,11 +145,15 @@
                 "id": "https://beads.example/acme/beads/note-120",
                 "type": "https://work.example/types/decision",
                 "revision": "note-120-r2",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "basis": "writer-supplied"
+                },
                 "properties": {
                   "title": "Alias mutation joins Read+Update",
                   "status": "accepted"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }
@@ -149,8 +183,14 @@
         "body": {
           "id": "beads/notes/alias-mutation",
           "type": "https://work.example/types/task",
-          "properties": { "title": "Take the released alias path", "status": "open" },
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "properties": {
+            "title": "Take the released alias path",
+            "status": "open"
+          },
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -166,8 +206,15 @@
             "id": "https://beads.example/acme/beads/notes/alias-mutation",
             "type": "https://work.example/types/task",
             "revision": "alias-mutation-r1",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
-            "properties": { "title": "Take the released alias path", "status": "open" }
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
+            "properties": {
+              "title": "Take the released alias path",
+              "status": "open"
+            },
+            "metadata": {}
           }
         }
       }
@@ -190,8 +237,14 @@
               "operation": "createBead",
               "name": "first",
               "type": "https://work.example/types/task",
-              "properties": { "title": "First, well-formed", "status": "open" },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "properties": {
+                "title": "First, well-formed",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             },
             {
               "idempotencyKey": "w1-q-bad-alias",
@@ -236,8 +289,14 @@
               "operation": "createBead",
               "name": "second",
               "type": "https://work.example/types/task",
-              "properties": { "title": "Second, committed", "status": "open" },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "properties": {
+                "title": "Second, committed",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             },
             {
               "idempotencyKey": "w1-q-draft-alias",
@@ -265,8 +324,15 @@
                 "id": "https://beads.example/acme/beads/task-119",
                 "type": "https://work.example/types/task",
                 "revision": "task-119-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
-                "properties": { "title": "Second, committed", "status": "open" }
+                "attribution": {
+                  "principal": "agent:planner",
+                  "basis": "writer-supplied"
+                },
+                "properties": {
+                  "title": "Second, committed",
+                  "status": "open"
+                },
+                "metadata": {}
               }
             },
             {

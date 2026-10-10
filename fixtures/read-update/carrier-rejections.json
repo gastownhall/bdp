@@ -27,7 +27,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -40,7 +40,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -85,7 +85,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -99,7 +99,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -143,7 +143,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -187,7 +187,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -232,13 +232,13 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
               "idempotencyKey": "w1-malformed-second",
-              "operation": "updateBeadProperties",
-              "change": [
+              "operation": "updateBead",
+              "propertiesChange": [
                 {
                   "op": "replace",
                   "path": "/status",
@@ -261,7 +261,7 @@
           "code": "malformed-request",
           "status": 400,
           "retry": "never",
-          "detail": "operations[1] is not a valid updateBeadProperties record: bead is required"
+          "detail": "operations[1] is not a valid updateBead record: bead is required"
         }
       }
     },
@@ -271,7 +271,10 @@
       "request": {
         "method": "POST",
         "target": "operations/sequence",
-        "headers": { "content-type": "application/json", "accept": "application/json" },
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
         "schema": "#/$defs/sequenceRequest",
         "body": {
           "operations": [
@@ -280,8 +283,14 @@
               "operation": "createBead",
               "name": "first",
               "type": "https://work.example/types/task",
-              "properties": { "title": "First", "status": "open" },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "properties": {
+                "title": "First",
+                "status": "open"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             },
             {
               "idempotencyKey": "w1-orphan-cite",
@@ -290,7 +299,10 @@
               "source": "@adr",
               "target": "https://github.example/issues/124",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             }
           ]
         }
@@ -316,7 +328,10 @@
       "request": {
         "method": "POST",
         "target": "operations/sequence",
-        "headers": { "content-type": "application/json", "accept": "application/json" },
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
         "schema": "#/$defs/sequenceRequest",
         "body": {
           "operations": [
@@ -327,15 +342,24 @@
               "source": "@later",
               "target": "https://github.example/issues/125",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             },
             {
               "idempotencyKey": "w1-later-create",
               "operation": "createBead",
               "name": "later",
               "type": "https://work.example/types/decision",
-              "properties": { "title": "Declared too late", "status": "proposed" },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "properties": {
+                "title": "Declared too late",
+                "status": "proposed"
+              },
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             }
           ]
         }
@@ -361,7 +385,10 @@
       "request": {
         "method": "POST",
         "target": "operations/sequence",
-        "headers": { "content-type": "application/json", "accept": "application/json" },
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
         "schema": "#/$defs/sequenceRequest",
         "body": {
           "operations": [
@@ -373,7 +400,10 @@
               "source": "beads/decision-7",
               "target": "https://github.example/issues/126",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "basis": "writer-supplied"
+              }
             },
             {
               "idempotencyKey": "w1-kind-delete",
@@ -423,7 +453,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]

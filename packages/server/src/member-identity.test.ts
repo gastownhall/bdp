@@ -101,6 +101,16 @@ describe("exact member identity normalization", () => {
       '["ru-semantic-value-1",["object",[["normalizedInput",["object",[["properties",["object",[]]],["type",["string","https://types.example/task"]]]]],["operation",["string","createBead"]]]]]',
     );
   });
+  it.each([
+    ["createBead", { type, id: a }],
+    ["createLink", { type: linkType, id: `${scope}links/edge`, source: a, target: b }],
+  ] as const)("equates omitted and empty creation metadata for %s", (operation, input) => {
+    const omitted = ready(singleton(operation, input));
+    const empty = ready(singleton(operation, { ...input, metadata: {} }));
+    const nonempty = ready(singleton(operation, { ...input, metadata: { team: "core" } }));
+    expect(empty.identityJson).toBe(omitted.identityJson);
+    expect(nonempty.identityJson).not.toBe(omitted.identityJson);
+  });
   it("does not insert an allocated identity or generated attribution/context into omitted input", () => {
     const one = ready(singleton("createBead", { type }));
     const supplied = ready(singleton("createBead", { type, id: a }));
@@ -114,20 +124,20 @@ describe("exact member identity normalization", () => {
     { expectedRevision: "r2" },
     { changeContext: { message: null } },
     { changeContext: { message: "" } },
-    { attribution: { principal: "other", status: "claimed" } },
+    { attribution: { principal: "other", basis: "writer-supplied" } },
   ])("preserves meaningful request context and CAS differences %#", (extra) => {
-    const base = { bead: a, change: [{ op: "add", path: "/value", value: 1 }] };
-    expect(ready(singleton("updateBeadProperties", { ...base, ...extra })).identityJson).not.toBe(
-      ready(singleton("updateBeadProperties", base)).identityJson,
+    const base = { bead: a, propertiesChange: [{ op: "add", path: "/value", value: 1 }] };
+    expect(ready(singleton("updateBead", { ...base, ...extra })).identityJson).not.toBe(
+      ready(singleton("updateBead", base)).identityJson,
     );
   });
   it.each<[ReadUpdateOperation, Record<string, unknown>]>([
     ["createBead", { id: a, type }],
-    ["updateBeadProperties", { bead: a, change: [{ op: "add", path: "/n", value: 1 }] }],
+    ["updateBead", { bead: a, propertiesChange: [{ op: "add", path: "/n", value: 1 }] }],
     ["createLink", { id: `${scope}links/edge`, type: linkType, source: a, target: b }],
     [
-      "updateLinkProperties",
-      { link: `${scope}links/edge`, change: [{ op: "add", path: "/n", value: 1 }] },
+      "updateLink",
+      { link: `${scope}links/edge`, propertiesChange: [{ op: "add", path: "/n", value: 1 }] },
     ],
     ["deleteLink", { link: `${scope}links/edge` }],
   ])(
@@ -182,10 +192,10 @@ describe("exact member identity normalization", () => {
       { op: "add", path: "/a", value: 1 },
       { op: "remove", path: "/a" },
     ];
-    const one = ready(singleton("updateBeadProperties", { bead: "beads/a", change }));
-    const ordered = ready(singleton("updateBeadProperties", { change, bead: a }));
+    const one = ready(singleton("updateBead", { bead: "beads/a", propertiesChange: change }));
+    const ordered = ready(singleton("updateBead", { propertiesChange: change, bead: a }));
     const reversed = ready(
-      singleton("updateBeadProperties", { bead: a, change: [...change].reverse() }),
+      singleton("updateBead", { bead: a, propertiesChange: [...change].reverse() }),
     );
     expect(one.identityJson).toBe(ordered.identityJson);
     expect(one.identityJson).not.toBe(reversed.identityJson);
@@ -205,14 +215,14 @@ describe("exact member identity normalization", () => {
     expect(member.metadata.witnesses).toEqual([]);
     expect(resolveAlias).not.toHaveBeenCalled();
     const patch = ready(
-      singleton("updateBeadProperties", {
+      singleton("updateBead", {
         bead: a,
-        change: [{ op: "add", path: "/target", value: "alias/x" }],
+        propertiesChange: [{ op: "add", path: "/target", value: "alias/x" }],
       }),
       0,
       { resolveAlias },
     );
-    expect(execution(patch).input).toMatchObject({ change: [{ value: "alias/x" }] });
+    expect(execution(patch).input).toMatchObject({ propertiesChange: [{ value: "alias/x" }] });
     expect(resolveAlias).not.toHaveBeenCalled();
   });
   it.each([
@@ -589,39 +599,36 @@ describe("identity receiving boundaries", () => {
       { slot: "/target/uri", kind: "alias", locator: `${scope}alias/two`, target: b },
     ]);
   });
-  it.each(["updateLinkProperties", "deleteLink"] as const)(
-    "uses Link creator facts in %s",
-    (operation) => {
-      const carrier = sequence([
-        {
-          operation: "createLink",
-          idempotencyKey: "creator",
-          name: "relation",
-          type: linkType,
-          source: a,
-          target: b,
-        },
-        {
-          operation,
-          idempotencyKey: "next",
-          link: "@relation",
-          ...(operation === "updateLinkProperties"
-            ? { change: [{ op: "add", path: "/v", value: true }] }
-            : {}),
-        },
-      ]);
-      const member = ready(carrier, 1, {
-        creatorBinding: () => ({ kind: "bound", id: `${scope}links/l`, resourceKind: "link" }),
-      });
-      expect(execution(member).input).toMatchObject({ link: `${scope}links/l` });
-      expect(metadata(member).witnesses).toEqual(member.metadata.witnesses);
-      expect(() =>
-        ready(carrier, 1, {
-          creatorBinding: () => ({ kind: "bound", id: a, resourceKind: "bead" }),
-        }),
-      ).toThrow(MemberMetadataError);
-    },
-  );
+  it.each(["updateLink", "deleteLink"] as const)("uses Link creator facts in %s", (operation) => {
+    const carrier = sequence([
+      {
+        operation: "createLink",
+        idempotencyKey: "creator",
+        name: "relation",
+        type: linkType,
+        source: a,
+        target: b,
+      },
+      {
+        operation,
+        idempotencyKey: "next",
+        link: "@relation",
+        ...(operation === "updateLink"
+          ? { propertiesChange: [{ op: "add", path: "/v", value: true }] }
+          : {}),
+      },
+    ]);
+    const member = ready(carrier, 1, {
+      creatorBinding: () => ({ kind: "bound", id: `${scope}links/l`, resourceKind: "link" }),
+    });
+    expect(execution(member).input).toMatchObject({ link: `${scope}links/l` });
+    expect(metadata(member).witnesses).toEqual(member.metadata.witnesses);
+    expect(() =>
+      ready(carrier, 1, {
+        creatorBinding: () => ({ kind: "bound", id: a, resourceKind: "bead" }),
+      }),
+    ).toThrow(MemberMetadataError);
+  });
   it("substitutes putAlias's Bead binding while keeping its locator unresolved", () => {
     const member = ready(
       sequence([
@@ -952,7 +959,7 @@ describe("prepared member dependencies", () => {
   }
   const legalSlots = [
     { operation: "deleteBead", bead: "@made" },
-    { operation: "updateBeadProperties", bead: "@made", change: [{ op: "remove", path: "/x" }] },
+    { operation: "updateBead", bead: "@made", propertiesChange: [{ op: "remove", path: "/x" }] },
     { operation: "createLink", type: linkType, source: "@made", target: b },
     {
       operation: "createLink",
@@ -969,7 +976,7 @@ describe("prepared member dependencies", () => {
     },
     { operation: "putAlias", alias: "alias/lead", target: "@made" },
     { operation: "deleteLink", link: "@made" },
-    { operation: "updateLinkProperties", link: "@made", change: [{ op: "remove", path: "/x" }] },
+    { operation: "updateLink", link: "@made", propertiesChange: [{ op: "remove", path: "/x" }] },
   ];
   it.each(legalSlots)("stops at a transient creator in the legal $operation slot: %j", (input) => {
     const link = "link" in input;
@@ -1173,7 +1180,7 @@ describe("prepared member dependencies", () => {
   it("retains unbound and numeric refusal as separate facts with prepared dependencies", () => {
     const carrier = prepareReadUpdateSequence(
       scope,
-      `{"operations":[{"operation":"createBead","idempotencyKey":"creator","name":"made","type":"${type}"},{"operation":"updateBeadProperties","idempotencyKey":"dependent","bead":"@made","change":[{"op":"add","path":"/n","value":9007199254740993}]}]}`,
+      `{"operations":[{"operation":"createBead","idempotencyKey":"creator","name":"made","type":"${type}"},{"operation":"updateBead","idempotencyKey":"dependent","bead":"@made","propertiesChange":[{"op":"add","path":"/n","value":9007199254740993}]}]}`,
     );
     const member = normalizePreparedMemberIdentity(
       carrier,
@@ -1193,6 +1200,21 @@ describe("prepared member dependencies", () => {
 describe("paired create numeric diagnostic locations", () => {
   for (const operation of ["createBead", "createLink"] as const) {
     const input = operation === "createBead" ? { type } : { type: linkType, source: a, target: b };
+    it(`${operation} rejects numeric metadata with a metadata-relative diagnostic`, () => {
+      const raw = JSON.stringify({ ...input, metadata: { nested: { bad: "BAD" } } }).replace(
+        '"BAD"',
+        "1e400",
+      );
+      const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "metadata-number"));
+      const result = prepareMemberExecution(member, {
+        diagnostic: () => ({ message: "bad number", instanceLocation: "/wrong" }),
+      }).admission;
+      expect(result).toMatchObject({
+        ok: false,
+        diagnostics: [{ message: "bad number", instanceLocation: "/nested/bad" }],
+        offending: [{ pointer: "/metadata/nested/bad", literal: "1e400" }],
+      });
+    });
     it(`${operation} replaces wrong/missing formatter locations before byte accounting`, () => {
       const key = `é/~/${"x".repeat(150)}`;
       const pointer = `/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`;
@@ -1297,8 +1319,8 @@ describe("paired create numeric diagnostic locations", () => {
     const member = ready(
       prepareReadUpdateSingleton(
         scope,
-        "updateBeadProperties",
-        '{"bead":"beads/a","change":[{"op":"add","path":"/items/-","value":1e400}]}',
+        "updateBead",
+        '{"bead":"beads/a","propertiesChange":[{"op":"add","path":"/items/-","value":1e400}]}',
         "update",
       ),
     );
@@ -1308,7 +1330,7 @@ describe("paired create numeric diagnostic locations", () => {
       }).admission,
     ).toMatchObject({
       ok: false,
-      diagnostics: [{ message: "/change/0/value", instanceLocation: "/caller-location" }],
+      diagnostics: [{ message: "/propertiesChange/0/value", instanceLocation: "/caller-location" }],
     });
   });
 });

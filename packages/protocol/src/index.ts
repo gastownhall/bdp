@@ -268,20 +268,20 @@ export interface PropertiesRecord {
 }
 
 /** The realization's basis for a carried attribution value — never a BDP guarantee. */
-export const ATTRIBUTION_STATUSES = Object.freeze(["claimed", "unknown"] as const);
-export type AttributionStatus = (typeof ATTRIBUTION_STATUSES)[number];
+export const ATTRIBUTION_BASES = Object.freeze(["writer-supplied", "unknown"] as const);
+export type AttributionBasis = (typeof ATTRIBUTION_BASES)[number];
 
 /**
  * Carried attribution: data, not evidence. Transported per version beside
  * `revision`, outside `properties`; attested by nothing. A generic client
- * never treats it as an authority claim. v0 has exactly two statuses —
- * `claimed` (supplied by that version's writer) and `unknown` (carried from
+ * never treats it as an authority claim. v0 has exactly two bases —
+ * `writer-supplied` (supplied by that version's writer) and `unknown` (carried from
  * data whose relationship to this version the realization cannot
- * establish); no status asserts authentication.
+ * establish); neither basis asserts authentication.
  */
 export interface Attribution {
   readonly principal: string;
-  readonly status: AttributionStatus;
+  readonly basis: AttributionBasis;
 }
 
 export interface BeadRecord {
@@ -291,6 +291,7 @@ export interface BeadRecord {
   readonly attribution?: Attribution;
   readonly changeContext?: ChangeContext;
   readonly properties: PropertiesRecord;
+  readonly metadata?: PropertiesRecord;
   /**
    * The owned-Links plane: for each Link Type the Bead's declared Type
    * owns, the owned Links' complete records in ascending code-unit order
@@ -311,6 +312,7 @@ export interface LinkRecord {
   readonly source: Reference;
   readonly target: Reference;
   readonly properties: PropertiesRecord;
+  readonly metadata?: PropertiesRecord;
 }
 
 export interface BeadCollection extends CollectionPage<BeadRecord> {}

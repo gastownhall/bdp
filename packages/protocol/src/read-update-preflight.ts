@@ -92,9 +92,9 @@ function prepare(
 const REFERENCE_FIELDS: Readonly<Record<ReadUpdateOperation, readonly string[]>> = {
   createBead: ["id"],
   createLink: ["id", "source", "target"],
-  updateBeadProperties: ["bead"],
+  updateBead: ["bead"],
   deleteBead: ["bead"],
-  updateLinkProperties: ["link"],
+  updateLink: ["link"],
   deleteLink: ["link"],
   putAlias: ["alias", "target"],
   deleteAlias: ["alias"],

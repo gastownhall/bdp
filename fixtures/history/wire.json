@@ -132,7 +132,7 @@
         },
         "attribution": {
           "principal": "donna",
-          "status": "claimed"
+          "basis": "writer-supplied"
         },
         "changeContext": {
           "committedAt": {
@@ -165,7 +165,7 @@
               },
               "attribution": {
                 "principal": "donna",
-                "status": "claimed"
+                "basis": "writer-supplied"
               },
               "changeContext": {
                 "committedAt": {
@@ -205,7 +205,7 @@
         },
         "attribution": {
           "principal": "donna",
-          "status": "claimed"
+          "basis": "writer-supplied"
         },
         "changeContext": {
           "committedAt": {
@@ -730,7 +730,7 @@
           },
           "attribution": {
             "principal": "donna",
-            "status": "claimed"
+            "basis": "writer-supplied"
           },
           "changeContext": {
             "committedAt": {
@@ -773,7 +773,7 @@
           },
           "attribution": {
             "principal": "donna",
-            "status": "claimed"
+            "basis": "writer-supplied"
           },
           "changeContext": {
             "committedAt": {
@@ -923,11 +923,11 @@
     },
     {
       "id": "update-bead-input-context",
-      "schema": "#/$defs/updateBeadPropertiesRequest",
+      "schema": "#/$defs/updateBeadRequest",
       "condition": "Singleton update input supplies agent/message only; native commit time is authority-owned.",
       "body": {
         "bead": "https://work.example/scope/beads/decision",
-        "change": [
+        "propertiesChange": [
           {
             "op": "replace",
             "path": "/title",
@@ -942,11 +942,11 @@
     },
     {
       "id": "update-link-input-context",
-      "schema": "#/$defs/updateLinkPropertiesRequest",
+      "schema": "#/$defs/updateLinkRequest",
       "condition": "Singleton Link update context also fans out to its source when ownership actually versions that source.",
       "body": {
         "link": "https://work.example/scope/links/citation",
-        "change": [
+        "propertiesChange": [
           {
             "op": "replace",
             "path": "/note",

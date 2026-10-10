@@ -604,7 +604,7 @@
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `unknown` — that is carried per version and never attested"
+          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, basis }` with `basis` one of `writer-supplied`,\n  `unknown` — that is carried per version and never attested"
         }
       ]
     },
@@ -627,7 +627,7 @@
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, status }` with `status` one of `claimed`,\n  `unknown` — that is carried per version and never attested"
+          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, basis }` with `basis` one of `writer-supplied`,\n  `unknown` — that is carried per version and never attested"
         }
       ]
     },

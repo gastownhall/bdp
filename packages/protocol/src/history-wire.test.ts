@@ -492,14 +492,38 @@ describe("Immutable context wire boundary", () => {
       }),
     ).toBe(false);
     for (const [id, definition] of [
-      ["update-bead-input-context", "updateBeadPropertiesRequest"],
-      ["update-link-input-context", "updateLinkPropertiesRequest"],
+      ["update-bead-input-context", "updateBeadRequest"],
+      ["update-link-input-context", "updateLinkRequest"],
     ] as const) {
       expect(validate(definition, example(id))).toBe(true);
       expect(
         validate(definition, { ...example(id), changeContext: example("native-context") }),
       ).toBe(false);
     }
+  });
+  it("represents atomic property and common-metadata transitions in Events", () => {
+    const base = { previousRevision: "r1", revision: "r2" };
+    const change = [{ op: "replace", path: "/title", value: "changed" }];
+    const metadataChange = [{ op: "add", path: "/reviewed", value: true }];
+    expect(validate("createdData", { revision: "r1", properties: {}, metadata: {} })).toBe(true);
+    expect(validate("updatedData", { ...base, metadataChange })).toBe(true);
+    expect(validate("updatedData", { ...base, change, metadataChange })).toBe(true);
+    expect(validate("updatedData", base)).toBe(false);
+    const owned = {
+      id: link,
+      type: "https://work.example/types/cites",
+      ...base,
+    };
+    expect(validate("ownedLinkDelta", { ...owned, metadataChange })).toBe(true);
+    expect(validate("ownedLinkDelta", { ...owned, change, metadataChange })).toBe(true);
+    expect(validate("ownedLinkDelta", owned)).toBe(false);
+    expect(
+      validate("updatedData", {
+        ...base,
+        metadataChange,
+        ownedLink: { operation: "deleted", link: { id: link, type: owned.type } },
+      }),
+    ).toBe(false);
   });
   it("has independent parser snapshots and rejects cycles before schema traversal", () => {
     const input = example("native-context");

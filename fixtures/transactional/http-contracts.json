@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "transactional-http-contracts",
-  "description": "G1\u2013G5 and existing HEAD law: narrated HTTP decisions and retained-handle illustrations, not server observations or executable conformance. Optional source references identify the existing request/body/context seed and their explicit purpose; independent cases instead state their Scope; retained-handle cases compare exact originals, while Scope Event examples explicitly use an independent empty Scope; bodyOmittedFromIllustration marks ordinary failure bodies checked by the existing problem fixtures. Context/effects/ended are test metadata, never wire members. Each case is independent; opaque tokens imply no lexical ordering. Mutation admission starts independently from the referenced valid request seed. Minimum-position ordering and wait exhaustion are explicit narrated premises, not computed from opaque token spelling or observed server execution; erasure fences identify a version actually embedded in the referenced snapshot. The mutation refusal uses the seed\u2019s initial state and discovery position before submission, not the seed\u2019s original execution outcome.",
+  "description": "G1–G5 and existing HEAD law: narrated HTTP decisions and retained-handle illustrations, not server observations or executable conformance. Optional source references identify the existing request/body/context seed and their explicit purpose; independent cases instead state their Scope; retained-handle cases compare exact originals, while Scope Event examples explicitly use an independent empty Scope; bodyOmittedFromIllustration marks ordinary failure bodies checked by the existing problem fixtures. Context/effects/ended are test metadata, never wire members. Each case is independent; opaque tokens imply no lexical ordering. Mutation admission starts independently from the referenced valid request seed. Minimum-position ordering and wait exhaustion are explicit narrated premises, not computed from opaque token spelling or observed server execution; erasure fences identify a version actually embedded in the referenced snapshot. The mutation refusal uses the seed’s initial state and discovery position before submission, not the seed’s original execution outcome.",
   "cases": [
     {
       "id": "read-unacceptable",
@@ -65,7 +65,7 @@
           },
           "attribution": {
             "principal": "human:janet",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -129,7 +129,7 @@
               },
               "attribution": {
                 "principal": "human:donna",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -1352,7 +1352,7 @@
                     "revision": "dec-9-r2",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "properties": {
                       "title": "Adopt owned Links",
@@ -1366,7 +1366,7 @@
                           "revision": "9c1e-r1",
                           "attribution": {
                             "principal": "agent:planner",
-                            "status": "claimed"
+                            "basis": "writer-supplied"
                           },
                           "source": "https://beads.example/acme/beads/dec-9",
                           "target": "https://beads.example/acme/beads/task-42",
@@ -1387,7 +1387,7 @@
                     "revision": "9c1e-r1",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42",
@@ -1429,7 +1429,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     }
                   }
                 },
@@ -1449,7 +1449,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42"
@@ -1513,7 +1513,7 @@
                         "revision": "9c1e-r1",
                         "attribution": {
                           "principal": "agent:planner",
-                          "status": "claimed"
+                          "basis": "writer-supplied"
                         },
                         "source": "https://beads.example/acme/beads/dec-9",
                         "target": "https://beads.example/acme/beads/task-42",
@@ -1524,7 +1524,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     }
                   }
                 },
@@ -1621,7 +1621,7 @@
                     "revision": "dec-9-r2",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "properties": {
                       "title": "Adopt owned Links",
@@ -1635,7 +1635,7 @@
                           "revision": "9c1e-r1",
                           "attribution": {
                             "principal": "agent:planner",
-                            "status": "claimed"
+                            "basis": "writer-supplied"
                           },
                           "source": "https://beads.example/acme/beads/dec-9",
                           "target": "https://beads.example/acme/beads/task-42",
@@ -1656,7 +1656,7 @@
                     "revision": "9c1e-r1",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42",
@@ -1698,7 +1698,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     }
                   }
                 },
@@ -1718,7 +1718,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42"
@@ -1782,7 +1782,7 @@
                         "revision": "9c1e-r1",
                         "attribution": {
                           "principal": "agent:planner",
-                          "status": "claimed"
+                          "basis": "writer-supplied"
                         },
                         "source": "https://beads.example/acme/beads/dec-9",
                         "target": "https://beads.example/acme/beads/task-42",
@@ -1793,7 +1793,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     }
                   }
                 },
@@ -1931,7 +1931,7 @@
                     "revision": "dec-9-r2",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "properties": {
                       "title": "Adopt owned Links",
@@ -1945,7 +1945,7 @@
                           "revision": "9c1e-r1",
                           "attribution": {
                             "principal": "agent:planner",
-                            "status": "claimed"
+                            "basis": "writer-supplied"
                           },
                           "source": "https://beads.example/acme/beads/dec-9",
                           "target": "https://beads.example/acme/beads/task-42",
@@ -1966,7 +1966,7 @@
                     "revision": "9c1e-r1",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42",
@@ -2008,7 +2008,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     }
                   }
                 },
@@ -2028,7 +2028,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42"
@@ -2092,7 +2092,7 @@
                         "revision": "9c1e-r1",
                         "attribution": {
                           "principal": "agent:planner",
-                          "status": "claimed"
+                          "basis": "writer-supplied"
                         },
                         "source": "https://beads.example/acme/beads/dec-9",
                         "target": "https://beads.example/acme/beads/task-42",
@@ -2103,7 +2103,7 @@
                     },
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     }
                   }
                 },
@@ -2697,7 +2697,7 @@
                 },
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 }
               }
             },
@@ -2740,7 +2740,7 @@
                     "revision": "9c1e-r1",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42",
@@ -2751,7 +2751,7 @@
                 },
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 }
               }
             }
@@ -2819,7 +2819,7 @@
                 },
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 }
               }
             },
@@ -2862,7 +2862,7 @@
                     "revision": "9c1e-r1",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42",
@@ -2873,7 +2873,7 @@
                 },
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 }
               }
             }
@@ -2982,7 +2982,7 @@
                 },
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 }
               }
             },
@@ -3025,7 +3025,7 @@
                     "revision": "9c1e-r1",
                     "attribution": {
                       "principal": "agent:planner",
-                      "status": "claimed"
+                      "basis": "writer-supplied"
                     },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42",
@@ -3036,7 +3036,7 @@
                 },
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 }
               }
             }
@@ -4514,7 +4514,7 @@
               },
               "attribution": {
                 "principal": "human:donna",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -4662,7 +4662,7 @@
               },
               "attribution": {
                 "principal": "human:donna",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -4745,7 +4745,7 @@
               },
               "attribution": {
                 "principal": "human:donna",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -4879,7 +4879,7 @@
               },
               "attribution": {
                 "principal": "human:donna",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {

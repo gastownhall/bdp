@@ -14,8 +14,13 @@
       "conformsTo": [],
       "propertiesSchema": "https://memory.example/schemas/memory-properties-v1",
       "ownsOutgoing": {
-        "*": { "max": 64 },
-        "https://memory.example/types/cites": { "label": "cites", "max": 16 }
+        "*": {
+          "max": 64
+        },
+        "https://memory.example/types/cites": {
+          "label": "cites",
+          "max": 16
+        }
       }
     },
     {
@@ -25,7 +30,9 @@
       "describes": "bead",
       "conformsTo": [],
       "ownsOutgoing": {
-        "*": { "max": 8 }
+        "*": {
+          "max": 8
+        }
       }
     },
     {
@@ -33,24 +40,36 @@
       "name": "Cites",
       "describes": "link",
       "conformsTo": [],
-      "source": { "conformsTo": ["https://memory.example/types/memory"] },
-      "target": { "conformsTo": [] }
+      "source": {
+        "conformsTo": ["https://memory.example/types/memory"]
+      },
+      "target": {
+        "conformsTo": []
+      }
     },
     {
       "id": "https://memory.example/types/supports",
       "name": "Supports",
       "describes": "link",
       "conformsTo": [],
-      "source": { "conformsTo": [] },
-      "target": { "conformsTo": [] }
+      "source": {
+        "conformsTo": []
+      },
+      "target": {
+        "conformsTo": []
+      }
     },
     {
       "id": "https://memory.example/types/contradicts",
       "name": "Contradicts",
       "describes": "link",
       "conformsTo": [],
-      "source": { "conformsTo": [] },
-      "target": { "conformsTo": [] }
+      "source": {
+        "conformsTo": []
+      },
+      "target": {
+        "conformsTo": []
+      }
     }
   ],
   "records": [
@@ -58,11 +77,15 @@
       "id": "https://beads.example/acme/beads/mem-1",
       "type": "https://memory.example/types/memory",
       "revision": "mem-1-r3",
-      "attribution": { "principal": "agent:recall", "status": "claimed" },
+      "attribution": {
+        "principal": "agent:recall",
+        "basis": "writer-supplied"
+      },
       "properties": {
         "title": "Owned Links version their source",
         "body": "Every outgoing reference a Memory makes is part of its own versioned state."
       },
+      "metadata": {},
       "ownedLinks": {
         "https://memory.example/types/cites": [],
         "https://memory.example/types/contradicts": [
@@ -70,12 +93,16 @@
             "id": "https://beads.example/acme/links/contradicts-7",
             "type": "https://memory.example/types/contradicts",
             "revision": "contradicts-7-r1",
-            "attribution": { "principal": "agent:recall", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:recall",
+              "basis": "writer-supplied"
+            },
             "source": "https://beads.example/acme/beads/mem-1",
             "target": "https://beads.example/acme/beads/mem-2",
             "properties": {
               "note": "the earlier reading assumed incoming Links version the target"
-            }
+            },
+            "metadata": {}
           }
         ],
         "https://memory.example/types/supports": [
@@ -83,19 +110,30 @@
             "id": "https://beads.example/acme/links/supports-3",
             "type": "https://memory.example/types/supports",
             "revision": "supports-3-r2",
-            "attribution": { "principal": "agent:recall", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:recall",
+              "basis": "writer-supplied"
+            },
             "source": "https://beads.example/acme/beads/mem-1",
-            "target": { "uri": "https://github.example/issues/5877", "revision": "8f0e2b" },
-            "properties": {}
+            "target": {
+              "uri": "https://github.example/issues/5877",
+              "revision": "8f0e2b"
+            },
+            "properties": {},
+            "metadata": {}
           },
           {
             "id": "https://beads.example/acme/links/supports-9",
             "type": "https://memory.example/types/supports",
             "revision": "supports-9-r1",
-            "attribution": { "principal": "agent:recall", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:recall",
+              "basis": "writer-supplied"
+            },
             "source": "https://beads.example/acme/beads/mem-1",
             "target": "https://beads.example/acme/beads/mem-2",
-            "properties": {}
+            "properties": {},
+            "metadata": {}
           }
         ]
       }
@@ -108,6 +146,7 @@
         "title": "Incoming Links never version their target",
         "body": "mem-1 contradicts and supports this Bead; neither Link touched this revision."
       },
+      "metadata": {},
       "ownedLinks": {
         "https://memory.example/types/cites": []
       }
@@ -116,7 +155,10 @@
       "id": "https://beads.example/acme/beads/note-1",
       "type": "https://memory.example/types/note",
       "revision": "note-1-r1",
-      "properties": { "title": "A note that links to nothing yet" },
+      "properties": {
+        "title": "A note that links to nothing yet"
+      },
+      "metadata": {},
       "ownedLinks": {}
     }
   ],
@@ -145,7 +187,10 @@
         "describes": "bead",
         "conformsTo": [],
         "ownsOutgoing": {
-          "*": { "label": "references", "max": 64 }
+          "*": {
+            "label": "references",
+            "max": 64
+          }
         }
       }
     },
@@ -159,7 +204,9 @@
         "describes": "bead",
         "conformsTo": [],
         "ownsOutgoing": {
-          "*": { "max": 0 }
+          "*": {
+            "max": 0
+          }
         }
       }
     },
@@ -172,10 +219,16 @@
         "name": "Cites",
         "describes": "link",
         "conformsTo": [],
-        "source": { "conformsTo": [] },
-        "target": { "conformsTo": [] },
+        "source": {
+          "conformsTo": []
+        },
+        "target": {
+          "conformsTo": []
+        },
         "ownsOutgoing": {
-          "*": { "max": 1 }
+          "*": {
+            "max": 1
+          }
         }
       }
     },
@@ -187,7 +240,10 @@
         "id": "https://beads.example/acme/beads/mem-1",
         "type": "https://memory.example/types/memory",
         "revision": "mem-1-r3",
-        "properties": { "title": "Owned Links version their source" },
+        "properties": {
+          "title": "Owned Links version their source"
+        },
+        "metadata": {},
         "ownedLinks": {
           "*": [
             {
@@ -196,7 +252,8 @@
               "revision": "supports-9-r1",
               "source": "https://beads.example/acme/beads/mem-1",
               "target": "https://beads.example/acme/beads/mem-2",
-              "properties": {}
+              "properties": {},
+              "metadata": {}
             }
           ]
         }
@@ -213,8 +270,13 @@
         "describes": "bead",
         "conformsTo": [],
         "ownsOutgoing": {
-          "*": { "max": 8 },
-          "https://memory.example/types/cites": { "label": "cites", "max": 16 }
+          "*": {
+            "max": 8
+          },
+          "https://memory.example/types/cites": {
+            "label": "cites",
+            "max": 16
+          }
         }
       }
     }

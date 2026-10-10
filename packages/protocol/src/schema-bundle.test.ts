@@ -69,6 +69,10 @@ describe("BDP v0 schema bundle", () => {
       "createLinkOperation",
       "createLinkRequest",
       "createdData",
+      "currentBeadCollection",
+      "currentBeadRecord",
+      "currentLinkCollection",
+      "currentLinkRecord",
       "dateTime",
       "deleteAliasMembers",
       "deleteAliasRequest",
@@ -113,6 +117,7 @@ describe("BDP v0 schema bundle", () => {
       "localBindingReference",
       "localName",
       "maximumEndpointMultiplicityPolicy",
+      "metadata",
       "mutationOutcome",
       "mutationReceipt",
       "mutationReceiptPage",
@@ -165,8 +170,8 @@ describe("BDP v0 schema bundle", () => {
       "sequencePutAlias",
       "sequenceRequest",
       "sequenceResponse",
-      "sequenceUpdateBeadProperties",
-      "sequenceUpdateLinkProperties",
+      "sequenceUpdateBead",
+      "sequenceUpdateLink",
       "snapshotManifest",
       "stateChange",
       "transactionalAdvertisedLimits",
@@ -182,12 +187,12 @@ describe("BDP v0 schema bundle", () => {
       "typeSummary",
       "typedLinkReference",
       "typesInventory",
-      "updateBeadPropertiesMembers",
-      "updateBeadPropertiesOperation",
-      "updateBeadPropertiesRequest",
-      "updateLinkPropertiesMembers",
-      "updateLinkPropertiesOperation",
-      "updateLinkPropertiesRequest",
+      "updateBeadMembers",
+      "updateBeadOperation",
+      "updateBeadRequest",
+      "updateLinkMembers",
+      "updateLinkOperation",
+      "updateLinkRequest",
       "updateWhereMembers",
       "updateWhereOperation",
       "updateWhereRequest",
@@ -445,25 +450,29 @@ describe("BDP v0 schema bundle", () => {
       target: { uri: "urn:external:cites-witness", revision: "w-1" },
       properties: {},
     };
-    // Carried attribution: exactly { principal, status }, nonempty principal,
-    // closed two-value status; optional on both record kinds.
-    for (const status of ["claimed", "unknown"]) {
-      expectValid("beadRecord", { ...beadRecord(), attribution: { principal: "agent:x", status } });
-      expectValid("linkRecord", { ...ownedLink, attribution: { principal: "human:y", status } });
+    // Carried attribution: exactly { principal, basis }, nonempty principal,
+    // closed two-value basis; optional on both record kinds.
+    for (const basis of ["writer-supplied", "unknown"]) {
+      expectValid("beadRecord", { ...beadRecord(), attribution: { principal: "agent:x", basis } });
+      expectValid("linkRecord", { ...ownedLink, attribution: { principal: "human:y", basis } });
     }
     expectInvalid("beadRecord", {
       ...beadRecord(),
-      attribution: { principal: "", status: "claimed" },
+      attribution: { principal: "", basis: "writer-supplied" },
     });
     expectInvalid("beadRecord", {
       ...beadRecord(),
-      attribution: { principal: "agent:x", status: "verified" },
+      attribution: { principal: "agent:x", basis: "verified" },
     });
     expectInvalid("beadRecord", { ...beadRecord(), attribution: { principal: "agent:x" } });
-    expectInvalid("beadRecord", { ...beadRecord(), attribution: { status: "claimed" } });
     expectInvalid("beadRecord", {
       ...beadRecord(),
-      attribution: { principal: "agent:x", status: "claimed", extra: true },
+      attribution: { principal: "agent:x", status: "claimed" },
+    });
+    expectInvalid("beadRecord", { ...beadRecord(), attribution: { basis: "writer-supplied" } });
+    expectInvalid("beadRecord", {
+      ...beadRecord(),
+      attribution: { principal: "agent:x", basis: "writer-supplied", extra: true },
     });
     expectInvalid("beadRecord", { ...beadRecord(), attribution: "agent:x" });
     expectValid("beadRecord", {

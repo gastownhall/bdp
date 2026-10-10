@@ -28,14 +28,14 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
               "idempotencyKey": "w1-task-42-close",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/task-42",
-              "change": [
+              "propertiesChange": [
                 {
                   "op": "replace",
                   "path": "/status",
@@ -78,7 +78,7 @@
                 "revision": "adr-104-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Adopt sequence envelopes",
@@ -139,10 +139,10 @@
               }
             },
             {
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "idempotencyKey": "w1-task-77-dependent",
               "bead": "@task",
-              "change": [
+              "propertiesChange": [
                 {
                   "op": "replace",
                   "path": "/status",
@@ -211,10 +211,10 @@
               }
             },
             {
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "idempotencyKey": "w1-task-77-dependent",
               "bead": "@task",
-              "change": [
+              "propertiesChange": [
                 {
                   "op": "replace",
                   "path": "/status",

@@ -22,7 +22,10 @@
             "title": "Draft the singleton fixtures",
             "status": "open"
           },
-          "attribution": { "principal": "human:janet", "status": "claimed" }
+          "attribution": {
+            "principal": "human:janet",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -38,32 +41,45 @@
             "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
             "type": "https://work.example/types/task",
             "revision": "t-1-r1",
-            "attribution": { "principal": "human:janet", "status": "claimed" },
+            "attribution": {
+              "principal": "human:janet",
+              "basis": "writer-supplied"
+            },
             "properties": {
               "title": "Draft the singleton fixtures",
               "status": "open"
-            }
+            },
+            "metadata": {}
           }
         }
       }
     },
     {
-      "id": "update-bead-properties-semantic-no-op",
+      "id": "update-bead-semantic-no-op",
       "condition": "The replace writes the value the Bead already holds: a semantic no-op. The revision and the prior version's attribution (human:janet) are retained; the input attribution (agent:planner) is recorded nowhere.",
       "request": {
         "method": "POST",
-        "target": "operations/update-bead-properties",
+        "target": "operations/update-bead",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "w1-s-t1-noop"
         },
-        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "schema": "#/$defs/updateBeadRequest",
         "body": {
           "bead": "beads/projects/alpha/tasks/t-1",
           "expectedRevision": "t-1-r1",
-          "change": [{ "op": "replace", "path": "/status", "value": "open" }],
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "open"
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -79,11 +95,15 @@
             "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
             "type": "https://work.example/types/task",
             "revision": "t-1-r1",
-            "attribution": { "principal": "human:janet", "status": "claimed" },
+            "attribution": {
+              "principal": "human:janet",
+              "basis": "writer-supplied"
+            },
             "properties": {
               "title": "Draft the singleton fixtures",
               "status": "open"
-            }
+            },
+            "metadata": {}
           }
         }
       }
@@ -138,9 +158,15 @@
         "body": {
           "type": "https://work.example/types/cites",
           "source": "beads/decision-7",
-          "target": { "uri": "urn:doi:10.1000/182", "revision": "v3" },
+          "target": {
+            "uri": "urn:doi:10.1000/182",
+            "revision": "v3"
+          },
           "properties": {},
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -156,10 +182,17 @@
             "id": "https://beads.example/acme/links/cites-110",
             "type": "https://work.example/types/cites",
             "revision": "cites-110-r1",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
             "source": "https://beads.example/acme/beads/decision-7",
-            "target": { "uri": "urn:doi:10.1000/182", "revision": "v3" },
-            "properties": {}
+            "target": {
+              "uri": "urn:doi:10.1000/182",
+              "revision": "v3"
+            },
+            "properties": {},
+            "metadata": {}
           },
           "source": "https://beads.example/acme/beads/decision-7",
           "sourceRevision": "decision-7-r5"
@@ -167,21 +200,30 @@
       }
     },
     {
-      "id": "update-link-properties-owned-versions-the-source",
+      "id": "update-link-owned-versions-the-source",
       "request": {
         "method": "POST",
-        "target": "operations/update-link-properties",
+        "target": "operations/update-link",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "w1-s-cites-110-note"
         },
-        "schema": "#/$defs/updateLinkPropertiesRequest",
+        "schema": "#/$defs/updateLinkRequest",
         "body": {
           "link": "links/cites-110",
           "expectedRevision": "cites-110-r1",
-          "change": [{ "op": "add", "path": "/note", "value": "primary source" }],
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "propertiesChange": [
+            {
+              "op": "add",
+              "path": "/note",
+              "value": "primary source"
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -197,12 +239,19 @@
             "id": "https://beads.example/acme/links/cites-110",
             "type": "https://work.example/types/cites",
             "revision": "cites-110-r2",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
             "source": "https://beads.example/acme/beads/decision-7",
-            "target": { "uri": "urn:doi:10.1000/182", "revision": "v3" },
+            "target": {
+              "uri": "urn:doi:10.1000/182",
+              "revision": "v3"
+            },
             "properties": {
               "note": "primary source"
-            }
+            },
+            "metadata": {}
           },
           "source": "https://beads.example/acme/beads/decision-7",
           "sourceRevision": "decision-7-r6"
@@ -210,22 +259,31 @@
       }
     },
     {
-      "id": "update-link-properties-owned-semantic-no-op",
+      "id": "update-link-owned-semantic-no-op",
       "condition": "The replace writes the value the Link already holds: a semantic no-op. The Link keeps its revision and its prior attribution, no source version is minted, and sourceRevision reports the source's unchanged revision.",
       "request": {
         "method": "POST",
-        "target": "operations/update-link-properties",
+        "target": "operations/update-link",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "w1-s-cites-110-noop"
         },
-        "schema": "#/$defs/updateLinkPropertiesRequest",
+        "schema": "#/$defs/updateLinkRequest",
         "body": {
           "link": "links/cites-110",
           "expectedRevision": "cites-110-r2",
-          "change": [{ "op": "replace", "path": "/note", "value": "primary source" }],
-          "attribution": { "principal": "human:janet", "status": "claimed" }
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/note",
+              "value": "primary source"
+            }
+          ],
+          "attribution": {
+            "principal": "human:janet",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -241,12 +299,19 @@
             "id": "https://beads.example/acme/links/cites-110",
             "type": "https://work.example/types/cites",
             "revision": "cites-110-r2",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "basis": "writer-supplied"
+            },
             "source": "https://beads.example/acme/beads/decision-7",
-            "target": { "uri": "urn:doi:10.1000/182", "revision": "v3" },
+            "target": {
+              "uri": "urn:doi:10.1000/182",
+              "revision": "v3"
+            },
             "properties": {
               "note": "primary source"
-            }
+            },
+            "metadata": {}
           },
           "source": "https://beads.example/acme/beads/decision-7",
           "sourceRevision": "decision-7-r6"
@@ -267,7 +332,10 @@
         "body": {
           "link": "links/cites-110",
           "expectedRevision": "cites-110-r2",
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -304,7 +372,10 @@
         "schema": "#/$defs/createBeadRequest",
         "body": {
           "type": "https://work.example/types/task",
-          "properties": { "title": "No key", "status": "open" }
+          "properties": {
+            "title": "No key",
+            "status": "open"
+          }
         }
       },
       "response": {
@@ -341,7 +412,10 @@
             "title": "Check the media-type parameter",
             "status": "open"
           },
-          "attribution": { "principal": "human:janet", "status": "claimed" }
+          "attribution": {
+            "principal": "human:janet",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -357,11 +431,15 @@
             "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-2",
             "type": "https://work.example/types/task",
             "revision": "t-2-r1",
-            "attribution": { "principal": "human:janet", "status": "claimed" },
+            "attribution": {
+              "principal": "human:janet",
+              "basis": "writer-supplied"
+            },
             "properties": {
               "title": "Check the media-type parameter",
               "status": "open"
-            }
+            },
+            "metadata": {}
           }
         }
       }
@@ -407,7 +485,10 @@
         "schema": "#/$defs/createBeadRequest",
         "body": {
           "type": "https://work.example/types/task",
-          "properties": { "title": "Two keys", "status": "open" }
+          "properties": {
+            "title": "Two keys",
+            "status": "open"
+          }
         }
       },
       "response": {
@@ -439,7 +520,10 @@
         "schema": "#/$defs/createBeadRequest",
         "body": {
           "type": "https://work.example/types/task",
-          "properties": { "title": "Bad key", "status": "open" }
+          "properties": {
+            "title": "Bad key",
+            "status": "open"
+          }
         }
       },
       "response": {
@@ -499,8 +583,14 @@
         "schema": "#/$defs/createBeadRequest",
         "body": {
           "type": "https://work.example/types/task",
-          "properties": { "title": "Bad status", "status": "unknown-state" },
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "properties": {
+            "title": "Bad status",
+            "status": "unknown-state"
+          },
+          "attribution": {
+            "principal": "agent:planner",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -573,7 +663,10 @@
         "body": {
           "id": "beads/projects/alpha/tasks/t-1",
           "type": "https://work.example/types/task",
-          "properties": { "title": "Reuse a deleted identity", "status": "open" }
+          "properties": {
+            "title": "Reuse a deleted identity",
+            "status": "open"
+          }
         }
       },
       "response": {
@@ -630,7 +723,12 @@
     {
       "id": "singleton-idempotent-retry-after-deletion",
       "condition": "The create-bead-with-supplied-id request retried under its key after t-1 was deleted: the retained disposition is the postimage at the time of the mutation, not a fresh read, and disclosure is re-authorized against the record as retained whether or not the Resource still exists.",
-      "retained": [{ "from": "create-bead-with-supplied-id", "index": 0 }],
+      "retained": [
+        {
+          "from": "create-bead-with-supplied-id",
+          "index": 0
+        }
+      ],
       "request": {
         "method": "POST",
         "target": "operations/create-bead",
@@ -647,7 +745,10 @@
             "title": "Draft the singleton fixtures",
             "status": "open"
           },
-          "attribution": { "principal": "human:janet", "status": "claimed" }
+          "attribution": {
+            "principal": "human:janet",
+            "basis": "writer-supplied"
+          }
         }
       },
       "response": {
@@ -663,11 +764,15 @@
             "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
             "type": "https://work.example/types/task",
             "revision": "t-1-r1",
-            "attribution": { "principal": "human:janet", "status": "claimed" },
+            "attribution": {
+              "principal": "human:janet",
+              "basis": "writer-supplied"
+            },
             "properties": {
               "title": "Draft the singleton fixtures",
               "status": "open"
-            }
+            },
+            "metadata": {}
           }
         }
       }
@@ -685,7 +790,10 @@
         "schema": "#/$defs/createBeadRequest",
         "body": {
           "type": "https://work.example/types/task",
-          "properties": { "title": "Another task under a retained key", "status": "open" }
+          "properties": {
+            "title": "Another task under a retained key",
+            "status": "open"
+          }
         }
       },
       "response": {

@@ -80,9 +80,9 @@ const fields: Readonly<Record<ReadUpdateOperation, readonly FieldRule[]>> = {
     { field: "source", required: true, binding: "bead", alias: true, pinned: true },
     { field: "target", required: true, binding: "bead", alias: true, pinned: true },
   ],
-  updateBeadProperties: [{ field: "bead", required: true, binding: "bead", alias: true }],
+  updateBead: [{ field: "bead", required: true, binding: "bead", alias: true }],
   deleteBead: [{ field: "bead", required: true, binding: "bead", alias: true }],
-  updateLinkProperties: [{ field: "link", required: true, binding: "link" }],
+  updateLink: [{ field: "link", required: true, binding: "link" }],
   deleteLink: [{ field: "link", required: true, binding: "link" }],
   putAlias: [
     { field: "alias", required: true },
@@ -368,6 +368,17 @@ export function normalizePreparedMemberIdentity(
   }
   if (creationKind(original.operation) && !Object.hasOwn(normalized, "properties"))
     normalized.properties = Object.freeze({});
+  // An omitted creation metadata object and an explicit empty one have the
+  // same protocol value. Fold the explicit spelling onto the already-retained
+  // omitted identity bytes rather than changing those existing fingerprints.
+  if (
+    creationKind(original.operation) &&
+    normalized.metadata !== null &&
+    typeof normalized.metadata === "object" &&
+    !Array.isArray(normalized.metadata) &&
+    Object.keys(normalized.metadata).length === 0
+  )
+    delete normalized.metadata;
   // Context's protocol default is omission: {} carries no explicit states.
   // Keep null/string members and never insert generated version metadata.
   // This correction changes old explicit-empty identity bytes and fingerprints,
@@ -416,7 +427,8 @@ export function prepareMemberExecution(
 ): MemberExecutionValues {
   const state = identityState.get(member);
   if (!state) throw new TypeError("expected a normalized member identity");
-  // S1's occurrences are operation-relative; create diagnostics name properties.
+  // S1's occurrences are operation-relative; create diagnostics name either
+  // Resource object. Locations in each object's validation are relative to it.
   // Update formatting remains the caller's existing responsibility pending its
   // separate unapplied-patch-location convention. No store read or clock here.
   let selectedBudget = budget;
@@ -426,14 +438,17 @@ export function prepareMemberExecution(
       ...(diagnostics !== undefined ? { diagnostics } : {}),
       ...(diagnosticBytes !== undefined ? { diagnosticBytes } : {}),
       diagnostic: (occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
-        if (!occurrence.pointer.startsWith("/properties/"))
+        const object = ["properties", "metadata"].find((name) =>
+          occurrence.pointer.startsWith(`/${name}/`),
+        );
+        if (!object)
           throw new TypeError("unexpected numeric position in admitted create operation");
         const { message, type, schemaLocation } = diagnostic(occurrence);
         return Object.freeze({
           message,
           ...(type !== undefined ? { type } : {}),
           ...(schemaLocation !== undefined ? { schemaLocation } : {}),
-          instanceLocation: occurrence.pointer.slice("/properties".length),
+          instanceLocation: occurrence.pointer.slice(object.length + 1),
         });
       },
     });

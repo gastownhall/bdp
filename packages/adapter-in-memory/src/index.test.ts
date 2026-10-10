@@ -124,6 +124,7 @@ describe("reference fixture Scope port", () => {
             type: task.id,
             revision: "7",
             properties: { title: "Reviewed fixture", status: "open" },
+            metadata: {},
           },
         ],
         next: null,
@@ -674,6 +675,7 @@ describe("reference fixture Scope port", () => {
           source: `${scope}beads/d`,
           target: `${scope}beads/e`,
           properties: {},
+          metadata: {},
         },
         {
           id: `${scope}links/two`,
@@ -682,6 +684,7 @@ describe("reference fixture Scope port", () => {
           source: `${scope}beads/d`,
           target: { uri: "urn:external:w", revision: "w-9" },
           properties: {},
+          metadata: {},
         },
       ],
     });
@@ -729,12 +732,12 @@ describe("reference fixture Scope port", () => {
     // The principal's bytes survive untouched, including whitespace and
     // combining marks; `unknown` is admissible; the member is optional.
     const odd = " Ångström\u0301 \t";
-    const port = load({ principal: odd, status: "unknown" })();
+    const port = load({ principal: odd, basis: "unknown" })();
     await expect(
       port.perform({ kind: "resource", resource: "bead", id: `${scope}beads/attributed` }, options),
     ).resolves.toMatchObject({
       kind: "success",
-      body: { attribution: { principal: odd, status: "unknown" } },
+      body: { attribution: { principal: odd, basis: "unknown" } },
     });
     await expect(
       load(undefined)().perform(
@@ -745,10 +748,11 @@ describe("reference fixture Scope port", () => {
       (r: { body?: { attribution?: unknown } }) => r.body?.attribution === undefined,
     );
     // Junk shapes refuse.
-    expect(load({ principal: "", status: "claimed" })).toThrow();
-    expect(load({ principal: "agent:x", status: "verified" })).toThrow("status must be one of");
+    expect(load({ principal: "", basis: "writer-supplied" })).toThrow();
+    expect(load({ principal: "agent:x", basis: "verified" })).toThrow("basis must be one of");
+    expect(load({ principal: "agent:x", status: "claimed" })).toThrow();
     expect(load({ principal: "agent:x" })).toThrow();
-    expect(load({ principal: "agent:x", status: "claimed", extra: 1 })).toThrow();
+    expect(load({ principal: "agent:x", basis: "writer-supplied", extra: 1 })).toThrow();
     expect(load("agent:x")).toThrow();
   });
 

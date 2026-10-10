@@ -652,7 +652,8 @@
             "revision": "1",
             "source": "https://scope.example/acme/beads/demo-f",
             "target": "https://scope.example/acme/beads/demo-a",
-            "properties": {}
+            "properties": {},
+            "metadata": {}
           },
           {
             "id": "https://scope.example/acme/links/cites-witness",
@@ -663,7 +664,8 @@
               "uri": "urn:external:cites-witness",
               "revision": "w-1"
             },
-            "properties": {}
+            "properties": {},
+            "metadata": {}
           }
         ],
         "https://work.example/types/relates": [],
@@ -674,6 +676,7 @@
             "source": "https://scope.example/acme/beads/demo-f",
             "target": "https://scope.example/acme/beads/demo-e",
             "properties": {},
+            "metadata": {},
             "id": "https://scope.example/acme/links/demo-f-e"
           },
           {
@@ -693,9 +696,10 @@
               }
             },
             "id": "https://scope.example/acme/links/external-target",
+            "metadata": {},
             "attribution": {
               "principal": "agent:reference-wildcard",
-              "status": "claimed"
+              "basis": "writer-supplied"
             }
           }
         ]
@@ -704,11 +708,11 @@
     "attribution": {
       "bead": {
         "principal": "agent:fixture-author",
-        "status": "claimed"
+        "basis": "writer-supplied"
       },
       "link": {
         "principal": "svc:reference-realization",
-        "status": "unknown"
+        "basis": "unknown"
       }
     },
     "wildcard-descriptors": {
@@ -1094,7 +1098,7 @@
       "revision": "1",
       "attribution": {
         "principal": "agent:fixture-author",
-        "status": "claimed"
+        "basis": "writer-supplied"
       },
       "properties": {
         "id": "demo-a",
@@ -1409,7 +1413,7 @@
       "revision": "1",
       "attribution": {
         "principal": "svc:reference-realization",
-        "status": "unknown"
+        "basis": "unknown"
       },
       "source": "beads/demo-j",
       "target": "beads/demo-k",
@@ -1434,7 +1438,7 @@
       },
       "attribution": {
         "principal": "agent:reference-wildcard",
-        "status": "claimed"
+        "basis": "writer-supplied"
       }
     },
     {
