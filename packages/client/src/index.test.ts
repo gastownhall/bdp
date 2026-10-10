@@ -64,7 +64,7 @@ const unsupportedRequests: readonly (readonly [string, ReadRequest])[] = [
 ];
 
 function validBead(id = `${BEADS}a`): Record<string, unknown> {
-  return { id, type: TASK_TYPE, revision: "1", properties: {} };
+  return { id, type: TASK_TYPE, revision: "1", properties: {}, metadata: {} };
 }
 
 function validLink(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -75,6 +75,7 @@ function validLink(overrides: Record<string, unknown> = {}): Record<string, unkn
     source: `${BEADS}a`,
     target: `${BEADS}b`,
     properties: {},
+    metadata: {},
     ...overrides,
   };
 }

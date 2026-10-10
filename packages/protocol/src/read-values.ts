@@ -39,10 +39,10 @@ export const READ_VALUE_SCHEMA_REFS = Object.freeze({
   descriptor: "#/$defs/typeDescriptor",
   discovery: "#/$defs/readDiscovery",
   problem: "#/$defs/readProblem",
-  beadRecord: "#/$defs/beadRecord",
-  linkRecord: "#/$defs/linkRecord",
-  beadCollection: "#/$defs/beadCollection",
-  linkCollection: "#/$defs/linkCollection",
+  beadRecord: "#/$defs/currentBeadRecord",
+  linkRecord: "#/$defs/currentLinkRecord",
+  beadCollection: "#/$defs/currentBeadCollection",
+  linkCollection: "#/$defs/currentLinkCollection",
   typesInventory: "#/$defs/typesInventory",
 } as const);
 
@@ -116,57 +116,126 @@ export function parseReadProblem(value: unknown, path = "Read Problem"): ReadPro
   return problem as unknown as ReadProblem;
 }
 
+// Old retained records may lack common metadata. Project that one absent
+// member before applying the current served-record schema; explicit null or
+// another invalid value must still fail validation. Never mutate retained bytes.
+function projectLegacyLinkMetadata(value: unknown, path: string): Record<string, unknown> {
+  const record = readRecord(value, path);
+  return Object.hasOwn(record, "metadata") ? record : { ...record, metadata: {} };
+}
+
+function projectLegacyLinkPageMetadata(value: unknown, path: string): unknown {
+  const page = readRecord(value, path);
+  if (!Array.isArray(page.items)) return page;
+  return {
+    ...page,
+    items: page.items.map((item, index) =>
+      projectLegacyLinkMetadata(item, `${path}.items[${index}]`),
+    ),
+  };
+}
+
+function projectLegacyBeadMetadata(value: unknown, path: string): Record<string, unknown> {
+  const record = readRecord(value, path);
+  const owned = record.ownedLinks;
+  const ownedLinks =
+    owned === undefined
+      ? undefined
+      : Object.fromEntries(
+          Object.entries(readRecord(owned, `${path}.ownedLinks`)).map(([type, links]) => [
+            type,
+            Array.isArray(links)
+              ? links.map((link, index) =>
+                  projectLegacyLinkMetadata(
+                    link,
+                    `${path}.ownedLinks[${JSON.stringify(type)}][${index}]`,
+                  ),
+                )
+              : links,
+          ]),
+        );
+  return {
+    ...record,
+    ...(Object.hasOwn(record, "metadata") ? {} : { metadata: {} }),
+    ...(ownedLinks === undefined ? {} : { ownedLinks }),
+    ...(record.links === undefined
+      ? {}
+      : { links: projectLegacyLinkPageMetadata(record.links, `${path}.links`) }),
+  };
+}
+
 /** Parse and deeply snapshot one Bead record. */
 export function parseBeadRecord(value: unknown, path = "Bead record"): BeadRecord {
-  const record = snapshotProtocolRecord(value, path);
+  const record = projectLegacyBeadMetadata(snapshotProtocolRecord(value, path), path);
   validateFromSchema(getProtocolValueValidators().beadRecord, record, path);
   parseCanonicalTypeId(record.id, `${path}.id`);
   parseResourceTypeId(record.type, `${path}.type`);
-  if (record.ownedLinks !== undefined)
-    for (const [key, owned] of Object.entries(
-      record.ownedLinks as Readonly<Record<string, readonly unknown[]>>,
-    )) {
-      parseResourceTypeId(key, `${path}.ownedLinks key`);
-      let previousId: string | undefined;
-      for (const [index, item] of owned.entries()) {
-        const itemPath = `${path}.ownedLinks[${JSON.stringify(key)}][${index}]`;
-        const owned_ = parseLinkRecord(item, itemPath);
-        if (owned_.type !== key)
-          throw new ProtocolArtifactValidationError(
-            `${itemPath}.type must equal its entry's Link Type key`,
-          );
-        if (referenceUri(owned_.source) !== record.id)
-          throw new ProtocolArtifactValidationError(
-            `${itemPath}.source must be the containing Bead`,
-          );
-        if (previousId !== undefined && compareCanonicalIds(previousId, owned_.id) >= 0)
-          throw new ProtocolArtifactValidationError(
-            `${itemPath}.id must ascend in code-unit order within its entry`,
-          );
-        previousId = owned_.id;
-      }
-    }
+  const ownedLinks =
+    record.ownedLinks === undefined
+      ? undefined
+      : Object.fromEntries(
+          Object.entries(record.ownedLinks as Readonly<Record<string, readonly unknown[]>>).map(
+            ([key, owned]) => {
+              parseResourceTypeId(key, `${path}.ownedLinks key`);
+              let previousId: string | undefined;
+              const projected = owned.map((item, index) => {
+                const itemPath = `${path}.ownedLinks[${JSON.stringify(key)}][${index}]`;
+                const owned_ = parseLinkRecord(item, itemPath);
+                if (owned_.type !== key)
+                  throw new ProtocolArtifactValidationError(
+                    `${itemPath}.type must equal its entry's Link Type key`,
+                  );
+                if (referenceUri(owned_.source) !== record.id)
+                  throw new ProtocolArtifactValidationError(
+                    `${itemPath}.source must be the containing Bead`,
+                  );
+                if (previousId !== undefined && compareCanonicalIds(previousId, owned_.id) >= 0)
+                  throw new ProtocolArtifactValidationError(
+                    `${itemPath}.id must ascend in code-unit order within its entry`,
+                  );
+                previousId = owned_.id;
+                return owned_;
+              });
+              return [key, Object.freeze(projected)] as const;
+            },
+          ),
+        );
   const links =
     record.links === undefined ? undefined : parseLinkCollection(record.links, `${path}.links`);
   return Object.freeze({
     ...record,
+    metadata: record.metadata ?? Object.freeze({}),
+    ...(ownedLinks === undefined ? {} : { ownedLinks: Object.freeze(ownedLinks) }),
     ...(links === undefined ? {} : { links }),
   }) as unknown as BeadRecord;
 }
 
 /** Parse and deeply snapshot one Link record. */
 export function parseLinkRecord(value: unknown, path = "Link record"): LinkRecord {
-  const record = snapshotProtocolRecord(value, path);
+  const record = projectLegacyLinkMetadata(snapshotProtocolRecord(value, path), path);
   validateFromSchema(getProtocolValueValidators().linkRecord, record, path);
   parseCanonicalTypeId(record.id, `${path}.id`);
   parseResourceTypeId(record.type, `${path}.type`);
 
-  return record as unknown as LinkRecord;
+  return Object.freeze({
+    ...record,
+    metadata: record.metadata ?? Object.freeze({}),
+  }) as unknown as LinkRecord;
 }
 
 /** Parse and deeply snapshot a Bead collection page. */
 export function parseBeadCollection(value: unknown, path = "Bead collection"): BeadCollection {
-  const page = snapshotProtocolRecord(value, path);
+  const source = snapshotProtocolRecord(value, path);
+  const page = {
+    ...source,
+    ...(Array.isArray(source.items)
+      ? {
+          items: source.items.map((item, index) =>
+            projectLegacyBeadMetadata(item, `${path}.items[${index}]`),
+          ),
+        }
+      : {}),
+  };
   validateFromSchema(getProtocolValueValidators().beadCollection, page, path);
   const items = page.items as readonly unknown[];
   return Object.freeze({
@@ -179,7 +248,17 @@ export function parseBeadCollection(value: unknown, path = "Bead collection"): B
 
 /** Parse and deeply snapshot a Link collection page. */
 export function parseLinkCollection(value: unknown, path = "Link collection"): LinkCollection {
-  const page = snapshotProtocolRecord(value, path);
+  const source = snapshotProtocolRecord(value, path);
+  const page = {
+    ...source,
+    ...(Array.isArray(source.items)
+      ? {
+          items: source.items.map((item, index) =>
+            projectLegacyLinkMetadata(item, `${path}.items[${index}]`),
+          ),
+        }
+      : {}),
+  };
   validateFromSchema(getProtocolValueValidators().linkCollection, page, path);
   const items = page.items as readonly unknown[];
   return Object.freeze({

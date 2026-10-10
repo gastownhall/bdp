@@ -291,6 +291,7 @@ export interface BeadRecord {
   readonly attribution?: Attribution;
   readonly changeContext?: ChangeContext;
   readonly properties: PropertiesRecord;
+  readonly metadata?: PropertiesRecord;
   /**
    * The owned-Links plane: for each Link Type the Bead's declared Type
    * owns, the owned Links' complete records in ascending code-unit order
@@ -311,6 +312,7 @@ export interface LinkRecord {
   readonly source: Reference;
   readonly target: Reference;
   readonly properties: PropertiesRecord;
+  readonly metadata?: PropertiesRecord;
 }
 
 export interface BeadCollection extends CollectionPage<BeadRecord> {}

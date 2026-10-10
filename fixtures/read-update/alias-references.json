@@ -40,17 +40,26 @@
       "condition": "The bead subject is spelled by alias. It resolves to task-13 when the member is reached, the update applies to task-13, and the postimage is canonical: the alias spelling appears nowhere in Resource data.",
       "request": {
         "method": "POST",
-        "target": "operations/update-bead-properties",
+        "target": "operations/update-bead",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "w1-r-current-close"
         },
-        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "schema": "#/$defs/updateBeadRequest",
         "body": {
           "bead": "alias/tasks/current",
-          "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "closed"
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -66,11 +75,15 @@
             "id": "https://beads.example/acme/beads/task-13",
             "type": "https://work.example/types/task",
             "revision": "task-13-r2",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "status": "claimed"
+            },
             "properties": {
               "title": "Track the alias-spelled references",
               "status": "closed"
-            }
+            },
+            "metadata": {}
           }
         }
       }
@@ -92,7 +105,10 @@
           "source": "alias/tasks/current",
           "target": "beads/task-14",
           "properties": {},
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -108,10 +124,14 @@
             "id": "https://beads.example/acme/links/relates-117",
             "type": "https://work.example/types/relates",
             "revision": "relates-117-r1",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "status": "claimed"
+            },
             "source": "https://beads.example/acme/beads/task-13",
             "target": "https://beads.example/acme/beads/task-14",
-            "properties": {}
+            "properties": {},
+            "metadata": {}
           }
         }
       }
@@ -142,7 +162,10 @@
               "source": "alias/tasks/current",
               "target": "beads/task-13",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -169,10 +192,14 @@
                 "id": "https://beads.example/acme/links/relates-118",
                 "type": "https://work.example/types/relates",
                 "revision": "relates-118-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "source": "https://beads.example/acme/beads/task-14",
                 "target": "https://beads.example/acme/beads/task-13",
-                "properties": {}
+                "properties": {},
+                "metadata": {}
               }
             }
           ]
@@ -182,7 +209,12 @@
     {
       "id": "retry-after-a-repoint-matches-the-retained-resolution",
       "condition": "The create-link-through-an-alias-source request retried byte-identically after the repoint. alias/tasks/current now resolves to task-14, but the member's semantic identity records the resolution the spelling had when the member was reached — task-13, kept with the retained disposition — and the retry compares against that resolution, never against the spelling or the alias's present target. The identities match, so the retained disposition answers; a conflict here would be the spelling-versus-resolution failure the @name rule already prevents.",
-      "retained": [{ "from": "create-link-through-an-alias-source", "index": 0 }],
+      "retained": [
+        {
+          "from": "create-link-through-an-alias-source",
+          "index": 0
+        }
+      ],
       "request": {
         "method": "POST",
         "target": "operations/create-link",
@@ -197,7 +229,10 @@
           "source": "alias/tasks/current",
           "target": "beads/task-14",
           "properties": {},
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -213,10 +248,14 @@
             "id": "https://beads.example/acme/links/relates-117",
             "type": "https://work.example/types/relates",
             "revision": "relates-117-r1",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "status": "claimed"
+            },
             "source": "https://beads.example/acme/beads/task-13",
             "target": "https://beads.example/acme/beads/task-14",
-            "properties": {}
+            "properties": {},
+            "metadata": {}
           }
         }
       }
@@ -226,17 +265,26 @@
       "condition": "A link subject spelled by alias: an alias resolves to a Bead only, so the subject does not exist as the required kind. The same non-disclosing 404 a wrong-kind durable reference receives.",
       "request": {
         "method": "POST",
-        "target": "operations/update-link-properties",
+        "target": "operations/update-link",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "w1-r-current-link-note"
         },
-        "schema": "#/$defs/updateLinkPropertiesRequest",
+        "schema": "#/$defs/updateLinkRequest",
         "body": {
           "link": "alias/tasks/current",
-          "change": [{ "op": "add", "path": "/note", "value": "spelled by alias" }],
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "propertiesChange": [
+            {
+              "op": "add",
+              "path": "/note",
+              "value": "spelled by alias"
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -260,17 +308,26 @@
       "condition": "No alias is at alias/tasks/former. An alias spelling that names no live alias fails exactly as an unknown Bead does, under the same non-disclosure rule.",
       "request": {
         "method": "POST",
-        "target": "operations/update-bead-properties",
+        "target": "operations/update-bead",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "w1-r-former-close"
         },
-        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "schema": "#/$defs/updateBeadRequest",
         "body": {
           "bead": "alias/tasks/former",
-          "change": [{ "op": "replace", "path": "/status", "value": "closed" }],
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "propertiesChange": [
+            {
+              "op": "replace",
+              "path": "/status",
+              "value": "closed"
+            }
+          ],
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {

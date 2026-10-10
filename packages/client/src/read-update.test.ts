@@ -33,10 +33,10 @@ const discovery = {
 };
 const directory = {
   createBead: "create-bead",
-  updateBeadProperties: "update-bead-properties",
+  updateBead: "update-bead",
   deleteBead: "delete-bead",
   createLink: "create-link",
-  updateLinkProperties: "update-link-properties",
+  updateLink: "update-link",
   deleteLink: "delete-link",
   putAlias: "put-alias",
   deleteAlias: "delete-alias",
@@ -171,8 +171,8 @@ describe("BdpReadUpdateClient navigation and operations", () => {
   it.each([
     ["createBead", { type, id: "beads/a" }, { outcome: "created", resource: bead }],
     [
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "replace", path: "", value: {} }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "", value: {} }] },
       { outcome: "updated", resource: bead },
     ],
     [
@@ -189,8 +189,8 @@ describe("BdpReadUpdateClient navigation and operations", () => {
       { outcome: "created", resource: link, source: bead.id, sourceRevision: "r2" },
     ],
     [
-      "updateLinkProperties",
-      { link: "links/l", change: [{ op: "replace", path: "", value: {} }] },
+      "updateLink",
+      { link: "links/l", propertiesChange: [{ op: "replace", path: "", value: {} }] },
       { outcome: "updated", resource: link },
     ],
     [
@@ -585,10 +585,10 @@ describe("Read+Update sequence and client lifetime", () => {
   const members = [
     { operation: "createBead", idempotencyKey: "a", name: "a", type },
     {
-      operation: "updateBeadProperties",
+      operation: "updateBead",
       idempotencyKey: "b",
       bead: "@a",
-      change: [{ op: "replace", path: "", value: {} }],
+      propertiesChange: [{ op: "replace", path: "", value: {} }],
     },
     { operation: "deleteBead", idempotencyKey: "c", bead: "beads/missing" },
   ];
@@ -867,10 +867,10 @@ describe("operation council regressions", () => {
     const h = setup({ outcome: "updated", resource: { ...link, target } });
     await expect(
       h.client.mutate(
-        "updateLinkProperties",
+        "updateLink",
         JSON.stringify({
           link: "links/l",
-          change: [{ op: "replace", path: "", value: {} }],
+          propertiesChange: [{ op: "replace", path: "", value: {} }],
         }),
         options,
       ),
@@ -886,10 +886,10 @@ describe("operation council regressions", () => {
     expect(
       (
         await h.client.mutate(
-          "updateLinkProperties",
+          "updateLink",
           JSON.stringify({
             link: "links/l",
-            change: [{ op: "replace", path: "", value: {} }],
+            propertiesChange: [{ op: "replace", path: "", value: {} }],
           }),
           options,
         )
@@ -930,10 +930,10 @@ describe("operation council regressions", () => {
           operations: [
             { operation: "createBead", idempotencyKey: "a", name: "a", type },
             {
-              operation: "updateBeadProperties",
+              operation: "updateBead",
               idempotencyKey: "b",
               bead: "@a",
-              change: [{ op: "replace", path: "", value: {} }],
+              propertiesChange: [{ op: "replace", path: "", value: {} }],
             },
             { operation: "createBead", idempotencyKey: "c", type },
           ],

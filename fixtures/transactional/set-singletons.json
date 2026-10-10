@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "transactional-set-singletons",
-  "description": "The two set targets and a Resource singleton on a Transactional Scope: a delete-where whose body is the set-operation members without the discriminator, returning a receipt with a matched entry and one entry per selected Resource; an update-where that matched nothing, completing without a group; and an update-bead-properties whose patch was a semantic no-op, completing at the retained revision with no effectPosition. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
+  "description": "The two set targets and a Resource singleton on a Transactional Scope: a delete-where whose body is the set-operation members without the discriminator, returning a receipt with a matched entry and one entry per selected Resource; an update-where that matched nothing, completing without a group; and an update-bead whose patch was a semantic no-op, completing at the retained revision with no effectPosition. Conditions are narrated, not observed. Illustrative wire example; not evidence.",
   "scope": "https://beads.example/acme/",
   "exchanges": [
     {
@@ -132,21 +132,21 @@
       }
     },
     {
-      "id": "update-bead-properties-semantic-no-op",
+      "id": "update-bead-semantic-no-op",
       "condition": "The replace writes the value the Bead already holds: a semantic no-op. The receipt completes with an updated entry at the retained revision, reports the current requiredPosition, and omits effectPosition because no group was produced; the input attribution is recorded nowhere.",
       "request": {
         "method": "POST",
-        "target": "operations/update-bead-properties",
+        "target": "operations/update-bead",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "client-key-0004"
         },
-        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "schema": "#/$defs/updateBeadRequest",
         "body": {
           "bead": "beads/task-43",
           "expectedRevision": "task-43-r2",
-          "change": [
+          "propertiesChange": [
             {
               "op": "replace",
               "path": "/status",
@@ -214,17 +214,17 @@
       "condition": "An isolated no-op case outside the shared timeline. The before record carries agent:prior attribution. Supplying agent:planner on a property no-op preserves the entire before record and its revision, including that existing attribution.",
       "request": {
         "method": "POST",
-        "target": "operations/update-bead-properties",
+        "target": "operations/update-bead",
         "headers": {
           "content-type": "application/json",
           "accept": "application/json",
           "idempotency-key": "no-op-prior-attribution"
         },
-        "schema": "#/$defs/updateBeadPropertiesRequest",
+        "schema": "#/$defs/updateBeadRequest",
         "body": {
           "bead": "beads/noop-example",
           "expectedRevision": "noop-r1",
-          "change": [
+          "propertiesChange": [
             {
               "op": "replace",
               "path": "/status",
