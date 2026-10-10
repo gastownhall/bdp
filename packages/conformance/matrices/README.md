@@ -35,7 +35,7 @@ been regenerated or relabeled.
   remains a nonowner. C's type changes in both logical realizations while the
   topology, statuses and readiness result stay fixed. Exact group keys/order
   and every inline Link's equality with its first-class body are observed,
-  including a pinned external endpoint, claimed attribution and opaque
+  including a pinned external endpoint, writer-supplied attribution and opaque
   properties with protocol-looking names. No wildcard key or invented empty
   group is accepted in the record plane.
 - `read.owned-wildcard.closure` is an **in-process self-certified** lifecycle

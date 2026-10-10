@@ -282,7 +282,7 @@ export function createBdProcessScopePort(
           id: beadId(nativeId),
           type: beadType,
           ...(typeof createdBy === "string" && createdBy.length > 0
-            ? { attribution: { principal: createdBy, status: "unknown" as const } }
+            ? { attribution: { principal: createdBy, basis: "unknown" as const } }
             : {}),
           properties: projectBdReadyProperties(row),
           metadata: {},

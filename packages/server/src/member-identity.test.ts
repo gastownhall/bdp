@@ -124,7 +124,7 @@ describe("exact member identity normalization", () => {
     { expectedRevision: "r2" },
     { changeContext: { message: null } },
     { changeContext: { message: "" } },
-    { attribution: { principal: "other", status: "claimed" } },
+    { attribution: { principal: "other", basis: "writer-supplied" } },
   ])("preserves meaningful request context and CAS differences %#", (extra) => {
     const base = { bead: a, propertiesChange: [{ op: "add", path: "/value", value: 1 }] };
     expect(ready(singleton("updateBead", { ...base, ...extra })).identityJson).not.toBe(

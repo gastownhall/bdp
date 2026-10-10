@@ -284,7 +284,7 @@
           "properties": {},
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -303,7 +303,7 @@
             "revision": "adr-sequence-envelopes-r1",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/adr-104",
             "target": "https://beads.example/acme/beads/decision-7",
@@ -337,7 +337,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -368,7 +368,7 @@
                 "revision": "note-120-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Alias mutation joins Read+Update",

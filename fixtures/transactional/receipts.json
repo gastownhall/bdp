@@ -45,7 +45,7 @@
                 "revision": "dec-9-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Adopt owned Links",
@@ -66,7 +66,7 @@
                 "revision": "9c1e-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "source": "https://beads.example/acme/beads/dec-9",
                 "target": "https://beads.example/acme/beads/task-42",
@@ -137,7 +137,7 @@
                 "revision": "dec-9-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Adopt owned Links",
@@ -158,7 +158,7 @@
                 "revision": "9c1e-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "source": "https://beads.example/acme/beads/dec-9",
                 "target": "https://beads.example/acme/beads/task-42",
@@ -269,7 +269,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -283,7 +283,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -441,7 +441,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -455,7 +455,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
