@@ -22,13 +22,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#discovery-profile-membership",
-          "selectedText": "`bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types` are required in every profile. `operations` is required in Read+Update and Transactional and prohibited in Read."
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "The Read discovery document requires `bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types`. The optional `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` members apply under their contracts. `aliases` appears exactly when the authority serves alias resolution; a client MUST NOT construct alias URLs otherwise. An omitted `order` means `canonical-uri`. These are the only members admitted by the closed `readDiscovery` definition."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#discovery-profile-membership",
-          "selectedText": "The optional `order` member names the collection order under [Collection retrieval and selection](#collection-retrieval-and-selection); omission means the `canonical-uri` baseline."
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "An omitted `order` means `canonical-uri`."
         }
       ]
     },
@@ -54,7 +54,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#advertised-limits",
-          "selectedText": "Omission means only that the bound is not pre-advertised; it does not mean infinite capacity and does not permit silent truncation, a non-normative failure response."
+          "selectedText": "Omission means only that the bound is not pre-advertised; it does not mean infinite capacity and does not permit silent truncation or a non-normative failure response."
         }
       ]
     },
@@ -598,7 +598,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#attribution-on-mutations",
+          "anchor": "#carried-attribution",
           "selectedText": "It is outside `properties`, never part of the `properties` view"
         },
         {
@@ -621,7 +621,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#attribution-on-mutations",
+          "anchor": "#carried-attribution",
           "selectedText": "It is outside `properties`, never part of the `properties` view"
         },
         {

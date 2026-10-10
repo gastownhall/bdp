@@ -320,7 +320,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#history-recovery-imports-and-assurance",
-          "selectedText": "Plain History claims the responder's behavior, not erasure delivery to arbitrary downloaded copies. A deployment may document and test a specific consumer acquisition/recovery route and claim only that scoped assurance, proving controlled- copy cleanup before further publication. This does not exempt any obligated store or advertise generic BDP replication; Generic pre-removal administrative reports, preview endpoints, minimum retention promises, exact-byte witnesses, sync hints, extra scheme mappings, erased-row enumeration, bulk checks and the alternative surviving-citation lifecycle remain deferred. Local policy/tooling is allowed; none weakens required Gone evidence, erasure or incident-Link refusal."
+          "selectedText": "Plain History claims the responder's behavior, not erasure delivery to arbitrary downloaded copies. A deployment may document and test a specific consumer acquisition/recovery route and claim only that scoped assurance, proving controlled- copy cleanup before further publication. This does not exempt any obligated store or advertise generic BDP replication. Generic pre-removal administrative reports, preview endpoints, minimum retention promises, exact-byte witnesses, sync hints, extra scheme mappings, erased-row enumeration, bulk checks and the alternative surviving-citation lifecycle remain deferred. Local policy/tooling is allowed; none weakens required Gone evidence, erasure or incident-Link refusal."
         },
         {
           "source": "docs/specs/bdp.md",

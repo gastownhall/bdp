@@ -175,10 +175,10 @@ identity while catalog evidence citations are migrated separately.
 The mechanical relocation accounts for all 61 original blocks exactly once.
 The clarification pass checked:
 
-- All **84 original heading anchors** remain available; 143 anchors exist in
+- All **84 original heading anchors** remain available; 144 anchors exist in
   the reorganized document. The renamed local-reference heading retains its
   original anchor explicitly.
-- All **182 internal Markdown links** resolve. Read and Read+Update contain
+- All **183 internal Markdown links** resolve. Read and Read+Update contain
   **zero internal links to later-profile definitions**.
 - All relative file links resolve from `docs/specs/`.
 - Every original top-level section is accounted for above. The conformance
@@ -214,6 +214,10 @@ Verified with **Node 24.16.0 / pnpm 11.20.0**, after a frozen-lockfile install:
   1,629 tests passed**. The first run exposed six stale section-extraction or
   packet-mirror failures; the source selectors and mirrors were corrected and
   the full selected suite rerun successfully.
+- After the final Read-citation, closed-discovery, heading and cross-reference
+  repairs, all six catalog suites plus protocol tests were rerun: **26 files,
+  970 tests passed**. Every Read catalog spec citation now targets Read,
+  the preface or the shared conformance index rather than a later profile.
 - `pnpm typecheck`: passed.
 - Formatter checks for all changed catalog JSON and test files: passed.
 - Canonical and package schema files are byte-identical.

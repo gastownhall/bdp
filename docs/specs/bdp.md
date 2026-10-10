@@ -957,7 +957,8 @@ where the writer of the current version was not). There is deliberately
 no basis that asserts authentication: a value meaning "the authority
 verified this principal" would be an authority claim, which this member
 never carries — that vocabulary belongs to the future attested member. If `attribution` is present, both `principal` and `basis` are required; absent `attribution` means no principal was recorded, while absent `basis` inside a present attribution is invalid.
-Attribution is immutable for the version it accompanies.
+Attribution is immutable for the version it accompanies. It is outside
+`properties`, never part of the `properties` view.
 The member is absent when no attribution was
 recorded. Principal identifiers SHOULD be namespaced opaque strings — for
 example `agent:…`, `human:…`, `svc:…` — so agents, humans, and service
@@ -1144,7 +1145,8 @@ The Read discovery document requires `bdpVersion`, `profile`, `scope`,
 `maximumEndpointMultiplicity`, `order`, and `historicalResolution` members
 apply under their contracts. `aliases` appears exactly when the authority
 serves alias resolution; a client MUST NOT construct alias URLs otherwise.
-An omitted `order` means `canonical-uri`.
+An omitted `order` means `canonical-uri`. These are the only members admitted
+by the closed `readDiscovery` definition.
 
 A minimum Read discovery representation is:
 
@@ -1236,7 +1238,7 @@ The discovery document MAY contain a `limits` object. The object is optional
 so that a small implementation can expose a conforming profile without
 predicting every operational bound. Omission means only that the bound is not
 pre-advertised; it does not mean infinite capacity and does not permit silent
-truncation, a non-normative failure response.
+truncation or a non-normative failure response.
 
 When present, `limits` is divided into capability groups. A group is relevant
 only when the advertised profile exposes that capability. Each advertised
@@ -1402,7 +1404,9 @@ ETag: "opaque-task-revision"
 The properties view includes declared and undeclared properties. It is never
 a schema-filtered projection. Its entity tag represents the same Resource
 revision returned in the complete record. `view=links` is valid only for a
-Bead and is defined under **Incident Link reads**. #### Optional incident-Link aggregate
+Bead and is defined under **Incident Link reads**.
+
+#### Optional incident-Link aggregate
 
 This aggregate is outside the minimum Read profile.
 
@@ -1854,7 +1858,7 @@ Plain History claims the responder's behavior, not erasure delivery to arbitrary
 downloaded copies. A deployment may document and test a specific consumer
 acquisition/recovery route and claim only that scoped assurance, proving controlled-
 copy cleanup before further publication. This does not exempt any obligated store
-or advertise generic BDP replication; Generic pre-removal administrative reports,
+or advertise generic BDP replication. Generic pre-removal administrative reports,
 preview endpoints, minimum retention promises, exact-byte witnesses, sync hints,
 extra scheme mappings, erased-row enumeration, bulk checks and the alternative
 surviving-citation lifecycle remain deferred. Local policy/tooling is allowed;
@@ -5749,8 +5753,8 @@ Intermediaries must not cache or transform the stream.
 
 Every Transactional Scope-bounded read reports the Scope epoch, Authorization
 View token, and position of the transaction-consistent projected prefix it
-observed. It reports them through the fields defined under **HTTP
-consistency, caching, and CORS fields**. Read and Read+Update use Resource
+observed. It reports them through the fields defined under
+[Transactional HTTP consistency](#transactional-http-consistency). Read and Read+Update use Resource
 revisions, entity tags, and snapshot-preserving pagination without exposing
 Scope-history tokens.
 
