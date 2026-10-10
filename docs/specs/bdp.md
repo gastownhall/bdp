@@ -237,7 +237,9 @@ model does not restrict the underlying implementation. An implementation
 might use file directories, relational or non-relational databases, or
 repositories.
 
-## Bead Data Model
+## Part I — Read
+
+### Bead Data Model
 
 This section defines Bead state and the complete set of Transactional-profile
 operations that may change it. It is independent of storage, URLs, HTTP
@@ -254,6 +256,88 @@ changes through Validation and results — describes mutation and applies to
 the Read+Update and Transactional profiles. The final group — Scope history
 through Snapshots and strict reads — applies only to the Transactional
 profile, and each of its sections says so in a banner.
+
+### Scopes and identity
+
+A **BDP Scope** contains Beads and Links. It is the boundary within which BDP
+interprets local identifiers, evaluates selections, and commits atomic
+mutations. Every Bead and Link belongs to exactly one Scope, and every
+mutation applies to exactly one Scope. URI path hierarchy does not create
+nested Scopes. A Scope exists only when it is identified by its own root BDP
+description, and the URI spaces owned by different Scopes do not overlap.
+
+A local Bead ID begins with the fixed `beads/` segment, and a local Link ID
+begins with the fixed `links/` segment. Each then contains one or more safe
+URI-path segments that form opaque identity within its Scope. Protocol
+resolution against the canonical Scope URL produces one absolute canonical
+Resource URL. That URL is immutable. Once committed, it is never reassigned
+to an unrelated Resource in the lifetime of the logical Scope, including
+after deletion or a Scope-epoch change. To back that up, an implementation
+preserves a compact identity tombstone, a durable allocation record, or an
+equivalent non-reuse guarantee. A restore that cannot preserve that guarantee
+creates a different logical Scope and therefore uses a different canonical
+Scope URL.
+
+A Resource's canonical ID is established at creation and never changes. A
+creator MAY supply the local ID — one or more safe segments, so a memorable
+or hierarchical name is identity from birth — or omit it, in which case the
+authority allocates one. An authority-allocated local ID is a single opaque
+segment, and for a Bead never one that is a live alias path under
+[Aliases](#aliases) (amended 2026-09-08, council 12): hierarchy is a
+creator affordance, and an authority MUST NOT encode
+meaning into segments it mints. A supplied spelling that is not already
+canonical — a leading or trailing separator, an empty segment, or a
+noncanonical encoding — is rejected, never normalized: trimming would mint
+an identity the creator did not write.
+
+At a protocol boundary, BDP v0 assigns Beads and Links to exactly those two
+fixed top-level paths. The segments following `beads/` or `links/` are
+identity. They do not imply containment, collection membership, or a child
+Scope: `beads/foo/bar` implies nothing at `beads/foo`, and both may exist as
+unrelated Beads. No other Scope-relative path acquires Bead or Link
+semantics, except the alias root defined below. Multiple roots of either
+kind, and a root that mixes Beads and Links, are deferred beyond v0. The
+protocol accepts documented local reference spellings as input, but it
+emits absolute canonical Resource URLs.
+
+#### Aliases
+
+An **alias** is a repointable name for one in-Scope Bead, beneath the fixed
+`alias/` root: one or more safe segments under the same grammar as local
+IDs, so whether a URI names canonical identity or an alias is decidable
+from its spelling alone. An alias is not a Resource: it has no
+representation, no revision, and no collection membership. It targets a
+canonical Bead URL only — an alias MUST NOT target another alias, so
+resolution is always exactly one step. Unlike canonical segments, alias
+paths are repointable and, after deletion, reusable: an alias is a locator
+and carries no identity promise.
+
+A reference written using an alias is resolved to the canonical Bead URL
+when the authority admits the write; stored and served references are
+always canonical, so aliases never appear in Resource data. Which mutation
+members admit an alias spelling, and when the authority resolves it, is
+defined under [Alias targets](#alias-targets). Alias creation,
+repointing, and deletion are mutation surface: the Read+Update profile
+defines the two alias targets, `put-alias` and `delete-alias`, under
+[Alias targets](#alias-targets), and the Transactional profile inherits
+them (amended 2026-09-08). A put creates the alias or repoints an existing
+one to exactly one canonical in-Scope Bead URL; a delete removes it, and
+the path is reusable afterwards. Alias paths and canonical Bead segments
+share one uniqueness namespace in the Scope. They share it because the
+realizations the alias root fronts share one — in the beads realization,
+keys and aliases occupy one project-wide namespace — so the invariant is
+imported from the store rather than required by resolution, which
+spelling alone decides.
+Putting or deleting an alias
+mints no version of any Bead: an alias is a locator, not part of the
+target's durable state, and it is not a member of the Bead record or of
+its `properties`. Serving alias resolution is Read surface, advertised
+through the `aliases` discovery member.
+
+Beads and Links are both **Resources**: each has identity, a representation,
+and uniform operations. Authorization is separate from identity and typing.
+So possessing a Resource or Type identifier does not grant permission to
+read, mutate, or traverse it.
 
 ### Beads and Links
 
@@ -562,141 +646,6 @@ contains only domain-defined Type relationships. Category collection and
 selection use the distinct Bead and Link roots rather than a synthetic root
 Type.
 
-### Scope aggregate constraints
-
-A Type Descriptor owns constraints that can be validated from one Resource
-and its in-Scope endpoints: properties schemas and endpoint effective-Type
-requirements. Constraints that inspect other Resources belong to the Scope,
-not to the globally identified Type contract.
-
-BDP v0 defines one optional aggregate policy shape:
-
-```text
-MaximumEndpointMultiplicity {
-  linkConformsTo: LinkTypeId
-  endpoint: source | target
-  max: PositiveInteger
-}
-```
-
-For one in-Scope Bead and one named endpoint, this policy counts the live
-Links in the Scope whose effective Link Types contain `linkConformsTo` and
-whose named endpoint equals that Bead. The count includes Links declared as
-different conforming child Types. If several policies apply, the smallest
-maximum wins. An out-of-Scope endpoint is never counted or constrained.
-Authorities MUST produce serializable outcomes when concurrent mutations
-could cross a maximum.
-
-Discovery MAY contain `maximumEndpointMultiplicity`, an unordered array of
-records using the three members above:
-
-```json
-{
-  "maximumEndpointMultiplicity": [
-    {
-      "linkConformsTo": "https://work.example/types/parent-child",
-      "endpoint": "source",
-      "max": 1
-    }
-  ]
-}
-```
-
-An absent member or an empty array means that the Scope defines no such
-policies. The administrative mechanism remains outside BDP. A policy
-replacement is atomic and serialized relative to mutations. Tightening is
-rejected when the live graph already violates the proposed maximum. A
-Transactional mutation observes either the complete old policy set or the
-complete new one. Each Read+Update singleton or sequence member observes the
-policy current at that member's execution point. A replacement changes the
-discovery representation and its `ETag`, but it does not invalidate active
-reads or change a Type Descriptor.
-
-Minimum multiplicity, tuple uniqueness, acyclicity, and other aggregate
-graph policies are deferred.
-
-### Scopes and identity
-
-A **BDP Scope** contains Beads and Links. It is the boundary within which BDP
-interprets local identifiers, evaluates selections, and commits atomic
-mutations. Every Bead and Link belongs to exactly one Scope, and every
-mutation applies to exactly one Scope. URI path hierarchy does not create
-nested Scopes. A Scope exists only when it is identified by its own root BDP
-description, and the URI spaces owned by different Scopes do not overlap.
-
-A local Bead ID begins with the fixed `beads/` segment, and a local Link ID
-begins with the fixed `links/` segment. Each then contains one or more safe
-URI-path segments that form opaque identity within its Scope. Protocol
-resolution against the canonical Scope URL produces one absolute canonical
-Resource URL. That URL is immutable. Once committed, it is never reassigned
-to an unrelated Resource in the lifetime of the logical Scope, including
-after deletion or a Scope-epoch change. To back that up, an implementation
-preserves a compact identity tombstone, a durable allocation record, or an
-equivalent non-reuse guarantee. A restore that cannot preserve that guarantee
-creates a different logical Scope and therefore uses a different canonical
-Scope URL.
-
-A Resource's canonical ID is established at creation and never changes. A
-creator MAY supply the local ID — one or more safe segments, so a memorable
-or hierarchical name is identity from birth — or omit it, in which case the
-authority allocates one. An authority-allocated local ID is a single opaque
-segment, and for a Bead never one that is a live alias path under
-[Aliases](#aliases) (amended 2026-09-08, council 12): hierarchy is a
-creator affordance, and an authority MUST NOT encode
-meaning into segments it mints. A supplied spelling that is not already
-canonical — a leading or trailing separator, an empty segment, or a
-noncanonical encoding — is rejected, never normalized: trimming would mint
-an identity the creator did not write.
-
-At a protocol boundary, BDP v0 assigns Beads and Links to exactly those two
-fixed top-level paths. The segments following `beads/` or `links/` are
-identity. They do not imply containment, collection membership, or a child
-Scope: `beads/foo/bar` implies nothing at `beads/foo`, and both may exist as
-unrelated Beads. No other Scope-relative path acquires Bead or Link
-semantics, except the alias root defined below. Multiple roots of either
-kind, and a root that mixes Beads and Links, are deferred beyond v0. The
-protocol accepts documented local reference spellings as input, but it
-emits absolute canonical Resource URLs.
-
-#### Aliases
-
-An **alias** is a repointable name for one in-Scope Bead, beneath the fixed
-`alias/` root: one or more safe segments under the same grammar as local
-IDs, so whether a URI names canonical identity or an alias is decidable
-from its spelling alone. An alias is not a Resource: it has no
-representation, no revision, and no collection membership. It targets a
-canonical Bead URL only — an alias MUST NOT target another alias, so
-resolution is always exactly one step. Unlike canonical segments, alias
-paths are repointable and, after deletion, reusable: an alias is a locator
-and carries no identity promise.
-
-A reference written using an alias is resolved to the canonical Bead URL
-when the authority admits the write; stored and served references are
-always canonical, so aliases never appear in Resource data. Which mutation
-members admit an alias spelling, and when the authority resolves it, is
-defined under [Alias targets](#alias-targets). Alias creation,
-repointing, and deletion are mutation surface: the Read+Update profile
-defines the two alias targets, `put-alias` and `delete-alias`, under
-[Alias targets](#alias-targets), and the Transactional profile inherits
-them (amended 2026-09-08). A put creates the alias or repoints an existing
-one to exactly one canonical in-Scope Bead URL; a delete removes it, and
-the path is reusable afterwards. Alias paths and canonical Bead segments
-share one uniqueness namespace in the Scope. They share it because the
-realizations the alias root fronts share one — in the beads realization,
-keys and aliases occupy one project-wide namespace — so the invariant is
-imported from the store rather than required by resolution, which
-spelling alone decides.
-Putting or deleting an alias
-mints no version of any Bead: an alias is a locator, not part of the
-target's durable state, and it is not a member of the Bead record or of
-its `properties`. Serving alias resolution is Read surface, advertised
-through the `aliases` discovery member.
-
-Beads and Links are both **Resources**: each has identity, a representation,
-and uniform operations. Authorization is separate from identity and typing.
-So possessing a Resource or Type identifier does not grant permission to
-read, mutate, or traverse it.
-
 ### Revisions
 
 Every successful create — and every update that changes `properties`,
@@ -956,1142 +905,7 @@ re-authorized when they are later read, and a retained Read+Update
 disposition is re-authorized for disclosure when it is replayed, under
 [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions).
 
-### Property changes
-
-A **Property Change** is an ordered
-[RFC 6902 JSON Patch](https://www.rfc-editor.org/rfc/rfc6902.html) applied to
-one JSON object. A Resource update can apply one to `properties`, one to
-common `metadata`, or both atomically. Each path is a JSON Pointer relative
-to its selected object. BDP v0 admits only `add`, `replace`, and
-`remove`. Operations within each array
-execute in order, with RFC 6902 object and array semantics. `replace` and
-`remove` require their targets to exist. `move`, `copy`, and `test` are not
-part of BDP v0.
-
-Assigning JSON `null` and removing a member are distinct operations. The
-patch must yield a JSON object. The authority validates the complete
-`properties` result — not merely its changed members — against every effective
-Type contract; `metadata` has no Type schema. An update that leaves both
-objects unchanged is a no-op. Advertised limits bound the combined patch
-operation count, the path size and depth, and the resulting representation
-size.
-### Batch-local Resource references
-
-> **Profile distinction.**
->
-> Read has no local references. Read+Update supports bindings only between
-> separately committed members of one `sequence`, with no isolation from
-> interleaving work. Transactional supports the staged references below inside
-> one atomic `batch`.
-
-A creation operation may declare an optional transaction-local label:
-
-```text
-newTask: CreateBead(...)
-```
-
-A later operation may then refer to the created Resource by prefixing the
-label with `@`:
-
-```text
-CreateLink(
-  type: "assigned-to",
-  source: @newTask,
-  target: "person-42",
-  properties: {}
-)
-```
-
-A local name:
-
-- is unique within its containing sequence or Mutation Transaction;
-- may name only a preceding Resource-creation operation;
-- denotes the created Resource's identity;
-- is not a variable or an operation-result object;
-- supports no property access or arbitrary expression evaluation; and
-- is not persisted as part of the Resource.
-
-In a Read+Update sequence, the creation commits before the binding becomes
-available, and later members use the durable identity; on a retry, the
-creation's retained or expired disposition supplies that same identity. In
-a Transactional batch, the binding denotes staged identity before commit. Both use the same
-`@name` spelling and the same kind checks; only Transactional supplies
-isolation and rollback.
-
-Resource references are kind-checked. That means a Link reference cannot be
-used where a Bead reference is required. Only Resource identity is bindable;
-revisions, properties, timestamps, query results, and other operation-result
-data are not.
-
-A durable relative reference is resolved against the canonical Scope URL and
-normalized to an absolute canonical URL before use. It must remain beneath
-the fixed `beads/` or `links/` root required by the reference's Resource
-kind. An endpoint reference that is relative therefore always denotes an in-Scope
-endpoint and must identify a live Bead. An endpoint reference that is an
-absolute URI outside the canonical Scope is handled as opaque.
-
-Any Reference may be written as a Pinned Reference `{ uri, revision }`,
-recording the revision of the target the Reference was made against. On the
-wire `revision` is a nonempty JSON string, and that structural rule is the
-only validation an authority applies in BDP v0. The pin is provenance, not
-a constraint: an authority stores and echoes it byte-identically, compares
-it only for equality, and performs no semantic validation, dereferencing,
-or interpretation — for an external target because its namespace is not
-ours, and for an in-Scope target because validating a past revision
-requires historical resolution, which arrives separately. The pin is
-unrelated to the containing Link's own `revision` and to
-`expectedRevision` guards. It does not participate in Link identity or
-Reference comparison.
-
-Creating or deleting a Link does not mutate an in-Scope endpoint Bead or
-change that Bead's Resource revision — with one declared exception: when
-the Link's type is owned by the source Bead's declared Type, the source's
-revision changes. The target's never does. Putting or deleting an alias
-mutates no Bead and changes no revision: an alias is a locator outside
-every Resource's durable state, under [Aliases](#aliases).
-
-### Explicit Bead operations
-
-```text
-[label:] CreateBead(
-  id?,
-  type,
-  properties = {},
-  metadata = {},
-  attribution?
-) -> BeadState
-```
-
-If `id` is omitted, the authority allocates one. If `id` is supplied, its
-canonical Resource URL must never previously have been committed for any
-Resource in the logical Scope. Deletion does not make it available again.
-
-```text
-UpdateBead(
-  bead,
-  propertiesChange?,
-  metadataChange?,  // at least one change array is required
-  expectedRevision?,
-  attribution?
-) -> BeadState
-```
-
-```text
-DeleteBead(
-  bead,
-  expectedRevision?
-) -> DeletionResult
-```
-
-`bead` may be a durable Bead ID or a transaction-local Bead reference.
-Deleting a Bead removes it from the live data model; the implementation is
-not required to physically erase it. `DeleteBead` fails if any live Link is
-incident upon (attached to) the Bead when the operation is reached. A client
-that wants cascade behavior must explicitly delete the incident Links earlier
-in the same Mutation Transaction.
-
-### Explicit Link operations
-
-```text
-[label:] CreateLink(
-  id?,
-  type,
-  source,
-  target,
-  properties = {},
-  metadata = {},
-  attribution?
-) -> LinkState
-```
-
-If `id` is omitted, the authority allocates one. If `id` is supplied, its
-canonical Resource URL must never previously have been committed in the
-logical Scope. `source` and `target` may refer to Beads created earlier
-in the same Mutation Transaction. Each is a Reference and either may be
-pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
-`uri` alone.
-
-```text
-UpdateLink(
-  link,
-  propertiesChange?,
-  metadataChange?,  // at least one change array is required
-  expectedRevision?,
-  attribution?
-) -> LinkState
-```
-
-```text
-DeleteLink(
-  link,
-  expectedRevision?,
-  attribution?   // recorded on the owning source's fresh version, if any
-) -> DeletionResult
-```
-
-`link` may be a durable Link ID or a transaction-local Link reference.
-
-### Explicit alias operations
-
-```text
-PutAlias(
-  alias,
-  target
-) -> AliasBinding
-```
-
-```text
-DeleteAlias(
-  alias
-) -> AliasDeletionResult
-```
-
-`alias` is an alias path beneath the `alias/` root under
-[Aliases](#aliases); `target` is a canonical in-Scope Bead reference or,
-in a sequence or a Mutation Transaction, a local reference bound by an
-earlier Bead creation. Alias operations are protocol-level operations on
-the Scope's alias table rather than Resource operations: they mint no
-version and stage no Resource state. When one is reached it follows the
-check order under [Validation and results](#validation-and-results),
-identifier uniqueness first, so a put whose path is taken and whose
-target is unknown answers the uniqueness fault. The Read+Update profile
-defines their wire form under [Alias targets](#alias-targets); the
-Transactional profile inherits them, and whether `batch` admits them is
-defined with that profile.
-
-### Validation and results
-
-> **Transactional/Replication constructs within this section.**
->
-> Cross-operation staged validation, serializable aggregate-invariant outcomes,
-> complete-transaction rollback, and ordered transaction results apply only to
-> the Transactional profile. Read+Update validates each singleton or sequence
-> member independently and returns its inline postimage, deleted identity,
-> alias result, or problem. A mutation of an owned Link is a mutation of two Resources: the
-> inline postimage (or deleted identity) remains the Link's, and the same
-> response member additionally reports the source Bead's resulting
-> `revision` — its full postimage is available at its own URL. The envelope
-> member carrying that secondary revision is `sourceRevision`, defined under
-> [Mutation results](#mutation-results).
-
-When each operation is reached, the authority validates its resulting staged
-state before evaluating the next operation. It checks:
-
-- identifier uniqueness;
-- reference resolution and Resource kind;
-- liveness, exact declared-Type match, kind, and effective-Type constraints for
-  in-Scope Link endpoints;
-- Link-Type external-endpoint policy, syntactic validity, and opaque
-  handling of out-of-Scope endpoint URIs;
-- immutable-member rules;
-- Type and properties-schema constraints, and the admissibility of every
-  number literal under [Revisions](#revisions);
-- applicable Scope aggregate constraints;
-- authorization;
-- expected revisions and cardinality;
-- absence of live incident Links when deleting a Bead; and
-- advertised service limits.
-
-At commit, the authority also ensures that concurrent transactions cannot
-jointly violate those invariants. An implementation may use a Scope writer,
-serializable transactions, predicate or advisory locks, constraint rows, or
-an equivalent retry protocol. BDP specifies the observable serializable
-result rather than the mechanism.
-
-Any failure rolls back the complete Mutation Transaction. Domain-specific
-transitions such as `claim-ready` are not generic BDP operations.
-
-Creation and update results include the durable Resource ID, the canonical
-Resource URL, the opaque revision, and the complete resulting state. Deletion
-results include the deleted Resource identity and transaction metadata. The
-transaction result maps every local label to its allocated durable Resource
-identity.
-
-### Scope history
-
-> **Transactional/Replication only — Transactional profile.**
->
-> Implementations of the Read and Read+Update profiles may skip Scope epochs, commit
-> positions, change groups, and the history-ordering rules in this section.
-
-BDP v0 assigns one logical mutation authority to a Scope history at a time.
-High-availability implementations may have multiple processes or storage
-replicas, but only when they present one serialized history under that
-authority. In this specification, replication means consuming an authority's
-snapshot and changefeed into a cache or materialized replica. It does not
-mean independently writable replicas, offline divergent histories, or
-multi-authority merge.
-
-**Retained-address amendment, 2026-09-09.** Each Scope history has an opaque,
-unguessable **Scope epoch**. The epoch remains stable across ordinary restart
-and failover that preserve identical committed history. It changes whenever
-restore, destructive reinitialization, or authority replacement may discard,
-rewrite, or replace history. The epoch is not part of canonical Scope or
-Resource identity. Retained Resource-version addresses follow [Revisions](#revisions).
-Every other history-dependent token remains fenced by that epoch, including
-Scope positions, transaction identifiers, snapshots and handles, read and Event
-cursors, changefeed checkpoints, minimum-read barriers, receipts, and the
-idempotency-key namespace and its bound dispositions. Individual token contracts
-still apply. Cached representations retain their epoch and Authorization View
-bindings under Authorization views. An epoch change in the same logical Scope
-preserves canonical Scope and Resource URLs. Prior-epoch uses retain their own
-handling: a prior-epoch idempotency key is unbound in the new namespace, so a
-submission under the new epoch executes anew rather than replaying its prior
-disposition. Read/Read+Update do not gain exposed epoch fields.
-
-Within one epoch, every effectful committed Mutation Transaction occupies
-one opaque **Scope position** in one total order that the authority defines,
-except the locator-only alias mutations defined under
-[Transactional alias mutations](#transactional-alias-mutations), which
-occupy no position (ruled 2026-09-08, T49).
-A position is unique within its epoch, and clients compare it only for
-equality. Clients must not perform arithmetic or lexical ordering on its
-spelling. Each epoch has a distinguished genesis position. Every later
-change group identifies both its own position and its immediately preceding
-position.
-
-A read or snapshot observes one prefix of this order. A Resource revision
-names one state of one Bead or Link, while a Scope position names one
-committed transaction. The two kinds of token are independent, even when an
-implementation derives them from related internal counters.
-
-### Mutation Transactions
-
-> **Transactional/Replication only — Transactional profile.**
->
-> Implementations of the Read and Read+Update profiles may skip the transaction model,
-> cross-operation staging, serializable commit order, and transaction-level
-> idempotency rules in this section.
-
-Every mutation executes as part of a **Mutation Transaction**:
-
-```text
-MutationTransaction(
-  scope,
-  idempotencyKey,
-  operations
-)
-```
-
-A Mutation Transaction:
-
-- contains one or more operations;
-- applies to exactly one BDP Scope;
-- executes atomically, so every operation commits or none do;
-- evaluates operations in declaration order;
-- makes earlier changes visible to later operations;
-- requires every operation to leave the staged state valid before the next
-  operation begins;
-- emits no observable events until commit; and
-- returns operation results in declaration order.
-
-A single mutation is simply a one-operation Mutation Transaction. BDP does
-not define nested transactions. It also does not define interactive `begin`,
-`commit`, and `rollback` operations.
-
-The authority serializes committed transactions into the Scope order. It must
-produce serializable outcomes for in-Scope endpoint liveness, Scope aggregate
-constraints, deletion safety, Type contracts, and every other Scope
-invariant. That requirement does not prescribe a particular storage isolation
-level.
-
-An admitted mutation's `idempotencyKey` identifies its complete semantic
-request. That identity is scoped to the canonical Scope URL, the Scope epoch,
-and the authenticated principal. Before comparing requests, the authority
-normalizes local references, expands protocol defaults, preserves operation
-and array order, ignores JSON object member order, and excludes delivery-only
-metadata. It may store that normalized request or an internal versioned
-fingerprint; BDP does not require a public request-hash algorithm.
-
-Concurrent requests with the same key and the same semantic request join one
-execution. A duplicate may wait for the terminal response or receive the same
-pending receipt. Either way, it never executes again. For direct carriers,
-handing a duplicate a receipt presupposes established semantic equality. A
-request that encounters an unresolved reservation follows the bounded
-comparison rules below. Reusing the key for a different semantic request is
-an idempotency conflict. Once a mutation is admitted, client disconnection
-does not decide the outcome. The authority commits or rolls back, and it
-records one terminal receipt. Retrying returns
-that same outcome, including authority-allocated IDs.
-
-An idempotency key is the token defined under
-[Idempotency keys](#idempotency-keys): the `Idempotency-Key` HTTP field of
-a batch or singleton request and the `idempotencyKey` member of a sequence
-member carry the same case-sensitive `[A-Za-z0-9_-]{1,256}` token, bare,
-compared byte-exactly; a request whose key is absent, repeated, or outside
-the grammar is malformed. On a Transactional Scope the key's namespace is
-the canonical Scope URL, the Scope epoch, and the authenticated principal —
-the Read+Update namespace with the epoch it lacks — and every mutation
-carrier feeds that one namespace: a singleton request, a `batch`, and each
-member of a `sequence` is a Mutation Transaction with its own durable
-Mutation Receipt, and the carrier is delivery metadata that the semantic
-comparison excludes.
-
-The semantic identity of a Mutation Transaction is the sequence, in
-declaration order, of its operations' semantic identities under
-[Idempotency keys](#idempotency-keys): each is the operation kind plus its
-normalized record — durable references canonicalized, protocol defaults
-expanded, array order preserved, member order ignored, `name` and the
-carrier excluded, `expectedRevision` and `attribution` included, opaque
-URIs and pins compared byte-exactly, and the records compared under RFC
-6902 Section 4.6. In a batch, a `@label` reference is normalized to the
-creating operation's zero-based index when that operation supplies no
-`id`, and to the supplied identity's canonical URL when it does — never to
-the label's spelling, so renaming a label is not a semantic change, and
-never to an allocated identity, which does not exist before commit. In a
-sequence, a `@name` reference is normalized to the identity its creating
-member bound, as in Read+Update. A one-operation batch, the equivalent
-singleton request, and the equivalent sequence member therefore present
-one semantic request, and any of them retrieves the receipt the others
-created.
-
-Concurrent identical requests join one execution and receive the same
-receipt identity, pending or terminal. Read+Update refuses a concurrent
-duplicate with `idempotency-in-progress` because it has no durable receipt
-to hand the duplicate; the Transactional profile joins the duplicate to
-the one execution and hands it the pending receipt, which is the same
-exactly-once promise made with the profile's own vehicle. A later identical
-request returns the retained receipt — with its detail available, expired,
-or withheld — and never executes again. A request with the same key and a
-different normalized request is refused before admission with `409`
-`idempotency-conflict` for as long as the key is bound: for the rest of
-the Scope epoch when the earlier transaction completed, whether or not its
-detail has expired, and for as long as its failed receipt is retained
-otherwise. A new epoch is a new namespace: a key first used under a prior
-epoch is unbound, and a retry under the new epoch executes as a new
-mutation, which a client that observes a changed `scopeEpoch` MUST treat
-as a first execution rather than a replay. Authorization View changes do
-not create a new namespace.
-
-Admission is one durable step. The authority records the key, the
-normalized request identity or the durable unresolved dependency form below,
-the `pending` Mutation Receipt with its `transaction` identity, and its own
-exclusive ownership of the execution together or not at all, so that a crash
-leaves a key either unknown with
-nothing committed or bound to a receipt. Exactly one execution owns a
-pending receipt, and ownership is what a commit checks: the Resource state,
-the change group, and the terminal receipt commit atomically only while the
-committing execution still owns the receipt, so an execution that lost
-ownership — because the authority retracted the receipt, or because
-recovery reclaimed it — cannot commit and produces no group. Identities an
-execution allocates become durable only with its commit; a retry after a
-retraction allocates anew, or reuses a supplied `id`. On restart or
-failover, every `pending` receipt without a committed group is retracted
-under the transient-abort rule of
-[Batch operation target](#batch-operation-target) within
-`transaction.duration` when that limit is advertised and within a finite
-bound of the authority's choosing otherwise: the authority never resumes an
-execution on its own initiative, the client's retry is the recovery path,
-and a `pending` receipt older than the bound is a conformance failure.
-Every mutation route — each singleton target, the batch target, the
-sequence target, and every replica that accepts mutations — consults one
-authoritative key state for the namespace; two routes MUST NOT each treat
-the same key as unknown.
-
-When a sequence member depends on an authority-allocated creation whose
-identity is not yet committed, admission MUST durably reserve that member's
-key and pending receipt together with all other unknown member keys in the
-same atomic admission step. Its unresolved dependency form pins each reference
-to the particular creator attempt and operation slot, not merely to a reusable
-key or the spelling of a label. It preserves all other normalized semantic
-fields. This is internal admission state, not a new receipt representation,
-prospective durable Resource identity, or additional component of final
-semantic equality. Atomic admission does not combine the sequence's separately
-committing member executions into one transaction.
-
-When its creator commits, the authority atomically records the binding fact
-with the creator's effects and terminal disposition; a dependent resolves only
-against that pinned fact. A permanently failed creator resolves its reference
-to the existing unbound marker and the dependent retains its own
-`binding-unavailable` failure. The authority MUST preserve enough pinned
-resolution state to resolve or retract every dependent even if the creator's
-failed receipt is later forgotten and its key reused. A terminal dependent's
-normalized identity is immutable: a later creator attempt cannot rebind it.
-On a later presentation of the dependent, a successful new creator supplies
-an identity that conflicts with the retained unbound marker; another permanent
-creator failure normalizes to the same unbound marker when the remaining fields
-match. A pending or transient creator instead uses
-the nonwaiting sequence projection below. Binding, retraction, and commit
-check the same exclusive attempt ownership; a stale execution cannot resolve
-or commit a replacement attempt's work (T62 option 1, materialized 2026-09-09).
-
-A direct singleton or batch that encounters an unresolved reservation MUST
-reject an already provable semantic mismatch with `409`
-`idempotency-conflict`. Otherwise it MUST wait for comparison to become
-possible, within one finite authority-selected comparison budget. The wait
-MUST NOT hold a database transaction open. This budget is separate from
-`transaction.duration`, which bounds admitted execution; it adds no
-discovery member. Once the reservation resolves, ordinary canonical
-comparison returns the existing receipt or the conflict. Until equality is
-established, this caller MUST NOT receive the owner's pending receipt,
-execute a second mutation, or retract the owner's reservation. If comparison
-remains unresolved at the deadline, return direct `503`
-`temporarily-unavailable` with `retry: after-delay`; the response SHOULD
-carry `Retry-After` when a useful delay is known. This timeout creates no
-receipt and leaves the owner's state intact. Current authorization and
-non-disclosure apply at response delivery; this is not a direct
-`idempotency-in-progress` or a minimum-position `catch-up-timeout` (T62a =
-A, ruled 2026-09-09).
-
-If that unresolved reservation is retracted while the explicit direct
-request is waiting, the request MAY compete for fresh admission in the same
-Scope epoch, under current authorization and within the same overall finite
-deadline. It executes only after winning a new reservation for its own
-request; it inherits neither the previous attempt's ownership, receipt
-identity, nor unresolved dependency form. Another winner returns it to
-ordinary comparison. Retraction or a change of owner MUST NOT reset the
-deadline. Deadline exhaustion returns the same direct `503`
-`temporarily-unavailable`, `retry: after-delay`, with the same `Retry-After`
-guidance. If the Scope epoch changes, the authority MUST stop this waiting
-comparison or admission attempt with that same `503`; the client must
-refresh Scope discovery and present a fresh request before competing in the
-new epoch. This permission applies only to a still-present explicit request
-that has not joined a proven-equal execution. It neither resumes an
-abandoned sequence tail nor changes the direct transient-abort response to
-an already admitted execution and its joined duplicates (T62b = A, ruled
-2026-09-09).
-
-A `completed` receipt's compact form is retained under its key for the rest
-of the Scope epoch: the disposition and the allocated identities outlive the
-detail, because exactly-once protects committed effects. A `failed`
-receipt — disposition and detail alike — is retained under its key for at
-least `retention.receipt` after it becomes terminal when that limit is
-advertised, and for a finite interval of the authority's choosing when it
-is not; the authority MAY retain it longer. While it is retained, a retry
-of the failed transaction returns that same failed receipt. Once the
-authority forgets it, its URL answers the uniform `404` as a retracted
-receipt's does, and its key is unknown: a later presentation executes as a
-new mutation under the guards the request carries — a first execution,
-since the failed transaction committed nothing and allocated nothing
-durable. A failed receipt never enters `detail` `expired`; that state
-belongs to completed receipts. Both profiles therefore keep tombstones for
-committed effects only, as [Outcome retention](#outcome-retention) does. A
-client that has refreshed its state constructs a new request under a new
-key.
-
-On a Transactional Scope the `sequence` target is the carrier defined under
-[Read+Update sequence target](#readupdate-sequence-target), and it keeps
-its envelope, its member records, its declaration order, its separate
-commitment, its lack of isolation, and its `@name` rules unchanged; what
-the profile changes is what a member's disposition is. Each member is a
-one-operation Mutation Transaction: the sequence's admission admits every
-member whose key is unknown, in declaration order, recording a pending
-receipt for each — the profile's form of claiming a key — and the members
-then execute in order, each committing its own state, change group, and
-terminal receipt. The envelope projects each member's receipt into one
-entry, and it adds no receipt member. The bundle's
-`transactionalSequenceResponse` specializes the shared envelope with
-`transactionalSequenceMemberProblem`: its `allocated` extension, permitted
-only on `idempotency-expired`, is `sequenceAllocatedIdentity`: exactly
-`{ id, type }` when the identity is disclosed or `{ withheld: true }` when
-it is withheld, distinct from a receipt's indexed `allocated` array.
-A completed Resource creation's expired projection MUST carry exactly one of
-these forms; every other operation's expired projection MUST omit `allocated`
-(ruled 2026-09-08, T63). Here a Resource creation is an operation that
-allocated a Resource identity. An alias put is not one even when its alias
-result says `created`; its expired sequence projection omits `allocated`.
-`resource-erased` member problems reject
-`pointer` just as direct problems do (amended 2026-09-08, council 13).
-A member newly admitted by this carrier executes under its own pending
-receipt and exclusive ownership; the in-flight projection below applies only
-to an execution this carrier did not admit. The unresolved admission and
-direct-carrier comparison rules above preserve this ownership distinction
-(amended 2026-09-08, council 13; T62 materialized 2026-09-09). The projections
-are:
-
-- a `completed` receipt with its detail available projects the receipt's
-  one result entry in the shape of
-  [Sequence response envelope](#sequence-response-envelope), carrying
-  `operationIndex` and `operationName` for the present member; an entry
-  the current view withholds projects as the `forbidden` member problem of
-  [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions),
-  which is not retained; an entry whose version was erased projects as a
-  `resource-erased` member problem to a caller authorized for the subject's
-  retained history and as `forbidden` to every other caller;
-- a `failed` receipt projects its problem as the member problem, with the
-  present member's `operationIndex` and `operationName`;
-- a `pending` receipt owned by another execution — at this route or
-  elsewhere — projects as an `idempotency-in-progress`
-  member problem, which MAY carry `retryAfter`; the sequence does not wait,
-  executes nothing for the member, and retains nothing, and the pending
-  receipt continues to be the key's state;
-- a receipt whose detail expired projects as an `idempotency-expired`
-  member problem carrying, for a `completed` Resource creation, the extension
-  member `allocated` — the disclosed `id` and `type`, or exactly
-  `{ withheld: true }`, projected from the receipt under
-  [Mutation Receipt responses](#mutation-receipt-responses); and
-- a member whose `@name` creator's receipt is `failed` fails with
-  `binding-unavailable` in its own `failed` receipt, retained as every
-  failed receipt is; a member whose creator's receipt is `pending`, or
-  whose creator was answered transiently in this request, fails
-  transiently with `idempotency-in-progress`, consults no key state,
-  executes nothing, retains nothing, and holds no key — a pending receipt
-  newly owned by this attempt and recorded for it at admission is retracted
-  and its key unbound, as after a transient abort — exactly as Read+Update
-  releases the member's claim;
-  a member whose creator's receipt has expired resolves the binding
-  through the receipt's `allocated` identity.
-
-These sequence projections take precedence over static semantic comparison:
-a member owned by another pending execution remains `idempotency-in-progress`,
-and a dependent of a pending or transient creator consults no dependent key,
-even if an immutable field could establish a mismatch. Renaming labels does
-not change this projection. When the creator provides a stable binding and the
-member becomes eligible for retained comparison, ordinary equality or conflict
-applies. A transient dependent releases only a reservation newly owned by this
-attempt; it MUST NOT retract another owner's receipt or retained outcome.
-Sequences do not acquire the direct carrier's comparison wait or retry after
-retraction (T55/T62, confirmed 2026-09-09).
-
-The withheld allocation form hides response data, not the retained creation
-binding. The authority resolves a dependent's `@name` internally from its
-retained execution identity even when the creator projects
-`allocated: { withheld: true }`. Each dependent still undergoes ordinary
-current authorization independently. An unauthorized dependent returns the
-ordinary `forbidden` projection and discloses no hidden identity through its
-result or problem extensions. It is not skipped merely because the creator's
-identity is withheld. Every retry and every carrier re-authorizes disclosure
-against its serving view: a revoked view receives the withheld form; a newly
-granted view may receive `{ id, type }`. Neither response changes the retained
-identity or permits the creation to execute again. These disclosure rules
-preserve the unresolved-admission and duplicate-response contract above without
-changing its semantic identity (ruled 2026-09-08, T63; T62 materialized
-2026-09-09).
-
-The Read+Update dispositions therefore keep their meanings inside the
-sequence envelope and lose their direct forms: on a Transactional Scope a
-pending key is joined rather than refused, an expired key returns its
-expired receipt rather than `410`, and a failed disposition is a receipt
-with a URL of its own, retained for at least `retention.receipt`, rather
-than an inline disposition. The conformance rows those direct forms bind
-are retired for a Transactional Scope under
-[Transactional conformance rows](#transactional-conformance-rows).
-
-### Transactional alias mutations
-
-A singleton `put-alias` or `delete-alias` on a Transactional Scope is a
-one-operation Mutation Transaction. It requires `Idempotency-Key` and uses
-the same principal/Scope/epoch namespace, admission, durable receipt,
-concurrent-join, retention, and replay rules as other singleton mutations.
-An alias receipt's available `results` contains exactly one alias result:
-`operationIndex` `0`, `outcome`, `alias`, and, for a put, `target`, using
-[Alias targets](#alias-targets)' existing result vocabulary. It carries no
-Resource postimage, deleted Resource identity, or `operationName`. A sequence
-projects this result in the existing Read+Update alias member shape, with
-the present member's `operationIndex`. Existing alias authorization, conflict
-and path rules apply unchanged (ruled 2026-09-08, T49).
-
-Alias mutations occupy no Scope position, induce no Event, and appear in
-no change group or snapshot. This is an explicit exception to the Scope
-position rule for effectful Mutation Transactions: an alias put or delete
-may change locator state while its receipt omits `effectPosition`.
-`requiredPosition` remains the ordinary serving-view observation barrier;
-it does not certify replication of the alias effect. A completed alias
-receipt still protects that committed effect exactly once and, after detail
-expiry, carries `allocated: []` because no Resource identity was created.
-The alias table remains authority locator state outside Resource history.
-A replica resolves an alias through the authority's redirect, not a mirrored
-table; offline alias resolution is unavailable. `batch` admits no alias
-operation, so atomic create-plus-alias is unavailable. Separate sequence
-members retain their separate commitment and lack of isolation.
-
-### Set mutation
-
-> **Transactional/Replication only — Transactional profile.**
->
-> Implementations of the Read and Read+Update profiles may skip `UpdateWhere`,
-> `DeleteWhere`, set cardinality, and selection-at-serialization semantics.
-
-```text
-UpdateWhere(
-  collection,
-  selector,
-  change,
-  cardinality?,
-  attribution?
-) -> UpdatedResources
-```
-
-```text
-DeleteWhere(
-  collection,
-  selector,
-  cardinality?,
-  attribution?
-) -> DeletedResourceIdentities
-```
-
-Selection and mutation occur atomically at one serialization point. The
-Selector is evaluated when its operation is reached, so it observes the
-effects of preceding operations in the same Mutation Transaction. An
-`attribution` supplied to a set mutation fans out exactly as the
-corresponding singleton operations would record it: on every version
-`UpdateWhere` mints (each selected Resource's new version, and the source
-Bead's fresh version for each selected owned Link), and, for
-`DeleteWhere`, on the fresh source versions of any owned Links it deletes
-— deletion mints no version for the deleted Resources themselves.
-
-An optional cardinality record constrains the number of selected Resources:
-
-```text
-cardinality: { min: 1, max: 1 }
-cardinality: { max: 100 }
-cardinality: { min: 1 }
-```
-
-Both bounds are inclusive nonnegative integers. Omitted cardinality bounds
-add no client constraint. The authority may still enforce operational limits
-whether or not it pre-advertised them. If the matched count falls outside a
-supplied range, the complete transaction fails.
-
-BDP v0 deliberately does not add an expected-member-set guard. A set mutation
-means “mutate the complete set matching at this operation's serialization
-point.” A client that intends to mutate specific Resources it observed
-earlier uses explicit operations with `expectedRevision` instead.
-
-A service may advertise limits on Selector size and depth, Resources examined
-or matched, Resources mutated, Events induced, and transaction duration.
-Exceeding a limit fails the operation without changing anything. A set
-mutation must never silently mutate only one page of results.
-
-When a desired mutation exceeds an advertised transaction or Event-expansion
-limit, a client may divide it into separate transactions. Each chunk is
-atomic, but the complete multi-transaction job is not: other work may
-interleave, and a later chunk may fail after earlier chunks committed. BDP v0
-defines no generic server-side bulk job that restores cross-chunk atomicity.
-Domain or administrator bulk facilities are outside BDP. An implementation
-MUST NOT relax changefeed completeness or omit Events to admit an oversized
-mutation.
-
-For example, this operation deletes every Link incident upon `task-42`:
-
-```text
-DeleteWhere(
-  Links,
-  $[?@.source == "https://beads.example/acme/beads/task-42" || @.target == "https://beads.example/acme/beads/task-42"]
-)
-```
-
-### Mutation receipts
-
-> **Transactional/Replication only — Transactional profile.**
->
-> Implementations of the Read and Read+Update profiles may skip durable Mutation
-> Receipts, receipt pagination, and lost-response recovery through receipts.
-
-Every admitted mutation has one durable **Mutation Receipt**. Its synchronous
-response is the receipt representation, so the normal case requires no
-follow-up read. The receipt records the terminal outcome, the transaction
-identity, the Authorization View in which it executed, `requiredPosition`, an
-optional `effectPosition`, and ordered operation results. `requiredPosition`
-is the Scope position that view must observe before relying on the outcome.
-`effectPosition` is present exactly when the mutation produced a change
-group.
-
-The receipt remains independently readable, so a client can resolve a lost
-response, a pending duplicate, or a paginated result. An identical retry
-returns the same receipt identity and disposition. Receipt access is
-principal-bound: possessing its URL does not grant access. The authority
-re-authorizes detailed results on every later read, so a grant change may
-redact or deny detail without changing the terminal disposition. When the
-authority advertises receipt retention, it binds how long detailed outcomes
-remain. After the applicable interval it may discard a completed
-transaction's bulky result data, but it retains a compact tombstone — the
-key, the request identity, the disposition, and the identities the
-transaction allocated — for the rest of the Scope epoch. A later retry
-returns an outcome-expired result and never executes the mutation as new.
-A failed transaction committed nothing: its receipt is retained, whole, for
-at least that interval and may then be forgotten, after which its key
-executes as new, under [Mutation Transactions](#mutation-transactions)
-(amended 2026-09-08, Transactional apply, T47).
-
-A receipt may inline every result or the first bounded page. Large
-set-operation results continue through immutable pages of that same receipt.
-BDP does not create a second result abstraction, and it never silently
-truncates affected Resources.
-
-### Events and Event Sources
-
-> **Transactional/Replication contract in this draft.**
->
-> The complete Event ordering, transaction framing, and Event Source guarantees
-> below are required only by the Transactional profile. Read and Read+Update do
-> not publish or expose BDP Events.
-
-An **Event** is an immutable authority-generated record of a committed fact.
-Each Event has an immutable ID that is unique within exactly one **Event
-Source**. An Event is not required to be an independently addressable
-Resource, but its Event Source is a Resource.
-
-Every Bead and Link is an Event **subject** and has an associated
-Resource-scoped Event Source. The subject and the Event Source have distinct
-identities, and they may have different lifetimes. An Event Source may remain
-observable after its subject is deleted, subject to retention policy.
-
-Resource-scoped Event Sources are not independently committed logs. They are
-deterministic projections of the semantic Events inside the Scope's committed
-change groups. Each Event has a stable ordinal within its change group. Its
-source-local opaque ID and cursor are stable functions of the group
-checkpoint, the ordinal, and the projection. An implementation may
-materialize or index a projection without changing its contents or order.
-
-The model defines five domain-independent Event Types:
-
-- **created** — a Bead or Link began to exist;
-- **updated** — the mutable properties or common metadata of a Bead or Link changed, or an
-  owned Link of a Bead changed;
-- **deleted** — a Bead or Link ceased to exist;
-- **linked** — a Link became incident upon a Bead; and
-- **unlinked** — a Link ceased to be incident upon a Bead.
-
-Events are the observation-side duals of singleton DML operations. A Resource
-read or snapshot bootstrap conveys current state. An Event instead conveys
-the committed delta — the change that advances previously observed state.
-Every Event identifies its subject by immutable `id` and `type`, and it
-carries the transaction in which the fact committed.
-
-The lifecycle Event deltas are:
-
-```text
-CreatedData {
-  revision: Revision
-  properties: JsonObject
-  metadata: JsonObject             // newly emitted Events: {} when empty
-  attribution?: Attribution   // the created version's carried attribution
-  source?: Reference
-  target?: Reference
-}
-
-UpdatedData {
-  previousRevision: Revision
-  revision: Revision
-  change?: PropertyChange        // changes properties
-  metadataChange?: PropertyChange // changes common metadata
-  ownedLink?: OwnedLinkChange
-  attribution?: Attribution      // the new version's carried attribution
-}
-
-OwnedLinkChange {
-  operation: created | updated | deleted
-  link: LinkState                // created: the owned Link's complete record
-      | OwnedLinkDelta           // updated: the owned Link's own delta
-      | ResourceIdentity         // deleted: id, type, and final live revision
-}
-
-OwnedLinkDelta {
-  id: URI                        // the owned Link's canonical URL
-  type: TypeId
-  previousRevision: Revision     // the Link's revisions, not the source's
-  revision: Revision
-  change?: PropertyChange       // changes the Link's properties
-  metadataChange?: PropertyChange // changes the Link's common metadata
-  attribution?: Attribution      // the Link's new version's carried attribution
-}
-
-ResourceIdentity {
-  id: URI                        // the canonical Resource URL
-  type: TypeId
-  revision: Revision
-}
-
-DeletedData {
-  revision: Revision
-}
-```
-
-A newly emitted `created` Event carries `metadata`, including `{}` when
-empty. A previously retained Event may lack the member; replay preserves
-that Event's bytes and does not synthesize a new Event or revision. The
-schema admits this historical form so old Event records remain readable.
-
-An owned-Link change produces an `updated` Event on the source Bead with
-its fresh revision; its delta carries `ownedLink` in place of `change` and
-`metadataChange`. Otherwise, at least one of `change` and `metadataChange`
-is present; both may be present for one atomic Resource update. An updated
-owned-Link delta follows the same rule. No single
-operation changes both a Bead's `properties` and one of its owned Links, and
-every owned-Link mutation mints its own source version, so a Mutation
-Transaction that changes both — or that changes two owned Links of one
-source — produces one `updated` Event per transition, each with its own
-`previousRevision` and `revision`, in operation order.
-
-`ownedLink.operation` names the transition, and `ownedLink.link` is the
-delta of that transition, never a snapshot. For `created`, it is the owned
-Link's complete record: exactly the record the Link serves at its own URL
-after the transition, because creation is the delta from absence, so its
-`revision` is the Link's fresh revision and its `attribution`, when present,
-is the Link's own. For `updated`, it is the owned Link's delta — the Link's
-`id` and `type`, its `previousRevision` and fresh `revision`, the committed
-`change` and/or `metadataChange`, and the Link's new version's `attribution` when one was recorded —
-the same delta the Link's own `updated` fact carries, so that neither fact
-carries the Link's properties in full. For `deleted`, it is the deleted
-Link's identity — `id`, `type`, and its final live `revision` — because
-deletion mints no Link version and a deleted Event does not retain
-properties. `previousRevision` and `revision` at the Event level are the
-source Bead's. `attribution` at the Event level, when present, is the
-source's new version's carried attribution. An operation that mints both a
-Link version and a source version records its one attribution on both, so a
-`created` or `updated` delta whose Link record or Link delta carries
-`attribution` carries the same value at the Event level, and a delta whose
-Link record or Link delta carries none carries none.
-
-`CreatedData` and `DeletedData` carry no owned-Link data. A Bead is created
-with an empty owned set for every Link Type its Type owns, and the record's
-empty `ownedLinks` entries follow from the Type Descriptor rather than from
-the Event: a consumer that reconstructs a record from Events alone cannot
-know which empty entries the record carries without the Type Descriptor,
-and the canonical record read or the snapshot, not the Event stream, is
-where that key set is authoritative. A Bead with a live owned Link cannot
-be deleted, so a `deleted` Bead Event never has owned Links to report.
-
-A source Bead's owned-Link `updated` Event is in addition to, not instead
-of, the facts the Link mutation already induces: the Link's own `created`,
-`updated`, or `deleted` fact, and the `linked` or `unlinked` fact at each
-in-Scope endpoint, including the source itself. Within a change group, the
-facts induced by one owned-Link operation are ordered: the Link's lifecycle
-fact first, then the graph facts at its in-Scope endpoints, source before
-target — a self-Link's one endpoint Bead receiving its `source` fact before
-its `target` fact — then the source's `updated` fact last. Ordinals are
-assigned in that order and never renumbered by projection. A Bead-scoped
-Event Source for an owning source therefore reports an owned Link's
-property change twice, under two subjects: once as the incident Link's
-`updated` fact and once as the source's own `updated` fact carrying the
-same delta.
-
-A no-op owned-Link property update — one whose patch yields `properties`
-equal, under the RFC 6902 Section 4.6 comparison, to the value immediately
-before it — retains the Link's revision and emits no Event, and it does not
-version the source: there is no transition for the source's version to
-cover.
-
-A consumer that holds the source's record at `previousRevision` advances it
-to `revision` by applying `ownedLink` to the entry keyed by `link.type` in
-the record's `ownedLinks` member: for `created`, inserting `link` in
-ascending code-unit order of `id`; for `updated`, locating the entry whose
-`id` equals `link.id` and whose `revision` equals `link.previousRevision`,
-applying `link.change` to its `properties`, and setting its `revision` to
-`link.revision` and its `attribution` to `link.attribution`, removing that
-member when the delta carries none; for `deleted`, removing the entry whose
-`id` equals `link.id`; then setting the record's `revision` to the Event's
-`revision` and its `attribution` to the Event's `attribution`, removing the
-member when the Event carries none. A consumer whose held revision is not
-`previousRevision`, or whose held entry is not at `link.previousRevision`,
-is not positioned to apply the delta; it re-reads the record or resumes
-from a snapshot. Replicas do not need the delta at all: the containing
-change group's `changes` member carries the source Bead's complete
-postimage, `ownedLinks` inline, beside the Link's own postimage or
-tombstone.
-
-`CreatedData` contains the complete initial properties, because creation is
-the delta from absence to the initial state. For a Link, it also contains the
-Link's source and target endpoint references. `UpdatedData` contains the
-committed Property Change — or the owned-Link change — rather than a
-resulting state snapshot.
-`DeletedData.revision` is the Resource's final live revision. Deleted Events
-do not retain the Resource's properties.
-
-An Event uses the same `Reference` form as canonical Link state,
-including a stored Pinned Reference, which propagates
-byte-identically. A reference makes no claim about what an out-of-Scope URI
-identifies.
-
-The graph Event delta is:
-
-```text
-LinkDeltaData {
-  endpoint: source | target
-  link: TypedLinkReference
-  source: Reference
-  target: Reference
-}
-```
-
-The typed Link reference contains only the immutable `id` and `type`.
-`linked` and `unlinked` Events contain no Bead or Link properties. Carrying
-the Link's own Type and both endpoint references lets a consumer understand
-an unlink after the Link is no longer readable, without asserting anything
-about an opaque external reference.
-
-A Link-scoped Event Source reports `created`, `updated`, and `deleted` facts
-about that Link. A Bead-scoped Event Source reports:
-
-- `created`, `updated`, and `deleted` facts about the Bead;
-- `linked` and `unlinked` facts when a Link becomes or ceases to be incident
-  upon the Bead; and
-- `updated` facts whose subject is an incident Link when that Link's mutable
-  properties change.
-
-Link creation produces a `created` fact about the Link and a `linked` fact at
-each in-Scope endpoint Bead. Link deletion produces a `deleted` fact about
-the Link and an `unlinked` fact at each in-Scope endpoint Bead. No
-Bead-scoped fact or Event Source exists for an opaque out-of-Scope endpoint.
-A wider Event Source may cover a collection, a graph Scope, or a complete
-service.
-
-For a self-Link, whose source and target are the same Bead, that one endpoint
-Bead receives two graph facts in the same group: one whose `endpoint` is
-`source` and one whose `endpoint` is `target`. Both count against the
-transaction's Event-expansion limit. These derived facts and the incident
-Link view do not mutate the Bead or advance its Resource revision; a
-source Bead whose Type owns the Link's type is versioned by the owned
-change itself, under [Owned Links](#owned-links), not by these
-derived facts.
-
-Events describe data-model facts, not protocol methods. Full replacement and
-partial update therefore produce the same abstract `updated` Event when they
-change a Resource's properties. A failed or rolled-back transaction produces
-no observable Events.
-
-For Event purposes, `UpdateWhere` and `DeleteWhere` expand over their
-selected Resources as the corresponding singleton operations. Each affected
-Resource produces exactly the Event facts that its singleton update or
-deletion would produce, including incident Link facts at in-Scope endpoint
-Beads, and the selected Resources expand in ascending code-unit order of
-their canonical `id`s — the `canonical-uri` order of
-[Collection retrieval and selection](#collection-retrieval-and-selection) —
-so that the Events a set operation induces and the entries its Mutation
-Receipt reports follow one order that does not depend on the authority's
-selection mechanism. A zero-match operation produces no Events. All Events induced by one
-Mutation Transaction carry that transaction's identity, and they become
-observable together only after commit.
-
-An authority MUST enforce a finite maximum number of Events that one Mutation
-Transaction may induce and MAY advertise it through `limits`. If a set
-mutation would exceed that limit, the complete transaction fails before
-commit. This semantic expansion does not require an implementation to update
-or delete Resources one at a time. An authority remains free to use
-set-oriented storage operations so long as it emits the same committed facts.
-
-### Change groups and replication
-
-> **Transactional/Replication only — Transactional profile.**
->
-> Implementations of the Read and Read+Update profiles may skip change groups,
-> postimages, tombstones, projection advances, and replica reconstruction.
-
-Every successful transaction that induces at least one Event produces exactly
-one immutable authority Scope **Change Group** at one new Scope position. The
-authority commits the Resource state, the group, and the Mutation Receipt
-atomically. A failed or admitted no-effect mutation produces no group and no
-new position. Its receipt reports the current `requiredPosition` and omits
-`effectPosition`.
-
-The group delivered to a client is the deterministic projection for its
-Authorization View. It carries every state transition needed to advance that
-view. If the transaction has no visible effect, the authority still emits an
-identifier-free projection advance at the same position. That lets a replica
-prove contiguous catch-up without learning hidden Resource or transaction
-identities. This does reveal the cadence of hidden transactions. Avoiding
-that side channel requires a different, separately identified per-view order
-and is not part of BDP v0. An authority MUST NOT reject an otherwise valid
-Scope transaction only because one view's derived transition is too large to
-deliver. If it cannot represent that transition within advertised projection
-limits, it rotates that view token and requires affected clients to install a
-fresh snapshot.
-
-A change group contains:
-
-```text
-ChangeGroup {
-  scopeEpoch: ScopeEpoch
-  authorizationView: AuthorizationViewToken
-  checkpoint: Checkpoint
-  position: ScopePosition
-  previousPosition: ScopePosition
-  projectionAdvance: Boolean
-  transaction?: TransactionId
-  changes: StateChange*
-  erasures: ErasureRecord*
-  eventCount: Integer
-  events: Event*
-}
-
-ErasureRecord {
-  subject: URI        // the canonical Resource URL
-  revision            // the erased version's opaque revision token
-  digest {
-    scheme            // identifier naming the digest discipline
-    value             // the digest bytes, taken before erasure
-  }
-}
-```
-
-For an ordinary visible group, `projectionAdvance` is false and `transaction`
-is present. `changes` is the replica-oriented projection. For each Bead or
-Link whose final projected state is live, it contains a complete canonical
-postimage — the Resource's state after the change — and its Resource
-revision. For each Resource that leaves the projection, it contains an
-identity-bearing tombstone. An authorization-projection tombstone does not
-assert that the underlying Resource was deleted. Multiple operations on one
-Resource normalize to its final projected postimage or tombstone. Consumers
-apply the complete array atomically; its internal order has no semantic
-effect.
-
-An owned-Link mutation changes the state of two Resources, so a group's
-`changes` carries both: the owned Link's postimage or tombstone, and the
-source Bead's postimage at its fresh revision with the owned set inline.
-The two entries describe one graph: the inline record in the source's
-postimage and the Link's own postimage are member-for-member equal, and a
-consumer verifies that agreement before applying the group, under
-[Scope snapshots](#scope-snapshots).
-
-For an invisible group, `projectionAdvance` is true, `transaction` is absent,
-and `changes`, `erasures`, and `events` are empty. No Resource, Type, Link endpoint,
-actor, or transaction identifier from the hidden group crosses the
-authorization boundary.
-
-`eventCount` equals the number of entries in `events`. `events` is the
-application-facing ordered fact sequence. It preserves operation order and
-assigns each Event its stable authority-group ordinal. A projected Event list
-may therefore contain ordinal gaps where intervening facts are hidden, but it
-never renumbers visible facts. One normalized state-change entry may
-correspond to several Events — for example, when ordered updates touch one
-Resource more than once, or when Link lifecycle facts project to its endpoint
-Beads. Event-expansion limits also bound change-group size.
-
-BDP v0 does not require a public cryptographic group digest. The epoch, the
-position, and the previous position detect replay gaps, duplicates,
-reordering, and history replacement. An implementation may advertise an
-integrity extension.
-
-### Snapshots and strict reads
-
-> **Transactional/Replication only — Transactional profile.**
->
-> Implementations of the Read and Read+Update profiles may skip snapshot bootstrap,
-> snapshot/changefeed rendezvous, minimum-position reads, and the strict
-> replica-freshness contract in this section.
-
-A first-class Scope **Snapshot** contains the complete live Bead and Link
-state visible in one Authorization View at one transaction-consistent Scope
-epoch and position. One immutable snapshot manifest anchors separate typed
-Bead and Link page streams to the same handle, view, position, and expiry. A
-small Scope may inline both complete streams. A replica stages all pages and
-publishes the replacement atomically only after both streams finish.
-Ordinary collection queries are not a replication bootstrap.
-
-The snapshot checkpoint is the precise exclusive position from which Scope
-changefeed replay begins. Until the snapshot's advertised expiry, the
-authority retains every later projected group required to continue from that
-checkpoint. A cursor presented too late, from another Scope epoch, or from
-another Authorization View fails explicitly and never silently skips history.
-BDP v0 assumes a global retention window rather than per-client retention
-pins.
-
-Ordinary reads are strict by default. Each read observes one
-transaction-consistent prefix of its Authorization View that can be
-linearized during the request, and it reports its Scope epoch, view token,
-and visible position. A client may require a minimum checkpoint bound to that
-same view. A replica that is behind must route, wait, or fail explicitly; it
-must not return older state as if current. Weaker consistency modes, if
-added, require explicit client selection.
-
-### Deferred model features
-
-Endpoint Type unions, minimum multiplicity, tuple-uniqueness constraints,
-acyclicity, and additional aggregate graph policies are deferred beyond BDP
-v0. They are not implicit authority behavior.
-## BDP JSON and HTTP Protocol
+### BDP JSON and HTTP Protocol
 
 This section maps the Bead Data Model onto concrete JSON values and HTTP
 interactions. A Scope claims one cumulative conformance profile. Profiles are
@@ -2854,56 +1668,6 @@ delivery nor application and creates no mutation transaction. Ordinary HTTP
 HEAD metadata rules, including permitted omissions, apply; BDP's explicitly
 required context/cache fields remain required. This clarifies the existing
 cumulative GET/HEAD requirement, not a new method policy.
-
-### Receipt and finite-feed HTTP validators
-
-Finite Scope changefeed pages and finite Event pages, both Scope `events/`
-and Resource `view=events`, MUST omit `ETag` and `Last-Modified` initially.
-Their continuation and Scope-position contracts remain the observation
-protocol; a transaction, group checkpoint, or subject revision is not a
-whole-page HTTP validator. SSE has no per-group HTTP validator or new
-group-addressing URL (ruled 2026-09-09, G5). Receipt/page validator omission
-is specified under [Mutation Receipt responses](#mutation-receipt-responses).
-Canonical Resource, Type Descriptor, and discovery ETags remain unchanged;
-these decisions assign no snapshot or discovery validator details.
-
-The following observation table summarizes the existing scoped response laws
-and shared HTTP failures. It does not exclude ordinary applicable failures,
-including authentication and rate limiting.
-
-| Observation target | Method | Response |
-| --- | --- | --- |
-| `changes/`, Scope `events/`, Resource `view=events` | GET, HEAD | `200` finite JSON or acceptable SSE metadata/stream as defined by the endpoint; ordinary authorization, query, cursor, epoch/view, minimum-position, erasure/history-expiry, and service failures; shared bodyless `406`, conditional `304`/`412`, or internal-fault `500` when applicable |
-| the same targets | other methods | `405`, `Allow: GET, HEAD`, with CORS `OPTIONS` handled under the shared rules |
-
-[Conditional reads and HEAD](#conditional-reads-and-head) governs ordering,
-bodylessness, required current metadata, and the absence of checkpoint
-advancement on `304` or HEAD. Finite responses retain their authorization
-cache policy; SSE retains `Cache-Control: no-store, no-transform`.
-
-### Event-ID and checkpoint character profile
-
-Every serialized Event ID and Scope checkpoint is a case-sensitive ASCII
-token matching `[A-Za-z0-9_-]{1,256}`. The authority emits the token
-identically in a JSON value, URL query, HTTP field, SSE `id`, and
-`Last-Event-ID`. Clients compare the decoded values exactly and never apply
-case folding or Unicode normalization. Whitespace, padding, percent signs,
-control characters, and all non-ASCII characters are forbidden.
-
-`genesis` is the reserved distinguished initial Scope checkpoint. It is never
-assigned to an Event or later position. The restricted alphabet is a wire
-profile, not a requirement that the value decode as base64url.
-Implementations may encode UUIDs, ULIDs, hashes, counters, or other native
-identities into it.
-
-In the Transactional profile, Scope epochs, Authorization View tokens, Scope
-positions, transaction identifiers, and receipt tokens use this same
-profile, as idempotency keys do in every write profile under
-[Idempotency keys](#idempotency-keys), so that every history token is safe
-in a JSON value, a URL query, and an HTTP field. Resource revisions are not
-covered: a revision is an opaque nonempty string compared only for
-equality, and how the protocol projection encodes one as an HTTP validator
-is a separate rule.
 
 ### Resource records
 
@@ -3744,6 +2508,887 @@ protocol method. Domain-specific behavior belongs in clients that interpret
 nominal Types and use BDP's generic surface. It is not an extension advertised
 by a Type or Scope.
 
+### Incident Link reads
+
+A Bead record does not embed its incident Links. A client selects the Link
+view directly on the Bead URL and supplies a direction:
+
+```http
+GET /acme/beads/task-42?view=links&direction=outbound HTTP/1.1
+Host: beads.example
+Accept: application/json
+```
+
+```http
+GET /acme/beads/task-42?view=links&direction=inbound HTTP/1.1
+Host: beads.example
+Accept: application/json
+```
+
+```http
+GET /acme/beads/task-42?view=links&direction=both HTTP/1.1
+Host: beads.example
+Accept: application/json
+```
+
+`direction` is `inbound`, `outbound`, or `both`, and defaults to `both` when
+omitted. `inbound` selects Links whose `target` is the Bead. `outbound`
+selects Links whose `source` is the Bead. `both` selects their union. The
+response is a paginated `items` array of complete Link records plus a `next`
+URL. The initial request may supply `limit`. Subsequent requests follow
+`next`. As with collection pagination, that continuation walks one logical
+snapshot and an expired cursor is an error rather than a silent restart
+against newer state. Only an in-Scope Bead has this view. An opaque
+out-of-Scope endpoint does not.
+
+BDP does not append `/links` to the Bead URL. Local IDs may contain multiple
+path segments, so `beads/task-42/links` could already be the ID of a different
+Bead. A suffix subpath would require BDP to reserve and visibly mangle a
+control segment such as `/-/` or `/.bdp/` throughout the local-ID grammar. The
+`view` query parameter avoids that collision while keeping the request visibly
+anchored at the Bead. The Link collection still owns Link identity. The Bead's
+Link view is only a derived read.
+
+### Collection retrieval and selection
+
+An ordinary `GET` of a discovered collection returns a paginated `items` array
+and a `next` URL. The `beads/` and `links/` collections return complete
+Resource records; the `types/` collection returns Type summaries.
+
+Every collection response — filtered or not, including the Bead `links`
+view — is produced in one total order over the selected set, stable across
+the pages of one logical snapshot (the same snapshot the cursor rules
+bind). The order is an authority property named by the `order` discovery
+member, not per-request behavior: a caller cannot request a different
+order in BDP v0, and query-relevance ranking is consumer policy, never
+authority behavior. The baseline order every authority MUST support is
+`canonical-uri` — ascending lexicographic comparison, by Unicode code
+unit, of each item's absolute canonical `id`. It is total, cheap, and
+implementation-neutral. An authority advertising no `order` member serves
+the baseline; an authority MUST NOT serve any order it does not advertise.
+Two conformant authorities serving the same selected set under the same
+advertised order return the same item sequence. The
+collections accept these structural predicates:
+
+| Parameter | `beads/` | `links/` | `types/` | Meaning |
+| --- | --- | --- | --- | --- |
+| `type` | yes | yes | no | Exact Type ID |
+| `conformsTo` | yes | yes | no | Effective conformance to the named Type ID |
+| `source` | no | yes | no | Exact source reference URI |
+| `target` | no | yes | no | Exact target reference URI |
+| `endpoint` | no | yes | no | Source or target reference URI equals the supplied URI |
+| `selector` | yes | yes | no | Bounded Selector over each candidate record |
+| `limit` | yes | yes | yes | Maximum records in this page |
+| `cursor` | yes | yes | yes | Opaque continuation supplied by `next` |
+
+Different predicates are combined with logical AND. Within `endpoint`, source
+and target are combined with logical OR. A parameter may occur at most once in
+BDP v0; repeated parameters are errors rather than implicit unions. Type IDs
+are absolute URLs. The structural `source`, `target`, and `endpoint`
+parameters may use a canonical local Bead ID, its absolute canonical URL, or
+an absolute out-of-Scope URI. The authority normalizes local Bead references
+before comparison. External URI comparison is exact. This convenience does not
+apply inside a Selector string.
+
+An unsupported collection query parameter or any repeated collection query
+parameter returns the `invalid-parameter` Problem: family `request`, HTTP
+status `400`, and retry disposition `never`. The authority MUST NOT ignore an
+unsupported parameter or choose one value from a repeated parameter.
+
+The `selector` value is the same JSONPath Selector string accepted by
+`updateWhere` and `deleteWhere`. It is percent-encoded in the request target:
+
+```http
+GET /acme/links/?selector=%24%5B%3F%40.source%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%20%7C%7C%20%40.target%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%5D HTTP/1.1
+Host: beads.example
+Accept: application/json
+```
+
+The decoded Selector is:
+
+```text
+$[?@.source == "https://beads.example/acme/beads/task-42" || @.target == "https://beads.example/acme/beads/task-42"]
+```
+
+The structural predicates and Selector decide the complete matching set before
+pagination, but only within the request's Authorization View. A cursor
+continues one logical projected snapshot: every page belongs to the same
+selected set, authorization projection, and Resource revisions as the initial
+request. The server-generated `next` URL is authoritative. It carries the
+opaque cursor plus any parameters needed to continue that snapshot. `next` is
+`null` after its final page. In Read and Read+Update, the opaque cursor itself
+carries or indexes the authorization-projection fence. Clients neither inspect
+it nor need a separate Authorization View field. If the authority can no
+longer continue the snapshot, or if the request no longer belongs to that
+projection, it returns an expired- or foreign-view-cursor problem rather than
+silently restarting against newer state.
+
+Selector candidate records use the same absolute canonical identity spelling
+as responses. BDP does not parse or rewrite JSONPath string literals that
+happen to look like local identifiers. That means JSONPath equality is
+ordinary string equality, and selector behavior stays independent of request
+spelling aliases.
+
+Collection responses do not accept Resource `view` or `include` parameters.
+Their `items` are always complete Resource records. In particular, a Bead
+collection cannot embed each Bead's incident Links. Clients select Links from
+`links/` or use the Link view on one Bead. Services may advertise a maximum
+encoded request-target length and Selector complexity, but must not silently
+interpret a truncated Selector. Ordinary `GET` semantics make simple
+selections browser-debuggable and compatible with conditional requests without
+requiring the newer `QUERY` method or a request body on `GET`. The
+authorization-dependent `private, no-store` rule remains binding.
+
+### Scope aggregate constraints
+
+A Type Descriptor owns constraints that can be validated from one Resource
+and its in-Scope endpoints: properties schemas and endpoint effective-Type
+requirements. Constraints that inspect other Resources belong to the Scope,
+not to the globally identified Type contract.
+
+BDP v0 defines one optional aggregate policy shape:
+
+```text
+MaximumEndpointMultiplicity {
+  linkConformsTo: LinkTypeId
+  endpoint: source | target
+  max: PositiveInteger
+}
+```
+
+For one in-Scope Bead and one named endpoint, this policy counts the live
+Links in the Scope whose effective Link Types contain `linkConformsTo` and
+whose named endpoint equals that Bead. The count includes Links declared as
+different conforming child Types. If several policies apply, the smallest
+maximum wins. An out-of-Scope endpoint is never counted or constrained.
+Authorities MUST produce serializable outcomes when concurrent mutations
+could cross a maximum.
+
+Discovery MAY contain `maximumEndpointMultiplicity`, an unordered array of
+records using the three members above:
+
+```json
+{
+  "maximumEndpointMultiplicity": [
+    {
+      "linkConformsTo": "https://work.example/types/parent-child",
+      "endpoint": "source",
+      "max": 1
+    }
+  ]
+}
+```
+
+An absent member or an empty array means that the Scope defines no such
+policies. The administrative mechanism remains outside BDP. A policy
+replacement is atomic and serialized relative to mutations. Tightening is
+rejected when the live graph already violates the proposed maximum. A
+Transactional mutation observes either the complete old policy set or the
+complete new one. Each Read+Update singleton or sequence member observes the
+policy current at that member's execution point. A replacement changes the
+discovery representation and its `ETag`, but it does not invalidate active
+reads or change a Type Descriptor.
+
+Minimum multiplicity, tuple uniqueness, acyclicity, and other aggregate
+graph policies are deferred.
+
+## Part II — Read+Update
+
+### Property changes
+
+A **Property Change** is an ordered
+[RFC 6902 JSON Patch](https://www.rfc-editor.org/rfc/rfc6902.html) applied to
+one JSON object. A Resource update can apply one to `properties`, one to
+common `metadata`, or both atomically. Each path is a JSON Pointer relative
+to its selected object. BDP v0 admits only `add`, `replace`, and
+`remove`. Operations within each array
+execute in order, with RFC 6902 object and array semantics. `replace` and
+`remove` require their targets to exist. `move`, `copy`, and `test` are not
+part of BDP v0.
+
+Assigning JSON `null` and removing a member are distinct operations. The
+patch must yield a JSON object. The authority validates the complete
+`properties` result — not merely its changed members — against every effective
+Type contract; `metadata` has no Type schema. An update that leaves both
+objects unchanged is a no-op. Advertised limits bound the combined patch
+operation count, the path size and depth, and the resulting representation
+size.
+### Batch-local Resource references
+
+> **Profile distinction.**
+>
+> Read has no local references. Read+Update supports bindings only between
+> separately committed members of one `sequence`, with no isolation from
+> interleaving work. Transactional supports the staged references below inside
+> one atomic `batch`.
+
+A creation operation may declare an optional transaction-local label:
+
+```text
+newTask: CreateBead(...)
+```
+
+A later operation may then refer to the created Resource by prefixing the
+label with `@`:
+
+```text
+CreateLink(
+  type: "assigned-to",
+  source: @newTask,
+  target: "person-42",
+  properties: {}
+)
+```
+
+A local name:
+
+- is unique within its containing sequence or Mutation Transaction;
+- may name only a preceding Resource-creation operation;
+- denotes the created Resource's identity;
+- is not a variable or an operation-result object;
+- supports no property access or arbitrary expression evaluation; and
+- is not persisted as part of the Resource.
+
+In a Read+Update sequence, the creation commits before the binding becomes
+available, and later members use the durable identity; on a retry, the
+creation's retained or expired disposition supplies that same identity. In
+a Transactional batch, the binding denotes staged identity before commit. Both use the same
+`@name` spelling and the same kind checks; only Transactional supplies
+isolation and rollback.
+
+Resource references are kind-checked. That means a Link reference cannot be
+used where a Bead reference is required. Only Resource identity is bindable;
+revisions, properties, timestamps, query results, and other operation-result
+data are not.
+
+A durable relative reference is resolved against the canonical Scope URL and
+normalized to an absolute canonical URL before use. It must remain beneath
+the fixed `beads/` or `links/` root required by the reference's Resource
+kind. An endpoint reference that is relative therefore always denotes an in-Scope
+endpoint and must identify a live Bead. An endpoint reference that is an
+absolute URI outside the canonical Scope is handled as opaque.
+
+Any Reference may be written as a Pinned Reference `{ uri, revision }`,
+recording the revision of the target the Reference was made against. On the
+wire `revision` is a nonempty JSON string, and that structural rule is the
+only validation an authority applies in BDP v0. The pin is provenance, not
+a constraint: an authority stores and echoes it byte-identically, compares
+it only for equality, and performs no semantic validation, dereferencing,
+or interpretation — for an external target because its namespace is not
+ours, and for an in-Scope target because validating a past revision
+requires historical resolution, which arrives separately. The pin is
+unrelated to the containing Link's own `revision` and to
+`expectedRevision` guards. It does not participate in Link identity or
+Reference comparison.
+
+Creating or deleting a Link does not mutate an in-Scope endpoint Bead or
+change that Bead's Resource revision — with one declared exception: when
+the Link's type is owned by the source Bead's declared Type, the source's
+revision changes. The target's never does. Putting or deleting an alias
+mutates no Bead and changes no revision: an alias is a locator outside
+every Resource's durable state, under [Aliases](#aliases).
+
+### Explicit Bead operations
+
+```text
+[label:] CreateBead(
+  id?,
+  type,
+  properties = {},
+  metadata = {},
+  attribution?
+) -> BeadState
+```
+
+If `id` is omitted, the authority allocates one. If `id` is supplied, its
+canonical Resource URL must never previously have been committed for any
+Resource in the logical Scope. Deletion does not make it available again.
+
+```text
+UpdateBead(
+  bead,
+  propertiesChange?,
+  metadataChange?,  // at least one change array is required
+  expectedRevision?,
+  attribution?
+) -> BeadState
+```
+
+```text
+DeleteBead(
+  bead,
+  expectedRevision?
+) -> DeletionResult
+```
+
+`bead` may be a durable Bead ID or a transaction-local Bead reference.
+Deleting a Bead removes it from the live data model; the implementation is
+not required to physically erase it. `DeleteBead` fails if any live Link is
+incident upon (attached to) the Bead when the operation is reached. A client
+that wants cascade behavior must explicitly delete the incident Links earlier
+in the same Mutation Transaction.
+
+### Explicit Link operations
+
+```text
+[label:] CreateLink(
+  id?,
+  type,
+  source,
+  target,
+  properties = {},
+  metadata = {},
+  attribution?
+) -> LinkState
+```
+
+If `id` is omitted, the authority allocates one. If `id` is supplied, its
+canonical Resource URL must never previously have been committed in the
+logical Scope. `source` and `target` may refer to Beads created earlier
+in the same Mutation Transaction. Each is a Reference and either may be
+pinned; whether an endpoint is in-Scope or out-of-Scope derives from its
+`uri` alone.
+
+```text
+UpdateLink(
+  link,
+  propertiesChange?,
+  metadataChange?,  // at least one change array is required
+  expectedRevision?,
+  attribution?
+) -> LinkState
+```
+
+```text
+DeleteLink(
+  link,
+  expectedRevision?,
+  attribution?   // recorded on the owning source's fresh version, if any
+) -> DeletionResult
+```
+
+`link` may be a durable Link ID or a transaction-local Link reference.
+
+### Explicit alias operations
+
+```text
+PutAlias(
+  alias,
+  target
+) -> AliasBinding
+```
+
+```text
+DeleteAlias(
+  alias
+) -> AliasDeletionResult
+```
+
+`alias` is an alias path beneath the `alias/` root under
+[Aliases](#aliases); `target` is a canonical in-Scope Bead reference or,
+in a sequence or a Mutation Transaction, a local reference bound by an
+earlier Bead creation. Alias operations are protocol-level operations on
+the Scope's alias table rather than Resource operations: they mint no
+version and stage no Resource state. When one is reached it follows the
+check order under [Validation and results](#validation-and-results),
+identifier uniqueness first, so a put whose path is taken and whose
+target is unknown answers the uniqueness fault. The Read+Update profile
+defines their wire form under [Alias targets](#alias-targets); the
+Transactional profile inherits them, and whether `batch` admits them is
+defined with that profile.
+
+### Validation and results
+
+> **Transactional/Replication constructs within this section.**
+>
+> Cross-operation staged validation, serializable aggregate-invariant outcomes,
+> complete-transaction rollback, and ordered transaction results apply only to
+> the Transactional profile. Read+Update validates each singleton or sequence
+> member independently and returns its inline postimage, deleted identity,
+> alias result, or problem. A mutation of an owned Link is a mutation of two Resources: the
+> inline postimage (or deleted identity) remains the Link's, and the same
+> response member additionally reports the source Bead's resulting
+> `revision` — its full postimage is available at its own URL. The envelope
+> member carrying that secondary revision is `sourceRevision`, defined under
+> [Mutation results](#mutation-results).
+
+When each operation is reached, the authority validates its resulting staged
+state before evaluating the next operation. It checks:
+
+- identifier uniqueness;
+- reference resolution and Resource kind;
+- liveness, exact declared-Type match, kind, and effective-Type constraints for
+  in-Scope Link endpoints;
+- Link-Type external-endpoint policy, syntactic validity, and opaque
+  handling of out-of-Scope endpoint URIs;
+- immutable-member rules;
+- Type and properties-schema constraints, and the admissibility of every
+  number literal under [Revisions](#revisions);
+- applicable Scope aggregate constraints;
+- authorization;
+- expected revisions and cardinality;
+- absence of live incident Links when deleting a Bead; and
+- advertised service limits.
+
+At commit, the authority also ensures that concurrent transactions cannot
+jointly violate those invariants. An implementation may use a Scope writer,
+serializable transactions, predicate or advisory locks, constraint rows, or
+an equivalent retry protocol. BDP specifies the observable serializable
+result rather than the mechanism.
+
+Any failure rolls back the complete Mutation Transaction. Domain-specific
+transitions such as `claim-ready` are not generic BDP operations.
+
+Creation and update results include the durable Resource ID, the canonical
+Resource URL, the opaque revision, and the complete resulting state. Deletion
+results include the deleted Resource identity and transaction metadata. The
+transaction result maps every local label to its allocated durable Resource
+identity.
+
+### Property-change values
+
+BDP represents each change as a bounded
+[RFC 6902 JSON Patch](https://www.rfc-editor.org/rfc/rfc6902.html) applied to
+one Resource object. `propertiesChange` targets `properties` and
+`metadataChange` targets common `metadata`; each JSON Pointer is relative to
+its own complete object. A Resource update supplies at least one of these
+arrays and may supply both in the same atomic operation. An omitted array
+leaves its object unchanged. A change admits only `add`, `replace`, and
+`remove`. The other patch operations — `move`, `copy`, and `test` — are
+excluded from BDP v0. Operations execute in array order. `add` has RFC 6902
+object replacement and array insertion/append semantics. `replace` and
+`remove` fail when the target does not exist. A root-pointer `replace` with
+`{}` clears either object, including common `metadata`.
+
+```json
+{
+  "operation": "updateBead",
+  "bead": "beads/task-42",
+  "expectedRevision": "opaque-revision",
+  "propertiesChange": [
+    {
+      "op": "replace",
+      "path": "/status",
+      "value": "closed"
+    },
+    {
+      "op": "remove",
+      "path": "/obsolete"
+    },
+    {
+      "op": "add",
+      "path": "/resolution",
+      "value": null
+    }
+  ],
+  "metadataChange": [
+    { "op": "add", "path": "/reviewedBy", "value": "agent:planner" }
+  ]
+}
+```
+
+This distinguishes assigning JSON `null` from removing a member. Applying the
+properties patch must yield a JSON object satisfying every effective Type
+schema. The metadata patch must yield a JSON object. If both results equal
+their respective preceding objects under RFC 6902 Section 4.6 JSON
+comparison, the operation is a no-op. It preserves the
+Resource revision and emits no `updated` Event. Number equality in that
+comparison, and the admissibility of every number literal a change carries,
+are defined under [Revisions](#revisions).
+
+### Operation record schema
+
+**History amendment, 2026-09-09.** Version-minting operation inputs additionally
+accept operation-local `changeContextInput` as the `changeContext` member under
+[Immutable change context](#immutable-change-context). This applies equally to
+singleton, sequence, set and batch compositions, never carrier-wide context.
+
+> **Transactional/Replication constructs within this section.**
+>
+> The batch wrapper, `updateWhere`, and `deleteWhere` definitions apply only to
+> Transactional. Read+Update `sequence` uses the `operation` discriminator,
+> optional create-member `name`, per-member `idempotencyKey`, the six
+> single-Resource definitions, and the two alias definitions under
+> [Alias targets](#alias-targets). Singleton targets remove `operation`,
+> `name`, and body-level `idempotencyKey` as described below.
+
+Every object in a batch conforms to the bundle's operation definition. The
+bundle's `batchOperation` definition is the normative eight-record union,
+composed from the same `<operation>Members` definitions the Read+Update
+singleton and sequence records use; the sketch below is a non-normative
+preview of it and carries no independent `$id`. The `operation`
+discriminator selects one of the eight generic operation records:
+
+```json
+{
+  "title": "BDP batch operation",
+  "oneOf": [
+    { "$ref": "#/$defs/createBead" },
+    { "$ref": "#/$defs/updateBead" },
+    { "$ref": "#/$defs/deleteBead" },
+    { "$ref": "#/$defs/createLink" },
+    { "$ref": "#/$defs/updateLink" },
+    { "$ref": "#/$defs/deleteLink" },
+    { "$ref": "#/$defs/updateWhere" },
+    { "$ref": "#/$defs/deleteWhere" }
+  ],
+  "$defs": {
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+    },
+    "resourceReference": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reference": {
+      "oneOf": [
+        { "$ref": "#/$defs/resourceReference" },
+        { "$ref": "#/$defs/pinnedReference" }
+      ]
+    },
+    "pinnedReference": {
+      "type": "object",
+      "required": ["uri", "revision"],
+      "properties": {
+        "uri": { "$ref": "#/$defs/resourceReference" },
+        "revision": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "attribution": {
+      "type": "object",
+      "required": ["principal", "basis"],
+      "properties": {
+        "principal": { "type": "string", "minLength": 1 },
+        "basis": { "enum": ["writer-supplied", "unknown"] }
+      },
+      "additionalProperties": false
+    },
+    "typeId": {
+      "type": "string",
+      "format": "uri"
+    },
+    "properties": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "expectedRevision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "change": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["op", "path", "value"],
+            "properties": {
+              "op": { "enum": ["add", "replace"] },
+              "path": { "type": "string" },
+              "value": true
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["op", "path"],
+            "properties": {
+              "op": { "const": "remove" },
+              "path": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "selector": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cardinality": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 0 }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+    "createBead": {
+      "type": "object",
+      "required": ["operation", "type"],
+      "properties": {
+        "operation": { "const": "createBead" },
+        "name": { "$ref": "#/$defs/name" },
+        "id": { "$ref": "#/$defs/resourceReference" },
+        "type": { "$ref": "#/$defs/typeId" },
+        "properties": { "$ref": "#/$defs/properties" },
+        "metadata": { "$ref": "#/$defs/metadata" },
+        "attribution": { "$ref": "#/$defs/attribution" }
+      },
+      "additionalProperties": false
+    },
+    "updateBead": {
+      "type": "object",
+      "required": ["operation", "bead"],
+      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }],
+      "properties": {
+        "operation": { "const": "updateBead" },
+        "bead": { "$ref": "#/$defs/resourceReference" },
+        "propertiesChange": { "$ref": "#/$defs/change" },
+        "metadataChange": { "$ref": "#/$defs/change" },
+        "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
+        "attribution": { "$ref": "#/$defs/attribution" }
+      },
+      "additionalProperties": false
+    },
+    "deleteBead": {
+      "type": "object",
+      "required": ["operation", "bead"],
+      "properties": {
+        "operation": { "const": "deleteBead" },
+        "bead": { "$ref": "#/$defs/resourceReference" },
+        "expectedRevision": { "$ref": "#/$defs/expectedRevision" }
+      },
+      "additionalProperties": false
+    },
+    "createLink": {
+      "type": "object",
+      "required": ["operation", "type", "source", "target"],
+      "properties": {
+        "operation": { "const": "createLink" },
+        "name": { "$ref": "#/$defs/name" },
+        "id": { "$ref": "#/$defs/resourceReference" },
+        "type": { "$ref": "#/$defs/typeId" },
+        "source": { "$ref": "#/$defs/reference" },
+        "target": { "$ref": "#/$defs/reference" },
+        "properties": { "$ref": "#/$defs/properties" },
+        "metadata": { "$ref": "#/$defs/metadata" },
+        "attribution": { "$ref": "#/$defs/attribution" }
+      },
+      "additionalProperties": false
+    },
+    "updateLink": {
+      "type": "object",
+      "required": ["operation", "link"],
+      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }],
+      "properties": {
+        "operation": { "const": "updateLink" },
+        "link": { "$ref": "#/$defs/resourceReference" },
+        "propertiesChange": { "$ref": "#/$defs/change" },
+        "metadataChange": { "$ref": "#/$defs/change" },
+        "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
+        "attribution": { "$ref": "#/$defs/attribution" }
+      },
+      "additionalProperties": false
+    },
+    "deleteLink": {
+      "type": "object",
+      "required": ["operation", "link"],
+      "properties": {
+        "operation": { "const": "deleteLink" },
+        "link": { "$ref": "#/$defs/resourceReference" },
+        "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
+        "attribution": { "$ref": "#/$defs/attribution" }
+      },
+      "additionalProperties": false
+    },
+    "updateWhere": {
+      "type": "object",
+      "required": ["operation", "collection", "selector", "change"],
+      "properties": {
+        "operation": { "const": "updateWhere" },
+        "collection": { "enum": ["beads", "links"] },
+        "selector": { "$ref": "#/$defs/selector" },
+        "change": { "$ref": "#/$defs/change" },
+        "cardinality": { "$ref": "#/$defs/cardinality" },
+        "attribution": { "$ref": "#/$defs/attribution" }
+      },
+      "additionalProperties": false
+    },
+    "deleteWhere": {
+      "type": "object",
+      "required": ["operation", "collection", "selector"],
+      "properties": {
+        "operation": { "const": "deleteWhere" },
+        "collection": { "enum": ["beads", "links"] },
+        "selector": { "$ref": "#/$defs/selector" },
+        "cardinality": { "$ref": "#/$defs/cardinality" },
+        "attribution": { "$ref": "#/$defs/attribution" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
+```
+
+`id` appears on both creation records because identity and Type are both
+immutable. Omitting `id` asks the authority to allocate it. Omitting `type` is
+never permitted. `properties` and common `metadata` each default to an empty
+object when omitted at creation; the resulting record exposes both.
+
+`bead` and `link` contain a durable local ID, an absolute canonical Resource
+URL, or, in a batch only, an `@label` of the required Resource kind. `source`
+and `target` are endpoint references accepting those same local Bead
+spellings, an absolute out-of-Scope URI, or a Pinned Reference.
+The authority performs reference resolution, canonicalization, label
+resolution, and Resource-kind validation. A durable relative endpoint
+reference resolves against the canonical Scope URL, not against the request
+URL or the containing Link URL, and must name a live Bead. An absolute endpoint reference outside
+the Scope is accepted as an opaque external reference, subject to the Link
+Type's external-endpoint policy. Such an endpoint is not kind-checked or
+dereferenced. Either endpoint may be supplied as a Pinned Reference under
+[Batch-local Resource references](#batch-local-resource-references).
+Neither case mutates an endpoint Bead or changes its revision — unless
+the Link's type is owned by the source Bead's declared Type, in which
+case the source's revision changes and the target's never does.
+
+The singleton target for an operation accepts the corresponding record with
+`operation` and `name` removed. The target URL supplies the meaning of
+`operation`, and a batch supplies the meaning of `name`. Thus the batch schema
+and singleton request bodies share one field vocabulary.
+
+### Operation Directory and singleton targets
+
+> **Transactional/Replication entries within this section.**
+>
+> Read+Update uses the six single-Resource entries, the two alias entries,
+> and `sequence`. `update-where`, `delete-where`, `batch`, one-operation transaction
+> desugaring, transaction-level idempotency, and Mutation Receipt responses
+> apply only to Transactional.
+
+The discovered `operations/` Resource is a directory of the generic mutation
+targets available under the Scope's profile. The Transactional profile's
+initial children are:
+
+```text
+POST operations/create-bead
+POST operations/update-bead
+POST operations/delete-bead
+POST operations/create-link
+POST operations/update-link
+POST operations/delete-link
+POST operations/put-alias
+POST operations/delete-alias
+POST operations/sequence
+POST operations/update-where
+POST operations/delete-where
+POST operations/batch
+```
+
+`GET operations/` returns these names and relative target URLs as a JSON
+object. That lets a client follow the directory rather than construct paths.
+For a Transactional Scope the response is:
+
+```json
+{
+  "createBead": "create-bead",
+  "updateBead": "update-bead",
+  "deleteBead": "delete-bead",
+  "createLink": "create-link",
+  "updateLink": "update-link",
+  "deleteLink": "delete-link",
+  "putAlias": "put-alias",
+  "deleteAlias": "delete-alias",
+  "sequence": "sequence",
+  "updateWhere": "update-where",
+  "deleteWhere": "delete-where",
+  "batch": "batch"
+}
+```
+
+A Read Scope does not advertise `operations` and has no BDP Operation
+Directory. A Read+Update Scope's directory contains exactly eight singleton
+targets — the six Resource targets plus `put-alias` and `delete-alias` —
+and `sequence` (amended 2026-09-08):
+
+```json
+{
+  "createBead": "create-bead",
+  "updateBead": "update-bead",
+  "deleteBead": "delete-bead",
+  "createLink": "create-link",
+  "updateLink": "update-link",
+  "deleteLink": "delete-link",
+  "putAlias": "put-alias",
+  "deleteAlias": "delete-alias",
+  "sequence": "sequence"
+}
+```
+
+In the Transactional profile, each of the six Resource singleton targets
+accepts the members
+defined by its operation record, excluding the batch-only `operation`
+discriminator and `name` label. The request executes as a one-operation
+Mutation Transaction. It returns the same Mutation Receipt shape with a
+one-element `results` array (amended 2026-09-08, council 12); the two set
+targets `update-where` and `delete-where` return it with a `matched` entry
+followed by one entry per selected Resource, under
+[Mutation Receipt responses](#mutation-receipt-responses) (amended
+2026-09-08, Transactional apply). The alias targets return a one-entry Mutation Receipt under
+[Transactional alias mutations](#transactional-alias-mutations), without
+Scope history or replicated alias state (ruled 2026-09-08, T49).
+Transactional singleton requests require
+`Idempotency-Key` and cannot use `@label` references.
+
+Within the Transactional profile, the singleton and batch forms have identical
+allocation, patch, validation, authorization, idempotency, concurrency, event,
+and deletion semantics. The Read+Update profile preserves the existing
+`create-bead`, `update-bead`, `delete-bead`, `create-link`,
+`update-link`, and `delete-link` target names and their operation
+request records, adds the alias targets `put-alias` and `delete-alias`
+under [Alias targets](#alias-targets), and adds `sequence`. Each
+Read+Update singleton requires an `Idempotency-Key` HTTP field. It returns
+its final Resource postimage, deleted identity, alias result, or direct
+problem inline rather than a Mutation Receipt.
+Read+Update does not include the set-oriented `update-where` or `delete-where`
+targets, which require selection and mutation at one serialization point. It
+also does not include `batch`.
+
+Concretely, each Read+Update singleton target accepts `POST` with an
+`application/json` body containing its operation record with `operation`
+and `name` removed — the bundle defines `createBeadRequest`,
+`updateBeadRequest`, `deleteBeadRequest`, `createLinkRequest`,
+`updateLinkRequest`, `deleteLinkRequest`, `putAliasRequest`, and
+`deleteAliasRequest` — and one required
+`Idempotency-Key` field carrying a key under
+[Idempotency keys](#idempotency-keys). A singleton never accepts `@name`,
+bare or within a Pinned Reference; the bundle's singleton request
+definitions reject the spelling, so it is carrier syntax rejected before
+execution with `malformed-request`.
+A successful singleton returns `200 OK` whose body is the mutation result
+defined under [Mutation results](#mutation-results) — or, for an alias
+target, the alias result defined under [Alias targets](#alias-targets) —
+and carries no `ETag`
+and no `Location`: the operation target is not the Resource's URL, and the
+result's `resource.id` and `resource.revision` say what those fields would.
+A failed singleton
+returns the direct problem at its code's HTTP status; a singleton whose
+key is retained, in flight, conflicting, or expired answers exactly as the
+corresponding sequence member would, as a direct response. Singleton and
+sequence forms share one idempotency namespace, one semantic-identity
+rule, and one retention rule. Mutation responses carry
+`Cache-Control: private, no-store`. A mutation target responds
+`405 Method Not Allowed` with `Allow: POST` to every other method, and the
+Operation Directory responds `405` with `Allow: GET, HEAD` to every method
+but those two; both follow the Read profile's `405` rule — no BDP Problem
+body — and its `OPTIONS` rule: when cross-origin access is enabled,
+`OPTIONS` is answered according to the CORS rules rather than with `405`
+and joins `Allow`; listing it in `Allow` is not the preflight behavior. The
+bundle defines the Read+Update discovery document as `readUpdateDiscovery`
+and the directory response above as `readUpdateOperationDirectory`.
+
+BDP v0 does not additionally define `POST` on collections or `PUT`, `PATCH`,
+or `DELETE` on individual Resource URLs. BDP v0 also does not add a POST-based
+read selector fallback. Services enforce bounded GET request-target and
+Selector limits and may pre-advertise them through `limits`. A future version
+may add another read carrier if implementation evidence requires it.
+
 ### Read+Update sequence target
 
 The Read+Update and Transactional profiles expose `operations/sequence` as a
@@ -4448,6 +4093,511 @@ are never executed by recovery: the authority does not resume a sequence.
 The client resubmits the sequence; retained dispositions answer the
 committed members, and the remaining members execute in order.
 
+## Part III — Transactional
+
+### Scope history
+
+> **Transactional/Replication only — Transactional profile.**
+>
+> Implementations of the Read and Read+Update profiles may skip Scope epochs, commit
+> positions, change groups, and the history-ordering rules in this section.
+
+BDP v0 assigns one logical mutation authority to a Scope history at a time.
+High-availability implementations may have multiple processes or storage
+replicas, but only when they present one serialized history under that
+authority. In this specification, replication means consuming an authority's
+snapshot and changefeed into a cache or materialized replica. It does not
+mean independently writable replicas, offline divergent histories, or
+multi-authority merge.
+
+**Retained-address amendment, 2026-09-09.** Each Scope history has an opaque,
+unguessable **Scope epoch**. The epoch remains stable across ordinary restart
+and failover that preserve identical committed history. It changes whenever
+restore, destructive reinitialization, or authority replacement may discard,
+rewrite, or replace history. The epoch is not part of canonical Scope or
+Resource identity. Retained Resource-version addresses follow [Revisions](#revisions).
+Every other history-dependent token remains fenced by that epoch, including
+Scope positions, transaction identifiers, snapshots and handles, read and Event
+cursors, changefeed checkpoints, minimum-read barriers, receipts, and the
+idempotency-key namespace and its bound dispositions. Individual token contracts
+still apply. Cached representations retain their epoch and Authorization View
+bindings under Authorization views. An epoch change in the same logical Scope
+preserves canonical Scope and Resource URLs. Prior-epoch uses retain their own
+handling: a prior-epoch idempotency key is unbound in the new namespace, so a
+submission under the new epoch executes anew rather than replaying its prior
+disposition. Read/Read+Update do not gain exposed epoch fields.
+
+Within one epoch, every effectful committed Mutation Transaction occupies
+one opaque **Scope position** in one total order that the authority defines,
+except the locator-only alias mutations defined under
+[Transactional alias mutations](#transactional-alias-mutations), which
+occupy no position (ruled 2026-09-08, T49).
+A position is unique within its epoch, and clients compare it only for
+equality. Clients must not perform arithmetic or lexical ordering on its
+spelling. Each epoch has a distinguished genesis position. Every later
+change group identifies both its own position and its immediately preceding
+position.
+
+A read or snapshot observes one prefix of this order. A Resource revision
+names one state of one Bead or Link, while a Scope position names one
+committed transaction. The two kinds of token are independent, even when an
+implementation derives them from related internal counters.
+
+### Mutation Transactions
+
+> **Transactional/Replication only — Transactional profile.**
+>
+> Implementations of the Read and Read+Update profiles may skip the transaction model,
+> cross-operation staging, serializable commit order, and transaction-level
+> idempotency rules in this section.
+
+Every mutation executes as part of a **Mutation Transaction**:
+
+```text
+MutationTransaction(
+  scope,
+  idempotencyKey,
+  operations
+)
+```
+
+A Mutation Transaction:
+
+- contains one or more operations;
+- applies to exactly one BDP Scope;
+- executes atomically, so every operation commits or none do;
+- evaluates operations in declaration order;
+- makes earlier changes visible to later operations;
+- requires every operation to leave the staged state valid before the next
+  operation begins;
+- emits no observable events until commit; and
+- returns operation results in declaration order.
+
+A single mutation is simply a one-operation Mutation Transaction. BDP does
+not define nested transactions. It also does not define interactive `begin`,
+`commit`, and `rollback` operations.
+
+The authority serializes committed transactions into the Scope order. It must
+produce serializable outcomes for in-Scope endpoint liveness, Scope aggregate
+constraints, deletion safety, Type contracts, and every other Scope
+invariant. That requirement does not prescribe a particular storage isolation
+level.
+
+An admitted mutation's `idempotencyKey` identifies its complete semantic
+request. That identity is scoped to the canonical Scope URL, the Scope epoch,
+and the authenticated principal. Before comparing requests, the authority
+normalizes local references, expands protocol defaults, preserves operation
+and array order, ignores JSON object member order, and excludes delivery-only
+metadata. It may store that normalized request or an internal versioned
+fingerprint; BDP does not require a public request-hash algorithm.
+
+Concurrent requests with the same key and the same semantic request join one
+execution. A duplicate may wait for the terminal response or receive the same
+pending receipt. Either way, it never executes again. For direct carriers,
+handing a duplicate a receipt presupposes established semantic equality. A
+request that encounters an unresolved reservation follows the bounded
+comparison rules below. Reusing the key for a different semantic request is
+an idempotency conflict. Once a mutation is admitted, client disconnection
+does not decide the outcome. The authority commits or rolls back, and it
+records one terminal receipt. Retrying returns
+that same outcome, including authority-allocated IDs.
+
+An idempotency key is the token defined under
+[Idempotency keys](#idempotency-keys): the `Idempotency-Key` HTTP field of
+a batch or singleton request and the `idempotencyKey` member of a sequence
+member carry the same case-sensitive `[A-Za-z0-9_-]{1,256}` token, bare,
+compared byte-exactly; a request whose key is absent, repeated, or outside
+the grammar is malformed. On a Transactional Scope the key's namespace is
+the canonical Scope URL, the Scope epoch, and the authenticated principal —
+the Read+Update namespace with the epoch it lacks — and every mutation
+carrier feeds that one namespace: a singleton request, a `batch`, and each
+member of a `sequence` is a Mutation Transaction with its own durable
+Mutation Receipt, and the carrier is delivery metadata that the semantic
+comparison excludes.
+
+The semantic identity of a Mutation Transaction is the sequence, in
+declaration order, of its operations' semantic identities under
+[Idempotency keys](#idempotency-keys): each is the operation kind plus its
+normalized record — durable references canonicalized, protocol defaults
+expanded, array order preserved, member order ignored, `name` and the
+carrier excluded, `expectedRevision` and `attribution` included, opaque
+URIs and pins compared byte-exactly, and the records compared under RFC
+6902 Section 4.6. In a batch, a `@label` reference is normalized to the
+creating operation's zero-based index when that operation supplies no
+`id`, and to the supplied identity's canonical URL when it does — never to
+the label's spelling, so renaming a label is not a semantic change, and
+never to an allocated identity, which does not exist before commit. In a
+sequence, a `@name` reference is normalized to the identity its creating
+member bound, as in Read+Update. A one-operation batch, the equivalent
+singleton request, and the equivalent sequence member therefore present
+one semantic request, and any of them retrieves the receipt the others
+created.
+
+Concurrent identical requests join one execution and receive the same
+receipt identity, pending or terminal. Read+Update refuses a concurrent
+duplicate with `idempotency-in-progress` because it has no durable receipt
+to hand the duplicate; the Transactional profile joins the duplicate to
+the one execution and hands it the pending receipt, which is the same
+exactly-once promise made with the profile's own vehicle. A later identical
+request returns the retained receipt — with its detail available, expired,
+or withheld — and never executes again. A request with the same key and a
+different normalized request is refused before admission with `409`
+`idempotency-conflict` for as long as the key is bound: for the rest of
+the Scope epoch when the earlier transaction completed, whether or not its
+detail has expired, and for as long as its failed receipt is retained
+otherwise. A new epoch is a new namespace: a key first used under a prior
+epoch is unbound, and a retry under the new epoch executes as a new
+mutation, which a client that observes a changed `scopeEpoch` MUST treat
+as a first execution rather than a replay. Authorization View changes do
+not create a new namespace.
+
+Admission is one durable step. The authority records the key, the
+normalized request identity or the durable unresolved dependency form below,
+the `pending` Mutation Receipt with its `transaction` identity, and its own
+exclusive ownership of the execution together or not at all, so that a crash
+leaves a key either unknown with
+nothing committed or bound to a receipt. Exactly one execution owns a
+pending receipt, and ownership is what a commit checks: the Resource state,
+the change group, and the terminal receipt commit atomically only while the
+committing execution still owns the receipt, so an execution that lost
+ownership — because the authority retracted the receipt, or because
+recovery reclaimed it — cannot commit and produces no group. Identities an
+execution allocates become durable only with its commit; a retry after a
+retraction allocates anew, or reuses a supplied `id`. On restart or
+failover, every `pending` receipt without a committed group is retracted
+under the transient-abort rule of
+[Batch operation target](#batch-operation-target) within
+`transaction.duration` when that limit is advertised and within a finite
+bound of the authority's choosing otherwise: the authority never resumes an
+execution on its own initiative, the client's retry is the recovery path,
+and a `pending` receipt older than the bound is a conformance failure.
+Every mutation route — each singleton target, the batch target, the
+sequence target, and every replica that accepts mutations — consults one
+authoritative key state for the namespace; two routes MUST NOT each treat
+the same key as unknown.
+
+When a sequence member depends on an authority-allocated creation whose
+identity is not yet committed, admission MUST durably reserve that member's
+key and pending receipt together with all other unknown member keys in the
+same atomic admission step. Its unresolved dependency form pins each reference
+to the particular creator attempt and operation slot, not merely to a reusable
+key or the spelling of a label. It preserves all other normalized semantic
+fields. This is internal admission state, not a new receipt representation,
+prospective durable Resource identity, or additional component of final
+semantic equality. Atomic admission does not combine the sequence's separately
+committing member executions into one transaction.
+
+When its creator commits, the authority atomically records the binding fact
+with the creator's effects and terminal disposition; a dependent resolves only
+against that pinned fact. A permanently failed creator resolves its reference
+to the existing unbound marker and the dependent retains its own
+`binding-unavailable` failure. The authority MUST preserve enough pinned
+resolution state to resolve or retract every dependent even if the creator's
+failed receipt is later forgotten and its key reused. A terminal dependent's
+normalized identity is immutable: a later creator attempt cannot rebind it.
+On a later presentation of the dependent, a successful new creator supplies
+an identity that conflicts with the retained unbound marker; another permanent
+creator failure normalizes to the same unbound marker when the remaining fields
+match. A pending or transient creator instead uses
+the nonwaiting sequence projection below. Binding, retraction, and commit
+check the same exclusive attempt ownership; a stale execution cannot resolve
+or commit a replacement attempt's work (T62 option 1, materialized 2026-09-09).
+
+A direct singleton or batch that encounters an unresolved reservation MUST
+reject an already provable semantic mismatch with `409`
+`idempotency-conflict`. Otherwise it MUST wait for comparison to become
+possible, within one finite authority-selected comparison budget. The wait
+MUST NOT hold a database transaction open. This budget is separate from
+`transaction.duration`, which bounds admitted execution; it adds no
+discovery member. Once the reservation resolves, ordinary canonical
+comparison returns the existing receipt or the conflict. Until equality is
+established, this caller MUST NOT receive the owner's pending receipt,
+execute a second mutation, or retract the owner's reservation. If comparison
+remains unresolved at the deadline, return direct `503`
+`temporarily-unavailable` with `retry: after-delay`; the response SHOULD
+carry `Retry-After` when a useful delay is known. This timeout creates no
+receipt and leaves the owner's state intact. Current authorization and
+non-disclosure apply at response delivery; this is not a direct
+`idempotency-in-progress` or a minimum-position `catch-up-timeout` (T62a =
+A, ruled 2026-09-09).
+
+If that unresolved reservation is retracted while the explicit direct
+request is waiting, the request MAY compete for fresh admission in the same
+Scope epoch, under current authorization and within the same overall finite
+deadline. It executes only after winning a new reservation for its own
+request; it inherits neither the previous attempt's ownership, receipt
+identity, nor unresolved dependency form. Another winner returns it to
+ordinary comparison. Retraction or a change of owner MUST NOT reset the
+deadline. Deadline exhaustion returns the same direct `503`
+`temporarily-unavailable`, `retry: after-delay`, with the same `Retry-After`
+guidance. If the Scope epoch changes, the authority MUST stop this waiting
+comparison or admission attempt with that same `503`; the client must
+refresh Scope discovery and present a fresh request before competing in the
+new epoch. This permission applies only to a still-present explicit request
+that has not joined a proven-equal execution. It neither resumes an
+abandoned sequence tail nor changes the direct transient-abort response to
+an already admitted execution and its joined duplicates (T62b = A, ruled
+2026-09-09).
+
+A `completed` receipt's compact form is retained under its key for the rest
+of the Scope epoch: the disposition and the allocated identities outlive the
+detail, because exactly-once protects committed effects. A `failed`
+receipt — disposition and detail alike — is retained under its key for at
+least `retention.receipt` after it becomes terminal when that limit is
+advertised, and for a finite interval of the authority's choosing when it
+is not; the authority MAY retain it longer. While it is retained, a retry
+of the failed transaction returns that same failed receipt. Once the
+authority forgets it, its URL answers the uniform `404` as a retracted
+receipt's does, and its key is unknown: a later presentation executes as a
+new mutation under the guards the request carries — a first execution,
+since the failed transaction committed nothing and allocated nothing
+durable. A failed receipt never enters `detail` `expired`; that state
+belongs to completed receipts. Both profiles therefore keep tombstones for
+committed effects only, as [Outcome retention](#outcome-retention) does. A
+client that has refreshed its state constructs a new request under a new
+key.
+
+On a Transactional Scope the `sequence` target is the carrier defined under
+[Read+Update sequence target](#readupdate-sequence-target), and it keeps
+its envelope, its member records, its declaration order, its separate
+commitment, its lack of isolation, and its `@name` rules unchanged; what
+the profile changes is what a member's disposition is. Each member is a
+one-operation Mutation Transaction: the sequence's admission admits every
+member whose key is unknown, in declaration order, recording a pending
+receipt for each — the profile's form of claiming a key — and the members
+then execute in order, each committing its own state, change group, and
+terminal receipt. The envelope projects each member's receipt into one
+entry, and it adds no receipt member. The bundle's
+`transactionalSequenceResponse` specializes the shared envelope with
+`transactionalSequenceMemberProblem`: its `allocated` extension, permitted
+only on `idempotency-expired`, is `sequenceAllocatedIdentity`: exactly
+`{ id, type }` when the identity is disclosed or `{ withheld: true }` when
+it is withheld, distinct from a receipt's indexed `allocated` array.
+A completed Resource creation's expired projection MUST carry exactly one of
+these forms; every other operation's expired projection MUST omit `allocated`
+(ruled 2026-09-08, T63). Here a Resource creation is an operation that
+allocated a Resource identity. An alias put is not one even when its alias
+result says `created`; its expired sequence projection omits `allocated`.
+`resource-erased` member problems reject
+`pointer` just as direct problems do (amended 2026-09-08, council 13).
+A member newly admitted by this carrier executes under its own pending
+receipt and exclusive ownership; the in-flight projection below applies only
+to an execution this carrier did not admit. The unresolved admission and
+direct-carrier comparison rules above preserve this ownership distinction
+(amended 2026-09-08, council 13; T62 materialized 2026-09-09). The projections
+are:
+
+- a `completed` receipt with its detail available projects the receipt's
+  one result entry in the shape of
+  [Sequence response envelope](#sequence-response-envelope), carrying
+  `operationIndex` and `operationName` for the present member; an entry
+  the current view withholds projects as the `forbidden` member problem of
+  [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions),
+  which is not retained; an entry whose version was erased projects as a
+  `resource-erased` member problem to a caller authorized for the subject's
+  retained history and as `forbidden` to every other caller;
+- a `failed` receipt projects its problem as the member problem, with the
+  present member's `operationIndex` and `operationName`;
+- a `pending` receipt owned by another execution — at this route or
+  elsewhere — projects as an `idempotency-in-progress`
+  member problem, which MAY carry `retryAfter`; the sequence does not wait,
+  executes nothing for the member, and retains nothing, and the pending
+  receipt continues to be the key's state;
+- a receipt whose detail expired projects as an `idempotency-expired`
+  member problem carrying, for a `completed` Resource creation, the extension
+  member `allocated` — the disclosed `id` and `type`, or exactly
+  `{ withheld: true }`, projected from the receipt under
+  [Mutation Receipt responses](#mutation-receipt-responses); and
+- a member whose `@name` creator's receipt is `failed` fails with
+  `binding-unavailable` in its own `failed` receipt, retained as every
+  failed receipt is; a member whose creator's receipt is `pending`, or
+  whose creator was answered transiently in this request, fails
+  transiently with `idempotency-in-progress`, consults no key state,
+  executes nothing, retains nothing, and holds no key — a pending receipt
+  newly owned by this attempt and recorded for it at admission is retracted
+  and its key unbound, as after a transient abort — exactly as Read+Update
+  releases the member's claim;
+  a member whose creator's receipt has expired resolves the binding
+  through the receipt's `allocated` identity.
+
+These sequence projections take precedence over static semantic comparison:
+a member owned by another pending execution remains `idempotency-in-progress`,
+and a dependent of a pending or transient creator consults no dependent key,
+even if an immutable field could establish a mismatch. Renaming labels does
+not change this projection. When the creator provides a stable binding and the
+member becomes eligible for retained comparison, ordinary equality or conflict
+applies. A transient dependent releases only a reservation newly owned by this
+attempt; it MUST NOT retract another owner's receipt or retained outcome.
+Sequences do not acquire the direct carrier's comparison wait or retry after
+retraction (T55/T62, confirmed 2026-09-09).
+
+The withheld allocation form hides response data, not the retained creation
+binding. The authority resolves a dependent's `@name` internally from its
+retained execution identity even when the creator projects
+`allocated: { withheld: true }`. Each dependent still undergoes ordinary
+current authorization independently. An unauthorized dependent returns the
+ordinary `forbidden` projection and discloses no hidden identity through its
+result or problem extensions. It is not skipped merely because the creator's
+identity is withheld. Every retry and every carrier re-authorizes disclosure
+against its serving view: a revoked view receives the withheld form; a newly
+granted view may receive `{ id, type }`. Neither response changes the retained
+identity or permits the creation to execute again. These disclosure rules
+preserve the unresolved-admission and duplicate-response contract above without
+changing its semantic identity (ruled 2026-09-08, T63; T62 materialized
+2026-09-09).
+
+The Read+Update dispositions therefore keep their meanings inside the
+sequence envelope and lose their direct forms: on a Transactional Scope a
+pending key is joined rather than refused, an expired key returns its
+expired receipt rather than `410`, and a failed disposition is a receipt
+with a URL of its own, retained for at least `retention.receipt`, rather
+than an inline disposition. The conformance rows those direct forms bind
+are retired for a Transactional Scope under
+[Transactional conformance rows](#transactional-conformance-rows).
+
+### Transactional alias mutations
+
+A singleton `put-alias` or `delete-alias` on a Transactional Scope is a
+one-operation Mutation Transaction. It requires `Idempotency-Key` and uses
+the same principal/Scope/epoch namespace, admission, durable receipt,
+concurrent-join, retention, and replay rules as other singleton mutations.
+An alias receipt's available `results` contains exactly one alias result:
+`operationIndex` `0`, `outcome`, `alias`, and, for a put, `target`, using
+[Alias targets](#alias-targets)' existing result vocabulary. It carries no
+Resource postimage, deleted Resource identity, or `operationName`. A sequence
+projects this result in the existing Read+Update alias member shape, with
+the present member's `operationIndex`. Existing alias authorization, conflict
+and path rules apply unchanged (ruled 2026-09-08, T49).
+
+Alias mutations occupy no Scope position, induce no Event, and appear in
+no change group or snapshot. This is an explicit exception to the Scope
+position rule for effectful Mutation Transactions: an alias put or delete
+may change locator state while its receipt omits `effectPosition`.
+`requiredPosition` remains the ordinary serving-view observation barrier;
+it does not certify replication of the alias effect. A completed alias
+receipt still protects that committed effect exactly once and, after detail
+expiry, carries `allocated: []` because no Resource identity was created.
+The alias table remains authority locator state outside Resource history.
+A replica resolves an alias through the authority's redirect, not a mirrored
+table; offline alias resolution is unavailable. `batch` admits no alias
+operation, so atomic create-plus-alias is unavailable. Separate sequence
+members retain their separate commitment and lack of isolation.
+
+### Set mutation
+
+> **Transactional/Replication only — Transactional profile.**
+>
+> Implementations of the Read and Read+Update profiles may skip `UpdateWhere`,
+> `DeleteWhere`, set cardinality, and selection-at-serialization semantics.
+
+```text
+UpdateWhere(
+  collection,
+  selector,
+  change,
+  cardinality?,
+  attribution?
+) -> UpdatedResources
+```
+
+```text
+DeleteWhere(
+  collection,
+  selector,
+  cardinality?,
+  attribution?
+) -> DeletedResourceIdentities
+```
+
+Selection and mutation occur atomically at one serialization point. The
+Selector is evaluated when its operation is reached, so it observes the
+effects of preceding operations in the same Mutation Transaction. An
+`attribution` supplied to a set mutation fans out exactly as the
+corresponding singleton operations would record it: on every version
+`UpdateWhere` mints (each selected Resource's new version, and the source
+Bead's fresh version for each selected owned Link), and, for
+`DeleteWhere`, on the fresh source versions of any owned Links it deletes
+— deletion mints no version for the deleted Resources themselves.
+
+An optional cardinality record constrains the number of selected Resources:
+
+```text
+cardinality: { min: 1, max: 1 }
+cardinality: { max: 100 }
+cardinality: { min: 1 }
+```
+
+Both bounds are inclusive nonnegative integers. Omitted cardinality bounds
+add no client constraint. The authority may still enforce operational limits
+whether or not it pre-advertised them. If the matched count falls outside a
+supplied range, the complete transaction fails.
+
+BDP v0 deliberately does not add an expected-member-set guard. A set mutation
+means “mutate the complete set matching at this operation's serialization
+point.” A client that intends to mutate specific Resources it observed
+earlier uses explicit operations with `expectedRevision` instead.
+
+A service may advertise limits on Selector size and depth, Resources examined
+or matched, Resources mutated, Events induced, and transaction duration.
+Exceeding a limit fails the operation without changing anything. A set
+mutation must never silently mutate only one page of results.
+
+When a desired mutation exceeds an advertised transaction or Event-expansion
+limit, a client may divide it into separate transactions. Each chunk is
+atomic, but the complete multi-transaction job is not: other work may
+interleave, and a later chunk may fail after earlier chunks committed. BDP v0
+defines no generic server-side bulk job that restores cross-chunk atomicity.
+Domain or administrator bulk facilities are outside BDP. An implementation
+MUST NOT relax changefeed completeness or omit Events to admit an oversized
+mutation.
+
+For example, this operation deletes every Link incident upon `task-42`:
+
+```text
+DeleteWhere(
+  Links,
+  $[?@.source == "https://beads.example/acme/beads/task-42" || @.target == "https://beads.example/acme/beads/task-42"]
+)
+```
+
+### Mutation receipts
+
+> **Transactional/Replication only — Transactional profile.**
+>
+> Implementations of the Read and Read+Update profiles may skip durable Mutation
+> Receipts, receipt pagination, and lost-response recovery through receipts.
+
+Every admitted mutation has one durable **Mutation Receipt**. Its synchronous
+response is the receipt representation, so the normal case requires no
+follow-up read. The receipt records the terminal outcome, the transaction
+identity, the Authorization View in which it executed, `requiredPosition`, an
+optional `effectPosition`, and ordered operation results. `requiredPosition`
+is the Scope position that view must observe before relying on the outcome.
+`effectPosition` is present exactly when the mutation produced a change
+group.
+
+The receipt remains independently readable, so a client can resolve a lost
+response, a pending duplicate, or a paginated result. An identical retry
+returns the same receipt identity and disposition. Receipt access is
+principal-bound: possessing its URL does not grant access. The authority
+re-authorizes detailed results on every later read, so a grant change may
+redact or deny detail without changing the terminal disposition. When the
+authority advertises receipt retention, it binds how long detailed outcomes
+remain. After the applicable interval it may discard a completed
+transaction's bulky result data, but it retains a compact tombstone — the
+key, the request identity, the disposition, and the identities the
+transaction allocated — for the rest of the Scope epoch. A later retry
+returns an outcome-expired result and never executes the mutation as new.
+A failed transaction committed nothing: its receipt is retained, whole, for
+at least that interval and may then be forgotten, after which its key
+executes as new, under [Mutation Transactions](#mutation-transactions)
+(amended 2026-09-08, Transactional apply, T47).
+
+A receipt may inline every result or the first bounded page. Large
+set-operation results continue through immutable pages of that same receipt.
+BDP does not create a second result abstraction, and it never silently
+truncates affected Resources.
+
 ### Batch operation target
 
 > **Transactional/Replication only — Transactional profile.**
@@ -4694,314 +4844,6 @@ returns `410` `cursor-expired`; a failed catch-up wait returns `503`
 `catch-up-timeout`, under the shared consistency rules. These checks never
 let a caller who may not see the receipt learn about its pages or history
 (amended 2026-09-08, council 13).
-### Operation record schema
-
-**History amendment, 2026-09-09.** Version-minting operation inputs additionally
-accept operation-local `changeContextInput` as the `changeContext` member under
-[Immutable change context](#immutable-change-context). This applies equally to
-singleton, sequence, set and batch compositions, never carrier-wide context.
-
-> **Transactional/Replication constructs within this section.**
->
-> The batch wrapper, `updateWhere`, and `deleteWhere` definitions apply only to
-> Transactional. Read+Update `sequence` uses the `operation` discriminator,
-> optional create-member `name`, per-member `idempotencyKey`, the six
-> single-Resource definitions, and the two alias definitions under
-> [Alias targets](#alias-targets). Singleton targets remove `operation`,
-> `name`, and body-level `idempotencyKey` as described below.
-
-Every object in a batch conforms to the bundle's operation definition. The
-bundle's `batchOperation` definition is the normative eight-record union,
-composed from the same `<operation>Members` definitions the Read+Update
-singleton and sequence records use; the sketch below is a non-normative
-preview of it and carries no independent `$id`. The `operation`
-discriminator selects one of the eight generic operation records:
-
-```json
-{
-  "title": "BDP batch operation",
-  "oneOf": [
-    { "$ref": "#/$defs/createBead" },
-    { "$ref": "#/$defs/updateBead" },
-    { "$ref": "#/$defs/deleteBead" },
-    { "$ref": "#/$defs/createLink" },
-    { "$ref": "#/$defs/updateLink" },
-    { "$ref": "#/$defs/deleteLink" },
-    { "$ref": "#/$defs/updateWhere" },
-    { "$ref": "#/$defs/deleteWhere" }
-  ],
-  "$defs": {
-    "name": {
-      "type": "string",
-      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
-    },
-    "resourceReference": {
-      "type": "string",
-      "minLength": 1
-    },
-    "reference": {
-      "oneOf": [
-        { "$ref": "#/$defs/resourceReference" },
-        { "$ref": "#/$defs/pinnedReference" }
-      ]
-    },
-    "pinnedReference": {
-      "type": "object",
-      "required": ["uri", "revision"],
-      "properties": {
-        "uri": { "$ref": "#/$defs/resourceReference" },
-        "revision": { "type": "string", "minLength": 1 }
-      },
-      "additionalProperties": false
-    },
-    "attribution": {
-      "type": "object",
-      "required": ["principal", "basis"],
-      "properties": {
-        "principal": { "type": "string", "minLength": 1 },
-        "basis": { "enum": ["writer-supplied", "unknown"] }
-      },
-      "additionalProperties": false
-    },
-    "typeId": {
-      "type": "string",
-      "format": "uri"
-    },
-    "properties": {
-      "type": "object"
-    },
-    "metadata": {
-      "type": "object"
-    },
-    "expectedRevision": {
-      "type": "string",
-      "minLength": 1
-    },
-    "change": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": ["op", "path", "value"],
-            "properties": {
-              "op": { "enum": ["add", "replace"] },
-              "path": { "type": "string" },
-              "value": true
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": ["op", "path"],
-            "properties": {
-              "op": { "const": "remove" },
-              "path": { "type": "string" }
-            },
-            "additionalProperties": false
-          }
-        ]
-      }
-    },
-    "selector": {
-      "type": "string",
-      "minLength": 1
-    },
-    "cardinality": {
-      "type": "object",
-      "properties": {
-        "min": { "type": "integer", "minimum": 0 },
-        "max": { "type": "integer", "minimum": 0 }
-      },
-      "minProperties": 1,
-      "additionalProperties": false
-    },
-    "createBead": {
-      "type": "object",
-      "required": ["operation", "type"],
-      "properties": {
-        "operation": { "const": "createBead" },
-        "name": { "$ref": "#/$defs/name" },
-        "id": { "$ref": "#/$defs/resourceReference" },
-        "type": { "$ref": "#/$defs/typeId" },
-        "properties": { "$ref": "#/$defs/properties" },
-        "metadata": { "$ref": "#/$defs/metadata" },
-        "attribution": { "$ref": "#/$defs/attribution" }
-      },
-      "additionalProperties": false
-    },
-    "updateBead": {
-      "type": "object",
-      "required": ["operation", "bead"],
-      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }],
-      "properties": {
-        "operation": { "const": "updateBead" },
-        "bead": { "$ref": "#/$defs/resourceReference" },
-        "propertiesChange": { "$ref": "#/$defs/change" },
-        "metadataChange": { "$ref": "#/$defs/change" },
-        "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
-        "attribution": { "$ref": "#/$defs/attribution" }
-      },
-      "additionalProperties": false
-    },
-    "deleteBead": {
-      "type": "object",
-      "required": ["operation", "bead"],
-      "properties": {
-        "operation": { "const": "deleteBead" },
-        "bead": { "$ref": "#/$defs/resourceReference" },
-        "expectedRevision": { "$ref": "#/$defs/expectedRevision" }
-      },
-      "additionalProperties": false
-    },
-    "createLink": {
-      "type": "object",
-      "required": ["operation", "type", "source", "target"],
-      "properties": {
-        "operation": { "const": "createLink" },
-        "name": { "$ref": "#/$defs/name" },
-        "id": { "$ref": "#/$defs/resourceReference" },
-        "type": { "$ref": "#/$defs/typeId" },
-        "source": { "$ref": "#/$defs/reference" },
-        "target": { "$ref": "#/$defs/reference" },
-        "properties": { "$ref": "#/$defs/properties" },
-        "metadata": { "$ref": "#/$defs/metadata" },
-        "attribution": { "$ref": "#/$defs/attribution" }
-      },
-      "additionalProperties": false
-    },
-    "updateLink": {
-      "type": "object",
-      "required": ["operation", "link"],
-      "anyOf": [{ "required": ["propertiesChange"] }, { "required": ["metadataChange"] }],
-      "properties": {
-        "operation": { "const": "updateLink" },
-        "link": { "$ref": "#/$defs/resourceReference" },
-        "propertiesChange": { "$ref": "#/$defs/change" },
-        "metadataChange": { "$ref": "#/$defs/change" },
-        "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
-        "attribution": { "$ref": "#/$defs/attribution" }
-      },
-      "additionalProperties": false
-    },
-    "deleteLink": {
-      "type": "object",
-      "required": ["operation", "link"],
-      "properties": {
-        "operation": { "const": "deleteLink" },
-        "link": { "$ref": "#/$defs/resourceReference" },
-        "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
-        "attribution": { "$ref": "#/$defs/attribution" }
-      },
-      "additionalProperties": false
-    },
-    "updateWhere": {
-      "type": "object",
-      "required": ["operation", "collection", "selector", "change"],
-      "properties": {
-        "operation": { "const": "updateWhere" },
-        "collection": { "enum": ["beads", "links"] },
-        "selector": { "$ref": "#/$defs/selector" },
-        "change": { "$ref": "#/$defs/change" },
-        "cardinality": { "$ref": "#/$defs/cardinality" },
-        "attribution": { "$ref": "#/$defs/attribution" }
-      },
-      "additionalProperties": false
-    },
-    "deleteWhere": {
-      "type": "object",
-      "required": ["operation", "collection", "selector"],
-      "properties": {
-        "operation": { "const": "deleteWhere" },
-        "collection": { "enum": ["beads", "links"] },
-        "selector": { "$ref": "#/$defs/selector" },
-        "cardinality": { "$ref": "#/$defs/cardinality" },
-        "attribution": { "$ref": "#/$defs/attribution" }
-      },
-      "additionalProperties": false
-    }
-  }
-}
-```
-
-`id` appears on both creation records because identity and Type are both
-immutable. Omitting `id` asks the authority to allocate it. Omitting `type` is
-never permitted. `properties` and common `metadata` each default to an empty
-object when omitted at creation; the resulting record exposes both.
-
-`bead` and `link` contain a durable local ID, an absolute canonical Resource
-URL, or, in a batch only, an `@label` of the required Resource kind. `source`
-and `target` are endpoint references accepting those same local Bead
-spellings, an absolute out-of-Scope URI, or a Pinned Reference.
-The authority performs reference resolution, canonicalization, label
-resolution, and Resource-kind validation. A durable relative endpoint
-reference resolves against the canonical Scope URL, not against the request
-URL or the containing Link URL, and must name a live Bead. An absolute endpoint reference outside
-the Scope is accepted as an opaque external reference, subject to the Link
-Type's external-endpoint policy. Such an endpoint is not kind-checked or
-dereferenced. Either endpoint may be supplied as a Pinned Reference under
-[Batch-local Resource references](#batch-local-resource-references).
-Neither case mutates an endpoint Bead or changes its revision — unless
-the Link's type is owned by the source Bead's declared Type, in which
-case the source's revision changes and the target's never does.
-
-The singleton target for an operation accepts the corresponding record with
-`operation` and `name` removed. The target URL supplies the meaning of
-`operation`, and a batch supplies the meaning of `name`. Thus the batch schema
-and singleton request bodies share one field vocabulary.
-
-### Property-change values
-
-BDP represents each change as a bounded
-[RFC 6902 JSON Patch](https://www.rfc-editor.org/rfc/rfc6902.html) applied to
-one Resource object. `propertiesChange` targets `properties` and
-`metadataChange` targets common `metadata`; each JSON Pointer is relative to
-its own complete object. A Resource update supplies at least one of these
-arrays and may supply both in the same atomic operation. An omitted array
-leaves its object unchanged. A change admits only `add`, `replace`, and
-`remove`. The other patch operations — `move`, `copy`, and `test` — are
-excluded from BDP v0. Operations execute in array order. `add` has RFC 6902
-object replacement and array insertion/append semantics. `replace` and
-`remove` fail when the target does not exist. A root-pointer `replace` with
-`{}` clears either object, including common `metadata`.
-
-```json
-{
-  "operation": "updateBead",
-  "bead": "beads/task-42",
-  "expectedRevision": "opaque-revision",
-  "propertiesChange": [
-    {
-      "op": "replace",
-      "path": "/status",
-      "value": "closed"
-    },
-    {
-      "op": "remove",
-      "path": "/obsolete"
-    },
-    {
-      "op": "add",
-      "path": "/resolution",
-      "value": null
-    }
-  ],
-  "metadataChange": [
-    { "op": "add", "path": "/reviewedBy", "value": "agent:planner" }
-  ]
-}
-```
-
-This distinguishes assigning JSON `null` from removing a member. Applying the
-properties patch must yield a JSON object satisfying every effective Type
-schema. The metadata patch must yield a JSON object. If both results equal
-their respective preceding objects under RFC 6902 Section 4.6 JSON
-comparison, the operation is a no-op. It preserves the
-Resource revision and emits no `updated` Event. Number equality in that
-comparison, and the admissibility of every number literal a change carries,
-are defined under [Revisions](#revisions).
-
 ### Set mutation objects
 
 > **Transactional/Replication only — Transactional profile.**
@@ -5373,272 +5215,381 @@ committed version, and lies outside erasure; an authority that nonetheless
 quoted a committed version's content in `detail` or a diagnostic scrubs it
 as a store would.
 
-### Incident Link reads
+### Events and Event Sources
 
-A Bead record does not embed its incident Links. A client selects the Link
-view directly on the Bead URL and supplies a direction:
-
-```http
-GET /acme/beads/task-42?view=links&direction=outbound HTTP/1.1
-Host: beads.example
-Accept: application/json
-```
-
-```http
-GET /acme/beads/task-42?view=links&direction=inbound HTTP/1.1
-Host: beads.example
-Accept: application/json
-```
-
-```http
-GET /acme/beads/task-42?view=links&direction=both HTTP/1.1
-Host: beads.example
-Accept: application/json
-```
-
-`direction` is `inbound`, `outbound`, or `both`, and defaults to `both` when
-omitted. `inbound` selects Links whose `target` is the Bead. `outbound`
-selects Links whose `source` is the Bead. `both` selects their union. The
-response is a paginated `items` array of complete Link records plus a `next`
-URL. The initial request may supply `limit`. Subsequent requests follow
-`next`. As with collection pagination, that continuation walks one logical
-snapshot and an expired cursor is an error rather than a silent restart
-against newer state. Only an in-Scope Bead has this view. An opaque
-out-of-Scope endpoint does not.
-
-BDP does not append `/links` to the Bead URL. Local IDs may contain multiple
-path segments, so `beads/task-42/links` could already be the ID of a different
-Bead. A suffix subpath would require BDP to reserve and visibly mangle a
-control segment such as `/-/` or `/.bdp/` throughout the local-ID grammar. The
-`view` query parameter avoids that collision while keeping the request visibly
-anchored at the Bead. The Link collection still owns Link identity. The Bead's
-Link view is only a derived read.
-
-### Collection retrieval and selection
-
-An ordinary `GET` of a discovered collection returns a paginated `items` array
-and a `next` URL. The `beads/` and `links/` collections return complete
-Resource records; the `types/` collection returns Type summaries.
-
-Every collection response — filtered or not, including the Bead `links`
-view — is produced in one total order over the selected set, stable across
-the pages of one logical snapshot (the same snapshot the cursor rules
-bind). The order is an authority property named by the `order` discovery
-member, not per-request behavior: a caller cannot request a different
-order in BDP v0, and query-relevance ranking is consumer policy, never
-authority behavior. The baseline order every authority MUST support is
-`canonical-uri` — ascending lexicographic comparison, by Unicode code
-unit, of each item's absolute canonical `id`. It is total, cheap, and
-implementation-neutral. An authority advertising no `order` member serves
-the baseline; an authority MUST NOT serve any order it does not advertise.
-Two conformant authorities serving the same selected set under the same
-advertised order return the same item sequence. The
-collections accept these structural predicates:
-
-| Parameter | `beads/` | `links/` | `types/` | Meaning |
-| --- | --- | --- | --- | --- |
-| `type` | yes | yes | no | Exact Type ID |
-| `conformsTo` | yes | yes | no | Effective conformance to the named Type ID |
-| `source` | no | yes | no | Exact source reference URI |
-| `target` | no | yes | no | Exact target reference URI |
-| `endpoint` | no | yes | no | Source or target reference URI equals the supplied URI |
-| `selector` | yes | yes | no | Bounded Selector over each candidate record |
-| `limit` | yes | yes | yes | Maximum records in this page |
-| `cursor` | yes | yes | yes | Opaque continuation supplied by `next` |
-
-Different predicates are combined with logical AND. Within `endpoint`, source
-and target are combined with logical OR. A parameter may occur at most once in
-BDP v0; repeated parameters are errors rather than implicit unions. Type IDs
-are absolute URLs. The structural `source`, `target`, and `endpoint`
-parameters may use a canonical local Bead ID, its absolute canonical URL, or
-an absolute out-of-Scope URI. The authority normalizes local Bead references
-before comparison. External URI comparison is exact. This convenience does not
-apply inside a Selector string.
-
-An unsupported collection query parameter or any repeated collection query
-parameter returns the `invalid-parameter` Problem: family `request`, HTTP
-status `400`, and retry disposition `never`. The authority MUST NOT ignore an
-unsupported parameter or choose one value from a repeated parameter.
-
-The `selector` value is the same JSONPath Selector string accepted by
-`updateWhere` and `deleteWhere`. It is percent-encoded in the request target:
-
-```http
-GET /acme/links/?selector=%24%5B%3F%40.source%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%20%7C%7C%20%40.target%20%3D%3D%20%22https%3A%2F%2Fbeads.example%2Facme%2Fbeads%2Ftask-42%22%5D HTTP/1.1
-Host: beads.example
-Accept: application/json
-```
-
-The decoded Selector is:
-
-```text
-$[?@.source == "https://beads.example/acme/beads/task-42" || @.target == "https://beads.example/acme/beads/task-42"]
-```
-
-The structural predicates and Selector decide the complete matching set before
-pagination, but only within the request's Authorization View. A cursor
-continues one logical projected snapshot: every page belongs to the same
-selected set, authorization projection, and Resource revisions as the initial
-request. The server-generated `next` URL is authoritative. It carries the
-opaque cursor plus any parameters needed to continue that snapshot. `next` is
-`null` after its final page. In Read and Read+Update, the opaque cursor itself
-carries or indexes the authorization-projection fence. Clients neither inspect
-it nor need a separate Authorization View field. If the authority can no
-longer continue the snapshot, or if the request no longer belongs to that
-projection, it returns an expired- or foreign-view-cursor problem rather than
-silently restarting against newer state.
-
-Selector candidate records use the same absolute canonical identity spelling
-as responses. BDP does not parse or rewrite JSONPath string literals that
-happen to look like local identifiers. That means JSONPath equality is
-ordinary string equality, and selector behavior stays independent of request
-spelling aliases.
-
-Collection responses do not accept Resource `view` or `include` parameters.
-Their `items` are always complete Resource records. In particular, a Bead
-collection cannot embed each Bead's incident Links. Clients select Links from
-`links/` or use the Link view on one Bead. Services may advertise a maximum
-encoded request-target length and Selector complexity, but must not silently
-interpret a truncated Selector. Ordinary `GET` semantics make simple
-selections browser-debuggable and compatible with conditional requests without
-requiring the newer `QUERY` method or a request body on `GET`. The
-authorization-dependent `private, no-store` rule remains binding.
-
-### Operation Directory and singleton targets
-
-> **Transactional/Replication entries within this section.**
+> **Transactional/Replication contract in this draft.**
 >
-> Read+Update uses the six single-Resource entries, the two alias entries,
-> and `sequence`. `update-where`, `delete-where`, `batch`, one-operation transaction
-> desugaring, transaction-level idempotency, and Mutation Receipt responses
-> apply only to Transactional.
+> The complete Event ordering, transaction framing, and Event Source guarantees
+> below are required only by the Transactional profile. Read and Read+Update do
+> not publish or expose BDP Events.
 
-The discovered `operations/` Resource is a directory of the generic mutation
-targets available under the Scope's profile. The Transactional profile's
-initial children are:
+An **Event** is an immutable authority-generated record of a committed fact.
+Each Event has an immutable ID that is unique within exactly one **Event
+Source**. An Event is not required to be an independently addressable
+Resource, but its Event Source is a Resource.
+
+Every Bead and Link is an Event **subject** and has an associated
+Resource-scoped Event Source. The subject and the Event Source have distinct
+identities, and they may have different lifetimes. An Event Source may remain
+observable after its subject is deleted, subject to retention policy.
+
+Resource-scoped Event Sources are not independently committed logs. They are
+deterministic projections of the semantic Events inside the Scope's committed
+change groups. Each Event has a stable ordinal within its change group. Its
+source-local opaque ID and cursor are stable functions of the group
+checkpoint, the ordinal, and the projection. An implementation may
+materialize or index a projection without changing its contents or order.
+
+The model defines five domain-independent Event Types:
+
+- **created** — a Bead or Link began to exist;
+- **updated** — the mutable properties or common metadata of a Bead or Link changed, or an
+  owned Link of a Bead changed;
+- **deleted** — a Bead or Link ceased to exist;
+- **linked** — a Link became incident upon a Bead; and
+- **unlinked** — a Link ceased to be incident upon a Bead.
+
+Events are the observation-side duals of singleton DML operations. A Resource
+read or snapshot bootstrap conveys current state. An Event instead conveys
+the committed delta — the change that advances previously observed state.
+Every Event identifies its subject by immutable `id` and `type`, and it
+carries the transaction in which the fact committed.
+
+The lifecycle Event deltas are:
 
 ```text
-POST operations/create-bead
-POST operations/update-bead
-POST operations/delete-bead
-POST operations/create-link
-POST operations/update-link
-POST operations/delete-link
-POST operations/put-alias
-POST operations/delete-alias
-POST operations/sequence
-POST operations/update-where
-POST operations/delete-where
-POST operations/batch
-```
+CreatedData {
+  revision: Revision
+  properties: JsonObject
+  metadata: JsonObject             // newly emitted Events: {} when empty
+  attribution?: Attribution   // the created version's carried attribution
+  source?: Reference
+  target?: Reference
+}
 
-`GET operations/` returns these names and relative target URLs as a JSON
-object. That lets a client follow the directory rather than construct paths.
-For a Transactional Scope the response is:
+UpdatedData {
+  previousRevision: Revision
+  revision: Revision
+  change?: PropertyChange        // changes properties
+  metadataChange?: PropertyChange // changes common metadata
+  ownedLink?: OwnedLinkChange
+  attribution?: Attribution      // the new version's carried attribution
+}
 
-```json
-{
-  "createBead": "create-bead",
-  "updateBead": "update-bead",
-  "deleteBead": "delete-bead",
-  "createLink": "create-link",
-  "updateLink": "update-link",
-  "deleteLink": "delete-link",
-  "putAlias": "put-alias",
-  "deleteAlias": "delete-alias",
-  "sequence": "sequence",
-  "updateWhere": "update-where",
-  "deleteWhere": "delete-where",
-  "batch": "batch"
+OwnedLinkChange {
+  operation: created | updated | deleted
+  link: LinkState                // created: the owned Link's complete record
+      | OwnedLinkDelta           // updated: the owned Link's own delta
+      | ResourceIdentity         // deleted: id, type, and final live revision
+}
+
+OwnedLinkDelta {
+  id: URI                        // the owned Link's canonical URL
+  type: TypeId
+  previousRevision: Revision     // the Link's revisions, not the source's
+  revision: Revision
+  change?: PropertyChange       // changes the Link's properties
+  metadataChange?: PropertyChange // changes the Link's common metadata
+  attribution?: Attribution      // the Link's new version's carried attribution
+}
+
+ResourceIdentity {
+  id: URI                        // the canonical Resource URL
+  type: TypeId
+  revision: Revision
+}
+
+DeletedData {
+  revision: Revision
 }
 ```
 
-A Read Scope does not advertise `operations` and has no BDP Operation
-Directory. A Read+Update Scope's directory contains exactly eight singleton
-targets — the six Resource targets plus `put-alias` and `delete-alias` —
-and `sequence` (amended 2026-09-08):
+A newly emitted `created` Event carries `metadata`, including `{}` when
+empty. A previously retained Event may lack the member; replay preserves
+that Event's bytes and does not synthesize a new Event or revision. The
+schema admits this historical form so old Event records remain readable.
 
-```json
-{
-  "createBead": "create-bead",
-  "updateBead": "update-bead",
-  "deleteBead": "delete-bead",
-  "createLink": "create-link",
-  "updateLink": "update-link",
-  "deleteLink": "delete-link",
-  "putAlias": "put-alias",
-  "deleteAlias": "delete-alias",
-  "sequence": "sequence"
+An owned-Link change produces an `updated` Event on the source Bead with
+its fresh revision; its delta carries `ownedLink` in place of `change` and
+`metadataChange`. Otherwise, at least one of `change` and `metadataChange`
+is present; both may be present for one atomic Resource update. An updated
+owned-Link delta follows the same rule. No single
+operation changes both a Bead's `properties` and one of its owned Links, and
+every owned-Link mutation mints its own source version, so a Mutation
+Transaction that changes both — or that changes two owned Links of one
+source — produces one `updated` Event per transition, each with its own
+`previousRevision` and `revision`, in operation order.
+
+`ownedLink.operation` names the transition, and `ownedLink.link` is the
+delta of that transition, never a snapshot. For `created`, it is the owned
+Link's complete record: exactly the record the Link serves at its own URL
+after the transition, because creation is the delta from absence, so its
+`revision` is the Link's fresh revision and its `attribution`, when present,
+is the Link's own. For `updated`, it is the owned Link's delta — the Link's
+`id` and `type`, its `previousRevision` and fresh `revision`, the committed
+`change` and/or `metadataChange`, and the Link's new version's `attribution` when one was recorded —
+the same delta the Link's own `updated` fact carries, so that neither fact
+carries the Link's properties in full. For `deleted`, it is the deleted
+Link's identity — `id`, `type`, and its final live `revision` — because
+deletion mints no Link version and a deleted Event does not retain
+properties. `previousRevision` and `revision` at the Event level are the
+source Bead's. `attribution` at the Event level, when present, is the
+source's new version's carried attribution. An operation that mints both a
+Link version and a source version records its one attribution on both, so a
+`created` or `updated` delta whose Link record or Link delta carries
+`attribution` carries the same value at the Event level, and a delta whose
+Link record or Link delta carries none carries none.
+
+`CreatedData` and `DeletedData` carry no owned-Link data. A Bead is created
+with an empty owned set for every Link Type its Type owns, and the record's
+empty `ownedLinks` entries follow from the Type Descriptor rather than from
+the Event: a consumer that reconstructs a record from Events alone cannot
+know which empty entries the record carries without the Type Descriptor,
+and the canonical record read or the snapshot, not the Event stream, is
+where that key set is authoritative. A Bead with a live owned Link cannot
+be deleted, so a `deleted` Bead Event never has owned Links to report.
+
+A source Bead's owned-Link `updated` Event is in addition to, not instead
+of, the facts the Link mutation already induces: the Link's own `created`,
+`updated`, or `deleted` fact, and the `linked` or `unlinked` fact at each
+in-Scope endpoint, including the source itself. Within a change group, the
+facts induced by one owned-Link operation are ordered: the Link's lifecycle
+fact first, then the graph facts at its in-Scope endpoints, source before
+target — a self-Link's one endpoint Bead receiving its `source` fact before
+its `target` fact — then the source's `updated` fact last. Ordinals are
+assigned in that order and never renumbered by projection. A Bead-scoped
+Event Source for an owning source therefore reports an owned Link's
+property change twice, under two subjects: once as the incident Link's
+`updated` fact and once as the source's own `updated` fact carrying the
+same delta.
+
+A no-op owned-Link property update — one whose patch yields `properties`
+equal, under the RFC 6902 Section 4.6 comparison, to the value immediately
+before it — retains the Link's revision and emits no Event, and it does not
+version the source: there is no transition for the source's version to
+cover.
+
+A consumer that holds the source's record at `previousRevision` advances it
+to `revision` by applying `ownedLink` to the entry keyed by `link.type` in
+the record's `ownedLinks` member: for `created`, inserting `link` in
+ascending code-unit order of `id`; for `updated`, locating the entry whose
+`id` equals `link.id` and whose `revision` equals `link.previousRevision`,
+applying `link.change` to its `properties`, and setting its `revision` to
+`link.revision` and its `attribution` to `link.attribution`, removing that
+member when the delta carries none; for `deleted`, removing the entry whose
+`id` equals `link.id`; then setting the record's `revision` to the Event's
+`revision` and its `attribution` to the Event's `attribution`, removing the
+member when the Event carries none. A consumer whose held revision is not
+`previousRevision`, or whose held entry is not at `link.previousRevision`,
+is not positioned to apply the delta; it re-reads the record or resumes
+from a snapshot. Replicas do not need the delta at all: the containing
+change group's `changes` member carries the source Bead's complete
+postimage, `ownedLinks` inline, beside the Link's own postimage or
+tombstone.
+
+`CreatedData` contains the complete initial properties, because creation is
+the delta from absence to the initial state. For a Link, it also contains the
+Link's source and target endpoint references. `UpdatedData` contains the
+committed Property Change — or the owned-Link change — rather than a
+resulting state snapshot.
+`DeletedData.revision` is the Resource's final live revision. Deleted Events
+do not retain the Resource's properties.
+
+An Event uses the same `Reference` form as canonical Link state,
+including a stored Pinned Reference, which propagates
+byte-identically. A reference makes no claim about what an out-of-Scope URI
+identifies.
+
+The graph Event delta is:
+
+```text
+LinkDeltaData {
+  endpoint: source | target
+  link: TypedLinkReference
+  source: Reference
+  target: Reference
 }
 ```
 
-In the Transactional profile, each of the six Resource singleton targets
-accepts the members
-defined by its operation record, excluding the batch-only `operation`
-discriminator and `name` label. The request executes as a one-operation
-Mutation Transaction. It returns the same Mutation Receipt shape with a
-one-element `results` array (amended 2026-09-08, council 12); the two set
-targets `update-where` and `delete-where` return it with a `matched` entry
-followed by one entry per selected Resource, under
-[Mutation Receipt responses](#mutation-receipt-responses) (amended
-2026-09-08, Transactional apply). The alias targets return a one-entry Mutation Receipt under
-[Transactional alias mutations](#transactional-alias-mutations), without
-Scope history or replicated alias state (ruled 2026-09-08, T49).
-Transactional singleton requests require
-`Idempotency-Key` and cannot use `@label` references.
+The typed Link reference contains only the immutable `id` and `type`.
+`linked` and `unlinked` Events contain no Bead or Link properties. Carrying
+the Link's own Type and both endpoint references lets a consumer understand
+an unlink after the Link is no longer readable, without asserting anything
+about an opaque external reference.
 
-Within the Transactional profile, the singleton and batch forms have identical
-allocation, patch, validation, authorization, idempotency, concurrency, event,
-and deletion semantics. The Read+Update profile preserves the existing
-`create-bead`, `update-bead`, `delete-bead`, `create-link`,
-`update-link`, and `delete-link` target names and their operation
-request records, adds the alias targets `put-alias` and `delete-alias`
-under [Alias targets](#alias-targets), and adds `sequence`. Each
-Read+Update singleton requires an `Idempotency-Key` HTTP field. It returns
-its final Resource postimage, deleted identity, alias result, or direct
-problem inline rather than a Mutation Receipt.
-Read+Update does not include the set-oriented `update-where` or `delete-where`
-targets, which require selection and mutation at one serialization point. It
-also does not include `batch`.
+A Link-scoped Event Source reports `created`, `updated`, and `deleted` facts
+about that Link. A Bead-scoped Event Source reports:
 
-Concretely, each Read+Update singleton target accepts `POST` with an
-`application/json` body containing its operation record with `operation`
-and `name` removed — the bundle defines `createBeadRequest`,
-`updateBeadRequest`, `deleteBeadRequest`, `createLinkRequest`,
-`updateLinkRequest`, `deleteLinkRequest`, `putAliasRequest`, and
-`deleteAliasRequest` — and one required
-`Idempotency-Key` field carrying a key under
-[Idempotency keys](#idempotency-keys). A singleton never accepts `@name`,
-bare or within a Pinned Reference; the bundle's singleton request
-definitions reject the spelling, so it is carrier syntax rejected before
-execution with `malformed-request`.
-A successful singleton returns `200 OK` whose body is the mutation result
-defined under [Mutation results](#mutation-results) — or, for an alias
-target, the alias result defined under [Alias targets](#alias-targets) —
-and carries no `ETag`
-and no `Location`: the operation target is not the Resource's URL, and the
-result's `resource.id` and `resource.revision` say what those fields would.
-A failed singleton
-returns the direct problem at its code's HTTP status; a singleton whose
-key is retained, in flight, conflicting, or expired answers exactly as the
-corresponding sequence member would, as a direct response. Singleton and
-sequence forms share one idempotency namespace, one semantic-identity
-rule, and one retention rule. Mutation responses carry
-`Cache-Control: private, no-store`. A mutation target responds
-`405 Method Not Allowed` with `Allow: POST` to every other method, and the
-Operation Directory responds `405` with `Allow: GET, HEAD` to every method
-but those two; both follow the Read profile's `405` rule — no BDP Problem
-body — and its `OPTIONS` rule: when cross-origin access is enabled,
-`OPTIONS` is answered according to the CORS rules rather than with `405`
-and joins `Allow`; listing it in `Allow` is not the preflight behavior. The
-bundle defines the Read+Update discovery document as `readUpdateDiscovery`
-and the directory response above as `readUpdateOperationDirectory`.
+- `created`, `updated`, and `deleted` facts about the Bead;
+- `linked` and `unlinked` facts when a Link becomes or ceases to be incident
+  upon the Bead; and
+- `updated` facts whose subject is an incident Link when that Link's mutable
+  properties change.
 
-BDP v0 does not additionally define `POST` on collections or `PUT`, `PATCH`,
-or `DELETE` on individual Resource URLs. BDP v0 also does not add a POST-based
-read selector fallback. Services enforce bounded GET request-target and
-Selector limits and may pre-advertise them through `limits`. A future version
-may add another read carrier if implementation evidence requires it.
+Link creation produces a `created` fact about the Link and a `linked` fact at
+each in-Scope endpoint Bead. Link deletion produces a `deleted` fact about
+the Link and an `unlinked` fact at each in-Scope endpoint Bead. No
+Bead-scoped fact or Event Source exists for an opaque out-of-Scope endpoint.
+A wider Event Source may cover a collection, a graph Scope, or a complete
+service.
+
+For a self-Link, whose source and target are the same Bead, that one endpoint
+Bead receives two graph facts in the same group: one whose `endpoint` is
+`source` and one whose `endpoint` is `target`. Both count against the
+transaction's Event-expansion limit. These derived facts and the incident
+Link view do not mutate the Bead or advance its Resource revision; a
+source Bead whose Type owns the Link's type is versioned by the owned
+change itself, under [Owned Links](#owned-links), not by these
+derived facts.
+
+Events describe data-model facts, not protocol methods. Full replacement and
+partial update therefore produce the same abstract `updated` Event when they
+change a Resource's properties. A failed or rolled-back transaction produces
+no observable Events.
+
+For Event purposes, `UpdateWhere` and `DeleteWhere` expand over their
+selected Resources as the corresponding singleton operations. Each affected
+Resource produces exactly the Event facts that its singleton update or
+deletion would produce, including incident Link facts at in-Scope endpoint
+Beads, and the selected Resources expand in ascending code-unit order of
+their canonical `id`s — the `canonical-uri` order of
+[Collection retrieval and selection](#collection-retrieval-and-selection) —
+so that the Events a set operation induces and the entries its Mutation
+Receipt reports follow one order that does not depend on the authority's
+selection mechanism. A zero-match operation produces no Events. All Events induced by one
+Mutation Transaction carry that transaction's identity, and they become
+observable together only after commit.
+
+An authority MUST enforce a finite maximum number of Events that one Mutation
+Transaction may induce and MAY advertise it through `limits`. If a set
+mutation would exceed that limit, the complete transaction fails before
+commit. This semantic expansion does not require an implementation to update
+or delete Resources one at a time. An authority remains free to use
+set-oriented storage operations so long as it emits the same committed facts.
+
+### Change groups and replication
+
+> **Transactional/Replication only — Transactional profile.**
+>
+> Implementations of the Read and Read+Update profiles may skip change groups,
+> postimages, tombstones, projection advances, and replica reconstruction.
+
+Every successful transaction that induces at least one Event produces exactly
+one immutable authority Scope **Change Group** at one new Scope position. The
+authority commits the Resource state, the group, and the Mutation Receipt
+atomically. A failed or admitted no-effect mutation produces no group and no
+new position. Its receipt reports the current `requiredPosition` and omits
+`effectPosition`.
+
+The group delivered to a client is the deterministic projection for its
+Authorization View. It carries every state transition needed to advance that
+view. If the transaction has no visible effect, the authority still emits an
+identifier-free projection advance at the same position. That lets a replica
+prove contiguous catch-up without learning hidden Resource or transaction
+identities. This does reveal the cadence of hidden transactions. Avoiding
+that side channel requires a different, separately identified per-view order
+and is not part of BDP v0. An authority MUST NOT reject an otherwise valid
+Scope transaction only because one view's derived transition is too large to
+deliver. If it cannot represent that transition within advertised projection
+limits, it rotates that view token and requires affected clients to install a
+fresh snapshot.
+
+A change group contains:
+
+```text
+ChangeGroup {
+  scopeEpoch: ScopeEpoch
+  authorizationView: AuthorizationViewToken
+  checkpoint: Checkpoint
+  position: ScopePosition
+  previousPosition: ScopePosition
+  projectionAdvance: Boolean
+  transaction?: TransactionId
+  changes: StateChange*
+  erasures: ErasureRecord*
+  eventCount: Integer
+  events: Event*
+}
+
+ErasureRecord {
+  subject: URI        // the canonical Resource URL
+  revision            // the erased version's opaque revision token
+  digest {
+    scheme            // identifier naming the digest discipline
+    value             // the digest bytes, taken before erasure
+  }
+}
+```
+
+For an ordinary visible group, `projectionAdvance` is false and `transaction`
+is present. `changes` is the replica-oriented projection. For each Bead or
+Link whose final projected state is live, it contains a complete canonical
+postimage — the Resource's state after the change — and its Resource
+revision. For each Resource that leaves the projection, it contains an
+identity-bearing tombstone. An authorization-projection tombstone does not
+assert that the underlying Resource was deleted. Multiple operations on one
+Resource normalize to its final projected postimage or tombstone. Consumers
+apply the complete array atomically; its internal order has no semantic
+effect.
+
+An owned-Link mutation changes the state of two Resources, so a group's
+`changes` carries both: the owned Link's postimage or tombstone, and the
+source Bead's postimage at its fresh revision with the owned set inline.
+The two entries describe one graph: the inline record in the source's
+postimage and the Link's own postimage are member-for-member equal, and a
+consumer verifies that agreement before applying the group, under
+[Scope snapshots](#scope-snapshots).
+
+For an invisible group, `projectionAdvance` is true, `transaction` is absent,
+and `changes`, `erasures`, and `events` are empty. No Resource, Type, Link endpoint,
+actor, or transaction identifier from the hidden group crosses the
+authorization boundary.
+
+`eventCount` equals the number of entries in `events`. `events` is the
+application-facing ordered fact sequence. It preserves operation order and
+assigns each Event its stable authority-group ordinal. A projected Event list
+may therefore contain ordinal gaps where intervening facts are hidden, but it
+never renumbers visible facts. One normalized state-change entry may
+correspond to several Events — for example, when ordered updates touch one
+Resource more than once, or when Link lifecycle facts project to its endpoint
+Beads. Event-expansion limits also bound change-group size.
+
+BDP v0 does not require a public cryptographic group digest. The epoch, the
+position, and the previous position detect replay gaps, duplicates,
+reordering, and history replacement. An implementation may advertise an
+integrity extension.
+
+### Snapshots and strict reads
+
+> **Transactional/Replication only — Transactional profile.**
+>
+> Implementations of the Read and Read+Update profiles may skip snapshot bootstrap,
+> snapshot/changefeed rendezvous, minimum-position reads, and the strict
+> replica-freshness contract in this section.
+
+A first-class Scope **Snapshot** contains the complete live Bead and Link
+state visible in one Authorization View at one transaction-consistent Scope
+epoch and position. One immutable snapshot manifest anchors separate typed
+Bead and Link page streams to the same handle, view, position, and expiry. A
+small Scope may inline both complete streams. A replica stages all pages and
+publishes the replacement atomically only after both streams finish.
+Ordinary collection queries are not a replication bootstrap.
+
+The snapshot checkpoint is the precise exclusive position from which Scope
+changefeed replay begins. Until the snapshot's advertised expiry, the
+authority retains every later projected group required to continue from that
+checkpoint. A cursor presented too late, from another Scope epoch, or from
+another Authorization View fails explicitly and never silently skips history.
+BDP v0 assumes a global retention window rather than per-client retention
+pins.
+
+Ordinary reads are strict by default. Each read observes one
+transaction-consistent prefix of its Authorization View that can be
+linearized during the request, and it reports its Scope epoch, view token,
+and visible position. A client may require a minimum checkpoint bound to that
+same view. A replica that is behind must route, wait, or fail explicitly; it
+must not return older state as if current. Weaker consistency modes, if
+added, require explicit client selection.
 
 ### Scope snapshots
 
@@ -6337,6 +6288,58 @@ the Events a mutation produced. Mutation Receipts carry no separate Event
 range. Event IDs, checkpoints, caching, and expired-cursor failures use the
 cross-cutting contracts defined above.
 
+### Receipt and finite-feed HTTP validators
+
+Finite Scope changefeed pages and finite Event pages, both Scope `events/`
+and Resource `view=events`, MUST omit `ETag` and `Last-Modified` initially.
+Their continuation and Scope-position contracts remain the observation
+protocol; a transaction, group checkpoint, or subject revision is not a
+whole-page HTTP validator. SSE has no per-group HTTP validator or new
+group-addressing URL (ruled 2026-09-09, G5). Receipt/page validator omission
+is specified under [Mutation Receipt responses](#mutation-receipt-responses).
+Canonical Resource, Type Descriptor, and discovery ETags remain unchanged;
+these decisions assign no snapshot or discovery validator details.
+
+The following observation table summarizes the existing scoped response laws
+and shared HTTP failures. It does not exclude ordinary applicable failures,
+including authentication and rate limiting.
+
+| Observation target | Method | Response |
+| --- | --- | --- |
+| `changes/`, Scope `events/`, Resource `view=events` | GET, HEAD | `200` finite JSON or acceptable SSE metadata/stream as defined by the endpoint; ordinary authorization, query, cursor, epoch/view, minimum-position, erasure/history-expiry, and service failures; shared bodyless `406`, conditional `304`/`412`, or internal-fault `500` when applicable |
+| the same targets | other methods | `405`, `Allow: GET, HEAD`, with CORS `OPTIONS` handled under the shared rules |
+
+[Conditional reads and HEAD](#conditional-reads-and-head) governs ordering,
+bodylessness, required current metadata, and the absence of checkpoint
+advancement on `304` or HEAD. Finite responses retain their authorization
+cache policy; SSE retains `Cache-Control: no-store, no-transform`.
+
+### Event-ID and checkpoint character profile
+
+Every serialized Event ID and Scope checkpoint is a case-sensitive ASCII
+token matching `[A-Za-z0-9_-]{1,256}`. The authority emits the token
+identically in a JSON value, URL query, HTTP field, SSE `id`, and
+`Last-Event-ID`. Clients compare the decoded values exactly and never apply
+case folding or Unicode normalization. Whitespace, padding, percent signs,
+control characters, and all non-ASCII characters are forbidden.
+
+`genesis` is the reserved distinguished initial Scope checkpoint. It is never
+assigned to an Event or later position. The restricted alphabet is a wire
+profile, not a requirement that the value decode as base64url.
+Implementations may encode UUIDs, ULIDs, hashes, counters, or other native
+identities into it.
+
+In the Transactional profile, Scope epochs, Authorization View tokens, Scope
+positions, transaction identifiers, and receipt tokens use this same
+profile, as idempotency keys do in every write profile under
+[Idempotency keys](#idempotency-keys), so that every history token is safe
+in a JSON value, a URL query, and an HTTP field. Resource revisions are not
+covered: a revision is an opaque nonempty string compared only for
+equality, and how the protocol projection encodes one as an HTTP validator
+is a separate rule.
+
+## Conformance and informative end matter
+
 ### Normative conformance matrix
 
 BDP v0 publishes one machine-readable, black-box conformance matrix. Cases
@@ -6733,6 +6736,11 @@ profile-specific response vehicle.
 | `transactional.http.conditional-reads` | Read conditionals preserve ordinary refusal precedence and produce native bodyless 304 or 412 without checkpoint advancement |
 | `transactional.http.head-parity` | HEAD preserves GET decisions and required metadata and ends without bodies or SSE frames |
 
+### Deferred model features
+
+Endpoint Type unions, minimum multiplicity, tuple-uniqueness constraints,
+acyclicity, and additional aggregate graph policies are deferred beyond BDP
+v0. They are not implicit authority behavior.
 ### Open protocol questions
 
 **History update, 2026-09-09.** The 38 selected History answer units are
