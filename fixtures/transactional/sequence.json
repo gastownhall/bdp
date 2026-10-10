@@ -28,7 +28,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -78,7 +78,7 @@
                 "revision": "adr-104-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Adopt sequence envelopes",

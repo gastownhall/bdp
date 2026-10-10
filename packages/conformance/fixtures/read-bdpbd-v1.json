@@ -758,7 +758,7 @@
     "attribution": {
       "bead": {
         "principal": "bdp-conformance",
-        "status": "unknown"
+        "basis": "unknown"
       }
     },
     "wildcard-descriptors": {

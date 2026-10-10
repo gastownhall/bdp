@@ -134,7 +134,7 @@
                 "revision": "dec-9-r3",
                 "attribution": {
                   "principal": "human:donna",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Adopt owned Links",

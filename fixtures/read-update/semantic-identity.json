@@ -28,7 +28,7 @@
           "target": "https://github.example/issues/130",
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -47,7 +47,7 @@
             "revision": "cites-109-r1",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "source": "https://beads.example/acme/beads/decision-108",
             "target": "https://github.example/issues/130",
@@ -90,7 +90,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -115,7 +115,7 @@
                 "revision": "decision-108-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Record the retention ruling",
@@ -153,7 +153,7 @@
           "properties": {},
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -192,7 +192,7 @@
           "properties": {},
           "attribution": {
             "principal": "human:janet",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -239,7 +239,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -258,7 +258,7 @@
             "revision": "task-9-r2",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "properties": {
               "title": "Sort the semantic-identity cases",
@@ -298,7 +298,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -347,7 +347,7 @@
           ],
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },

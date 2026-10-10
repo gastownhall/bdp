@@ -28,7 +28,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -87,7 +87,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -112,7 +112,7 @@
                 "revision": "decision-108-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Record the retention ruling",
@@ -152,7 +152,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -177,7 +177,7 @@
                 "revision": "decision-114-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Record the retention ruling",
@@ -219,7 +219,7 @@
           },
           "attribution": {
             "principal": "agent:planner",
-            "status": "claimed"
+            "basis": "writer-supplied"
           }
         }
       },
@@ -238,7 +238,7 @@
             "revision": "decision-108-r1",
             "attribution": {
               "principal": "agent:planner",
-              "status": "claimed"
+              "basis": "writer-supplied"
             },
             "properties": {
               "title": "Record the retention ruling",
@@ -283,7 +283,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -308,7 +308,7 @@
                 "revision": "decision-108-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Record the retention ruling",
@@ -395,7 +395,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -407,7 +407,7 @@
               "properties": {},
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -432,7 +432,7 @@
                 "revision": "task-115-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Plan the recovery fixtures",
@@ -450,7 +450,7 @@
                 "revision": "blocks-116-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "source": "https://beads.example/acme/beads/task-115",
                 "target": "https://beads.example/acme/beads/task-42",
@@ -487,7 +487,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -512,7 +512,7 @@
                 "revision": "restored-decision-1-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Record the retention ruling",

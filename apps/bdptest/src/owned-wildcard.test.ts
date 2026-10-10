@@ -74,7 +74,7 @@ function wildcardFixture(wildcardMax = 3, explicitMax = 2) {
         revision: "a-1",
         source: "beads/a",
         target: { uri: "urn:external:cited", revision: "e-1" },
-        attribution: { principal: "agent:writer", status: "claimed" },
+        attribution: { principal: "agent:writer", basis: "writer-supplied" },
         properties: {},
       },
       {

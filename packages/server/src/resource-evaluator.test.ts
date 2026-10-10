@@ -1183,13 +1183,13 @@ describe("pure member Resource evaluation", () => {
   });
   it("preserves attribution on no-ops and removes it on a new unattributed version", () => {
     const f = fixture();
-    const attribution = { principal: "urn:claimed-author", status: "claimed" };
+    const attribution = { principal: "urn:claimed-author", basis: "writer-supplied" };
     f.createBead("a", { n: 1 }, { attribution });
     const before = f.body("beads/a");
     f.execute("updateBead", {
       bead: "beads/a",
       propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
-      attribution: { principal: "urn:different", status: "unknown" },
+      attribution: { principal: "urn:different", basis: "unknown" },
     });
     expect(f.body("beads/a")).toEqual(before);
     f.execute("updateBead", {

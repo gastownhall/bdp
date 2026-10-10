@@ -86,10 +86,10 @@ here rather than being invented by an implementation.
   erasure before serving, including local recovery and positive-evidence imports;
   Read-only capability is no generic consumer-acquisition guarantee.
 - **PROTO-014**: Bead and Link records MAY carry a common `attribution`
-  member — `{ principal, status }` with `status` one of `claimed`,
+  member — `{ principal, basis }` with `basis` one of `writer-supplied`,
   `unknown` — that is carried per version and never attested: the
   protocol transports it, attests nothing, and a generic client MUST NOT
-  treat it as an authority claim; no status asserts authentication. It is
+  treat it as an authority claim; neither basis asserts authentication. It is
   supplied with every version-minting operation — creating, updating, set
   mutation, or an owned-Link deletion that mints the source's fresh
   version — outside `properties`, absent from the properties view,

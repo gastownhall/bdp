@@ -28,7 +28,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -40,7 +40,7 @@
               "properties": {},
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -65,7 +65,7 @@
                 "revision": "decision-108-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Record the retention ruling",
@@ -86,7 +86,7 @@
                 "revision": "cites-109-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "source": "https://beads.example/acme/beads/decision-108",
                 "target": "https://github.example/issues/130",
@@ -124,7 +124,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -136,7 +136,7 @@
               "properties": {},
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -152,7 +152,7 @@
               ],
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -195,7 +195,7 @@
                 "revision": "task-11-r2",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Tidy the fixture world",
@@ -244,7 +244,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -256,7 +256,7 @@
               "properties": {},
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -281,7 +281,7 @@
                 "revision": "decision-108-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Record the retention ruling",
@@ -302,7 +302,7 @@
                 "revision": "cites-109-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "source": "https://beads.example/acme/beads/decision-108",
                 "target": "https://github.example/issues/130",
@@ -354,7 +354,7 @@
               ],
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -368,7 +368,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -380,7 +380,7 @@
               "properties": {},
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -404,7 +404,7 @@
                 "revision": "task-7-r2",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Review the retention ruling",
@@ -424,7 +424,7 @@
                 "revision": "decision-108-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Record the retention ruling",
@@ -445,7 +445,7 @@
                 "revision": "cites-109-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "source": "https://beads.example/acme/beads/decision-108",
                 "target": "https://github.example/issues/130",
@@ -500,7 +500,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -512,7 +512,7 @@
               "properties": {},
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -528,7 +528,7 @@
               ],
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -553,7 +553,7 @@
                 "revision": "decision-108-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Record the retention ruling",
@@ -574,7 +574,7 @@
                 "revision": "cites-109-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "source": "https://beads.example/acme/beads/decision-108",
                 "target": "https://github.example/issues/130",
@@ -593,7 +593,7 @@
                 "revision": "task-11-r2",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Tidy the fixture world",
@@ -630,7 +630,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -646,7 +646,7 @@
               ],
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -670,7 +670,7 @@
                 "revision": "claims-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Claims are one step",
@@ -688,7 +688,7 @@
                 "revision": "claims-r2",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Claims are one step",
@@ -725,7 +725,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -741,7 +741,7 @@
               ],
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -814,7 +814,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -830,7 +830,7 @@
               ],
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             }
           ]
@@ -854,7 +854,7 @@
                 "revision": "claims-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Claims are one step",
@@ -872,7 +872,7 @@
                 "revision": "claims-r2",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Claims are one step",

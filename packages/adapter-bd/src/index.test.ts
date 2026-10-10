@@ -416,7 +416,7 @@ describe("bd process Scope port", () => {
         // The creator is not necessarily the writer of the current version,
         // so it is carried as `unknown`, never `claimed`; and it stays in
         // properties as native bd data.
-        attribution: { principal: "bdp-conformance", status: "unknown" },
+        attribution: { principal: "bdp-conformance", basis: "unknown" },
         properties: { created_by: "bdp-conformance" },
       },
     });

@@ -27,7 +27,7 @@
               },
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -42,7 +42,7 @@
               "properties": {},
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -59,7 +59,7 @@
               ],
               "attribution": {
                 "principal": "agent:planner",
-                "status": "claimed"
+                "basis": "writer-supplied"
               }
             },
             {
@@ -90,7 +90,7 @@
                 "revision": "adr-104-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Adopt sequence envelopes",
@@ -111,7 +111,7 @@
                 "revision": "cites-105-r1",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "source": "https://beads.example/acme/beads/adr-104",
                 "target": {
@@ -133,7 +133,7 @@
                 "revision": "task-42-r2",
                 "attribution": {
                   "principal": "agent:planner",
-                  "status": "claimed"
+                  "basis": "writer-supplied"
                 },
                 "properties": {
                   "title": "Specify BDP mutation",

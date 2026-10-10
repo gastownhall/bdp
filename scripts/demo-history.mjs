@@ -161,7 +161,7 @@ async function main() {
       agent: { state: "present", value: "assistant-a" },
       message: { state: "absent" },
     };
-    const attribution = { principal: "donna", status: "claimed" };
+    const attribution = { principal: "donna", basis: "writer-supplied" };
     add(`${scope}bdp.json`, {
       bdpVersion: "0",
       profile: "read",
