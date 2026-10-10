@@ -9,7 +9,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#scope-discovery-and-human-documentation",
+          "anchor": "#discovery-profile-membership",
           "selectedText": "The history, receipt, snapshot, changefeed, and Event members are required only in Transactional and prohibited in both lower profiles."
         }
       ],
@@ -37,12 +37,12 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#advertised-limits",
+          "anchor": "#transactional-limits",
           "selectedText": "`retention.idempotency`, `retention.receipt`, `retention.maximumSnapshotLifetime`, and `retention.replay` are ISO 8601 durations."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#advertised-limits",
+          "anchor": "#transactional-limits",
           "selectedText": "`retention.receipt` bounds how long detailed outcomes and failed receipts remain"
         }
       ],
@@ -56,7 +56,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#advertised-limits",
+          "anchor": "#transactional-limits",
           "selectedText": "a Transactional discovery document MUST NOT advertise it"
         }
       ],
@@ -248,8 +248,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
-          "selectedText": "The authority applies the operation only if the Resource still has that revision. A mismatch fails the complete Mutation Transaction."
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "The authority applies the operation only if the Resource still has that revision. A mismatch fails the individual operation without changing state."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-revision-visibility",
+          "selectedText": "In an atomic batch, a revision mismatch fails the complete Mutation Transaction."
         }
       ]
     },
@@ -261,7 +266,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#scope-aggregate-constraints",
+          "anchor": "#aggregate-constraint-enforcement",
           "selectedText": "Authorities MUST produce serializable outcomes when concurrent mutations could cross a maximum."
         }
       ]
@@ -315,7 +320,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#transactional-problem-details",
           "selectedText": "`cardinality-violated`: a set operation's matched count is outside its `cardinality`"
         }
       ]
@@ -354,7 +359,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#operation-directory-and-singleton-targets",
+          "anchor": "#transactional-operation-directory-and-singletons",
           "selectedText": "The request executes as a one-operation Mutation Transaction."
         },
         {
@@ -373,7 +378,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#operation-directory-and-singleton-targets",
+          "anchor": "#transactional-operation-directory-and-singletons",
           "selectedText": "Within the Transactional profile, the singleton and batch forms have identical allocation, patch, validation, authorization, idempotency, concurrency, event, and deletion semantics."
         }
       ]
@@ -620,7 +625,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#transactional-problem-details",
           "selectedText": "A `failed` receipt never carries `temporarily-unavailable`"
         }
       ]
@@ -1060,7 +1065,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#reads-after-deletion",
+          "anchor": "#events-after-resource-deletion",
           "selectedText": "an authority may return `410` `event-history-expired` only to a principal authorized for that subject's retained history and only when its policy permits disclosing that the history elapsed."
         }
       ]
@@ -1151,7 +1156,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#http-consistency-caching-and-cors-fields",
+          "anchor": "#transactional-http-consistency",
           "selectedText": "It never reports success with an older position."
         }
       ]
@@ -1164,7 +1169,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#transactional-problem-details",
           "selectedText": "`catch-up-timeout`: a read carrying `BDP-Minimum-Scope-Position` could not be served at or after that position within the authority's wait bound"
         }
       ]
@@ -1560,12 +1565,17 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
-          "selectedText": "The code table for later-profile failures is completed with each later profile's schema bundle and conformance material."
+          "anchor": "#transactional-problem-details",
+          "selectedText": "The Transactional profile inherits the Read table and the Read+Update rows above and adds three rows:"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#profile-schema-inventory",
+          "selectedText": "A profile's definitions must exist before it can be implemented."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-problem-details",
           "selectedText": "The Transactional profile inherits the Read table and the Read+Update rows above and adds three rows:"
         }
       ]
@@ -1578,7 +1588,7 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#transactional-problem-details",
           "selectedText": "On a Transactional Scope every code occurs in one of two contexts, and the bundle closes each context to its codes."
         }
       ]
@@ -1630,8 +1640,8 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#bdp-json-and-http-protocol",
-          "selectedText": "These string and object violations are carrier syntax rejected before\nexecution with `malformed-request` in every profile."
+          "anchor": "#json-mutation-admission",
+          "selectedText": "String and object violations are carrier syntax rejected before execution with `malformed-request`."
         }
       ]
     },
@@ -1975,7 +1985,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#mutation-response-negotiation",
           "selectedText": "For a new mutation submission this refusal occurs before durable admission, key binding, receipt creation, or state change."
         }
       ]
@@ -2020,7 +2030,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
-          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut."
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, and applicable History erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-conditional-reads",
+          "selectedText": "Scope epoch/view, minimum-position and erasure/expiry checks precede any conditional shortcut. Required current Scope context remains required on 304 and 412 responses."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -2029,7 +2044,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#conditional-reads-and-head",
+          "anchor": "#transactional-conditional-reads",
           "selectedText": "A `304` is not delivery or application of a change group or erasure record and MUST NOT advance a client's durable checkpoint."
         }
       ]
@@ -2047,8 +2062,8 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#conditional-reads-and-head",
-          "selectedText": "For an acceptable SSE representation, HEAD returns the corresponding response metadata and ends without SSE frames; it MUST NOT remain open merely to stream events."
+          "anchor": "#transactional-conditional-reads",
+          "selectedText": "For acceptable SSE, HEAD returns the response metadata and ends without frames; it MUST NOT remain open."
         }
       ]
     }

@@ -14,8 +14,13 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
-          "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision and emits no `updated` Event."
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#conformance-profiles-and-reading-guide",
+          "selectedText": "Read+Update has no durable Mutation Receipts and no BDP Events."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -47,7 +52,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
+          "anchor": "#numeric-admission",
           "selectedText": "An authority MUST refuse at admission a `properties` document — supplied whole or through a Property Change — that contains an inadmissible literal at any depth: nothing changes, and the operation fails as the write profiles' `validation-failed` with a diagnostic naming the offending member."
         },
         {
@@ -70,12 +75,12 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
+          "anchor": "#numeric-admission",
           "selectedText": "An authority MUST refuse at admission a `properties` document — supplied whole or through a Property Change — that contains an inadmissible literal at any depth"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
+          "anchor": "#numeric-admission",
           "selectedText": "with a diagnostic naming the offending member."
         },
         {

@@ -125,7 +125,11 @@ const digestVectors = fixtureFiles.find(
 ) as DigestVectorsFixture | undefined;
 
 describe("Transactional problem rows", () => {
-  const tableRows = problemTableRows(markdownSection(specification, "Problem details"));
+  const tableRows = [
+    ...problemTableRows(markdownSection(specification, "Problem details")),
+    ...problemTableRows(markdownSection(specification, "Read+Update problem details")),
+    ...problemTableRows(markdownSection(specification, "Transactional problem details")),
+  ];
   const inheritedRowCount = READ_PROBLEM_DEFINITIONS.length + READ_UPDATE_ROW_COUNT;
 
   it("adds exactly the three drafted rows after the Read and Read+Update rows", () => {
@@ -1933,12 +1937,13 @@ function expectSortedMembers(value: unknown, label: string): void {
 function expectProblemRow(problem: JsonRecord, label: string): void {
   const code = problem.code as string;
   const readRow = READ_PROBLEM_DEFINITIONS.find((definition) => definition.code === code);
-  const readUpdateRows = problemTableRows(markdownSection(specification, "Problem details")).slice(
-    READ_PROBLEM_DEFINITIONS.length,
-  );
+  const mutationRows = [
+    ...problemTableRows(markdownSection(specification, "Read+Update problem details")),
+    ...problemTableRows(markdownSection(specification, "Transactional problem details")),
+  ];
   const row =
     readRow === undefined
-      ? readUpdateRows.find(([candidate]) => candidate === code)
+      ? mutationRows.find(([candidate]) => candidate === code)
       : ([readRow.code, readRow.family, readRow.status, readRow.retry] as const);
   if (row === undefined) throw new Error(`${label}: unknown problem code ${code}`);
   expect(problem.type, label).toBe(`${BDP_PROBLEM_FAMILY_PREFIX}${row[1]}`);

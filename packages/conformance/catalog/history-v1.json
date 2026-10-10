@@ -140,7 +140,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#historical-http-metadata",
-          "selectedText": "On exact historical success, `BDP-History-Lineage` is `current` or `replaced`,\nidentifying this version's membership in the responder's recorded lineage.\nThe `version-history` Link relation targets that subject's `view=versions`\noperation whose population is explicitly `all-retained`. Preserve authorized,\nknown direct `predecessor-version` and `successor-version` relations within each\nrecorded lineage, including retained replaced records. Multiple direct targets\nare permitted. `latest-version` may name the authorized current authority version.\nOmit any relation for which no truthful authorized target is known. Never link\nr3 directly to r4 merely because r1\u2192r2\u2192r3 was restored to r1 and r4 was then\nminted; never call the next surviving entry a direct successor through a gap.\nThe relations state local knowledge, not global freshness or a notification SLA."
+          "selectedText": "On exact historical success, `BDP-History-Lineage` is `current` or `replaced`,\nidentifying this version's membership in the responder's recorded lineage.\nThe `version-history` Link relation targets that subject's `view=versions`\noperation whose population is explicitly `all-retained`. Preserve authorized,\nknown direct `predecessor-version` and `successor-version` relations within each\nrecorded lineage, including retained replaced records. Multiple direct targets\nare permitted. `latest-version` may name the authorized current authority version.\nOmit any relation for which no truthful authorized target is known. Never link\nr3 directly to r4 merely because r1→r2→r3 was restored to r1 and r4 was then\nminted; never call the next surviving entry a direct successor through a gap.\nThe relations state local knowledge, not global freshness or a notification SLA."
         }
       ]
     },
@@ -166,7 +166,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#revisions",
-          "selectedText": "**Retained-address amendment, 2026-09-09 (all profiles).** Whenever a store\nretains a Resource version across restore, destructive reinitialization or\nauthority replacement, its existing address remains bound to exactly that state.\nAn advertised History resolver MUST serve the requested token unchanged when\nthat state is authorized and serviceable. No exposed Scope epoch is needed for\nthis law. Token-scheme changes and internal mappings MUST NOT rebind an old\naddress or silently return a new revision. Lack of disposition evidence means\nunknown, not loss inferred from token spelling. Retained-address survival grants\nneither current write authority nor a valid current `expectedRevision` guard.\nErased content is not eligible for successful resolution."
+          "selectedText": "**Retained-address amendment, 2026-09-09 (all profiles).** Whenever a store retains a Resource version across restore, destructive reinitialization or authority replacement, its existing address remains bound to exactly that state. An advertised History resolver MUST serve the requested token unchanged when that state is authorized and serviceable. Token-scheme changes and internal mappings MUST NOT rebind an old address or silently return a new revision. Lack of disposition evidence means unknown, not loss inferred from token spelling. Retained-address survival grants no current write authority. Erased content is not eligible for successful resolution."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#retained-address-guards",
+          "selectedText": "Retained-address survival under [Revisions](#revisions) does not grant a valid current `expectedRevision` guard."
         }
       ]
     },
@@ -179,7 +184,17 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#revisions",
-          "selectedText": "Allocation MUST NOT bind an existing retained address to different state. No\nmandatory registry or lifetime-unique-token construction is prescribed: a\ncontent-derived scheme may reuse a token for the same state consistently with\nthe existing revision laws. An ordinary collision may be solved with a safe\nalternative candidate. Positive persistent, repair-required allocation failure\nuses write-only `revision-allocation-unsafe` / conflict / 409 / after-state-change;\ntransient inability to inspect safety uses existing 503 / unavailable /\nafter-delay. Before admission the failure is direct; after admission it follows\nthe selected profile's permanent member/transaction failure, rollback and retained-\nfailure rules. Do not re-execute retained duplicates, reset deadlines, disable\notherwise available reads or fabricate pruning of retained state. No condition-\nspecific identity information is disclosed by the allocation problem."
+          "selectedText": "Allocation MUST NOT bind an existing retained address to different state. No mandatory registry or lifetime-unique-token construction is prescribed: a content-derived scheme may reuse a token for the same state consistently with the existing revision laws."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#revision-allocation-failures",
+          "selectedText": "An ordinary collision may be solved with a safe alternative candidate. Positive persistent, repair-required allocation failure uses write-only `revision-allocation-unsafe` / conflict / 409 / after-state-change; transient inability to inspect safety uses existing 503 / unavailable / after-delay. Before admission the failure is direct; after admission it follows the member's permanent failure and retained-failure rules. Do not re-execute retained duplicates, reset deadlines, disable otherwise available reads or fabricate pruning of retained state. No condition- specific identity information is disclosed by the allocation problem."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-revision-and-history-extensions",
+          "selectedText": "Revision allocation failures after Transactional admission follow the complete transaction rollback and retained-failure rules."
         }
       ]
     },
@@ -192,7 +207,17 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#immutable-change-context",
-          "selectedText": "**History amendment, 2026-09-09.** `changeContext` is a distinct immutable\nversion envelope, separate from `attribution` and `properties`. The responsible\nactor remains the existing carried attribution, including truthful absence and\n`claimed|unknown`; context never supplies a competing actor or authentication/\nauthorization claim. Shared record schemas permit absent context for legacy and\nnon-History versions. Native versions minted under advertised History MUST carry\nit wherever their complete version record is returned: current and historical\nreads, mutation postimages, retained receipt postimages and retained history rows.\nCreated/updated Event data, including an updated owned-Link delta, carries the\ncontext of the version it names. No context is synthesized on tombstones, deleted identities, aliases, References or properties\nviews. These metadata requirements do not establish full Memory compatibility."
+          "selectedText": "**History amendment, 2026-09-09.** `changeContext` is a distinct immutable version envelope, separate from `attribution` and `properties`. The responsible actor remains the existing carried attribution, including truthful absence and `basis: writer-supplied|unknown`; context never supplies a competing actor or authentication/ authorization claim. Shared record schemas permit absent context for legacy and non-History versions. Native versions under advertised History MUST carry context on current/historical complete record reads and retained history rows. No context is synthesized on deleted identities, aliases, References or properties views. These metadata requirements do not establish full Memory compatibility."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#history-context-on-mutation-results",
+          "selectedText": "Native versions minted under advertised History MUST carry `changeContext` on complete mutation postimages. The read representation and provenance rules are defined under [Immutable change context](#immutable-change-context)."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#history-context-in-receipts-and-events",
+          "selectedText": "Native versions minted under advertised History MUST carry it wherever their complete version record is returned: current and historical reads, mutation postimages, retained receipt postimages and retained history rows. Created/updated Event data, including an updated owned-Link delta, carries the context of the version it names. No context is synthesized on tombstones, deleted identities, aliases, References or properties views. These metadata requirements do not establish full Memory compatibility."
         }
       ]
     },
@@ -204,8 +229,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#immutable-change-context",
-          "selectedText": "For native versions, commit time is the authority-observed mutation commit instant,\nnot admission, import or editable Inception time. Every version in one atomic\ntransaction shares that instant; independently committed sequence members carry\ntheir respective commit instants. Imported original time is present only with\navailable provenance; otherwise it is undetermined. This promises neither an\naccurate/authenticated clock nor global chronology, and does not alter Event-time\nmeaning. Extra import provenance stays internal, not a second protocol envelope."
+          "anchor": "#history-context-on-mutation-results",
+          "selectedText": "For native versions, commit time is the authority-observed mutation commit instant, not admission, import or editable Inception time. Independently committed sequence members carry their respective commit instants. Imported original time is present only with available provenance; otherwise it is undetermined. This promises neither an accurate/authenticated clock nor global chronology. Extra import provenance stays internal, not a second protocol envelope."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-revision-and-history-extensions",
+          "selectedText": "Under advertised History, all versions in one atomic transaction share the authority-observed commit instant; independently committed sequence members retain their own instants. Context does not alter Event-time meaning."
         }
       ]
     },
@@ -217,8 +247,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#immutable-change-context",
-          "selectedText": "Each version-minting operation may carry optional `changeContext` input, the\nclosed `changeContextInput` object with optional `agent` (nonempty string or null)\nand `message` (string or null). Omitted members mean undetermined; null explicitly\nrecords known absence. Callers supply no timestamp or responsible-actor override.\nThe member appears on create/update Bead and Link, owned-capable deleteLink,\nupdateWhere and deleteWhere inputs, including their sequence/batch forms; alias\noperations and deleteBead, which mint no version, gain no input. It is operation-\nlocal, never a shared carrier-wide override. Preserve it in semantic mutation\nidentity so different recorded inputs cannot replay as the same request. Apply\nthe existing protocol-default normalization: an omitted input and an empty object\nboth mean undetermined agent and message; explicit null remains distinct. Context\nremains excluded from Resource no-op comparison."
+          "anchor": "#history-context-on-mutation-results",
+          "selectedText": "Each version-minting operation may carry optional `changeContext` input, the closed `changeContextInput` object with optional `agent` (nonempty string or null) and `message` (string or null). Omitted members mean undetermined; null explicitly records known absence. Callers supply no timestamp or responsible-actor override. The member appears on create/update Bead and Link, owned-capable deleteLink, including their sequence forms; alias operations and deleteBead, which mint no version, gain no input. It is operation- local, never a shared carrier-wide override. Preserve it in semantic mutation identity so different recorded inputs cannot replay as the same request. Apply the existing protocol-default normalization: an omitted input and an empty object both mean undetermined agent and message; explicit null remains distinct. Context remains excluded from Resource no-op comparison."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-revision-and-history-extensions",
+          "selectedText": "The operation-local context inputs also apply to set operations and batch members, with fan-out to every version actually minted. No carrier-wide override is introduced."
         }
       ]
     },
@@ -230,8 +265,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#immutable-change-context",
-          "selectedText": "Copy the originating operation's agent/message states to every version it actually\nmints, including owned Link and source and set fan-out. Batch/sequence operations\nmay have distinct inputs; atomic time is shared, independent commits are separate.\nChanging only context never creates a version. No-ops retain the old revision and\ncontext; deletion without a minted version creates no context-only record. An owned\nLink deletion records new context on its newly versioned source only. Existing\nattribution fan-out and all authorization, erasure and retained-copy duties apply."
+          "anchor": "#history-context-on-mutation-results",
+          "selectedText": "Copy the originating operation's agent/message states to every version it actually mints, including owned Link and source. Sequence operations may have distinct inputs and independently committed times. Changing only context never creates a version. No-ops retain the old revision and context; deletion without a minted version creates no context-only record. An owned Link deletion records new context on its newly versioned source only. Existing attribution fan-out and all authorization, erasure and retained-copy duties apply."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#transactional-revision-and-history-extensions",
+          "selectedText": "The operation-local context inputs also apply to set operations and batch members, with fan-out to every version actually minted. No carrier-wide override is introduced."
         }
       ]
     },
@@ -244,7 +284,17 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#history-recovery-imports-and-assurance",
-          "selectedText": "Every History implementation on all three profiles enforces applicable erasure\ndecisions on every controlled retained copy before further serving and preserves\nrequired erasure evidence across local recovery. This includes context, inline\nowned content, old groups, Events, receipt postimages, indexes and caches. Where\nTransactional erasure applies, its permanent projected ledger, containing-version\nerasure, same-group live successor/tombstone, pre-erasure checkpoint expiry and\nsnapshot recovery rules remain mandatory. Retaining an old address never permits\nserving erased content. A non-owning reference is not embedded target content;\nno new retention propagation, target rewrite or wire hold follows."
+          "selectedText": "Every History implementation on all three profiles enforces applicable erasure decisions on every controlled retained copy before further serving and preserves required erasure evidence across local recovery. This includes context, inline owned content, indexes, caches and any other controlled retained copies. Retaining an old address never permits serving erased content. A non-owning reference is not embedded target content; no new retention propagation, target rewrite or wire hold follows."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#history-and-transactional-erasure",
+          "selectedText": "Where Transactional erasure applies, its permanent projected ledger, containing-version erasure, same-group live successor/tombstone, pre-erasure checkpoint expiry and snapshot recovery rules remain mandatory."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#history-and-transactional-erasure",
+          "selectedText": "Controlled retained copies include old groups, Events and receipt postimages. Where the Transactional erasure contract applies, its existing changefeed and snapshot-ledger route remains required."
         }
       ]
     },
@@ -270,7 +320,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#history-recovery-imports-and-assurance",
-          "selectedText": "Plain History claims the responder's behavior, not erasure delivery to arbitrary\ndownloaded copies. A deployment may document and test a specific consumer\nacquisition/recovery route and claim only that scoped assurance, proving controlled-\ncopy cleanup before further publication. This does not exempt any obligated store\nor advertise generic BDP replication; where TX/T65 applies, its existing changefeed/\nsnapshot-ledger route remains required. Generic pre-removal administrative reports,\npreview endpoints, minimum retention promises, exact-byte witnesses, sync hints,\nextra scheme mappings, erased-row enumeration, bulk checks and the alternative\nsurviving-citation lifecycle remain deferred. Local policy/tooling is allowed;\nnone weakens required Gone evidence, erasure or incident-Link refusal."
+          "selectedText": "Plain History claims the responder's behavior, not erasure delivery to arbitrary downloaded copies. A deployment may document and test a specific consumer acquisition/recovery route and claim only that scoped assurance, proving controlled- copy cleanup before further publication. This does not exempt any obligated store or advertise generic BDP replication. Generic pre-removal administrative reports, preview endpoints, minimum retention promises, exact-byte witnesses, sync hints, extra scheme mappings, erased-row enumeration, bulk checks and the alternative surviving-citation lifecycle remain deferred. Local policy/tooling is allowed; none weakens required Gone evidence, erasure or incident-Link refusal."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#history-and-transactional-erasure",
+          "selectedText": "Controlled retained copies include old groups, Events and receipt postimages. Where the Transactional erasure contract applies, its existing changefeed and snapshot-ledger route remains required."
         }
       ]
     }
