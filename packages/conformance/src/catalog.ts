@@ -1,3 +1,4 @@
+import { markdownSection } from "./markdown.js";
 import { isProtocolProfile, type ProtocolProfile } from "@bdp/protocol";
 
 /**
@@ -344,90 +345,6 @@ function readNonemptyString(
   if (typeof value === "string" && value.length > 0 && value.trim() === value) return value;
   issues.push({ path, message: "must be a non-empty string without surrounding whitespace" });
   return undefined;
-}
-
-function markdownSection(markdown: string, anchor: string): string | undefined {
-  const target = anchor.slice(1);
-  const visibleMarkdown = maskFencedCodeBlocks(markdown);
-  const headings = [...visibleMarkdown.matchAll(/^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$/gm)];
-  const slugCounts = new Map<string, number>();
-  for (const [index, heading] of headings.entries()) {
-    const hashes = heading[1];
-    const text = heading[2];
-    if (hashes === undefined || text === undefined || heading.index === undefined) continue;
-    const baseSlug = markdownAnchor(text);
-    const duplicateIndex = slugCounts.get(baseSlug) ?? 0;
-    slugCounts.set(baseSlug, duplicateIndex + 1);
-    const slug = duplicateIndex === 0 ? baseSlug : `${baseSlug}-${duplicateIndex}`;
-    if (slug !== target) continue;
-
-    const level = hashes.length;
-    const sectionStart = heading.index;
-    let sectionEnd = markdown.length;
-    for (const following of headings.slice(index + 1)) {
-      if ((following[1]?.length ?? 7) <= level && following.index !== undefined) {
-        sectionEnd = following.index;
-        break;
-      }
-    }
-    return markdown.slice(sectionStart, sectionEnd);
-  }
-  return undefined;
-}
-
-/**
- * Replace fenced-code content with spaces while retaining every original line
- * ending and code-unit offset. A closing fence must use the opening character
- * and contain at least as many markers.
- */
-function maskFencedCodeBlocks(markdown: string): string {
-  let result = "";
-  let cursor = 0;
-  let fenceCharacter: "`" | "~" | undefined;
-  let minimumFenceLength = 0;
-
-  while (cursor < markdown.length) {
-    const newline = markdown.indexOf("\n", cursor);
-    const lineEnd = newline < 0 ? markdown.length : newline + 1;
-    const line = markdown.slice(cursor, lineEnd);
-    const content = line.replace(/\r?\n$/, "");
-
-    if (fenceCharacter === undefined) {
-      const opening = /^ {0,3}(`{3,}|~{3,})/.exec(content)?.[1];
-      if (opening === undefined) {
-        result += line;
-      } else {
-        fenceCharacter = opening[0] as "`" | "~";
-        minimumFenceLength = opening.length;
-        result += maskLine(line);
-      }
-    } else {
-      const closing = new RegExp(`^ {0,3}\\${fenceCharacter}{${minimumFenceLength},}[ \\t]*$`).test(
-        content,
-      );
-      result += maskLine(line);
-      if (closing) {
-        fenceCharacter = undefined;
-        minimumFenceLength = 0;
-      }
-    }
-    cursor = lineEnd;
-  }
-
-  return result;
-}
-
-function maskLine(line: string): string {
-  return line.replace(/[^\r\n]/g, " ");
-}
-
-function markdownAnchor(heading: string): string {
-  return heading
-    .trim()
-    .toLowerCase()
-    .replace(/<[^>]*>/g, "")
-    .replace(/[^\p{L}\p{N} _-]/gu, "")
-    .replace(/[ \t]+/g, "-");
 }
 
 function normalizeWhitespace(value: string): string {
