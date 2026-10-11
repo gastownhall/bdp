@@ -74,7 +74,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#operation-directory-and-singleton-targets",
-          "selectedText": "A Read+Update Scope's directory contains exactly eight singleton targets — the six Resource targets plus `put-alias` and `delete-alias` — and `sequence` (amended 2026-09-08):"
+          "selectedText": "A Read+Update Scope's directory contains exactly eight singleton targets — the six Resource targets plus `put-alias` and `delete-alias` — and `sequence`:"
         }
       ]
     },
@@ -914,7 +914,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member’s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal’s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew (amended 2026-09-12)."
+          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member’s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal’s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1291,7 +1291,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does (amended 2026-09-08, council 12); `expectedRevision` and `attribution` are members of the record and therefore of its identity."
+          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `attribution` are members of the record and therefore of its identity."
         }
       ]
     },
@@ -1491,7 +1491,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#outcome-retention",
-          "selectedText": "when `historicalResolution` is advertised, the History surface additionally\nreports positively evidenced `revision-reorganized` under its subject-history\ngate and preserves retained old addresses."
+          "selectedText": "When `historicalResolution` is advertised, the History surface additionally\nreports positively evidenced `revision-reorganized` under its subject-history\ngate and preserves retained old addresses."
         }
       ]
     },

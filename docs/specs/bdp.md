@@ -35,32 +35,8 @@ invariant. The normative schemas and extension points in this specification
 determine where additional members are allowed; no implicit minor-version
 rule decides that.
 
-This draft is co-designed against other beads-related tools, infrastructure,
-and stores, both public and in-flight pre-release. At the baseline reviewed
-for this draft, the primary pre-release implementation intentionally provides
-a `bd`-compatible Issue/Dependency model and a command-oriented API. Its data and storage schemas are deliberately
-malleable — they are expected to change. They describe current implementation
-state and migration work, not a candidate BDP contract.
-
-The primary design evidence BDP takes from that implementation is its process
-and cache model: workspace authority, transaction boundaries, revisions and
-watermarks, snapshot bootstrap, ordered change propagation, local
-materialization, cache catch-up, and concurrency behavior. Its existing
-Issue/Dependency, command, and wire surfaces are inputs to the Issue
-domain profile or to compatibility work. They are not selected generic BDP behavior.
-
-Implementation work there is expected to expose protocol pressure and to
-provide conformance evidence. But neither its storage schemas nor its
-incidental implementation-language choices define BDP. The current `bd`
-implementation, and the compatibility code that mirrors it, supply
-requirements and failure evidence. They are not design authorities for the
-BDP data model or protocol.
-
 Examples are illustrative, and they must remain consistent with the
-requirements they demonstrate. Some text is explicitly identified as an open
-question, deferred feature, storage design, or implementation history. That
-text is not part of the intended BDP v0 contract unless and until the draft
-resolves it.
+requirements they demonstrate. Explicitly excluded features are not part of the BDP v0 contract.
 
 The `https://beads.example/` authority is reserved for deployment examples in
 this draft. Production deployments use their own canonical Scope URL. They
@@ -75,8 +51,8 @@ The BDP v0 protocol-identifier prefix is
 
 These URIs are protocol identities; dereferenceability is not required for
 their use or comparison. In other words, they work as identifiers even if
-nothing can be fetched at those addresses. The normative schema artifact will
-be housed in this open source repository at `schemas/bdp-v0.schema.json`.
+nothing can be fetched at those addresses. The normative schema artifact is
+`schemas/bdp-v0.schema.json` in this repository.
 Conformance validators MUST load it without network retrieval.
 
 This provisional prefix knowingly occupies path space that GitHub controls.
@@ -106,7 +82,7 @@ every lower profile:
 | Profile | What it adds | What its implementer may ignore |
 | --- | --- | --- |
 | **Read** | Scope discovery and safe retrieval of canonical Bead and Link Resource records | All mutation sections and every Transactional/Replication sidebar |
-| **Read+Update** | Read plus the six single-Resource targets, the two alias targets, and an ordered, non-atomic `sequence` carrier (amended 2026-09-08) | Set mutation, atomic `batch`, Scope history, receipts, snapshots, Events, and changefeed replication |
+| **Read+Update** | Read plus the six single-Resource targets, the two alias targets, and an ordered, non-atomic `sequence` carrier | Set mutation, atomic `batch`, Scope history, receipts, snapshots, Events, and changefeed replication |
 | **Transactional** | The complete transaction and replication contract | Nothing |
 
 The three parts below are cumulative specifications within this one document.
@@ -142,11 +118,11 @@ surface. A product-specific readiness endpoint does not satisfy this surface.
 Readiness remains client-owned domain behavior, computed from generic Bead
 and Link reads.
 
-The Read+Update profile retains the existing `create-bead`,
+The Read+Update profile defines `create-bead`,
 `update-bead`, `delete-bead`, `create-link`,
 `update-link`, and `delete-link` operation URLs and request-record
 shapes, and adds the two alias targets, `put-alias` and `delete-alias`,
-defined under [Alias targets](#alias-targets) (amended 2026-09-08). It does
+defined under [Alias targets](#alias-targets). It does
 not introduce collection `POST` or direct Resource `PUT`/`PATCH`/`DELETE`.
 Each singleton request is individually atomic. The profile additionally
 requires `sequence`, an ordered carrier for those same six operations and
@@ -428,8 +404,7 @@ resolve, or traverse, and it is not an edge of the graph. A Type that
 wants graph semantics for a reference — versioning with its source,
 validation at admission, closure under views — declares an owned Link
 Type for it, under an explicit `ownsOutgoing` entry or the wildcard, and
-the reference is a Link (ruled 2026-09-08,
-[gastownhall/bdp#1, item 5 as amended](https://github.com/gastownhall/bdp/issues/1#issuecomment-5587346463)).
+the reference is a Link.
 
 #### Owned Links
 
@@ -904,8 +879,7 @@ different name.
 
 The protocol projection may represent revisions as HTTP entity tags.
 
-**Retained-address amendment, 2026-09-09 (all profiles).** Whenever a store
-retains a Resource version across restore, destructive reinitialization or
+Whenever a store retains a Resource version across restore, destructive reinitialization or
 authority replacement, its existing address remains bound to exactly that state.
 An advertised History resolver MUST serve the requested token unchanged when
 that state is authorized and serviceable. Token-scheme changes and internal mappings MUST NOT rebind an old
@@ -965,34 +939,7 @@ example `agent:…`, `human:…`, `svc:…` — so agents, humans, and service
 accounts coexist without a global identity system; BDP mandates no
 namespace and compares principals only for byte equality.
 
-### Immutable change context
-
-**History amendment, 2026-09-09.** `changeContext` is a distinct immutable
-version envelope, separate from `attribution` and `properties`. The responsible
-actor remains the existing carried attribution, including truthful absence and
-`basis: writer-supplied|unknown`; context never supplies a competing actor or authentication/
-authorization claim. Shared record schemas permit absent context for legacy and
-non-History versions. Native versions under advertised History MUST carry context
-on current/historical complete record reads and retained history rows.
-No context is synthesized on deleted identities, aliases, References or
-properties views. These metadata requirements do not establish full Memory
-compatibility.
-
-The closed envelope has `committedAt`, `agent`, and `message`. `committedAt` is
-`{ "state": "present", "value": <RFC 3339 date-time> }` or
-`{ "state": "undetermined" }`. Agent and message are each a closed
-`{ "state": "present", "value": <string> }` or
-`{ "state": "absent" }` or `{ "state": "undetermined" }`; a present agent
-identity is nonempty, while an intentionally empty message is valid. Absence,
-uncertainty and a recorded value are distinct; never fabricate legacy metadata.
-
 ### Authorization views
-
-**History amendment, 2026-09-09.** Historical success uses the current
-whole-record/owned-state permission rule under [Historical resolution](#historical-resolution);
-its missing-state refusals use subject-history authorization independently of
-reconstruction. Historical identity/relationship permission grants no target
-body access and does not relax the current-plane closure below.
 
 For every request, the authority binds the authenticated principal, or an
 anonymous principal, to exactly one opaque **Authorization View** of the
@@ -1082,7 +1029,7 @@ Resources satisfy a Selector.
 
 Every JSON text BDP admits or emits follows the number model defined under
 [Revisions](#revisions) — exact-decimal equality with binary64 round-trip
-admission, ruled at gastownhall/bdp#21 and landing with gastownhall/bdp#23 —
+admission —
 which combines with the I-JSON string and object rules below to give every
 Resource record exactly one RFC 8785 canonical serialization. Every JSON text BDP admits or
 emits uses Unicode scalar values in strings and object member names; an
@@ -1090,7 +1037,7 @@ unpaired surrogate, including one produced by an escape, is invalid, and
 an object MUST NOT carry duplicate member names after escape decoding.
 Invalid request string/object syntax is rejected with `malformed-request`. An authority adapting an existing store MUST map
 or refuse values outside this data contract before serving them as BDP
-Resources (amended 2026-09-08, council 13; T44/T56). Every
+Resources. Every
 instant BDP emits is an RFC 3339 `date-time` written with uppercase `T` and
 `Z`, and the bundle's `dateTime` definition validates the calendar and the
 clock, not merely the punctuation; a client accepts the lowercase forms
@@ -1098,11 +1045,8 @@ RFC 3339 permits.
 
 ### Scope discovery and human documentation
 
-**History amendment, 2026-09-09.** The Read discovery definition optionally
-admits the closed `historicalResolution: { "version": 1 }` member. It describes
-[Historical resolution](#historical-resolution). Absence means no advertised History capability.
-No retention/participation advertisement is added; existing page limits apply
-to versions pages and the fixed 64-item diagnostic bound is defined there.
+The optional `historicalResolution` discovery member is defined under
+[Historical resolution](#historical-resolution).
 
 Every BDP Scope has one absolute canonical Scope URL ending in `/`. That URI
 is the base for resolving local IDs and durable relative references. This
@@ -1369,11 +1313,8 @@ rather than wrapping them in a second `href`/`value` envelope.
 
 ### Resource views
 
-**History amendment, 2026-09-09.** The optional capability adds full-record
-`revision` retrieval and the separate `view=versions` operation on canonical
-Bead and Link URLs, with exactly the query combinations defined under
-[Historical resolution](#historical-resolution). Neither operation adds alias
-query semantics or a historical `include=links` aggregate.
+Optional revision-specific reads and versions pages are defined under
+[Historical resolution](#historical-resolution).
 
 The default `GET` of a Bead or Link URL returns its complete Resource record.
 BDP-owned query parameters select a derived view, or request one bounded
@@ -1383,9 +1324,6 @@ aggregate anchored at that same Resource URL:
 GET {resource}?view=properties
 GET {bead}?view=links&direction=inbound|outbound|both
 GET {bead}?include=links&direction=inbound|outbound|both&limit={count}
-# Only when historicalResolution is advertised:
-GET {resource}?revision={token}
-GET {resource}?view=versions[&limit={count}][&cursor={cursor}]
 ```
 
 `view=properties` is valid for both Beads and Links and returns exactly the
@@ -1481,12 +1419,7 @@ target's readability.
 
 ### Reads after deletion
 
-**History amendment, 2026-09-09.** Ordinary non-History reads retain the
-discretionary disclosure below. The advertised History surface instead applies
-[Historical resolution](#historical-resolution): mandatory substantiated
-Gone-with-reason for removed cited versions, the five subject-history-gated
-Read diagnoses, and authorized deleted-subject versions pages. It preserves
-uniform unauthorized 404 and creates no partial/current Resource success.
+History-specific reads follow [Historical resolution](#historical-resolution).
 
 After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a
 Bead, `view=links` return the same `404` `resource-not-found` problem used for
@@ -1644,9 +1577,8 @@ authorization-dependent `private, no-store` rule remains binding.
 
 ### Historical resolution
 
-**History amendment, 2026-09-09 (38 selected answer units).** History is an
-optional complete capability on each of `read`, `read-update`, and
-`transactional`, not a fourth profile. Discovery advertises it only as
+History is an optional complete capability available with the Read profile.
+A cumulative profile inherits it without requiring it. It is not a separate profile. Discovery advertises it only as
 `historicalResolution: { "version": 1 }`, the closed `historyCapability`
 definition. Absence means it is not advertised. An authority MUST implement
 all applicable requirements in this section before advertising it, for both
@@ -1660,6 +1592,51 @@ authorization defined under [Reads after deletion](#reads-after-deletion), evalu
 in the current request's Authorization View. “History-authorized” refers to that
 same gate. It is independent of permission to disclose a complete historical record
 or a whole metadata row; no second retention-disclosure permission is introduced.
+
+#### History discovery and views
+
+Existing page limits apply to versions pages. The fixed 64-item bound on
+missing-state diagnostics is defined under
+[Historical diagnoses and missing state](#historical-diagnoses-and-missing-state).
+
+History provides full-record `revision` retrieval and a separate `view=versions`
+operation on canonical Bead and Link URLs. The query combinations below are
+exhaustive. Neither operation adds alias query semantics or a historical
+`include=links` aggregate.
+
+```text
+GET {resource}?revision={token}
+GET {resource}?view=versions[&limit={count}][&cursor={cursor}]
+```
+
+#### Immutable change context
+
+`changeContext` is a distinct immutable
+version envelope, separate from `attribution` and `properties`. The responsible
+actor remains the existing carried attribution, including truthful absence and
+`basis: writer-supplied|unknown`; context never supplies a competing actor or authentication/
+authorization claim. Shared record schemas permit absent context for legacy and
+non-History versions. Native versions under advertised History MUST carry context
+on current/historical complete record reads and retained history rows.
+No context is synthesized on deleted identities, aliases, References or
+properties views. These metadata requirements do not establish full Memory
+compatibility.
+
+The closed envelope has `committedAt`, `agent`, and `message`. `committedAt` is
+`{ "state": "present", "value": <RFC 3339 date-time> }` or
+`{ "state": "undetermined" }`. Agent and message are each a closed
+`{ "state": "present", "value": <string> }` or
+`{ "state": "absent" }` or `{ "state": "undetermined" }`; a present agent
+identity is nonempty, while an intentionally empty message is valid. Absence,
+uncertainty and a recorded value are distinct; never fabricate legacy metadata.
+
+#### Historical authorization
+
+Historical success requires the current whole-record/owned-state permission
+defined below. Missing-state refusals use subject-history authorization
+independently of reconstruction. Historical identity/relationship permission
+grants no target body access and does not relax the current-plane closure
+under [Authorization views](#authorization-views).
 
 #### Exact historical reads
 
@@ -1698,6 +1675,12 @@ incident-Link deletion refusal remain unchanged. The alternative Memory
 surviving-citation lifecycle is deferred.
 
 #### Historical diagnoses and missing state
+
+Ordinary non-History reads use the discretionary disclosure under
+[Reads after deletion](#reads-after-deletion). History requires substantiated
+Gone-with-reason for removed cited versions, the five subject-history-gated
+Read diagnoses, and authorized deleted-subject versions pages. It preserves
+uniform unauthorized 404 and creates no partial/current Resource success.
 
 The five `revision-*` Read diagnoses in [Problem details](#problem-details)
 apply only to History requests and require current subject-history authorization.
@@ -1839,12 +1822,14 @@ a truthful authorized target may be absent from the page because its whole row
 cannot be shown. Relation presence implies neither membership/count nor target
 body permission. No current target is invented for a deleted or undisclosable
 current Resource. The History lineage header and these Link values follow the
-same authorization and HEAD/conditional metadata rules. Browser exposure follows
+same authorization and HEAD/conditional metadata rules. If cross-origin BDP access
+is enabled, the CORS policy MUST expose `BDP-History-Lineage` when the History
+capability is advertised, in addition to the fields required under
 [HTTP consistency, caching, and CORS fields](#http-consistency-caching-and-cors-fields).
 
 #### History recovery, imports and assurance
 
-Every History implementation on all three profiles enforces applicable erasure
+Every History implementation enforces applicable erasure
 decisions on every controlled retained copy before further serving and preserves
 required erasure evidence across local recovery. This includes context, inline
 owned content, indexes, caches and any other controlled retained copies. Retaining an old address never permits
@@ -1958,8 +1943,8 @@ cross-origin BDP access, its CORS policy MUST allow every BDP-defined
 non-safelisted request field used by its advertised profile. It MUST also allow the applicable HTTP conditional
 request fields: `If-Match`, `If-None-Match`, `If-Modified-Since`, and
 `If-Unmodified-Since`. It MUST expose `Link`, `ETag`, `Retry-After`,
-and `Cache-Control` when applicable. **History amendment, 2026-09-10:** it MUST also expose
-`BDP-History-Lineage` when the History capability is advertised. Ordinary CORS
+and `Cache-Control` when applicable. History response-field exposure is defined
+under [Historical HTTP metadata](#historical-http-metadata). Ordinary CORS
 rules still govern `Accept` and `Content-Type` values. Type Descriptors hosted outside a Scope keep ordinary HTTP caching
 semantics.
 
@@ -1974,7 +1959,7 @@ and applicable History erasure/expiry checks MUST precede any conditional not-mo
 replaced by `304`. A successful read whose HTTP condition selects
 `304 Not Modified`, or a read whose precondition fails with
 `412 Precondition Failed`, MUST be bodyless and MUST NOT carry a BDP Problem
-body. Applicable cache fields remain required on these responses (ruled 2026-09-09, G4/G5).
+body. Applicable cache fields remain required on these responses.
 
 Omitting optional validators does not permit ignoring HTTP preconditions.
 For an otherwise successful existing representation without an entity tag,
@@ -2021,7 +2006,7 @@ optional History capability. Its discovery schema is the closed
 under their inherited contracts. These are the only admitted members.
 
 A minimum Read+Update discovery representation adds its Operation
-Directory and its alias root (amended 2026-09-08, council 12):
+Directory and its alias root:
 
 ```json
 {
@@ -2056,7 +2041,7 @@ rather than construct paths.
 
 A Read+Update Scope's directory contains exactly eight singleton
 targets — the six Resource targets plus `put-alias` and `delete-alias` —
-and `sequence` (amended 2026-09-08):
+and `sequence`:
 
 ```json
 {
@@ -2118,7 +2103,7 @@ creator MAY supply the local ID — one or more safe segments, so a memorable
 or hierarchical name is identity from birth — or omit it, in which case the
 authority allocates one. An authority-allocated local ID is a single opaque
 segment, and for a Bead never one that is a live alias path under
-[Aliases](#aliases) (amended 2026-09-08, council 12): hierarchy is a
+[Aliases](#aliases): hierarchy is a
 creator affordance, and an authority MUST NOT encode
 meaning into segments it mints. A supplied spelling that is not already
 canonical — a leading or trailing separator, an empty segment, or a
@@ -2342,7 +2327,7 @@ defined under [Alias targets](#alias-targets). Alias creation,
 repointing, and deletion are mutation surface: the Read+Update profile
 defines the two alias targets, `put-alias` and `delete-alias`, under
 [Alias targets](#alias-targets), and the Transactional profile inherits
-them (amended 2026-09-08). A put creates the alias or repoints an existing
+them. A put creates the alias or repoints an existing
 one to exactly one canonical in-Scope Bead URL; a delete removes it, and
 the path is reusable afterwards. Alias paths and canonical Bead segments
 share one uniqueness namespace in the Scope. They share it because the
@@ -2584,8 +2569,7 @@ the `diagnostics` member of `validation-failed` under
 [Read+Update problem details](#readupdate-problem-details). An authority that bounds the list
 advertises `validation.diagnostics` and `validation.diagnosticBytes` in its
 discovery document's `limits` — a Read+Update or Transactional document,
-since a Read discovery document does not carry the group (amended
-2026-09-08, council 12). An uninhabitable
+since a Read discovery document does not carry the group. An uninhabitable
 installed contract may therefore remain describable while every attempted
 Resource value fails validation. Union endpoint constraints, minimum
 multiplicity, and tuple-uniqueness rules are not part of BDP v0.
@@ -2597,14 +2581,7 @@ installed diagnostic metadata and emitted location provenance against those
 bounds before serving the configuration. A still-replayable retained diagnostic
 list constrains subsequent configuration: the authority must refuse an
 incompatible lower bound or retain a sufficient bound through lawful expiry.
-It must not truncate or reformat a retained list to fit a new configuration
-(amended 2026-09-14, implementing the approved 2026-09-12 runtime decisions).
-
-The reference implementation selects 1 MiB request bodies, 1 MiB per Resource's
-own properties, and 8 MiB diagnostic arrays as its defaults. These are reference
-configuration choices, not universal protocol maxima or a served-profile claim;
-[the startup design](../design/startup-configuration.md#explicit-reference-readupdate-limits-component)
-records their conditional feasibility and remaining qualification requirements.
+It must not truncate or reformat a retained list to fit a new configuration.
 
 ### Aggregate-constraint enforcement
 
@@ -2700,7 +2677,7 @@ truncation or a non-normative failure response.
   `validation-failed` problem carries under
   [Read+Update problem details](#readupdate-problem-details); the group is mutation surface: it
   is not advertised by a Read discovery document, and a Read+Update authority that omits diagnostics beyond a bound MUST
-  advertise it (amended 2026-09-08, council 12);
+  advertise it;
 - `retention.idempotency` is the minimum interval for which an authority retains
   an idempotency-key disposition after its terminal outcome, under
   [Outcome retention](#outcome-retention).
@@ -2709,7 +2686,7 @@ truncation or a non-normative failure response.
 
 The Read+Update profile exposes `operations/sequence` as a
 convenience carrier for the six single-Resource operations and the two alias
-operations under [Alias targets](#alias-targets) (amended 2026-09-08). A sequence is ordered and partially committing.
+operations under [Alias targets](#alias-targets). A sequence is ordered and partially committing.
 
 A sequence contains one or more operation members. Each member carries its own
 `idempotencyKey` and one of the eight singleton operation records: the six
@@ -2828,7 +2805,7 @@ plus one required `idempotencyKey`:
 The envelope is closed. Before key lookup or execution, its JSON text must
 also satisfy the protocol's Unicode-scalar string/member-name and decoded
 member-name uniqueness rules; violations are carrier syntax
-`malformed-request` (amended 2026-09-08, council 13). `operations` is bounded by `sequence.operations`
+`malformed-request`. `operations` is bounded by `sequence.operations`
 when that limit is advertised; a longer sequence is rejected before
 execution with `limit-exceeded`. Two members of one sequence MUST NOT carry
 the same `idempotencyKey`; a sequence that repeats a key is rejected before
@@ -2878,7 +2855,7 @@ Every successful Read+Update Resource mutation — a creation, update, or
 deletion of a Bead or Link, whether submitted to a singleton target or as
 a sequence member — produces one **mutation result**; an alias mutation
 produces the alias result defined under [Alias targets](#alias-targets)
-instead (amended 2026-09-08, council 12):
+instead:
 
 ```text
 MutationResult {
@@ -2926,8 +2903,7 @@ response, under
 
 The Read+Update profile defines two alias targets, `put-alias` and
 `delete-alias`, keyed by alias path beneath the fixed `alias/` root defined
-under [Aliases](#aliases); the Transactional profile inherits both (amended
-2026-09-08; decision D31 in `docs/design/w1-read-update-decisions.md`).
+under [Aliases](#aliases); the Transactional profile inherits both.
 Each is a singleton target under
 [Operation Directory and singleton targets](#operation-directory-and-singleton-targets)
 and a sequence member with its own `idempotencyKey`; the operation
@@ -3212,7 +3188,7 @@ any comparison, under
 [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions).
 Opaque external URIs and Pinned References are compared byte-exactly as
 written, a pinned `uri` spelled by `@name` or by alias having first
-resolved as the bare spelling does (amended 2026-09-08, council 12);
+resolved as the bare spelling does;
 `expectedRevision` and `attribution` are members of the record and
 therefore of its identity. The authority MUST retain the original alias
 locators and their canonical targets or recorded misses with the member’s
@@ -3233,7 +3209,7 @@ An originally recorded miss remains a miss even if that alias is later
 assigned. Retry-time witnesses are transient comparison input: they change
 neither the original retained metadata and disposition nor a successful
 tombstone's identity, creator binding or retention. Each retry resolves an
-originally unrecorded locator anew (amended 2026-09-12).
+originally unrecorded locator anew.
 The authority may store the normalized
 record or an internal fingerprint; BDP does not require a public
 request-hash algorithm.
@@ -3354,8 +3330,7 @@ tombstones creates a different logical Scope under the rule in that
 section. Read+Update exposes no epoch: a client cannot detect a restore
 except through a changed canonical Scope URL, and the profile offers no
 restore signal beyond `resource-not-found`, `revision-mismatch`, and
-`idempotency-expired` in its base surface. **History exception, 2026-09-09:**
-when `historicalResolution` is advertised, the History surface additionally
+`idempotency-expired` in its base surface. When `historicalResolution` is advertised, the History surface additionally
 reports positively evidenced `revision-reorganized` under its subject-history
 gate and preserves retained old addresses. This is not an exposed epoch and
 does not weaken logical-Scope identity/tombstone preservation.
@@ -3472,8 +3447,7 @@ The Read+Update rows mean:
   [Alias targets](#alias-targets): an alias put whose path is the
   `{id-path}` of a canonical Bead URL ever committed in the logical Scope,
   a deleted one included, fails the same way, while a Bead creation whose
-  supplied `id` has the `{id-path}` of a live alias is `alias-path-taken`
-  (amended 2026-09-08, council 12). This is
+  supplied `id` has the `{id-path}` of a live alias is `alias-path-taken`. This is
   inherently an existence signal for the identity the creator chose, hidden
   or deleted alike: the non-reuse guarantee cannot be non-disclosing for a
   supplied spelling, and BDP accepts that one exception to its
@@ -3510,7 +3484,7 @@ required kind or that names a Resource of another kind — the subject does
 not exist as the required kind — except that a `bead` subject or a Link
 endpoint spelled by alias is admitted and resolved under
 [Alias targets](#alias-targets), and fails this way only when the
-spelling names no live alias (amended 2026-09-08, council 12). An alias
+spelling names no live alias. An alias
 put whose canonical `target`
 names a Bead that does not exist or is not visible, and an alias delete
 whose alias is unknown, fail the same way: aliases are not an enumeration
@@ -3530,8 +3504,7 @@ record the present Authorization View does not project, under
 a member that exceeds a `patch` or `resource` limit fails with
 `limit-exceeded`. A patch `path` that is not a JSON Pointer and a
 reference whose spelling is invalid under the local-ID grammar are
-carrier syntax and are rejected before execution with `malformed-request`
-(amended 2026-09-08, council 12).
+carrier syntax and are rejected before execution with `malformed-request`.
 The Read+Update profile adds `415` and `422` to the permitted `status`
 values. The bundle defines `readUpdateProblemCode`, `readUpdateProblem`
 (with the member-level `retryAfter` under
@@ -3648,7 +3621,7 @@ snapshot and changefeed into a cache or materialized replica. It does not
 mean independently writable replicas, offline divergent histories, or
 multi-authority merge.
 
-**Retained-address amendment, 2026-09-09.** Each Scope history has an opaque,
+Each Scope history has an opaque,
 unguessable **Scope epoch**. The epoch remains stable across ordinary restart
 and failover that preserve identical committed history. It changes whenever
 restore, destructive reinitialization, or authority replacement may discard,
@@ -3669,7 +3642,7 @@ Within one epoch, every effectful committed Mutation Transaction occupies
 one opaque **Scope position** in one total order that the authority defines,
 except the locator-only alias mutations defined under
 [Transactional alias mutations](#transactional-alias-mutations), which
-occupy no position (ruled 2026-09-08, T49).
+occupy no position.
 A position is unique within its epoch, and clients compare it only for
 equality. Clients must not perform arithmetic or lexical ordering on its
 spelling. Each epoch has a distinguished genesis position. Every later
@@ -3751,7 +3724,7 @@ profile when their contracts apply. The `aliases` member is optional in
 Read, where it appears exactly when the authority serves alias resolution,
 and required in Read+Update and Transactional, which offer the alias
 targets under [Alias targets](#alias-targets) and therefore serve alias
-resolution (amended 2026-09-08, council 12): an authority without aliases
+resolution: an authority without aliases
 omits the member, and a client MUST NOT construct alias URLs for an
 authority that does not advertise it. The optional
 `order` member names the collection order under
@@ -3772,12 +3745,10 @@ omission means the `canonical-uri` baseline.
 ### Profile schema inventory
 
 The discovery and Read definitions, Read+Update definitions and Transactional
-definitions are drafted in the one normative bundle. They include every
+definitions share the one normative bundle. They include every
 profile's discovery and operation directory, request/result/problem shapes,
 and the Transactional Events, batch/set operations, receipts, change groups,
-changefeed pages and snapshot manifests. A profile's definitions must exist
-before it can be implemented. Schema availability alone is not implementation
-or conformance evidence; the draft status applies to all profiles.
+changefeed pages and snapshot manifests. Schema availability alone is not implementation or conformance evidence.
 
 ### Transactional limits
 
@@ -3807,8 +3778,7 @@ definition of its own on the same primitives: it carries the `validation`
 group as well, since a Transactional authority advertises the same bound,
 admits the `transaction` group and the `retention.receipt`,
 `retention.maximumSnapshotLifetime`, and `retention.replay` members, and
-rejects `retention.idempotency` under the paragraph below (amended
-2026-09-08, Transactional apply).
+rejects `retention.idempotency` under the paragraph below.
 
 On a Transactional Scope a key's disposition is retained by its receipt — a
 completed transaction's for the rest of the epoch and a failed
@@ -3978,7 +3948,7 @@ creator failure normalizes to the same unbound marker when the remaining fields
 match. A pending or transient creator instead uses
 the nonwaiting sequence projection below. Binding, retraction, and commit
 check the same exclusive attempt ownership; a stale execution cannot resolve
-or commit a replacement attempt's work (T62 option 1, materialized 2026-09-09).
+or commit a replacement attempt's work.
 
 A direct singleton or batch that encounters an unresolved reservation MUST
 reject an already provable semantic mismatch with `409`
@@ -3995,8 +3965,7 @@ remains unresolved at the deadline, return direct `503`
 carry `Retry-After` when a useful delay is known. This timeout creates no
 receipt and leaves the owner's state intact. Current authorization and
 non-disclosure apply at response delivery; this is not a direct
-`idempotency-in-progress` or a minimum-position `catch-up-timeout` (T62a =
-A, ruled 2026-09-09).
+`idempotency-in-progress` or a minimum-position `catch-up-timeout`.
 
 If that unresolved reservation is retracted while the explicit direct
 request is waiting, the request MAY compete for fresh admission in the same
@@ -4013,8 +3982,7 @@ refresh Scope discovery and present a fresh request before competing in the
 new epoch. This permission applies only to a still-present explicit request
 that has not joined a proven-equal execution. It neither resumes an
 abandoned sequence tail nor changes the direct transient-abort response to
-an already admitted execution and its joined duplicates (T62b = A, ruled
-2026-09-09).
+an already admitted execution and its joined duplicates.
 
 A `completed` receipt's compact form is retained under its key for the rest
 of the Scope epoch: the disposition and the allocated identities outlive the
@@ -4051,17 +4019,15 @@ only on `idempotency-expired`, is `sequenceAllocatedIdentity`: exactly
 `{ id, type }` when the identity is disclosed or `{ withheld: true }` when
 it is withheld, distinct from a receipt's indexed `allocated` array.
 A completed Resource creation's expired projection MUST carry exactly one of
-these forms; every other operation's expired projection MUST omit `allocated`
-(ruled 2026-09-08, T63). Here a Resource creation is an operation that
+these forms; every other operation's expired projection MUST omit `allocated`. Here a Resource creation is an operation that
 allocated a Resource identity. An alias put is not one even when its alias
 result says `created`; its expired sequence projection omits `allocated`.
 `resource-erased` member problems reject
-`pointer` just as direct problems do (amended 2026-09-08, council 13).
+`pointer` just as direct problems do.
 A member newly admitted by this carrier executes under its own pending
 receipt and exclusive ownership; the in-flight projection below applies only
 to an execution this carrier did not admit. The unresolved admission and
-direct-carrier comparison rules above preserve this ownership distinction
-(amended 2026-09-08, council 13; T62 materialized 2026-09-09). The projections
+direct-carrier comparison rules above preserve this ownership distinction. The projections
 are:
 
 - a `completed` receipt with its detail available projects the receipt's
@@ -4106,7 +4072,7 @@ member becomes eligible for retained comparison, ordinary equality or conflict
 applies. A transient dependent releases only a reservation newly owned by this
 attempt; it MUST NOT retract another owner's receipt or retained outcome.
 Sequences do not acquire the direct carrier's comparison wait or retry after
-retraction (T55/T62, confirmed 2026-09-09).
+retraction.
 
 The withheld allocation form hides response data, not the retained creation
 binding. The authority resolves a dependent's `@name` internally from its
@@ -4120,8 +4086,7 @@ against its serving view: a revoked view receives the withheld form; a newly
 granted view may receive `{ id, type }`. Neither response changes the retained
 identity or permits the creation to execute again. These disclosure rules
 preserve the unresolved-admission and duplicate-response contract above without
-changing its semantic identity (ruled 2026-09-08, T63; T62 materialized
-2026-09-09).
+changing its semantic identity.
 
 The Read+Update dispositions therefore keep their meanings inside the
 sequence envelope and lose their direct forms: on a Transactional Scope a
@@ -4190,7 +4155,7 @@ An alias receipt's available `results` contains exactly one alias result:
 Resource postimage, deleted Resource identity, or `operationName`. A sequence
 projects this result in the existing Read+Update alias member shape, with
 the present member's `operationIndex`. Existing alias authorization, conflict
-and path rules apply unchanged (ruled 2026-09-08, T49).
+and path rules apply unchanged.
 
 Alias mutations occupy no Scope position, induce no Event, and appear in
 no change group or snapshot. This is an explicit exception to the Scope
@@ -4344,13 +4309,12 @@ accepts the members
 defined by its operation record, excluding the batch-only `operation`
 discriminator and `name` label. The request executes as a one-operation
 Mutation Transaction. It returns the same Mutation Receipt shape with a
-one-element `results` array (amended 2026-09-08, council 12); the two set
+one-element `results` array; the two set
 targets `update-where` and `delete-where` return it with a `matched` entry
 followed by one entry per selected Resource, under
-[Mutation Receipt responses](#mutation-receipt-responses) (amended
-2026-09-08, Transactional apply). The alias targets return a one-entry Mutation Receipt under
+[Mutation Receipt responses](#mutation-receipt-responses). The alias targets return a one-entry Mutation Receipt under
 [Transactional alias mutations](#transactional-alias-mutations), without
-Scope history or replicated alias state (ruled 2026-09-08, T49).
+Scope history or replicated alias state.
 Transactional singleton requests require
 `Idempotency-Key` and cannot use `@label` references.
 
@@ -4461,7 +4425,7 @@ or any other undefined member makes the request malformed. The
 [Idempotency keys](#idempotency-keys); a request that carries no such
 field, more than one, or a value outside the grammar is malformed. `batch` does not admit `putAlias` or `deleteAlias`: alias mutations are
 locator-only singleton transactions, including when carried as separate
-sequence members (ruled 2026-09-08, T49).
+sequence members.
 
 Reference members of operation records take the Read+Update reference
 definitions: `bead` and `link` are `resourceReference` — a canonical local
@@ -4484,8 +4448,7 @@ and a request that fails one step never reaches the next:
    before the body is parsed;
 2. carrier syntax — a body media type other than `application/json` is
    `415` `unsupported-media-type`; a body that is not well-formed JSON, a string or member name with an
-   unpaired surrogate, duplicate member names after escape decoding
-   (amended 2026-09-08, council 13), an absent, repeated, or invalid `Idempotency-Key`, a body outside
+   unpaired surrogate, duplicate member names after escape decoding, an absent, repeated, or invalid `Idempotency-Key`, a body outside
    `batchRequest`, a forward, unknown, or duplicate label, a label used
    where the other Resource kind is required, a noncanonical local ID
    spelling, or a supplied `id` beneath the wrong fixed root is `400`
@@ -4573,8 +4536,7 @@ each executes as a one-operation Mutation Transaction and returns its
 receipt. The alias targets `put-alias` and `delete-alias` use the same receipt
 response and status rules; their bodies remain `putAliasRequest` and
 `deleteAliasRequest`. Their locator-only effects are defined under
-[Transactional alias mutations](#transactional-alias-mutations)
-(ruled 2026-09-08, T49).
+[Transactional alias mutations](#transactional-alias-mutations).
 
 The Transactional mutation surface answers as follows; a row's statuses are
 exhaustive for that target and method, apart from the shared bodyless `406`
@@ -4586,7 +4548,7 @@ and do not add BDP problem codes.
 | Target | Method | Response |
 | --- | --- | --- |
 | `batch`, the six Resource singleton targets, the two set targets, and the two alias targets | `POST` | `200` terminal receipt; `202` pending receipt; direct `400`, `401`, `403`, `409`, `413`, `415`, `429`, `503` |
-| `sequence` | `POST` | `200` envelope of [Sequence response envelope](#sequence-response-envelope), pending members included as problems; direct `400`, `401`, `403`, `413`, `415`, `429`, `503`, plus only the pre-admission `409` `revision-allocation-unsafe` exception below; never a sequence-level `202` receipt (amended 2026-09-08, council 13; History exception 2026-09-10) |
+| `sequence` | `POST` | `200` envelope of [Sequence response envelope](#sequence-response-envelope), pending members included as problems; direct `400`, `401`, `403`, `413`, `415`, `429`, `503`, plus only the pre-admission `409` `revision-allocation-unsafe` exception below; never a sequence-level `202` receipt |
 | the same targets | any other method | `405`, `Allow: POST` — plus `OPTIONS` when cross-origin access is enabled, in which case `OPTIONS` is answered by the CORS rules rather than `405` — and no BDP Problem body |
 | `operations/` | `GET`, `HEAD` | `200` Operation Directory; `401`, `403`, `429`, `503` |
 | `operations/` | any other method | `405`, `Allow: GET, HEAD` (`OPTIONS` as above) |
@@ -4612,12 +4574,11 @@ context and consistency wait, then page expiry, then the representation.
 An incompatible view returns `409` `foreign-view`; an expired context
 returns `410` `cursor-expired`; a failed catch-up wait returns `503`
 `catch-up-timeout`, under the shared consistency rules. These checks never
-let a caller who may not see the receipt learn about its pages or history
-(amended 2026-09-08, council 13).
+let a caller who may not see the receipt learn about its pages or history.
 
 ### Batch operation record schema
 
-**History amendment, 2026-09-09.** Version-minting operation inputs additionally
+Version-minting operation inputs additionally
 accept operation-local `changeContextInput` as the `changeContext` member under
 [Immutable change context](#immutable-change-context). This applies equally to
 singleton, sequence, set and batch compositions, never carrier-wide context.
@@ -4955,8 +4916,7 @@ transaction allocated — for the rest of the Scope epoch. A later retry
 returns an outcome-expired result and never executes the mutation as new.
 A failed transaction committed nothing: its receipt is retained, whole, for
 at least that interval and may then be forgotten, after which its key
-executes as new, under [Mutation Transactions](#mutation-transactions)
-(amended 2026-09-08, Transactional apply, T47).
+executes as new, under [Mutation Transactions](#mutation-transactions).
 
 A receipt may inline every result or the first bounded page. Large
 set-operation results continue through immutable pages of that same receipt.
@@ -5168,13 +5128,13 @@ the pagination identity; restart alone is not early cursor expiry. This
 preserves detail expiry, failed-receipt forgetting, retraction, and prior-epoch
 non-disclosure. Temporary inability to serve available detail is a service
 failure, not permission to discard the handle or execute the transaction
-again (ruled 2026-09-09, G2).
+again.
 
 Receipt and receipt-page representations MUST omit `ETag` and `Last-Modified`
 initially and retain `Cache-Control: private, no-store`. This includes receipt
 representations returned by mutations as well as reads. GET/HEAD still applies
 [Conditional reads and HEAD](#conditional-reads-and-head); execution identity
-and retained facts are not HTTP validators (ruled 2026-09-09, G4).
+and retained facts are not HTTP validators.
 
 Every delivery of a receipt — the synchronous response, the response to a
 duplicate, a later `GET` or `HEAD`, every page, and the projection of a
@@ -5192,7 +5152,7 @@ identity. Entries that carry no record — `matched` counts, `deleted` and
 `erased` identities, and `withheld` entries — and a `failed` receipt's
 `problem` are the transaction's own execution facts, disclosed to the
 principal when it executed, and are served as retained. Alias result entries
-are non-Resource execution facts under this same rule (ruled 2026-09-08, T49).
+are non-Resource execution facts under this same rule.
 When a `completed`
 receipt's every entry is withheld, the receipt carries `detail` `withheld`
 and neither `results`, `next`, nor `allocated`; a `failed` receipt is never
@@ -5279,7 +5239,7 @@ The Transactional rows mean:
   bound, under
   [HTTP consistency, caching, and CORS fields](#http-consistency-caching-and-cors-fields).
 
-**History amendment, 2026-09-10.** On a Transactional Scope every code occurs
+On a Transactional Scope every code occurs
 in one of two contexts, and the bundle closes each context to its codes. A *direct* code is served as a
 direct problem response: every Read code, `unsupported-media-type`,
 `idempotency-conflict`, `event-history-expired`, `catch-up-timeout`, and
@@ -5333,7 +5293,7 @@ distinct from response negotiation.
 
 ### Events and Event Sources
 
-> **Transactional/Replication contract in this draft.**
+> **Transactional contract.**
 >
 > The complete Event ordering, transaction framing, and Event Source guarantees
 > below are required only by the Transactional profile. Read and Read+Update do
@@ -5891,7 +5851,7 @@ or reconstructs that manifest. Existing epoch/view validity and erasure fences
 apply. An authorized expired or no-longer-available snapshot handle returns
 `410 cursor-expired`; an unknown or undisclosable target retains uniform
 `404 resource-not-found`. Actual service inability before the promised expiry
-is a service failure, not an expiration diagnosis (ruled 2026-09-09, G1).
+is a service failure, not an expiration diagnosis.
 
 The following snapshot table summarizes the existing scoped response laws
 and shared HTTP failures. It does not exclude ordinary applicable failures,
@@ -5929,7 +5889,7 @@ generation. A snapshot's two streams describe one authorization projection:
 every Link in that projection appears in the `links` stream, and all of
 its in-Scope endpoint Beads appear in the `beads` stream. Visibility of a
 Bead alone does not require an incoming or unowned Link hidden by that
-view to appear (amended 2026-09-08, council 13). Every owned Link inlined in a
+view to appear. Every owned Link inlined in a
 Bead record of the `beads` stream also appears as a first-class record in
 the `links` stream, member for member. A replica stages both streams
 completely and verifies that agreement before it publishes; a snapshot in
@@ -6109,11 +6069,11 @@ snapshot. The authority never advances it silently to
 `minimumReplayPosition`. Existing caught-up streams cross an erasure
 publication only under [Version erasure](#version-erasure);
 reconnections retain the expiry rule even if the interrupted stream had
-been eligible (ruled 2026-09-08, T64).
+been eligible.
 
 ### Event replay and live observation
 
-> **Transactional/Replication contract in this draft.**
+> **Transactional contract.**
 >
 > Read and Read+Update implementations may skip this section. Its complete
 > cursor, replay, SSE, and transaction-framing contract is required only by the
@@ -6230,8 +6190,7 @@ when required. Event delivery alone is not that claim. This requirement scopes
 the supported erasure-handling claim; it neither prohibits other storage
 deployments nor exempts any store, cache, or replica
 from the every-store erasure duty. It adds no erasure Event, discovery member,
-or subscription API. History capability and lifecycle choices remain separate
-(T65 = A, ruled 2026-09-09).
+or subscription API. History capability and lifecycle choices remain separate.
 
 A client requests live delivery from the same Event Source and initial cursor
 by accepting Server-Sent Events:
@@ -6273,7 +6232,7 @@ cross-cutting contracts defined above.
 
 ### Version erasure
 
-**History amendment, 2026-09-09.** Version content includes its retained
+Version content includes its retained
 `changeContext`, including every returned row, Event or receipt copy that
 carries it. [History recovery, imports and assurance](#history-recovery-imports-and-assurance)
 binds all History profiles; the Transactional rules below remain independently
@@ -6315,8 +6274,7 @@ atomically in one change group when both are needed. Reads of an erased
 version answer with the `resource-erased` disclosure under
 [Reads after deletion](#reads-after-deletion). An erasure does not rotate
 the Scope epoch: every token anchored at or after the erasure position
-remains exactly as valid as it was (amended 2026-09-08, Transactional
-apply, T28).
+remains exactly as valid as it was.
 
 Each `erasures` entry carries `subject`, the canonical Resource URL;
 `revision`, the erased version's token; and `digest`, an object with
@@ -6387,7 +6345,7 @@ the source's fact; deletion uses the
 identity-only deleted transition. The source's new postimage carries the
 complete resulting owned set. These are the exclusive owned-Link and direct-object delta
 forms, not permission to rewrite an erased version in place or expose its
-partial content (amended 2026-09-08, council 13).
+partial content.
 
 Erasing a live version with a tombstone is an administrative deletion of
 the Resource. It is subject to deletion safety — a Bead with a live
@@ -6469,7 +6427,7 @@ boundary; it does not make network delivery instantaneous or revoke bytes
 already handed to the transport. A stream in such a view still needing any
 pre-P group is fenced and closed, and its client must acquire a fresh
 snapshot. This exception belongs to the existing admitted stream, never to
-a new finite read, stream admission, or reconnect (ruled 2026-09-08, T64).
+a new finite read, stream admission, or reconnect.
 
 Backpressure does not permit holding the fence open while an old queue
 drains: a stream in a view receiving the erasure record that needs unpublished
@@ -6486,7 +6444,7 @@ before P is expired and requires resnapshot; one at or after P follows
 ordinary exclusive replay. The authority MUST NOT infer application from a
 socket write, skip the erasure on the client's behalf, or replay pre-P
 content. Partial transmission never authorizes partial application. Thus
-finite reads and reconnects retain T28's fence in both race outcomes.
+finite reads and reconnects retain the erasure fence in both race outcomes.
 
 Erasure records are identity-level state, outside fenced history. The
 authority keeps every erasure record it has committed — the **erasure
@@ -6524,7 +6482,7 @@ and Resource `view=events`, MUST omit `ETag` and `Last-Modified` initially.
 Their continuation and Scope-position contracts remain the observation
 protocol; a transaction, group checkpoint, or subject revision is not a
 whole-page HTTP validator. SSE has no per-group HTTP validator or new
-group-addressing URL (ruled 2026-09-09, G5). Receipt/page validator omission
+group-addressing URL. Receipt/page validator omission
 is specified under [Mutation Receipt responses](#mutation-receipt-responses).
 Canonical Resource, Type Descriptor, and discovery ETags remain unchanged;
 these decisions assign no snapshot or discovery validator details.
@@ -6606,19 +6564,10 @@ complete acceptance evidence.
 
 #### Owned-Link wildcard conformance rows
 
-The rows below were drafted with the wildcard ownership entry ruled on
-2026-09-08 ([Open protocol questions](#open-protocol-questions), entry
-16). Each names one obligation and binds the normative text that states
-it; none carries an executable plan, a fixture realization, or evidence.
-The metadata catalog file
-`packages/conformance/catalog/owned-wildcard-v1.json` carries the same
-rows and no manifest binds it, so no runner report can claim them. The
-lockstep tests over these artifacts check that the rows mirror this
-table in order, that every citation still appears in its anchored
-section, and that the illustrative fixture in `fixtures/owned-wildcard/`
-validates against the bundle — and establish none of the behavior the
-rows describe. The rows become claimable only under the evidence law in
-`packages/conformance/matrices/README.md`.
+These rows name the Owned-Link wildcard obligations.
+`packages/conformance/catalog/owned-wildcard-v1.json` carries their metadata and
+source citations. Metadata alone is not executable evidence; claims require
+the applicable runs under `packages/conformance/matrices/README.md`.
 
 | Row | Obligation |
 | --- | --- |
@@ -6632,18 +6581,10 @@ rows describe. The rows become claimable only under the evidence law in
 
 #### Numeric-model conformance rows
 
-The rows below were drafted with the numeric model ruled on 2026-09-08
-([Open protocol questions](#open-protocol-questions), entry 17). Each
-names one obligation and binds the normative text that states it; none
-carries an executable plan, a fixture realization, or evidence. The
-metadata catalog file `packages/conformance/catalog/numeric-model-v1.json`
-carries the same rows and no manifest binds it, so no runner report can
-claim them. The vectors in `fixtures/numeric-model/numeric-model.json` —
-admitted spellings of one value, refused literals, and the RFC 8785 form
-of each admitted value — are checked by a lockstep test that implements
-the round-trip rule over them and establishes none of the behavior the
-rows describe. The rows become claimable only under the evidence law in
-`packages/conformance/matrices/README.md`.
+These rows name the Numeric-model obligations.
+`packages/conformance/catalog/numeric-model-v1.json` carries their metadata and
+source citations. Metadata alone is not executable evidence; claims require
+the applicable runs under `packages/conformance/matrices/README.md`.
 
 | Row | Obligation |
 | --- | --- |
@@ -6656,13 +6597,12 @@ rows describe. The rows become claimable only under the evidence law in
 
 These rows apply only to the complete optional `historicalResolution` capability,
 with the minimum profile shown by `history-v1.json`. Suffixes `.read-update`
-and `.transactional` identify higher-profile sibling obligations; the original
-IDs retain their lower-profile ownership. A future executable manifest
-must gate them on that actual target capability and preserve cumulative profile
-obligations. They are metadata now: no History manifest, runner realization or
-observations are supplied by these rows. The original Read catalog and historical
-evidence are unchanged. Changing reachable Read schemas requires the reviewed
-projection/coverage transition and new observations before a claim.
+and `.transactional` identify higher-profile sibling obligations. An executable
+manifest must gate each row on the target's actual capability and preserve its
+cumulative profile obligations. Metadata alone supplies no runner realization
+or observations. Claims require the applicable runs under
+`packages/conformance/matrices/README.md`, including its Read schema projection,
+coverage and current-input requirements.
 
 | Scenario | Required behavior |
 | --- | --- |
@@ -6699,19 +6639,11 @@ projection/coverage transition and new observations before a claim.
 
 #### Read+Update conformance rows
 
-The Read+Update rows below were drafted with the profile's wire artifacts.
-Each names one obligation and binds the normative text that states it;
-none carries an executable plan, a fixture realization, or evidence. The
-metadata catalog file `packages/conformance/catalog/read-update-v1.json`
-carries the same rows and no manifest binds it, so no runner report can
-claim them. The lockstep tests over these artifacts check structure,
-table, citation, and example consistency — that the rows mirror this
-table, that every citation still appears in its anchored section, that the
-bundle's problem branches mirror the code table, and that the illustrative
-fixtures validate and align member by member — and establish none of the
-behavior the rows describe. The rows become claimable only under the
-evidence law in `packages/conformance/matrices/README.md`, and the
-Read+Update profile is not realized until every row is proved.
+These rows name the Read+Update obligations.
+`packages/conformance/catalog/read-update-v1.json` carries their metadata and
+source citations. Metadata alone is not executable evidence; claims require
+the applicable runs under `packages/conformance/matrices/README.md`. The Read+Update
+profile is not realized until every applicable row is proved.
 
 | Row | Obligation |
 | --- | --- |
@@ -6799,21 +6731,11 @@ Read+Update profile is not realized until every row is proved.
 
 #### Transactional conformance rows
 
-The Transactional rows below were drafted with the profile's wire artifacts
-and applied from `docs/design/w1-transactional-packet.md` on 2026-09-08.
-Each names one obligation and binds the normative text that states it;
-none carries an executable plan, a fixture realization, or evidence. The
-metadata catalog file `packages/conformance/catalog/transactional-v1.json`
-carries the same rows and no manifest binds it, so no runner report can
-claim them. The lockstep tests over these artifacts check structure,
-table, citation, and example consistency — that the rows mirror this
-table, that every citation still appears in its anchored section, that the
-bundle's problem branches mirror the code table, and that the illustrative
-fixtures under `fixtures/transactional/` validate and align — and
-establish none of the behavior the rows describe. The rows become
-claimable only under the evidence law in
-`packages/conformance/matrices/README.md`, and the Transactional profile is
-not realized until every row is proved.
+These rows name the Transactional obligations.
+`packages/conformance/catalog/transactional-v1.json` carries their metadata and
+source citations. Metadata alone is not executable evidence; claims require
+the applicable runs under `packages/conformance/matrices/README.md`. The Transactional
+profile is not realized until every applicable row is proved.
 
 A Transactional claim inherits the Read rows and the Read+Update rows whose
 obligations the profile preserves — the Read+Update singleton obligations
@@ -6840,11 +6762,9 @@ selection rule excludes a retired row from the claim that retires it:
 
 The last two retirements preserve cross-carrier replay through receipts and
 the bodyless internal-fault response while rejecting the Read+Update-only
-direct-disposition and immediate claim-clearing obligations (amended
-2026-09-08, council 13).
+direct-disposition and immediate claim-clearing obligations.
 
-The alias rows below bind the locator-only Transactional receipt contract
-ruled in T49. The Read+Update alias path and operation semantics remain
+The alias rows below bind the locator-only Transactional receipt contract. The Read+Update alias path and operation semantics remain
 inherited; the general singleton receipt retirement already replaces their
 profile-specific response vehicle.
 
@@ -6989,308 +6909,3 @@ profile-specific response vehicle.
 Endpoint Type unions, minimum multiplicity, tuple-uniqueness constraints,
 acyclicity, and additional aggregate graph policies are deferred beyond BDP
 v0. They are not implicit authority behavior.
-
-### Open protocol questions
-
-**History update, 2026-09-09.** The 38 selected History answer units are
-materialized in [Historical resolution](#historical-resolution), [Immutable
-change context](#immutable-change-context), [Revisions](#revisions), all three
-discovery shapes, problem rows and the required RU restore exception. This
-amends the scope of items 1/3/4/6/9 below without rewriting their dated records.
-Exact schemas, illustrative fixtures and unbound History catalog metadata exist;
-server/client/adapter behavior, capability admission, executable applicability
-and new Read projection/evidence remain implementation work. No current target
-advertises History on this basis. Explicitly deferred extensions remain deferred.
-
-This ledger records the protocol questions raised against the draft and their
-current state, in dependency order. The 17 questions below carry recorded
-decisions or explicit artifact gates. Entries marked pending remain open. A
-separate joint product/protocol decision selected
-`https://github.com/gastownhall/bdp/` as the provisional v0
-protocol-identifier prefix, with the release-stability rule stated above.
-
-1. **Resolved 2026-08-08:** the required discovery member is `profile`, whose
-   value is `read`, `read-update`, or `transactional` and names the highest
-   cumulative profile. Minimum Read comprises Scope discovery; the Bead, Link,
-   and Type inventories; individual Bead and Link reads; paginated collection
-   retrieval and bounded selection; the Resource `properties` view; and the
-   Bead `links` view. It excludes `include=links`, Resource and Scope Events,
-   receipts, snapshots, changefeeds, and mutation targets. Domain-specific
-   readiness computations remain client-owned behavior over those generic
-   reads.
-2. **Decision recorded 2026-08-08; wire artifacts pending before mutation:**
-   Read+Update supplies individually atomic singleton mutations plus strictly
-   declaration-ordered `sequence`. A sequence does not reorder or parallelize
-   members, but it takes no sequence-wide lock and permits unrelated requests
-   to interleave. Successes remain committed, failures do not stop independent
-   later members, and successful creates may bind local IDs for later members.
-   Each member has its own idempotency key and inline result. Revisions are
-   opaque, `expectedRevision` is optional, and the profile has neither durable
-   Mutation Receipts nor BDP Events. Transactional `batch` remains the
-   distinct atomic carrier. **Wire artifacts drafted 2026-09-07, review
-   pending:** the sequence request and response envelopes, mutation
-   results, the `sourceRevision` member, key syntax and qualification,
-   semantic identity, duplicate handling, and finite outcome retention are
-   now drafted under [Read+Update sequence target](#readupdate-sequence-target)
-   and [Operation Directory and singleton targets](#operation-directory-and-singleton-targets),
-   with schema definitions, fixtures, and unclaimed conformance rows. The
-   provisional judgments they rest on are recorded as numbered decisions in
-   `docs/design/w1-read-update-decisions.md`. **Council review folded
-   2026-09-07:** dependency normalization for transient creators, replay
-   re-authorization, the durable boundary and recovery contract under
-   [Durability and recovery](#durability-and-recovery), binding metadata in
-   tombstones, mandatory Type-contract diagnostics, the recovery-window
-   rule, key reservation at admission, static reference errors as carrier
-   rejections, tombstones only for committed effects, the member-level
-   `retryAfter` hint, and the deferral of alias mutation are applied
-   provisionally as decisions D21–D31 and revisions of D3–D6, D10, D13,
-   D15–D18, and D20; their ruling followed on 2026-09-08, and D1–D32 are
-   now ruled or ratified. **Amended 2026-09-08 (D31
-   ruled B):** alias mutation joins the profile — the two alias targets
-   `put-alias` and `delete-alias`, their singleton and sequence records,
-   the alias result, and the uniqueness namespace shared by alias paths and
-   canonical Bead segments are defined under
-   [Alias targets](#alias-targets), so the directory holds eight singleton
-   targets plus `sequence`; the result shape and the residual judgment
-   calls are recorded as decisions D33–D37. **Council 12 folded
-   2026-09-08:** `aliases` is required in Read+Update discovery (D37,
-   option 2), alias spellings are admitted and resolved in Resource
-   records (D38), a Bead creation on a live alias path is
-   `alias-path-taken` (D39), alias operations are authorized as mutations
-   of the Beads they touch (D40), the admission claim step is one
-   linearizable step (D26 clarified), and the D35 and D36 boundaries are
-   restated; every decision is ruled (D38 last, 2026-09-08), so the
-   Read+Update implementation wave may begin.
-3. **Resolved 2026-08-08:** the required machine-discovery mechanism is the
-   Scope response's registered `service-desc` Link field. A `200` Scope body
-   may contain HTML, Markdown, or another human representation and may link to
-   the descriptor, but machines do not scrape it. Discovery JSON and Operation
-   Directory members are fixed BDP vocabulary. v0 defines no BDP-specific
-   HTTP link relations.
-4. **Resolved 2026-08-08:** discovery may omit `limits`. When present, its
-   capability-specific groups use the names and units defined under Advertised
-   limits, and every advertised value is binding. An absent object, group, or
-   field means that bound was not pre-advertised, not that capacity is
-   unlimited. Implementations must still fail normatively rather than
-   silently truncate or partially apply work.
-5. **Read artifact recorded 2026-08-12; later-profile definitions pending:**
-   BDP v0 uses one normative JSON Schema 2020-12 bundle containing every
-   public envelope and shared definition. Conformance and generated types
-   consume that same offline artifact. The bundle now contains discovery and
-   Read definitions, including paginated `types/` and closed Type Descriptor
-   shapes. **Read+Update definitions drafted 2026-09-07, review pending:**
-   the bundle carries the Read+Update discovery and Operation Directory
-   shapes, the six singleton request records, the sequence request and
-   response envelopes with their member records, results, and problems, the
-   mutation result, the idempotency-key type, and the Read+Update Problem
-   Details shape. **Tightened 2026-09-07 after council review:** singleton
-   requests reject `@name` bindings in bare and pinned forms, patch paths are
-   JSON Pointers, `source` accompanies `sourceRevision` on owned-Link results
-   and both are rejected on Bead postimages, Type-contract diagnostics are
-   mandatory, and `readUpdateAdvertisedLimits` rejects Transactional limit
-   groups. **Corrected 2026-09-08 (D29 ruled C):** the `validation` limits
-   group is Read+Update surface carried by `readUpdateAdvertisedLimits`
-   alone, now a closed definition of its own; `advertisedLimits` and every
-   other Read definition are byte-identical to the bundle the Read evidence
-   cohort binds at `0b7d86e7`. **Ruled 2026-09-08 (cross-packet X1, option
-   B):** a `deleted` result carries the identity record `deletedIdentity` —
-   `resourceKind` and `resource: { id, type, revision }`, `revision` the
-   final live revision — in place of a URL string, the shape both write
-   profiles share; `resourceKind` and `resourceIdentity` are defined with
-   it. **Amended 2026-09-08 (D31 ruled B):** the bundle carries
-   `putAliasRequest`, `deleteAliasRequest`, `sequencePutAlias`,
-   `sequenceDeleteAlias`, `aliasResult`, and `sequenceMemberAliasResult`,
-   and `readUpdateOperationDirectory` pins eight singleton targets plus
-   `sequence`. **Council 12 folded 2026-09-08:** `readUpdateDiscovery`
-   requires `aliases`; `mutationResultMembers` rejects `source` and
-   `sourceRevision` on a deleted Bead as on a Bead postimage;
-   `validationDiagnostic.instanceLocation` is a `jsonPointer` and
-   `schemaLocation` an `absoluteUri`; `readUpdateProblem` gains the
-   `alias-path-taken` branch. **Transactional definitions drafted
-   2026-09-08 (Transactional apply):** the bundle carries the Event
-   surface, the batch envelope and its eight operation records, the
-   set-operation bodies, Mutation Receipts and their pages, the
-   Transactional problem shapes, the sequence envelope and its member-problem
-   and allocated-identity specializations, change groups, changefeed pages,
-   snapshot manifests, and the Transactional discovery document and Operation
-   Directory — 55 definitions — pending review, with the judgments they
-   rest on recorded in `docs/design/w1-transactional-packet.md` (T1–T48
-   ruled or ratified; T49/T63/T64 ruled 2026-09-08; T50–T56 and T58–T61
-   ratified 2026-09-09; T62a/b and T65 ruled and materialized 2026-09-09;
-   T57 selects existing-canonicalizer regression work after authorized
-   integration, still unimplemented here).
-   Later-profile definitions gate their corresponding waves. This question
-   closes when the complete reviewed bundle exists.
-6. **Read table recorded 2026-08-12; later-profile rows pending:** BDP uses a
-   small set of RFC 9457 problem families plus a normative `code`, fixed
-   status, and `retry` disposition. The Read profile table is closed. Direct
-   problem `status` is optional but, when present, must match the HTTP status.
-   Extension members are allowed. Unsupported and repeated collection query
-   parameters use `invalid-parameter`, family `request`, status `400`, and
-   retry `never`. Sequence-member problems add required member `status`,
-   index, and optional name. **Read+Update rows drafted 2026-09-07, review
-   pending:** eleven rows — `unsupported-media-type`, `binding-unavailable`,
-   `validation-failed`, `type-not-installed`, `identity-taken`,
-   `revision-mismatch`, `incident-links-exist`,
-   `aggregate-constraint-violation`, `idempotency-conflict`,
-   `idempotency-in-progress`, and `idempotency-expired` — join the table
-   under [Read+Update problem details](#readupdate-problem-details) with a new `validation` family
-   and the `415` and `422` statuses, mirrored in the bundle's
-   `readUpdateProblem`. **Boundaries completed 2026-09-07 after council
-   review:** a transient creator makes its dependent's `binding-unavailable`
-   an `idempotency-in-progress`, a replay whose retained record the present
-   view does not project is `forbidden`, wrong-kind durable references are
-   `resource-not-found`, non-JSON-Pointer patch paths and `@name` in a
-   singleton are `malformed-request`, and an owned-set overflow is
-   `validation-failed`. **Amended 2026-09-08 (D31 ruled B):** the alias
-   targets add no code: a taken alias path, or a creation on a live alias
-   path, is `identity-taken`; an unknown or invisible target, or an
-   unknown alias on delete, is `resource-not-found`; and an alias or
-   non-canonical target is `validation-failed`. **Council 12 folded
-   2026-09-08:** a twelfth row, `alias-path-taken` (`conflict`, `409`,
-   `after-state-change`), takes the creation-on-a-live-alias-path
-   direction (D39, provisional), since that condition clears when the
-   alias is deleted; an `alias` member beneath the wrong root is
-   `resource-not-found`; and reference faults are scoped by what the
-   reference is — a subject, an endpoint or target, or no reference shape
-   at all. **Transactional rows drafted 2026-09-08 (Transactional
-   apply):** three rows — `cardinality-violated`, `event-history-expired`,
-   and `catch-up-timeout` — join the table, and the direct and receipt
-   contexts are closed in the bundle's `transactionalProblem` and
-   `receiptProblem`. This question closes when every normative failure is present
-   in the reviewed code table and schema bundle. **Amended 2026-09-10 (History):**
-   the Read table gains five capability-scoped historical diagnoses; Unretained
-   carries a bounded missing inventory. Write-only `revision-allocation-unsafe`
-   occupies its selected direct pre-admission and retained admitted-failure
-   contexts. These wire definitions do not establish runtime or evidence support.
-7. **Resolved 2026-08-08:** only Transactional exposes Scope epoch,
-   Authorization View, visible position, and minimum-position HTTP fields.
-   Read and Read+Update use Resource `ETag`s and snapshot-preserving cursors
-   without cross-replica read-after-write guarantees. Scope data is
-   private/no-store. Enabled CORS allows every supported BDP request field
-   and exposes the required response and retry fields. SSE is
-   no-store/no-transform.
-8. **Resolved 2026-08-08:** Event IDs and checkpoints are case-sensitive,
-   1–256 character ASCII tokens restricted to `[A-Za-z0-9_-]`. `genesis` is
-   the reserved initial checkpoint. The identical token is safe in JSON,
-   queries, HTTP fields, SSE `id`, and `Last-Event-ID`.
-9. **Resolved 2026-08-08:** deleted, unknown, and non-visible Resources return
-   the same `404` `resource-not-found` response for ordinary, properties, and
-   incident Link reads. Non-reuse remains an internal obligation.
-   Transactional Event history may outlive its deleted subject for its
-   retention period. **Amended 2026-09-10 (History):** advertised History on any
-   profile permits authorized deleted-subject versions pages and exact retained
-   reads; removed cited addresses preserve Gone-with-reason evidence under the
-   same single retained-history gate. Ordinary non-History disclosure remains
-   governed by [Reads after deletion](#reads-after-deletion).
-10. **Resolved 2026-08-08:** authority-attested actor attribution is excluded
-    from BDP v0. Authentication remains an authorization input. Private audit
-    records and domain actor properties are not generic BDP guarantees.
-    **Amended 2026-09-02:** a common carried-but-asserted `attribution`
-    member exists ([Carried attribution](#carried-attribution)); it is
-    data, not evidence, and any future attested form is a distinct member.
-11. **Resolved 2026-08-08:** BDP defines no universal root Bead or Link Type.
-    `describes` supplies Resource category, and `conformsTo` contains only
-    domain-defined Type relationships.
-12. **Resolved 2026-08-08:** per-Scope and per-Type OpenAPI publication is not
-    a conformance requirement. The BDP project may publish one generated,
-    non-normative OpenAPI document per protocol version. The specification
-    and schema bundle remain authoritative.
-13. **Decision recorded 2026-08-08; artifact pending:** one portable black-box
-    matrix is cumulative by profile and covers positive, negative,
-    concurrency, disconnect, expiry, restore, authorization-view, and
-    cross-implementation behavior. The Read+Update rows drafted under
-    [Read+Update conformance rows](#readupdate-conformance-rows) are metadata
-    only and claim nothing, as are the Transactional rows drafted under
-    [Transactional conformance rows](#transactional-conformance-rows)
-    (2026-09-08). This question closes when its reviewed
-    machine-readable matrix, fixtures, and expected results exist.
-14. **Resolved 2026-08-08:** discovery optionally carries the unordered
-    `maximumEndpointMultiplicity` array. Absence or an empty array means no
-    such policy. Administrative replacement is atomic relative to mutations
-    and may not introduce an already-violated maximum. Reads remain valid,
-    and discovery changes its `ETag`.
-15. **Resolved 2026-08-08:** every v0 Link has at least one in-Scope Bead
-    endpoint. A future cross-Scope indexing profile may define ownership and
-    lifecycle for Links whose endpoints are both external.
-16. **Resolved 2026-09-08:** `ownsOutgoing` MAY carry the wildcard entry
-    `"*"`, exactly `{ max }`, declaring every outgoing Link Type not listed
-    explicitly as owned; its `max` bounds the Bead's whole owned set, and
-    explicit entries take precedence for the types they name. The
-    `ownedLinks` member then carries one entry per owned Link Type present
-    plus an empty entry per explicitly declared type, never keyed by `"*"`.
-    A Type whose relationship vocabulary is open — the Memory Bead of
-    gastownhall/beads#5877 (R17, R22) — cannot declare ownership type by
-    type, and this is how it owns what it makes; the price, stated plainly,
-    is that a view closed over owned Links hides such a Bead whenever it
-    owns a Link to a hidden Bead. Nothing else about ownership changed.
-    Ruled at
-    [gastownhall/bdp#1, item 5](https://github.com/gastownhall/bdp/issues/1#issuecomment-5586084982);
-    the judgments the ruling left open are recorded in
-    `docs/design/owned-wildcard-decisions.md` (OW1–OW8), and the
-    [Owned-Link wildcard conformance rows](#owned-link-wildcard-conformance-rows)
-    are metadata bound to this text, none claimed. OW1 was ruled on
-    2026-09-08 — A, the literal reading: the wildcard's `max` bounds the
-    whole owned set, the explicitly declared types' Links included, so an
-    explicitly declared entry's `max` MUST NOT exceed the wildcard's `max`
-    in the same descriptor, and a descriptor that declares one is invalid
-    and is not installed. The ruling's closing clause — that letting a
-    descriptor mark property members as References for target validation
-    would be a separate, later addition — was withdrawn on 2026-09-08
-    ([item 5 as amended](https://github.com/gastownhall/bdp/issues/1#issuecomment-5587346463)): a reference inside `properties` is authored
-    data and never an edge, and a Type that wants graph semantics for a
-    reference declares an owned Link Type; the law is stated under
-    [References](#references).
-17. **Resolved 2026-09-08:** equality under the no-op law is over exact
-    decimal values: two JSON numbers are the same value iff the decimal
-    values their literals denote are equal, so `1.0`, `1`, and `1e0` are
-    one value and `9007199254740993` and `9007199254740992` are two. An
-    authority refuses at admission any number literal whose exact decimal
-    value does not round-trip through IEEE 754 binary64 unchanged — RFC
-    7493's interoperability rule made mandatory — as the write profiles'
-    `validation-failed` with a diagnostic naming the member, so on every
-    admitted value the exact-decimal and binary64 models agree and no two
-    conforming peers can disagree about a no-op. A content-derived
-    revision-token scheme declares its number model by name: `sha256-jcs`
-    means RFC 8785 serialization with numbers as binary64 and is exact
-    over admitted values by construction; a scheme over exact decimals is
-    a different scheme with its own name. Ruled at
-    [gastownhall/bdp#21](https://github.com/gastownhall/bdp/issues/21#issuecomment-5586406564);
-    stated under [Revisions](#revisions); the judgments the ruling left
-    open are recorded in `docs/design/numeric-model-decisions.md`
-    (NM1–NM11), the vectors live in `fixtures/numeric-model/`, and the
-    [Numeric-model conformance rows](#numeric-model-conformance-rows) are
-    metadata bound to this text, none claimed.
-
-Implementation proceeds Read-first. Later-profile work begins only when its
-schema, problem, and conformance artifacts are reviewed. Implementation
-evidence feeds corrections back into this draft rather than silently defining
-wire behavior.
-
-### Deferred companion work and implementation evidence
-
-This subsection is a non-normative development ledger. It records required
-follow-on work so that it is not silently discarded:
-
-- Define a separate administrator/operator specification for installing,
-  pinning, inventorying, replacing, and evolving Type Descriptor contract
-  closures. Core BDP clients do not receive those powers.
-- Defer the non-normative mapping appendix for the `bd` domain until a working
-  implementation of `bd ready` exists. Harvest the example from working code
-  rather than inventing a second domain model in this specification.
-- Build three pieces: a Node/TypeScript `bdp` client with the obvious generic
-  protocol surface and a `bd` subcommand; a deterministic `bdptest` server
-  for client conformance testing; and a `bdpbd` server that adapts the
-  current `bd` CLI.
-- Exercise this complete `bd` compatibility inventory: `bd init`, `bd create`,
-  `bd show`, `bd list`, `bd ready`, `bd update`, `bd close`, `bd reopen`,
-  `bd delete`, `bd purge`, `bd dep`, `bd query`, `bd config`, `bd count`,
-  `bd version`, and `bd stats`. Inventory the exact `dep` and `query`
-  subcommands before freezing that adapter surface. Treat true physical purge
-  as an administrator concern rather than silently adding it to core BDP.
-- Model `task`, `bug`, `feature`, `chore`, `epic`, and `decision` as separate
-  nominal Bead Types, with shared contracts expressed through Type
-  conformance. Do not introduce a secondary domain-kind discriminator into
-  BDP.
-- Continue implementing `bdp`, `bdptest`, and `bdpbd`, using those
-  implementations to complete the normative conformance matrix.

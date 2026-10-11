@@ -826,7 +826,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
-          "selectedText": "Applicable cache fields remain required on these responses (ruled 2026-09-09, G4/G5)."
+          "selectedText": "Applicable cache fields remain required on these responses."
         }
       ]
     },
