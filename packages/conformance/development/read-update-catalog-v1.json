@@ -455,7 +455,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does (amended 2026-09-08, council 12); `expectedRevision` and `attribution` are members of the record and therefore of its identity."
+          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `attribution` are members of the record and therefore of its identity."
         }
       ]
     },
@@ -576,7 +576,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
         },
         {
@@ -599,12 +599,12 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`unsupported-media-type`: a mutation-target request whose body media type is not `application/json` or is not declared; media-type parameters such as `charset` are ignored."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
         },
         {
@@ -642,7 +642,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
         },
         {
@@ -718,7 +718,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
         },
         {
