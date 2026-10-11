@@ -10,7 +10,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#historical-resolution",
-          "selectedText": "**History amendment, 2026-09-09 (38 selected answer units).** History is an\noptional complete capability on each of `read`, `read-update`, and\n`transactional`, not a fourth profile. Discovery advertises it only as\n`historicalResolution: { \"version\": 1 }`, the closed `historyCapability`\ndefinition. Absence means it is not advertised. An authority MUST implement\nall applicable requirements in this section before advertising it, for both\ncanonical Bead and Link URLs. A profile, a retained store, or a schema parser\nalone supplies no capability claim. No advance age/count retention guarantee,\naggregate participation count/class, retention hold, or generic persistent-\nconsumer erasure acquisition is advertised by this member."
+          "selectedText": "History is an optional complete capability available with the Read profile.\nA cumulative profile inherits it without requiring it. It is not a separate profile. Discovery advertises it only as\n`historicalResolution: { \"version\": 1 }`, the closed `historyCapability`\ndefinition. Absence means it is not advertised. An authority MUST implement\nall applicable requirements in this section before advertising it, for both\ncanonical Bead and Link URLs. A profile, a retained store, or a schema parser\nalone supplies no capability claim. No advance age/count retention guarantee,\naggregate participation count/class, retention hold, or generic persistent-\nconsumer erasure acquisition is advertised by this member."
         }
       ]
     },
@@ -166,7 +166,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#revisions",
-          "selectedText": "**Retained-address amendment, 2026-09-09 (all profiles).** Whenever a store retains a Resource version across restore, destructive reinitialization or authority replacement, its existing address remains bound to exactly that state. An advertised History resolver MUST serve the requested token unchanged when that state is authorized and serviceable. Token-scheme changes and internal mappings MUST NOT rebind an old address or silently return a new revision. Lack of disposition evidence means unknown, not loss inferred from token spelling. Retained-address survival grants no current write authority. Erased content is not eligible for successful resolution."
+          "selectedText": "Whenever a store retains a Resource version across restore, destructive reinitialization or authority replacement, its existing address remains bound to exactly that state. An advertised History resolver MUST serve the requested token unchanged when that state is authorized and serviceable. Token-scheme changes and internal mappings MUST NOT rebind an old address or silently return a new revision. Lack of disposition evidence means unknown, not loss inferred from token spelling. Retained-address survival grants no current write authority. Erased content is not eligible for successful resolution."
         }
       ]
     },
@@ -197,7 +197,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#immutable-change-context",
-          "selectedText": "**History amendment, 2026-09-09.** `changeContext` is a distinct immutable version envelope, separate from `attribution` and `properties`. The responsible actor remains the existing carried attribution, including truthful absence and `basis: writer-supplied|unknown`; context never supplies a competing actor or authentication/ authorization claim. Shared record schemas permit absent context for legacy and non-History versions. Native versions under advertised History MUST carry context on current/historical complete record reads and retained history rows. No context is synthesized on deleted identities, aliases, References or properties views. These metadata requirements do not establish full Memory compatibility."
+          "selectedText": "`changeContext` is a distinct immutable version envelope, separate from `attribution` and `properties`. The responsible actor remains the existing carried attribution, including truthful absence and `basis: writer-supplied|unknown`; context never supplies a competing actor or authentication/ authorization claim. Shared record schemas permit absent context for legacy and non-History versions. Native versions under advertised History MUST carry context on current/historical complete record reads and retained history rows. No context is synthesized on deleted identities, aliases, References or properties views. These metadata requirements do not establish full Memory compatibility."
         }
       ]
     },
@@ -249,7 +249,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#history-recovery-imports-and-assurance",
-          "selectedText": "Every History implementation on all three profiles enforces applicable erasure decisions on every controlled retained copy before further serving and preserves required erasure evidence across local recovery. This includes context, inline owned content, indexes, caches and any other controlled retained copies. Retaining an old address never permits serving erased content. A non-owning reference is not embedded target content; no new retention propagation, target rewrite or wire hold follows."
+          "selectedText": "Every History implementation enforces applicable erasure decisions on every controlled retained copy before further serving and preserves required erasure evidence across local recovery. This includes context, inline owned content, indexes, caches and any other controlled retained copies. Retaining an old address never permits serving erased content. A non-owning reference is not embedded target content; no new retention propagation, target rewrite or wire hold follows."
         }
       ]
     },

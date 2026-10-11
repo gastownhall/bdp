@@ -314,3 +314,10 @@ readiness. Root retains integration and publication ownership.
 The preexisting Read schema's wider limit acceptance remains an explicit design
 question. It cannot be resolved by this editorial repair without a separately
 reviewed schema/conformance decision. No other new product semantics were chosen.
+
+## Present-contract follow-up
+
+The subsequent [present-contract editorial map](spec-present-contract-map.md)
+accounts for removing development chronology and consolidating optional History
+within Read. Its ledger disposition and validation supersede this earlier round's
+bookmark-preservation counts; no draft-reader compatibility scaffold is required.
