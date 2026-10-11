@@ -228,3 +228,17 @@ These checks validate specification/artifact consistency and the selected
 protocol/conformance tooling. They do not establish a shipping write-profile
 implementation, cross-product CLI parity or Preview 2 qualification. The
 entire repository test suite was not run for this editorial slice.
+
+## External review repairs
+
+Review of frozen `c493faf` found nonexistent singleton schema entry-point names
+and citations that still pointed to the Read problem table after profile splits.
+The entry points now use `updateBeadRequest` and `updateLinkRequest`; mutation
+diagnostics, sequence Problem shape and Transactional diagnostic inheritance
+point to the Read+Update table. A historical table reference and the preserved
+Sequence-local anchor's display label are corrected too. No schema or semantic
+contract changes. All 695 conformance-tooling tests pass after these repairs.
+
+The external review with truncated context supplied only partial coverage; its
+missing-History claim was rejected against the complete text. The other external
+seat is still reviewing the frozen source. Council readiness is not yet claimed.

@@ -2443,8 +2443,8 @@ supplies the operation and its `Idempotency-Key` field supplies the key.
 
 The normative bundle shares `<operation>Members` definitions between its
 singleton request and sequence definitions. The request entry points are
-`createBeadRequest`, `updateBeadPropertiesRequest`, `deleteBeadRequest`,
-`createLinkRequest`, `updateLinkPropertiesRequest`, `deleteLinkRequest`,
+`createBeadRequest`, `updateBeadRequest`, `deleteBeadRequest`,
+`createLinkRequest`, `updateLinkRequest`, `deleteLinkRequest`,
 `putAliasRequest` and `deleteAliasRequest`. Sequence entry points and examples
 are defined under [Sequence request envelope](#sequence-request-envelope).
 
@@ -2464,7 +2464,7 @@ URL or the containing Link URL, and must name a live Bead. An absolute endpoint 
 the Scope is accepted as an opaque external reference, subject to the Link
 Type's external-endpoint policy. Such an endpoint is not kind-checked or
 dereferenced. Either endpoint may be supplied as a Pinned Reference under
-[Batch-local Resource references](#batch-local-resource-references).
+[Sequence-local Resource references](#batch-local-resource-references).
 Neither case mutates an endpoint Bead or changes its revision — unless
 the Link's type is owned by the source Bead's declared Type, in which
 case the source's revision changes and the target's never does.
@@ -2676,7 +2676,7 @@ claim about those checks.
 - `validation.diagnostics` counts entries in, and `validation.diagnosticBytes`
   counts UTF-8 bytes of, the serialized `diagnostics` list a
   `validation-failed` problem carries under
-  [Problem details](#problem-details); the group is mutation surface: it
+  [Read+Update problem details](#readupdate-problem-details); the group is mutation surface: it
   is not advertised by a Read discovery document, and a Read+Update authority that omits diagnostics beyond a bound MUST
   advertise it (amended 2026-09-08, council 12);
 `retention.idempotency` is the minimum interval for which an authority retains
@@ -3114,7 +3114,7 @@ the request's `operations` array, and carries `operationName` exactly when
 the member declared `name`. A result entry is the member's mutation result
 plus those two members, or its alias result plus `operationIndex` alone,
 and it is closed. A problem entry is the Read+Update
-Problem Details shape under [Problem details](#problem-details) — `type`,
+Problem Details shape under [Read+Update problem details](#readupdate-problem-details) — `type`,
 `code`, `retry`, its required would-be `status`, the other RFC 9457
 members, and extension members — plus `operationIndex` and
 `operationName`; it never carries `outcome`. A member problem whose
@@ -5223,7 +5223,7 @@ does not fit the advertised bound, the receipt fails with `limit-exceeded`
 and `limit` `transaction.duration`, and the client divides the work under
 new keys. A `validation-failed` problem carries `diagnostics` and, when it
 truncated them, `diagnosticsTruncated`, exactly as
-[Problem details](#problem-details) defines them for the Read+Update rows.
+[Read+Update problem details](#readupdate-problem-details) defines them for the Read+Update rows.
 A `failed` receipt's problem describes the rejected request, not a
 committed version, and lies outside erasure; an authority that nonetheless
 quoted a committed version's content in `detail` or a diagnostic scrubs it
@@ -7093,7 +7093,7 @@ protocol-identifier prefix, with the release-stability rule stated above.
    `revision-mismatch`, `incident-links-exist`,
    `aggregate-constraint-violation`, `idempotency-conflict`,
    `idempotency-in-progress`, and `idempotency-expired` — join the table
-   under [Problem details](#problem-details) with a new `validation` family
+   under [Read+Update problem details](#readupdate-problem-details) with a new `validation` family
    and the `415` and `422` statuses, mirrored in the bundle's
    `readUpdateProblem`. **Boundaries completed 2026-09-07 after council
    review:** a transient creator makes its dependent's `binding-unavailable`
