@@ -7,14 +7,14 @@ import {
   referenceUri,
   stringifyJsonValue,
   type LosslessJsonValue,
-  type ReadUpdateInputs,
-  type ReadUpdateMutationResult,
   type ReadUpdateProblem,
   type PreparedReadUpdateCarrier,
 } from "@bdp/protocol";
 import { encodeSemanticValue, type SemanticValue } from "./semantic-identity.js";
 import {
   evaluateResourceMutation,
+  readStoredResource,
+  type ResourceMutation,
   type ResourceEvaluationOptions,
   type ResourceTransaction,
   type ResourceRecord,
@@ -47,7 +47,7 @@ function losslessText(value: LosslessJsonValue, depth = 0): string {
 }
 /** Whole-carrier syntax/Scope checks happen before consulting any durable key.
  * Reuses RU parsing, not RU admission or identity: synthetic member keys never
- * enter storage. This bounded owner currently accepts only Resource creations. */
+ * enter storage. This bounded owner accepts the six singleton Resource operation kinds. */
 export function prepareTransaction(scope: string, text: string): PreparedTransaction {
   if (Buffer.byteLength(text) > 65536) throw new RangeError("development batch byte limit");
   const root = object(decodeJsonDocument(text));
@@ -60,7 +60,16 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
     throw new TypeError("expected 1..32 batch operations");
   const operations = root.operations.map((value, index) => {
     const op = object(value);
-    if (op.operation !== "createBead" && op.operation !== "createLink")
+    if (
+      ![
+        "createBead",
+        "createLink",
+        "updateBead",
+        "updateLink",
+        "deleteBead",
+        "deleteLink",
+      ].includes(String(op.operation))
+    )
       throw new TypeError("unsupported development transaction operation");
     if (Object.hasOwn(op, "idempotencyKey")) throw new TypeError("batch members cannot carry keys");
     return { ...op, idempotencyKey: `internal-${index}` };
@@ -71,12 +80,14 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
   const canonical = (uri: string): string =>
     /^[A-Za-z][A-Za-z0-9+.-]*:/.test(uri) ? uri : `${scope}${uri}`;
   for (const [index, op] of carrier.operations.entries()) {
+    const creating = op.operation === "createBead" || op.operation === "createLink";
     const input: Record<string, SemanticValue> = {
       ...op.input,
-      properties: op.input.properties ?? {},
-      metadata: op.input.metadata ?? {},
+      ...(creating
+        ? { properties: op.input.properties ?? {}, metadata: op.input.metadata ?? {} }
+        : {}),
     };
-    for (const field of ["id", "source", "target"]) {
+    for (const field of ["id", "source", "target", "bead", "link"]) {
       const value = input[field];
       if (value === undefined) continue;
       const uri = typeof value === "string" ? value : (value as { uri: string }).uri;
@@ -89,7 +100,7 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
           : { uri: normalized, revision: (value as { revision: string }).revision };
     }
     identities.push({ operation: op.operation, input });
-    if (op.name)
+    if (creating && op.name)
       creators.set(
         op.name,
         op.input.id === undefined
@@ -108,7 +119,7 @@ export function assertPreparedTransaction(batch: PreparedTransaction, scope: str
 export interface TransactionEvent {
   readonly id: string;
   readonly ordinal: number;
-  readonly type: "created" | "linked";
+  readonly type: "created" | "updated" | "deleted" | "linked" | "unlinked";
   readonly source: string;
   readonly subject: string;
   readonly subjectType: string;
@@ -116,11 +127,18 @@ export interface TransactionEvent {
   readonly time: string;
   readonly data: unknown;
 }
+export interface TransactionStateChange {
+  readonly operation: "upsert" | "tombstone";
+  readonly resourceKind: "bead" | "link";
+  readonly resource:
+    | ResourceRecord
+    | { readonly id: string; readonly type: string; readonly revision: string };
+}
 export type BatchEvaluation =
   | {
       readonly ok: true;
       readonly results: readonly unknown[];
-      readonly resources: readonly ResourceRecord[];
+      readonly changes: readonly TransactionStateChange[];
       readonly events: readonly TransactionEvent[];
     }
   | {
@@ -140,8 +158,8 @@ export function evaluateTransaction(
 ): BatchEvaluation {
   const bindings = new Map<string, string>();
   const results: unknown[] = [],
-    resources: ResourceRecord[] = [],
     events: TransactionEvent[] = [];
+  const changes = new Map<string, TransactionStateChange>();
   function scopeEvent(subject: ResourceRecord, type: TransactionEvent["type"], data: unknown) {
     const ordinal = events.length;
     events.push({
@@ -178,23 +196,29 @@ export function evaluateTransaction(
           ...(op.name ? { operationName: op.name } : {}),
         },
       };
-    const input = { ...admitted.input } as ReadUpdateInputs["createLink"];
-    if (op.operation === "createLink") {
-      for (const field of ["source", "target"] as const) {
-        const ref = input[field],
-          uri = referenceUri(ref);
-        if (uri.startsWith("@")) {
-          const id = bindings.get(uri.slice(1));
-          if (!id) throw new Error("validated binding missing");
-          Object.assign(input, { [field]: typeof ref === "string" ? id : { ...ref, uri: id } });
-        }
+    const input: Record<string, unknown> = { ...admitted.input };
+    for (const field of ["source", "target", "bead", "link"]) {
+      const ref = input[field] as string | { uri: string; revision: string } | undefined;
+      if (ref === undefined) continue;
+      const uri = referenceUri(ref);
+      if (uri.startsWith("@")) {
+        const id = bindings.get(uri.slice(1));
+        if (!id) throw new Error("validated binding missing");
+        input[field] = typeof ref === "string" ? id : { ...ref, uri: id };
       }
     }
+    const locator = input.bead ?? input.link;
+    const beforeRow =
+      typeof locator === "string"
+        ? tx.resource(
+            locator.startsWith(options.scope) ? locator.slice(options.scope.length) : locator,
+          )
+        : undefined;
+    const before = beforeRow ? readStoredResource(beforeRow, options.scope) : undefined;
+    // Syntax and numeric admission preserve the operation/input pairing.
     const result = evaluateResourceMutation(
       tx,
-      op.operation === "createBead"
-        ? { operation: "createBead", input }
-        : { operation: "createLink", input },
+      { operation: op.operation, input } as ResourceMutation,
       options,
     );
     if (result.effect === "failure")
@@ -206,36 +230,65 @@ export function evaluateTransaction(
           ...(op.name ? { operationName: op.name } : {}),
         },
       };
-    const outcome: ReadUpdateMutationResult = result.outcome;
-    const resource = outcome.resource;
-    if (!resource || outcome.sourceRevision !== undefined)
-      throw new Error("unsupported owned-Link transition");
+    const outcome = result.outcome;
+    if (outcome.sourceRevision !== undefined) throw new Error("unsupported owned-Link transition");
     results.push({ operationIndex, ...(op.name ? { operationName: op.name } : {}), ...outcome });
-    resources.push(resource);
-    if (op.name) bindings.set(op.name, resource.id);
-    scopeEvent(resource, "created", {
-      revision: resource.revision,
-      properties: resource.properties,
-      metadata: resource.metadata ?? {},
-      ...(resource.attribution ? { attribution: resource.attribution } : {}),
-      ...("source" in resource ? { source: resource.source, target: resource.target } : {}),
-    });
-    if ("source" in resource)
+    const resource = outcome.resource;
+    if (op.name && outcome.outcome === "created" && resource) bindings.set(op.name, resource.id);
+    // A retained revision is an observed no-op, not a committed transition.
+    if (result.changed.length === 0 && result.deleted.length === 0) continue;
+    const subject = resource ?? before;
+    if (!subject) throw new Error("successful transition lacks Resource state");
+    changes.set(
+      subject.id,
+      outcome.deleted
+        ? {
+            operation: "tombstone",
+            resourceKind: outcome.deleted.resourceKind,
+            resource: outcome.deleted.resource,
+          }
+        : {
+            operation: "upsert",
+            resourceKind: "source" in subject ? "link" : "bead",
+            resource: subject,
+          },
+    );
+    if (outcome.outcome === "created") {
+      scopeEvent(subject, "created", {
+        revision: subject.revision,
+        properties: subject.properties,
+        metadata: subject.metadata ?? {},
+        ...(subject.attribution ? { attribution: subject.attribution } : {}),
+        ...("source" in subject ? { source: subject.source, target: subject.target } : {}),
+      });
+    } else if (outcome.outcome === "updated") {
+      if (!before) throw new Error("update lacks previous state");
+      scopeEvent(subject, "updated", {
+        previousRevision: before.revision,
+        revision: subject.revision,
+        ...(input.propertiesChange !== undefined ? { change: input.propertiesChange } : {}),
+        ...(input.metadataChange !== undefined ? { metadataChange: input.metadataChange } : {}),
+        ...(subject.attribution ? { attribution: subject.attribution } : {}),
+      });
+    } else {
+      scopeEvent(subject, "deleted", { revision: subject.revision });
+    }
+    if ("source" in subject && outcome.outcome !== "updated") {
       for (const endpoint of ["source", "target"] as const) {
-        const uri = referenceUri(resource[endpoint]);
+        const uri = referenceUri(subject[endpoint]);
         if (!uri.startsWith(options.scope)) continue;
-        const row = tx.resource(uri.slice(options.scope.length));
-        if (!row) throw new Error("missing staged endpoint");
-        // The endpoint receives the incidence fact; its subject is still the Link.
-        scopeEvent(resource, "linked", {
+        if (!tx.resource(uri.slice(options.scope.length)))
+          throw new Error("missing staged endpoint");
+        scopeEvent(subject, outcome.outcome === "deleted" ? "unlinked" : "linked", {
           endpoint,
-          link: { id: resource.id, type: resource.type },
-          source: resource.source,
-          target: resource.target,
+          link: { id: subject.id, type: subject.type },
+          source: subject.source,
+          target: subject.target,
         });
       }
+    }
   }
-  return { ok: true, results, resources, events };
+  return { ok: true, results, changes: [...changes.values()], events };
 }
 export function transactionStorageText(value: unknown): string {
   return stringifyJsonValue(value);

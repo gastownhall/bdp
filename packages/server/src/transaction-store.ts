@@ -286,9 +286,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                     "INSERT INTO resources VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
                   ).run(r.id, r.bodyJson, r.kind, r.source ?? null, r.target ?? null);
                 }),
-              deleteResource: () => {
-                throw new Error("deletion not supported in creation slice");
-              },
+              deleteResource: (id) =>
+                scoped(() => {
+                  // Retain its identity for the epoch; deletion never permits reuse.
+                  db.prepare("DELETE FROM resources WHERE id=?").run(id);
+                }),
             };
             db.exec("SAVEPOINT effects");
             const result = (() => {
@@ -347,25 +349,24 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 previousPosition: `pos-${previous}`,
                 projectionAdvance: false,
                 transaction: core.transaction,
-                changes: result.resources.map((r) => ({
-                  operation: "upsert",
-                  resourceKind: "source" in r ? "link" : "bead",
-                  resource: r,
-                })),
+                changes: result.changes,
                 erasures: [],
                 eventCount: result.events.length,
                 events: result.events,
               };
-              db.prepare("INSERT INTO groups VALUES(?,?)").run(previous + 1, json(group));
-              db.prepare("UPDATE metadata SET value=? WHERE name='position'").run(
-                String(previous + 1),
-              );
+              const effective = result.events.length > 0;
+              if (effective) {
+                db.prepare("INSERT INTO groups VALUES(?,?)").run(previous + 1, json(group));
+                db.prepare("UPDATE metadata SET value=? WHERE name='position'").run(
+                  String(previous + 1),
+                );
+              }
               receipt = {
                 ...core,
                 status: "completed",
                 detail: "available",
-                requiredPosition: position,
-                effectPosition: position,
+                requiredPosition: effective ? position : `pos-${previous}`,
+                ...(effective ? { effectPosition: position } : {}),
                 results: result.results,
                 next: null,
                 expiresAt: new Date(now + day).toISOString(),
