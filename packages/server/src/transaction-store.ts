@@ -7,10 +7,12 @@ import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@
 import type { EvaluatorStoredResource } from "./resource-evaluator.js";
 import {
   assertPreparedTransaction,
+  assertPreparedTransactionSequence,
   normalizeTransaction,
   evaluateTransaction,
   transactionStorageText as json,
   type PreparedTransaction,
+  type PreparedTransactionSequence,
   type NormalizedTransaction,
   type TransactionMutationContext,
 } from "./transaction-batch.js";
@@ -31,6 +33,16 @@ export type TransactionAdmission =
   | { readonly kind: "owned"; readonly claim: TransactionClaim }
   | { readonly kind: "existing"; readonly receipt: TransactionReceipt }
   | { readonly kind: "conflict" };
+export interface TransactionSequenceAdmission {
+  readonly memberCount: number;
+}
+export type TransactionSequenceTurn = {
+  readonly index: number;
+  readonly done: boolean;
+  readonly result:
+    | { readonly kind: "receipt"; readonly receipt: TransactionReceipt }
+    | { readonly kind: "conflict" };
+};
 export interface TransactionStoreOptions {
   /** New format, absolute file path in an existing disposable directory. */
   readonly file: string;
@@ -42,7 +54,13 @@ export interface TransactionStoreOptions {
   readonly maintenanceIntervalMs?: number;
   /** Test-only fault injection; not exported from the package surface. */
   readonly fault?: (
-    stage: "after-admission" | "after-effects" | "after-terminal" | "before-maintenance-commit",
+    stage:
+      | "after-admission"
+      | "after-effects"
+      | "after-terminal"
+      | "before-maintenance-commit"
+      | "after-sequence-reservation"
+      | "after-sequence-admission",
   ) => void;
 }
 interface Row {
@@ -116,6 +134,17 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   const claims = new WeakMap<
     TransactionClaim,
     { principal: string; key: string; owner: string; normalized: NormalizedTransaction }
+  >();
+  const sequenceAdmissions = new WeakMap<
+    TransactionSequenceAdmission,
+    {
+      principal: string;
+      sequence: PreparedTransactionSequence;
+      owned: Map<number, TransactionClaim>;
+      next: number;
+      cancelled: boolean;
+      busy: boolean;
+    }
   >();
   function enter<T>(run: () => T): T {
     if (maintenanceFailure)
@@ -301,6 +330,273 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     if (!found) throw new Error("indexed Resource missing");
     return found;
   }
+  function checkPrincipalKey(principal: string, key: string): void {
+    if (
+      typeof principal !== "string" ||
+      principal.length === 0 ||
+      !principal.isWellFormed() ||
+      !/^[A-Za-z0-9_-]{1,256}$/.test(key)
+    )
+      throw new TypeError("principal/key required");
+  }
+  /** Caller holds the one SQLite transaction. Sequence turns project foreign
+   * pending ownership before comparison, unlike direct singleton/batch routes. */
+  function admitKey(
+    principal: string,
+    key: string,
+    batch: PreparedTransaction,
+    pendingWins = false,
+  ): TransactionAdmission {
+    const stored = row(principal, key);
+    const prior = stored ? expireRow(stored, instant()).row : undefined;
+    if (pendingWins && prior?.owner !== null && prior !== undefined)
+      return { kind: "existing", receipt: parseReceipt(prior.receipt) };
+    const normalized = normalizeTransaction(
+      batch,
+      (locator) => {
+        const target = alias(locator.slice(scope.length + 6));
+        return target === undefined ? undefined : `${scope}${target}`;
+      },
+      prior?.witnesses,
+    );
+    if (prior)
+      return prior.identity !== normalized.identity
+        ? { kind: "conflict" }
+        : { kind: "existing", receipt: parseReceipt(prior.receipt) };
+    const receipt: TransactionReceipt = {
+      id: `${scope}receipts/${randomUUID()}`,
+      status: "pending",
+      idempotencyKey: key,
+      scopeEpoch: epoch,
+      authorizationView: view,
+      transaction: randomUUID(),
+    };
+    const owner = randomUUID(),
+      claim = Object.freeze({ receipt });
+    db.prepare("INSERT INTO receipts VALUES(?,?,?,?,?,?)").run(
+      principal,
+      key,
+      normalized.identity,
+      normalized.witnessesJson,
+      owner,
+      json(receipt),
+    );
+    claims.set(claim, { principal, key, owner, normalized });
+    return { kind: "owned", claim };
+  }
+  function executeClaim(claim: TransactionClaim): TransactionReceipt {
+    return enter(() => {
+      const owned = claims.get(claim);
+      if (!owned) throw new Error("foreign transaction claim");
+      try {
+        return atomic(() => {
+          const current = row(owned.principal, owned.key);
+          if (current?.owner !== owned.owner) throw new Error("transaction execution fenced");
+          const core = parseReceipt(current.receipt);
+          const previous = Number(metadata("position"));
+          if (
+            !Number.isSafeInteger(previous) ||
+            previous < 0 ||
+            previous === Number.MAX_SAFE_INTEGER
+          )
+            throw new Error("position allocation unsafe");
+          const position = `pos-${previous + 1}`,
+            now = instant();
+          let active = true;
+          function scoped<T>(fn: () => T): T {
+            if (!active) throw new Error("expired Resource transaction");
+            return fn();
+          }
+          const tx: TransactionMutationContext = {
+            resource: (id) => scoped(() => resource(id)),
+            incidentLinks: (id) =>
+              scoped(() =>
+                db
+                  .prepare("SELECT id FROM resources WHERE kind='link' AND (source=? OR target=?)")
+                  .all(id, id)
+                  .map((r) => requiredResource(String(r.id))),
+              ),
+            outgoingLinks: (id) =>
+              scoped(() =>
+                db
+                  .prepare("SELECT id FROM resources WHERE kind='link' AND source=?")
+                  .all(id)
+                  .map((r) => requiredResource(String(r.id))),
+              ),
+            identityWasCommitted: (id) =>
+              scoped(
+                () => db.prepare("SELECT id FROM identities WHERE id=?").get(id) !== undefined,
+              ),
+            alias: (path) => scoped(() => alias(path)),
+            putAlias: (path, target) =>
+              scoped(() => {
+                db.prepare(
+                  "INSERT INTO aliases VALUES(?,?) ON CONFLICT(path) DO UPDATE SET target=excluded.target",
+                ).run(path, target);
+              }),
+            deleteAlias: (path) =>
+              scoped(() => {
+                db.prepare("DELETE FROM aliases WHERE path=?").run(path);
+              }),
+            installedType: (id) => scoped(() => installed.get(id)),
+            allocateResourceId: (kind) =>
+              scoped(() => {
+                for (let attempt = 0; attempt < 32; attempt++) {
+                  const suffix = randomUUID(),
+                    id = `${kind === "bead" ? "beads" : "links"}/${suffix}`;
+                  if (
+                    !db.prepare("SELECT id FROM identities WHERE id=?").get(id) &&
+                    (kind !== "bead" || alias(suffix) === undefined)
+                  )
+                    return id;
+                }
+                throw new Error("Resource identity allocation exhausted");
+              }),
+            allocateRevision: () => scoped(() => randomUUID()),
+            putResource: (r) =>
+              scoped(() => {
+                db.prepare("INSERT OR IGNORE INTO identities VALUES(?)").run(r.id);
+                db.prepare(
+                  "INSERT INTO resources VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
+                ).run(r.id, r.bodyJson, r.kind, r.source ?? null, r.target ?? null);
+              }),
+            deleteResource: (id) =>
+              scoped(() => {
+                // Retain its identity for the epoch; deletion never permits reuse.
+                db.prepare("DELETE FROM resources WHERE id=?").run(id);
+              }),
+          };
+          db.exec("SAVEPOINT effects");
+          const result = (() => {
+            try {
+              return evaluateTransaction(
+                owned.normalized,
+                tx,
+                {
+                  scope,
+                  contracts: {
+                    get(id, bytes) {
+                      const descriptor = descriptors.find((d) => d.id === id);
+                      return descriptor && installed.get(id) === bytes ? { descriptor } : undefined;
+                    },
+                  },
+                  aliasPolicy: { canRead: () => true, canWriteBead: () => true },
+                  policy: { canRead: () => true, canCreate: () => true, canWrite: () => true },
+                  maximumEndpointMultiplicity: [],
+                  observeCommitTime: instant,
+                  recordChangeContext: false,
+                  limits: {
+                    propertiesBytes: 65536,
+                    representationBytes: 262144,
+                    diagnosticCount: 16,
+                    diagnosticBytes: 65536,
+                  },
+                },
+                core.transaction,
+                position,
+                now,
+              );
+            } finally {
+              active = false;
+            }
+          })();
+          options.fault?.("after-effects");
+          // The minimum starts when evaluation has become terminal, not at
+          // admission or before Resource callbacks have consumed execution time.
+          const expiresAt = new Date(instant() + day).toISOString();
+          let receipt: TransactionReceipt;
+          if (!result.ok) {
+            db.exec("ROLLBACK TO effects; RELEASE effects");
+            receipt = {
+              ...core,
+              status: "failed",
+              detail: "available",
+              requiredPosition: `pos-${previous}`,
+              problem: result.problem,
+              expiresAt,
+            };
+          } else {
+            db.exec("RELEASE effects");
+            const group = {
+              scopeEpoch: epoch,
+              authorizationView: view,
+              checkpoint: position,
+              position,
+              previousPosition: `pos-${previous}`,
+              projectionAdvance: false,
+              transaction: core.transaction,
+              changes: result.changes,
+              erasures: [],
+              eventCount: result.events.length,
+              events: result.events,
+            };
+            const effective = result.events.length > 0;
+            if (effective) {
+              db.prepare("INSERT INTO groups VALUES(?,?)").run(previous + 1, json(group));
+              db.prepare("UPDATE metadata SET value=? WHERE name='position'").run(
+                String(previous + 1),
+              );
+            }
+            receipt = {
+              ...core,
+              status: "completed",
+              detail: "available",
+              requiredPosition: effective ? position : `pos-${previous}`,
+              ...(effective ? { effectPosition: position } : {}),
+              results: result.results,
+              next: null,
+              expiresAt,
+            };
+          }
+          const changed = db
+            .prepare(
+              "UPDATE receipts SET receipt=?,owner=NULL WHERE principal=? AND key=? AND owner=?",
+            )
+            .run(json(receipt), owned.principal, owned.key, owned.owner);
+          if (changed.changes !== 1) throw new Error("terminal ownership lost");
+          options.fault?.("after-terminal");
+          return receipt;
+        });
+      } catch (error) {
+        // A live internal/transient abort retracts only this execution's pending
+        // reservation. An abrupt process death is handled by startup instead.
+        atomic(() => {
+          db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
+            owned.principal,
+            owned.key,
+            owned.owner,
+          );
+        });
+        throw error;
+      } finally {
+        claims.delete(claim);
+      }
+    });
+  }
+  function cancelSequence(attempt: TransactionSequenceAdmission): number {
+    const state = sequenceAdmissions.get(attempt);
+    if (!state) throw new TypeError("foreign transaction sequence admission");
+    if (state.busy) throw new Error("transaction sequence reentrant cancellation");
+    if (state.cancelled || state.next === state.sequence.members.length) return 0;
+    const released = enter(() =>
+      atomic(() => {
+        let count = 0;
+        for (const claim of state.owned.values()) {
+          const owner = claims.get(claim);
+          if (!owner) continue;
+          count += Number(
+            db
+              .prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?")
+              .run(owner.principal, owner.key, owner.owner).changes,
+          );
+        }
+        return count;
+      }),
+    );
+    state.cancelled = true;
+    for (const claim of state.owned.values()) claims.delete(claim);
+    return released;
+  }
   maintenanceTimer = setInterval(() => {
     try {
       maintain();
@@ -329,48 +625,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     admit(principal: string, key: string, batch: PreparedTransaction): TransactionAdmission {
       return enter(() => {
         assertPreparedTransaction(batch, scope);
-        if (
-          typeof principal !== "string" ||
-          principal.length === 0 ||
-          !principal.isWellFormed() ||
-          !/^[A-Za-z0-9_-]{1,256}$/.test(key)
-        )
-          throw new TypeError("principal/key required");
+        checkPrincipalKey(principal, key);
         const admission = atomic((): TransactionAdmission => {
-          const stored = row(principal, key);
-          const prior = stored ? expireRow(stored, instant()).row : undefined;
-          const normalized = normalizeTransaction(
-            batch,
-            (locator) => {
-              const target = alias(locator.slice(scope.length + 6));
-              return target === undefined ? undefined : `${scope}${target}`;
-            },
-            prior?.witnesses,
-          );
-          if (prior)
-            return prior.identity !== normalized.identity
-              ? { kind: "conflict" }
-              : { kind: "existing", receipt: parseReceipt(prior.receipt) };
-          const receipt: TransactionReceipt = {
-            id: `${scope}receipts/${randomUUID()}`,
-            status: "pending",
-            idempotencyKey: key,
-            scopeEpoch: epoch,
-            authorizationView: view,
-            transaction: randomUUID(),
-          };
-          const owner = randomUUID(),
-            claim = Object.freeze({ receipt });
-          db.prepare("INSERT INTO receipts VALUES(?,?,?,?,?,?)").run(
-            principal,
-            key,
-            normalized.identity,
-            normalized.witnessesJson,
-            owner,
-            json(receipt),
-          );
-          claims.set(claim, { principal, key, owner, normalized });
-          return { kind: "owned", claim };
+          return admitKey(principal, key, batch);
         });
         if (admission.kind === "owned") {
           try {
@@ -392,199 +649,100 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         return admission;
       });
     },
-    execute(claim: TransactionClaim): TransactionReceipt {
+    admitSequence(
+      principal: string,
+      sequence: PreparedTransactionSequence,
+    ): TransactionSequenceAdmission {
       return enter(() => {
-        const owned = claims.get(claim);
-        if (!owned) throw new Error("foreign transaction claim");
+        assertPreparedTransactionSequence(sequence, scope);
+        for (const member of sequence.members) checkPrincipalKey(principal, member.key);
+        const owned = new Map<number, TransactionClaim>();
+        const attempt = Object.freeze({ memberCount: sequence.members.length });
         try {
-          return atomic(() => {
-            const current = row(owned.principal, owned.key);
-            if (current?.owner !== owned.owner) throw new Error("transaction execution fenced");
-            const core = parseReceipt(current.receipt);
-            const previous = Number(metadata("position"));
-            if (
-              !Number.isSafeInteger(previous) ||
-              previous < 0 ||
-              previous === Number.MAX_SAFE_INTEGER
-            )
-              throw new Error("position allocation unsafe");
-            const position = `pos-${previous + 1}`,
-              now = instant();
-            let active = true;
-            function scoped<T>(fn: () => T): T {
-              if (!active) throw new Error("expired Resource transaction");
-              return fn();
-            }
-            const tx: TransactionMutationContext = {
-              resource: (id) => scoped(() => resource(id)),
-              incidentLinks: (id) =>
-                scoped(() =>
-                  db
-                    .prepare(
-                      "SELECT id FROM resources WHERE kind='link' AND (source=? OR target=?)",
-                    )
-                    .all(id, id)
-                    .map((r) => requiredResource(String(r.id))),
-                ),
-              outgoingLinks: (id) =>
-                scoped(() =>
-                  db
-                    .prepare("SELECT id FROM resources WHERE kind='link' AND source=?")
-                    .all(id)
-                    .map((r) => requiredResource(String(r.id))),
-                ),
-              identityWasCommitted: (id) =>
-                scoped(
-                  () => db.prepare("SELECT id FROM identities WHERE id=?").get(id) !== undefined,
-                ),
-              alias: (path) => scoped(() => alias(path)),
-              putAlias: (path, target) =>
-                scoped(() => {
-                  db.prepare(
-                    "INSERT INTO aliases VALUES(?,?) ON CONFLICT(path) DO UPDATE SET target=excluded.target",
-                  ).run(path, target);
-                }),
-              deleteAlias: (path) =>
-                scoped(() => {
-                  db.prepare("DELETE FROM aliases WHERE path=?").run(path);
-                }),
-              installedType: (id) => scoped(() => installed.get(id)),
-              allocateResourceId: (kind) =>
-                scoped(() => {
-                  for (let attempt = 0; attempt < 32; attempt++) {
-                    const suffix = randomUUID(),
-                      id = `${kind === "bead" ? "beads" : "links"}/${suffix}`;
-                    if (
-                      !db.prepare("SELECT id FROM identities WHERE id=?").get(id) &&
-                      (kind !== "bead" || alias(suffix) === undefined)
-                    )
-                      return id;
-                  }
-                  throw new Error("Resource identity allocation exhausted");
-                }),
-              allocateRevision: () => scoped(() => randomUUID()),
-              putResource: (r) =>
-                scoped(() => {
-                  db.prepare("INSERT OR IGNORE INTO identities VALUES(?)").run(r.id);
-                  db.prepare(
-                    "INSERT INTO resources VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
-                  ).run(r.id, r.bodyJson, r.kind, r.source ?? null, r.target ?? null);
-                }),
-              deleteResource: (id) =>
-                scoped(() => {
-                  // Retain its identity for the epoch; deletion never permits reuse.
-                  db.prepare("DELETE FROM resources WHERE id=?").run(id);
-                }),
-            };
-            db.exec("SAVEPOINT effects");
-            const result = (() => {
-              try {
-                return evaluateTransaction(
-                  owned.normalized,
-                  tx,
-                  {
-                    scope,
-                    contracts: {
-                      get(id, bytes) {
-                        const descriptor = descriptors.find((d) => d.id === id);
-                        return descriptor && installed.get(id) === bytes
-                          ? { descriptor }
-                          : undefined;
-                      },
-                    },
-                    aliasPolicy: { canRead: () => true, canWriteBead: () => true },
-                    policy: { canRead: () => true, canCreate: () => true, canWrite: () => true },
-                    maximumEndpointMultiplicity: [],
-                    observeCommitTime: instant,
-                    recordChangeContext: false,
-                    limits: {
-                      propertiesBytes: 65536,
-                      representationBytes: 262144,
-                      diagnosticCount: 16,
-                      diagnosticBytes: 65536,
-                    },
-                  },
-                  core.transaction,
-                  position,
-                  now,
-                );
-              } finally {
-                active = false;
-              }
-            })();
-            options.fault?.("after-effects");
-            // The minimum starts when evaluation has become terminal, not at
-            // admission or before Resource callbacks have consumed execution time.
-            const expiresAt = new Date(instant() + day).toISOString();
-            let receipt: TransactionReceipt;
-            if (!result.ok) {
-              db.exec("ROLLBACK TO effects; RELEASE effects");
-              receipt = {
-                ...core,
-                status: "failed",
-                detail: "available",
-                requiredPosition: `pos-${previous}`,
-                problem: result.problem,
-                expiresAt,
-              };
-            } else {
-              db.exec("RELEASE effects");
-              const group = {
-                scopeEpoch: epoch,
-                authorizationView: view,
-                checkpoint: position,
-                position,
-                previousPosition: `pos-${previous}`,
-                projectionAdvance: false,
-                transaction: core.transaction,
-                changes: result.changes,
-                erasures: [],
-                eventCount: result.events.length,
-                events: result.events,
-              };
-              const effective = result.events.length > 0;
-              if (effective) {
-                db.prepare("INSERT INTO groups VALUES(?,?)").run(previous + 1, json(group));
-                db.prepare("UPDATE metadata SET value=? WHERE name='position'").run(
-                  String(previous + 1),
-                );
-              }
-              receipt = {
-                ...core,
-                status: "completed",
-                detail: "available",
-                requiredPosition: effective ? position : `pos-${previous}`,
-                ...(effective ? { effectPosition: position } : {}),
-                results: result.results,
-                next: null,
-                expiresAt,
-              };
-            }
-            const changed = db
-              .prepare(
-                "UPDATE receipts SET receipt=?,owner=NULL WHERE principal=? AND key=? AND owner=?",
-              )
-              .run(json(receipt), owned.principal, owned.key, owned.owner);
-            if (changed.changes !== 1) throw new Error("terminal ownership lost");
-            options.fault?.("after-terminal");
-            return receipt;
-          });
-        } catch (error) {
-          // A live internal/transient abort retracts only this execution's pending
-          // reservation. An abrupt process death is handled by startup instead.
           atomic(() => {
-            db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
-              owned.principal,
-              owned.key,
-              owned.owner,
-            );
+            for (const [index, member] of sequence.members.entries()) {
+              const admitted = admitKey(principal, member.key, member.request, true);
+              if (admitted.kind === "owned") {
+                owned.set(index, admitted.claim);
+                options.fault?.("after-sequence-reservation");
+              }
+            }
           });
+          options.fault?.("after-sequence-admission");
+        } catch (error) {
+          // An admission callback can fail after the durable bulk step; cleanup
+          // checks each exact owner and never retracts a competing reservation.
+          atomic(() => {
+            for (const claim of owned.values()) {
+              const owner = claims.get(claim);
+              if (owner)
+                db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
+                  owner.principal,
+                  owner.key,
+                  owner.owner,
+                );
+            }
+          });
+          for (const claim of owned.values()) claims.delete(claim);
           throw error;
-        } finally {
-          claims.delete(claim);
         }
+        sequenceAdmissions.set(attempt, {
+          principal,
+          sequence,
+          owned,
+          next: 0,
+          cancelled: false,
+          busy: false,
+        });
+        return attempt;
       });
     },
+    nextSequence(attempt: TransactionSequenceAdmission): TransactionSequenceTurn {
+      const state = sequenceAdmissions.get(attempt);
+      if (!state) throw new TypeError("foreign transaction sequence admission");
+      if (state.cancelled || state.busy || state.next >= state.sequence.members.length)
+        throw new Error("transaction sequence cancelled, reentrant or complete");
+      state.busy = true;
+      try {
+        const index = state.next,
+          member = state.sequence.members[index];
+        if (!member) throw new Error("lost sequence member");
+        let claim = state.owned.get(index);
+        let result: TransactionSequenceTurn["result"];
+        if (claim) result = { kind: "receipt", receipt: executeClaim(claim) };
+        else {
+          const admission = enter(() =>
+            atomic(() => admitKey(state.principal, member.key, member.request, true)),
+          );
+          if (admission.kind === "owned") {
+            claim = admission.claim;
+            state.owned.set(index, claim);
+            result = { kind: "receipt", receipt: executeClaim(claim) };
+          } else
+            result =
+              admission.kind === "conflict"
+                ? admission
+                : { kind: "receipt", receipt: admission.receipt };
+        }
+        state.next++;
+        return { index, done: state.next === state.sequence.members.length, result };
+      } catch (error) {
+        state.busy = false;
+        try {
+          cancelSequence(attempt);
+        } catch (cleanup) {
+          throw new AggregateError(
+            [error, cleanup],
+            "transaction sequence execution and cleanup failed",
+          );
+        }
+        throw error;
+      } finally {
+        state.busy = false;
+      }
+    },
+    cancelSequence,
+    execute: executeClaim,
     retract(claim: TransactionClaim): boolean {
       return enter(() => {
         const owned = claims.get(claim);

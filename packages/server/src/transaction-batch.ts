@@ -99,6 +99,74 @@ export function prepareTransactionSingleton(
   losslessText(object(decodeJsonDocument(text)), 2);
   return prepareCarrier(prepareReadUpdateSingleton(scope, operation, text, "internal-singleton"));
 }
+export interface PreparedTransactionSequence {
+  readonly scope: string;
+  readonly members: readonly {
+    readonly key: string;
+    readonly operation: ReadUpdateOperation;
+    readonly name?: string;
+    readonly request: PreparedTransaction;
+  }[];
+}
+const sequences = new WeakSet<object>();
+/** First private sequence boundary. Full syntax/Scope checks precede all key
+ * effects; dependency and turn-time alias resolution are not implemented here. */
+export function prepareTransactionSequence(
+  scope: string,
+  text: string,
+): PreparedTransactionSequence {
+  if (Buffer.byteLength(text) > 65536) throw new RangeError("development sequence byte limit");
+  const carrier = prepareReadUpdateSequence(scope, text);
+  if (carrier.operations.length > 32) throw new RangeError("development sequence member limit");
+  losslessText(object(decodeJsonDocument(text)));
+  const members = carrier.operations.map((op, index) => {
+    for (const field of ["bead", "link", "source", "target"]) {
+      const ref = op.input[field];
+      if (ref === undefined) continue;
+      const uri = typeof ref === "string" ? ref : (ref as { uri: string }).uri;
+      if (uri.startsWith("@"))
+        throw new TypeError("development sequence dependencies require durable reservations");
+      if (
+        aliasFields(op.operation).includes(field) &&
+        canonicalReference(scope, uri).startsWith(`${scope}alias/`)
+      )
+        throw new TypeError("development sequence Resource aliases require turn-time resolution");
+    }
+    const request =
+      op.operation === "putAlias" || op.operation === "deleteAlias"
+        ? prepareTransactionSingleton(scope, op.operation, losslessText(op.input))
+        : prepareTransaction(
+            scope,
+            losslessText({
+              operations: [
+                {
+                  operation: op.operation,
+                  ...op.input,
+                  ...(op.name === undefined ? {} : { name: op.name }),
+                },
+              ],
+            }),
+          );
+    const key = carrier.keys[index];
+    if (key === undefined) throw new Error("prepared sequence lost member key");
+    return Object.freeze({
+      key,
+      operation: op.operation,
+      ...(op.name === undefined ? {} : { name: op.name }),
+      request,
+    });
+  });
+  const result = Object.freeze({ scope: carrier.scope, members: Object.freeze(members) });
+  sequences.add(result);
+  return result;
+}
+export function assertPreparedTransactionSequence(
+  sequence: PreparedTransactionSequence,
+  scope: string,
+): void {
+  if (!sequences.has(sequence) || sequence.scope !== scope)
+    throw new TypeError("expected prepared transaction sequence for this Scope");
+}
 function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction {
   const result = Object.freeze({ carrier });
   prepared.add(result);
