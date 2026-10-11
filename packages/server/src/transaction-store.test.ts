@@ -9,6 +9,7 @@ import { parseTypeDescriptor, isJsonSchemaDateTime, isJsonSchemaUri } from "@bdp
 import {
   prepareTransaction,
   prepareTransactionSingleton,
+  prepareTransactionSequence,
   normalizeTransaction,
 } from "./transaction-batch.js";
 import { openTransactionStore, type TransactionClaim } from "./transaction-store.js";
@@ -2035,4 +2036,322 @@ describe("private atomic transaction owner", () => {
       expect(f.store.receipt("principal", receipt.id)).toEqual(receipt);
       expect(savedKey(f, "corrupt")).toEqual(corruptRow);
     });
+});
+
+describe("private transaction storage failure fencing", () => {
+  function failures(error: unknown): string[] {
+    if (!(error instanceof Error)) return [];
+    return [
+      error.message,
+      ...failures(error.cause),
+      ...(error instanceof AggregateError ? error.errors.flatMap(failures) : []),
+    ];
+  }
+  function caught(action: () => unknown): unknown {
+    try {
+      action();
+    } catch (error) {
+      return error;
+    }
+    throw new Error("expected injected failure");
+  }
+  function assertFenced(store: ReturnType<typeof openTransactionStore>, claim: TransactionClaim) {
+    for (const action of [
+      () => store.inspect(),
+      () => store.aliasTarget("x"),
+      () => store.receipt("principal", claim.receipt.id),
+      () => store.maintain(),
+      () => admit(store, batch, "fresh"),
+      () => store.execute(claim),
+      () => store.retract(claim),
+    ])
+      expect(action).toThrow("owner fenced");
+  }
+  it.each(["before", "after"] as const)(
+    "fences an injected %s-COMMIT failure and recovers the actual durable outcome",
+    (phase) => {
+      const f = fixture(),
+        claim = admit(f.store);
+      const actual = DatabaseSync.prototype.exec;
+      let armed = true;
+      const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+        this: DatabaseSync,
+        sql: string,
+      ) {
+        if (armed && sql === "COMMIT") {
+          armed = false;
+          if (phase === "after") actual.call(this, sql);
+          throw new Error("injected uncertain commit");
+        }
+        actual.call(this, sql);
+      });
+      let error: unknown;
+      try {
+        error = caught(() => f.store.execute(claim));
+        expect(failures(error)).toContain("injected uncertain commit");
+        expect(spy.mock.calls.filter(([sql]) => sql === "ROLLBACK")).toHaveLength(
+          phase === "before" ? 1 : 0,
+        );
+      } finally {
+        spy.mockRestore();
+      }
+      assertFenced(f.store, claim);
+      const reopened = f.reopen(),
+        state = reopened.inspect();
+      expect(state.resources).toHaveLength(phase === "after" ? 2 : 0);
+      expect(state.groups).toHaveLength(phase === "after" ? 1 : 0);
+      expect(reopened.recoveredPending).toBe(phase === "before" ? 1 : 0);
+      if (phase === "after") {
+        const replay = reopened.admit(
+          "principal",
+          "key",
+          prepareTransaction(scope, JSON.stringify(batch)),
+        );
+        expect(replay).toMatchObject({
+          kind: "existing",
+          receipt: { id: claim.receipt.id, status: "completed" },
+        });
+        expect(reopened.receipt("principal", claim.receipt.id)).toEqual(
+          "receipt" in replay ? replay.receipt : undefined,
+        );
+      } else {
+        expect(reopened.receipt("principal", claim.receipt.id)).toBeUndefined();
+        expect(reopened.execute(admit(reopened)).status).toBe("completed");
+      }
+    },
+  );
+  it("preserves the execution and rollback causes, blocks tentative reads, and recovers on reopen", () => {
+    let armed = false;
+    const f = fixture({
+        fault(stage) {
+          if (armed && stage === "after-effects") throw new Error("injected execution failure");
+        },
+      }),
+      claim = admit(f.store);
+    const actual = DatabaseSync.prototype.exec;
+    const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (sql === "ROLLBACK") throw new Error("injected rollback failure");
+      actual.call(this, sql);
+    });
+    armed = true;
+    try {
+      const error = caught(() => f.store.execute(claim));
+      expect(failures(error)).toContain("injected execution failure");
+      expect(failures(error)).toContain("injected rollback failure");
+      // No compensating BEGIN against a connection with unknown transaction state.
+      expect(spy.mock.calls.filter(([sql]) => sql === "BEGIN IMMEDIATE")).toHaveLength(1);
+    } finally {
+      spy.mockRestore();
+    }
+    assertFenced(f.store, claim);
+    armed = false;
+    const reopened = f.reopen();
+    expect(reopened.recoveredPending).toBe(1);
+    expect(reopened.inspect().resources).toEqual([]);
+    expect(reopened.inspect().groups).toEqual([]);
+    expect(reopened.execute(admit(reopened)).status).toBe("completed");
+  });
+  it.each(["after-admission", "after-effects"] as const)(
+    "preserves %s failure when compensating retraction also fails",
+    (stageToFail) => {
+      let armed = false,
+        failBegin = false;
+      const f = fixture({
+        fault(stage) {
+          if (armed && stage === stageToFail) {
+            failBegin = true;
+            throw new Error("injected original failure");
+          }
+        },
+      });
+      const claim = stageToFail === "after-effects" ? admit(f.store) : undefined;
+      const actual = DatabaseSync.prototype.exec;
+      const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+        this: DatabaseSync,
+        sql: string,
+      ) {
+        if (failBegin && sql === "BEGIN IMMEDIATE")
+          throw Object.assign(new Error("injected cleanup failure"), { code: "ERR_SQLITE_ERROR" });
+        actual.call(this, sql);
+      });
+      armed = true;
+      try {
+        const error = caught(() => (claim ? f.store.execute(claim) : admit(f.store)));
+        expect(failures(error)).toContain("injected original failure");
+        expect(failures(error)).toContain("injected cleanup failure");
+      } finally {
+        spy.mockRestore();
+      }
+      expect(() => f.store.inspect()).toThrow("owner fenced");
+      armed = false;
+      const reopened = f.reopen();
+      expect(reopened.recoveredPending).toBe(1);
+      expect(reopened.inspect().resources).toEqual([]);
+      expect(reopened.execute(admit(reopened)).status).toBe("completed");
+    },
+  );
+  it("fences an engine-ended transaction without replacing its original error", () => {
+    const actual = DatabaseSync.prototype.exec;
+    let connection: DatabaseSync | undefined,
+      armed = false;
+    const f = fixture({
+        fault(stage) {
+          if (armed && stage === "after-effects") {
+            if (!connection) throw new Error("missing injected connection");
+            actual.call(connection, "ROLLBACK");
+            throw Object.assign(new Error("injected engine rollback"), {
+              code: "ERR_SQLITE_ERROR",
+              errcode: 13,
+            });
+          }
+        },
+      }),
+      claim = admit(f.store);
+    const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      connection = this;
+      actual.call(this, sql);
+    });
+    armed = true;
+    try {
+      expect(failures(caught(() => f.store.execute(claim)))).toContain("injected engine rollback");
+      expect(spy.mock.calls.filter(([sql]) => sql === "ROLLBACK")).toHaveLength(0);
+    } finally {
+      spy.mockRestore();
+    }
+    assertFenced(f.store, claim);
+    armed = false;
+    const reopened = f.reopen();
+    expect(reopened.recoveredPending).toBe(1);
+    expect(reopened.inspect().resources).toEqual([]);
+    expect(reopened.execute(admit(reopened)).status).toBe("completed");
+  });
+  it("preserves sequence admission and cleanup causes and fences every carrier entry", () => {
+    vi.useFakeTimers();
+    let armed = false,
+      failBegin = false;
+    const f = fixture({
+      fault(stage) {
+        if (armed && stage === "after-sequence-admission") {
+          failBegin = true;
+          throw new Error("injected sequence admission failure");
+        }
+      },
+    });
+    const sequence = prepareTransactionSequence(
+      scope,
+      JSON.stringify({
+        operations: [{ operation: "createBead", type: bead, idempotencyKey: "sequence-a" }],
+      }),
+    );
+    const existingSequence = f.store.admitSequence("other-principal", sequence);
+    const claim = admit(f.store);
+    const actual = DatabaseSync.prototype.exec;
+    const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (failBegin && sql === "BEGIN IMMEDIATE")
+        throw new Error("injected sequence cleanup failure");
+      actual.call(this, sql);
+    });
+    armed = true;
+    try {
+      const errors = failures(caught(() => f.store.admitSequence("principal", sequence)));
+      expect(errors).toContain("injected sequence admission failure");
+      expect(errors).toContain("injected sequence cleanup failure");
+    } finally {
+      spy.mockRestore();
+    }
+    assertFenced(f.store, claim);
+    for (const action of [
+      () => f.store.admitSequence("third-principal", sequence),
+      () => f.store.nextSequence(existingSequence),
+      () => f.store.cancelSequence(existingSequence),
+    ])
+      expect(action).toThrow("owner fenced");
+    expect(vi.getTimerCount()).toBe(0);
+    armed = false;
+    const reopened = f.reopen();
+    expect(reopened.recoveredPending).toBe(3);
+    expect(reopened.inspect().resources).toEqual([]);
+    const retry = reopened.admitSequence("principal", sequence);
+    expect(reopened.nextSequence(retry).result).toMatchObject({
+      kind: "receipt",
+      receipt: { status: "completed" },
+    });
+  });
+  it.each(["before", "after"] as const)(
+    "fences uncertain %s-COMMIT admission without compensating it",
+    (phase) => {
+      const f = fixture();
+      const actual = DatabaseSync.prototype.exec;
+      let armed = true;
+      const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+        this: DatabaseSync,
+        sql: string,
+      ) {
+        if (armed && sql === "COMMIT") {
+          armed = false;
+          if (phase === "after") actual.call(this, sql);
+          throw new Error("injected admission commit failure");
+        }
+        actual.call(this, sql);
+      });
+      try {
+        expect(failures(caught(() => admit(f.store)))).toContain(
+          "injected admission commit failure",
+        );
+        expect(spy.mock.calls.filter(([sql]) => sql === "BEGIN IMMEDIATE")).toHaveLength(1);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(() => f.store.inspect()).toThrow("owner fenced");
+      const reopened = f.reopen();
+      expect(reopened.recoveredPending).toBe(phase === "after" ? 1 : 0);
+      expect(reopened.inspect().resources).toEqual([]);
+      expect(reopened.execute(admit(reopened)).status).toBe("completed");
+    },
+  );
+  it("allows retry after an actual SQLite constraint with a proven clean rollback", () => {
+    const actual = DatabaseSync.prototype.exec;
+    let connection: DatabaseSync | undefined,
+      armed = false;
+    const f = fixture({
+        fault(stage) {
+          if (armed && stage === "after-effects") {
+            if (!connection) throw new Error("missing injected connection");
+            connection.prepare("INSERT INTO identities SELECT id FROM identities LIMIT 1").run();
+          }
+        },
+      }),
+      claim = admit(f.store);
+    const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      connection = this;
+      actual.call(this, sql);
+    });
+    armed = true;
+    try {
+      expect(caught(() => f.store.execute(claim))).toMatchObject({
+        code: "ERR_SQLITE_ERROR",
+        errcode: 1555,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(f.store.inspect().resources).toEqual([]);
+    expect(f.store.receipt("principal", claim.receipt.id)).toBeUndefined();
+    armed = false;
+    const receipt = f.store.execute(admit(f.store));
+    expect(receipt.status).toBe("completed");
+    expect(f.store.inspect().groups).toHaveLength(1);
+  });
 });
