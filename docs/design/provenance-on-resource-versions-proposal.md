@@ -10,10 +10,60 @@ Let someone answer: **“What information did the author say this version was
 based on?”** Save that information with the version, alongside who changed it
 and when. The same mechanism applies to Beads and Links.
 
+## How this relates to actor and date
+
+We already save part of a version's story. This proposal adds its sources:
+
+| Information | Question it answers |
+| --- | --- |
+| Existing actor / attribution | Who is recorded as responsible for this version? |
+| Existing revision time / change context | When was this version recorded, and what change context is available? |
+| Proposed sources and completeness | What information does the author say it was based on, and how complete is that list? |
+
+Together these are **provenance information**: the recorded account of how this
+version came about. Sources are one part of provenance; actor and date are other
+parts. We do not need duplicate actor/date fields or a second history system.
+The resource's original creation date and a particular revision's recording date
+answer different questions; existing timestamp meanings stay unchanged.
+
+Being saved together does not give every field the same assurance. A server may
+observe the write time while merely carrying an actor name and source list
+supplied by the writer. Preserve those differences, including unknown values.
+
+## Provenance versus attestation
+
+**Provenance says what is recorded about how something came about. An attestation
+is a statement someone explicitly stands behind.** An attestation can be about
+provenance; the words do not name competing places to store the same information.
+
+For this protocol, reserve **attestation** for a statement with a verifiable
+issuer and a defined claim about a specific subject. A signature is one possible
+mechanism; this proposal introduces no signing or attestation mechanism. The
+issuer may differ from the actor credited with producing the version.
+
+For example, “Alice is listed as the author; report A is listed as a source” is
+recorded provenance. “Service S attests that it accepted these exact bytes from
+authenticated account Alice” is a narrower, checkable statement. It does not
+establish that Alice actually consulted A or that A supports the conclusion.
+Verifying who issued a statement does not prove that its contents are true.
+
+Use **attribution** for the existing actor information, **source provenance** for
+the new source information, and **provenance** for the broader story. Ordinary
+stored values remain recorded claims; do not call them attested merely because
+they have an actor, timestamp, or immutable revision.
+
+This usage follows the broad provenance model in
+[W3C PROV](https://www.w3.org/TR/prov-dm/) and the authenticated-statement use of
+attestation in [SLSA](https://slsa.dev/spec/v1.2/attestation-model). It is a naming
+recommendation for this proposal, not a claim that every field uses identical
+terminology or requires cryptographic signatures.
+
 ## Proposed information
 
 Each version may carry a common `provenance` member, outside its Type-specific
-properties. It records:
+properties. That working field name holds only the **source** part described
+above; `sourceProvenance` is an alternative to consider when choosing wire names.
+It records:
 
 - **Sources:** references to the information used. A source may be a Bead, a
   Link, or an external resource identified by a URL or URN. A reference may
