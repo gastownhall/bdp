@@ -1043,7 +1043,7 @@ describe("private atomic transaction owner", () => {
       const pending = admit(f.store, batch, "pending");
       f.store.close();
       const raw = new DatabaseSync(f.options.file);
-      let pendingRow;
+      let pendingRow: Record<string, import("node:sqlite").SQLOutputValue> | undefined;
       try {
         const row = raw.prepare("SELECT value FROM metadata WHERE name='configuration'").get();
         const configuration = JSON.parse(String(row?.value));
@@ -1528,5 +1528,60 @@ describe("private atomic transaction owner", () => {
     } finally {
       inspect.close();
     }
+  });
+  it("refuses unresolved Resource alias operands before admission while preserving ordinary data strings", () => {
+    const f = fixture();
+    for (const operand of [
+      "alias/work",
+      `${scope}alias/work`,
+      { uri: "alias/work", revision: "r1" },
+    ]) {
+      for (const [operation, input] of [
+        ["createLink", { type: link, source: operand, target: "beads/a" }],
+        ["createLink", { type: link, source: "beads/a", target: operand }],
+        ["updateBead", { bead: operand, propertiesChange: [{ op: "add", path: "/x", value: 1 }] }],
+        ["deleteBead", { bead: operand }],
+      ] as const) {
+        if (typeof operand !== "string" && operation !== "createLink") continue;
+        expect(() => prepareTransactionSingleton(scope, operation, JSON.stringify(input))).toThrow(
+          "durable witnesses",
+        );
+        expect(() =>
+          prepareTransaction(scope, JSON.stringify({ operations: [{ operation, ...input }] })),
+        ).toThrow("durable witnesses");
+      }
+    }
+    const receipt = execute(
+      f.store,
+      [{ operation: "createBead", type: bead, properties: { uri: "alias/work" } }],
+      "data",
+    );
+    expect(receipt.status).toBe("completed");
+    expect(f.store.inspect().resources).toHaveLength(1);
+  });
+  it("keeps alias locator state when its target is deleted without treating aliases as Resource incidences", () => {
+    const f = fixture();
+    execute(f.store, [{ operation: "createBead", id: "beads/a", type: bead }], "seed-alias");
+    const original = aliasExecute(
+      f.store,
+      "putAlias",
+      { alias: "alias/work", target: "beads/a" },
+      "put",
+    );
+    expect(
+      execute(f.store, [{ operation: "deleteBead", bead: "beads/a" }], "delete-target").status,
+    ).toBe("completed");
+    expect(f.store.aliasTarget("work")).toBe(`${scope}beads/a`);
+    const state = f.store.inspect();
+    const failed = aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete-alias");
+    expect(failed).toMatchObject({ status: "failed", problem: { code: "resource-not-found" } });
+    expect(f.store.inspect()).toEqual(state);
+    expect(
+      f.store.admit(
+        "principal",
+        "put",
+        aliasRequest("putAlias", { alias: "alias/work", target: "beads/a" }),
+      ),
+    ).toEqual({ kind: "existing", receipt: original });
   });
 });
