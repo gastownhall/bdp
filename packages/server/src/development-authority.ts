@@ -8,6 +8,7 @@ import {
   prepareReadUpdateSequence,
   stringifyJsonValue,
   type ReadUpdateOperation,
+  type ReadRequest,
 } from "@bdp/protocol";
 import { openRecoveryStore } from "./recovery-store.js";
 import {
@@ -21,7 +22,7 @@ import {
   snapshotReadUpdateRuntimeLimits,
 } from "./read-update-runtime-limits.js";
 import { readStoredResource } from "./resource-evaluator.js";
-import { requestFromUrl } from "./read-request.js";
+import { requestFromUrl, classifyAliasPath } from "./read-request.js";
 
 export const DEVELOPMENT_BEAD_TYPE = "https://bdp.example/development/bead";
 export const DEVELOPMENT_LINK_TYPE = "https://bdp.example/development/link";
@@ -187,6 +188,14 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
     const reads = lifecycle.readFor({ kind: "authenticated", principal });
     return Object.freeze({
       scope,
+      // Private HTTP composition reads the very configuration used by this owner.
+      limits: DEVELOPMENT_LIMITS,
+      discover: () => reads.perform({ kind: "scope-discovery", scope }),
+      resolveAlias: (url: string) => reads.resolveAlias(url),
+      async perform(request: ReadRequest) {
+        const result = await reads.perform(request);
+        return result.kind === "success" ? { ...result, request } : result;
+      },
       async mutate(operation: ReadUpdateOperation, text: string, key: string, acceptsJson = true) {
         const carrier = prepareReadUpdateSingleton(scope, operation, text, key);
         const submission = lifecycle.submit(carrier, principal, { acceptsJson });
@@ -206,7 +215,7 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
         return result.response;
       },
       async read(url: URL) {
-        if (url.pathname.startsWith("/alias/")) return reads.resolveAlias(url.href);
+        if (classifyAliasPath(url, scope) !== undefined) return reads.resolveAlias(url.href);
         const request = requestFromUrl(url, scope);
         if (isReadProblem(request)) return { kind: "problem" as const, problem: request };
         const result = await reads.perform(request);
