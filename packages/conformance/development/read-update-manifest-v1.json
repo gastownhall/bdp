@@ -1,0 +1,2687 @@
+{
+  "manifestVersion": 1,
+  "catalogId": "development-read-update-v1",
+  "scenarios": [
+    {
+      "id": "development.read-update.bead-crud-guards",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "create",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "create"
+          },
+          "captures": [
+            {
+              "binding": "r1",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1
+              }
+            },
+            {
+              "id": "attribution",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/attribution",
+              "exists": true,
+              "equals": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "noop",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 1
+                }
+              ],
+              "attribution": {
+                "principal": "replacement",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "noop",
+            "expectedRevisionBinding": "r1"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "kept-attribution",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/attribution/principal",
+              "exists": true,
+              "equals": "writer"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "update",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 2
+                }
+              ]
+            },
+            "key": "update",
+            "expectedRevisionBinding": "r1"
+          },
+          "captures": [
+            {
+              "binding": "r2",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "changed",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/n",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "stale",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 3
+                }
+              ]
+            },
+            "key": "stale",
+            "expectedRevisionBinding": "r1"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "read",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "after",
+              "kind": "json-pointer",
+              "pointer": "/body/properties/n",
+              "exists": true,
+              "equals": 2
+            }
+          ]
+        },
+        {
+          "id": "delete",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/a"
+            },
+            "key": "delete",
+            "expectedRevisionBinding": "r2"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/id",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "gone",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.documents",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "seed",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "seed"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "merge",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/extra",
+                  "value": 2
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "add",
+                  "path": "/extra",
+                  "value": "m"
+                }
+              ]
+            },
+            "key": "merge"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1,
+                "extra": 2
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "keep": true,
+                "extra": "m"
+              }
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "invalid",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": []
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {
+                    "lost": true
+                  }
+                }
+              ]
+            },
+            "key": "invalid"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 422
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "validation-failed"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "unchanged",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 1,
+                "extra": 2
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "keep": true,
+                "extra": "m"
+              }
+            }
+          ]
+        },
+        {
+          "id": "clear",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {}
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {}
+                }
+              ]
+            },
+            "key": "clear"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {}
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {}
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.links-delete",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "a",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "a"
+          },
+          "captures": [
+            {
+              "binding": "bead-revision",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/b",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "b"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "link",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/l",
+              "type": "https://bdp.example/development/link",
+              "source": "beads/a",
+              "target": "beads/b",
+              "properties": {
+                "weight": 1
+              }
+            },
+            "key": "link"
+          },
+          "captures": [
+            {
+              "binding": "link-revision",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "update-link",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-link",
+            "body": {
+              "link": "links/l",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/weight",
+                  "value": 2
+                }
+              ]
+            },
+            "key": "update-link",
+            "expectedRevisionBinding": "link-revision"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "changed",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/weight",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "no-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/sourceRevision",
+              "exists": false
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "bead-guard",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 1
+                }
+              ]
+            },
+            "key": "bead-guard",
+            "expectedRevisionBinding": "bead-revision"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "blocked",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/a"
+            },
+            "key": "blocked"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "incident-links-exist"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "unlink",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-link",
+            "body": {
+              "link": "links/l"
+            },
+            "key": "unlink"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "link-gone",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "links/l"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "delete",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/a"
+            },
+            "key": "delete"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "bead-gone",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "recreate",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "recreate"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "identity-taken"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.aliases",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "a",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "a"
+          },
+          "captures": [
+            {
+              "binding": "r1",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/b",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "b"
+          },
+          "captures": [
+            {
+              "binding": "r2",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "put",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/latest",
+              "target": "beads/a"
+            },
+            "key": "put"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "alias",
+              "kind": "json-pointer",
+              "pointer": "/body/alias",
+              "exists": true,
+              "equals": "alias/latest",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "collision",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/latest",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "collision"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "alias-path-taken"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "committed-path",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/a",
+              "target": "beads/b"
+            },
+            "key": "committed-path"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "identity-taken"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "repoint",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/latest",
+              "target": "beads/b"
+            },
+            "key": "repoint"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/target",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "via-alias",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/latest",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/latest",
+              "target": "beads/a"
+            },
+            "key": "via-alias"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "delete",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-alias",
+            "body": {
+              "alias": "alias/latest"
+            },
+            "key": "delete"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "gone",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/latest"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "reuse",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/latest",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "reuse"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "guard-a",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 1
+                }
+              ]
+            },
+            "key": "guard-a",
+            "expectedRevisionBinding": "r1"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "guard-b",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/b",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 1
+                }
+              ]
+            },
+            "key": "guard-b",
+            "expectedRevisionBinding": "r2"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.sequence-partial",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "sequence",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "first",
+                  "name": "first",
+                  "id": "beads/first",
+                  "type": "https://bdp.example/development/bead"
+                },
+                {
+                  "operation": "putAlias",
+                  "idempotencyKey": "bound",
+                  "alias": "alias/bound",
+                  "target": "@first"
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "bad",
+                  "name": "bad",
+                  "id": "beads/first",
+                  "type": "https://bdp.example/development/bead"
+                },
+                {
+                  "operation": "putAlias",
+                  "idempotencyKey": "dependent",
+                  "alias": "alias/bad",
+                  "target": "@bad"
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "tail",
+                  "id": "beads/tail",
+                  "type": "https://bdp.example/development/bead"
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "first",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "bound",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "failed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/code",
+              "exists": true,
+              "equals": "identity-taken"
+            },
+            {
+              "id": "failure-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "failure-index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationIndex",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "failure-name",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationName",
+              "exists": true,
+              "equals": "bad"
+            },
+            {
+              "id": "dependent",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/code",
+              "exists": true,
+              "equals": "binding-unavailable"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/4/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "prefix-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/first"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "tail-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/tail"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "retry",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "first",
+                  "name": "first",
+                  "id": "beads/first",
+                  "type": "https://bdp.example/development/bead"
+                },
+                {
+                  "operation": "putAlias",
+                  "idempotencyKey": "bound",
+                  "alias": "alias/bound",
+                  "target": "@first"
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "bad",
+                  "name": "bad",
+                  "id": "beads/first",
+                  "type": "https://bdp.example/development/bead"
+                },
+                {
+                  "operation": "putAlias",
+                  "idempotencyKey": "dependent",
+                  "alias": "alias/bad",
+                  "target": "@bad"
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "tail",
+                  "id": "beads/tail",
+                  "type": "https://bdp.example/development/bead"
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "first",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "bound",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "failed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/code",
+              "exists": true,
+              "equals": "identity-taken"
+            },
+            {
+              "id": "failure-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "failure-index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationIndex",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "failure-name",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationName",
+              "exists": true,
+              "equals": "bad"
+            },
+            {
+              "id": "dependent",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/code",
+              "exists": true,
+              "equals": "binding-unavailable"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/4/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.retained-keys",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "create",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "delete",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/a"
+            },
+            "key": "delete"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "retry",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1
+              }
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "still-gone",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            }
+          ]
+        },
+        {
+          "id": "conflict",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 2
+              }
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "sequence-retry",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retained",
+                  "name": "renamed",
+                  "id": "beads/a",
+                  "type": "https://bdp.example/development/bead",
+                  "properties": {
+                    "n": 1
+                  },
+                  "metadata": {
+                    "keep": true
+                  },
+                  "attribution": {
+                    "principal": "writer",
+                    "basis": "writer-supplied"
+                  }
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "retained",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "current-name",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": true,
+              "equals": "renamed"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "not-reexecuted",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.carrier-rejection",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "bad-sequence",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "safe",
+                  "id": "beads/safe",
+                  "type": "https://bdp.example/development/bead"
+                },
+                {
+                  "operation": "putAlias",
+                  "idempotencyKey": "bad",
+                  "alias": "alias/bad?query",
+                  "target": "beads/safe"
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "nothing",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/safe"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            }
+          ]
+        },
+        {
+          "id": "corrected",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/safe",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "safe"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "local-singleton",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "@unknown",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {}
+                }
+              ]
+            },
+            "key": "local-singleton"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "missing-key",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/without-key",
+              "type": "https://bdp.example/development/bead"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "missing-key-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/without-key"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.result-headers",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "create",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "create"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "no-etag",
+              "kind": "json-pointer",
+              "pointer": "/headers/etag",
+              "exists": false
+            },
+            {
+              "id": "no-location",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": false
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "read",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.guard-race",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "seed",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "keep": true
+              },
+              "attribution": {
+                "principal": "writer",
+                "basis": "writer-supplied"
+              }
+            },
+            "key": "seed"
+          },
+          "captures": [
+            {
+              "binding": "r1",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            }
+          ]
+        },
+        {
+          "id": "race",
+          "family": "client",
+          "operation": "development.race",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 2
+                }
+              ]
+            },
+            "key": "race",
+            "expectedRevisionBinding": "r1",
+            "secondBody": {
+              "bead": "beads/a",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 3
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "one-winner",
+              "kind": "json-array-set",
+              "pointer": "",
+              "itemPointer": "/status",
+              "equals": [200, 409]
+            }
+          ]
+        },
+        {
+          "id": "live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    }
+  ]
+}
