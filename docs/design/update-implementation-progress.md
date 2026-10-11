@@ -218,3 +218,41 @@ passing assertions. Build, typecheck, dependency boundaries, formatting,
 development process smoke and installed-package smoke passed on Node 24.16.0
 and pnpm 11.20.0. Lint retains only the baseline three warnings and one
 informational finding. This slice did not rerun the full repository suite.
+
+## Raw HTTP admission and negotiation bindings
+
+Five more diagnostic plans extend the same development runner to 14 scenarios,
+105 actions and 398 assertions. The inventory now has 41 bounded-observation
+rows and 40 explicit omissions. Added bindings cover unauthenticated receiving,
+media refusal, a bodyless method refusal, request-body limits and six observed
+Problem codes. These remain partial rows, especially the method and complete
+Problem-table obligations.
+
+Raw actions reuse the existing conformance HTTP executor. Duplicate credentials
+and chunked input reuse the prior development-server test helper in source-only
+app test support. The exact executor's credential/Host/framing guards stay
+unchanged; no runtime module changes. Requests are constrained to the disposable
+loopback Scope, three development routes and fixed fixture credential variants.
+
+Receiving tests include malformed and repeated keys, duplicated authorization,
+missing/wrong/malformed local credentials, media parameters, malformed JSON and
+duplicate JSON names, invalid UTF-8 and an unpaired surrogate, streamed and
+declared body overflow, and success at the inclusive 64 KiB UTF-8 octet bound.
+Read-back plus corrected requests under the same valid keys establish absence of
+mutation and unknown-key capture after refusal.
+
+Negotiation tests cover unknown, retained equal, conflicting and failed keys,
+including JSON q=0 taking precedence over a wildcard. Retained failure replay is
+observed after the subject becomes live, proving the failed request is not
+executed again. Mixed sequences preserve the envelope rule under unacceptable
+Accept and leave unknown tails unadmitted; acceptable retries return retained
+entries and execute independent tails. Process/disconnect bindings, pending-key
+scheduling and remaining raw target/Host cases remain future runner slices.
+
+Validation: 120 focused tests passed across the development matrix, existing
+HTTP receiver tests, diagnostic inventory, raw executor and unchanged normative
+catalog guard. The saved diagnostic report has 14 passing plans, 105 actions
+and 398 passing assertions. Build, typecheck, dependency boundaries, formatting,
+development process smoke and installed-package smoke passed on the pinned
+Node/pnpm versions. Lint retains the baseline three warnings and one
+informational finding. No full-repository test run is claimed for this slice.

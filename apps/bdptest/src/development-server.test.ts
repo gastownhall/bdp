@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { request as httpRequest } from "node:http";
+import { rawPost } from "../test-support/raw-development-http.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { createReadUpdateFetchTransport, BdpReadUpdateClient } from "@bdp/client";
 import {
@@ -869,30 +870,3 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect((await reopened.get("beads/")).status).toBe(200);
   });
 });
-
-async function rawPost(
-  scope: string,
-  target: string,
-  headers: string[],
-  body: string | Buffer,
-  chunked = false,
-): Promise<{ status: number; body: string }> {
-  return new Promise((resolve, reject) => {
-    const request = httpRequest(
-      { hostname: "127.0.0.1", port: new URL(scope).port, path: target, method: "POST", headers },
-      (response) => {
-        let text = "";
-        response.setEncoding("utf8");
-        response.on("data", (chunk) => {
-          text += chunk;
-        });
-        response.once("end", () => resolve({ status: response.statusCode ?? 0, body: text }));
-        response.once("error", reject);
-      },
-    );
-    request.setTimeout(5000, () => request.destroy(new Error("request timed out")));
-    request.once("error", reject);
-    if (chunked) request.write(body.slice(0, 40000));
-    request.end(chunked ? body.slice(40000) : body);
-  });
-}

@@ -210,16 +210,47 @@
         {
           "scenario": "development.read-update.carrier-rejection",
           "assertions": ["missing-key.problem", "missing-key-absent.status"],
-          "limits": ["Absent field only; malformed/duplicate fields require raw lane binding."]
+          "limits": [
+            "Absent field only in this plan; raw-admission supplies malformed and duplicate field observations."
+          ]
+        },
+        {
+          "scenario": "development.read-update.raw-admission",
+          "assertions": [
+            "duplicate-key.problem",
+            "different-duplicate-key.problem",
+            "malformed-key.problem",
+            "empty-key.problem",
+            "long-key.problem",
+            "absent.missing",
+            "corrected.created",
+            "other-key.created"
+          ],
+          "limits": [
+            "Absent key is bound by carrier-rejection; raw probes cover identical/differing duplicates, empty, spaces and overlong values."
+          ]
         }
       ]
     },
     {
       "id": "read-update.singleton.unauthenticated",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-admission",
+          "assertions": [
+            "missing-auth.problem",
+            "missing-auth.challenge",
+            "wrong-auth.problem",
+            "malformed-auth.problem",
+            "absent.missing",
+            "corrected.created"
+          ],
+          "limits": [
+            "Fixed local bearer policy only; these credential spellings do not define production authentication requirements."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.singleton.idempotent-retry",
@@ -229,6 +260,18 @@
           "scenario": "development.read-update.retained-keys",
           "assertions": ["retry.outcome", "retry.postimage", "still-gone.status"],
           "limits": []
+        },
+        {
+          "scenario": "development.read-update.raw-accept-keys",
+          "assertions": [
+            "retained-equal.status",
+            "retained-equal.empty",
+            "retry.created",
+            "retry.corrected"
+          ],
+          "limits": [
+            "Negotiation refusal preserves retained success; exact historical postimage replay is separately bound."
+          ]
         }
       ]
     },
@@ -240,22 +283,53 @@
           "scenario": "development.read-update.retained-keys",
           "assertions": ["conflict.problem"],
           "limits": ["Changed properties observed; full semantic identity dimensions omitted."]
+        },
+        {
+          "scenario": "development.read-update.raw-accept-keys",
+          "assertions": [
+            "retained-conflict.problem",
+            "retained-conflict.problem-status",
+            "retained-conflict.media"
+          ],
+          "limits": ["Retained conflict precedes representation negotiation."]
         }
       ]
     },
     {
       "id": "read-update.singleton.unsupported-media-type",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-media-json",
+          "assertions": [
+            "undeclared-media.problem",
+            "wrong-media.problem",
+            "absent.missing",
+            "corrected-media.created",
+            "live.corrected"
+          ],
+          "limits": []
+        }
+      ]
     },
     {
       "id": "read-update.singleton.method-405",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-method",
+          "assertions": [
+            "wrong-method.status",
+            "wrong-method.empty",
+            "wrong-method.allow",
+            "absent.missing",
+            "corrected.created"
+          ],
+          "limits": [
+            "GET to singleton target only. Operation Directory absent; enabled CORS and all other methods remain unbound."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.singleton.no-local-bindings",
@@ -478,6 +552,16 @@
           "scenario": "development.read-update.sequence-partial",
           "assertions": ["retry.failed", "retry.dependent"],
           "limits": []
+        },
+        {
+          "scenario": "development.read-update.raw-accept-keys",
+          "assertions": [
+            "failed-sequence-corrected.retained-failure",
+            "failure-not-reexecuted.status"
+          ],
+          "limits": [
+            "The failed singleton is replayed as a sequence member after its formerly absent subject is created."
+          ]
         }
       ]
     },
@@ -683,10 +767,57 @@
     },
     {
       "id": "read-update.problem.table",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-admission",
+          "assertions": [
+            "missing-auth.problem-status",
+            "missing-auth.problem-family",
+            "missing-auth.retry",
+            "missing-auth.media",
+            "duplicate-key.problem-status",
+            "duplicate-key.problem-family",
+            "duplicate-key.retry",
+            "duplicate-key.media"
+          ],
+          "limits": [
+            "Only observed codes: unauthenticated and malformed-request in this scenario; complete table qualification remains omitted."
+          ]
+        },
+        {
+          "scenario": "development.read-update.raw-media-json",
+          "assertions": [
+            "wrong-media.problem-status",
+            "wrong-media.problem-family",
+            "wrong-media.retry",
+            "wrong-media.media"
+          ],
+          "limits": ["unsupported-media-type only in this scenario."]
+        },
+        {
+          "scenario": "development.read-update.raw-body-limit",
+          "assertions": [
+            "large-content-length.problem-status",
+            "large-content-length.problem-family",
+            "large-content-length.retry",
+            "large-content-length.media"
+          ],
+          "limits": ["request-too-large only in this scenario."]
+        },
+        {
+          "scenario": "development.read-update.raw-accept-keys",
+          "assertions": [
+            "retained-conflict.problem-family",
+            "retained-conflict.retry",
+            "retained-conflict.media",
+            "retained-failure.problem-family",
+            "retained-failure.retry",
+            "retained-failure.media"
+          ],
+          "limits": ["idempotency-conflict and resource-not-found only in this scenario."]
+        }
+      ]
     },
     {
       "id": "read-update.validation.type-contract",
@@ -722,10 +853,23 @@
     },
     {
       "id": "read-update.http.request-too-large",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.raw-body-limit",
+          "assertions": [
+            "large-content-length.problem",
+            "large-chunked.problem",
+            "absent.missing",
+            "corrected.created",
+            "inclusive-bound.created",
+            "boundary-live.unicode"
+          ],
+          "limits": [
+            "64 KiB fixed development limit; inclusive UTF-8 octet bound plus declared and streamed overflow are observed. No discovery advertisement is claimed."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.http.cache-no-store",
@@ -737,6 +881,17 @@
           "limits": [
             "Success observed here; other plans observe multiple failure responses, not every problem code."
           ]
+        },
+        {
+          "scenario": "development.read-update.raw-media-json",
+          "assertions": [
+            "undeclared-media.cache",
+            "wrong-media.cache",
+            "json-duplicate.cache",
+            "invalid-utf8.cache",
+            "corrected-media.cache"
+          ],
+          "limits": ["Observed receiving errors and success, not every Problem code."]
         }
       ]
     },

@@ -12,6 +12,7 @@ import {
 import { createDevelopmentReadUpdateArtifactBundle } from "@bdp/conformance/testing";
 import { startDevelopmentReferenceServer } from "@bdp/server/development";
 import { describe, expect, it } from "vitest";
+import { executeDevelopmentRawAction } from "../test-support/development-raw-actions.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const token = "development_matrix_local_credential_0123456789";
@@ -82,6 +83,8 @@ function developmentActions(): ScenarioActionExecutor {
   }
   return async (execution) => {
     if (execution.family !== "client") throw new Error("unsupported development action family");
+    if (execution.operation === "development.raw")
+      return executeDevelopmentRawAction(execution, token);
     if (execution.operation === "development.request") return request(execution);
     if (execution.operation === "development.race")
       return Promise.all([request(execution), request(execution, true)]);
@@ -138,10 +141,11 @@ async function runDevelopmentMatrix(bundle: ConformanceArtifactBundle, selection
 }
 
 describe("DEVELOPMENT ONLY: non-attesting Read+Update contract observations", () => {
-  it("executes every diagnostic binding against real HTTP and the SDK Fetch transport", async () => {
+  it("executes every diagnostic binding against real HTTP with SDK and raw receiving observations", async () => {
     const bundle = createDevelopmentReadUpdateArtifactBundle(await artifacts());
     const result = await runDevelopmentMatrix(bundle);
     expect(result.claimEligible).toBe(false);
+    expect(JSON.stringify(result)).not.toContain(token);
     expect(result.scenarios.map(({ id }) => id)).toEqual(
       bundle.manifest.scenarios.map(({ id }) => id),
     );
@@ -153,6 +157,43 @@ describe("DEVELOPMENT ONLY: non-attesting Read+Update contract observations", ()
         process.env.BDP_DEVELOPMENT_REPORT_PATH,
         `${JSON.stringify(result, null, 2)}\n`,
       );
+  });
+
+  it("contains raw fixture requests to the current loopback Scope and fixed credentials", async () => {
+    const execution: ScenarioActionExecution = {
+      family: "client",
+      operation: "development.raw",
+      scope: "https://example.invalid/",
+      bindings: {},
+      signal: new AbortController().signal,
+      input: { method: "POST", target: "development/create-bead", body: {}, headerLines: [] },
+    };
+    await expect(executeDevelopmentRawAction(execution, token)).rejects.toThrow("loopback Scope");
+    await expect(
+      executeDevelopmentRawAction(
+        {
+          ...execution,
+          scope: "http://127.0.0.1:1/",
+          input: { method: "POST", target: "https://example.invalid/", headerLines: [] },
+        },
+        token,
+      ),
+    ).rejects.toThrow("bounded fixture");
+    await expect(
+      executeDevelopmentRawAction(
+        {
+          ...execution,
+          scope: "http://127.0.0.1:1/",
+          input: {
+            method: "POST",
+            target: "development/create-bead",
+            credential: "operator-provided",
+            headerLines: [],
+          },
+        },
+        token,
+      ),
+    ).rejects.toThrow("fixed development credential");
   });
 
   it("reports an authored contract mismatch instead of accepting an assertion-free observation", async () => {
