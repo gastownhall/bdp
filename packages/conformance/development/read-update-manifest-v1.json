@@ -6738,7 +6738,8 @@
               }
             },
             "key": "allocate",
-            "observeIdentity": true
+            "observeIdentity": true,
+            "excludedIdentity": "beads/reserved"
           },
           "captures": [
             {
@@ -6765,9 +6766,16 @@
               "equals": "created"
             },
             {
-              "id": "canonical",
+              "id": "url-serialization-stable",
               "kind": "json-pointer",
-              "pointer": "/identity/canonical",
+              "pointer": "/identity/urlSerializationStable",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "differs-from-reserved-alias",
+              "kind": "json-pointer",
+              "pointer": "/identity/differsFromExcludedIdentity",
               "exists": true,
               "equals": true
             },

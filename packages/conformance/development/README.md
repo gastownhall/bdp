@@ -114,10 +114,12 @@ the associated inventory rows.
 ## Alias and pinned-reference observations
 
 Six SDK plans extend allocation, alias validation and retained-reference cases.
-Allocation returns an in-Scope canonical Bead identity with one nonempty child
-segment, permits read-back of the submitted properties, and leaves an existing
-alias usable. Explicit creation at that alias path fails. This does **not** force
-the private allocator's next candidate to collide: deterministic collision
+Allocation returns an in-Scope Bead identity with one nonempty child segment
+that differs from the live reserved alias segment in this single observation.
+The identity is stable under URL serialization; the independent BDP canonical
+segment grammar is not checked here. Read-back observes the submitted properties
+and the existing alias remains usable. Explicit creation at that alias path fails.
+This does **not** force the private allocator's next candidate to collide: deterministic collision
 skipping remains an unqualified obligation on the allocation row.
 
 Alias puts reject alias, Link and external targets with a diagnostic. Unknown

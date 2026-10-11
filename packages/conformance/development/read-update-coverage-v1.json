@@ -448,7 +448,8 @@
         {
           "scenario": "development.read-update.alias-allocation",
           "assertions": [
-            "allocate.canonical",
+            "allocate.url-serialization-stable",
+            "allocate.differs-from-reserved-alias",
             "allocate.in-scope",
             "allocate.root",
             "allocate.single-segment",
@@ -458,7 +459,7 @@
             "alias-still-live.source"
           ],
           "limits": [
-            "Allocation is observed with a live reserved alias and the alias remains unchanged. The private random allocation namespace prevents forcing the next candidate to collide through HTTP; collision-skipping itself is NOT exercised or qualified."
+            "One allocated identity is directly observed to differ from the live reserved alias segment, and the alias remains unchanged. URL serialization stability is observed, not the independent BDP canonical-segment grammar. The private random allocation namespace prevents forcing the next candidate to collide through HTTP; collision-skipping itself is NOT exercised or qualified."
           ]
         }
       ]

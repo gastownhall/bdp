@@ -115,7 +115,13 @@ function developmentActions(
         ? {}
         : {
             identity: {
-              canonical: new URL(identity).href === identity,
+              urlSerializationStable: new URL(identity).href === identity,
+              ...(input.excludedIdentity === undefined
+                ? {}
+                : {
+                    differsFromExcludedIdentity:
+                      identity !== new URL(string(input.excludedIdentity), execution.scope).href,
+                  }),
               inScope: identity.startsWith(execution.scope),
               root: segments[0],
               childSegments: segments.length - 1,
