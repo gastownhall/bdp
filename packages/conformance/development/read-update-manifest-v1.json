@@ -2682,6 +2682,2768 @@
       "cleanup": {
         "resetFixture": true
       }
+    },
+    {
+      "id": "development.read-update.raw-admission",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "missing-auth",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "credential": "missing"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 401
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "unauthenticated"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 401
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/authentication"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "challenge",
+              "kind": "json-pointer",
+              "pointer": "/headers/www-authenticate",
+              "exists": true,
+              "equals": "Bearer realm=\"bdptest-development\""
+            }
+          ]
+        },
+        {
+          "id": "wrong-auth",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "credential": "wrong"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 401
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "unauthenticated"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 401
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/authentication"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "challenge",
+              "kind": "json-pointer",
+              "pointer": "/headers/www-authenticate",
+              "exists": true,
+              "equals": "Bearer realm=\"bdptest-development\""
+            }
+          ]
+        },
+        {
+          "id": "malformed-auth",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "credential": "malformed"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 401
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "unauthenticated"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 401
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/authentication"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "challenge",
+              "kind": "json-pointer",
+              "pointer": "/headers/www-authenticate",
+              "exists": true,
+              "equals": "Bearer realm=\"bdptest-development\""
+            }
+          ]
+        },
+        {
+          "id": "duplicate-auth",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "credential": "duplicate"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "duplicate-key",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "different-duplicate-key",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "other"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "malformed-key",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "bad key"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "empty-key",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": ""
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "long-key",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "corrected",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "corrected": true
+              }
+            },
+            "key": "raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "corrected",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/corrected",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        },
+        {
+          "id": "other-key",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/other",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "corrected": true
+              }
+            },
+            "key": "other"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "corrected",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/corrected",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.raw-media-json",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "undeclared-media",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 415
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "unsupported-media-type"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 415
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "wrong-media",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 415
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "unsupported-media-type"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 415
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "duplicate-media",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "json-truncated",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "bodyText": "{"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "json-duplicate",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "bodyText": "{\"type\":\"a\",\"type\":\"b\"}"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "json-surrogate",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "bodyText": "{\"type\":\"\\ud800\"}"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "invalid-utf8",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "bodyBase64": "wK8="
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "malformed-request"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 400
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "corrected-media",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "corrected": true
+              }
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "Application/JSON; charset=utf-8"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              },
+              {
+                "name": "If-Match",
+                "value": "\"not-a-resource-guard\""
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "corrected",
+              "kind": "json-pointer",
+              "pointer": "/body/properties/corrected",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.raw-body-limit",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "large-content-length",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "bodySpaces": 65537
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 413
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "request-too-large"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 413
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/size"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "large-chunked",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ],
+            "bodySpaces": 65537,
+            "chunked": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 413
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "request-too-large"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 413
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/size"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "corrected",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "corrected": true
+              }
+            },
+            "key": "raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "corrected",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/corrected",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        },
+        {
+          "id": "inclusive-bound",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/boundary",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "unicode": "\u00e9"
+              }
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "boundary"
+              }
+            ],
+            "bodyPaddingBytes": 65536
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "boundary-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/boundary"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "unicode",
+              "kind": "json-pointer",
+              "pointer": "/body/properties/unicode",
+              "exists": true,
+              "equals": "\u00e9"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.raw-method",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "wrong-method",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "GET",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 405
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "json-pointer",
+              "pointer": "/bodyOctets",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-json",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
+            },
+            {
+              "id": "no-media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": false
+            },
+            {
+              "id": "allow",
+              "kind": "json-pointer",
+              "pointer": "/headers/allow",
+              "exists": true,
+              "equals": "POST"
+            }
+          ]
+        },
+        {
+          "id": "absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "corrected",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "corrected": true
+              }
+            },
+            "key": "raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "corrected",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/corrected",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.raw-accept-keys",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "unknown",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              },
+              {
+                "name": "Accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 406
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "json-pointer",
+              "pointer": "/bodyOctets",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-json",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
+            },
+            {
+              "id": "no-media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "corrected",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "corrected": true
+              }
+            },
+            "key": "raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "corrected",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/corrected",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        },
+        {
+          "id": "retained-equal",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "corrected": true
+              }
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              },
+              {
+                "name": "Accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 406
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "json-pointer",
+              "pointer": "/bodyOctets",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-json",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
+            },
+            {
+              "id": "no-media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "retained-conflict",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "raw"
+              },
+              {
+                "name": "Accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/conflict"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "retry",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/raw",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "corrected": true
+              }
+            },
+            "key": "raw"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "corrected",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/corrected",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        },
+        {
+          "id": "failed",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/missing"
+            },
+            "key": "failed"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "now-present",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/missing",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "corrected": true
+              }
+            },
+            "key": "now-present"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "corrected",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/corrected",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        },
+        {
+          "id": "retained-failure",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/missing"
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "failed"
+              },
+              {
+                "name": "Accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-status",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-family",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": true,
+              "equals": "application/problem+json"
+            }
+          ]
+        },
+        {
+          "id": "sequence-unknown-tail",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "raw",
+                  "name": "retained",
+                  "id": "beads/raw",
+                  "type": "https://bdp.example/development/bead",
+                  "properties": {
+                    "corrected": true
+                  }
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "tail",
+                  "id": "beads/tail",
+                  "type": "https://bdp.example/development/bead"
+                }
+              ]
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 406
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "json-pointer",
+              "pointer": "/bodyOctets",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-json",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
+            },
+            {
+              "id": "no-media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "tail-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/tail"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "sequence-corrected",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "raw",
+                  "name": "retained",
+                  "id": "beads/raw",
+                  "type": "https://bdp.example/development/bead",
+                  "properties": {
+                    "corrected": true
+                  }
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "tail",
+                  "id": "beads/tail",
+                  "type": "https://bdp.example/development/bead"
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "retained",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "tail-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/tail"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "sequence-retained-failure",
+          "family": "client",
+          "operation": "development.raw",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "deleteBead",
+                  "idempotencyKey": "failed",
+                  "bead": "beads/missing"
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "failure-tail",
+                  "id": "beads/failure-tail",
+                  "type": "https://bdp.example/development/bead"
+                }
+              ]
+            },
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 406
+            },
+            {
+              "id": "cache",
+              "kind": "json-pointer",
+              "pointer": "/headers/cache-control",
+              "exists": true,
+              "equals": "private, no-store"
+            },
+            {
+              "id": "empty",
+              "kind": "json-pointer",
+              "pointer": "/bodyOctets",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-json",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
+            },
+            {
+              "id": "no-media",
+              "kind": "json-pointer",
+              "pointer": "/headers/content-type",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "failure-tail-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/failure-tail"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "failed-sequence-corrected",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "deleteBead",
+                  "idempotencyKey": "failed",
+                  "bead": "beads/missing"
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "failure-tail",
+                  "id": "beads/failure-tail",
+                  "type": "https://bdp.example/development/bead"
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "retained-failure",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "failure-not-reexecuted",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/missing"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
     }
   ]
 }
