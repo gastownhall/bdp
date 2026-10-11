@@ -666,10 +666,21 @@
     },
     {
       "id": "read-update.sequence.transient-predecessor",
-      "status": "omitted",
-      "category": "controlled-scheduling",
-      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "fresh-dependent.creator-code",
+            "fresh-dependent.dependent-code",
+            "fresh-dependent.independent-tail",
+            "released-key.created"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.sequence.expired-creator-binding",
@@ -814,24 +825,61 @@
     },
     {
       "id": "read-update.sequence.interleaving",
-      "status": "omitted",
-      "category": "controlled-scheduling",
-      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-interleaving",
+          "assertions": [
+            "interleave.outside",
+            "intervening-live.original-not-run",
+            "tail-still-absent.absent",
+            "complete.outside-preserved",
+            "complete.original-applied",
+            "intervening-guard-stale.mismatch",
+            "equal.identical"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.idempotency.in-progress",
-      "status": "omitted",
-      "category": "controlled-scheduling",
-      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "duplicate.member-1-code",
+            "tail-pending.pending-code",
+            "complete.created-1",
+            "equal.identical"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.idempotency.key-reservation",
-      "status": "omitted",
-      "category": "controlled-scheduling",
-      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "duplicate.member-3-code",
+            "tail-pending.pending-code",
+            "tail-absent.absent",
+            "wrong-absent.absent",
+            "complete.created-3"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.idempotency.claim-atomicity",
@@ -842,17 +890,41 @@
     },
     {
       "id": "read-update.idempotency.concurrent-dependent-retry",
-      "status": "omitted",
-      "category": "controlled-scheduling",
-      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "duplicate.member-2-code",
+            "edge-absent.absent",
+            "complete.created-2",
+            "equal.identical"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.idempotency.transient-not-retained",
-      "status": "omitted",
-      "category": "controlled-scheduling",
-      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-pending",
+          "assertions": [
+            "fresh-dependent.dependent-code",
+            "fresh-absent.absent",
+            "released-key.created",
+            "released-retry.created",
+            "retained-conflict.conflict",
+            "fresh-state.properties"
+          ],
+          "limits": [
+            "Real HTTP against one disposable reference process parked before dispatch 2. No distributed writer, admission-midpoint/storage-fault, rate-limit, policy-change or expiry qualification. Transient observations cover in-progress only; equality compares parsed JSON via the existing canonical digest."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.idempotency.semantic-identity",

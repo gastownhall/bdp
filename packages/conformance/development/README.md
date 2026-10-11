@@ -5,7 +5,7 @@ assertions in the existing conformance runner. It is **development-only and
 non-attesting**. It does not make the normative Read+Update catalog executable,
 admit a public write profile, or certify an implementation.
 
-The manifest contains 23 diagnostic scenarios and 221 HTTP/lifecycle actions. The
+The manifest contains 25 diagnostic scenarios and 253 HTTP/lifecycle actions. The
 receiver runs against a fresh disposable SQLite store for each scenario. The
 executor uses the actual Read+Update SDK Fetch transport or the existing raw
 HTTP executor and returns observed status, headers and body. The shared runner evaluates the assertions, captures
@@ -14,10 +14,10 @@ catalog/manifest/fixture bytes into its report. A guard race dispatches two
 real requests with the same observed revision and distinct keys.
 
 `read-update-coverage-v1.json` inventories all 81 current normative catalog rows
-in their original order. Forty-eight rows have **bounded observations**, with
+in their original order. Fifty-four rows have **bounded observations**, with
 stable `scenario` and `action.assertion` references. These are partial behavioral
 evidence, not passing normative rows. Per-binding `limits` record known missing
-variants. Thirty-three rows are explicitly omitted with a category and reason.
+variants. Twenty-seven rows are explicitly omitted with a category and reason.
 An empty limits array does not certify exhaustive coverage of a normative row.
 
 The diagnostic catalog uses `development.read-update.*` IDs and `kind:
@@ -141,6 +141,35 @@ Read-back verifies that conflicting retries did not change the original Link.
 These observations do not establish historical revision resolution or external
 fetch behavior. Authorization, retention and expiry variants remain omitted.
 
+## Pending retries and interleaving
+
+Two further process plans keep the same emitted runtime and dispatch-2 barrier.
+While the original request is parked, real HTTP requests observe reserved creator,
+dependent and independent-tail keys. Equal and statically different pending
+presentations receive in-progress without running ahead. A second sequence with a
+fresh dependent key receives a transient dependency failure while its independent
+tail succeeds. After release, the original completes successfully and an exact-key
+retry has the same parsed JSON body. The fresh dependent key then executes and
+replays successfully, proving that its transient result was not retained.
+
+An interleaving plan commits an unrelated update before release. The original
+later update preserves that property and adds its own; a guard using the
+intervening revision subsequently fails. Retrying the unrelated update returns
+its original postimage, and the original sequence also replays identically.
+
+Connected plans await the original bounded Fetch response after release: competing
+requests change scheduler dispatch indices, so a fixed turn count cannot establish
+which request completed. Existing disconnected plans keep their established
+four-member completion barrier. Rejections are consumed immediately, and cleanup
+aborts/awaits the original request and kills/awaits the owned child. The scheduler,
+runtime, matrix test budget and public configuration remain unchanged.
+
+These add bounded in-progress, reservation, transient-dependency, nonretention and
+interleaving observations. They do not qualify admission-midpoint atomicity,
+rate-limited or service-unavailable variants, multiple writers, expiry, policy
+changes or internal storage faults. The HTTP authority's 24-hour retention and
+real clock remain unchanged; no time-travel or manufactured outcomes were used.
+
 ## Next qualification slices
 
 - Bind remaining raw Host/target tests to this runner. Credential/key/media/body
@@ -148,8 +177,9 @@ fetch behavior. Authorization, retention and expiry variants remain omitted.
 - Extend remaining conditional/no-op and semantic idempotency variants. Add a
   controlled allocation fixture before claiming collision skipping; live-alias
   allocation sampling does not establish that behavior.
-- Add controlled owner scheduling, expiry and fault fixtures before binding
-  pending keys, concurrent dependent retries, retention and restoration.
+- Pending-key and concurrent dependent retries are now observed with the existing
+  process barrier. Add justified expiry/fault fixtures before binding retention,
+  restoration, admission-midpoint atomicity and execution-fault variants.
 - Supply installed schema/owned-Link contracts and configurable authorization
   fixtures before observing those obligations. The fixed unowned Types and
   single all-visible local principal cannot establish them.

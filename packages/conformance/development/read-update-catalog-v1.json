@@ -994,6 +994,77 @@
           "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `attribution` are members of the record and therefore of its identity."
         }
       ]
+    },
+    {
+      "id": "development.read-update.process-pending",
+      "title": "Development-only bounded observation: process-pending",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "the member fails with `idempotency-in-progress`, the authority consults no key state for it, executes nothing, retains nothing, and releases its claim on the member's key"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A member whose `@name` reference names a creating member of the same request whose disposition was transient is transient by the same rule"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "Neither prevents later independent members from running."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is in flight \u2014 claimed by a request whose member has not reached a terminal outcome: the member fails with `idempotency-in-progress`, the authority executes nothing and retains nothing for the presenting member, and a retry after the delay receives the retained disposition once the first presentation has reached a retained outcome"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "a delayed retry may instead find the key still in flight, meet a transient disposition of its own, or, after a long delay, find the disposition expired"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A sequence claims every member's unknown key at admission, in declaration order, before its first member starts; a singleton claims its key before executing."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "so it can neither execute a member ahead of the original's earlier members nor retain a disposition the original would contradict"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "so that a retry after the delay executes the creator and then the dependent, and a concurrent retry can never poison the dependent member of the request that first presented the keys"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A disposition whose `retry` is `after-delay` \u2014 `rate-limited`, `temporarily-unavailable`, and `idempotency-in-progress` \u2014 is transient and is never retained: the member was not executed, and a later member presenting the same key executes it."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.process-interleaving",
+      "title": "Development-only bounded observation: process-interleaving",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "permits unrelated requests to interleave between members, taking no sequence-wide transaction, reservation, or lock."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "Bindings are confined to one sequence request and do not add isolation: an interleaving request may update or delete the committed Resource before a later member uses it."
+        }
+      ]
     }
   ]
 }
