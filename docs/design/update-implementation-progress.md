@@ -256,3 +256,42 @@ and 398 passing assertions. Build, typecheck, dependency boundaries, formatting,
 development process smoke and installed-package smoke passed on the pinned
 Node/pnpm versions. Lint retains the baseline three warnings and one
 informational finding. No full-repository test run is claimed for this slice.
+
+## Process lifecycle bindings in the diagnostic runner
+
+Three lifecycle plans reuse the existing emitted-runtime IPC barrier and process
+helpers. The matrix now records 17 scenarios, 132 actions and 515 passing
+assertions. All 81 normative rows remain inventoried: 44 have bounded observations
+and 37 have structured omissions. New mappings cover sequence disconnect,
+durable-boundary observations and crash-mid-sequence, with explicit limits on
+which durability variants were exercised.
+
+The child parks dispatch 2 before execution. HTTP reads establish a committed
+prefix and absent tail. Client abort followed by release allows completion;
+graceful close waits for release and drains before clean exit; SIGKILL preserves
+the prefix across ordinary executable recovery without executing the tail until
+explicit resubmission. Retried responses preserve the ordered failure, creator
+binding and independent tail. The runtime and public configuration are unchanged.
+
+For full prefix and replay comparisons, lifecycle actions report observation
+counts and distinct SHA-256 digests over the existing canonical JSON encoding.
+Manifest assertions require two observations and one digest in each group.
+This compares parsed JSON semantic values, not raw HTTP bytes or headers. A
+negative control changes the prefix through a real HTTP update and confirms
+that the runner's equality assertion fails. The existing standalone tests share
+the extracted process helper and retain their direct full-object comparisons.
+
+Per-scenario child/store cleanup is exercised with assertion failure and an
+run abort at the observed barrier. The process helper bounds IPC and
+exit waits; cleanup kills and awaits remaining children before deleting fixture
+directories. Between-member SIGKILL remains distinct from power loss, failover,
+or an injected crash within SQLite's commit boundary.
+
+Validation: 256 focused tests passed across the matrix, original process tests,
+diagnostic inventory, normative catalog guard and existing runner. Build and
+typecheck passed. The process tests consume emitted modules and must run after
+a completed build; concurrent cleaning is unsupported. No full-suite or complete
+write-profile qualification is claimed.
+
+Dependency boundaries, formatting and both executable smoke suites passed. Lint
+retains only the baseline three warnings and one informational finding.

@@ -5,7 +5,7 @@ assertions in the existing conformance runner. It is **development-only and
 non-attesting**. It does not make the normative Read+Update catalog executable,
 admit a public write profile, or certify an implementation.
 
-The manifest contains 14 diagnostic scenarios and 105 HTTP actions. The
+The manifest contains 17 diagnostic scenarios and 132 HTTP/lifecycle actions. The
 receiver runs against a fresh disposable SQLite store for each scenario. The
 executor uses the actual Read+Update SDK Fetch transport or the existing raw
 HTTP executor and returns observed status, headers and body. The shared runner evaluates the assertions, captures
@@ -14,10 +14,10 @@ catalog/manifest/fixture bytes into its report. A guard race dispatches two
 real requests with the same observed revision and distinct keys.
 
 `read-update-coverage-v1.json` inventories all 81 current normative catalog rows
-in their original order. Forty-one rows have **bounded observations**, with
+in their original order. Forty-four rows have **bounded observations**, with
 stable `scenario` and `action.assertion` references. These are partial behavioral
 evidence, not passing normative rows. Per-binding `limits` record known missing
-variants. Forty rows are explicitly omitted with a category and reason.
+variants. Thirty-seven rows are explicitly omitted with a category and reason.
 An empty limits array does not certify exhaustive coverage of a normative row.
 
 The diagnostic catalog uses `development.read-update.*` IDs and `kind:
@@ -30,8 +30,12 @@ The report cannot establish missing inherited Read contracts either.
 Run on the repository-pinned Node and pnpm versions:
 
 ```sh
+pnpm build
 pnpm exec vitest run apps/bdptest/src/development-matrix.test.ts packages/conformance/src/development-read-update.test.ts --maxWorkers=2 --reporter=verbose
 ```
+
+Build must finish before these tests start: the process scenarios execute emitted
+modules, and a concurrent clean build removes them.
 
 Optionally set `BDP_DEVELOPMENT_REPORT_PATH` to an external file path to save the
 successful diagnostic run. This is separate from production cohort emission.
@@ -69,10 +73,48 @@ to the existing assertion runner. They do not produce portable exact-wire
 attestation or enable arbitrary credential-bearing destinations. The normal
 report excludes credentials and raw response bodies.
 
+## Deterministic process observations
+
+Three lifecycle plans reuse the emitted-runtime IPC barrier from the existing
+process tests. Dispatch 2 is parked before its callback; real HTTP reads confirm
+that member 1 committed while the independent tail remains absent. The child
+runs the actual receiver, evaluator, owner and SQLite store. Only its existing
+scheduler is controlled; there is no mocked mutation or alternate execution path.
+
+- Client abort disconnects the pending response, then release allows the failed
+  middle member, creator-bound alias and independent tail to complete. Exact-key
+  retries retrieve their ordered retained results.
+- Graceful close disconnects the response but keeps the process alive while work
+  is parked. Release drains the sequence before clean exit. The ordinary emitted
+  executable reopens the store with the tail already present.
+- SIGKILL terminates the process at the same barrier. After the ordinary emitted
+  executable completes startup and serves reads, the original prefix is present
+  and the alias/tail remain absent. Explicit resubmission executes the remainder;
+  later retries return the same retained results.
+
+Lifecycle actions return observations to the existing assertion engine. Full
+prefix and replay bodies are hashed with SHA-256 over the existing `canonicalJson`
+encoding; assertions require two observations and one distinct digest per group.
+This establishes equality of parsed JSON semantic values, not raw response bytes
+or HTTP headers. Static assertions also check status, operation indices, ordered
+outcomes, the failed member and alias target. A negative control mutates the prefix
+between observations and requires the runner's equality assertion to fail.
+
+The original direct tests share the extracted process helper and keep their full
+object comparisons. Child exit and IPC waits are bounded, every scenario owns a
+disposable store, and cleanup kills/awaits remaining children before removing
+fixture directories. Negative controls cover assertion failure and run abort while
+the child is parked. Public server configuration and runtime modules are unchanged.
+
+These are bounded process observations. Between-member SIGKILL does not establish
+power-loss resilience, a crash inside a SQLite commit, replica failover or full
+atomic state/disposition durability. Those variants remain explicit limits on
+the associated inventory rows.
+
 ## Next qualification slices
 
-- Bind existing process/disconnect and remaining raw Host/target tests to this
-  runner. Credential/key/media/body admission and Accept observations are bound.
+- Bind remaining raw Host/target tests to this runner. Credential/key/media/body
+  admission, Accept, and process disconnect/drain/crash observations are bound.
 - Extend feasible alias, pin, allocated-ID, conditional/no-op and semantic
   idempotency variants without claiming missing variants already pass.
 - Add controlled owner scheduling, expiry and fault fixtures before binding
@@ -82,7 +124,3 @@ report excludes credentials and raw response bodies.
   single all-visible local principal cannot establish them.
 - Keep discovery, Operation Directory and public profile claims gated on the
   complete required evidence and a deliberate admission decision.
-
-The preceding standalone process tests distinguish transport disconnect, graceful
-drain and SIGKILL between committed members. This manifest does not yet carry
-those observations and does not turn them into crash or durability certification.

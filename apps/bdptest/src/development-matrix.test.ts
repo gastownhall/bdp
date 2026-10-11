@@ -12,6 +12,7 @@ import {
 import { createDevelopmentReadUpdateArtifactBundle } from "@bdp/conformance/testing";
 import { startDevelopmentReferenceServer } from "@bdp/server/development";
 import { describe, expect, it } from "vitest";
+import { createDevelopmentProcessActions } from "../test-support/development-process-actions.js";
 import { executeDevelopmentRawAction } from "../test-support/development-raw-actions.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -38,7 +39,9 @@ function string(value: unknown): string {
 }
 
 /** Observation only: the shared runner evaluates every authored assertion. */
-function developmentActions(): ScenarioActionExecutor {
+function developmentActions(
+  processes: ReturnType<typeof createDevelopmentProcessActions>,
+): ScenarioActionExecutor {
   async function request(execution: ScenarioActionExecution, second = false) {
     const input = record(execution.input);
     const transport = createReadUpdateFetchTransport({
@@ -82,6 +85,7 @@ function developmentActions(): ScenarioActionExecutor {
     };
   }
   return async (execution) => {
+    if (execution.family === "lifecycle") return processes.execute(execution);
     if (execution.family !== "client") throw new Error("unsupported development action family");
     if (execution.operation === "development.raw")
       return executeDevelopmentRawAction(execution, token);
@@ -92,9 +96,17 @@ function developmentActions(): ScenarioActionExecutor {
   };
 }
 
-async function runDevelopmentMatrix(bundle: ConformanceArtifactBundle, selection?: string[]) {
+async function runDevelopmentMatrix(
+  bundle: ConformanceArtifactBundle,
+  selection?: string[],
+  controls: {
+    signal?: AbortSignal;
+    afterAction?: (execution: ScenarioActionExecution) => void;
+  } = {},
+) {
   const directory = await mkdtemp(path.join(tmpdir(), "bdp-development-matrix-"));
   let server: Awaited<ReturnType<typeof startDevelopmentReferenceServer>> | undefined;
+  const processes = createDevelopmentProcessActions(token);
   try {
     server = await startDevelopmentReferenceServer({
       directory: path.join(directory, "bootstrap"),
@@ -106,6 +118,7 @@ async function runDevelopmentMatrix(bundle: ConformanceArtifactBundle, selection
     const port = Number(new URL(scope).port);
     await server.close();
     server = undefined;
+    const executeAction = developmentActions(processes);
     const result = await runConformanceMatrix({
       scope,
       profile: "read-update",
@@ -114,20 +127,29 @@ async function runDevelopmentMatrix(bundle: ConformanceArtifactBundle, selection
       execute: async () => {
         throw new Error("development manifest must use the SDK action lane");
       },
-      actionExecutor: developmentActions(),
+      actionExecutor: async (execution) => {
+        const observation = await executeAction(execution);
+        controls.afterAction?.(execution);
+        return observation;
+      },
+      ...(controls.signal === undefined ? {} : { signal: controls.signal }),
       declaredTargetLabel: "development-only-non-attesting-bdptest",
       ...(selection === undefined ? {} : { scenarioSelection: selection }),
       harness: {
         async prepare(scenario, _scope, _seed, fixture) {
-          server = await startDevelopmentReferenceServer({
-            directory: path.join(directory, scenario.id),
-            port,
-            create: true,
-            token,
-          });
+          if (scenario.setup.requires.includes("development-process"))
+            await processes.prepare(path.join(directory, scenario.id), port);
+          else
+            server = await startDevelopmentReferenceServer({
+              directory: path.join(directory, scenario.id),
+              port,
+              create: true,
+              token,
+            });
           return { capabilities: fixture.capabilities };
         },
         async cleanup() {
+          await processes.close();
           await server?.close();
           server = undefined;
         },
@@ -135,13 +157,14 @@ async function runDevelopmentMatrix(bundle: ConformanceArtifactBundle, selection
     });
     return result;
   } finally {
+    await processes.close();
     await server?.close();
     await rm(directory, { recursive: true, force: true });
   }
 }
 
 describe("DEVELOPMENT ONLY: non-attesting Read+Update contract observations", () => {
-  it("executes every diagnostic binding against real HTTP with SDK and raw receiving observations", async () => {
+  it("executes every diagnostic binding against real HTTP, raw receiving and controlled process observations", async () => {
     const bundle = createDevelopmentReadUpdateArtifactBundle(await artifacts());
     const result = await runDevelopmentMatrix(bundle);
     expect(result.claimEligible).toBe(false);
@@ -194,6 +217,86 @@ describe("DEVELOPMENT ONLY: non-attesting Read+Update contract observations", ()
         token,
       ),
     ).rejects.toThrow("fixed development credential");
+  });
+
+  it("cleans up the parked child when the runner rejects its first observation", async () => {
+    const sources = await artifacts();
+    const manifest = JSON.parse(sources.manifest.bytes.toString());
+    const scenario = manifest.scenarios.find(
+      (entry: { id: string }) => entry.id === "development.read-update.process-disconnect",
+    );
+    scenario.actions[0].assertions.find(
+      (entry: { id: string }) => entry.id === "committed-prefix",
+    ).equals = 404;
+    const bundle = createDevelopmentReadUpdateArtifactBundle({
+      ...sources,
+      manifest: { bytes: Buffer.from(JSON.stringify(manifest)) },
+    });
+    const result = await runDevelopmentMatrix(bundle, [scenario.id]);
+    expect(result.scenarios[0]).toMatchObject({ state: "fail" });
+    expect(result.scenarios[0]?.cleanupError).toBeUndefined();
+  });
+
+  it("cleans up the parked child when the run is aborted at the observed barrier", async () => {
+    const bundle = createDevelopmentReadUpdateArtifactBundle(await artifacts());
+    const controller = new AbortController();
+    const result = await runDevelopmentMatrix(
+      bundle,
+      ["development.read-update.process-disconnect"],
+      {
+        signal: controller.signal,
+        afterAction(execution) {
+          if (execution.operation === "development.process.submit") controller.abort();
+        },
+      },
+    );
+    expect(controller.signal.aborted).toBe(true);
+    expect(result.scenarios).toHaveLength(1);
+    expect(result.scenarios[0]).toMatchObject({ state: "harness-error", category: "aborted" });
+    expect(result.scenarios[0]?.cleanupError).toBeUndefined();
+  });
+
+  it("detects changed prefix JSON through the runner's digest-cardinality assertion", async () => {
+    const sources = await artifacts();
+    const manifest = JSON.parse(sources.manifest.bytes.toString());
+    const scenario = manifest.scenarios.find(
+      (entry: { id: string }) => entry.id === "development.read-update.process-disconnect",
+    );
+    scenario.actions.splice(4, 0, {
+      id: "perturb-prefix",
+      family: "client",
+      operation: "development.request",
+      input: {
+        method: "POST",
+        target: "development/update-bead",
+        key: "perturb-prefix",
+        body: {
+          bead: "beads/prefix",
+          propertiesChange: [{ op: "add", path: "/changed", value: true }],
+        },
+      },
+      captures: [],
+      assertions: [
+        { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
+      ],
+    });
+    const bundle = createDevelopmentReadUpdateArtifactBundle({
+      ...sources,
+      manifest: { bytes: Buffer.from(JSON.stringify(manifest)) },
+    });
+    const result = await runDevelopmentMatrix(bundle, [scenario.id]);
+    expect(result.scenarios[0]).toMatchObject({
+      state: "fail",
+      actions: expect.arrayContaining([
+        expect.objectContaining({
+          action: expect.objectContaining({ id: "equal" }),
+          assertions: expect.arrayContaining([
+            expect.objectContaining({ id: "prefix-identical", passed: false }),
+          ]),
+        }),
+      ]),
+    });
+    expect(result.scenarios[0]?.cleanupError).toBeUndefined();
   });
 
   it("reports an authored contract mismatch instead of accepting an assertion-free observation", async () => {

@@ -737,6 +737,95 @@
           "selectedText": "Ordinary HTTP media-range matching, specificity, and quality weights apply, including `q=0` exclusions;"
         }
       ]
+    },
+    {
+      "id": "development.read-update.process-disconnect",
+      "title": "Development observation: process-disconnect",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Once the authority has admitted a sequence \u2014 validated its carrier and operation-record syntax and started its first member \u2014 client disconnection does not decide any member's outcome."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "The authority runs the remaining members to their terminal dispositions and retains those dispositions under their keys, so a retry recovers a lost response member by member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition, positioned with the present member's `operationIndex` and `operationName`;"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.process-drain",
+      "title": "Development observation: process-drain",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Once the authority has admitted a sequence \u2014 validated its carrier and operation-record syntax and started its first member \u2014 client disconnection does not decide any member's outcome."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "The authority runs the remaining members to their terminal dispositions and retains those dispositions under their keys, so a retry recovers a lost response member by member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "an authority MUST NOT commit a mutation without retaining its disposition under its key, and MUST NOT retain a disposition for a mutation it did not commit"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "A claim abandoned by a crash \u2014 one whose member reached no durable disposition \u2014 is cleared during restart or failover, so a retry executes the member once"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "Every mutation route \u2014 each singleton target, the sequence target, and every replica that accepts mutations \u2014 consults one authoritative key state for the namespace"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.process-crash",
+      "title": "Development observation: process-crash",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "When the authority fails mid-sequence, members that reached a durable disposition stay retained, the member in flight is recovered as an abandoned claim, and unstarted members are never executed by recovery: the authority does not resume a sequence."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "The client resubmits the sequence; retained dispositions answer the committed members, and the remaining members execute in order."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "an authority MUST NOT commit a mutation without retaining its disposition under its key, and MUST NOT retain a disposition for a mutation it did not commit"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "A claim abandoned by a crash \u2014 one whose member reached no durable disposition \u2014 is cleared during restart or failover, so a retry executes the member once"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "Every mutation route \u2014 each singleton target, the sequence target, and every replica that accepts mutations \u2014 consults one authoritative key state for the namespace"
+        }
+      ]
     }
   ]
 }
