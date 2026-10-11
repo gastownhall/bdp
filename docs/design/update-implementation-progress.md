@@ -333,3 +333,34 @@ assertions with `claimEligible: false`. Build, typecheck, dependency boundaries,
 formatting and both executable smoke suites passed on Node 24.16.0/pnpm 11.20.0.
 Lint retains the baseline three warnings and one informational finding. No full
 repository suite or complete profile qualification is claimed.
+
+## Pending-key and interleaving process observations
+
+Two diagnostic plans reuse the existing dispatch-2 barrier and real HTTP receiver.
+Pending creator, dependent and tail retries cannot run ahead. A fresh dependent
+key receives a transient failure while its independent tail commits; after the
+original request completes, that key executes and then replays, establishing
+transient nonretention. Original allocated creator endpoints resolve to the
+creator's observed marker, and original response/replay bodies have equal
+canonical JSON digests.
+
+An unrelated update completes while the original request is parked. The later
+original member preserves the intervening property, adds its own and advances
+the revision. Retrying each request returns its own retained postimage. Connected
+process plans now observe the original bounded Fetch response rather than a
+fixed dispatch count; disconnected plans keep their known four-member barrier.
+Immediate rejection consumption and existing abort/child cleanup remain active.
+
+The runtime, scheduler, public configuration and matrix test budget are unchanged.
+The inventory has 54 bounded rows and 27 omissions, with 25 plans, 253 actions and
+797 assertions. The six additional bindings remain partial: no claim-atomicity
+fault injection, distributed writer, rate-limit/service transient, expiry,
+authorization-change or full-profile qualification is claimed. No store state
+was backdated and the fixed 24-hour retention clock was not replaced.
+
+Validation: 102 focused tests passed across the diagnostic matrix/inventory,
+original HTTP/process suites, normative metadata guard and existing sequence
+lifecycle. The saved non-attesting report records all 797 assertions passing.
+Build, typecheck, dependency boundaries, formatting and both executable smokes
+passed on Node 24.16.0/pnpm 11.20.0. Lint retains the baseline three warnings and
+one informational finding. No full repository suite was run for this slice.

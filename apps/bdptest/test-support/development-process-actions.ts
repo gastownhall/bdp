@@ -11,6 +11,7 @@ export function createDevelopmentProcessActions(token: string) {
   let submission: unknown;
   let controller: AbortController | undefined;
   let delivery: Promise<{ delivered: boolean }> | undefined;
+  let original: Promise<Response | undefined> | undefined;
   const prefixDigests: string[] = [];
   const replayDigests: string[] = [];
   async function prepare(directory: string, assignedPort: number) {
@@ -28,6 +29,7 @@ export function createDevelopmentProcessActions(token: string) {
       await delivery;
       active = undefined;
       delivery = undefined;
+      original = undefined;
       controller = undefined;
       submission = undefined;
     }
@@ -46,10 +48,13 @@ export function createDevelopmentProcessActions(token: string) {
         if (delivery !== undefined) throw new Error("process fixture already has a submission");
         submission = execution.input;
         controller = new AbortController();
-        delivery = child.sequence(submission, controller.signal).then(
-          () => ({ delivered: true }),
-          () => ({ delivered: false }),
+        // Consume rejection immediately; cleanup aborts/awaits this bounded
+        // Fetch request even when a later assertion or runner action fails.
+        original = child.sequence(submission, controller.signal).then(
+          (response) => response,
+          () => undefined,
         );
+        delivery = original.then((response) => ({ delivered: response !== undefined }));
         const barrier = await child.wait("parked", 2);
         const prefix = await child.get("beads/prefix");
         prefixDigests.push(digest(prefix));
@@ -62,6 +67,17 @@ export function createDevelopmentProcessActions(token: string) {
       case "development.process.release":
         child.send("release");
         return child.wait("turn-completed", 4);
+      case "development.process.release-response": {
+        if (original === undefined) throw new Error("no original process request");
+        child.send("release");
+        // Competing requests change dispatch indices. Observe the original HTTP
+        // response instead of treating an arbitrary scheduler turn as completion.
+        // The existing Fetch transport bounds the complete response wait.
+        const response = await original;
+        if (response === undefined) throw new Error("original process response was not delivered");
+        replayDigests.push(digest(response));
+        return observation(response);
+      }
       case "development.process.drain":
         child.send("close");
         await child.wait("closing");
