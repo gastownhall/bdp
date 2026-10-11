@@ -2,8 +2,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { DatabaseSync } from "node:sqlite";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseTypeDescriptor, isJsonSchemaDateTime, isJsonSchemaUri } from "@bdp/protocol";
 import { prepareTransaction } from "./transaction-batch.js";
 import { openTransactionStore, type TransactionClaim } from "./transaction-store.js";
@@ -46,6 +47,7 @@ const groupSchema = ajv.compile({ $ref: `${bundle.$id}#/$defs/changeGroup` });
 const cleanup: (() => void)[] = [];
 afterEach(() => {
   for (const fn of cleanup.splice(0).reverse()) fn();
+  vi.useRealTimers();
 });
 function fixture(extra: Partial<Parameters<typeof openTransactionStore>[0]> = {}) {
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-transaction-"));
@@ -651,6 +653,213 @@ describe("private atomic transaction owner", () => {
     expect(group.changes[0]?.resource.revision).toBe(results[1]?.resource?.revision);
     expect(f.store.inspect().resources).toEqual([]);
     expect(f.store.inspect().identities).toHaveLength(1);
+  });
+  it("expires completed detail only after its promised instant, retaining original allocations after deletion and replay", () => {
+    let now = 1000;
+    const f = fixture({ clock: () => now });
+    const original = execute(f.store, batch.operations, "retained");
+    const entries = original.results as {
+      operationIndex: number;
+      operationName?: string;
+      resource: { id: string; type: string };
+    }[];
+    const a = entries[0]?.resource,
+      b = entries[1]?.resource;
+    if (!a || !b) throw new Error("missing allocations");
+    execute(
+      f.store,
+      [
+        { operation: "deleteLink", link: b.id },
+        { operation: "deleteBead", bead: a.id },
+      ],
+      "delete-retained",
+    );
+    const state = f.store.inspect();
+    now = Date.parse(String(original.expiresAt));
+    expect(f.store.maintain()).toEqual({ completedExpired: 0, failedForgotten: 0 });
+    expect(f.store.receipt("principal", original.id)).toEqual(original);
+    now++;
+    expect(f.store.maintain()).toEqual({ completedExpired: 2, failedForgotten: 0 });
+    const expired = f.store.receipt("principal", original.id);
+    expect(expired).toEqual({
+      id: original.id,
+      status: "completed",
+      detail: "expired",
+      idempotencyKey: "retained",
+      scopeEpoch: original.scopeEpoch,
+      authorizationView: original.authorizationView,
+      transaction: original.transaction,
+      requiredPosition: original.requiredPosition,
+      effectPosition: original.effectPosition,
+      allocated: [
+        { operationIndex: 0, operationName: "a", id: a.id, type: a.type },
+        { operationIndex: 1, id: b.id, type: b.type },
+      ],
+    });
+    expect(receiptSchema(expired), JSON.stringify(receiptSchema.errors)).toBe(true);
+    expect(f.store.inspect()).toEqual(state);
+    expect(f.store.receipt("other", original.id)).toBeUndefined();
+    expect(
+      f.reopen().admit("principal", "retained", prepareTransaction(scope, JSON.stringify(batch))),
+    ).toEqual({ kind: "existing", receipt: expired });
+    const renamed = JSON.stringify(batch)
+      .replaceAll('"a"', '"renamed"')
+      .replaceAll('"@a"', '"@renamed"');
+    expect(f.store.admit("principal", "retained", prepareTransaction(scope, renamed))).toEqual({
+      kind: "existing",
+      receipt: expired,
+    });
+    expect(
+      f.store.admit(
+        "principal",
+        "retained",
+        prepareTransaction(scope, JSON.stringify(batch).replace('"n":1', '"n":2')),
+      ),
+    ).toEqual({ kind: "conflict" });
+  });
+  it("compacts no-op receipts on restart with no effect position and no allocations", () => {
+    let now = 2000;
+    const f = fixture({ clock: () => now }),
+      { beadRecord } = seed(f.store);
+    const operations = [
+      {
+        operation: "updateBead",
+        bead: beadRecord.id,
+        propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
+      },
+    ];
+    const receipt = execute(f.store, operations, "noop-expiry"),
+      state = f.store.inspect();
+    now = Date.parse(String(receipt.expiresAt)) + 1;
+    const replay = f
+      .reopen()
+      .admit("principal", "noop-expiry", prepareTransaction(scope, JSON.stringify({ operations })));
+    expect(replay).toMatchObject({
+      kind: "existing",
+      receipt: {
+        id: receipt.id,
+        status: "completed",
+        detail: "expired",
+        requiredPosition: "pos-1",
+        allocated: [],
+      },
+    });
+    if (replay.kind !== "existing") throw new Error("missing retained no-op");
+    expect(replay.receipt).not.toHaveProperty("effectPosition");
+    expect(replay.receipt).not.toHaveProperty("expiresAt");
+    expect(receiptSchema(replay.receipt), JSON.stringify(receiptSchema.errors)).toBe(true);
+    expect(f.store.inspect()).toEqual(state);
+  });
+  it("forgets failed receipts whole after expiry and admits the same key as new against changed state", () => {
+    let now = 3000;
+    const f = fixture({ clock: () => now });
+    const operations = [
+      batch.operations[0],
+      { operation: "createLink", type: link, source: "@a", target: "beads/later" },
+    ];
+    const failed = execute(f.store, operations, "failed-key");
+    expect(failed.status).toBe("failed");
+    execute(f.store, [{ operation: "createBead", type: bead, id: "beads/later" }], "make-target");
+    now = Date.parse(String(failed.expiresAt));
+    expect(
+      f.store.admit(
+        "principal",
+        "failed-key",
+        prepareTransaction(scope, JSON.stringify({ operations })),
+      ),
+    ).toEqual({ kind: "existing", receipt: failed });
+    now++;
+    // Admission itself maintains this key; no restart/manual sweep is necessary.
+    const newClaim = admit(f.store, { operations }, "failed-key");
+    expect(newClaim.receipt.id).not.toBe(failed.id);
+    expect(newClaim.receipt.transaction).not.toBe(failed.transaction);
+    expect(f.store.receipt("principal", failed.id)).toBeUndefined();
+    expect(f.store.execute(newClaim).status).toBe("completed");
+    expect(f.store.inspect().resources).toHaveLength(3);
+    expect(f.store.inspect().groups).toHaveLength(2);
+  });
+  it("does not expire a live pending claim, and preserves pending join/retraction/fencing past the receipt interval", () => {
+    let now = 4000;
+    const f = fixture({ clock: () => now }),
+      first = admit(f.store);
+    now += 2 * 86400000;
+    expect(f.store.maintain()).toEqual({ completedExpired: 0, failedForgotten: 0 });
+    expect(
+      f.store.admit("principal", "key", prepareTransaction(scope, JSON.stringify(batch))),
+    ).toEqual({ kind: "existing", receipt: first.receipt });
+    expect(f.store.retract(first)).toBe(true);
+    const next = admit(f.store);
+    expect(() => f.store.execute(first)).toThrow("fenced");
+    expect(f.store.execute(next).status).toBe("completed");
+    expect(f.store.inspect().groups).toHaveLength(1);
+  });
+  it("bases retention on terminal time rather than admission or evaluation start", () => {
+    let now = 5000;
+    const f = fixture({
+      clock: () => now,
+      fault(stage) {
+        if (stage === "after-effects") now += 10000;
+      },
+    });
+    const pending = admit(f.store);
+    now += 20000;
+    const receipt = f.store.execute(pending);
+    expect(Date.parse(String(receipt.expiresAt))).toBe(now + 86400000);
+    now = 5000 + 86400000 + 1;
+    expect(f.store.maintain()).toEqual({ completedExpired: 0, failedForgotten: 0 });
+    expect(f.store.receipt("principal", receipt.id)?.detail).toBe("available");
+  });
+  it("maintains terminal receipts in a live idle owner and cancels its timer on close", () => {
+    vi.useFakeTimers();
+    let now = 6000;
+    const f = fixture({ clock: () => now, maintenanceIntervalMs: 25 });
+    const receipt = execute(f.store, batch.operations, "timer");
+    now = Date.parse(String(receipt.expiresAt)) + 1;
+    vi.advanceTimersByTime(25);
+    expect(f.store.maintain()).toEqual({ completedExpired: 0, failedForgotten: 0 });
+    expect(f.store.receipt("principal", receipt.id)?.detail).toBe("expired");
+    expect(vi.getTimerCount()).toBe(1);
+    f.store.close();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("rolls back a failed maintenance sweep, fences background work and preserves restart recovery", () => {
+    vi.useFakeTimers();
+    let now = 7000,
+      inject = false;
+    const f = fixture({
+      clock: () => now,
+      maintenanceIntervalMs: 25,
+      fault(stage) {
+        if (inject && stage === "before-maintenance-commit") throw new Error("maintenance fault");
+      },
+    });
+    const completed = execute(f.store, batch.operations, "completed"),
+      failed = execute(f.store, [{ operation: "deleteBead", bead: "beads/missing" }], "failed");
+    const pending = admit(f.store, batch, "pending"),
+      initial = f.store.inspect();
+    now = Date.parse(String(completed.expiresAt)) + 1;
+    inject = true;
+    vi.advanceTimersByTime(25);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(() => f.store.execute(pending)).toThrow("owner fenced");
+    const raw = new DatabaseSync(f.options.file);
+    try {
+      const receipts = raw
+        .prepare("SELECT receipt FROM receipts WHERE owner IS NULL")
+        .all()
+        .map((r) => JSON.parse(String(r.receipt)));
+      expect(receipts).toHaveLength(2);
+      expect(receipts.every((r) => r.detail === "available")).toBe(true);
+    } finally {
+      raw.close();
+    }
+    inject = false;
+    const reopened = f.reopen();
+    expect(reopened.recoveredPending).toBe(1);
+    expect(reopened.receipt("principal", completed.id)?.detail).toBe("expired");
+    expect(reopened.receipt("principal", failed.id)).toBeUndefined();
+    expect(reopened.receipt("principal", pending.receipt.id)).toBeUndefined();
+    expect(reopened.inspect()).toEqual(initial);
   });
   for (const stage of ["after-admission", "after-effects", "after-terminal"] as const)
     it(`recovers abrupt process exit ${stage} without partial graph, receipt or group`, () => {

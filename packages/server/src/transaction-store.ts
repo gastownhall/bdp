@@ -35,8 +35,12 @@ export interface TransactionStoreOptions {
   readonly create: boolean;
   readonly types: readonly TypeDescriptor[];
   readonly clock?: () => number;
+  /** Private maintenance cadence; not a discovery or receipt retention duration. */
+  readonly maintenanceIntervalMs?: number;
   /** Test-only fault injection; not exported from the package surface. */
-  readonly fault?: (stage: "after-admission" | "after-effects" | "after-terminal") => void;
+  readonly fault?: (
+    stage: "after-admission" | "after-effects" | "after-terminal" | "before-maintenance-commit",
+  ) => void;
 }
 interface Row {
   principal: string;
@@ -79,6 +83,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     types: [...installed].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
   });
   const clock = options.clock ?? Date.now;
+  const maintenanceInterval = options.maintenanceIntervalMs ?? 1000;
+  if (
+    !Number.isSafeInteger(maintenanceInterval) ||
+    maintenanceInterval < 1 ||
+    maintenanceInterval > 2147483647
+  )
+    throw new TypeError("invalid maintenance interval");
   const instant = (): number => {
     const time = clock();
     if (!Number.isSafeInteger(time) || time < 0 || time > 8640000000000000 - day)
@@ -91,11 +102,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   const db = new DatabaseSync(options.file);
   let closed = false,
     busy = false;
+  let maintenanceTimer: ReturnType<typeof setInterval> | undefined;
+  let maintenanceFailure: { readonly cause: unknown } | undefined;
   const claims = new WeakMap<
     TransactionClaim,
     { principal: string; key: string; owner: string; batch: PreparedTransaction }
   >();
   function enter<T>(run: () => T): T {
+    if (maintenanceFailure)
+      throw new Error("transaction maintenance failed; owner fenced", maintenanceFailure);
     if (closed || busy) throw new Error("transaction store closed or reentrant");
     busy = true;
     try {
@@ -128,6 +143,92 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   function parseReceipt(value: string): TransactionReceipt {
     return JSON.parse(value) as TransactionReceipt;
   }
+  /** Only terminal detail expires. A pending receipt is governed by ownership
+   * and recovery, not the detail-retention clock. Exact key identity stays bound
+   * for completed transactions, including committed no-op transactions. */
+  function expireRow(
+    stored: Row,
+    now: number,
+  ): { readonly row?: Row; readonly change?: "completedExpired" | "failedForgotten" } {
+    if (stored.owner !== null) return { row: stored };
+    const receipt = parseReceipt(stored.receipt);
+    if (receipt.detail === "expired") return { row: stored };
+    const expires = typeof receipt.expiresAt === "string" ? Date.parse(receipt.expiresAt) : NaN;
+    if (
+      receipt.detail !== "available" ||
+      !Number.isSafeInteger(expires) ||
+      (receipt.status !== "completed" && receipt.status !== "failed")
+    )
+      throw new Error("invalid terminal receipt retention state");
+    // expiresAt promises availability through its instant; disposal happens after.
+    if (now <= expires) return { row: stored };
+    if (receipt.status === "failed") {
+      db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner IS NULL").run(
+        stored.principal,
+        stored.key,
+      );
+      return { change: "failedForgotten" };
+    }
+    if (!Array.isArray(receipt.results) || receipt.next !== null)
+      throw new Error("unsupported retained receipt results");
+    const allocated: unknown[] = [];
+    for (const result of receipt.results as Record<string, unknown>[]) {
+      if (result.outcome !== "created") continue;
+      const resource = result.resource as { id?: unknown; type?: unknown } | undefined;
+      if (
+        !resource ||
+        typeof resource.id !== "string" ||
+        typeof resource.type !== "string" ||
+        !Number.isSafeInteger(result.operationIndex)
+      )
+        throw new Error("invalid retained creation result");
+      allocated.push({
+        operationIndex: result.operationIndex,
+        ...(result.operationName === undefined ? {} : { operationName: result.operationName }),
+        id: resource.id,
+        type: resource.type,
+      });
+    }
+    // Preserve the original disposition, namespace, positions and creation facts;
+    // do not recompute from the current graph or a retried request's labels.
+    const compact: TransactionReceipt = {
+      id: receipt.id,
+      status: "completed",
+      detail: "expired",
+      idempotencyKey: receipt.idempotencyKey,
+      scopeEpoch: receipt.scopeEpoch,
+      authorizationView: receipt.authorizationView,
+      transaction: receipt.transaction,
+      requiredPosition: receipt.requiredPosition,
+      ...(receipt.effectPosition === undefined ? {} : { effectPosition: receipt.effectPosition }),
+      allocated,
+    };
+    const receiptText = json(compact);
+    db.prepare("UPDATE receipts SET receipt=? WHERE principal=? AND key=? AND owner IS NULL").run(
+      receiptText,
+      stored.principal,
+      stored.key,
+    );
+    return { row: { ...stored, receipt: receiptText }, change: "completedExpired" };
+  }
+  function sweep(now: number) {
+    const counts = { completedExpired: 0, failedForgotten: 0 };
+    // This private composition has no population/workload qualification. Keep
+    // only rows whose detail can expire in the scan; compact receipts stay bound.
+    for (const stored of db
+      .prepare(
+        "SELECT * FROM receipts WHERE owner IS NULL AND json_extract(receipt,'$.detail')='available'",
+      )
+      .all() as unknown as Row[]) {
+      const result = expireRow(stored, now);
+      if (result.change) counts[result.change]++;
+    }
+    options.fault?.("before-maintenance-commit");
+    return counts;
+  }
+  function maintain() {
+    return enter(() => atomic(() => sweep(instant())));
+  }
   let recoveredPending: number;
   try {
     db.exec(
@@ -142,7 +243,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         put.run("position", "0");
       } else if (metadata("configuration") !== configuration)
         throw new Error("transaction installation mismatch");
-      return Number(db.prepare("DELETE FROM receipts WHERE owner IS NOT NULL").run().changes);
+      const retracted = Number(
+        db.prepare("DELETE FROM receipts WHERE owner IS NOT NULL").run().changes,
+      );
+      sweep(instant());
+      return retracted;
     });
   } catch (error) {
     db.close();
@@ -169,10 +274,31 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     if (!found) throw new Error("indexed Resource missing");
     return found;
   }
+  maintenanceTimer = setInterval(() => {
+    try {
+      maintain();
+    } catch (cause) {
+      // Background failure is sticky and observable on the next owner entry;
+      // stop the timer and release the database instead of silently continuing.
+      maintenanceFailure = { cause };
+      clearInterval(maintenanceTimer);
+      try {
+        db.close();
+      } catch (closeFailure) {
+        maintenanceFailure = {
+          cause: new AggregateError([cause, closeFailure], "maintenance and close failed"),
+        };
+      } finally {
+        closed = true;
+      }
+    }
+  }, maintenanceInterval);
+  maintenanceTimer.unref();
   return Object.freeze({
     scope,
     scopeEpoch: epoch,
     recoveredPending,
+    maintain,
     admit(principal: string, key: string, batch: PreparedTransaction): TransactionAdmission {
       return enter(() => {
         assertPreparedTransaction(batch, scope);
@@ -184,7 +310,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         )
           throw new TypeError("principal/key required");
         const admission = atomic((): TransactionAdmission => {
-          const prior = row(principal, key);
+          const stored = row(principal, key);
+          const prior = stored ? expireRow(stored, instant()).row : undefined;
           if (prior)
             return prior.identity !== batch.identity
               ? { kind: "conflict" }
@@ -328,6 +455,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               }
             })();
             options.fault?.("after-effects");
+            // The minimum starts when evaluation has become terminal, not at
+            // admission or before Resource callbacks have consumed execution time.
+            const expiresAt = new Date(instant() + day).toISOString();
             let receipt: TransactionReceipt;
             if (!result.ok) {
               db.exec("ROLLBACK TO effects; RELEASE effects");
@@ -337,7 +467,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 detail: "available",
                 requiredPosition: `pos-${previous}`,
                 problem: result.problem,
-                expiresAt: new Date(now + day).toISOString(),
+                expiresAt,
               };
             } else {
               db.exec("RELEASE effects");
@@ -369,7 +499,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 ...(effective ? { effectPosition: position } : {}),
                 results: result.results,
                 next: null,
-                expiresAt: new Date(now + day).toISOString(),
+                expiresAt,
               };
             }
             const changed = db
@@ -412,15 +542,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       });
     },
     receipt(principal: string, id: string): TransactionReceipt | undefined {
-      return enter(() => {
-        for (const r of db
-          .prepare("SELECT receipt FROM receipts WHERE principal=?")
-          .all(principal)) {
-          const value = parseReceipt(String(r.receipt));
-          if (value.id === id) return value;
-        }
-        return undefined;
-      });
+      return enter(() =>
+        atomic(() => {
+          for (const stored of db
+            .prepare("SELECT * FROM receipts WHERE principal=?")
+            .all(principal) as unknown as Row[]) {
+            const value = parseReceipt(stored.receipt);
+            if (value.id !== id) continue;
+            const remaining = expireRow(stored, instant()).row;
+            return remaining ? parseReceipt(remaining.receipt) : undefined;
+          }
+          return undefined;
+        }),
+      );
     },
     inspect() {
       return enter(() => ({
@@ -440,10 +574,12 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       }));
     },
     close() {
-      enter(() => {
+      if (busy) throw new Error("transaction store reentrant close");
+      clearInterval(maintenanceTimer);
+      if (!closed) {
         db.close();
         closed = true;
-      });
+      }
     },
   });
 }
