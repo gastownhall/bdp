@@ -23,12 +23,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-discovery-and-human-documentation",
-          "selectedText": "`bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types` are required in every profile. `operations` is required in Read+Update and Transactional and prohibited in Read."
+          "selectedText": "The Read discovery document requires `bdpVersion`, `profile`, `scope`, `beads`, `links`, and `types`. The optional `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` members apply under their contracts. `aliases` appears exactly when the authority serves alias resolution; a client MUST NOT construct alias URLs otherwise. An omitted `order` means `canonical-uri`. These are the only members admitted by the closed `readDiscovery` definition."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#scope-discovery-and-human-documentation",
-          "selectedText": "The optional\n`order` member names the collection order under\n[Collection retrieval and selection](#collection-retrieval-and-selection);\nomission means the `canonical-uri` baseline."
+          "selectedText": "An omitted `order` means `canonical-uri`."
         }
       ]
     },
@@ -54,7 +54,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#advertised-limits",
-          "selectedText": "Omission means only that the bound is not pre-advertised; it does not mean infinite capacity and does not permit silent truncation, partial mutation, or a non-normative failure response."
+          "selectedText": "Omission means only that the bound is not pre-advertised; it does not mean infinite capacity and does not permit silent truncation or a non-normative failure response."
         }
       ]
     },
@@ -398,7 +398,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
-          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, and applicable History erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -558,7 +558,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#reads-after-deletion",
-          "selectedText": "To every other caller all\nthree conditions remain the uniform `404`; the disclosure vocabulary is\nnever an enumeration oracle."
+          "selectedText": "To every other caller both conditions remain the uniform `404`; the disclosure vocabulary is never an enumeration oracle."
         },
         {
           "source": "docs/design/requirements.md",
@@ -599,7 +599,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "It is outside `properties`, never part of\nthe `properties` view"
+          "selectedText": "It is outside `properties`, never part of the `properties` view"
         },
         {
           "source": "docs/design/requirements.md",
@@ -622,7 +622,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "It is outside `properties`, never part of\nthe `properties` view"
+          "selectedText": "It is outside `properties`, never part of the `properties` view"
         },
         {
           "source": "docs/design/requirements.md",
@@ -803,7 +803,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#problem-details",
-          "selectedText": "Ordinary HTTP media-range matching, specificity, and quality weights apply, including `q=0` exclusions; an endpoint offering JSON and SSE selects an acceptable supported representation when one exists."
+          "selectedText": "Ordinary HTTP media-range matching, specificity, and quality weights apply, including `q=0` exclusions; an endpoint selects an acceptable supported representation when one exists."
         }
       ]
     },
@@ -821,12 +821,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
-          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
+          "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, and applicable History erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#conditional-reads-and-head",
-          "selectedText": "Required current Scope context and applicable cache fields remain required on these responses (ruled 2026-09-09, G4/G5)."
+          "selectedText": "Applicable cache fields remain required on these responses (ruled 2026-09-09, G4/G5)."
         }
       ]
     },
