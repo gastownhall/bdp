@@ -2185,6 +2185,9 @@ describe("private transaction storage failure fencing", () => {
       } finally {
         spy.mockRestore();
       }
+      const later = failures(caught(() => f.store.inspect()));
+      expect(later).toContain("injected original failure");
+      expect(later).toContain("injected cleanup failure");
       expect(() => f.store.inspect()).toThrow("owner fenced");
       armed = false;
       const reopened = f.reopen();
@@ -2268,6 +2271,9 @@ describe("private transaction storage failure fencing", () => {
     } finally {
       spy.mockRestore();
     }
+    const later = failures(caught(() => f.store.inspect()));
+    expect(later).toContain("injected sequence admission failure");
+    expect(later).toContain("injected sequence cleanup failure");
     assertFenced(f.store, claim);
     for (const action of [
       () => f.store.admitSequence("third-principal", sequence),

@@ -161,7 +161,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   }
   function fence(cause: unknown): Error {
     clearInterval(maintenanceTimer);
-    ownerFailure ??= new Error("transaction storage failure; owner fenced; reopen before use", {
+    // Cleanup can add the original application error to an earlier storage
+    // failure. Replace the wrapper; mutating its cause would create a cycle.
+    ownerFailure = new Error("transaction storage failure; owner fenced; reopen before use", {
       cause,
     });
     return ownerFailure;
