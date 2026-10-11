@@ -7,8 +7,8 @@ Read+Update development store.
 
 ## Executable boundary
 
-`transaction-batch.ts` prepares a bounded batch and reuses the existing Resource
-evaluator. `transaction-store.ts` owns a SQLite file, its exclusive connection,
+`transaction-batch.ts` prepares bounded batches and six Resource singleton
+request records, then reuses the existing Resource evaluator. `transaction-store.ts` owns a SQLite file, its exclusive connection,
 key namespace, pending receipts, Resource state, identity allocation and change
 groups. The supported operations are `createBead`, `updateBead`, `deleteBead`,
 `createLink`, `updateLink` and `deleteLink`, with preceding local creation
@@ -107,7 +107,7 @@ There is no schema change or automatic migration in this slice.
 
 ## Observed verification
 
-The bounded five-file suite exercises 371 tests, including 27 atomic-owner
+The bounded five-file suite exercises 387 tests, including 43 atomic-owner
 tests, existing Resource evaluation and semantic identity tests, Transactional
 wire/schema fixtures and the Transactional catalog. New observations cover:
 
@@ -130,6 +130,12 @@ wire/schema fixtures and the Transactional catalog. New observations cover:
   rounding, refused numeric identity and metadata-sensitive conflict.
 - Unsupported/malformed operations refused without effects; separate principals;
   refusal of a concurrent live store, implicit reseeding and duplicate creation.
+- All six Resource operations executed with singleton-first and batch-first
+  admission, equivalent local/canonical references and one shared receipt through
+  pending join, completion and restart; creation labels remain as first admitted.
+- Cross-carrier numeric failure and conflict, retraction and stale-owner fencing,
+  completed expiry/replay, failed-key forgetting and rejection of singleton-only
+  syntax violations before owner admission.
 - Receipt availability through the promised instant, ordered retained creation
   allocations after Resource deletion, compact no-op replay after restart, and
   principal-bound expired-receipt lookup.
@@ -158,15 +164,15 @@ not the old store's state machine. It does not open, migrate or concurrently
 serve the Read+Update database. Its new format must not be substituted behind the
 existing receiver.
 
-Before any Transactional HTTP integration, build one common Transactional owner
-for every mutation route. Its singleton and sequence paths must use the same
-receipt/key namespace as batch. They must not keep writing through a parallel
-Read+Update owner. A migration or explicit new-Scope provisioning path, startup
+The six Resource singleton preparation paths already use batch's owner and
+receipt/key namespace. Before any Transactional HTTP integration, extend that
+same owner to the remaining alias and sequence routes, including unresolved
+sequence dependencies. They must not keep writing through a parallel Read+Update
+owner. A migration or explicit new-Scope provisioning path, startup
 qualification and unified read authority must accompany that integration.
 
 Remaining requirements include set operations; owned-Link transitions; aliases
-outside batch; singleton and sequence
-carriers with unresolved dependent admission; authorization projection and
+outside batch; sequence carriers with unresolved dependent admission; authorization projection and
 reauthorized receipt disclosure and pagination; Event Sources, changefeed,
 snapshots and erasure;
 duration/recovery bounds under operational failure; complete native schemas,
