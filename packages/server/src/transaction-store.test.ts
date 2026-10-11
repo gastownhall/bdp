@@ -2360,4 +2360,95 @@ describe("private transaction storage failure fencing", () => {
     expect(receipt.status).toBe("completed");
     expect(f.store.inspect().groups).toHaveLength(1);
   });
+  it.each([false, true])(
+    "preserves sequence turn cause, prefix and tail recovery with cancellation failure=%s",
+    (failCancellation) => {
+      let failTurn = false,
+        cleanupBegins = 0;
+      const f = fixture({
+        fault(stage) {
+          if (failTurn && stage === "after-effects")
+            throw new Error("original sequence turn failure");
+        },
+      });
+      const sequence = prepareTransactionSequence(
+        scope,
+        JSON.stringify({
+          operations: ["a", "b", "c"].map((id) => ({
+            operation: "createBead",
+            idempotencyKey: `sequence-${id}`,
+            id: `beads/${id}`,
+            type: bead,
+          })),
+        }),
+      );
+      const attempt = f.store.admitSequence("principal", sequence);
+      const prefix = f.store.nextSequence(attempt);
+      expect(prefix.result).toMatchObject({ kind: "receipt", receipt: { status: "completed" } });
+      const actual = DatabaseSync.prototype.exec;
+      const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+        this: DatabaseSync,
+        sql: string,
+      ) {
+        // First BEGIN after the turn fault retracts that member successfully;
+        // the next belongs to whole-tail cancellation in nextSequence's catch.
+        if (sql === "BEGIN IMMEDIATE" && failTurn && ++cleanupBegins === 3 && failCancellation)
+          throw new Error("sequence cancellation storage failure");
+        actual.call(this, sql);
+      });
+      function acyclicMessages(error: unknown, path = new Set<Error>()): string[] {
+        if (!(error instanceof Error)) return [];
+        expect(path.has(error), "error cause traversal must remain acyclic").toBe(false);
+        const next = new Set(path).add(error);
+        return [
+          error.message,
+          ...acyclicMessages(error.cause, next),
+          ...(error instanceof AggregateError
+            ? error.errors.flatMap((e) => acyclicMessages(e, next))
+            : []),
+        ];
+      }
+      failTurn = true;
+      try {
+        const immediate = acyclicMessages(caught(() => f.store.nextSequence(attempt)));
+        expect(immediate).toContain("original sequence turn failure");
+        if (failCancellation) expect(immediate).toContain("sequence cancellation storage failure");
+        expect(cleanupBegins).toBe(3);
+      } finally {
+        spy.mockRestore();
+      }
+      failTurn = false;
+      if (failCancellation) {
+        for (const access of [
+          () => f.store.inspect(),
+          () => f.store.maintain(),
+          () => f.store.admitSequence("principal", sequence),
+        ]) {
+          const later = acyclicMessages(caught(access));
+          expect(later).toContain("original sequence turn failure");
+          expect(later).toContain("sequence cancellation storage failure");
+        }
+      } else {
+        expect(f.store.inspect().resources).toHaveLength(1);
+        expect(f.store.inspect().groups).toHaveLength(1);
+        expect(f.store.cancelSequence(attempt)).toBe(0);
+      }
+      const recovered = f.reopen();
+      expect(recovered.recoveredPending).toBe(failCancellation ? 1 : 0);
+      expect(recovered.inspect().resources).toHaveLength(1);
+      expect(recovered.inspect().groups).toHaveLength(1);
+      const retry = recovered.admitSequence("principal", sequence);
+      expect(recovered.nextSequence(retry).result).toEqual(prefix.result);
+      expect(recovered.nextSequence(retry).result).toMatchObject({
+        kind: "receipt",
+        receipt: { status: "completed" },
+      });
+      expect(recovered.nextSequence(retry)).toMatchObject({
+        done: true,
+        result: { kind: "receipt", receipt: { status: "completed" } },
+      });
+      expect(recovered.inspect().resources).toHaveLength(3);
+      expect(recovered.inspect().groups).toHaveLength(3);
+    },
+  );
 });
