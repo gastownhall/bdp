@@ -13192,6 +13192,670 @@
       "cleanup": {
         "resetFixture": true
       }
+    },
+    {
+      "id": "development.read-update.expired-creator-binding",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http", "development-retention-process"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "allocate",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "creator",
+                  "name": "made",
+                  "type": "https://bdp.example/development/bead",
+                  "properties": {
+                    "marker": "allocated-original",
+                    "stage": "initial"
+                  }
+                }
+              ]
+            }
+          },
+          "captures": [
+            {
+              "binding": "original-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/0/resource/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "name",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": true,
+              "equals": "made"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/properties",
+              "exists": true,
+              "equals": {
+                "marker": "allocated-original",
+                "stage": "initial"
+              }
+            },
+            {
+              "id": "one-result",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "expire-creator",
+          "family": "lifecycle",
+          "operation": "development.retention.reopen",
+          "input": {
+            "elapsedMs": 86400000
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "elapsed",
+              "kind": "json-pointer",
+              "pointer": "/elapsedMs",
+              "exists": true,
+              "equals": 86400000
+            },
+            {
+              "id": "clean-exit",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/code",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-signal",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/signal",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "bind-expired",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "creator",
+                  "name": "old",
+                  "type": "https://bdp.example/development/bead",
+                  "properties": {
+                    "marker": "allocated-original",
+                    "stage": "initial"
+                  }
+                },
+                {
+                  "operation": "updateBead",
+                  "idempotencyKey": "dependent",
+                  "bead": "@old",
+                  "propertiesChange": [
+                    {
+                      "op": "replace",
+                      "path": "/stage",
+                      "value": "dependent"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "creator-expired",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/code",
+              "exists": true,
+              "equals": "idempotency-expired"
+            },
+            {
+              "id": "creator-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/status",
+              "exists": true,
+              "equals": 410
+            },
+            {
+              "id": "creator-index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "creator-name",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": true,
+              "equals": "old"
+            },
+            {
+              "id": "creator-no-resource",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource",
+              "exists": false
+            },
+            {
+              "id": "dependent-outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "dependent-index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationIndex",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "dependent-unnamed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationName",
+              "exists": false
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/properties",
+              "exists": true,
+              "equals": {
+                "marker": "allocated-original",
+                "stage": "dependent"
+              }
+            },
+            {
+              "id": "two-results",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "original-updated",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/captured-original",
+            "targetBinding": "original-id"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "marker": "allocated-original",
+                "stage": "dependent"
+              }
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://bdp.example/development/bead"
+            }
+          ]
+        },
+        {
+          "id": "change-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/captured-original",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/stage",
+                  "value": "current"
+                }
+              ]
+            },
+            "key": "change-live",
+            "referenceBindings": {
+              "bead": "original-id"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "updated",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "marker": "allocated-original",
+                "stage": "current"
+              }
+            }
+          ]
+        },
+        {
+          "id": "renamed-retry",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "creator",
+                  "name": "again",
+                  "type": "https://bdp.example/development/bead",
+                  "properties": {
+                    "marker": "allocated-original",
+                    "stage": "initial"
+                  }
+                },
+                {
+                  "operation": "updateBead",
+                  "idempotencyKey": "dependent",
+                  "bead": "@again",
+                  "propertiesChange": [
+                    {
+                      "op": "replace",
+                      "path": "/stage",
+                      "value": "dependent"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "creator-expired",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/code",
+              "exists": true,
+              "equals": "idempotency-expired"
+            },
+            {
+              "id": "creator-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/status",
+              "exists": true,
+              "equals": 410
+            },
+            {
+              "id": "creator-index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "creator-name",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": true,
+              "equals": "again"
+            },
+            {
+              "id": "creator-no-resource",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource",
+              "exists": false
+            },
+            {
+              "id": "dependent-outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "dependent-index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationIndex",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "dependent-unnamed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationName",
+              "exists": false
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/properties",
+              "exists": true,
+              "equals": {
+                "marker": "allocated-original",
+                "stage": "dependent"
+              }
+            },
+            {
+              "id": "two-results",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "live-remains-current",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/captured-original",
+            "targetBinding": "original-id"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "marker": "allocated-original",
+                "stage": "current"
+              }
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://bdp.example/development/bead"
+            }
+          ]
+        },
+        {
+          "id": "durable-reopen",
+          "family": "lifecycle",
+          "operation": "development.retention.reopen",
+          "input": {
+            "elapsedMs": 86400001
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "elapsed",
+              "kind": "json-pointer",
+              "pointer": "/elapsedMs",
+              "exists": true,
+              "equals": 86400001
+            },
+            {
+              "id": "clean-exit",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/code",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-signal",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/signal",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "durable-retry",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "creator",
+                  "name": "reopened",
+                  "type": "https://bdp.example/development/bead",
+                  "properties": {
+                    "marker": "allocated-original",
+                    "stage": "initial"
+                  }
+                },
+                {
+                  "operation": "updateBead",
+                  "idempotencyKey": "dependent",
+                  "bead": "@reopened",
+                  "propertiesChange": [
+                    {
+                      "op": "replace",
+                      "path": "/stage",
+                      "value": "dependent"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "creator-expired",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/code",
+              "exists": true,
+              "equals": "idempotency-expired"
+            },
+            {
+              "id": "creator-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/status",
+              "exists": true,
+              "equals": 410
+            },
+            {
+              "id": "creator-index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "creator-name",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": true,
+              "equals": "reopened"
+            },
+            {
+              "id": "creator-no-resource",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource",
+              "exists": false
+            },
+            {
+              "id": "dependent-outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "dependent-index",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationIndex",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "dependent-unnamed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationName",
+              "exists": false
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/properties",
+              "exists": true,
+              "equals": {
+                "marker": "allocated-original",
+                "stage": "dependent"
+              }
+            },
+            {
+              "id": "two-results",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "durable-live-current",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/captured-original",
+            "targetBinding": "original-id"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "marker": "allocated-original",
+                "stage": "current"
+              }
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://bdp.example/development/bead"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
     }
   ]
 }
