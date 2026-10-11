@@ -52,6 +52,9 @@ interface Row {
 }
 const day = 86400000;
 const format = "bdp-private-transaction-alias-2";
+// Identity equality changed without changing the value codec. Retained keys
+// require both the current identity policy and the alias-aware store format.
+const identityPolicy = "transaction-context-default-1";
 const schema = `
 CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
 CREATE TABLE resources(id TEXT PRIMARY KEY, body TEXT NOT NULL, kind TEXT NOT NULL, source TEXT, target TEXT) STRICT;
@@ -81,6 +84,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   const installed = new Map(descriptors.map((d) => [d.id, json(d)]));
   const configuration = json({
     format,
+    identityPolicy,
     scope,
     types: [...installed].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
   });
@@ -250,8 +254,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         put.run("configuration", configuration);
         put.run("epoch", randomUUID());
         put.run("position", "0");
-      } else if (metadata("configuration") !== configuration)
-        throw new Error("transaction installation mismatch");
+      } else {
+        const storedConfiguration = metadata("configuration");
+        if (JSON.parse(storedConfiguration).identityPolicy !== identityPolicy)
+          throw new Error(
+            "transaction identity policy mismatch; explicit new-store provisioning required",
+          );
+        if (storedConfiguration !== configuration)
+          throw new Error("transaction installation mismatch");
+      }
       const retracted = Number(
         db.prepare("DELETE FROM receipts WHERE owner IS NOT NULL").run().changes,
       );
@@ -415,19 +426,27 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                   () => db.prepare("SELECT id FROM identities WHERE id=?").get(id) !== undefined,
                 ),
               alias: (path) => scoped(() => alias(path)),
-              putAlias: (path, target) => scoped(() => {
-                db.prepare("INSERT INTO aliases VALUES(?,?) ON CONFLICT(path) DO UPDATE SET target=excluded.target").run(path, target);
-              }),
-              deleteAlias: (path) => scoped(() => {
-                db.prepare("DELETE FROM aliases WHERE path=?").run(path);
-              }),
+              putAlias: (path, target) =>
+                scoped(() => {
+                  db.prepare(
+                    "INSERT INTO aliases VALUES(?,?) ON CONFLICT(path) DO UPDATE SET target=excluded.target",
+                  ).run(path, target);
+                }),
+              deleteAlias: (path) =>
+                scoped(() => {
+                  db.prepare("DELETE FROM aliases WHERE path=?").run(path);
+                }),
               installedType: (id) => scoped(() => installed.get(id)),
               allocateResourceId: (kind) =>
                 scoped(() => {
                   for (let attempt = 0; attempt < 32; attempt++) {
-                    const suffix = randomUUID(), id = `${kind === "bead" ? "beads" : "links"}/${suffix}`;
-                    if (!db.prepare("SELECT id FROM identities WHERE id=?").get(id) &&
-                        (kind !== "bead" || alias(suffix) === undefined)) return id;
+                    const suffix = randomUUID(),
+                      id = `${kind === "bead" ? "beads" : "links"}/${suffix}`;
+                    if (
+                      !db.prepare("SELECT id FROM identities WHERE id=?").get(id) &&
+                      (kind !== "bead" || alias(suffix) === undefined)
+                    )
+                      return id;
                   }
                   throw new Error("Resource identity allocation exhausted");
                 }),

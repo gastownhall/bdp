@@ -28,7 +28,9 @@ transaction identity and execution owner together. A proven equal pending
 request receives that same pending receipt; a different request conflicts.
 Batch identity preserves operation order and exact numeric equality, excludes
 label spelling, expands empty properties/metadata defaults and canonicalizes
-local Resource references. An allocated creator is identified by operation index;
+local Resource references. Omitted `changeContext` and an empty object share
+one identity; explicit null agent/message members remain distinct. An allocated
+creator is identified by operation index;
 a creator with a supplied ID is identified by its canonical Resource URL. The
 Read+Update parser is reused for operation syntax and binding checks, with
 synthetic member keys that never enter storage. Its admission/key-state machine
@@ -67,8 +69,15 @@ Receipts and groups produced by executable tests are validated against the
 canonical schema bundle.
 
 The store is explicitly provisioned at a new absolute file path. Reopen verifies
-its format, canonical Scope and exact installed Type configuration. The Scope
-epoch persists across restart. Persistent SQLite EXCLUSIVE locking prevents two
+its format, canonical Scope, exact installed Type configuration and identity
+normalization policy. Files created before the empty-context normalization policy
+was recorded, or carrying another policy, are refused with an explicit identity-policy
+diagnostic before pending recovery or receipt maintenance. This deliberately changes
+the private configuration fingerprint without changing the SQL format number.
+There is no migration, in-place upgrade or reseed: new disposable stores require
+explicit provisioning at a new path. Old retained outcomes and pending owners are
+never reinterpreted or removed by a refused open. The Scope epoch persists
+across restart. Persistent SQLite EXCLUSIVE locking prevents two
 live connections from admitting independently into the same file. Startup
 retracts uncommitted pending receipts immediately, before admitting new work; it
 never executes an abandoned request on its own initiative. A committed receipt
@@ -107,9 +116,12 @@ There is no schema change or automatic migration in this slice.
 
 ## Observed verification
 
-The bounded five-file suite exercises 387 tests, including 43 atomic-owner
-tests, existing Resource evaluation and semantic identity tests, Transactional
-wire/schema fixtures and the Transactional catalog. New observations cover:
+The prior bounded five-file suite exercised 387 tests, including 43 atomic-owner
+tests alongside Resource evaluation, semantic identity, Transactional wire/schema
+fixtures and catalog tests. The context-default correction adds ten atomic-owner
+tests for a total of 53 in that file; its focused rerun does not repeat that broader
+suite. The focused 53-test run, build, typecheck, dependency-boundary and format
+checks passed for the correction. Observations cover:
 
 - Bead plus local-reference Link success, ordered Events, schema-valid receipt
   and group, one durable commit, and principal-bound receipt lookup.
@@ -133,6 +145,10 @@ wire/schema fixtures and the Transactional catalog. New observations cover:
 - All six Resource operations executed with singleton-first and batch-first
   admission, equivalent local/canonical references and one shared receipt through
   pending join, completion and restart; creation labels remain as first admitted.
+- Empty/omitted context equality for create and update, both carrier directions
+  and both default spellings, through pending join, completion and restart; explicit
+  null context members remain conflicts. Unversioned and unknown-policy files are
+  refused without changing file bytes, retained completed receipts or pending owners.
 - Cross-carrier numeric failure and conflict, retraction and stale-owner fencing,
   completed expiry/replay, failed-key forgetting and rejection of singleton-only
   syntax violations before owner admission.

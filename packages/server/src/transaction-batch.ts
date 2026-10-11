@@ -13,7 +13,12 @@ import {
   type PreparedReadUpdateCarrier,
 } from "@bdp/protocol";
 import { encodeSemanticValue, type SemanticValue } from "./semantic-identity.js";
-import { evaluateAliasMutation, type AliasMutation, type AliasTransaction, type AliasEvaluationOptions } from "./alias-evaluator.js";
+import {
+  evaluateAliasMutation,
+  type AliasMutation,
+  type AliasTransaction,
+  type AliasEvaluationOptions,
+} from "./alias-evaluator.js";
 import {
   evaluateResourceMutation,
   readStoredResource,
@@ -107,10 +112,24 @@ function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction
         ? { properties: op.input.properties ?? {}, metadata: op.input.metadata ?? {} }
         : {}),
     };
+    // Empty context supplies no explicit states, exactly like omission. Null
+    // agent/message members remain meaningful and must keep distinct identities.
+    const context = input.changeContext;
+    if (context !== null && typeof context === "object" && Object.keys(context).length === 0)
+      delete input.changeContext;
     for (const field of ["id", "source", "target", "bead", "link", "alias"]) {
       const value = input[field];
       if (value === undefined) continue;
       const uri = typeof value === "string" ? value : (value as { uri: string }).uri;
+      // Resource alias resolution needs durable original-locator witnesses for
+      // retry identity. This private slice admits locator mutations only; do not
+      // let the shared Resource evaluator silently resolve them at execution.
+      if (
+        op.operation !== "putAlias" &&
+        op.operation !== "deleteAlias" &&
+        canonical(uri).startsWith(`${scope}alias/`)
+      )
+        throw new TypeError("development Resource alias operands require durable witnesses");
       // Preserve binding kind with a tagged slot outside user property data.
       const normalized = uri.startsWith("@") ? creators.get(uri.slice(1)) : canonical(uri);
       if (normalized === undefined) throw new TypeError("unknown batch binding");
@@ -226,9 +245,13 @@ export function evaluateTransaction(
       // a durable receipt but deliberately no Resource Event or Scope position.
       if (batch.carrier.kind !== "singleton" || batch.carrier.operations.length !== 1)
         throw new Error("alias operation escaped singleton admission");
-      const result = evaluateAliasMutation(tx, { operation: op.operation, input } as AliasMutation,
-        { scope: options.scope, policy: options.aliasPolicy, limits: options.limits });
-      if (result.effect === "failure") return { ok: false, problem: { ...result.outcome, operationIndex } };
+      const result = evaluateAliasMutation(
+        tx,
+        { operation: op.operation, input } as AliasMutation,
+        { scope: options.scope, policy: options.aliasPolicy, limits: options.limits },
+      );
+      if (result.effect === "failure")
+        return { ok: false, problem: { ...result.outcome, operationIndex } };
       results.push({ operationIndex, ...result.outcome });
       continue;
     }
