@@ -10,7 +10,11 @@ import {
   type ReadUpdateOperation,
 } from "@bdp/protocol";
 import { openRecoveryStore } from "./recovery-store.js";
-import { createSequenceLifecycle, type SequenceLifecycle } from "./sequence-executor.js";
+import {
+  createSequenceLifecycle,
+  type SequenceLifecycle,
+  type LifecycleScheduler,
+} from "./sequence-executor.js";
 import { createReadSequenceLifecycle } from "./read-sequence-lifecycle.js";
 import {
   assertReadUpdateRuntimeCompatibility,
@@ -65,6 +69,8 @@ export interface DevelopmentAuthorityOptions {
   readonly directory: string;
   /** Explicit first provisioning, never inferred from a missing database. */
   readonly create: boolean;
+  /** Private composition seam; no scheduler enters public configuration. */
+  readonly scheduler?: LifecycleScheduler;
 }
 
 export async function openDevelopmentAuthority(options: DevelopmentAuthorityOptions) {
@@ -98,6 +104,7 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
     assertReadUpdateRuntimeCompatibility(store, bounds);
     owner = createSequenceLifecycle({
       store,
+      ...(options.scheduler === undefined ? {} : { scheduler: options.scheduler }),
       maximumSequenceOperations: DEVELOPMENT_LIMITS.sequenceOperations,
       maintenanceIntervalMs: 60_000,
       member: {

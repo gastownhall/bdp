@@ -211,6 +211,10 @@ async function installPackedWorkspace() {
       "development.d.ts.map",
       "development.js",
       "development.js.map",
+      "development-runtime.d.ts",
+      "development-runtime.d.ts.map",
+      "development-runtime.js",
+      "development-runtime.js.map",
       "development-authority.d.ts",
       "development-authority.d.ts.map",
       "development-authority.js",
@@ -288,6 +292,19 @@ async function installPackedWorkspace() {
       try {
         consumer.resolve(`@bdp/server/dist/${module}`);
         throw new Error("packed private schema module unexpectedly resolves");
+      } catch (error) {
+        if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
+      }
+    }
+
+    for (const specifier of [
+      "@bdp/server/development-runtime",
+      "@bdp/server/dist/development-runtime.js",
+      "@bdp/server/development-authority",
+    ]) {
+      try {
+        consumer.resolve(specifier);
+        throw new Error("packed private development runtime unexpectedly resolves");
       } catch (error) {
         if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
       }

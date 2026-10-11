@@ -58,8 +58,8 @@ are explicit development URLs, not discovered qualified operation endpoints.
 
 The HTTP follow-ups below implement receiving Problems, media handling,
 validators and conditional reads, HEAD, and raw target/Host checks. The local
-cross-origin policy remains disabled. Deterministic mid-execution
-disconnect/recovery remains unproven. The fixed
+cross-origin policy remains disabled. The deterministic disconnect/recovery follow-up below addresses the earlier
+mid-execution transport gap. The fixed
 Type installation is not the complete schema/Type installation engine, and the
 single local operator is not production authorization qualification.
 
@@ -143,3 +143,44 @@ helper missing from its exact artifact inventory; adding those four emitted
 filenames made the smoke pass without widening exports. Lint retains only the
 baseline three warnings and one informational finding. This is implementation
 regression evidence, not executable certification of the full write profile.
+
+
+## Deterministic disconnect, drain and process-crash observations
+
+Three additional real-process tests park the existing lifecycle scheduler before
+member 2 executes. An IPC barrier acknowledgment plus live HTTP reads establishes
+that member 1 is durably committed and the independent final member is absent.
+There are no timing sleeps or mocked mutation outcomes. The process uses the real
+emitted HTTP receiver, authority, evaluator and SQLite store.
+
+- A client aborts its HTTP request at that barrier. Releasing the parked callback
+  allows the failed middle member, a creator-bound alias and independent final
+  create to finish. Exact-key retries recover their ordered retained results.
+- Graceful server close disconnects the response but waits for admitted work.
+  Releasing the callback completes the tail and shutdown. The ordinary emitted
+  executable then reopens the store and replays every terminal disposition.
+- SIGKILL at the same barrier terminates the authority without cleanup. The
+  ordinary executable reopens with the original prefix representation intact,
+  no tail Resource and no alias. It executes the abandoned remainder only after
+  explicit client resubmission. Subsequent retries match exactly.
+
+The scheduling seam is private: the existing runtime implementation moved to
+`development-runtime.ts`, while `@bdp/server/development` retains its existing
+wrapper/signature. Only the private runtime accepts the existing scheduler
+interface. Public configuration and package exports expose no barrier option.
+Installed-package smoke inventories the helper and rejects its deep import.
+
+These observations distinguish transport loss, graceful drain and abrupt process
+failure between individually committed members. SIGKILL is not a power-loss or
+mid-SQLite-commit fault injection. Nor does this establish Transactional batch
+recovery. Full write-profile qualification still requires catalog mapping,
+Type/schema installation evidence and a deliberate admission mechanism.
+
+
+Validation for this follow-up: 131 focused HTTP, Read/sequence lifecycle and
+sequence-owner tests passed, including the three new process tests. Build,
+typecheck, boundaries, formatting, the normal development process smoke and
+installed-package smoke passed on the pinned tools. Lint retains the baseline
+three warnings and one informational finding. No full-suite rerun is claimed
+for this follow-up; the preceding HTTP/negotiation slice's 7,604-test result is
+recorded separately above.
