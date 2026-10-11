@@ -200,6 +200,8 @@ async function runDevelopmentMatrix(
 }
 
 describe("DEVELOPMENT ONLY: non-attesting Read+Update contract observations", () => {
+  // The complete matrix starts several child processes and performs hundreds of actions.
+  // Its aggregate budget is separate from unchanged action, HTTP, IPC and cleanup deadlines.
   it("executes every diagnostic binding against real HTTP, raw receiving and controlled process observations", async () => {
     const bundle = createDevelopmentReadUpdateArtifactBundle(await artifacts());
     const result = await runDevelopmentMatrix(bundle);
@@ -216,7 +218,7 @@ describe("DEVELOPMENT ONLY: non-attesting Read+Update contract observations", ()
         process.env.BDP_DEVELOPMENT_REPORT_PATH,
         `${JSON.stringify(result, null, 2)}\n`,
       );
-  });
+  }, 30_000);
 
   it("contains raw fixture requests to the current loopback Scope and fixed credentials", async () => {
     const execution: ScenarioActionExecution = {
