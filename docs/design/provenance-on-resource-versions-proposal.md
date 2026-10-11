@@ -33,6 +33,36 @@ Being saved together does not give every field the same assurance. A server may
 observe the write time while merely carrying an actor name and source list
 supplied by the writer. Preserve those differences, including unknown values.
 
+### Where actor, date, and sources live
+
+**Keep actor and sources as separate, neighboring members of the same version
+record.** Do not move the actor inside the source list or repeat it on every
+source. The existing `attribution` says who this version is attributed to; the
+proposed `provenance` says what information it was based on. Both sit outside
+the Type-specific `properties`.
+
+| Location | Status | Meaning |
+| --- | --- | --- |
+| `attribution.principal` and `.status` | **EXISTING** | Who this version is attributed to, with the existing `claimed` or `unknown` qualification |
+| `changeContext.committedAt` | **EXISTING**, where History context is available | The version's recorded commit time, or explicitly undetermined |
+| `provenance.sources` and `.completeness` | **PROPOSED** | The version's declared information sources and how complete that list is |
+| `properties` | **EXISTING** | The Bead or Link's Type-specific content |
+
+This layout applies to an Activity Bead too. Its `properties.actor` names whoever
+reportedly performed the activity, while its outer `attribution.principal` names
+who the **activity record's version** is attributed to. For example, Alice may
+land a commit, and an importer may later write the Activity Bead: Alice is the
+activity actor; the importer can be the record's attributed principal. Neither
+field is automatically copied from the other.
+
+Likewise, `properties.producer` identifies the reporting system (today's
+`--source`), while outer `provenance.sources` can identify information used to
+write the Activity record, such as a CI report. `properties.subject` identifies
+what the activity concerns; it does not implicitly become an information source.
+An Activity's `properties.occurredAt` says when the activity reportedly happened;
+its own change context describes recording the version. Missing information in
+any of these places stays unknown rather than being filled from another field.
+
 ## Provenance versus attestation
 
 **Provenance says what is recorded about how something came about. An attestation
@@ -80,10 +110,25 @@ directly. These states are different. If sources are unknown, completeness is
 also unknown. Older records without provenance remain unknown; readers do not
 invent sources or authorship.
 
-Illustrative spelling, not a final wire schema:
+Illustrative excerpt of a decision Bead version, showing the members alongside
+one another. Identity, Type, and revision are omitted for brevity; `provenance`
+is proposed spelling, not a final wire schema. The change context uses the
+existing History representation:
 
 ```json
 {
+  "attribution": {
+    "principal": "human:alice",
+    "status": "claimed"
+  },
+  "changeContext": {
+    "committedAt": { "state": "present", "value": "2026-10-11T18:00:00Z" },
+    "agent": { "state": "undetermined" },
+    "message": { "state": "present", "value": "Record the storage decision" }
+  },
+  "properties": {
+    "decision": "Use storage engine A"
+  },
   "provenance": {
     "sources": [
       {
@@ -101,6 +146,8 @@ Illustrative spelling, not a final wire schema:
 
 The containing record already identifies the subject and its version. No
 separate subject reference, provenance identity, or graph Link is required.
+Here Alice is the claimed author of the decision version, and benchmark R17 is
+its declared information source. This does not say Alice authored the benchmark.
 
 ## Saving, reading, and correcting
 
