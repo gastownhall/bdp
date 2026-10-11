@@ -1,8 +1,7 @@
 # Proposal: record provenance with each Bead or Link version
 
 Status: discussion draft, October 11, 2026. Not an adopted BDP amendment or an
-implementation commitment. This proposes a simpler alternative to the separate
-Provenance Assertion Bead discussed earlier.
+implementation commitment.
 
 ## Purpose
 
@@ -14,11 +13,11 @@ and when. The same mechanism applies to Beads and Links.
 
 We already save part of a version's story. This proposal adds its sources:
 
-| Information | Question it answers |
-| --- | --- |
-| Existing actor / attribution | Who is recorded as responsible for this version? |
-| Existing revision time / change context | When was this version recorded, and what change context is available? |
-| Proposed sources and completeness | What information does the author say it was based on, and how complete is that list? |
+| Status | Information | Question it answers |
+| --- | --- | --- |
+| **EXISTING** | Actor / attribution | Who is recorded as responsible for this version? |
+| **EXISTING** | Revision time / change context | When was this version recorded, and what change context is available? |
+| **PROPOSED** | Sources and completeness | What information does the author say it was based on, and how complete is that list? |
 
 Together these are **provenance information**: the recorded account of how this
 version came about. Sources are one part of provenance; actor and date are other
@@ -201,7 +200,7 @@ no-op, even if its actor or payload has changed.
 
 ### Where the meanings differ
 
-| Existing event log | Proposed version information |
+| **EXISTING — `bd provenance` event log** | **PROPOSED — per-version source information** |
 | --- | --- |
 | Subject is an Issue ID, without a subject revision | Subject is the containing Bead or Link version |
 | `--source` names the event producer, such as an orchestrator | A source entry identifies information used to produce the content |
@@ -218,6 +217,52 @@ timestamps and Git SHAs must not be mistaken for Bead revision identifiers.
 
 Neither the existing events nor the proposed source list is an attestation:
 recording an actor or reference does not authenticate or verify the claim.
+
+### Can the proposal replace the existing feature efficiently?
+
+**Not as currently written.** The existing feature records work activity and
+artifact relationships that need not change the Issue. The proposed member
+records the sources of a saved version. A source list alone does not preserve
+the existing event kinds, producer, event time, ingest time, payload, retry
+identity, or event-log queries.
+
+| Existing requirement | Fit with the proposed source member alone |
+| --- | --- |
+| Record a commit, handoff, or landing without editing the Issue | **Not met:** changing the member creates a Resource version |
+| Record something later, with its original event time | **Not met:** revision time is not event time; separate event details are needed |
+| Retry a producer's event without duplicating it | **Not met:** identical-state no-op handling is not durable event deduplication |
+| List events by Issue/kind or find them by artifact reference | **Not met:** source retrieval is a different query; it does not reconstruct the event log |
+| Record exact input sources with a new version | **Met by the proposal:** save them with that version |
+
+Consider a CI job reporting that commit C landed for Issue I after another
+writer has already updated I. Today it appends a small event row associated with
+I. It does not need to rewrite I's current content or guess which revision C
+belongs to. The source-only model would require a new I revision and additional
+event fields, bringing activity recording into contention with ordinary Issue
+edits. A changed actor on that new revision would describe recording the event,
+not necessarily producing the Issue's substantive content.
+
+An ever-growing event list on every version also enlarges successive logical
+records. Storing only new events on each version instead requires retained
+history and an event index to answer the existing queries. Storage engines may
+reduce physical copying, but that does not remove the extra Resource revisions
+or their changed meaning. These are architectural costs, not measured benchmark
+results; this review ran no performance tests.
+
+**Recommendation:** retain the event log for independently arriving work events,
+and add the proposed source member for version-specific inputs. They can share
+storage infrastructure and reference utilities without sharing one record shape.
+If reverse lookup of version sources is required, maintain a derived index keyed
+by source reference and subject revision as versions are saved and removed,
+rather than scan all historical bodies on every query. That index is an
+implementation option, not a second authoritative source list.
+
+The existing schema already has indexes for Issue/event time, artifact reference
+and event kind, and the record path handles duplicate delivery. This is a
+grounded implementation contract. Source inspection alone does not establish
+how frequently each command is used in deployed systems. Replacing the log would
+require a separate design preserving those behaviors; this speclet proposes an
+addition, not that replacement.
 
 ### Proposed compatibility approach
 
