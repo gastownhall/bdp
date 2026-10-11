@@ -4,7 +4,12 @@ import path from "node:path";
 import { request as httpRequest } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { createReadUpdateFetchTransport, BdpReadUpdateClient } from "@bdp/client";
-import { parseReadUpdateMutationResult } from "@bdp/protocol";
+import {
+  parseBeadRecord,
+  parseLinkRecord,
+  parseReadUpdateMutationResult,
+  parseReadUpdateSequenceResponse,
+} from "@bdp/protocol";
 import {
   startDevelopmentReferenceServer,
   DEVELOPMENT_BEAD_TYPE,
@@ -45,6 +50,8 @@ async function start(dir = directory(), port = 0, create = true) {
         bodyText: JSON.stringify(input),
         idempotencyKey: key,
       }),
+    sequence: (input: unknown) =>
+      transport.post(`${server.scope}development/sequence`, { bodyText: JSON.stringify(input) }),
     get: (relative: string) => transport.get(new URL(relative, server.scope).href),
   };
 }
@@ -247,6 +254,291 @@ describe("non-attesting bdptest HTTP development authority", () => {
     });
     expect(status).toBe(400);
     expect((await h.post("create-bead", JSON.parse(input), "raw")).status).toBe(200);
+  });
+
+  it("puts, retargets, resolves and deletes aliases without changing Bead revisions", async () => {
+    const h = await start();
+    const a = resource(
+      await h.post("create-bead", { id: "beads/a", type: DEVELOPMENT_BEAD_TYPE }, "a"),
+    );
+    const b = resource(
+      await h.post("create-bead", { id: "beads/b", type: DEVELOPMENT_BEAD_TYPE }, "b"),
+    );
+    const put = { alias: "alias/latest", target: "beads/a" };
+    const first = await h.post("put-alias", put, "alias_first");
+    expect(first).toMatchObject({
+      status: 200,
+      body: { outcome: "created", alias: `${h.server.scope}alias/latest`, target: a.id },
+    });
+    const redirect = await fetch(`${h.server.scope}alias/latest`, {
+      headers: { authorization: `Bearer ${token}` },
+      redirect: "manual",
+    });
+    expect(redirect.status).toBe(307);
+    expect(redirect.headers.get("location")).toBe(a.id);
+    await redirect.body?.cancel();
+    const retarget = await h.post("put-alias", { ...put, target: b.id }, "alias_second");
+    expect(retarget).toMatchObject({ status: 200, body: { target: b.id } });
+    expect(jsonBody(await h.get("beads/a"))).toEqual(a);
+    expect(jsonBody(await h.get("beads/b"))).toEqual(b);
+    expect(jsonBody(await h.post("put-alias", put, "alias_first"))).toEqual(jsonBody(first));
+    expect(await h.post("put-alias", { ...put, target: b.id }, "alias_first")).toMatchObject({
+      status: 409,
+      body: { code: "idempotency-conflict" },
+    });
+    expect(
+      await h.post("put-alias", { alias: "alias/a", target: b.id }, "collision"),
+    ).toMatchObject({ status: 409, body: { code: "identity-taken" } });
+    const deletion = await h.post("delete-alias", { alias: put.alias }, "alias_delete");
+    expect(deletion).toMatchObject({ status: 200, body: { outcome: "deleted" } });
+    expect(await h.get(put.alias)).toMatchObject({ status: 404 });
+    expect(jsonBody(await h.post("delete-alias", { alias: put.alias }, "alias_delete"))).toEqual(
+      jsonBody(deletion),
+    );
+  });
+
+  it("commits ordered local-reference sequences and replays each member across restart", async () => {
+    const h = await start();
+    const input = {
+      operations: [
+        {
+          operation: "createBead",
+          idempotencyKey: "seq_bead",
+          name: "a",
+          type: DEVELOPMENT_BEAD_TYPE,
+        },
+        {
+          operation: "createLink",
+          idempotencyKey: "seq_link",
+          name: "l",
+          type: DEVELOPMENT_LINK_TYPE,
+          source: "@a",
+          target: "@a",
+        },
+        { operation: "putAlias", idempotencyKey: "seq_alias", alias: "alias/first", target: "@a" },
+        {
+          operation: "updateBead",
+          idempotencyKey: "seq_update",
+          bead: "@a",
+          propertiesChange: [{ op: "add", path: "/ready", value: true }],
+        },
+      ],
+    };
+    const response = await h.sequence(input);
+    expect(response.status).toBe(200);
+    const result = parseReadUpdateSequenceResponse(jsonBody(response));
+    expect(result.results).toMatchObject([
+      { operationIndex: 0, operationName: "a", outcome: "created" },
+      { operationIndex: 1, operationName: "l", outcome: "created" },
+      { operationIndex: 2, outcome: "created" },
+      { operationIndex: 3, outcome: "updated", resource: { properties: { ready: true } } },
+    ]);
+    const first = result.results[0]!;
+    const link = result.results[1]!;
+    const updated = result.results[3]!;
+    if (!("resource" in first) || !("resource" in link) || !("resource" in updated))
+      throw new Error("missing resource");
+    const firstBead = parseBeadRecord(first.resource);
+    const firstLink = parseLinkRecord(link.resource);
+    expect(firstLink).toMatchObject({ source: firstBead.id, target: firstBead.id });
+    expect(jsonBody(await h.get(firstBead.id))).toEqual(updated.resource);
+    expect(jsonBody(await h.sequence(input))).toEqual(result);
+    await h.server.close();
+    const reopened = await start(h.dir, Number(new URL(h.server.scope).port), false);
+    expect(jsonBody(await reopened.sequence(input))).toEqual(result);
+    expect(jsonBody(await reopened.get(firstLink.id))).toEqual(link.resource);
+    const aliasRead = await fetch(`${reopened.server.scope}alias/first`, {
+      headers: { authorization: `Bearer ${token}` },
+      redirect: "manual",
+    });
+    expect(aliasRead.headers.get("location")).toBe(firstBead.id);
+    await aliasRead.body?.cancel();
+    const changed = structuredClone(input);
+    changed.operations[0]!.type = DEVELOPMENT_LINK_TYPE;
+    const conflict = parseReadUpdateSequenceResponse(jsonBody(await reopened.sequence(changed)));
+    expect(conflict.results[0]).toMatchObject({ code: "idempotency-conflict", operationIndex: 0 });
+  });
+
+  it("shares retained keys between singleton and sequence carriers", async () => {
+    const h = await start();
+    const create = { id: "beads/shared", type: DEVELOPMENT_BEAD_TYPE };
+    const singleton = resource(await h.post("create-bead", create, "shared_create"));
+    const operations = [
+      { ...create, operation: "createBead", idempotencyKey: "shared_create", name: "shared" },
+      {
+        operation: "putAlias",
+        idempotencyKey: "shared_alias",
+        alias: "alias/shared-name",
+        target: "@shared",
+      },
+    ];
+    const result = parseReadUpdateSequenceResponse(jsonBody(await h.sequence({ operations })));
+    expect(result.results[0]).toMatchObject({
+      operationIndex: 0,
+      operationName: "shared",
+      resource: singleton,
+    });
+    const alias = await h.post(
+      "put-alias",
+      { alias: "alias/shared-name", target: singleton.id },
+      "shared_alias",
+    );
+    const { operationIndex: _index, ...retainedAlias } = result.results[1]!;
+    expect(jsonBody(alias)).toEqual(retainedAlias);
+    const changed = { operations: [{ ...operations[0], properties: { different: true } }] };
+    expect(
+      parseReadUpdateSequenceResponse(jsonBody(await h.sequence(changed))).results[0],
+    ).toMatchObject({ code: "idempotency-conflict" });
+  });
+
+  it("retains successful prefixes, reports failures in order and continues independent members", async () => {
+    const h = await start();
+    const a = resource(
+      await h.post("create-bead", { id: "beads/a", type: DEVELOPMENT_BEAD_TYPE }, "seed"),
+    );
+    const input = {
+      operations: [
+        {
+          operation: "updateBead",
+          idempotencyKey: "good",
+          bead: a.id,
+          expectedRevision: a.revision,
+          propertiesChange: [{ op: "add", path: "/n", value: 1 }],
+        },
+        {
+          operation: "updateBead",
+          idempotencyKey: "stale",
+          bead: a.id,
+          expectedRevision: a.revision,
+          propertiesChange: [{ op: "add", path: "/n", value: 2 }],
+        },
+        {
+          operation: "createBead",
+          idempotencyKey: "bad_create",
+          name: "bad",
+          id: "beads/a",
+          type: DEVELOPMENT_BEAD_TYPE,
+        },
+        { operation: "putAlias", idempotencyKey: "dependent", alias: "alias/bad", target: "@bad" },
+        {
+          operation: "createBead",
+          idempotencyKey: "last",
+          id: "beads/last",
+          type: DEVELOPMENT_BEAD_TYPE,
+        },
+      ],
+    };
+    const response = await h.sequence(input);
+    expect(response.status).toBe(200);
+    const result = parseReadUpdateSequenceResponse(jsonBody(response));
+    expect(result.results).toMatchObject([
+      { operationIndex: 0, outcome: "updated" },
+      { operationIndex: 1, code: "revision-mismatch" },
+      { operationIndex: 2, code: "identity-taken" },
+      { operationIndex: 3, code: "binding-unavailable" },
+      { operationIndex: 4, outcome: "created" },
+    ]);
+    expect(jsonBody(await h.get(a.id))).toMatchObject({ properties: { n: 1 } });
+    expect(await h.get("beads/last")).toMatchObject({ status: 200 });
+    expect(await h.get("alias/bad")).toMatchObject({ status: 404 });
+    expect(jsonBody(await h.sequence(input))).toEqual(result);
+    await h.server.close();
+    const reopened = await start(h.dir, Number(new URL(h.server.scope).port), false);
+    expect(jsonBody(await reopened.sequence(input))).toEqual(result);
+  });
+
+  it("recovers a committed sequence when its HTTP response is discarded", async () => {
+    const h = await start();
+    const input = {
+      operations: [
+        {
+          operation: "createBead",
+          idempotencyKey: "lost_bead",
+          name: "lost",
+          type: DEVELOPMENT_BEAD_TYPE,
+          properties: { text: "x".repeat(48 * 1024) },
+        },
+        {
+          operation: "putAlias",
+          idempotencyKey: "lost_alias",
+          alias: "alias/lost",
+          target: "@lost",
+        },
+      ],
+    };
+    const text = JSON.stringify(input);
+    await new Promise<void>((resolve, reject) => {
+      const request = httpRequest(
+        `${h.server.scope}development/sequence`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+            "content-length": Buffer.byteLength(text),
+          },
+        },
+        (response) => {
+          // Headers establish that the admitted sequence finished. Discard its
+          // result without parsing/retaining any disposition, then recover by key.
+          if (response.statusCode !== 200) {
+            response.resume();
+            reject(new Error("sequence failed"));
+            return;
+          }
+          response.destroy();
+          resolve();
+        },
+      );
+      request.setTimeout(5000, () => request.destroy(new Error("request timed out")));
+      request.once("error", reject);
+      request.end(text);
+    });
+    const recovered = parseReadUpdateSequenceResponse(jsonBody(await h.sequence(input)));
+    expect(recovered.results).toMatchObject([{ outcome: "created" }, { outcome: "created" }]);
+    const first = recovered.results[0]!;
+    if (!("resource" in first)) throw new Error("missing retained resource");
+    const bead = parseBeadRecord(first.resource);
+    expect(jsonBody(await h.get(bead.id))).toEqual(bead);
+    expect(jsonBody(await h.sequence(input))).toEqual(recovered);
+  });
+
+  it("rejects malformed or oversized carriers and stray carrier keys before any member executes", async () => {
+    const h = await start();
+    const first = {
+      operation: "createBead",
+      idempotencyKey: "first",
+      id: "beads/first",
+      type: DEVELOPMENT_BEAD_TYPE,
+    };
+    const bad = {
+      operation: "putAlias",
+      idempotencyKey: "bad",
+      alias: "alias/bad?query",
+      target: "beads/first",
+    };
+    expect(await h.sequence({ operations: [first, bad] })).toMatchObject({ status: 400 });
+    expect(await h.post("sequence", { operations: [first] }, "stray")).toMatchObject({
+      status: 400,
+    });
+    expect(
+      await h.sequence({ operations: [first, { ...first, id: "beads/other" }] }),
+    ).toMatchObject({ status: 400 });
+    expect(
+      await h.sequence({
+        operations: Array.from({ length: 33 }, (_, i) => ({
+          ...first,
+          id: `beads/item${i}`,
+          idempotencyKey: `item${i}`,
+        })),
+      }),
+    ).toMatchObject({ status: 413 });
+    expect(await h.get("beads/first")).toMatchObject({ status: 404 });
+    expect(await h.get("beads/item0")).toMatchObject({ status: 404 });
+    const result = parseReadUpdateSequenceResponse(
+      jsonBody(await h.sequence({ operations: [first] })),
+    );
+    expect(result.results[0]).toMatchObject({ outcome: "created" });
   });
 
   it("requires explicit provisioning and refuses reseeding an existing Scope", async () => {

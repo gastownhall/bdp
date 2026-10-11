@@ -5,6 +5,7 @@ import {
   parseCanonicalScope,
   parseTypeDescriptor,
   prepareReadUpdateSingleton,
+  prepareReadUpdateSequence,
   stringifyJsonValue,
   type ReadUpdateOperation,
 } from "@bdp/protocol";
@@ -21,6 +22,7 @@ import { requestFromUrl } from "./read-request.js";
 export const DEVELOPMENT_BEAD_TYPE = "https://bdp.example/development/bead";
 export const DEVELOPMENT_LINK_TYPE = "https://bdp.example/development/link";
 export const DEVELOPMENT_LIMITS = Object.freeze({
+  sequenceOperations: 32,
   requestBodyBytes: 64 * 1024,
   propertiesBytes: 64 * 1024,
   diagnosticBytes: 512 * 1024,
@@ -96,7 +98,7 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
     assertReadUpdateRuntimeCompatibility(store, bounds);
     owner = createSequenceLifecycle({
       store,
-      maximumSequenceOperations: 1,
+      maximumSequenceOperations: DEVELOPMENT_LIMITS.sequenceOperations,
       maintenanceIntervalMs: 60_000,
       member: {
         scope,
@@ -183,7 +185,16 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
         if (result.kind !== "singleton") throw new Error("unexpected development completion");
         return result.disposition;
       },
+      async sequence(text: string) {
+        const carrier = prepareReadUpdateSequence(scope, text);
+        const submission = lifecycle.submit(carrier, principal);
+        if (submission.kind === "refused") return submission.problem;
+        const result = await submission.completion;
+        if (result.kind !== "sequence") throw new Error("unexpected development completion");
+        return result.response;
+      },
       async read(url: URL) {
+        if (url.pathname.startsWith("/alias/")) return reads.resolveAlias(url.href);
         const request = requestFromUrl(url, scope);
         if (isReadProblem(request)) return { kind: "problem" as const, problem: request };
         return reads.perform(request);

@@ -93,6 +93,8 @@ async function launch(port, create) {
         bodyText: JSON.stringify(body),
         idempotencyKey: key,
       }),
+    sequence: (body) =>
+      transport.post(`${ready.scope}development/sequence`, { bodyText: JSON.stringify(body) }),
     get: (relative) => transport.get(new URL(relative, ready.scope).href),
   };
 }
@@ -150,13 +152,65 @@ try {
   assert.notEqual(updated.body.resource.revision, created.body.resource.revision);
   assert.equal((await first.post("update-bead", update, "stale")).body.code, "revision-mismatch");
   report("guarded update and stale revision refusal");
+  const sequence = {
+    operations: [
+      { operation: "createBead", idempotencyKey: "sequence_bead", name: "memo", type: input.type },
+      {
+        operation: "putAlias",
+        idempotencyKey: "sequence_alias",
+        alias: "alias/memo",
+        target: "@memo",
+      },
+      {
+        operation: "updateBead",
+        idempotencyKey: "sequence_stale",
+        bead: "beads/a",
+        expectedRevision: created.body.resource.revision,
+        propertiesChange: [{ op: "add", path: "/never", value: true }],
+      },
+      {
+        operation: "createLink",
+        idempotencyKey: "sequence_link",
+        type: "https://bdp.example/development/link",
+        source: "@memo",
+        target: "@memo",
+      },
+    ],
+  };
+  const sequenced = await first.sequence(sequence);
+  assert.equal(sequenced.status, 200);
+  assert.equal(sequenced.body.results.length, 4);
+  assert.equal(sequenced.body.results[0].outcome, "created");
+  assert.equal(sequenced.body.results[1].target, sequenced.body.results[0].resource.id);
+  assert.equal(sequenced.body.results[2].code, "revision-mismatch");
+  assert.equal(sequenced.body.results[3].outcome, "created");
+  assert.equal(sequenced.body.results[3].resource.source, sequenced.body.results[0].resource.id);
+  report("ordered sequence with local references, aliases, partial failure and independent tail");
   const port = Number(new URL(first.scope).port);
   await stop();
   const second = await launch(port, false);
   assert.equal(second.scope, first.scope);
   assert.deepEqual((await second.get("beads/a")).body, updated.body.resource);
   assert.deepEqual((await second.post("update-bead", update, "update")).body, updated.body);
-  report("new process recovered persisted state and exact retained replay");
+  assert.deepEqual((await second.sequence(sequence)).body, sequenced.body);
+  assert.deepEqual(
+    (await second.get(sequenced.body.results[3].resource.id)).body,
+    sequenced.body.results[3].resource,
+  );
+  const alias = { alias: "alias/memo", target: sequenced.body.results[0].resource.id };
+  const { operationIndex: _aliasIndex, ...aliasResult } = sequenced.body.results[1];
+  assert.deepEqual(
+    (await second.post("put-alias", alias, "sequence_alias")).body,
+    Object.assign(Object.create(null), aliasResult),
+  );
+  assert.equal(
+    (await second.post("delete-alias", { alias: alias.alias }, "delete_alias")).body.outcome,
+    "deleted",
+  );
+  assert.equal((await second.get(alias.alias)).status, 404);
+  report(
+    "new process recovered singleton and sequence dispositions, cross-carrier alias replay and alias deletion",
+  );
   const deletion = { bead: "beads/a", expectedRevision: updated.body.resource.revision };
   const deleted = await second.post("delete-bead", deletion, "delete");
   assert.equal(deleted.status, 200);

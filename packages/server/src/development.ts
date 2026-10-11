@@ -26,6 +26,8 @@ const operations: Readonly<Record<string, ReadUpdateOperation>> = Object.freeze(
   "create-link": "createLink",
   "update-link": "updateLink",
   "delete-link": "deleteLink",
+  "put-alias": "putAlias",
+  "delete-alias": "deleteAlias",
 });
 class ReceivingError extends Error {
   constructor(readonly status: number) {
@@ -113,7 +115,9 @@ export async function startDevelopmentReferenceServer(options: DevelopmentServer
             development: true,
             claimEligible: false,
             scope,
-            operations: Object.keys(operations).map((name) => `${scope}development/${name}`),
+            operations: [...Object.keys(operations), "sequence"].map(
+              (name) => `${scope}development/${name}`,
+            ),
           });
           return;
         }
@@ -123,23 +127,33 @@ export async function startDevelopmentReferenceServer(options: DevelopmentServer
         if (result.kind === "problem")
           json(response, result.problem.status ?? 500, result.problem, true);
         else if (result.kind === "success") json(response, 200, result.body);
-        else refused(response, 404);
+        else if (result.kind === "target") {
+          response.writeHead(307, {
+            location: result.target,
+            "cache-control": "private, no-store",
+          });
+          response.end();
+        } else refused(response, 404);
         return;
       }
       if (request.method !== "POST") throw new ReceivingError(405);
       const name = rawUrl.startsWith("/development/") ? rawUrl.slice(13) : "";
       const operation = Object.hasOwn(operations, name) ? operations[name] : undefined;
-      if (!operation) throw new ReceivingError(404);
+      if (!operation && name !== "sequence") throw new ReceivingError(404);
       if (header(request, "content-type")?.toLowerCase() !== "application/json")
         throw new ReceivingError(415);
       if (header(request, "content-encoding") !== undefined) throw new ReceivingError(415);
       const key = header(request, "idempotency-key");
-      if (key === undefined) throw new ReceivingError(400);
+      if (name === "sequence" ? key !== undefined : key === undefined)
+        throw new ReceivingError(400);
       const text = await body(request);
       if (response.destroyed || closing) throw new ReceivingError(503);
       // After admission, delivery is only an observer. Disconnect never cancels
       // committed/admitted work; an exact-key retry retrieves its disposition.
-      const result = await authority.mutate(operation, text, key);
+      const result =
+        name === "sequence"
+          ? await authority.sequence(text)
+          : await authority.mutate(operation!, text, key!);
       const problem = "code" in result;
       json(response, problem ? (result.status ?? 500) : 200, result, problem);
     } catch (error) {
