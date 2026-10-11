@@ -7,6 +7,7 @@ import { createReadUpdateFetchTransport, BdpReadUpdateClient } from "@bdp/client
 import {
   parseBeadRecord,
   parseLinkRecord,
+  parseReadUpdateProblem,
   parseReadUpdateMutationResult,
   parseReadUpdateSequenceResponse,
 } from "@bdp/protocol";
@@ -552,6 +553,250 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect(result.results[0]).toMatchObject({ outcome: "created" });
   });
 
+  it("serves conditional GET/HEAD with Resource ETags and ordinary refusals first", async () => {
+    const h = await start();
+    const created = resource(
+      await h.post("create-bead", { id: "beads/http", type: DEVELOPMENT_BEAD_TYPE }, "http"),
+    );
+    const url = `${h.server.scope}beads/http`;
+    const headers = { authorization: `Bearer ${token}` };
+    const get = await fetch(url, { headers });
+    const etag = get.headers.get("etag");
+    expect(etag).toBe(`"${created.revision}"`);
+    const bytes = await get.text();
+    const head = await fetch(url, { method: "HEAD", headers });
+    expect(head.status).toBe(200);
+    expect(head.headers.get("etag")).toBe(etag);
+    expect(head.headers.get("content-length")).toBe(String(Buffer.byteLength(bytes)));
+    expect(await head.text()).toBe("");
+    for (const method of ["GET", "HEAD"]) {
+      for (const [condition, status] of [
+        { "if-none-match": etag },
+        { "if-none-match": `W/${etag}` },
+      ].map((condition) => [condition, 304] as const)) {
+        const r = await fetch(url, {
+          method,
+          headers: { ...headers, ...condition } as Record<string, string>,
+        });
+        expect(r.status).toBe(status);
+        expect(r.headers.get("etag")).toBe(etag);
+        expect(r.headers.get("content-type")).toBeNull();
+        expect(await r.text()).toBe("");
+      }
+      const mismatch = await fetch(url, { method, headers: { ...headers, "if-match": '"wrong"' } });
+      expect(mismatch.status).toBe(412);
+      expect(await mismatch.text()).toBe("");
+    }
+    const absent = await fetch(`${h.server.scope}beads/missing`, {
+      headers: { ...headers, "if-none-match": "*", accept: "text/plain" },
+    });
+    expect(absent.status).toBe(404);
+    expect(parseReadUpdateProblem(await absent.json()).code).toBe("resource-not-found");
+    const denied = await fetch(url, { headers: { "if-none-match": "*" } });
+    expect(denied.status).toBe(401);
+    expect(parseReadUpdateProblem(await denied.json()).code).toBe("unauthenticated");
+    const noTag = await fetch(`${h.server.scope}beads/`, {
+      headers: { ...headers, "if-none-match": "*" },
+    });
+    expect(noTag.status).toBe(304);
+    expect(noTag.headers.get("etag")).toBeNull();
+    expect(await noTag.text()).toBe("");
+  });
+
+  it("uses media-range quality for reads and keeps HEAD Problems bodyless", async () => {
+    const h = await start();
+    for (const [accept, status] of [
+      ["application/json;q=0, */*;q=1", 406],
+      ["text/plain", 406],
+      ["application/*;q=0.5", 200],
+      ["application/json; charset=utf-8", 406],
+    ] as const) {
+      const response = await fetch(`${h.server.scope}beads/`, {
+        headers: { authorization: `Bearer ${token}`, accept },
+      });
+      expect(response.status).toBe(status);
+      expect(response.headers.get("vary")).toContain("Accept");
+      if (status === 406) {
+        expect(response.headers.get("content-type")).toBeNull();
+        expect(await response.text()).toBe("");
+      } else await response.body?.cancel();
+    }
+    const head = await fetch(`${h.server.scope}beads/missing`, {
+      method: "HEAD",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(head.status).toBe(404);
+    expect(head.headers.get("content-type")).toBe("application/problem+json");
+    expect(await head.text()).toBe("");
+    for (const [target, method, allow] of [
+      ["beads/", "POST", "GET, HEAD"],
+      ["development/create-bead", "GET", "POST"],
+      ["beads/", "OPTIONS", "GET, HEAD"],
+    ] as const) {
+      const response = await fetch(`${h.server.scope}${target}`, {
+        method,
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(response.status).toBe(405);
+      expect(response.headers.get("allow")).toBe(allow);
+      expect(await response.text()).toBe("");
+    }
+  });
+
+  it("returns BDP receiving Problems without capturing keys and ignores request media parameters", async () => {
+    const h = await start();
+    const url = `${h.server.scope}development/create-bead`;
+    const input = { id: "beads/media", type: DEVELOPMENT_BEAD_TYPE };
+    const headers = { authorization: `Bearer ${token}`, "idempotency-key": "media" };
+    for (const contentType of [undefined, "text/plain"]) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          ...headers,
+          ...(contentType === undefined ? {} : { "content-type": contentType }),
+        },
+        body: JSON.stringify(input),
+      });
+      expect(response.status).toBe(415);
+      expect(parseReadUpdateProblem(await response.json())).toMatchObject({
+        code: "unsupported-media-type",
+        status: 415,
+        retry: "never",
+      });
+    }
+    const malformed = await fetch(url, {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json" },
+      body: "{",
+    });
+    expect(parseReadUpdateProblem(await malformed.json())).toMatchObject({
+      code: "malformed-request",
+      status: 400,
+    });
+    const large = await fetch(url, {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json" },
+      body: " ".repeat(65537),
+    });
+    expect(parseReadUpdateProblem(await large.json())).toMatchObject({
+      code: "request-too-large",
+      status: 413,
+    });
+    expect(await h.get(input.id)).toMatchObject({ status: 404 });
+    const accepted = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...headers,
+        "content-type": "Application/JSON; charset=utf-8",
+        "if-match": '"not-a-resource-guard"',
+      },
+      body: JSON.stringify(input),
+    });
+    expect(accepted.status).toBe(200);
+    await accepted.body?.cancel();
+  });
+
+  it("rejects hostile raw targets, wrong Host and duplicate credentials before key capture", async () => {
+    const h = await start();
+    const body = JSON.stringify({ id: "beads/raw-safe", type: DEVELOPMENT_BEAD_TYPE });
+    const host = new URL(h.server.scope).host;
+    const base = [
+      "Host",
+      host,
+      "Authorization",
+      `Bearer ${token}`,
+      "Content-Type",
+      "application/json",
+      "Idempotency-Key",
+      "raw_safe",
+      "Content-Length",
+      String(Buffer.byteLength(body)),
+    ];
+    for (const target of [
+      "/x/../development/create-bead",
+      "/x/%2e%2e/development/create-bead",
+      "/development\\create-bead",
+      "/development/create-bead#x",
+      "//foreign/development/create-bead",
+    ]) {
+      const r = await rawPost(h.server.scope, target, base, body);
+      expect(r.status).toBe(400);
+      expect(parseReadUpdateProblem(JSON.parse(r.body)).code).toBe("malformed-request");
+    }
+    const wrongHost = [...base];
+    wrongHost[1] = "foreign.invalid";
+    expect(
+      (await rawPost(h.server.scope, "/development/create-bead", wrongHost, body)).status,
+    ).toBe(400);
+    expect(
+      (
+        await rawPost(
+          h.server.scope,
+          "/development/create-bead",
+          [...base, "Authorization", `Bearer ${token}`],
+          body,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await rawPost(h.server.scope, "/development/create-bead", [...base, "Host", host], body))
+        .status,
+    ).toBe(400);
+    expect(await h.get("beads/raw-safe")).toMatchObject({ status: 404 });
+    expect(await h.post("create-bead", JSON.parse(body), "raw_safe")).toMatchObject({
+      status: 200,
+    });
+  });
+
+  it("rejects malformed scalar JSON and oversized chunked input without claiming the key", async () => {
+    const h = await start();
+    const url = `${h.server.scope}development/create-bead`;
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      "idempotency-key": "bad_scalar",
+    };
+    for (const body of ['{"type":"a","type":"b"}', '{"type":"\\ud800"}']) {
+      const response = await fetch(url, { method: "POST", headers, body });
+      expect(response.status).toBe(400);
+      expect(parseReadUpdateProblem(await response.json()).code).toBe("malformed-request");
+    }
+    const rawHeaders = [
+      "Host",
+      new URL(h.server.scope).host,
+      "Authorization",
+      `Bearer ${token}`,
+      "Content-Type",
+      "application/json",
+      "Idempotency-Key",
+      "bad_scalar",
+    ];
+    const invalidUtf8 = await rawPost(
+      h.server.scope,
+      "/development/create-bead",
+      rawHeaders,
+      Buffer.from([0xc0, 0xaf]),
+    );
+    expect(invalidUtf8.status).toBe(400);
+    expect(parseReadUpdateProblem(JSON.parse(invalidUtf8.body)).code).toBe("malformed-request");
+    const huge = await rawPost(
+      h.server.scope,
+      "/development/create-bead",
+      rawHeaders,
+      " ".repeat(65537),
+      true,
+    );
+    expect(huge.status).toBe(413);
+    expect(parseReadUpdateProblem(JSON.parse(huge.body)).code).toBe("request-too-large");
+    expect(
+      await h.post(
+        "create-bead",
+        { id: "beads/scalar", type: DEVELOPMENT_BEAD_TYPE },
+        "bad_scalar",
+      ),
+    ).toMatchObject({ status: 200 });
+  });
+
   it("requires explicit provisioning and refuses reseeding an existing Scope", async () => {
     const dir = directory();
     await expect(start(dir, 0, false)).rejects.toThrow("missing");
@@ -562,3 +807,30 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect((await reopened.get("beads/")).status).toBe(200);
   });
 });
+
+async function rawPost(
+  scope: string,
+  target: string,
+  headers: string[],
+  body: string | Buffer,
+  chunked = false,
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest(
+      { hostname: "127.0.0.1", port: new URL(scope).port, path: target, method: "POST", headers },
+      (response) => {
+        let text = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          text += chunk;
+        });
+        response.once("end", () => resolve({ status: response.statusCode ?? 0, body: text }));
+        response.once("error", reject);
+      },
+    );
+    request.setTimeout(5000, () => request.destroy(new Error("request timed out")));
+    request.once("error", reject);
+    if (chunked) request.write(body.slice(0, 40000));
+    request.end(chunked ? body.slice(40000) : body);
+  });
+}

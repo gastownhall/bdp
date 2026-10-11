@@ -197,7 +197,8 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
         if (url.pathname.startsWith("/alias/")) return reads.resolveAlias(url.href);
         const request = requestFromUrl(url, scope);
         if (isReadProblem(request)) return { kind: "problem" as const, problem: request };
-        return reads.perform(request);
+        const result = await reads.perform(request);
+        return result.kind === "success" ? { ...result, request } : result;
       },
       close: () => lifecycle.close(),
     });

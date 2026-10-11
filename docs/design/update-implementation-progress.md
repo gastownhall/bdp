@@ -78,3 +78,31 @@ dependency boundaries and formatting passed. The focused six-file suite passed
 evaluator, carrier preflight and SDK Fetch transport. The extended built-process
 smoke passed. Lint retains the repository's pre-existing warnings. This slice's
 focused run is not a fresh full-repository or profile conformance qualification.
+
+## HTTP receiving and Read semantics follow-up
+
+The development receiver now uses BDP Problems for authentication, authorization,
+malformed requests, unsupported media and size refusals. JSON request media-type
+parameters are ignored. Unsupported methods return bodyless 405 with Allow;
+unexpected internal faults return bodyless 500 without diagnostic disclosure.
+Mutation command conditionals do not replace payload revision guards.
+
+Read GET/HEAD now reuse the existing Read HTTP semantics and Resource revision
+ETag projection: Accept specificity/quality, bodyless 406/304/412, no ETag on
+collections, and HEAD representation lengths. Ordinary read/auth refusals run
+before negotiation or conditionals. Alias HEAD remains a bodyless redirect.
+The fixed local credential and refusal of browser Origin remain unchanged;
+CORS is disabled rather than incompletely advertised.
+
+Raw request normalization validation is shared with the existing Node listener.
+Hostile dot-segment, backslash, fragment and foreign-authority targets, wrong or
+repeated Host, repeated credentials, malformed scalar JSON, invalid UTF-8 and
+oversized chunked input are refused before mutation/key capture. A corrected
+request can reuse the key. The bounded iterator preserves the connection long
+enough to return the size Problem, then closes it.
+
+The HTTP follow-up passes 148 focused tests across development HTTP, shared Read
+HTTP, the existing HTTP handler and Node listener. Mutation response Accept
+negotiation remains the next admission-boundary task: rejecting before comparing
+retained keys would hide conflict, while rejecting after submit could commit an
+unknown key. The receiver does not claim full mutation media conformance yet.

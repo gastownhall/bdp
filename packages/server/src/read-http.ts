@@ -154,3 +154,45 @@ function splitQuoted(value: string, delimiter: string): string[] | undefined {
   parts.push(value.slice(start));
   return parts;
 }
+
+export function resourceRevisionEtag(revision: string): string {
+  // RFC 9110 entity tags are quoted opaque byte sequences, not HTTP quoted-
+  // strings: a quote or control byte cannot be escaped inside the tag. BDP's
+  // ordinary ASCII revisions are emitted unchanged as shown in the spec. For
+  // revisions outside the entity-tag character profile, use an unambiguous
+  // base64url projection whose marker cannot collide with an unchanged tag.
+  const bytes = Buffer.from(revision, "utf8");
+  const unchanged =
+    bytes.length === revision.length &&
+    bytes.every((byte) => byte === 0x21 || (byte >= 0x23 && byte <= 0x7e));
+  let opaque: string;
+  if (unchanged && !revision.startsWith("bdp-b64_") && !revision.startsWith("bdp-u16_")) {
+    opaque = revision;
+  } else if (isWellFormedUnicode(revision)) {
+    opaque = `bdp-b64_${bytes.toString("base64url")}`;
+  } else {
+    // JavaScript can represent lone UTF-16 surrogates, for which UTF-8's
+    // replacement encoding is not injective. Preserve those otherwise-valid
+    // JSON strings with a separate code-unit projection.
+    const codeUnits = Buffer.allocUnsafe(revision.length * 2);
+    for (let index = 0; index < revision.length; index += 1) {
+      codeUnits.writeUInt16BE(revision.charCodeAt(index), index * 2);
+    }
+    opaque = `bdp-u16_${codeUnits.toString("base64url")}`;
+  }
+  return `"${opaque}"`;
+}
+
+function isWellFormedUnicode(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const following = value.charCodeAt(index + 1);
+      if (index + 1 >= value.length || following < 0xdc00 || following > 0xdfff) return false;
+      index += 1;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      return false;
+    }
+  }
+  return true;
+}
