@@ -131,6 +131,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     busy = false;
   let maintenanceTimer: ReturnType<typeof setInterval> | undefined;
   let maintenanceFailure: { readonly cause: unknown } | undefined;
+  let ownerFailure: Error | undefined;
   const claims = new WeakMap<
     TransactionClaim,
     { principal: string; key: string; owner: string; normalized: NormalizedTransaction }
@@ -147,6 +148,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     }
   >();
   function enter<T>(run: () => T): T {
+    if (ownerFailure) throw ownerFailure;
     if (maintenanceFailure)
       throw new Error("transaction maintenance failed; owner fenced", maintenanceFailure);
     if (closed || busy) throw new Error("transaction store closed or reentrant");
@@ -157,16 +159,59 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       busy = false;
     }
   }
+  function fence(cause: unknown): Error {
+    clearInterval(maintenanceTimer);
+    // Cleanup can add the original application error to an earlier storage
+    // failure. Replace the wrapper; mutating its cause would create a cycle.
+    ownerFailure = new Error("transaction storage failure; owner fenced; reopen before use", {
+      cause,
+    });
+    return ownerFailure;
+  }
   function atomic<T>(run: () => T): T {
-    db.exec("BEGIN IMMEDIATE");
+    if (ownerFailure) throw ownerFailure;
+    let committing = false;
     try {
+      db.exec("BEGIN IMMEDIATE");
       const value = run();
+      committing = true;
       db.exec("COMMIT");
       return value;
     } catch (error) {
-      db.exec("ROLLBACK");
+      let cleanRollback = false;
+      let cause: unknown = error;
+      try {
+        if (db.isTransaction) {
+          db.exec("ROLLBACK");
+          cleanRollback = !db.isTransaction;
+        }
+      } catch (rollback) {
+        cause = new AggregateError([error, rollback], "transaction and rollback failed");
+      }
+      const sqlite =
+        error instanceof Error && "code" in error && String(error.code).startsWith("ERR_SQLITE");
+      const constraint =
+        sqlite &&
+        "errcode" in error &&
+        typeof error.errcode === "number" &&
+        Number.isInteger(error.errcode) &&
+        (error.errcode & 0xff) === 19;
+      // Even a COMMIT that throws after taking effect has an uncertain outcome.
+      // Reopen determines its durable state; compensation must not guess at it.
+      if (committing || !cleanRollback || (sqlite && !constraint)) throw fence(cause);
       throw error;
     }
+  }
+  function cleanupThenThrow(error: unknown, cleanup: () => void): never {
+    if (ownerFailure) throw error;
+    try {
+      cleanup();
+    } catch (failure) {
+      const combined = new AggregateError([error, failure], "transaction and cleanup failed");
+      fence(combined);
+      throw combined;
+    }
+    throw error;
   }
   function metadata(name: string): string {
     const row = db.prepare("SELECT value FROM metadata WHERE name=?").get(name);
@@ -560,14 +605,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       } catch (error) {
         // A live internal/transient abort retracts only this execution's pending
         // reservation. An abrupt process death is handled by startup instead.
-        atomic(() => {
-          db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
-            owned.principal,
-            owned.key,
-            owned.owner,
-          );
+        cleanupThenThrow(error, () => {
+          atomic(() => {
+            db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
+              owned.principal,
+              owned.key,
+              owned.owner,
+            );
+          });
         });
-        throw error;
       } finally {
         claims.delete(claim);
       }
@@ -635,15 +681,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           } catch (error) {
             const owned = claims.get(admission.claim);
             if (!owned) throw new Error("lost admitted claim", { cause: error });
-            atomic(() => {
-              db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
-                owned.principal,
-                owned.key,
-                owned.owner,
-              );
-            });
-            claims.delete(admission.claim);
-            throw error;
+            try {
+              cleanupThenThrow(error, () => {
+                atomic(() => {
+                  db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
+                    owned.principal,
+                    owned.key,
+                    owned.owner,
+                  );
+                });
+              });
+            } finally {
+              claims.delete(admission.claim);
+            }
           }
         }
         return admission;
@@ -672,19 +722,23 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         } catch (error) {
           // An admission callback can fail after the durable bulk step; cleanup
           // checks each exact owner and never retracts a competing reservation.
-          atomic(() => {
-            for (const claim of owned.values()) {
-              const owner = claims.get(claim);
-              if (owner)
-                db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
-                  owner.principal,
-                  owner.key,
-                  owner.owner,
-                );
-            }
-          });
-          for (const claim of owned.values()) claims.delete(claim);
-          throw error;
+          try {
+            cleanupThenThrow(error, () => {
+              atomic(() => {
+                for (const claim of owned.values()) {
+                  const owner = claims.get(claim);
+                  if (owner)
+                    db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
+                      owner.principal,
+                      owner.key,
+                      owner.owner,
+                    );
+                }
+              });
+            });
+          } finally {
+            for (const claim of owned.values()) claims.delete(claim);
+          }
         }
         sequenceAdmissions.set(attempt, {
           principal,
@@ -728,6 +782,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         return { index, done: state.next === state.sequence.members.length, result };
       } catch (error) {
         state.busy = false;
+        if (ownerFailure) throw error;
         try {
           cancelSequence(attempt);
         } catch (cleanup) {
