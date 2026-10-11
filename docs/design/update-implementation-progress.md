@@ -184,3 +184,37 @@ installed-package smoke passed on the pinned tools. Lint retains the baseline
 three warnings and one informational finding. No full-suite rerun is claimed
 for this follow-up; the preceding HTTP/negotiation slice's 7,604-test result is
 recorded separately above.
+
+## Development contract inventory and shared runner
+
+The new `packages/conformance/development` artifacts inventory all 81 current
+Read+Update normative rows. Nine separate diagnostic plans execute 57 actions
+against the real development HTTP receiver through the SDK Fetch transport,
+using the existing conformance runner's captures, assertions, artifact digests,
+reporting and fixture cleanup. Thirty-six normative rows have explicit bounded
+assertion bindings; forty-five have structured omissions. The manifest covers
+singleton CRUD, document updates, aliases, ordered partial failure and local
+bindings, revision guards and a competing guarded update, cross-carrier retained
+keys, carrier rejection without key capture, and result headers.
+
+This lane has distinct `development.read-update.*` diagnostic IDs and a
+source-only test-support factory. Production artifact IDs, metadata-only catalog
+guards and public admission are unchanged. Reports say development-only and
+non-attesting and retain `claimEligible: false`. Each scenario gets an isolated
+store. A negative-control run changes an authored property expectation and
+requires that exact assertion to fail.
+
+The coverage inventory is not a profile completion count. Bound rows may still
+lack variants; unowned fixed Types cannot establish installed schema, owned-Link
+or authorization contracts. Existing process tests are explicitly omitted until
+their observations are bound to this runner. Next work is raw HTTP/process
+bindings and remaining feasible receiver variants, followed by the controlled
+schema, ownership, policy, retention and fault fixtures needed for qualification.
+
+Validation: 270 focused tests passed across the development matrix/inventory,
+production Read+Update metadata guard, artifact bundle and shared runner suites.
+The saved diagnostic report records nine passing scenarios, 57 actions and 174
+passing assertions. Build, typecheck, dependency boundaries, formatting,
+development process smoke and installed-package smoke passed on Node 24.16.0
+and pnpm 11.20.0. Lint retains only the baseline three warnings and one
+informational finding. This slice did not rerun the full repository suite.

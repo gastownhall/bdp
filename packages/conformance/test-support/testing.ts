@@ -1,3 +1,4 @@
+export { createDevelopmentReadUpdateArtifactBundle } from "../src/artifact-bundle.js";
 import { isDeepStrictEqual } from "node:util";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";

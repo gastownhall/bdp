@@ -1,0 +1,751 @@
+{
+  "version": 1,
+  "developmentOnly": true,
+  "claimEligible": false,
+  "normativeCatalog": "packages/conformance/catalog/read-update-v1.json",
+  "rows": [
+    {
+      "id": "read-update.discovery.document",
+      "status": "omitted",
+      "category": "profile-admission",
+      "reason": "Development endpoint deliberately has no BDP discovery/profile claim or Operation Directory.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.discovery.aliases",
+      "status": "omitted",
+      "category": "profile-admission",
+      "reason": "Development endpoint deliberately has no BDP discovery/profile claim or Operation Directory.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.discovery.limits",
+      "status": "omitted",
+      "category": "profile-admission",
+      "reason": "Development endpoint deliberately has no BDP discovery/profile claim or Operation Directory.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.discovery.operation-directory",
+      "status": "omitted",
+      "category": "profile-admission",
+      "reason": "Development endpoint deliberately has no BDP discovery/profile claim or Operation Directory.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.create-bead",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.bead-crud-guards",
+          "assertions": ["create.identity", "create.properties", "create.outcome"],
+          "limits": ["Honored ID only; allocated-ID path remains a separate observation."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.update-bead",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.bead-crud-guards",
+          "assertions": ["noop.outcome", "update.changed", "update.status"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-merge-replace",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.documents",
+          "assertions": [
+            "merge.properties",
+            "merge.metadata",
+            "clear.properties",
+            "clear.metadata"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-atomicity",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.documents",
+          "assertions": ["invalid.problem", "unchanged.properties", "unchanged.metadata"],
+          "limits": [
+            "Atomic refusal observed; guarded combined no-op already partially exercised in component tests, not this binding."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-validation",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.documents",
+          "assertions": ["invalid.problem", "unchanged.metadata"],
+          "limits": ["Non-object rejection only; installed property-schema rejection is omitted."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.delete-bead",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": ["blocked.problem", "delete.outcome", "bead-gone.problem"],
+          "limits": ["Fixed policy sees every incident Link."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.incident-links-nondisclosure",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.create-link",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": ["link.source", "link.target", "link.outcome"],
+          "limits": ["Ordinary references only; pinned endpoint spelling is not yet bound."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.update-link",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": [
+            "update-link.changed",
+            "update-link.no-source-revision",
+            "bead-guard.status"
+          ],
+          "limits": ["Unowned Link only."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.delete-link",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": ["unlink.outcome", "link-gone.problem"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.owned-link-source-revision",
+      "status": "omitted",
+      "category": "owned-contracts",
+      "reason": "Fixed development Types expose no owned-Link or multiplicity contract; requires a qualified installed-contract fixture.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.owned-link-no-op",
+      "status": "omitted",
+      "category": "owned-contracts",
+      "reason": "Fixed development Types expose no owned-Link or multiplicity contract; requires a qualified installed-contract fixture.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.attribution",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.bead-crud-guards",
+          "assertions": ["create.attribution", "noop.kept-attribution", "update.status"],
+          "limits": ["Fixed unowned Types; no owned-source induced attribution."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.expected-revision",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.bead-crud-guards",
+          "assertions": ["update.status", "stale.problem", "read.after"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.expected-revision-race",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.guard-race",
+          "assertions": ["race.one-winner", "live.status"],
+          "limits": ["Single reference process; no distributed writer claim."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.hidden-subject",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.idempotency-key-required",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.carrier-rejection",
+          "assertions": ["missing-key.problem", "missing-key-absent.status"],
+          "limits": ["Absent field only; malformed/duplicate fields require raw lane binding."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.unauthenticated",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.idempotent-retry",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retained-keys",
+          "assertions": ["retry.outcome", "retry.postimage", "still-gone.status"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.idempotency-conflict",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retained-keys",
+          "assertions": ["conflict.problem"],
+          "limits": ["Changed properties observed; full semantic identity dimensions omitted."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.unsupported-media-type",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.method-405",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.no-local-bindings",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.carrier-rejection",
+          "assertions": ["local-singleton.problem"],
+          "limits": ["Bare subject reference only; pinned form not yet bound."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.result-headers",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.result-headers",
+          "assertions": ["create.no-etag", "create.no-location"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.put-creates",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["put.alias", "put.target", "put.outcome"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.put-repoints",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["repoint.outcome", "repoint.target"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.delete-releases",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["delete.outcome", "gone.problem", "reuse.outcome"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.uniqueness-invariant",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["collision.problem", "committed-path.problem"],
+          "limits": [
+            "Live and committed collision; deleted-path collision covered for Bead ID elsewhere."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.link-coexistence",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["via-alias.outcome"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.allocation-avoids-aliases",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.non-canonical-target",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.unknown-subject",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.carrier-syntax",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.carrier-rejection",
+          "assertions": ["bad-sequence.problem", "nothing.status", "corrected.outcome"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.authorization",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.forbidden",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.no-version-minted",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["guard-a.status", "guard-b.status"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.sequence-binding",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": ["sequence.bound"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.retained-without-reauthorization",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.reference-resolution",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.aliases",
+          "assertions": ["via-alias.source"],
+          "limits": ["Link endpoint only; alias Bead subject remains separate."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.alias.reference-idempotency",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.order-and-partial-commit",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": [
+            "sequence.first",
+            "sequence.failed",
+            "prefix-live.status",
+            "tail-live.status"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.local-bindings",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": ["sequence.bound", "sequence.dependent", "sequence.tail"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.transient-predecessor",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.expired-creator-binding",
+      "status": "omitted",
+      "category": "retention-recovery-control",
+      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.retained-failure",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": ["retry.failed", "retry.dependent"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.member-problem-shape",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": [
+            "sequence.failure-status",
+            "sequence.failure-index",
+            "sequence.failure-name"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.retry-after-hint",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.carrier-rejection",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.carrier-rejection",
+          "assertions": ["bad-sequence.problem", "nothing.status", "corrected.outcome"],
+          "limits": [
+            "Malformed alias later member only; remaining malformed carrier classes not yet bound."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.contextual-validation",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.idempotent-retry",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.sequence-partial",
+          "assertions": ["retry.first", "retry.bound", "retry.failed", "retry.tail"],
+          "limits": ["Same positions; reordered presentation remains separate."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.sequence.disconnect",
+      "status": "omitted",
+      "category": "process-harness-binding",
+      "reason": "Real process tests exist separately; not yet converted into this manifest/action runner.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.internal-fault",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.interleaving",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.in-progress",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.key-reservation",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.claim-atomicity",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.concurrent-dependent-retry",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.transient-not-retained",
+      "status": "omitted",
+      "category": "controlled-scheduling",
+      "reason": "Requires a deterministic owner/policy/fault fixture not yet bound to this development manifest.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.semantic-identity",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retained-keys",
+          "assertions": [
+            "sequence-retry.current-name",
+            "sequence-retry.retained",
+            "conflict.problem"
+          ],
+          "limits": [
+            "Labels and changed properties only; pins, defaults, guards, array order and locator equivalence remain separate."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.principal-isolation",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.cross-carrier",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retained-keys",
+          "assertions": ["sequence-retry.retained", "not-reexecuted.status"],
+          "limits": ["Singleton to sequence direction; reverse remains separate."]
+        }
+      ]
+    },
+    {
+      "id": "read-update.idempotency.authorization-view",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.forbidden-retained",
+      "status": "omitted",
+      "category": "policy-principals",
+      "reason": "Fixed single local principal and all-visible policy cannot exercise changing authorization or multiple principals.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.retention-minimum",
+      "status": "omitted",
+      "category": "retention-recovery-control",
+      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.expired",
+      "status": "omitted",
+      "category": "retention-recovery-control",
+      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.expired-failure",
+      "status": "omitted",
+      "category": "retention-recovery-control",
+      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.durable-boundary",
+      "status": "omitted",
+      "category": "process-harness-binding",
+      "reason": "Real process tests exist separately; not yet converted into this manifest/action runner.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.crash-mid-sequence",
+      "status": "omitted",
+      "category": "process-harness-binding",
+      "reason": "Real process tests exist separately; not yet converted into this manifest/action runner.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.restore",
+      "status": "omitted",
+      "category": "retention-recovery-control",
+      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.problem.table",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.validation.type-contract",
+      "status": "omitted",
+      "category": "schema-contracts",
+      "reason": "Fixed Types have no property schema; installed schema validation/diagnostic surface is not configured.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.validation.diagnostics",
+      "status": "omitted",
+      "category": "schema-contracts",
+      "reason": "Fixed Types have no property schema; installed schema validation/diagnostic surface is not configured.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.validation.identity-taken",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.links-delete",
+          "assertions": ["recreate.problem"],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.validation.aggregate-constraint",
+      "status": "omitted",
+      "category": "owned-contracts",
+      "reason": "Fixed development Types expose no owned-Link or multiplicity contract; requires a qualified installed-contract fixture.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.http.request-too-large",
+      "status": "omitted",
+      "category": "unbound-receiver-observation",
+      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.http.cache-no-store",
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.result-headers",
+          "assertions": ["create.cache"],
+          "limits": [
+            "Success observed here; other plans observe multiple failure responses, not every problem code."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.http.cors-idempotency-key",
+      "status": "omitted",
+      "category": "disabled-capability",
+      "reason": "Cross-origin access is disabled; enabled-CORS behavior cannot be observed here.",
+      "bindings": []
+    }
+  ]
+}
