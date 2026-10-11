@@ -56,11 +56,10 @@ No Read+Update or Transactional profile is advertised. The root remains an
 informational development document with `claimEligible: false`. The new routes
 are explicit development URLs, not discovered qualified operation endpoints.
 
-The next receiver slice must implement and test the full BDP HTTP contract:
-receiving errors as the correct BDP Problems/statuses, Accept/Content-Type
-negotiation, validators and conditional reads, HEAD, and an explicit cross-origin
-policy. Hostile raw request targets, raw Host handling and deterministic
-mid-execution disconnect/recovery remain useful adversarial tests. The fixed
+The HTTP follow-ups below implement receiving Problems, media handling,
+validators and conditional reads, HEAD, and raw target/Host checks. The local
+cross-origin policy remains disabled. Deterministic mid-execution
+disconnect/recovery remains unproven. The fixed
 Type installation is not the complete schema/Type installation engine, and the
 single local operator is not production authorization qualification.
 
@@ -103,6 +102,44 @@ enough to return the size Problem, then closes it.
 
 The HTTP follow-up passes 148 focused tests across development HTTP, shared Read
 HTTP, the existing HTTP handler and Node listener. Mutation response Accept
-negotiation remains the next admission-boundary task: rejecting before comparing
+negotiation required a separate admission-boundary task: rejecting before comparing
 retained keys would hide conflict, while rejecting after submit could commit an
-unknown key. The receiver does not claim full mutation media conformance yet.
+unknown key. The next subsection describes the implemented refusal path; full profile
+conformance still needs explicit executable evidence.
+
+
+## Mutation response negotiation without admission
+
+The existing lifecycle submit operation now accepts an optional `acceptsJson`
+flag. Normal callers retain the prior default behavior. An unacceptable JSON
+response selects a synchronous read-only branch under the same exclusive owner,
+before `store.admit`. Carrier validation and the sequence-member cap still run
+first. The branch cannot allocate Resources, claim unknown keys, renew retained
+outcomes or schedule execution.
+
+The member executor's existing retained/expired identity comparison and current
+reauthorization logic is reused directly. An equal retained singleton success
+returns bodyless 406; retained conflicts and failed outcomes preserve their
+ordinary Problem. Pending Read+Update claims retain `idempotency-in-progress`:
+they do not acquire Transactional pending identity semantics. Unknown singleton
+keys return 406 without a claim. Sequence member problems remain entries in the
+success envelope, so an unacceptable sequence response remains a direct bodyless
+406 after comparison; it never converts a member problem into a carrier failure.
+Creator witnesses are reused to compare dependent retained members without
+executing unknown creators or independent tails.
+
+HTTP tests prove unknown refusal leaves state and keys untouched, equal retained
+retry is unchanged, conflict/failure precedence survives unacceptable media,
+and a corrected acceptable sequence executes. Direct lifecycle tests establish
+pending behavior with a deterministic scheduler, unchanged retention rows,
+renamed creator-binding comparison and no unknown-tail capture. Mutation request
+HTTP conditionals remain distinct from payload `expectedRevision` guards.
+
+Final combined follow-up validation (Node 24.16.0, pnpm 11.20.0): all 109 test
+files passed, with 7,604 tests passing and one skipped, using two workers. Build,
+typecheck, dependency boundaries, formatting and the development process smoke
+passed. Installed-package smoke initially detected the new private raw-target
+helper missing from its exact artifact inventory; adding those four emitted
+filenames made the smoke pass without widening exports. Lint retains only the
+baseline three warnings and one informational finding. This is implementation
+regression evidence, not executable certification of the full write profile.

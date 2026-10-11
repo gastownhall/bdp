@@ -87,7 +87,7 @@ const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const QUOTED = /^"(?:[\t\x20\x21\x23-\x5b\x5d-\x7e\x80-\xff]|\\[\t\x20-\x7e\x80-\xff])*"$/;
 const QUALITY = /^(?:0(?:\.\d{0,3})?|1(?:\.0{0,3})?)$/;
 
-function acceptsJson(value: string | null): boolean {
+export function acceptsJson(value: string | null): boolean {
   if (value === null) return true;
   const ranges = splitQuoted(value, ",");
   if (ranges === undefined) return false;

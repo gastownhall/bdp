@@ -797,6 +797,68 @@ describe("non-attesting bdptest HTTP development authority", () => {
     ).toMatchObject({ status: 200 });
   });
 
+  it("negotiates mutation JSON before admission while preserving retained conflict and failure", async () => {
+    const h = await start();
+    const input = { id: "beads/accept", type: DEVELOPMENT_BEAD_TYPE };
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      "idempotency-key": "accept",
+      accept: "application/json;q=0, */*;q=1",
+    };
+    const url = `${h.server.scope}development/create-bead`;
+    const refused = await fetch(url, { method: "POST", headers, body: JSON.stringify(input) });
+    expect(refused.status).toBe(406);
+    expect(refused.headers.get("content-type")).toBeNull();
+    expect(await refused.text()).toBe("");
+    expect(await h.get(input.id)).toMatchObject({ status: 404 });
+    const created = resource(await h.post("create-bead", input, "accept"));
+    const retained = await fetch(url, { method: "POST", headers, body: JSON.stringify(input) });
+    expect(retained.status).toBe(406);
+    expect(await retained.text()).toBe("");
+    const conflict = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...input, properties: { changed: true } }),
+    });
+    expect(conflict.status).toBe(409);
+    expect(parseReadUpdateProblem(await conflict.json()).code).toBe("idempotency-conflict");
+    expect(resource(await h.post("create-bead", input, "accept"))).toEqual(created);
+    expect(await h.post("delete-bead", { bead: "beads/missing" }, "missing_accept")).toMatchObject({
+      status: 404,
+    });
+    const failed = await fetch(`${h.server.scope}development/delete-bead`, {
+      method: "POST",
+      headers: { ...headers, "idempotency-key": "missing_accept" },
+      body: JSON.stringify({ bead: "beads/missing" }),
+    });
+    expect(failed.status).toBe(404);
+    expect(parseReadUpdateProblem(await failed.json()).code).toBe("resource-not-found");
+    const sequence = {
+      operations: [
+        {
+          ...input,
+          id: "beads/sequence-accept",
+          operation: "createBead",
+          idempotencyKey: "sequence_accept",
+        },
+      ],
+    };
+    const seq = await fetch(`${h.server.scope}development/sequence`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        accept: "text/plain",
+      },
+      body: JSON.stringify(sequence),
+    });
+    expect(seq.status).toBe(406);
+    expect(await seq.text()).toBe("");
+    expect(await h.get("beads/sequence-accept")).toMatchObject({ status: 404 });
+    expect(await h.sequence(sequence)).toMatchObject({ status: 200 });
+  });
+
   it("requires explicit provisioning and refuses reseeding an existing Scope", async () => {
     const dir = directory();
     await expect(start(dir, 0, false)).rejects.toThrow("missing");

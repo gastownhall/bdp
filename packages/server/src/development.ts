@@ -12,7 +12,7 @@ import {
   type ReadProblemCode,
   type ReadUpdateOperation,
 } from "@bdp/protocol";
-import { applyReadHttpSemantics, resourceRevisionEtag } from "./read-http.js";
+import { applyReadHttpSemantics, resourceRevisionEtag, acceptsJson } from "./read-http.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import type { HttpResponse } from "./index.js";
 import { DEVELOPMENT_LIMITS, openDevelopmentAuthority } from "./development-authority.js";
@@ -224,8 +224,19 @@ export async function startDevelopmentReferenceServer(options: DevelopmentServer
       // committed/admitted work; an exact-key retry retrieves its disposition.
       const result =
         operation !== undefined && key !== undefined
-          ? await authority.mutate(operation, text, key)
-          : await authority.sequence(text);
+          ? await authority.mutate(
+              operation,
+              text,
+              key,
+              acceptsJson(request.headers.accept ?? null),
+            )
+          : await authority.sequence(text, acceptsJson(request.headers.accept ?? null));
+      if ("kind" in result && result.kind === "not-acceptable") {
+        response.setHeader("vary", "Accept");
+        empty(response, 406);
+        return;
+      }
+      response.setHeader("vary", "Accept");
       const problem = "code" in result;
       json(response, problem ? (result.status ?? 500) : 200, result, problem);
     } catch (error) {
