@@ -4,12 +4,13 @@ import { closeSync, existsSync, openSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@bdp/protocol";
-import type { ResourceTransaction, EvaluatorStoredResource } from "./resource-evaluator.js";
+import type { EvaluatorStoredResource } from "./resource-evaluator.js";
 import {
   assertPreparedTransaction,
   evaluateTransaction,
   transactionStorageText as json,
   type PreparedTransaction,
+  type TransactionMutationContext,
 } from "./transaction-batch.js";
 
 interface ReceiptCore {
@@ -50,11 +51,12 @@ interface Row {
   receipt: string;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-create-1";
+const format = "bdp-private-transaction-alias-2";
 const schema = `
 CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
 CREATE TABLE resources(id TEXT PRIMARY KEY, body TEXT NOT NULL, kind TEXT NOT NULL, source TEXT, target TEXT) STRICT;
 CREATE TABLE identities(id TEXT PRIMARY KEY) STRICT;
+CREATE TABLE aliases(path TEXT PRIMARY KEY, target TEXT NOT NULL) STRICT;
 CREATE TABLE receipts(principal TEXT NOT NULL, key TEXT NOT NULL, identity TEXT NOT NULL, owner TEXT, receipt TEXT NOT NULL, PRIMARY KEY(principal,key)) STRICT;
 CREATE TABLE groups(position INTEGER PRIMARY KEY, body TEXT NOT NULL) STRICT;
 `;
@@ -174,6 +176,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     const allocated: unknown[] = [];
     for (const result of receipt.results as Record<string, unknown>[]) {
       if (result.outcome !== "created") continue;
+      // Alias creation allocates a locator, not a Resource identity. Its receipt
+      // still expires, but its compact allocation list is empty (T49).
+      if (typeof result.alias === "string" && typeof result.target === "string") {
+        if (result.resource !== undefined || result.operationIndex !== 0)
+          throw new Error("invalid retained alias creation result");
+        continue;
+      }
       const resource = result.resource as { id?: unknown; type?: unknown } | undefined;
       if (
         !resource ||
@@ -268,6 +277,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           source: String(found.source),
           target: String(found.target),
         };
+  }
+  function alias(path: string): string | undefined {
+    const found = db.prepare("SELECT target FROM aliases WHERE path=?").get(path);
+    return found ? String(found.target) : undefined;
   }
   function requiredResource(id: string): EvaluatorStoredResource {
     const found = resource(id);
@@ -379,7 +392,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               if (!active) throw new Error("expired Resource transaction");
               return fn();
             }
-            const tx: ResourceTransaction = {
+            const tx: TransactionMutationContext = {
               resource: (id) => scoped(() => resource(id)),
               incidentLinks: (id) =>
                 scoped(() =>
@@ -401,10 +414,23 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 scoped(
                   () => db.prepare("SELECT id FROM identities WHERE id=?").get(id) !== undefined,
                 ),
-              alias: () => scoped(() => undefined),
+              alias: (path) => scoped(() => alias(path)),
+              putAlias: (path, target) => scoped(() => {
+                db.prepare("INSERT INTO aliases VALUES(?,?) ON CONFLICT(path) DO UPDATE SET target=excluded.target").run(path, target);
+              }),
+              deleteAlias: (path) => scoped(() => {
+                db.prepare("DELETE FROM aliases WHERE path=?").run(path);
+              }),
               installedType: (id) => scoped(() => installed.get(id)),
               allocateResourceId: (kind) =>
-                scoped(() => `${kind === "bead" ? "beads" : "links"}/${randomUUID()}`),
+                scoped(() => {
+                  for (let attempt = 0; attempt < 32; attempt++) {
+                    const suffix = randomUUID(), id = `${kind === "bead" ? "beads" : "links"}/${suffix}`;
+                    if (!db.prepare("SELECT id FROM identities WHERE id=?").get(id) &&
+                        (kind !== "bead" || alias(suffix) === undefined)) return id;
+                  }
+                  throw new Error("Resource identity allocation exhausted");
+                }),
               allocateRevision: () => scoped(() => randomUUID()),
               putResource: (r) =>
                 scoped(() => {
@@ -435,6 +461,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                           : undefined;
                       },
                     },
+                    aliasPolicy: { canRead: () => true, canWriteBead: () => true },
                     policy: { canRead: () => true, canCreate: () => true, canWrite: () => true },
                     maximumEndpointMultiplicity: [],
                     observeCommitTime: instant,
@@ -555,6 +582,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           return undefined;
         }),
       );
+    },
+    /** Private diagnostic of authority locator state, not a replica projection. */
+    aliasTarget(path: string): string | undefined {
+      return enter(() => {
+        const target = alias(path);
+        return target === undefined ? undefined : `${scope}${target}`;
+      });
     },
     inspect() {
       return enter(() => ({

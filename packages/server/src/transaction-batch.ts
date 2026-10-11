@@ -9,9 +9,11 @@ import {
   stringifyJsonValue,
   type LosslessJsonValue,
   type ReadUpdateProblem,
+  type ReadUpdateOperation,
   type PreparedReadUpdateCarrier,
 } from "@bdp/protocol";
 import { encodeSemanticValue, type SemanticValue } from "./semantic-identity.js";
+import { evaluateAliasMutation, type AliasMutation, type AliasTransaction, type AliasEvaluationOptions } from "./alias-evaluator.js";
 import {
   evaluateResourceMutation,
   readStoredResource,
@@ -82,10 +84,10 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
  * Synthetic parsing keys are never consulted or persisted by the owner. */
 export function prepareTransactionSingleton(
   scope: string,
-  operation: ResourceOperation,
+  operation: ReadUpdateOperation,
   text: string,
 ): PreparedTransaction {
-  assertResourceOperation(operation);
+  if (operation !== "putAlias" && operation !== "deleteAlias") assertResourceOperation(operation);
   if (Buffer.byteLength(text) > 65536) throw new RangeError("development singleton byte limit");
   // Apply the same operation-content depth bound as the batch wrapper.
   losslessText(object(decodeJsonDocument(text)), 2);
@@ -105,7 +107,7 @@ function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction
         ? { properties: op.input.properties ?? {}, metadata: op.input.metadata ?? {} }
         : {}),
     };
-    for (const field of ["id", "source", "target", "bead", "link"]) {
+    for (const field of ["id", "source", "target", "bead", "link", "alias"]) {
       const value = input[field];
       if (value === undefined) continue;
       const uri = typeof value === "string" ? value : (value as { uri: string }).uri;
@@ -166,10 +168,14 @@ export type BatchEvaluation =
         readonly operationName?: string;
       };
     };
+export type TransactionMutationContext = ResourceTransaction & AliasTransaction;
+export interface TransactionEvaluationOptions extends ResourceEvaluationOptions {
+  readonly aliasPolicy: AliasEvaluationOptions["policy"];
+}
 export function evaluateTransaction(
   batch: PreparedTransaction,
-  tx: ResourceTransaction,
-  options: ResourceEvaluationOptions,
+  tx: TransactionMutationContext,
+  options: TransactionEvaluationOptions,
   transaction: string,
   position: string,
   now: number,
@@ -215,6 +221,17 @@ export function evaluateTransaction(
         },
       };
     const input: Record<string, unknown> = { ...admitted.input };
+    if (op.operation === "putAlias" || op.operation === "deleteAlias") {
+      // Only singleton preparation admits these operations. Locator effects have
+      // a durable receipt but deliberately no Resource Event or Scope position.
+      if (batch.carrier.kind !== "singleton" || batch.carrier.operations.length !== 1)
+        throw new Error("alias operation escaped singleton admission");
+      const result = evaluateAliasMutation(tx, { operation: op.operation, input } as AliasMutation,
+        { scope: options.scope, policy: options.aliasPolicy, limits: options.limits });
+      if (result.effect === "failure") return { ok: false, problem: { ...result.outcome, operationIndex } };
+      results.push({ operationIndex, ...result.outcome });
+      continue;
+    }
     for (const field of ["source", "target", "bead", "link"]) {
       const ref = input[field] as string | { uri: string; revision: string } | undefined;
       if (ref === undefined) continue;
