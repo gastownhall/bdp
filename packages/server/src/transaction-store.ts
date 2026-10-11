@@ -782,16 +782,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         return { index, done: state.next === state.sequence.members.length, result };
       } catch (error) {
         state.busy = false;
-        if (ownerFailure) throw error;
-        try {
+        cleanupThenThrow(error, () => {
           cancelSequence(attempt);
-        } catch (cleanup) {
-          throw new AggregateError(
-            [error, cleanup],
-            "transaction sequence execution and cleanup failed",
-          );
-        }
-        throw error;
+        });
       } finally {
         state.busy = false;
       }
