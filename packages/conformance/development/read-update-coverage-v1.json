@@ -599,7 +599,23 @@
             "original-link-state.source",
             "original-link-state.target",
             "a-live.status",
-            "b-live.status"
+            "b-live.status",
+            "repoint-state.status",
+            "repoint-state.target",
+            "repoint-state.no-body",
+            "delete-original-state.status",
+            "delete-original-state.missing",
+            "fresh-repoint-state.status",
+            "fresh-repoint-state.target",
+            "fresh-repoint-state.no-body",
+            "delete-fresh-state.status",
+            "delete-fresh-state.missing",
+            "fresh-restored-state.status",
+            "fresh-restored-state.target",
+            "fresh-restored-state.no-body",
+            "original-reassigned-state.status",
+            "original-reassigned-state.target",
+            "original-reassigned-state.no-body"
           ],
           "limits": [
             "Recorded targets and transient fresh-locator comparison are observed across repoint/delete/reassignment and cross-slot equivalent absolute spellings. Internal retained metadata, retention renewal, disclosure changes and expired tombstones remain unqualified."
@@ -616,7 +632,15 @@
             "reassigned-still-miss.problem",
             "a-survives.status",
             "b-survives.status",
-            "current-resolution.source"
+            "current-resolution.source",
+            "assign-state.status",
+            "assign-state.target",
+            "assign-state.no-body",
+            "unassign-state.status",
+            "unassign-state.missing",
+            "reassign-state.status",
+            "reassign-state.target",
+            "reassign-state.no-body"
           ],
           "limits": [
             "Recorded misses persist after assignment, deletion and reassignment; distinct missing locators and direct references compare unequally. Failure expiry and authorization variants are not configured."
@@ -629,7 +653,12 @@
             "retry-deleted.source",
             "direct-equal.source",
             "direct-equal.source-pin",
-            "retained-state.source-pin"
+            "retained-state.source-pin",
+            "repoint-state.status",
+            "repoint-state.target",
+            "repoint-state.no-body",
+            "delete-alias-state.status",
+            "delete-alias-state.missing"
           ],
           "limits": [
             "Pinned locator spellings reuse recorded target; retry disclosure/expiry remains unqualified."
