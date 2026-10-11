@@ -5,7 +5,7 @@ assertions in the existing conformance runner. It is **development-only and
 non-attesting**. It does not make the normative Read+Update catalog executable,
 admit a public write profile, or certify an implementation.
 
-The manifest contains 17 diagnostic scenarios and 132 HTTP/lifecycle actions. The
+The manifest contains 23 diagnostic scenarios and 221 HTTP/lifecycle actions. The
 receiver runs against a fresh disposable SQLite store for each scenario. The
 executor uses the actual Read+Update SDK Fetch transport or the existing raw
 HTTP executor and returns observed status, headers and body. The shared runner evaluates the assertions, captures
@@ -14,10 +14,10 @@ catalog/manifest/fixture bytes into its report. A guard race dispatches two
 real requests with the same observed revision and distinct keys.
 
 `read-update-coverage-v1.json` inventories all 81 current normative catalog rows
-in their original order. Forty-four rows have **bounded observations**, with
+in their original order. Forty-eight rows have **bounded observations**, with
 stable `scenario` and `action.assertion` references. These are partial behavioral
 evidence, not passing normative rows. Per-binding `limits` record known missing
-variants. Thirty-seven rows are explicitly omitted with a category and reason.
+variants. Thirty-three rows are explicitly omitted with a category and reason.
 An empty limits array does not certify exhaustive coverage of a normative row.
 
 The diagnostic catalog uses `development.read-update.*` IDs and `kind:
@@ -111,12 +111,43 @@ power-loss resilience, a crash inside a SQLite commit, replica failover or full
 atomic state/disposition durability. Those variants remain explicit limits on
 the associated inventory rows.
 
+## Alias and pinned-reference observations
+
+Six SDK plans extend allocation, alias validation and retained-reference cases.
+Allocation returns an in-Scope canonical Bead identity with one nonempty child
+segment, permits read-back of the submitted properties, and leaves an existing
+alias usable. Explicit creation at that alias path fails. This does **not** force
+the private allocator's next candidate to collide: deterministic collision
+skipping remains an unqualified obligation on the allocation row.
+
+Alias puts reject alias, Link and external targets with a diagnostic. Unknown
+canonical targets, unknown deletes and wrong-root subjects are observed as
+not-found. Retrying an admitted failure retains it after the target or alias
+becomes live; a fresh key can succeed. Read-back and Link creation establish the
+resulting state. The fixed all-visible principal cannot exercise hidden subjects.
+
+Retained Link creation records an alias's canonical target across repointing,
+deletion and reassignment, including reuse of the recorded locator in another
+reference slot. A fresh locator resolves again on each retry: repointing or
+deleting it conflicts, while restoring the original target succeeds. Recorded
+misses remain misses after assignment without deleting newly reachable Beads;
+unrecorded misses and canonical references conflict with the recorded miss.
+
+Pinned endpoints preserve opaque revision strings while canonicalizing the local
+alias reference. Equivalent canonical references replay; changed pin bytes,
+removed pins and differently spelled external URIs conflict. Sequence-local
+pinned references resolve creators and replay after their local names change.
+Read-back verifies that conflicting retries did not change the original Link.
+These observations do not establish historical revision resolution or external
+fetch behavior. Authorization, retention and expiry variants remain omitted.
+
 ## Next qualification slices
 
 - Bind remaining raw Host/target tests to this runner. Credential/key/media/body
   admission, Accept, and process disconnect/drain/crash observations are bound.
-- Extend feasible alias, pin, allocated-ID, conditional/no-op and semantic
-  idempotency variants without claiming missing variants already pass.
+- Extend remaining conditional/no-op and semantic idempotency variants. Add a
+  controlled allocation fixture before claiming collision skipping; live-alias
+  allocation sampling does not establish that behavior.
 - Add controlled owner scheduling, expiry and fault fixtures before binding
   pending keys, concurrent dependent retries, retention and restoration.
 - Supply installed schema/owned-Link contracts and configurable authorization

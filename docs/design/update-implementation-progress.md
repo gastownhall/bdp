@@ -295,3 +295,41 @@ write-profile qualification is claimed.
 
 Dependency boundaries, formatting and both executable smoke suites passed. Lint
 retains only the baseline three warnings and one informational finding.
+
+## Alias and pinned-reference diagnostic variants
+
+Six additional SDK plans extend the existing runner to 23 scenarios, 221 actions
+and 705 passing assertions. The 81-row inventory now has 48 bounded-observation
+rows and 33 explicit omissions. Prior 41-row and 44-row observations above remain
+historical evidence, not normative completion counts. New mappings cover bounded
+allocation, noncanonical alias targets, unknown alias subjects and reference
+idempotency; existing Link and semantic-identity rows gain pin observations.
+
+Recorded targets replay across alias repointing, deletion and reassignment,
+including cross-slot reuse. Fresh locators are resolved again on each retry:
+repoint/delete conflicts and restoring the original target succeeds. Recorded
+misses remain misses after assignment, without affecting newly reachable Beads.
+Admitted alias validation and not-found failures retain their result after the
+subject changes; fresh keys and read-back establish the resulting state.
+
+Pinned Link endpoints preserve opaque revision strings and canonicalize local
+references. Changed pin bytes, removal of a pin and changed external URI spelling
+conflict. Pinned sequence-local references retain their canonical creator across
+local-name changes. After-state reads establish that rejected retries leave the
+original Link intact; no historical lookup or external-fetch claim is made.
+
+The test action gains captured target/reference inputs and identity observations;
+manifest assertions remain responsible for evaluating observations. Runtime,
+shared stores, normative catalogs, public admission and exports are unchanged.
+Allocated identities are canonical, in-Scope and readable while a live alias
+remains usable. The HTTP surface cannot force the private allocator's next
+candidate to collide, so collision skipping stays explicitly unqualified. Hidden
+subjects, policy changes, retention/expiry and internal metadata are not observed.
+
+Validation: 269 focused tests passed across the development matrix, diagnostic
+inventory, normative catalog guard, alias evaluator, member executor and member
+identity. The saved report contains 23 passing plans, 221 actions and 705 passing
+assertions with `claimEligible: false`. Build, typecheck, dependency boundaries,
+formatting and both executable smoke suites passed on Node 24.16.0/pnpm 11.20.0.
+Lint retains the baseline three warnings and one informational finding. No full
+repository suite or complete profile qualification is claimed.

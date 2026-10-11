@@ -6664,6 +6664,3059 @@
       "cleanup": {
         "resetFixture": true
       }
+    },
+    {
+      "id": "development.read-update.alias-allocation",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "a",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "reserve",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/reserved",
+              "target": "beads/a"
+            },
+            "key": "reserve"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "allocate",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "allocated": true
+              }
+            },
+            "key": "allocate",
+            "observeIdentity": true
+          },
+          "captures": [
+            {
+              "binding": "allocated-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "canonical",
+              "kind": "json-pointer",
+              "pointer": "/identity/canonical",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "in-scope",
+              "kind": "json-pointer",
+              "pointer": "/identity/inScope",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "root",
+              "kind": "json-pointer",
+              "pointer": "/identity/root",
+              "exists": true,
+              "equals": "beads"
+            },
+            {
+              "id": "single-segment",
+              "kind": "json-pointer",
+              "pointer": "/identity/childSegments",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "nonempty",
+              "kind": "json-pointer",
+              "pointer": "/identity/emptySegments",
+              "exists": true,
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "id": "allocated-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/unused",
+            "targetBinding": "allocated-id"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "allocated",
+              "kind": "json-pointer",
+              "pointer": "/body/properties/allocated",
+              "exists": true,
+              "equals": true
+            }
+          ]
+        },
+        {
+          "id": "reserved-bead",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/reserved",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "reserved-bead"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "alias-path-taken"
+            }
+          ]
+        },
+        {
+          "id": "alias-still-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/reserved",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/reserved",
+              "target": "beads/a"
+            },
+            "key": "alias-still-live"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.alias-invalid-targets",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "a",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "canonical",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/canonical",
+              "target": "beads/a"
+            },
+            "key": "canonical"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "local-alias",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/bad-local-alias",
+              "target": "alias/canonical"
+            },
+            "key": "local-alias"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 422
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "validation-failed"
+            },
+            {
+              "id": "diagnostic",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": true,
+              "equals": [
+                {
+                  "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "local-alias-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/bad-local-alias"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "absolute-alias",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/bad-absolute-alias",
+              "target": "alias/canonical"
+            },
+            "key": "absolute-alias",
+            "absoluteReferences": ["target"]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 422
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "validation-failed"
+            },
+            {
+              "id": "diagnostic",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": true,
+              "equals": [
+                {
+                  "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "absolute-alias-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/bad-absolute-alias"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "link",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/bad-link",
+              "target": "links/absent"
+            },
+            "key": "link"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 422
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "validation-failed"
+            },
+            {
+              "id": "diagnostic",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": true,
+              "equals": [
+                {
+                  "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "link-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/bad-link"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "external",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/bad-external",
+              "target": "https://external.invalid/beads/a"
+            },
+            "key": "external"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 422
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "validation-failed"
+            },
+            {
+              "id": "diagnostic",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": true,
+              "equals": [
+                {
+                  "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "external-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/bad-external"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "opaque",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/bad-opaque",
+              "target": "urn:example:bead"
+            },
+            "key": "opaque"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 422
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "validation-failed"
+            },
+            {
+              "id": "diagnostic",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": true,
+              "equals": [
+                {
+                  "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "opaque-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/bad-opaque"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "corrected",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/bad-local-alias",
+              "target": "beads/a"
+            },
+            "key": "corrected"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "retained-invalid",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/bad-local-alias",
+              "target": "alias/canonical"
+            },
+            "key": "local-alias"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 422
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "validation-failed"
+            },
+            {
+              "id": "diagnostic",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": true,
+              "equals": [
+                {
+                  "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "changed-key-identity",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/bad-local-alias",
+              "target": "beads/a"
+            },
+            "key": "local-alias"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            }
+          ]
+        },
+        {
+          "id": "corrected-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/bad-local-alias",
+              "target": "beads/a"
+            },
+            "key": "corrected-live"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.alias-unknown-subjects",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "a",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "missing-target",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/unknown",
+              "target": "beads/missing"
+            },
+            "key": "missing-target"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "missing-alias",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-alias",
+            "body": {
+              "alias": "alias/unknown"
+            },
+            "key": "missing-alias"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "wrong-root-put",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "beads/wrong",
+              "target": "beads/a"
+            },
+            "key": "wrong-root-put"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "wrong-root-delete",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-alias",
+            "body": {
+              "alias": "links/wrong"
+            },
+            "key": "wrong-root-delete"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "alias-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/unknown"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            }
+          ]
+        },
+        {
+          "id": "now-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/missing",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "now-live"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "retained-missing-target",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/unknown",
+              "target": "beads/missing"
+            },
+            "key": "missing-target"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "still-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/unknown"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            }
+          ]
+        },
+        {
+          "id": "new-request",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/unknown",
+              "target": "beads/missing"
+            },
+            "key": "new-request"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "retained-missing-alias",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-alias",
+            "body": {
+              "alias": "alias/unknown"
+            },
+            "key": "missing-alias"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "alias-survives",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/unknown",
+              "target": "beads/a"
+            },
+            "key": "alias-survives"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/missing",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "target-survives",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/missing"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.alias-recorded-targets",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "a",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/b",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "b"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "original",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/old",
+              "target": "beads/a"
+            },
+            "key": "original"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "create-link",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/old",
+              "target": "beads/a"
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "repoint",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/old",
+              "target": "beads/b"
+            },
+            "key": "repoint"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "recorded-after-repoint",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/old",
+              "target": "beads/a"
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "cross-slot",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "beads/a",
+              "target": "alias/old"
+            },
+            "key": "retained",
+            "absoluteReferences": ["target"]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "delete-original",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-alias",
+            "body": {
+              "alias": "alias/old"
+            },
+            "key": "delete-original"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "recorded-after-delete",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/old",
+              "target": "beads/a"
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "fresh",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/fresh",
+              "target": "beads/a"
+            },
+            "key": "fresh"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "new-locator",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/fresh",
+              "target": "beads/a"
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "fresh-repoint",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/fresh",
+              "target": "beads/b"
+            },
+            "key": "fresh-repoint"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "new-locator-rechecked",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/fresh",
+              "target": "beads/a"
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            }
+          ]
+        },
+        {
+          "id": "delete-fresh",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-alias",
+            "body": {
+              "alias": "alias/fresh"
+            },
+            "key": "delete-fresh"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "new-locator-missing",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/fresh",
+              "target": "beads/a"
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            }
+          ]
+        },
+        {
+          "id": "fresh-restored",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/fresh",
+              "target": "beads/a"
+            },
+            "key": "fresh-restored"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "new-locator-restored",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/fresh",
+              "target": "beads/a"
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "direct-canonical",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "beads/a",
+              "target": "beads/a"
+            },
+            "key": "retained",
+            "absoluteReferences": ["source", "target"]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "original-reassigned",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/old",
+              "target": "beads/b"
+            },
+            "key": "original-reassigned"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "original-still-recorded",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/old",
+              "target": "beads/a"
+            },
+            "key": "retained"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "new-request-current",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/current",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/old",
+              "target": "beads/a"
+            },
+            "key": "new-request-current"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "original-link-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "links/kept"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/source",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/target",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "a-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "b-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/b"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.alias-recorded-misses",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "a",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/b",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "b"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "miss",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "alias/missing"
+            },
+            "key": "miss"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "assign",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/missing",
+              "target": "beads/a"
+            },
+            "key": "assign"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "recorded-miss",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "alias/missing"
+            },
+            "key": "miss"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "absolute-miss",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "alias/missing"
+            },
+            "key": "miss",
+            "absoluteReferences": ["bead"]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "distinct-miss",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "alias/other-missing"
+            },
+            "key": "miss"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            }
+          ]
+        },
+        {
+          "id": "direct-is-different",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/a"
+            },
+            "key": "miss"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            }
+          ]
+        },
+        {
+          "id": "unassign",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-alias",
+            "body": {
+              "alias": "alias/missing"
+            },
+            "key": "unassign"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "deleted-still-miss",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "alias/missing"
+            },
+            "key": "miss"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "reassign",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/missing",
+              "target": "beads/b"
+            },
+            "key": "reassign"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "reassigned-still-miss",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "alias/missing"
+            },
+            "key": "miss"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "a-survives",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "b-survives",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/b"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "current-resolution",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/kept",
+              "type": "https://bdp.example/development/link",
+              "source": "alias/missing",
+              "target": "beads/a"
+            },
+            "key": "current-resolution"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.pinned-references",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "a",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/a",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/b",
+              "type": "https://bdp.example/development/bead"
+            },
+            "key": "b"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "old",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/old",
+              "target": "beads/a"
+            },
+            "key": "old"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "pinned",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/pinned",
+              "type": "https://bdp.example/development/link",
+              "source": {
+                "uri": "alias/old",
+                "revision": "past:\u00e9/%2F"
+              },
+              "target": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            },
+            "key": "pinned"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source/uri",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "source-pin",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source/revision",
+              "exists": true,
+              "equals": "past:\u00e9/%2F"
+            },
+            {
+              "id": "external",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            }
+          ]
+        },
+        {
+          "id": "repoint",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/put-alias",
+            "body": {
+              "alias": "alias/old",
+              "target": "beads/b"
+            },
+            "key": "repoint"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "retry-recorded",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/pinned",
+              "type": "https://bdp.example/development/link",
+              "source": {
+                "uri": "alias/old",
+                "revision": "past:\u00e9/%2F"
+              },
+              "target": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            },
+            "key": "pinned"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source/uri",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "source-pin",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source/revision",
+              "exists": true,
+              "equals": "past:\u00e9/%2F"
+            },
+            {
+              "id": "external",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            }
+          ]
+        },
+        {
+          "id": "delete-alias",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-alias",
+            "body": {
+              "alias": "alias/old"
+            },
+            "key": "delete-alias"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "retry-deleted",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/pinned",
+              "type": "https://bdp.example/development/link",
+              "source": {
+                "uri": "alias/old",
+                "revision": "past:\u00e9/%2F"
+              },
+              "target": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            },
+            "key": "pinned"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source/uri",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "source-pin",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source/revision",
+              "exists": true,
+              "equals": "past:\u00e9/%2F"
+            },
+            {
+              "id": "external",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            }
+          ]
+        },
+        {
+          "id": "direct-equal",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/pinned",
+              "type": "https://bdp.example/development/link",
+              "source": {
+                "uri": "beads/a",
+                "revision": "past:\u00e9/%2F"
+              },
+              "target": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            },
+            "key": "pinned",
+            "absoluteReferences": ["source"]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source/uri",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "source-pin",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/source/revision",
+              "exists": true,
+              "equals": "past:\u00e9/%2F"
+            },
+            {
+              "id": "external",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/target",
+              "exists": true,
+              "equals": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            }
+          ]
+        },
+        {
+          "id": "changed-pin",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/pinned",
+              "type": "https://bdp.example/development/link",
+              "source": {
+                "uri": "beads/a",
+                "revision": "past:e\u0301/%2F"
+              },
+              "target": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            },
+            "key": "pinned"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            }
+          ]
+        },
+        {
+          "id": "removed-pin",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/pinned",
+              "type": "https://bdp.example/development/link",
+              "source": "beads/a",
+              "target": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            },
+            "key": "pinned"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            }
+          ]
+        },
+        {
+          "id": "changed-external",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-link",
+            "body": {
+              "id": "links/pinned",
+              "type": "https://bdp.example/development/link",
+              "source": {
+                "uri": "alias/old",
+                "revision": "past:\u00e9/%2F"
+              },
+              "target": {
+                "uri": "urn:example:REMOTE",
+                "revision": "external:opaque"
+              }
+            },
+            "key": "pinned"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            }
+          ]
+        },
+        {
+          "id": "retained-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "links/pinned"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/source/uri",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "source-pin",
+              "kind": "json-pointer",
+              "pointer": "/body/source/revision",
+              "exists": true,
+              "equals": "past:\u00e9/%2F"
+            },
+            {
+              "id": "external",
+              "kind": "json-pointer",
+              "pointer": "/body/target",
+              "exists": true,
+              "equals": {
+                "uri": "urn:example:remote",
+                "revision": "external:opaque"
+              }
+            }
+          ]
+        },
+        {
+          "id": "local-pin",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "pin-creator",
+                  "name": "made",
+                  "id": "beads/made",
+                  "type": "https://bdp.example/development/bead"
+                },
+                {
+                  "operation": "createLink",
+                  "idempotencyKey": "pin-dependent",
+                  "id": "links/local-pin",
+                  "type": "https://bdp.example/development/link",
+                  "source": {
+                    "uri": "@made",
+                    "revision": "past:\u00e9/%2F"
+                  },
+                  "target": "beads/a"
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "creator",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/source/uri",
+              "exists": true,
+              "equals": "beads/made",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "pin",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/source/revision",
+              "exists": true,
+              "equals": "past:\u00e9/%2F"
+            }
+          ]
+        },
+        {
+          "id": "renamed-local",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/sequence",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "pin-creator",
+                  "name": "renamed",
+                  "id": "beads/made",
+                  "type": "https://bdp.example/development/bead"
+                },
+                {
+                  "operation": "createLink",
+                  "idempotencyKey": "pin-dependent",
+                  "id": "links/local-pin",
+                  "type": "https://bdp.example/development/link",
+                  "source": {
+                    "uri": "@renamed",
+                    "revision": "past:\u00e9/%2F"
+                  },
+                  "target": "beads/a"
+                }
+              ]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "name",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": true,
+              "equals": "renamed"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/source/uri",
+              "exists": true,
+              "equals": "beads/made",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "pin",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/source/revision",
+              "exists": true,
+              "equals": "past:\u00e9/%2F"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
     }
   ]
 }
