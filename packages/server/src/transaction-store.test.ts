@@ -1043,7 +1043,7 @@ describe("private atomic transaction owner", () => {
       const pending = admit(f.store, batch, "pending");
       f.store.close();
       const raw = new DatabaseSync(f.options.file);
-      let pendingRow;
+      let pendingRow: Record<string, import("node:sqlite").SQLOutputValue> | undefined;
       try {
         const row = raw.prepare("SELECT value FROM metadata WHERE name='configuration'").get();
         const configuration = JSON.parse(String(row?.value));
