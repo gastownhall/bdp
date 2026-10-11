@@ -177,3 +177,63 @@ this proposal does not change the behavior of those existing fields.
 BDP owns these shared meanings. Beads owns CLI spelling and storage realization.
 The open choices above need resolution before this becomes an implementable
 contract. Background: [proposal and product comparison](memory-provenance-governance-review-20261011.md).
+
+## Appendix A: relationship to today's `bd provenance`
+
+Today's commands answer **“What happened around this Issue, and which artifacts
+were involved?”** This proposal answers **“What information was this particular
+Bead or Link version based on?”** Both are useful provenance, but they record
+different things.
+
+### Existing commands
+
+| Command | Current meaning |
+| --- | --- |
+| `bd provenance record --issue <id> --kind <kind> --source <producer>` | Append an event about an Issue; optional flags record an actor, artifact reference, event time and payload |
+| `bd provenance log <issue-id>` | List the Issue's recorded events; `--kind` can filter them |
+| `bd provenance by-ref <ref>` | Find events carrying that exact artifact reference |
+
+Event kinds include `claim`, `handoff`, `commit`, `land`, and `used`. References
+can identify artifacts such as a Git commit, pull request, transcript, or branch.
+The log accepts events recorded after they happened. It has no individual-event
+update or retraction command; repeating an event's identifying combination is a
+no-op, even if its actor or payload has changed.
+
+### Where the meanings differ
+
+| Existing event log | Proposed version information |
+| --- | --- |
+| Subject is an Issue ID, without a subject revision | Subject is the containing Bead or Link version |
+| `--source` names the event producer, such as an orchestrator | A source entry identifies information used to produce the content |
+| `--actor` describes the event's actor | Revision attribution describes responsibility for the saved version |
+| `--at` describes when the event happened; ingest time is recorded separately | Existing revision time describes when the version was recorded |
+| Events accumulate independently of Issue edits | Source information is saved with a version; corrections create a new version |
+| Deleting the Issue removes its event rows | Provenance is part of its version and follows that version's retention/access rules |
+
+For example, a `used` event connecting Issue I to report A is useful evidence of
+recorded use. It does not identify which revision of I used A, establish that A
+supported the conclusion, or establish that the source list was complete. A
+`commit` event may identify an output of the work rather than an input. Event
+timestamps and Git SHAs must not be mistaken for Bead revision identifiers.
+
+Neither the existing events nor the proposed source list is an attestation:
+recording an actor or reference does not authenticate or verify the claim.
+
+### Proposed compatibility approach
+
+Keep the current commands' event-log meaning while this proposal is evaluated.
+Do not silently redefine `record` as an edit of the latest version, or redefine
+`log` and `by-ref` to mix event records with version source lists. This appendix
+does not select a new CLI spelling or deprecate an existing command.
+
+Do not automatically convert old events into provenance for an arbitrary
+revision. A deliberate conversion would need a reliable subject-version mapping
+and a stated interpretation of the event. Preserve unknown information where
+that evidence is absent. A user could instead make a new version with an explicit
+source declaration, but that would be a new declaration, not recovered history.
+
+Source check: released v1.3.1 at `c1c4b642` and upstream main at `7477ec13`,
+rechecked October 11; the relevant command/storage behavior is unchanged.
+See the [command definitions](https://github.com/gastownhall/beads/blob/c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c/cmd/bd/provenance.go),
+[event storage and retry behavior](https://github.com/gastownhall/beads/blob/c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c/internal/storage/issueops/provenance.go),
+and [event schema](https://github.com/gastownhall/beads/blob/c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c/internal/storage/schema/migrations/0063_create_provenance_events.up.sql).
