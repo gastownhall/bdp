@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@bdp/protocol";
 import type { EvaluatorStoredResource } from "./resource-evaluator.js";
 import {
+  TransactionDevelopmentLimitError,
   assertPreparedTransaction,
   assertPreparedTransactionSequence,
   normalizeTransaction,
@@ -43,6 +44,29 @@ export type TransactionAdmission =
   | { readonly kind: "existing"; readonly receipt: TransactionReceipt }
   | { readonly kind: "conflict" }
   | { readonly kind: "comparison-pending" };
+/** Values supplied by the private receiving boundary, never callbacks in SQLite. */
+export interface TransactionReceivingControls {
+  readonly acceptsJson: boolean;
+  readonly maximumOperations: number;
+}
+export type TransactionReceivingAdmission =
+  | TransactionAdmission
+  | { readonly kind: "not-acceptable" }
+  | { readonly kind: "operation-limit" };
+export function snapshotTransactionReceivingControls(
+  controls: TransactionReceivingControls,
+): TransactionReceivingControls {
+  const acceptsJson = controls.acceptsJson,
+    maximumOperations = controls.maximumOperations;
+  if (
+    typeof acceptsJson !== "boolean" ||
+    !Number.isSafeInteger(maximumOperations) ||
+    maximumOperations < 1 ||
+    maximumOperations > 32
+  )
+    throw new TypeError("valid private receiving controls required");
+  return Object.freeze({ acceptsJson, maximumOperations });
+}
 export interface TransactionSequenceAdmission {
   readonly memberCount: number;
 }
@@ -448,10 +472,28 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     principal: string,
     key: string,
     batch: PreparedTransaction,
+    pendingWins?: boolean,
+    references?: ReferenceBindings,
+    template?: DependencyTemplate,
+  ): TransactionAdmission;
+  function admitKey(
+    principal: string,
+    key: string,
+    batch: PreparedTransaction,
+    pendingWins: boolean,
+    references: ReferenceBindings | undefined,
+    template: DependencyTemplate | undefined,
+    controls: TransactionReceivingControls | undefined,
+  ): TransactionReceivingAdmission;
+  function admitKey(
+    principal: string,
+    key: string,
+    batch: PreparedTransaction,
     pendingWins = false,
     references?: ReferenceBindings,
     template?: DependencyTemplate,
-  ): TransactionAdmission {
+    controls?: TransactionReceivingControls,
+  ): TransactionReceivingAdmission {
     const stored = row(principal, key);
     const prior = stored ? expireRow(stored, instant()).row : undefined;
     if (pendingWins && prior?.owner !== null && prior !== undefined)
@@ -482,6 +524,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         ? { kind: "conflict" }
         : { kind: "existing", receipt: parseReceipt(prior.receipt) };
     }
+    // Prior-key equality/conflict wins above. Only an unknown key pays fresh
+    // admission controls, and no refusal ever inserts a receipt or owner.
+    if (controls && batch.carrier.operations.length > controls.maximumOperations)
+      return { kind: "operation-limit" };
+    if (controls && !controls.acceptsJson) return { kind: "not-acceptable" };
     const receipt: TransactionReceipt = {
       id: `${scope}receipts/${randomUUID()}`,
       status: "pending",
@@ -747,43 +794,64 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     }
   }, maintenanceInterval);
   maintenanceTimer.unref();
+  function admit(principal: string, key: string, batch: PreparedTransaction): TransactionAdmission;
+  function admit(
+    principal: string,
+    key: string,
+    batch: PreparedTransaction,
+    controls: TransactionReceivingControls,
+  ): TransactionReceivingAdmission;
+  function admit(
+    principal: string,
+    key: string,
+    batch: PreparedTransaction,
+    controls?: TransactionReceivingControls,
+  ): TransactionReceivingAdmission {
+    const receiving = snapshotTransactionReceivingControls(
+      controls ?? { acceptsJson: true, maximumOperations: 32 },
+    );
+    return enter(() => {
+      assertPreparedTransaction(batch, scope);
+      checkPrincipalKey(principal, key);
+      const admission = atomic(() => {
+        const result = admitKey(principal, key, batch, false, undefined, undefined, receiving);
+        if (result.kind === "operation-limit" && controls === undefined)
+          throw new TransactionDevelopmentLimitError("development transaction operation limit");
+        return result.kind === "existing" && !receiving.acceptsJson
+          ? { kind: "not-acceptable" as const }
+          : result;
+      });
+      if (admission.kind === "owned") {
+        try {
+          options.fault?.("after-admission");
+        } catch (error) {
+          const owned = claims.get(admission.claim);
+          if (!owned) throw new Error("lost admitted claim", { cause: error });
+          try {
+            cleanupThenThrow(error, () => {
+              atomic(() => {
+                db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
+                  owned.principal,
+                  owned.key,
+                  owned.owner,
+                );
+              });
+            });
+          } finally {
+            claims.delete(admission.claim);
+          }
+        }
+      }
+      return admission;
+    });
+  }
   return Object.freeze({
     scope,
     scopeEpoch: epoch,
     recoveredPending,
     comparisonEpoch: () => (closed ? undefined : enter(() => metadata("epoch"))),
     maintain,
-    admit(principal: string, key: string, batch: PreparedTransaction): TransactionAdmission {
-      return enter(() => {
-        assertPreparedTransaction(batch, scope);
-        checkPrincipalKey(principal, key);
-        const admission = atomic((): TransactionAdmission => {
-          return admitKey(principal, key, batch);
-        });
-        if (admission.kind === "owned") {
-          try {
-            options.fault?.("after-admission");
-          } catch (error) {
-            const owned = claims.get(admission.claim);
-            if (!owned) throw new Error("lost admitted claim", { cause: error });
-            try {
-              cleanupThenThrow(error, () => {
-                atomic(() => {
-                  db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
-                    owned.principal,
-                    owned.key,
-                    owned.owner,
-                  );
-                });
-              });
-            } finally {
-              claims.delete(admission.claim);
-            }
-          }
-        }
-        return admission;
-      });
-    },
+    admit,
     admitSequence(
       principal: string,
       sequence: PreparedTransactionSequence,

@@ -365,3 +365,45 @@ executable whole-profile conformance evidence. Live receipt retention now runs,
 but it does not qualify workload bounds, policy/erasure projection or a complete
 Transactional lifecycle. There is no Read+Update or Transactional profile
 admission change in this slice.
+
+## Private direct receiving and admission composition
+
+`transaction-submission.ts` now composes body/syntax/key checks, a trusted
+Scope-authentication decision, and direct singleton/batch admission. It returns
+typed internal receipt/refusal decisions, not HTTP responses or public Problem
+representations. Raw header multiplicity, target/media checks, socket handling,
+receipt response headers and HTTP wait/status rules remain unimplemented.
+
+The same Transactional owner accepts a frozen value-only receiving snapshot:
+response JSON acceptability and a private operation-count bound from 1 to 32.
+Existing-key comparison and unknown-key admission stay in one atomic owner step.
+A conflict precedes negotiation. An equal pending, available or expired duplicate
+negotiates before fresh-request capacity controls and never renews its retained
+detail. An unknown key checks operation count before negotiation; neither refusal
+inserts a receipt or owner. No admit-then-retract path implements a receiving
+refusal, and no caller callback runs inside SQLite for these controls.
+
+Batch preparation now distinguishes a syntactically valid count above 32 from
+admission refusal. The trusted three-argument store entry retains the private
+32-operation ceiling; submission controls may narrow it, not widen it. Thus the
+existing persisted alias-witness bound and private format remain unchanged.
+Unsupported set operations and excessive private depth return an explicit
+development-limit result, not a protocol-wide malformed-request ruling.
+
+Direct unresolved comparison snapshots the controls once before waiting and
+carries them through the existing finite deadline, including fresh competition
+after retraction. It returns no pending receipt before equality; a proven equal
+request can then receive either the retained receipt or the negotiation refusal.
+Sequence admission/projection remains unchanged. Ordinary execution and fenced
+storage errors propagate with their original cause chains rather than becoming
+new permanent outcomes. The private fixed all-visible policy is unchanged; a
+trusted authentication result is not an HTTP authentication implementation.
+
+Focused observations cover receiving precedence and no key capture, overlapping
+presentations, original failed/expired receipts, cross-carrier numeric/default/
+context identity, alias repoint witnesses, finite comparison under ownership
+churn and epoch change, immutable controls during a wait, and injected admission
+and cleanup faults. These are private implementation tests, not endpoint or
+whole-profile qualification. The next receiver still needs same-owner Resource
+reads and current serving observations, receipt HTTP semantics, and lifecycle
+ownership through disconnection; no discovery or executable admission changed.

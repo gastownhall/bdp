@@ -35,6 +35,8 @@ import {
   type ResourceRecord,
 } from "./resource-evaluator.js";
 
+/** An unsupported private composition is not a protocol syntax ruling. */
+export class TransactionDevelopmentLimitError extends Error {}
 export interface PreparedTransaction {
   readonly carrier: PreparedReadUpdateCarrier;
 }
@@ -46,7 +48,11 @@ function assertResourceOperation(operation: unknown): asserts operation is Resou
       operation,
     )
   )
-    throw new TypeError("unsupported development transaction operation");
+    throw operation === "updateWhere" || operation === "deleteWhere"
+      ? new TransactionDevelopmentLimitError(
+          "set operations are not implemented by this private owner",
+        )
+      : new TypeError("unsupported development transaction operation");
 }
 function object(value: LosslessJsonValue | undefined): Record<string, LosslessJsonValue> {
   if (
@@ -59,7 +65,7 @@ function object(value: LosslessJsonValue | undefined): Record<string, LosslessJs
   return value as Record<string, LosslessJsonValue>;
 }
 function losslessText(value: LosslessJsonValue, depth = 0): string {
-  if (depth > 32) throw new RangeError("development batch depth limit");
+  if (depth > 32) throw new TransactionDevelopmentLimitError("development batch depth limit");
   if (value instanceof JsonNumberLiteral) return value.literal;
   if (Array.isArray(value)) return `[${value.map((v) => losslessText(v, depth + 1)).join(",")}]`;
   if (value && typeof value === "object")
@@ -77,10 +83,9 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
   if (
     Object.keys(root).length !== 1 ||
     !Array.isArray(root.operations) ||
-    root.operations.length < 1 ||
-    root.operations.length > 32
+    root.operations.length < 1
   )
-    throw new TypeError("expected 1..32 batch operations");
+    throw new TypeError("expected nonempty batch operations");
   const operations = root.operations.map((value, index) => {
     const op = object(value);
     assertResourceOperation(op.operation);
