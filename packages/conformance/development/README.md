@@ -5,7 +5,7 @@ assertions in the existing conformance runner. It is **development-only and
 non-attesting**. It does not make the normative Read+Update catalog executable,
 admit a public write profile, or certify an implementation.
 
-The manifest contains 27 diagnostic scenarios and 280 HTTP/lifecycle actions. The
+The manifest contains 28 diagnostic scenarios and 302 HTTP/lifecycle actions. The
 receiver runs against a fresh disposable SQLite store for each scenario. The
 executor uses the actual Read+Update SDK Fetch transport or the existing raw
 HTTP executor and returns observed status, headers and body. The shared runner evaluates the assertions, captures
@@ -14,10 +14,10 @@ catalog/manifest/fixture bytes into its report. A guard race dispatches two
 real requests with the same observed revision and distinct keys.
 
 `read-update-coverage-v1.json` inventories all 81 current normative catalog rows
-in their original order. Fifty-five rows have **bounded observations**, with
+in their original order. Fifty-seven rows have **bounded observations**, with
 stable `scenario` and `action.assertion` references. These are partial behavioral
 evidence, not passing normative rows. Per-binding `limits` record known missing
-variants. Twenty-six rows are explicitly omitted with a category and reason.
+variants. Twenty-four rows are explicitly omitted with a category and reason.
 An empty limits array does not certify exhaustive coverage of a normative row.
 
 The diagnostic catalog uses `development.read-update.*` IDs and `kind:
@@ -215,3 +215,36 @@ forward/unknown labels, key/name uniqueness and other contextual combinations
 remain unqualified by these plans. Replay assertions compare selected fields and
 key behavior, not entire response bytes. Existing SDK request actions suffice;
 no runtime, harness, schema, public profile or fixture policy changes are made.
+
+## Controlled retention observations
+
+One process plan supplies a private fixed retention clock to the real emitted
+receiver and reopens the same disposable store and Scope at the initial time,
+24 hours minus one millisecond, exactly 24 hours, and one millisecond later.
+Normal startup expiry performs the changes. The public development options and
+exports remain unchanged; no database fields or retained outcomes are fabricated,
+no retention interval is shortened, and no global clock is patched.
+
+A creation is replayed with its original postimage before expiry while its live
+Resource has newer properties. The boundary then produces idempotency-expired
+without a Resource body; changed semantics still conflict. A guard against the
+previously captured live revision confirms that the expired retry did not mutate
+the Resource. Before-boundary retries do not renew the expiry interval.
+
+A failed delete remains resource-not-found before expiry even after its subject
+is created. At the boundary, the store forgets that failure and the same key
+successfully deletes the now-live subject. Reads and another retry establish the
+new deletion, and a further reopen preserves both the success tombstone and the
+newly retained deletion. Failure forgetting is this store's permitted behavior,
+not a requirement that every authority forget failures at that time.
+
+The clock control validates nondecreasing integer elapsed time within a seven-day
+fixture window and only runs in its dedicated disposable process mode. Ordinary
+process controls are refused there. Negative tests exercise malformed/backward
+controls and cleanup after failed assertions or abort following reopen.
+
+These observations cover creation-success expiry and one failed deletion only.
+The 24-hour interval belongs to this fixture; retention-minimum remains omitted
+because the endpoint advertises no retention limit. Live periodic maintenance,
+other successful mutation categories, alias retry witnesses, expired creator
+bindings, restore and full-profile qualification remain outside this slice.

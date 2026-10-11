@@ -715,8 +715,8 @@
     {
       "id": "read-update.sequence.expired-creator-binding",
       "status": "omitted",
-      "category": "retention-recovery-control",
-      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
+      "category": "unbound-receiver-observation",
+      "reason": "The private retention fixture can observe startup expiry, but no diagnostic plan yet exercises an expired creator's allocated identity and Resource kind through a dependent local reference.",
       "bindings": []
     },
     {
@@ -1065,23 +1065,53 @@
     {
       "id": "read-update.idempotency.retention-minimum",
       "status": "omitted",
-      "category": "retention-recovery-control",
-      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
+      "category": "profile-admission",
+      "reason": "Development endpoint advertises no retention.idempotency limit; the private fixed 24-hour clock fixture does not qualify a client-known recovery window.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.expired",
-      "status": "omitted",
-      "category": "retention-recovery-control",
-      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retention-reopen",
+          "assertions": [
+            "retained-create.outcome",
+            "retained-create.properties",
+            "expired-create.problem",
+            "expired-create.no-resource",
+            "changed-expired-key.problem",
+            "kept-revision-unchanged.outcome",
+            "durable-expired-create.problem",
+            "durable-expired-conflict.problem",
+            "durable-kept-state.properties"
+          ],
+          "limits": [
+            "Creation success only, after a fixed 24-hour fixture retention boundary through real startup expiry. Before-boundary replay does not extend that boundary. No advertised retention limit, live periodic maintenance, other successful mutation categories, alias witnesses or expired creator bindings are qualified."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.idempotency.expired-failure",
-      "status": "omitted",
-      "category": "retention-recovery-control",
-      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.retention-reopen",
+          "assertions": [
+            "retained-failure.problem",
+            "subject-still-live.properties",
+            "forgotten-failure-executes.outcome",
+            "subject-deleted.problem",
+            "retained-new-delete.outcome",
+            "durable-retained-delete.outcome",
+            "durable-subject-absent.problem"
+          ],
+          "limits": [
+            "One resource-not-found delete failure is forgotten by the development store at its fixed boundary and executes against a now-live subject. Forgetting is permitted, not required of every implementation. Only the creation success tombstone is observed; all successful mutation categories and internal tombstone fields are not qualified."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.idempotency.durable-boundary",
@@ -1158,7 +1188,7 @@
       "id": "read-update.idempotency.restore",
       "status": "omitted",
       "category": "retention-recovery-control",
-      "reason": "Requires controlled retention/restore state and time; live development HTTP surface does not expose those controls.",
+      "reason": "No controlled restore fixture exercises logical-Scope replacement or tombstone preservation; ordinary expiry/reopen is not a restore observation.",
       "bindings": []
     },
     {

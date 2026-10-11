@@ -1206,6 +1206,34 @@
           "selectedText": "Singleton and sequence forms share one idempotency namespace, one semantic-identity rule, and one retention rule."
         }
       ]
+    },
+    {
+      "id": "development.read-update.retention-reopen",
+      "title": "Development observation: retention-reopen",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "Presenting an expired key with the same semantic identity fails with `idempotency-expired`; the authority never executes the member again and never reports the discarded outcome."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "Presenting an expired key with a different semantic identity remains `idempotency-conflict`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "A retained failure committed nothing: after the interval the authority MAY forget it entirely, and a later presentation of its key is unknown and executes"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "For a disposition that committed state \u2014 `created`, `updated` including a semantic no-op, or `deleted` \u2014 it MUST then retain a compact tombstone"
+        }
+      ]
     }
   ]
 }

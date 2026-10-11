@@ -131,6 +131,7 @@ async function body(request: IncomingMessage): Promise<string> {
 export async function startDevelopmentReferenceRuntime(
   options: DevelopmentServerOptions,
   scheduler?: LifecycleScheduler,
+  clock?: () => number,
 ) {
   if (!path.isAbsolute(options.directory) || typeof options.create !== "boolean")
     throw new TypeError("explicit absolute store directory and provisioning choice required");
@@ -281,6 +282,7 @@ export async function startDevelopmentReferenceRuntime(
       directory: options.directory,
       create: options.create,
       ...(scheduler === undefined ? {} : { scheduler }),
+      ...(clock === undefined ? {} : { clock }),
     });
   } catch (error) {
     if (server.listening) await closeListener();

@@ -71,10 +71,13 @@ export interface DevelopmentAuthorityOptions {
   readonly create: boolean;
   /** Private composition seam; no scheduler enters public configuration. */
   readonly scheduler?: LifecycleScheduler;
+  /** Private retention clock; absent in public development configuration. */
+  readonly clock?: () => number;
 }
 
 export async function openDevelopmentAuthority(options: DevelopmentAuthorityOptions) {
   const scope = parseCanonicalScope(options.scope);
+  const clock = options.clock ?? Date.now;
   const store = openRecoveryStore({
     scope,
     directory: options.directory,
@@ -99,7 +102,7 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
         if (!installed.has(resource.type)) throw new Error("uninstalled development Resource Type");
       }
     });
-    store.expire(Date.now());
+    store.expire(clock());
     const bounds = snapshotReadUpdateRuntimeLimits(DEVELOPMENT_LIMITS);
     assertReadUpdateRuntimeCompatibility(store, bounds);
     owner = createSequenceLifecycle({
@@ -126,7 +129,7 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
         },
         retentionMs: day,
         minimumRetentionMs: day,
-        clock: Date.now,
+        clock,
         contracts: {
           get(id, bytes) {
             if (types[id] !== bytes) return undefined;
