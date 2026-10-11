@@ -10,9 +10,11 @@ Read+Update development store.
 `transaction-batch.ts` prepares a bounded batch and reuses the existing Resource
 evaluator. `transaction-store.ts` owns a SQLite file, its exclusive connection,
 key namespace, pending receipts, Resource state, identity allocation and change
-groups. The supported operations are `createBead` and `createLink`, with preceding
-local creation references, including self-Links. Other operation kinds are
-refused before key lookup or admission. The private limits are 64 KiB input,
+groups. The supported operations are `createBead`, `updateBead`, `deleteBead`,
+`createLink`, `updateLink` and `deleteLink`, with preceding local creation
+references, including self-Links. Update and delete revision guards use the same
+staged Resource evaluator. Set operations and alias batch members are refused
+before key lookup or admission. The private limits are 64 KiB input,
 32 operations and 32 JSON container levels. These are implementation bounds, not
 advertised profile capabilities.
 
@@ -35,15 +37,26 @@ is not reused.
 Execution stages every Resource operation in one SQLite transaction. The existing
 Resource evaluator sees earlier staged changes. The final success commits those
 Resources, identity allocations, one ordered change group, the Scope position
-and the terminal receipt together. A permanent operation failure rolls back the
+and the terminal receipt together. An all-no-op batch instead completes with the
+current required position, no effect position and no group or revision changes.
+A permanent operation failure rolls back the
 Resource savepoint and retains a failed receipt naming the operation; it commits
 no Resources, identities, change group or new position. A live internal failure
 retracts only its own pending reservation, permitting a fresh retry. Commit checks
 the exact pending owner. A stale execution cannot commit a replacement's work.
 
-For creations, groups carry complete canonical postimages and operation-ordered
-Events. A Link emits its created fact followed by source and target linked facts
-for in-Scope endpoints. A linked fact's subject and subject Type are the Link;
+Groups normalize each changed Resource to its final canonical postimage or
+identity-bearing tombstone. Receipts and Events preserve intermediate transitions
+in operation order, including an update followed by a reversal. A create, update
+and deletion of one local binding leaves one final tombstone while retaining all
+three lifecycle facts and operation results. Deletion retains identity history;
+a new key cannot recreate that identity.
+
+Updated Events carry the committed properties and/or metadata patch and the
+previous/new revision. A no-op emits no Event. Deleted Events identify the final
+live revision. A Link emits its created/deleted fact followed by source and target
+linked/unlinked facts for in-Scope endpoints. A graph fact's subject and subject
+Type are the Link;
 `data.endpoint` selects the incidence. The group Events use the Scope `events/`
 Event Source. Future Resource views must project them with the serving Bead or
 Link's `?view=events` Source URL; no Resource Event view is implemented here.
@@ -63,7 +76,7 @@ and its allocations replay after a fresh process starts.
 
 ## Observed verification
 
-The bounded five-file suite exercises 357 tests, including 13 new atomic-owner
+The bounded five-file suite exercises 364 tests, including 20 atomic-owner
 tests, existing Resource evaluation and semantic identity tests, Transactional
 wire/schema fixtures and the Transactional catalog. New observations cover:
 
@@ -71,6 +84,15 @@ wire/schema fixtures and the Transactional catalog. New observations cover:
   and group, one durable commit, and principal-bound receipt lookup.
 - Final-operation failure rolling back all graph and identity effects while
   retaining a failed receipt, including after reopen.
+- Repeated update/reversal results and Events with one final postimage; all-no-op
+  receipts with unchanged position/revisions and replay after restart.
+- Two admitted requests carrying the same revision guard serialize into one
+  successful update and one retained revision mismatch.
+- Atomic Link property/metadata updates, Link-subject Events and unchanged
+  endpoint Bead revisions; self-Link deletion before Bead deletion with ordered
+  unlink facts and final tombstones.
+- Late guard failure rolling back earlier update and Link deletion; local-label
+  create/update/delete normalization and prevention of deleted-ID reuse.
 - Equal pending join, differing-request conflict, retraction and stale-owner
   fencing, plus a fresh admission after an injected live internal failure.
 - Label renaming, explicit/local identity equivalence, numeric equality without
@@ -103,8 +125,8 @@ receipt/key namespace as batch. They must not keep writing through a parallel
 Read+Update owner. A migration or explicit new-Scope provisioning path, startup
 qualification and unified read authority must accompany that integration.
 
-Remaining requirements include the four other Resource operations and set
-operations; owned-Link transitions; aliases outside batch; singleton and sequence
+Remaining requirements include set operations; owned-Link transitions; aliases
+outside batch; singleton and sequence
 carriers with unresolved dependent admission; authorization projection and
 reauthorized receipt disclosure; receipt expiry/compaction, failed-receipt
 forgetting and pagination; Event Sources, changefeed, snapshots and erasure;

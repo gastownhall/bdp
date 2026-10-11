@@ -269,7 +269,7 @@ describe("private atomic transaction owner", () => {
     const f = fixture();
     for (const body of [
       { operations: [] },
-      { operations: [{ operation: "deleteBead", bead: "beads/a" }] },
+      { operations: [{ operation: "putAlias", alias: "alias/a", target: "beads/a" }] },
       { operations: [{ ...batch.operations[0], idempotencyKey: "bad" }] },
       {
         operations: [
@@ -356,6 +356,301 @@ describe("private atomic transaction owner", () => {
       ["pos-1", "pos-2"],
     ]);
     expect(recovered.inspect().resources).toHaveLength(4);
+  });
+  function execute(
+    store: ReturnType<typeof openTransactionStore>,
+    operations: unknown[],
+    key: string,
+  ) {
+    const receipt = store.execute(admit(store, { operations }, key));
+    expect(receiptSchema(receipt), JSON.stringify(receiptSchema.errors)).toBe(true);
+    for (const group of store.inspect().groups)
+      expect(groupSchema(group), JSON.stringify(groupSchema.errors)).toBe(true);
+    return receipt;
+  }
+  function seed(store: ReturnType<typeof openTransactionStore>) {
+    execute(store, batch.operations, "seed");
+    const state = store.inspect().resources as {
+      id: string;
+      type: string;
+      revision: string;
+      properties: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+    }[];
+    const beadRecord = state.find((r) => r.type === bead),
+      linkRecord = state.find((r) => r.type === link);
+    if (!beadRecord || !linkRecord) throw new Error("missing seed records");
+    return { beadRecord, linkRecord };
+  }
+  function latestGroup(store: ReturnType<typeof openTransactionStore>) {
+    return store.inspect().groups.at(-1) as {
+      events: {
+        ordinal: number;
+        type: string;
+        source: string;
+        subject: string;
+        subjectType: string;
+        data: Record<string, unknown>;
+      }[];
+      changes: {
+        operation: string;
+        resourceKind: string;
+        resource: {
+          id: string;
+          revision: string;
+          properties?: Record<string, unknown>;
+          metadata?: Record<string, unknown>;
+        };
+      }[];
+    };
+  }
+  it("keeps intermediate update and reversal Events/results but only the final postimage", () => {
+    const f = fixture(),
+      { beadRecord } = seed(f.store);
+    const up = [{ op: "replace", path: "/n", value: 2 }],
+      down = [{ op: "replace", path: "/n", value: 1 }];
+    const receipt = execute(
+      f.store,
+      [
+        {
+          operation: "updateBead",
+          bead: beadRecord.id,
+          expectedRevision: beadRecord.revision,
+          propertiesChange: up,
+        },
+        { operation: "updateBead", bead: beadRecord.id, propertiesChange: down },
+      ],
+      "reversal",
+    );
+    const results = receipt.results as {
+      resource: { revision: string; properties: Record<string, unknown> };
+    }[];
+    expect(results.map((r) => r.resource.properties.n)).toEqual([2, 1]);
+    expect(results[0]?.resource.revision).not.toBe(results[1]?.resource.revision);
+    const group = latestGroup(f.store);
+    expect(group.events.map((e) => [e.ordinal, e.type, e.subject])).toEqual([
+      [0, "updated", beadRecord.id],
+      [1, "updated", beadRecord.id],
+    ]);
+    expect(group.events[0]?.data).toEqual({
+      previousRevision: beadRecord.revision,
+      revision: results[0]?.resource.revision,
+      change: up,
+    });
+    expect(group.events[1]?.data).toEqual({
+      previousRevision: results[0]?.resource.revision,
+      revision: results[1]?.resource.revision,
+      change: down,
+    });
+    expect(group.changes).toHaveLength(1);
+    expect(group.changes[0]?.resource).toMatchObject({
+      id: beadRecord.id,
+      revision: results[1]?.resource.revision,
+      properties: { n: 1 },
+    });
+    expect(group.changes[0]?.resource.revision).not.toBe(beadRecord.revision);
+  });
+  it("completes all-no-op guarded updates without a group, new revision or effectPosition, and replays after restart", () => {
+    const f = fixture(),
+      { beadRecord, linkRecord } = seed(f.store),
+      initial = f.store.inspect();
+    const operations = [
+      {
+        operation: "updateBead",
+        bead: beadRecord.id,
+        expectedRevision: beadRecord.revision,
+        propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
+      },
+      {
+        operation: "updateLink",
+        link: linkRecord.id,
+        metadataChange: [{ op: "replace", path: "", value: {} }],
+      },
+    ];
+    const receipt = execute(f.store, operations, "noop");
+    expect(receipt.status).toBe("completed");
+    expect(receipt.requiredPosition).toBe("pos-1");
+    expect(receipt).not.toHaveProperty("effectPosition");
+    expect(
+      (receipt.results as { resource: { revision: string } }[]).map((r) => r.resource.revision),
+    ).toEqual([beadRecord.revision, linkRecord.revision]);
+    expect(f.store.inspect()).toEqual(initial);
+    expect(
+      f
+        .reopen()
+        .admit("principal", "noop", prepareTransaction(scope, JSON.stringify({ operations }))),
+    ).toEqual({ kind: "existing", receipt });
+    expect(f.store.inspect()).toEqual(initial);
+  });
+  it("serializes two admitted guarded updates into one transition and one retained revision failure", () => {
+    const f = fixture(),
+      { beadRecord } = seed(f.store);
+    const operations = [
+      {
+        operation: "updateBead",
+        bead: beadRecord.id,
+        expectedRevision: beadRecord.revision,
+        propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
+      },
+    ];
+    const first = admit(f.store, { operations }, "first"),
+      second = admit(f.store, { operations }, "second");
+    expect(f.store.execute(first).status).toBe("completed");
+    const receipt = f.store.execute(second);
+    expect(receipt).toMatchObject({
+      status: "failed",
+      requiredPosition: "pos-2",
+      problem: { code: "revision-mismatch", operationIndex: 0 },
+    });
+    expect(f.store.inspect().groups).toHaveLength(2);
+    expect(
+      f
+        .reopen()
+        .admit("principal", "second", prepareTransaction(scope, JSON.stringify({ operations }))),
+    ).toEqual({ kind: "existing", receipt });
+    const changedGuard = { operations: [{ ...operations[0], expectedRevision: "different" }] };
+    expect(
+      f.store.admit("principal", "second", prepareTransaction(scope, JSON.stringify(changedGuard))),
+    ).toEqual({ kind: "conflict" });
+  });
+  it("updates Link properties and metadata atomically with one Link-subject Event and no endpoint revision", () => {
+    const f = fixture(),
+      { beadRecord, linkRecord } = seed(f.store);
+    const propertiesChange = [{ op: "add", path: "/weight", value: 3 }],
+      metadataChange = [{ op: "add", path: "/note", value: "x" }];
+    const operations = [
+      {
+        operation: "updateLink",
+        link: linkRecord.id,
+        expectedRevision: linkRecord.revision,
+        propertiesChange,
+        metadataChange,
+        attribution: { principal: "writer", basis: "writer-supplied" },
+      },
+    ];
+    const receipt = execute(f.store, operations, "link-update"),
+      group = latestGroup(f.store);
+    expect(group.events).toHaveLength(1);
+    expect(group.events[0]).toMatchObject({
+      type: "updated",
+      source: `${scope}events/`,
+      subject: linkRecord.id,
+      subjectType: link,
+      data: {
+        previousRevision: linkRecord.revision,
+        change: propertiesChange,
+        metadataChange,
+        attribution: { principal: "writer", basis: "writer-supplied" },
+      },
+    });
+    expect(group.changes).toHaveLength(1);
+    expect(group.changes[0]?.resource).toMatchObject({
+      properties: { weight: 3 },
+      metadata: { note: "x" },
+    });
+    expect(
+      f.store.inspect().resources.find((r) => (r as { id: string }).id === beadRecord.id),
+    ).toEqual(beadRecord);
+    const equivalent = JSON.stringify({ operations }).replace('"value":3', '"value":3.0');
+    expect(
+      f.store.admit("principal", "link-update", prepareTransaction(scope, equivalent)),
+    ).toEqual({ kind: "existing", receipt });
+  });
+  it("deletes a self-Link before its Bead with ordered unlink facts and final tombstones", () => {
+    const f = fixture(),
+      { beadRecord, linkRecord } = seed(f.store);
+    execute(
+      f.store,
+      [
+        { operation: "deleteLink", link: linkRecord.id, expectedRevision: linkRecord.revision },
+        { operation: "deleteBead", bead: beadRecord.id, expectedRevision: beadRecord.revision },
+      ],
+      "delete",
+    );
+    const group = latestGroup(f.store);
+    expect(group.events.map((e) => [e.ordinal, e.type, e.subject, e.subjectType])).toEqual([
+      [0, "deleted", linkRecord.id, link],
+      [1, "unlinked", linkRecord.id, link],
+      [2, "unlinked", linkRecord.id, link],
+      [3, "deleted", beadRecord.id, bead],
+    ]);
+    expect(group.events[1]?.data).toEqual({
+      endpoint: "source",
+      link: { id: linkRecord.id, type: link },
+      source: beadRecord.id,
+      target: beadRecord.id,
+    });
+    expect(group.events[2]?.data.endpoint).toBe("target");
+    expect(group.changes).toEqual([
+      {
+        operation: "tombstone",
+        resourceKind: "link",
+        resource: { id: linkRecord.id, type: link, revision: linkRecord.revision },
+      },
+      {
+        operation: "tombstone",
+        resourceKind: "bead",
+        resource: { id: beadRecord.id, type: bead, revision: beadRecord.revision },
+      },
+    ]);
+    expect(f.store.inspect().resources).toEqual([]);
+    expect(f.store.inspect().identities).toHaveLength(2);
+    const reuse = execute(
+      f.store,
+      [{ operation: "createBead", type: bead, id: beadRecord.id }],
+      "reuse",
+    );
+    expect(reuse.problem).toMatchObject({ code: "identity-taken" });
+  });
+  it("rolls back earlier update and Link deletion when the final guarded Bead deletion fails", () => {
+    const f = fixture(),
+      { beadRecord, linkRecord } = seed(f.store),
+      initial = f.store.inspect();
+    const receipt = execute(
+      f.store,
+      [
+        {
+          operation: "updateBead",
+          bead: beadRecord.id,
+          propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
+        },
+        { operation: "deleteLink", link: linkRecord.id },
+        { operation: "deleteBead", bead: beadRecord.id, expectedRevision: beadRecord.revision },
+      ],
+      "late-failure",
+    );
+    expect(receipt).toMatchObject({
+      status: "failed",
+      problem: { operationIndex: 2, code: "revision-mismatch" },
+    });
+    expect(receipt).not.toHaveProperty("results");
+    expect(f.store.inspect()).toEqual(initial);
+    expect(f.reopen().inspect()).toEqual(initial);
+  });
+  it("applies label-bound create/update/delete in order and normalizes to one final tombstone", () => {
+    const f = fixture();
+    const receipt = execute(
+      f.store,
+      [
+        { operation: "createBead", name: "new", type: bead, properties: { n: 1 } },
+        {
+          operation: "updateBead",
+          bead: "@new",
+          propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
+        },
+        { operation: "deleteBead", bead: "@new" },
+      ],
+      "lifetime",
+    );
+    const group = latestGroup(f.store),
+      results = receipt.results as { resource?: { revision: string } }[];
+    expect(group.events.map((e) => e.type)).toEqual(["created", "updated", "deleted"]);
+    expect(group.events[2]?.data.revision).toBe(results[1]?.resource?.revision);
+    expect(group.changes).toHaveLength(1);
+    expect(group.changes[0]?.operation).toBe("tombstone");
+    expect(group.changes[0]?.resource.revision).toBe(results[1]?.resource?.revision);
+    expect(f.store.inspect().resources).toEqual([]);
+    expect(f.store.inspect().identities).toHaveLength(1);
   });
   for (const stage of ["after-admission", "after-effects", "after-terminal"] as const)
     it(`recovers abrupt process exit ${stage} without partial graph, receipt or group`, () => {
