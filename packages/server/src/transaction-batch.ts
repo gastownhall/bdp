@@ -15,7 +15,6 @@ import {
 import { encodeSemanticValue, type SemanticValue } from "./semantic-identity.js";
 import {
   evaluateResourceMutation,
-  readStoredResource,
   type ResourceEvaluationOptions,
   type ResourceTransaction,
   type ResourceRecord,
@@ -143,15 +142,17 @@ export function evaluateTransaction(
   const results: unknown[] = [],
     resources: ResourceRecord[] = [],
     events: TransactionEvent[] = [];
-  function event(record: ResourceRecord, type: TransactionEvent["type"], data: unknown) {
+  function scopeEvent(subject: ResourceRecord, type: TransactionEvent["type"], data: unknown) {
     const ordinal = events.length;
     events.push({
       id: `${position}-${ordinal}`,
       ordinal,
       type,
-      source: `${record.id}/events`,
-      subject: record.id,
-      subjectType: record.type,
+      // These are authority Scope-group facts, not Resource-source projections.
+      // The latter rewrite source to `${resource.id}?view=events` on read.
+      source: `${options.scope}events/`,
+      subject: subject.id,
+      subjectType: subject.type,
       transaction,
       time: new Date(now).toISOString(),
       data,
@@ -212,7 +213,7 @@ export function evaluateTransaction(
     results.push({ operationIndex, ...(op.name ? { operationName: op.name } : {}), ...outcome });
     resources.push(resource);
     if (op.name) bindings.set(op.name, resource.id);
-    event(resource, "created", {
+    scopeEvent(resource, "created", {
       revision: resource.revision,
       properties: resource.properties,
       metadata: resource.metadata ?? {},
@@ -225,7 +226,8 @@ export function evaluateTransaction(
         if (!uri.startsWith(options.scope)) continue;
         const row = tx.resource(uri.slice(options.scope.length));
         if (!row) throw new Error("missing staged endpoint");
-        event(readStoredResource(row, options.scope), "linked", {
+        // The endpoint receives the incidence fact; its subject is still the Link.
+        scopeEvent(resource, "linked", {
           endpoint,
           link: { id: resource.id, type: resource.type },
           source: resource.source,

@@ -203,6 +203,14 @@ async function installPackedWorkspace() {
       "semantic-identity.d.ts.map",
       "semantic-identity.js",
       "semantic-identity.js.map",
+      "transaction-batch.d.ts",
+      "transaction-batch.d.ts.map",
+      "transaction-batch.js",
+      "transaction-batch.js.map",
+      "transaction-store.d.ts",
+      "transaction-store.d.ts.map",
+      "transaction-store.js",
+      "transaction-store.js.map",
       "sequence-executor.d.ts",
       "sequence-executor.d.ts.map",
       "sequence-executor.js",
@@ -279,11 +287,13 @@ async function installPackedWorkspace() {
     )
       throw new Error("packed development facade does not resolve to its explicit entry");
     for (const module of installedServerOutput.filter(
-      (name) => name.startsWith("installed-schema-") && name.endsWith(".js"),
+      (name) =>
+        (name.startsWith("installed-schema-") || name.startsWith("transaction-")) &&
+        name.endsWith(".js"),
     )) {
       try {
         consumer.resolve(`@bdp/server/dist/${module}`);
-        throw new Error("packed private schema module unexpectedly resolves");
+        throw new Error("packed private implementation module unexpectedly resolves");
       } catch (error) {
         if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
       }

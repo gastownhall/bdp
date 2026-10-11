@@ -99,8 +99,15 @@ describe("private atomic transaction owner", () => {
     expect(state.groups).toHaveLength(1);
     expect(groupSchema(state.groups[0]), JSON.stringify(groupSchema.errors)).toBe(true);
     const group = state.groups[0] as {
-      events: { type: string; ordinal: number; data: Record<string, unknown> }[];
-      changes: { resource: { id: string; source?: string; target?: string } }[];
+      events: {
+        type: string;
+        ordinal: number;
+        source: string;
+        subject: string;
+        subjectType: string;
+        data: Record<string, unknown>;
+      }[];
+      changes: { resource: { id: string; revision: string; source?: string; target?: string } }[];
     };
     expect(group.events.map((e) => [e.ordinal, e.type])).toEqual([
       [0, "created"],
@@ -108,6 +115,31 @@ describe("private atomic transaction owner", () => {
       [2, "linked"],
       [3, "linked"],
     ]);
+    const beadId = group.changes[0]?.resource.id,
+      linkId = group.changes[1]?.resource.id;
+    expect(group.events.map((e) => [e.source, e.subject, e.subjectType])).toEqual([
+      [`${scope}events/`, beadId, bead],
+      [`${scope}events/`, linkId, link],
+      [`${scope}events/`, linkId, link],
+      [`${scope}events/`, linkId, link],
+    ]);
+    // Both incidences preserve the Bead's creation revision; neither versions it.
+    expect(group.events[0]?.data.revision).toBe(group.changes[0]?.resource.revision);
+    expect(state.resources.find((r) => (r as { id: string }).id === beadId)).toMatchObject({
+      revision: group.events[0]?.data.revision,
+    });
+    expect(group.events[2]?.data).toEqual({
+      endpoint: "source",
+      link: { id: linkId, type: link },
+      source: beadId,
+      target: beadId,
+    });
+    expect(group.events[3]?.data).toEqual({
+      endpoint: "target",
+      link: { id: linkId, type: link },
+      source: beadId,
+      target: beadId,
+    });
     expect(group.events[2]?.data.endpoint).toBe("source");
     expect(group.events[3]?.data.endpoint).toBe("target");
     expect(group.changes[1]?.resource.source).toBe(group.changes[0]?.resource.id);
@@ -117,6 +149,37 @@ describe("private atomic transaction owner", () => {
       f.reopen().admit("principal", "key", prepareTransaction(scope, JSON.stringify(batch))),
     ).toEqual({ kind: "existing", receipt });
     expect(f.store.inspect()).toEqual(state);
+  });
+  it("emits no endpoint fact for an opaque external target and keeps the pin in the Link facts", () => {
+    const f = fixture();
+    const external = { uri: "urn:external:bead", revision: "remote-revision" };
+    f.store.execute(
+      admit(f.store, {
+        operations: [
+          batch.operations[0],
+          { operation: "createLink", type: link, source: "@a", target: external },
+        ],
+      }),
+    );
+    const group = f.store.inspect().groups[0] as {
+      events: {
+        type: string;
+        source: string;
+        subject: string;
+        subjectType: string;
+        data: Record<string, unknown>;
+      }[];
+      changes: { resource: { id: string } }[];
+    };
+    expect(group.events.map((e) => e.type)).toEqual(["created", "created", "linked"]);
+    expect(group.events[1]?.data.target).toEqual(external);
+    expect(group.events[2]).toMatchObject({
+      source: `${scope}events/`,
+      subject: group.changes[1]?.resource.id,
+      subjectType: link,
+      data: { endpoint: "source", target: external },
+    });
+    expect(group.events.every((e) => e.source === `${scope}events/`)).toBe(true);
   });
   it("rolls back earlier Resource and identity allocation on final operation failure, retaining only failed receipt", () => {
     const f = fixture();

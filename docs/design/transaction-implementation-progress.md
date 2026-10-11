@@ -43,7 +43,13 @@ the exact pending owner. A stale execution cannot commit a replacement's work.
 
 For creations, groups carry complete canonical postimages and operation-ordered
 Events. A Link emits its created fact followed by source and target linked facts
-for in-Scope endpoints. A self-Link emits both endpoint facts in that order.
+for in-Scope endpoints. A linked fact's subject and subject Type are the Link;
+`data.endpoint` selects the incidence. The group Events use the Scope `events/`
+Event Source. Future Resource views must project them with the serving Bead or
+Link's `?view=events` Source URL; no Resource Event view is implemented here.
+A self-Link emits both endpoint facts in that order without versioning the Bead.
+Opaque external endpoints generate no endpoint fact; pinned references remain
+byte-identical in Link and graph fact data.
 Receipts and groups produced by executable tests are validated against the
 canonical schema bundle.
 
@@ -57,7 +63,7 @@ and its allocations replay after a fresh process starts.
 
 ## Observed verification
 
-The bounded five-file suite exercises 356 tests, including 12 new atomic-owner
+The bounded five-file suite exercises 357 tests, including 13 new atomic-owner
 tests, existing Resource evaluation and semantic identity tests, Transactional
 wire/schema fixtures and the Transactional catalog. New observations cover:
 
