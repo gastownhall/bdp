@@ -552,6 +552,191 @@
           "selectedText": "At commit, the authority also ensures that concurrent mutations cannot jointly violate those invariants."
         }
       ]
+    },
+    {
+      "id": "development.read-update.raw-admission",
+      "title": "Development observation: raw-admission",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A request rejected before admission \u2014 an unauthenticated principal, a carrier-level rejection \u2014 creates no disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "| `unauthenticated` | `authentication` | 401 | `after-state-change` |"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "A key outside the profile is rejected before execution with `malformed-request`, as is a singleton request that omits the field or carries it more than once: the authority rejects a repeated `Idempotency-Key` field rather than choosing an occurrence."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Each code fixes its HTTP status and retry disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "Scope-bounded representations that depend on authorization use `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.raw-media-json",
+      "title": "Development observation: raw-media-json",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "`unsupported-media-type`: a mutation-target request whose body media type is not `application/json` or is not declared; media-type parameters such as `charset` are ignored."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Each code fixes its HTTP status and retry disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "Scope-bounded representations that depend on authorization use `Cache-Control: private, no-store`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "Mutation responses carry `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.raw-body-limit",
+      "title": "Development observation: raw-body-limit",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#advertised-limits",
+          "selectedText": "`request.bodyBytes` counts octets in the representation body"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "| `request-too-large` | `size` | 413 | `never` |"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Each code fixes its HTTP status and retry disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "Scope-bounded representations that depend on authorization use `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.raw-method",
+      "title": "Development observation: raw-method",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "A mutation target responds `405 Method Not Allowed` with `Allow: POST` to every other method, and the Operation Directory responds `405` with `Allow: GET, HEAD` to every method but those two"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "when cross-origin access is enabled, `OPTIONS` is answered according to the CORS rules rather than with `405` and joins `Allow`; listing it in `Allow` is not the preflight behavior"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.raw-accept-keys",
+      "title": "Development observation: raw-accept-keys",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained `created` result therefore always carries the same authority-allocated identity"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "a singleton whose key is retained, in flight, conflicting, or expired answers exactly as the corresponding sequence member would, as a direct response."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with a different semantic identity: the member fails with `idempotency-conflict`, nothing executes, and the retained disposition is unchanged;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "Every other disposition, success or failure, is retained, and a retained failure answers a retry exactly as a retained success does for as long as it is retained"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained disposition is returned without re-executing anything."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Re-keying a creating member changes the identity of every member that references its binding: a client that corrects a creator presents new keys for its dependents as well."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Each code fixes its HTTP status and retry disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "Scope-bounded representations that depend on authorization use `Cache-Control: private, no-store`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Ordinary HTTP media-range matching, specificity, and quality weights apply, including `q=0` exclusions;"
+        }
+      ]
     }
   ]
 }

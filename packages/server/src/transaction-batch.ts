@@ -7,11 +7,20 @@ import {
   admitReadUpdateOperationNumbers,
   referenceUri,
   stringifyJsonValue,
+  parseCanonicalHttpUrl,
+  assertCanonicalPathSegments,
   type LosslessJsonValue,
   type ReadUpdateProblem,
+  type ReadUpdateOperation,
   type PreparedReadUpdateCarrier,
 } from "@bdp/protocol";
 import { encodeSemanticValue, type SemanticValue } from "./semantic-identity.js";
+import {
+  evaluateAliasMutation,
+  type AliasMutation,
+  type AliasTransaction,
+  type AliasEvaluationOptions,
+} from "./alias-evaluator.js";
 import {
   evaluateResourceMutation,
   readStoredResource,
@@ -23,7 +32,6 @@ import {
 } from "./resource-evaluator.js";
 
 export interface PreparedTransaction {
-  readonly identity: string;
   readonly carrier: PreparedReadUpdateCarrier;
 }
 const prepared = new WeakSet<object>();
@@ -82,22 +90,111 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
  * Synthetic parsing keys are never consulted or persisted by the owner. */
 export function prepareTransactionSingleton(
   scope: string,
-  operation: ResourceOperation,
+  operation: ReadUpdateOperation,
   text: string,
 ): PreparedTransaction {
-  assertResourceOperation(operation);
+  if (operation !== "putAlias" && operation !== "deleteAlias") assertResourceOperation(operation);
   if (Buffer.byteLength(text) > 65536) throw new RangeError("development singleton byte limit");
   // Apply the same operation-content depth bound as the batch wrapper.
   losslessText(object(decodeJsonDocument(text)), 2);
   return prepareCarrier(prepareReadUpdateSingleton(scope, operation, text, "internal-singleton"));
 }
 function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction {
-  const scope = carrier.scope;
+  const result = Object.freeze({ carrier });
+  prepared.add(result);
+  return result;
+}
+export function assertPreparedTransaction(batch: PreparedTransaction, scope: string): void {
+  if (!prepared.has(batch) || batch.carrier.scope !== scope)
+    throw new TypeError("expected prepared transaction for this Scope");
+}
+function aliasFields(operation: ReadUpdateOperation): readonly string[] {
+  if (operation === "createLink") return ["source", "target"];
+  if (operation === "updateBead" || operation === "deleteBead") return ["bead"];
+  return [];
+}
+interface OperationWitnesses {
+  readonly operation: ReadUpdateOperation;
+  readonly aliases: readonly { readonly locator: string; readonly target: string | null }[];
+}
+const witnessFormat = "transaction-alias-witnesses-1";
+function canonicalReference(scope: string, uri: string): string {
+  return /^[A-Za-z][A-Za-z0-9+.-]*:/.test(uri) ? uri : `${scope}${uri}`;
+}
+function witnessedReference(scope: string, value: unknown, root: "alias" | "beads"): string {
+  if (typeof value !== "string" || !value.startsWith(`${scope}${root}/`))
+    throw new TypeError("invalid transaction alias witness reference");
+  parseCanonicalHttpUrl(value);
+  assertCanonicalPathSegments(value.slice(scope.length), "transaction alias witness");
+  return value;
+}
+/** Exact private persistence shape. Corrupt witness data is an owner fault,
+ * never a missing alias or an ordinary idempotency mismatch. */
+function parseWitnesses(text: string, scope: string): readonly OperationWitnesses[] {
+  const data = object(decodeJsonDocument(text));
+  if (
+    Object.keys(data).length !== 3 ||
+    data.format !== witnessFormat ||
+    data.scope !== scope ||
+    !Array.isArray(data.operations) ||
+    data.operations.length < 1 ||
+    data.operations.length > 32
+  )
+    throw new TypeError("invalid transaction alias witness envelope");
+  return data.operations.map((value) => {
+    const entry = object(value);
+    if (Object.keys(entry).length !== 2 || !Array.isArray(entry.aliases))
+      throw new TypeError("invalid transaction operation witnesses");
+    if (entry.operation !== "putAlias" && entry.operation !== "deleteAlias")
+      assertResourceOperation(entry.operation);
+    const operation = entry.operation as ReadUpdateOperation;
+    if (entry.aliases.length > aliasFields(operation).length)
+      throw new TypeError("invalid transaction alias witness count");
+    const seen = new Set<string>();
+    const aliases = entry.aliases.map((value) => {
+      const alias = object(value);
+      if (Object.keys(alias).length !== 2) throw new TypeError("invalid transaction alias witness");
+      const locator = witnessedReference(scope, alias.locator, "alias");
+      const target =
+        alias.target === null ? null : witnessedReference(scope, alias.target, "beads");
+      if (seen.has(locator)) throw new TypeError("duplicate transaction alias witness");
+      seen.add(locator);
+      return Object.freeze({ locator, target });
+    });
+    return Object.freeze({ operation, aliases: Object.freeze(aliases) });
+  });
+}
+export interface NormalizedTransaction {
+  readonly identity: string;
+  readonly witnessesJson: string;
+}
+const normalizedState = new WeakMap<
+  NormalizedTransaction,
+  {
+    readonly batch: PreparedTransaction;
+    readonly aliases: readonly ReadonlyMap<string, string | null>[];
+  }
+>();
+/** Invoke under the owner's admission/comparison transaction after key lookup.
+ * Original per-operation locators win regardless of the retry reference slot.
+ * Fresh retry witnesses are comparison-only and never replace durable originals.
+ * Batch creator indices remain symbolic; the RU normalizer binds committed IDs
+ * and cannot supply that Transactional distinction. */
+export function normalizeTransaction(
+  batch: PreparedTransaction,
+  resolveAlias: (locator: string) => string | undefined,
+  priorWitnessesJson?: string,
+): NormalizedTransaction {
+  assertPreparedTransaction(batch, batch.carrier.scope);
+  const scope = batch.carrier.scope;
+  const prior =
+    priorWitnessesJson === undefined ? undefined : parseWitnesses(priorWitnessesJson, scope);
   const creators = new Map<string, SemanticValue>();
   const identities: SemanticValue[] = [];
-  const canonical = (uri: string): string =>
-    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(uri) ? uri : `${scope}${uri}`;
-  for (const [index, op] of carrier.operations.entries()) {
+  const witnesses: OperationWitnesses[] = [];
+  const captured: ReadonlyMap<string, string | null>[] = [];
+  const canonical = (uri: string): string => canonicalReference(scope, uri);
+  for (const [index, op] of batch.carrier.operations.entries()) {
     const creating = op.operation === "createBead" || op.operation === "createLink";
     const input: Record<string, SemanticValue> = {
       ...op.input,
@@ -105,17 +202,29 @@ function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction
         ? { properties: op.input.properties ?? {}, metadata: op.input.metadata ?? {} }
         : {}),
     };
-    // Empty context supplies no explicit states, exactly like omission. Null
-    // agent/message members remain meaningful and must keep distinct identities.
+    // Empty context supplies no explicit states; null members remain distinct.
     const context = input.changeContext;
     if (context !== null && typeof context === "object" && Object.keys(context).length === 0)
       delete input.changeContext;
-    for (const field of ["id", "source", "target", "bead", "link"]) {
+    const previous = prior?.[index];
+    const aliases = new Map<string, string | null>();
+    for (const field of ["id", "source", "target", "bead", "link", "alias"]) {
       const value = input[field];
       if (value === undefined) continue;
       const uri = typeof value === "string" ? value : (value as { uri: string }).uri;
-      // Preserve binding kind with a tagged slot outside user property data.
-      const normalized = uri.startsWith("@") ? creators.get(uri.slice(1)) : canonical(uri);
+      const locator = canonical(uri);
+      let normalized: SemanticValue | undefined;
+      if (aliasFields(op.operation).includes(field) && locator.startsWith(`${scope}alias/`)) {
+        if (!aliases.has(locator)) {
+          const old =
+            previous?.operation === op.operation
+              ? previous.aliases.find((w) => w.locator === locator)
+              : undefined;
+          const target = old === undefined ? resolveAlias(locator) : old.target;
+          aliases.set(locator, target == null ? null : witnessedReference(scope, target, "beads"));
+        }
+        normalized = aliases.get(locator) ?? { unresolvedAlias: locator };
+      } else normalized = uri.startsWith("@") ? creators.get(uri.slice(1)) : locator;
       if (normalized === undefined) throw new TypeError("unknown batch binding");
       input[field] =
         typeof value === "string"
@@ -123,6 +232,11 @@ function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction
           : { uri: normalized, revision: (value as { revision: string }).revision };
     }
     identities.push({ operation: op.operation, input });
+    captured.push(aliases);
+    witnesses.push({
+      operation: op.operation,
+      aliases: [...aliases].map(([locator, target]) => ({ locator, target })),
+    });
     if (creating && op.name)
       creators.set(
         op.name,
@@ -131,13 +245,12 @@ function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction
           : canonical(op.input.id as string),
       );
   }
-  const result = Object.freeze({ identity: encodeSemanticValue(identities), carrier });
-  prepared.add(result);
+  const result = Object.freeze({
+    identity: encodeSemanticValue(identities),
+    witnessesJson: JSON.stringify({ format: witnessFormat, scope, operations: witnesses }),
+  });
+  normalizedState.set(result, { batch, aliases: captured });
   return result;
-}
-export function assertPreparedTransaction(batch: PreparedTransaction, scope: string): void {
-  if (!prepared.has(batch) || batch.carrier.scope !== scope)
-    throw new TypeError("expected prepared transaction for this Scope");
 }
 export interface TransactionEvent {
   readonly id: string;
@@ -171,14 +284,22 @@ export type BatchEvaluation =
         readonly operationName?: string;
       };
     };
+export type TransactionMutationContext = ResourceTransaction & AliasTransaction;
+export interface TransactionEvaluationOptions extends ResourceEvaluationOptions {
+  readonly aliasPolicy: AliasEvaluationOptions["policy"];
+}
 export function evaluateTransaction(
-  batch: PreparedTransaction,
-  tx: ResourceTransaction,
-  options: ResourceEvaluationOptions,
+  normalized: NormalizedTransaction,
+  tx: TransactionMutationContext,
+  options: TransactionEvaluationOptions,
   transaction: string,
   position: string,
   now: number,
 ): BatchEvaluation {
+  const state = normalizedState.get(normalized);
+  if (!state || state.batch.carrier.scope !== options.scope)
+    throw new TypeError("expected normalized transaction for this Scope");
+  const batch = state.batch;
   const bindings = new Map<string, string>();
   const results: unknown[] = [],
     events: TransactionEvent[] = [];
@@ -220,6 +341,23 @@ export function evaluateTransaction(
         },
       };
     const input: Record<string, unknown> = { ...admitted.input };
+    if (op.operation === "putAlias" || op.operation === "deleteAlias") {
+      // Only singleton preparation admits these operations. Locator effects have
+      // a durable receipt but deliberately no Resource Event or Scope position.
+      if (batch.carrier.kind !== "singleton" || batch.carrier.operations.length !== 1)
+        throw new Error("alias operation escaped singleton admission");
+      const result = evaluateAliasMutation(
+        tx,
+        { operation: op.operation, input } as AliasMutation,
+        { scope: options.scope, policy: options.aliasPolicy, limits: options.limits },
+      );
+      if (result.effect === "failure")
+        return { ok: false, problem: { ...result.outcome, operationIndex } };
+      results.push({ operationIndex, ...result.outcome });
+      continue;
+    }
+    const aliases = state.aliases[operationIndex];
+    if (!aliases) throw new Error("missing admitted operation witnesses");
     for (const field of ["source", "target", "bead", "link"]) {
       const ref = input[field] as string | { uri: string; revision: string } | undefined;
       if (ref === undefined) continue;
@@ -228,6 +366,10 @@ export function evaluateTransaction(
         const id = bindings.get(uri.slice(1));
         if (!id) throw new Error("validated binding missing");
         input[field] = typeof ref === "string" ? id : { ...ref, uri: id };
+      } else if (aliasFields(op.operation).includes(field)) {
+        const target = aliases.get(canonicalReference(options.scope, uri));
+        if (target != null)
+          input[field] = typeof ref === "string" ? target : { ...ref, uri: target };
       }
     }
     const locator = input.bead ?? input.link;
@@ -240,7 +382,17 @@ export function evaluateTransaction(
     const before = beforeRow ? readStoredResource(beforeRow, options.scope) : undefined;
     // Syntax and numeric admission preserve the operation/input pairing.
     const result = evaluateResourceMutation(
-      tx,
+      {
+        ...tx,
+        // A captured miss must not become a live target after admission. Other
+        // lookups (e.g. creation uniqueness) still consult current authority state.
+        alias(path) {
+          const locator = `${options.scope}alias/${path}`;
+          if (!aliases.has(locator)) return tx.alias(path);
+          const target = aliases.get(locator);
+          return target == null ? undefined : target.slice(options.scope.length);
+        },
+      },
       { operation: op.operation, input } as ResourceMutation,
       options,
     );
