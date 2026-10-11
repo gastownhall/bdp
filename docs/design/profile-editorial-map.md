@@ -12,7 +12,8 @@ level-three headings; their GitHub anchors are unchanged. Later clarification
 commits split mixed-profile sections and make existing applicability explicit.
 No protocol version, schema or runtime change is introduced by the editorial
 commits. The integration follow-up migrates evidence citations and their
-source-selection tests without changing case semantics.
+source-selection tests. The council repair below separates mixed-profile
+History evidence into additive metadata siblings without changing wire semantics.
 
 ## Original section accounting
 
@@ -145,10 +146,11 @@ requiring an Event/checkpoint definition. Mutation results no longer explain
 themselves by a changefeed tombstone; the equivalence remains explicit in
 Part III.
 
-The conformance tables remain a shared index, byte-identical and in their
-original order, with a local applicability summary in each profile. They are
-not new definitions needed to understand Read or Update. This preserves case
-identity while catalog evidence citations are migrated separately.
+The conformance tables remain a shared index with a local applicability
+summary in each profile. The initial relocation preserved them byte-identically.
+The council repair retains every existing ID and its profile, narrows one
+History title to its lower-profile obligation, and appends nine History sibling
+rows for higher-profile obligations. These rows are metadata, not new wire rules.
 
 ## Questions reserved for design
 
@@ -178,11 +180,13 @@ The clarification pass checked:
 - All **84 original heading anchors** remain available; 144 anchors exist in
   the reorganized document. The renamed local-reference heading retains its
   original anchor explicitly.
-- All **183 internal Markdown links** resolve. Read and Read+Update contain
+- All **185 internal Markdown links** resolve after the council repair. Read and Read+Update contain
   **zero internal links to later-profile definitions**.
 - All relative file links resolve from `docs/specs/`.
 - Every original top-level section is accounted for above. The conformance
-  matrix/row tables are byte-identical to the integration base.
+  matrix/row tables were byte-identical in the initial relocation. The only
+  council changes are the nine History siblings and one scoped History title
+  described below; other existing conformance rows remain unchanged.
 - An exact-text audit of paragraphs containing capitalized normative keywords
   identified only profile splits/clarifications in endpoint liveness, limits,
   CORS and conditional/HEAD behavior; the obligations remain in their owning
@@ -195,18 +199,16 @@ The clarification pass checked:
 
 The initial audit found 94 of 522 section-scoped spec citations needing
 migration. The integration follow-up moved 68 exact selections and reviewed
-26 selections whose wording was split by profile. Where one original selection
-covered several profiles, it now cites each applicable paragraph separately;
-no obligation was dropped to make a selector match. Read-only selections no
-longer include transaction-only clauses, while their Transactional scenarios
-retain both the inherited Read rule and the Transactional extension.
+26 selections whose wording was split by profile. That initial migration split some selections into several paragraphs but
+left mixed-profile History clauses attached to lower-profile cases. The council
+repair below corrects ownership with sibling cases; it preserves those clauses
+rather than deleting higher-profile obligations to make a selector match.
 
-The five affected catalogs preserve every scenario ID, order, title, kind,
-profile and non-citation field. Three maintained HTTP-gap objects in
-`w1-transactional-packet.md` mirror their updated canonical citations. The
-Read+Update and Transactional wire tests compose the three separate problem
-tables before making the same row/count/schema/fixture assertions as before.
-No case, assertion or fixture expectation was removed.
+The initial five-catalog migration preserved IDs and non-citation fields.
+The council repair preserves those original IDs/profiles and adds scoped History
+metadata cases as described below. Three maintained HTTP-gap objects in
+`w1-transactional-packet.md` mirror their updated canonical citations. The council repair replaces flattened problem-table checks with independent
+section membership assertions, retaining row/schema/fixture equality checks.
 
 Verified with **Node 24.16.0 / pnpm 11.20.0**, after a frozen-lockfile install:
 
@@ -216,8 +218,9 @@ Verified with **Node 24.16.0 / pnpm 11.20.0**, after a frozen-lockfile install:
   the full selected suite rerun successfully.
 - After the final Read-citation, closed-discovery, heading and cross-reference
   repairs, all six catalog suites plus protocol tests were rerun: **26 files,
-  970 tests passed**. Every Read catalog spec citation now targets Read,
-  the preface or the shared conformance index rather than a later profile.
+  970 tests passed**. That earlier check covered `read-v1.json`; it did not establish that
+  Read-tagged cases in other catalogs had correct profile ownership. The
+  all-catalog check below now covers that gap.
 - `pnpm typecheck`: passed.
 - Formatter checks for all changed catalog JSON and test files: passed.
 - Canonical and package schema files are byte-identical.
@@ -229,16 +232,85 @@ protocol/conformance tooling. They do not establish a shipping write-profile
 implementation, cross-product CLI parity or Preview 2 qualification. The
 entire repository test suite was not run for this editorial slice.
 
-## External review repairs
+## Council repair: profile ownership and preserved requirements
 
-Review of frozen `c493faf` found nonexistent singleton schema entry-point names
-and citations that still pointed to the Read problem table after profile splits.
-The entry points now use `updateBeadRequest` and `updateLinkRequest`; mutation
-diagnostics, sequence Problem shape and Transactional diagnostic inheritance
-point to the Read+Update table. A historical table reference and the preserved
-Sequence-local anchor's display label are corrected too. No schema or semantic
-contract changes. All 695 conformance-tooling tests pass after these repairs.
+Repair base: `2535b898b8e533bd629312b9c3a85157fa6e31e5`; the council reviewed
+`c493faf` against normative baseline `a9bcf9ed`. The repair uses the consolidated
+native dispositions, not every external recommendation verbatim. Earlier local
+repairs at the base already corrected the nonexistent update request schema names,
+mutation diagnostic/sequence/receipt problem links, the historical table link,
+and the Sequence-local link label. Those corrections remain.
 
-The external review with truncated context supplied only partial coverage; its
-missing-History claim was rejected against the complete text. The other external
-seat is still reviewing the frozen source. Council readiness is not yet claimed.
+The surface inventory classified spec applicability and source selections as
+migrate-now; original case IDs, profile tags, wire schemas, fixtures and runtime
+behavior as preserve; the Transactional packet citations as synchronized mirrors;
+and Type lifecycle proposals/Preview 2 integration as outside this repair.
+
+| Finding | Disposition |
+| --- | --- |
+| Claude 1: limits closure | Read locally identifies the closed `advertisedLimits` schema and its applicable groups; Read+Update locally enumerates its closed groups and retention members. Catalogs cite those sections. **Qualified:** the existing Read schema accepts some later-capability limit groups; it is not tightened through prose. Schema acceptance is distinguished from capability relevance. |
+| Claude 2: History cross-profile citations | Preserve all 21 original IDs/profiles; add nine explicitly scoped siblings, for 30 metadata-only History cases. The full audit also found `history.retained-address` citing Read+Update guards. Each original clause survives under its owning profile. |
+| Claude 3: nonnormative overview as authority | Restore the no-Events/no-durable-receipts rule in Read+Update consistency. Retarget every catalog overview citation, including guards and sequence interleaving, to local normative clauses. |
+| Claude 4: discovery closure | Enumerate exact Read+Update required/optional members locally, verified against `readUpdateDiscovery`. Lower-profile catalogs use local clauses; full comparative operations/aliases membership is explicitly retained in the Transactional discovery case. |
+| Claude 5: limit failure atomicity | Restore the explicit no-partial-mutation assurance in Mutation limits; existing operation and transaction rollback rules remain. |
+| Claude 6: conditional ordering force | Restore `MUST precede` for Transactional epoch/view, minimum-position and erasure/expiry checks; update catalog and packet mirror. |
+| Claude 7: History conditional erasure | Place the general no-retaining-erased-content assurance in Read conditional rules, inherited cumulatively. Keep checkpoint rules in Transactional. |
+| Claude 8: HEAD qualifier | Restore “merely to stream events” in spec, catalog and packet. No assertion is made about the reviewer's stronger TCP-reuse interpretation. |
+| Claude 9: actor surfaces | Restore the actor prohibition on mutation results in Part II and on receipts/Events/groups in Part III's actor section. Read retains its Resource prohibition. |
+| Claude 10: split-section references | Retarget the remaining wrong-root alias reference to Read+Update problems; split the Event HTTP reference between inherited Read behavior and Transactional context/checkpoint requirements. Base repairs already covered diagnostics and the other problem references. |
+| Claude 11: table membership checks | Assert Read, Read+Update additions and Transactional additions independently, including content/count/schema equality. Read+Update tests no longer read the Transactional table just to slice it away. |
+| Claude 12: 412/409 distinction | Restore the distinction in Part II command preconditions, avoiding write vocabulary in Read. |
+| Claude 13: missing bullets | Restore independent retention bullets and sentence-ending punctuation in Read and mutation limits. |
+| Claude 14: deletion artifacts | Replace the dangling context pronoun and update its History citation; fix the semicolon and revision-period artifacts. |
+| Claude 15: later vocabulary | Remove the Part II set-mutation attribution mention and batch comparison; keep the earlier Sequence-local display-label repair and compatibility anchor. Root review also moved receipt-specific command-precondition wording to Transactional HTTP field support, preserving its rule with a backward reference. |
+| Claude 16: duplicate/process claim | Deduplicate the repeated Transactional table citation. Preserve the existing schema-inventory process text; no new product obligation is inferred from the alleged future-process weakening. |
+| Claude 17: History Read diagnoses | Put the five Read diagnosis pointer in Part I; retain only the write allocation-failure pointer in Part II. |
+| Gemini 1–3 | Schema entry names, mutation problem links and Sequence-local label were already repaired at the base and remain verified. |
+| Rejected/deferred external claims | The missing-History claim came from truncated context and is false. The numeric-admission wording predates this reorganization; any broader metadata error-semantics change is deferred. |
+
+### History metadata ownership
+
+Original Read cases retain their Read requirements. `history.retained-address`
+and `history.context` gain `.read-update` siblings for guards and mutation
+postimages. Transactional siblings cover allocation rollback, receipt/Event
+context, atomic commit time, set/batch context inputs and fan-out, erasure ledger
+rules and the required controlled-copy acquisition route. They supplement their
+lower cases; they retire none. `history.context-time`'s title is narrowed to
+independently committed sequence instants, and its atomic-time wording is on its
+new Transactional sibling. No executable manifest admits the History catalog.
+
+The catalog-level profile invariant now checks **all six catalogs**, including
+unchanged entries, rather than only edited selections. A source excerpt must
+resolve, remain within its owning or an inherited part, and not cite the explicitly
+nonnormative profile overview. Shared conformance-index citations remain allowed.
+This verifies structural ownership; it is not proof that every sentence is a
+complete or unambiguous implementation contract.
+
+### Repair verification
+
+Using Node **24.16.0** and pnpm **11.20.0**, with frozen-lockfile installation:
+
+- `vitest run packages/conformance packages/protocol --maxWorkers=2`: **42 files,
+  1,636 tests passed**, no failures or skips. The first run found three stale
+  excerpts (four failing assertions); those selections and the packet mirror
+  were repaired before the passing rerun.
+- After the final receipt-precondition relocation, the six affected catalog/
+  protocol suites passed **307 tests** with no failures or skips.
+- `pnpm typecheck`, `pnpm check:boundaries` and `pnpm format:check`: passed.
+- All **539 spec citations** across six catalogs checked; no later-profile
+  target on a lower-profile case and no normative overview citation remains.
+- **144 anchors**, including all **84 baseline anchors**, and **185 internal
+  links** checked; no missing anchor or forward link from Read/Read+Update.
+- Original catalog IDs and profile tags preserved. Catalog sizes are Read 49,
+  Read+Update 81, Transactional 133, numeric 4, owned-wildcard 7, History 30.
+- Canonical/package schema copies remain byte-identical and unchanged; no runtime
+  or fixture changes. `git diff --check` passed.
+
+Logs and machine-readable evidence are outside the clone in the local
+`bdp-editorial-review` directory. These are artifact consistency checks, not
+shipping profile conformance, CLI parity, Preview 2 qualification, or council
+readiness. Root retains integration and publication ownership.
+
+The preexisting Read schema's wider limit acceptance remains an explicit design
+question. It cannot be resolved by this editorial repair without a separately
+reviewed schema/conformance decision. No other new product semantics were chosen.

@@ -108,14 +108,8 @@ const fixtures: readonly ReadUpdateFixture[] = readdirSync(fixturesDirectory)
   );
 
 describe("Read+Update problem rows", () => {
-  const tableRows = [
-    ...problemTableRows(markdownSection(specification, "Problem details")),
-    ...problemTableRows(markdownSection(specification, "Read+Update problem details")),
-    ...problemTableRows(markdownSection(specification, "Transactional problem details")),
-  ];
-
-  it("keeps the Read table closed and unchanged ahead of the Read+Update rows", () => {
-    expect(tableRows.slice(0, READ_PROBLEM_DEFINITIONS.length)).toEqual(
+  it("keeps the Read table closed and unchanged in its own section", () => {
+    expect(problemTableRows(markdownSection(specification, "Problem details"))).toEqual(
       READ_PROBLEM_DEFINITIONS.map(({ code, family, status, retry }) => [
         code,
         family,
@@ -125,15 +119,10 @@ describe("Read+Update problem rows", () => {
     );
   });
 
-  it("adds exactly the drafted rows to the specification table", () => {
-    // The three profile tables compose cumulatively; the Transactional
-    // lockstep test owns the final table.
-    expect(
-      tableRows.slice(
-        READ_PROBLEM_DEFINITIONS.length,
-        READ_PROBLEM_DEFINITIONS.length + READ_UPDATE_PROBLEM_ROWS.length,
-      ),
-    ).toEqual(READ_UPDATE_PROBLEM_ROWS);
+  it("places exactly the Read+Update additions in their own section", () => {
+    expect(problemTableRows(markdownSection(specification, "Read+Update problem details"))).toEqual(
+      READ_UPDATE_PROBLEM_ROWS,
+    );
   });
 
   it("mirrors the table in the bundle's readUpdateProblem branches", () => {

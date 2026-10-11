@@ -8253,7 +8253,7 @@ bounds, administrative erasure controls, or other unrelated residuals.
       {
         "source": "docs/specs/bdp.md",
         "anchor": "#transactional-conditional-reads",
-        "selectedText": "Scope epoch/view, minimum-position and erasure/expiry checks precede any conditional shortcut. Required current Scope context remains required on 304 and 412 responses."
+        "selectedText": "Scope epoch/view, minimum-position and erasure/expiry checks MUST precede any conditional shortcut. Required current Scope context remains required on 304 and 412 responses."
       },
       {
         "source": "docs/specs/bdp.md",
@@ -8281,7 +8281,7 @@ bounds, administrative erasure controls, or other unrelated residuals.
       {
         "source": "docs/specs/bdp.md",
         "anchor": "#transactional-conditional-reads",
-        "selectedText": "For acceptable SSE, HEAD returns the response metadata and ends without frames; it MUST NOT remain open."
+        "selectedText": "For acceptable SSE, HEAD returns the response metadata and ends without frames; it MUST NOT remain open merely to stream events."
       }
     ]
   }

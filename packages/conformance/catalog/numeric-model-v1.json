@@ -19,7 +19,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#conformance-profiles-and-reading-guide",
+          "anchor": "#readupdate-consistency",
           "selectedText": "Read+Update has no durable Mutation Receipts and no BDP Events."
         },
         {

@@ -9,8 +9,8 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#discovery-profile-membership",
-          "selectedText": "`operations` is required in Read+Update and Transactional and prohibited in Read. The history, receipt, snapshot, changefeed, and Event members are required only in Transactional and prohibited in both lower profiles."
+          "anchor": "#readupdate-discovery",
+          "selectedText": "Read+Update adds required `operations` and `aliases` navigation members to Read discovery and advertises `profile: \"read-update\"`. It inherits the optional History capability. Its discovery schema is the closed `readUpdateDiscovery` definition: `bdpVersion`, `profile`, `scope`, `beads`, `links`, `types`, `operations`, and `aliases` are required; `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` are optional under their inherited contracts. These are the only admitted members."
         }
       ]
     },
@@ -22,13 +22,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#discovery-profile-membership",
-          "selectedText": "| `aliases` | optional | required | required |"
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "`aliases` appears exactly when the authority serves alias resolution; a client MUST NOT construct alias URLs otherwise."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#discovery-profile-membership",
-          "selectedText": "The `aliases` member is optional in Read, where it appears exactly when the authority serves alias resolution, and required in Read+Update and Transactional, which offer the alias targets under [Alias targets](#alias-targets) and therefore serve alias resolution"
+          "anchor": "#readupdate-discovery",
+          "selectedText": "Read+Update adds required `operations` and `aliases` navigation members to Read discovery and advertises `profile: \"read-update\"`."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -45,13 +45,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#transactional-limits",
-          "selectedText": "the Read+Update discovery document's `limits` is `readUpdateAdvertisedLimits`, a closed definition of its own that shares every limit primitive with `advertisedLimits`, restates the `page`, `request`, `resource`, `selector`, `patch`, and `sequence` groups unchanged, carries the `validation` group, and rejects the `transaction` group and the Transactional `retention.receipt` and `retention.replay` members"
+          "anchor": "#readupdate-schema-and-limits",
+          "selectedText": "Its `readUpdateAdvertisedLimits` definition is closed and uses the shared limit primitives. It admits exactly `page`, `request`, `resource`, `selector`, `patch`, `sequence`, `validation`, and `retention`; the `retention` object admits only `idempotency` and the pagination `maximumSnapshotLifetime`."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#transactional-limits",
-          "selectedText": "the Read discovery document's `limits` is `advertisedLimits`, which admits no `validation` group"
+          "anchor": "#advertised-limits",
+          "selectedText": "The Read discovery document's `limits` uses the closed `advertisedLimits` definition. Its Read-applicable groups are `page`, `request`, `resource`, `selector`, and `retention.maximumSnapshotLifetime`; the schema admits no `validation` group. Schema acceptance of a limit does not expose its capability."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -329,7 +329,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#conformance-profiles-and-reading-guide",
+          "anchor": "#readupdate-consistency",
           "selectedText": "Read+Update has no durable Mutation Receipts and no BDP Events."
         },
         {
@@ -370,8 +370,8 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#conformance-profiles-and-reading-guide",
-          "selectedText": "`expectedRevision` remains optional for updates and deletes, and it produces a conflict on mismatch."
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "An explicit update or deletion may supply `expectedRevision`: the revision observed by an earlier read or mutation result. The authority applies the operation only if the Resource still has that revision. A mismatch fails the individual operation without changing state. Omitting `expectedRevision` applies the change to the Resource's current state."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -720,7 +720,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "a well-formed spelling that is not beneath the `alias/` root names no alias and fails with `resource-not-found` when the member is reached, as a wrong-root subject reference does under [Problem details](#problem-details)"
+          "selectedText": "a well-formed spelling that is not beneath the `alias/` root names no alias and fails with `resource-not-found` when the member is reached, as a wrong-root subject reference does under [Read+Update problem details](#readupdate-problem-details)"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1083,7 +1083,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#sequence-request-envelope",
-          "selectedText": "A `@name` reference that is forward, unknown, or of the wrong Resource kind is carrier syntax, decidable from the request text: the sequence is rejected before execution with `malformed-request`, exactly as a batch rejects it."
+          "selectedText": "A `@name` reference that is forward, unknown, or of the wrong Resource kind is carrier syntax, decidable from the request text: the sequence is rejected before execution with `malformed-request`."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1192,8 +1192,8 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#conformance-profiles-and-reading-guide",
-          "selectedText": "Because unrelated mutations may interleave, a bound Resource may change or be deleted before a later member uses it."
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "Bindings are confined to one sequence request and do not add isolation: an interleaving request may update or delete the committed Resource before a later member uses it."
         }
       ]
     },

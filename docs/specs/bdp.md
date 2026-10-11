@@ -1234,6 +1234,11 @@ version.
 
 ### Advertised limits
 
+The Read discovery document's `limits` uses the closed `advertisedLimits`
+definition. Its Read-applicable groups are `page`, `request`, `resource`,
+`selector`, and `retention.maximumSnapshotLifetime`; the schema admits no
+`validation` group. Schema acceptance of a limit does not expose its capability.
+
 The discovery document MAY contain a `limits` object. The object is optional
 so that a small implementation can expose a conforming profile without
 predicting every operational bound. Omission means only that the bound is not
@@ -1251,8 +1256,8 @@ value is a binding positive integer or ISO 8601 duration:
   bytes in the corresponding JSON serialization;
 - `selector.bytes` counts UTF-8 bytes after percent-decoding, while
   `selector.depth` and `selector.nodes` count parsed Selector structure;
-`retention.maximumSnapshotLifetime` bounds the lifetime of a pagination
-continuation when advertised; this is not a replica-bootstrap facility.
+- `retention.maximumSnapshotLifetime` bounds the lifetime of a pagination
+  continuation when advertised.
 
 Fields and groups not advertised carry no implicit numeric value. A client
 may use advertised values for request planning. Conformance tests may probe
@@ -1493,7 +1498,7 @@ authorization that gates `410` disclosure everywhere — an authority MAY
 instead disclose why a valid-shaped address has nothing behind it. Two
 sibling `410` conditions are Read-profile codes in the closed problem
 table: `resource-pruned` (removed by deliberate lifecycle policy) and
-`resource-erased` (content that must not exist); A
+`resource-erased` (content that must not exist). A
 `resource-pruned` problem MAY carry one `archivedAt` member — a Reference,
 possibly pinned, naming where the content went — recorded and echoed like
 any Reference and never validated or dereferenced by the serving authority;
@@ -1894,6 +1899,10 @@ profile uses this closed table:
 | `revision-not-tracked` | `conflict` | 409 | `after-state-change` |
 | `revision-unrepresentable` | `conflict` | 409 | `after-state-change` |
 
+The five History `revision-*` Read rows have the evidence, missing-state and
+authorization contracts in
+[Historical diagnoses and missing state](#historical-diagnoses-and-missing-state).
+
 Problem `type` is the BDP v0 problem-family prefix
 `https://github.com/gastownhall/bdp/problems/` followed by the table's family
 suffix. In addition to the RFC 9457 members, every BDP problem contains
@@ -1956,6 +1965,9 @@ semantics.
 
 ### Conditional reads and HEAD
 
+No conditional response permits retaining or reusing content that the erasure
+rules require removing.
+
 GET and HEAD preconditions follow [RFC 9110 section 13.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2).
 Normal authentication, authorization/non-disclosure, query and cursor checks,
 and applicable History erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not
@@ -2002,7 +2014,11 @@ interpret a request, result or failure in this part.
 
 Read+Update adds required `operations` and `aliases` navigation members to
 Read discovery and advertises `profile: "read-update"`. It inherits the
-optional History capability. Its discovery schema is `readUpdateDiscovery`.
+optional History capability. Its discovery schema is the closed
+`readUpdateDiscovery` definition: `bdpVersion`, `profile`, `scope`, `beads`,
+`links`, `types`, `operations`, and `aliases` are required; `limits`,
+`maximumEndpointMultiplicity`, `order`, and `historicalResolution` are optional
+under their inherited contracts. These are the only admitted members.
 
 A minimum Read+Update discovery representation adds its Operation
 Directory and its alias root (amended 2026-09-08, council 12):
@@ -2025,10 +2041,11 @@ Directory and its alias root (amended 2026-09-08, council 12):
 The normative bundle defines `readUpdateDiscovery`,
 `readUpdateOperationDirectory`, the singleton and sequence requests and
 responses, inline mutation/alias results, and `readUpdateProblem`. Its
-`readUpdateAdvertisedLimits` definition uses the shared limit primitives and
-includes `page`, `request`, `resource`, `selector`, `patch`, `sequence`,
-`validation`, `retention.idempotency` and the pagination
-`retention.maximumSnapshotLifetime`. Advertised bounds are binding.
+`readUpdateAdvertisedLimits` definition is closed and uses the shared limit
+primitives. It admits exactly `page`, `request`, `resource`, `selector`,
+`patch`, `sequence`, `validation`, and `retention`; the `retention` object
+admits only `idempotency` and the pagination `maximumSnapshotLifetime`.
+Advertised bounds are binding.
 
 ### Operation Directory and singleton targets
 
@@ -2147,9 +2164,11 @@ specific identity information is disclosed by the allocation problem.
 
 ### Attribution on mutations
 
+BDP v0 does not expose an authority-attested actor in mutation results.
+
 Attribution is **per version**: it is supplied with a write (the
 `attribution` input on every version-minting operation — creating,
-updating, set mutation, and an owned-Link deletion that mints the source's
+updating, and an owned-Link deletion that mints the source's
 fresh version), immutable for the version it accompanies, and a later
 version may carry different attribution. An operation that mints more than
 one version records its one attribution on every version it mints:
@@ -2228,7 +2247,7 @@ properties patch must yield a JSON object satisfying every effective Type
 schema. The metadata patch must yield a JSON object. If both results equal
 their respective preceding objects under RFC 6902 Section 4.6 JSON
 comparison, the operation is a no-op. It preserves the
-Resource revision . Number equality in that
+Resource revision. Number equality in that
 comparison, and the admissibility of every number literal a change carries,
 are defined under [Revisions](#revisions).
 
@@ -2670,6 +2689,9 @@ claim about those checks.
 
 ### Mutation limits
 
+Omission of a mutation bound does not permit partial mutation, silent
+truncation or a non-normative failure response.
+
 - `patch.operations`, `patch.pathBytes`, and `patch.pathDepth` bound one
   property patch;
 - `sequence.operations` bounds members in one Read+Update sequence;
@@ -2679,9 +2701,9 @@ claim about those checks.
   [Read+Update problem details](#readupdate-problem-details); the group is mutation surface: it
   is not advertised by a Read discovery document, and a Read+Update authority that omits diagnostics beyond a bound MUST
   advertise it (amended 2026-09-08, council 12);
-`retention.idempotency` is the minimum interval for which an authority retains
-an idempotency-key disposition after its terminal outcome, under
-[Outcome retention](#outcome-retention).
+- `retention.idempotency` is the minimum interval for which an authority retains
+  an idempotency-key disposition after its terminal outcome, under
+  [Outcome retention](#outcome-retention).
 
 ### Read+Update sequence target
 
@@ -2823,7 +2845,7 @@ binding that is unavailable at execution fails the member rather than
 rejecting the request, and how it fails follows the creator. A `@name`
 reference that is forward, unknown, or of the wrong Resource kind is
 carrier syntax, decidable from the request text: the sequence is rejected
-before execution with `malformed-request`, exactly as a batch rejects it.
+before execution with `malformed-request`.
 A reference to a creating member whose retained disposition is a failure
 fails that member with `binding-unavailable`, a retained failure; a
 reference to a creating member whose disposition in this request was
@@ -2938,7 +2960,7 @@ canonical Scope URL like a durable reference, and it never accepts
 before execution with `malformed-request`, and a well-formed spelling
 that is not beneath the `alias/` root names no alias and fails with
 `resource-not-found` when the member is reached, as a wrong-root subject
-reference does under [Problem details](#problem-details). Canonical Bead
+reference does under [Read+Update problem details](#readupdate-problem-details). Canonical Bead
 segments and alias paths share one
 uniqueness namespace in the Scope, a store invariant the authority
 enforces when the member is reached: a put whose alias path is the
@@ -3399,9 +3421,7 @@ retry dispositions are the Read profile's:
 | `idempotency-expired` | `gone` | 410 | `never` |
 | `revision-allocation-unsafe` | `conflict` | 409 | `after-state-change` |
 
-The new History Read rows have the evidence, missing-state and authorization
-contracts in [Historical diagnoses and missing state](#historical-diagnoses-and-missing-state).
-They are not receipt-only failures. `revision-allocation-unsafe` is write-only,
+`revision-allocation-unsafe` is write-only,
 as defined under [Revision allocation failures](#revision-allocation-failures), including direct pre-admission and
 permanent admitted failures; it supplies no History read diagnosis.
 
@@ -3530,6 +3550,8 @@ creating a separate sequence-only taxonomy.
 
 ### Read+Update consistency
 
+Read+Update has no durable Mutation Receipts and no BDP Events.
+
 Read+Update returns an authoritative mutation postimage, but it does not
 promise that a later request routed to another replica observes it. It adds
 no exposed Scope epoch, Authorization View token or Scope position.
@@ -3542,10 +3564,11 @@ or modified by executing the command. Under the method and
 selected-representation boundary in
 [RFC 9110 section 13.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.1),
 HTTP conditional fields on these commands do not guard payload-named
-Resources, newly produced receipts, or aliases. `expectedRevision` remains
+Resources or aliases. `expectedRevision` remains
 the explicit Resource revision guard. This assigns no blanket exemption for
 unsafe HTTP methods and does not change conditions on canonical Resource
-GET or HEAD requests.
+GET or HEAD requests. A read-side `412 Precondition Failed` is not the
+write-side `409 revision-mismatch`.
 
 ### Read+Update HTTP field support
 
@@ -3671,6 +3694,9 @@ incremental authorization-policy Events. The token is not a credential, and
 possessing or replaying it does not grant access to that view.
 
 ### History fences and actor identity
+
+BDP v0 does not expose an authority-attested actor in receipts, Events or
+change groups.
 
 Scope epoch, Authorization View, and position
 fields are projection and ordering fences. None of them identifies or
@@ -5560,7 +5586,7 @@ set-oriented storage operations so long as it emits the same committed facts.
 ### History context in receipts and Events
 
 Native versions minted under advertised History MUST carry
-it wherever their complete version record is returned: current and historical
+`changeContext` wherever their complete version record is returned: current and historical
 reads, mutation postimages, retained receipt postimages and retained history rows.
 Created/updated Event data, including an updated owned-Link delta, carries the
 context of the version it names. No context is synthesized on tombstones, deleted identities, aliases, References or properties
@@ -5761,20 +5787,23 @@ Scope-history tokens.
 ### Transactional conditional reads
 
 A `304` is not delivery or application of a change group or erasure record
-and MUST NOT advance a client's durable checkpoint. No conditional response
-permits retaining or reusing content that the erasure rules require removing.
+and MUST NOT advance a client's durable checkpoint.
 
-Scope epoch/view, minimum-position and erasure/expiry checks precede any
+Scope epoch/view, minimum-position and erasure/expiry checks MUST precede any
 conditional shortcut. Required current Scope context remains required on
 304 and 412 responses.
 
 The inherited HEAD rules also cover `changes/`, Scope `events/`, Resource
 `view=events`, snapshot handles/streams and receipt/page URLs. For acceptable
 SSE, HEAD returns the response metadata and ends without frames; it MUST NOT
-remain open. HEAD acknowledges neither delivery nor application and creates
-no mutation transaction.
+remain open merely to stream events. HEAD acknowledges neither delivery nor
+application and creates no mutation transaction.
 
 ### Transactional HTTP field support
+
+The inherited [Mutation command preconditions](#mutation-command-preconditions)
+also apply here: HTTP conditional fields on operation command targets do not
+guard newly produced receipts.
 
 When cross-origin access is enabled, the CORS policy MUST allow `Last-Event-ID`
 and the Transactional minimum-position fields, and MUST expose the three
@@ -6509,8 +6538,9 @@ including authentication and rate limiting.
 | `changes/`, Scope `events/`, Resource `view=events` | GET, HEAD | `200` finite JSON or acceptable SSE metadata/stream as defined by the endpoint; ordinary authorization, query, cursor, epoch/view, minimum-position, erasure/history-expiry, and service failures; shared bodyless `406`, conditional `304`/`412`, or internal-fault `500` when applicable |
 | the same targets | other methods | `405`, `Allow: GET, HEAD`, with CORS `OPTIONS` handled under the shared rules |
 
-[Conditional reads and HEAD](#conditional-reads-and-head) governs ordering,
-bodylessness, required current metadata, and the absence of checkpoint
+[Conditional reads and HEAD](#conditional-reads-and-head) governs ordering and
+bodylessness; [Transactional conditional reads](#transactional-conditional-reads)
+governs required current Scope metadata and the absence of checkpoint
 advancement on `304` or HEAD. Finite responses retain their authorization
 cache policy; SSE retains `Cache-Control: no-store, no-transform`.
 
@@ -6625,7 +6655,9 @@ rows describe. The rows become claimable only under the evidence law in
 #### History conformance rows
 
 These rows apply only to the complete optional `historicalResolution` capability,
-with the minimum profile shown by `history-v1.json`. A future executable manifest
+with the minimum profile shown by `history-v1.json`. Suffixes `.read-update`
+and `.transactional` identify higher-profile sibling obligations; the original
+IDs retain their lower-profile ownership. A future executable manifest
 must gate them on that actual target capability and preserve cumulative profile
 obligations. They are metadata now: no History manifest, runner realization or
 observations are supplied by these rows. The original Read catalog and historical
@@ -6649,12 +6681,21 @@ projection/coverage transition and new observations before a claim.
 | `history.retained-address` | Restore preserves surviving retained addresses and independent token fences |
 | `history.allocation` | Persistent allocation conflict409 versus transient503 and admitted failure rules |
 | `history.context` | Immutable context and truthful legacy metadata across all copies |
-| `history.context-time` | Authority commit time, atomic/shared and sequence/independent instants |
+| `history.context-time` | Authority commit time and independently committed sequence instants |
 | `history.context-inputs` | Optional per-operation context with no timestamp or actor override |
 | `history.context-fanout` | Fan-out to actual minted versions without context-only transitions |
 | `history.erasure` | Every controlled copy and retained context obey erasure before further serving |
 | `history.imports` | Positive authoritative erasure status before import visibility |
 | `history.assurance` | Scoped tested consumer routes without generic acquisition claims |
+| `history.retained-address.read-update` | Retained historical addresses grant no current revision guard |
+| `history.allocation.transactional` | Transactional allocation failure rolls back and retains the failure |
+| `history.context.read-update` | Native History context accompanies complete mutation postimages |
+| `history.context.transactional` | Native History context accompanies receipt postimages and Event versions |
+| `history.context-time.transactional` | Atomic versions share commit time without changing Event-time meaning |
+| `history.context-inputs.transactional` | Set and batch context inputs remain operation-local |
+| `history.context-fanout.transactional` | Set and batch context fans out to every version actually minted |
+| `history.erasure.transactional` | History obeys Transactional erasure ledger and recovery requirements |
+| `history.assurance.transactional` | Transactional retained copies use the required erasure acquisition route |
 
 #### Read+Update conformance rows
 

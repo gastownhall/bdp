@@ -11,6 +11,16 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#discovery-profile-membership",
           "selectedText": "The history, receipt, snapshot, changefeed, and Event members are required only in Transactional and prohibited in both lower profiles."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#discovery-profile-membership",
+          "selectedText": "| `operations` | prohibited | required | required |"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#discovery-profile-membership",
+          "selectedText": "| `aliases` | optional | required | required |"
         }
       ],
       "retires": ["read-update.discovery.document"]
@@ -1572,11 +1582,6 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#profile-schema-inventory",
           "selectedText": "A profile's definitions must exist before it can be implemented."
-        },
-        {
-          "source": "docs/specs/bdp.md",
-          "anchor": "#transactional-problem-details",
-          "selectedText": "The Transactional profile inherits the Read table and the Read+Update rows above and adds three rows:"
         }
       ]
     },
@@ -2035,7 +2040,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#transactional-conditional-reads",
-          "selectedText": "Scope epoch/view, minimum-position and erasure/expiry checks precede any conditional shortcut. Required current Scope context remains required on 304 and 412 responses."
+          "selectedText": "Scope epoch/view, minimum-position and erasure/expiry checks MUST precede any conditional shortcut. Required current Scope context remains required on 304 and 412 responses."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -2063,7 +2068,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#transactional-conditional-reads",
-          "selectedText": "For acceptable SSE, HEAD returns the response metadata and ends without frames; it MUST NOT remain open."
+          "selectedText": "For acceptable SSE, HEAD returns the response metadata and ends without frames; it MUST NOT remain open merely to stream events."
         }
       ]
     }
