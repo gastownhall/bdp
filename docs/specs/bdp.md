@@ -3315,10 +3315,9 @@ alias locators and their recorded targets or misses, and, for
 a creation that allocated an identity, that identity and its Resource kind,
 through which a later `@name` reference still resolves — for the lifetime
 of the logical Scope, exactly as it retains the identity non-reuse
-guarantee under [Scopes and identity](#scopes-and-identity); tombstone
-storage is therefore bounded by the committed effects, as identity
-tombstones already are, and no principal can grow it with requests that
-commit nothing. Presenting an expired key with the same semantic identity
+guarantee under [Scopes and identity](#scopes-and-identity). Distinct successful
+keys, including semantic no-ops, can therefore grow tombstone storage without
+adding Resource revisions. Presenting an expired key with the same semantic identity
 fails with `idempotency-expired`; the authority never executes the member
 again and never reports the discarded outcome. Presenting an expired key
 with a different semantic identity remains `idempotency-conflict`. A
@@ -3729,7 +3728,9 @@ omits the member, and a client MUST NOT construct alias URLs for an
 authority that does not advertise it. The optional
 `order` member names the collection order under
 [Collection retrieval and selection](#collection-retrieval-and-selection);
-omission means the `canonical-uri` baseline.
+omission means the `canonical-uri` baseline. The optional `historicalResolution`
+member advertises [Historical resolution](#historical-resolution) in every profile;
+it is distinct from the Transactional Scope-history fence members.
 
 | Member | Read | Read+Update | Transactional |
 | --- | --- | --- | --- |
@@ -3741,6 +3742,7 @@ omission means the `canonical-uri` baseline.
 | `limits`, `maximumEndpointMultiplicity` | optional | optional | optional |
 | `aliases` | optional | required | required |
 | `order` | optional | optional | optional |
+| `historicalResolution` | optional | optional | optional |
 
 ### Profile schema inventory
 
