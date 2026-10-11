@@ -436,13 +436,13 @@ describe("private Transactional sequence slice", () => {
     expect(f.store.inspect().resources).toHaveLength(2);
     valid(await completion);
   });
-  it("rejects duplicate keys, dependency edges and Resource alias operands before any key effects", () => {
+  it("rejects duplicate keys, invalid dependency edges and Resource alias operands before any key effects", () => {
     const f = fixture();
     const unsupported = [
       [create("a", "same"), create("b", "same")],
       [
         create("a", "creator", "a"),
-        { operation: "deleteBead", idempotencyKey: "dependent", bead: "@a" },
+        { operation: "deleteBead", idempotencyKey: "dependent", bead: "@unknown" },
       ],
       [
         create("a", "creator"),

@@ -33,7 +33,8 @@ function project(sequence: PreparedTransactionSequence, turn: TransactionSequenc
   const member = sequence.members[turn.index];
   if (!member) throw new Error("sequence turn outside carrier");
   let entry: Record<string, unknown>;
-  if (turn.result.kind === "conflict") entry = { ...problem("idempotency-conflict") };
+  if (turn.result.kind === "transient") entry = { ...problem("idempotency-in-progress") };
+  else if (turn.result.kind === "conflict") entry = { ...problem("idempotency-conflict") };
   else {
     const receipt = turn.result.receipt;
     if (receipt.status === "pending") entry = { ...problem("idempotency-in-progress") };
