@@ -644,6 +644,34 @@ describe("non-attesting bdptest HTTP development authority", () => {
     }
   });
 
+  it("refuses unknown development operations before method or key admission", async () => {
+    const h = await start();
+    const input = { id: "beads/unknown-route", type: DEVELOPMENT_BEAD_TYPE };
+    const unknown = await h.post("not-an-operation", input, "unknown_route");
+    expect(unknown.status).toBe(404);
+    expect(parseReadUpdateProblem(jsonBody(unknown))).toMatchObject({
+      code: "resource-not-found",
+    });
+    expect(unknown.headers.allow).toBeUndefined();
+    for (const method of ["GET", "HEAD", "PUT"]) {
+      const response = await fetch(`${h.server.scope}development/not-an-operation`, {
+        method,
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(response.status).toBe(404);
+      expect(response.headers.get("allow")).toBeNull();
+      if (method === "HEAD") expect(await response.text()).toBe("");
+      else
+        expect(parseReadUpdateProblem(await response.json())).toMatchObject({
+          code: "resource-not-found",
+        });
+    }
+    expect(await h.get(input.id)).toMatchObject({ status: 404 });
+    expect(resource(await h.post("create-bead", input, "unknown_route")).id).toBe(
+      `${h.server.scope}${input.id}`,
+    );
+  });
+
   it("returns BDP receiving Problems without capturing keys and ignores request media parameters", async () => {
     const h = await start();
     const url = `${h.server.scope}development/create-bead`;

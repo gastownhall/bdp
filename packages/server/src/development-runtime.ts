@@ -164,6 +164,8 @@ export async function startDevelopmentReferenceRuntime(
       const name = rawUrl.startsWith("/development/") ? rawUrl.slice(13) : "";
       const operation = Object.hasOwn(operations, name) ? operations[name] : undefined;
       const mutationTarget = operation !== undefined || name === "sequence";
+      if (rawUrl.startsWith("/development/") && !mutationTarget)
+        throw new ReceivingError("resource-not-found");
       if (request.method !== "POST" && mutationTarget) {
         empty(response, 405, "POST");
         return;
@@ -210,7 +212,6 @@ export async function startDevelopmentReferenceRuntime(
         empty(response, 405, "GET, HEAD");
         return;
       }
-      if (!operation && name !== "sequence") throw new ReceivingError("resource-not-found");
       if (
         header(request, "content-type")?.split(";", 1)[0]?.trim().toLowerCase() !==
         "application/json"
