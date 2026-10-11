@@ -714,10 +714,30 @@
     },
     {
       "id": "read-update.sequence.expired-creator-binding",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "The private retention fixture can observe startup expiry, but no diagnostic plan yet exercises an expired creator's allocated identity and Resource kind through a dependent local reference.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.expired-creator-binding",
+          "assertions": [
+            "allocate.created",
+            "bind-expired.creator-expired",
+            "bind-expired.creator-no-resource",
+            "bind-expired.creator-name",
+            "bind-expired.dependent-outcome",
+            "original-updated.properties",
+            "change-live.updated",
+            "renamed-retry.creator-name",
+            "renamed-retry.properties",
+            "live-remains-current.properties",
+            "durable-retry.creator-expired",
+            "durable-retry.properties",
+            "durable-live-current.properties"
+          ],
+          "limits": [
+            "One authority-allocated Bead creator and updateBead dependent, with renamed local labels and selected retained-result fields, across startup expiry/reopen. Direct reads use the originally captured allocated identity. No Link creator, alias/pinned/deleted-creator variants, authorization changes, internal tombstone inspection, live periodic maintenance, advertised retention window or complete-row qualification."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.sequence.retained-failure",

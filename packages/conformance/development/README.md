@@ -5,7 +5,7 @@ assertions in the existing conformance runner. It is **development-only and
 non-attesting**. It does not make the normative Read+Update catalog executable,
 admit a public write profile, or certify an implementation.
 
-The manifest contains 28 diagnostic scenarios and 302 HTTP/lifecycle actions. The
+The manifest contains 29 diagnostic scenarios and 312 HTTP/lifecycle actions. The
 receiver runs against a fresh disposable SQLite store for each scenario. The
 executor uses the actual Read+Update SDK Fetch transport or the existing raw
 HTTP executor and returns observed status, headers and body. The shared runner evaluates the assertions, captures
@@ -14,10 +14,10 @@ catalog/manifest/fixture bytes into its report. A guard race dispatches two
 real requests with the same observed revision and distinct keys.
 
 `read-update-coverage-v1.json` inventories all 81 current normative catalog rows
-in their original order. Fifty-seven rows have **bounded observations**, with
+in their original order. Fifty-eight rows have **bounded observations**, with
 stable `scenario` and `action.assertion` references. These are partial behavioral
 evidence, not passing normative rows. Per-binding `limits` record known missing
-variants. Twenty-four rows are explicitly omitted with a category and reason.
+variants. Twenty-three rows are explicitly omitted with a category and reason.
 An empty limits array does not certify exhaustive coverage of a normative row.
 
 The diagnostic catalog uses `development.read-update.*` IDs and `kind:
@@ -248,3 +248,24 @@ The 24-hour interval belongs to this fixture; retention-minimum remains omitted
 because the endpoint advertises no retention limit. Live periodic maintenance,
 other successful mutation categories, alias retry witnesses, expired creator
 bindings, restore and full-profile qualification remain outside this slice.
+
+## Expired creator binding observation
+
+A named Bead creation allocates its own identity, which the plan captures from
+its initial result. After reopening at the private fixture expiry boundary, the
+same creator key with a renamed label reports idempotency-expired without its
+Resource body. A fresh updateBead member using that label succeeds. A GET using
+the originally captured identity verifies that the dependent updated that exact
+Bead, rather than a replacement identity.
+
+A fresh singleton then changes the Bead's live properties. Retrying the sequence
+with another label returns the dependent's retained older postimage, while a
+GET of the captured identity still returns the newer live state. A further
+reopen repeats this expiry, binding and retained-result distinction.
+
+This observes one allocated Bead creator and an updateBead dependent. It does
+not qualify Link creators, aliases, pins, deleted creators, authorization
+changes, internal tombstone fields, live periodic maintenance or the entire
+normative row. The fixture boundary does not advertise a retention window;
+retention-minimum remains omitted. Only the diagnostic artifacts change; the
+existing request, capture, binding and retention-reopen actions are reused.

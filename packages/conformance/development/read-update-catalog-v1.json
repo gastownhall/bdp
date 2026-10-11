@@ -1234,6 +1234,29 @@
           "selectedText": "For a disposition that committed state \u2014 `created`, `updated` including a semantic no-op, or `deleted` \u2014 it MUST then retain a compact tombstone"
         }
       ]
+    },
+    {
+      "id": "development.read-update.expired-creator-binding",
+      "title": "Development observation: expired-creator-binding",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "and, for a creation that allocated an identity, that identity and its Resource kind, through which a later `@name` reference still resolves"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "or an `idempotency-expired` disposition, whose tombstone keeps the identity the creation allocated and its Resource kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "resolves each `@name` reference to the identity its creating member bound \u2014 taken from that member's fresh, retained, or expired disposition, never from the spelling"
+        }
+      ]
     }
   ]
 }
