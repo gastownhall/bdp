@@ -161,7 +161,13 @@ export function validateCatalogCitations(
         continue;
       }
 
-      const section = markdownSection(markdown, citation.anchor);
+      let section: string | undefined;
+      try {
+        section = markdownSection(markdown, citation.anchor);
+      } catch (error) {
+        issues.push({ path: `${path}.anchor`, message: String(error) });
+        continue;
+      }
       if (section === undefined) {
         issues.push({ path: `${path}.anchor`, message: "Markdown anchor was not found" });
         continue;

@@ -46,7 +46,7 @@ export function markdownAnchors(markdown: string): MarkdownAnchor[] {
     // An interior anchor starts at itself and ends at the next heading, so it
     // cannot acquire unrelated text from later sections.
     const aliasesHeading =
-      next !== undefined && visible.slice(match.index + match[0].length, next.index).trim() === "";
+      next !== undefined && markdown.slice(match.index + match[0].length, next.index).trim() === "";
     explicit.push({
       anchor: `#${match[1]}`,
       index: match.index,
@@ -55,7 +55,13 @@ export function markdownAnchors(markdown: string): MarkdownAnchor[] {
       ...(aliasesHeading ? { aliasOf: next.anchor } : {}),
     });
   }
-  return [...headings, ...explicit].sort((left, right) => left.index - right.index);
+  const result = [...headings, ...explicit].sort((left, right) => left.index - right.index);
+  const anchors = new Set<string>();
+  for (const entry of result) {
+    if (anchors.has(entry.anchor)) throw new Error(`Ambiguous Markdown anchor: ${entry.anchor}`);
+    anchors.add(entry.anchor);
+  }
+  return result;
 }
 
 export function markdownSection(markdown: string, anchor: string): string | undefined {

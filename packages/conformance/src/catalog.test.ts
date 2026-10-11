@@ -320,6 +320,25 @@ describe("rendered citation anchors", () => {
     expect(() => validate(markdown, "#fake", "fake")).toThrow(CatalogValidationError);
   });
 
+  it("rejects explicit/generated and explicit/explicit anchor collisions", () => {
+    for (const markdown of [
+      '## Collision\nFirst.\n## Other\n<a id="collision"></a>\nSecond.',
+      '<a id="collision"></a>\nFirst.\n## Other\n<a name="collision"></a>\nSecond.',
+    ]) {
+      expectCitationIssue(
+        catalogWithCitation({ source, anchor: "#collision", selectedText: "First." }),
+        () => markdown,
+        "$.scenarios[0].requirements[0].anchor",
+      );
+    }
+  });
+
+  it("does not erase a fenced block when deciding whether an anchor aliases the next heading", () => {
+    const markdown = '<a id="before-code"></a>\n```text\nExample.\n```\n### Later\nOutside.';
+    expect(() => validate(markdown, "#before-code", "Example.")).not.toThrow();
+    expect(() => validate(markdown, "#before-code", "Outside.")).toThrow(CatalogValidationError);
+  });
+
   it("avoids duplicate suffix collisions with literal numbered headings", () => {
     const markdown = "## A\nOne.\n## A\nTwo.\n## A-1\nThree.\n## A\nFour.";
     expect(() => validate(markdown, "#a-1-1", "Three.")).not.toThrow();
