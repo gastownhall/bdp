@@ -219,8 +219,9 @@ no runtime, harness, schema, public profile or fixture policy changes are made.
 ## Controlled retention observations
 
 One process plan supplies a private fixed retention clock to the real emitted
-receiver and reopens the same disposable store and Scope at the initial time,
-24 hours minus one millisecond, exactly 24 hours, and one millisecond later.
+receiver module. It starts the disposable store and Scope at the initial time,
+then reopens them three times: at 24 hours minus one millisecond, exactly
+24 hours, and one millisecond later.
 Normal startup expiry performs the changes. The public development options and
 exports remain unchanged; no database fields or retained outcomes are fabricated,
 no retention interval is shortened, and no global clock is patched.

@@ -1100,9 +1100,11 @@
             "retained-create.properties",
             "expired-create.problem",
             "expired-create.no-resource",
+            "expired-create.no-outcome",
             "changed-expired-key.problem",
             "kept-revision-unchanged.outcome",
             "durable-expired-create.problem",
+            "durable-expired-create.no-outcome",
             "durable-expired-conflict.problem",
             "durable-kept-state.properties"
           ],
