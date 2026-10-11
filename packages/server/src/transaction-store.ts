@@ -7,9 +7,11 @@ import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@
 import type { EvaluatorStoredResource } from "./resource-evaluator.js";
 import {
   assertPreparedTransaction,
+  normalizeTransaction,
   evaluateTransaction,
   transactionStorageText as json,
   type PreparedTransaction,
+  type NormalizedTransaction,
   type TransactionMutationContext,
 } from "./transaction-batch.js";
 
@@ -47,20 +49,21 @@ interface Row {
   principal: string;
   key: string;
   identity: string;
+  witnesses: string;
   owner: string | null;
   receipt: string;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-alias-2";
+const format = "bdp-private-transaction-alias-witnesses-3";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
-const identityPolicy = "transaction-context-default-1";
+const identityPolicy = "transaction-context-and-alias-witnesses-2";
 const schema = `
 CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
 CREATE TABLE resources(id TEXT PRIMARY KEY, body TEXT NOT NULL, kind TEXT NOT NULL, source TEXT, target TEXT) STRICT;
 CREATE TABLE identities(id TEXT PRIMARY KEY) STRICT;
 CREATE TABLE aliases(path TEXT PRIMARY KEY, target TEXT NOT NULL) STRICT;
-CREATE TABLE receipts(principal TEXT NOT NULL, key TEXT NOT NULL, identity TEXT NOT NULL, owner TEXT, receipt TEXT NOT NULL, PRIMARY KEY(principal,key)) STRICT;
+CREATE TABLE receipts(principal TEXT NOT NULL, key TEXT NOT NULL, identity TEXT NOT NULL, witnesses TEXT NOT NULL, owner TEXT, receipt TEXT NOT NULL, PRIMARY KEY(principal,key)) STRICT;
 CREATE TABLE groups(position INTEGER PRIMARY KEY, body TEXT NOT NULL) STRICT;
 `;
 /** Owns a single SQLite connection under persistent EXCLUSIVE locking. Admission
@@ -112,7 +115,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   let maintenanceFailure: { readonly cause: unknown } | undefined;
   const claims = new WeakMap<
     TransactionClaim,
-    { principal: string; key: string; owner: string; batch: PreparedTransaction }
+    { principal: string; key: string; owner: string; normalized: NormalizedTransaction }
   >();
   function enter<T>(run: () => T): T {
     if (maintenanceFailure)
@@ -336,8 +339,16 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         const admission = atomic((): TransactionAdmission => {
           const stored = row(principal, key);
           const prior = stored ? expireRow(stored, instant()).row : undefined;
+          const normalized = normalizeTransaction(
+            batch,
+            (locator) => {
+              const target = alias(locator.slice(scope.length + 6));
+              return target === undefined ? undefined : `${scope}${target}`;
+            },
+            prior?.witnesses,
+          );
           if (prior)
-            return prior.identity !== batch.identity
+            return prior.identity !== normalized.identity
               ? { kind: "conflict" }
               : { kind: "existing", receipt: parseReceipt(prior.receipt) };
           const receipt: TransactionReceipt = {
@@ -350,14 +361,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           };
           const owner = randomUUID(),
             claim = Object.freeze({ receipt });
-          db.prepare("INSERT INTO receipts VALUES(?,?,?,?,?)").run(
+          db.prepare("INSERT INTO receipts VALUES(?,?,?,?,?,?)").run(
             principal,
             key,
-            batch.identity,
+            normalized.identity,
+            normalized.witnessesJson,
             owner,
             json(receipt),
           );
-          claims.set(claim, { principal, key, owner, batch });
+          claims.set(claim, { principal, key, owner, normalized });
           return { kind: "owned", claim };
         });
         if (admission.kind === "owned") {
@@ -468,7 +480,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             const result = (() => {
               try {
                 return evaluateTransaction(
-                  owned.batch,
+                  owned.normalized,
                   tx,
                   {
                     scope,

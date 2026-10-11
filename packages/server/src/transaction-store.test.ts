@@ -6,7 +6,11 @@ import { DatabaseSync } from "node:sqlite";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseTypeDescriptor, isJsonSchemaDateTime, isJsonSchemaUri } from "@bdp/protocol";
-import { prepareTransaction, prepareTransactionSingleton } from "./transaction-batch.js";
+import {
+  prepareTransaction,
+  prepareTransactionSingleton,
+  normalizeTransaction,
+} from "./transaction-batch.js";
 import { openTransactionStore, type TransactionClaim } from "./transaction-store.js";
 
 const scope = "https://example.test/transaction/";
@@ -264,8 +268,14 @@ describe("private atomic transaction owner", () => {
     if (!directSecond) throw new Error("missing second operation");
     directSecond.source = "beads/explicit";
     expect(
-      prepareTransaction(scope, JSON.stringify(explicit(`${scope}beads/explicit`))).identity,
-    ).toBe(prepareTransaction(scope, JSON.stringify(direct)).identity);
+      normalizeTransaction(
+        prepareTransaction(scope, JSON.stringify(explicit(`${scope}beads/explicit`))),
+        () => undefined,
+      ).identity,
+    ).toBe(
+      normalizeTransaction(prepareTransaction(scope, JSON.stringify(direct)), () => undefined)
+        .identity,
+    );
   });
   it("refuses unsupported/malformed batches before admission and preserves principal separation", () => {
     const f = fixture();
@@ -922,7 +932,9 @@ describe("private atomic transaction owner", () => {
             ],
           }),
         );
-        expect(singleton.identity).toBe(oneBatch.identity);
+        expect(normalizeTransaction(singleton, () => undefined).identity).toBe(
+          normalizeTransaction(oneBatch, () => undefined).identity,
+        );
         const first = firstCarrier === "singleton" ? singleton : oneBatch,
           retry = firstCarrier === "singleton" ? oneBatch : singleton;
         const admission = f.store.admit("principal", "cross", first);
@@ -1007,7 +1019,9 @@ describe("private atomic transaction owner", () => {
           const secondCarrier = firstCarrier === "singleton" ? "batch" : "singleton";
           const first = prepare(firstCarrier, firstContext);
           const retry = prepare(secondCarrier, firstContext === "omitted" ? "empty" : "omitted");
-          expect(first.identity).toBe(retry.identity);
+          expect(normalizeTransaction(first, () => undefined).identity).toBe(
+            normalizeTransaction(retry, () => undefined).identity,
+          );
           const admitted = f.store.admit("principal", "context-default", first);
           if (admitted.kind !== "owned") throw new Error("expected owner");
           expect(f.store.admit("principal", "context-default", retry)).toEqual({
@@ -1529,36 +1543,6 @@ describe("private atomic transaction owner", () => {
       inspect.close();
     }
   });
-  it("refuses unresolved Resource alias operands before admission while preserving ordinary data strings", () => {
-    const f = fixture();
-    for (const operand of [
-      "alias/work",
-      `${scope}alias/work`,
-      { uri: "alias/work", revision: "r1" },
-    ]) {
-      for (const [operation, input] of [
-        ["createLink", { type: link, source: operand, target: "beads/a" }],
-        ["createLink", { type: link, source: "beads/a", target: operand }],
-        ["updateBead", { bead: operand, propertiesChange: [{ op: "add", path: "/x", value: 1 }] }],
-        ["deleteBead", { bead: operand }],
-      ] as const) {
-        if (typeof operand !== "string" && operation !== "createLink") continue;
-        expect(() => prepareTransactionSingleton(scope, operation, JSON.stringify(input))).toThrow(
-          "durable witnesses",
-        );
-        expect(() =>
-          prepareTransaction(scope, JSON.stringify({ operations: [{ operation, ...input }] })),
-        ).toThrow("durable witnesses");
-      }
-    }
-    const receipt = execute(
-      f.store,
-      [{ operation: "createBead", type: bead, properties: { uri: "alias/work" } }],
-      "data",
-    );
-    expect(receipt.status).toBe("completed");
-    expect(f.store.inspect().resources).toHaveLength(1);
-  });
   it("keeps alias locator state when its target is deleted without treating aliases as Resource incidences", () => {
     const f = fixture();
     execute(f.store, [{ operation: "createBead", id: "beads/a", type: bead }], "seed-alias");
@@ -1584,4 +1568,471 @@ describe("private atomic transaction owner", () => {
       ),
     ).toEqual({ kind: "existing", receipt: original });
   });
+  function witnessFixture(extra: Partial<Parameters<typeof openTransactionStore>[0]> = {}) {
+    const f = fixture(extra);
+    execute(
+      f.store,
+      [
+        { operation: "createBead", type: bead, id: "beads/a", properties: { n: 0 } },
+        { operation: "createBead", type: bead, id: "beads/b", properties: { n: 0 } },
+      ],
+      "witness-seed",
+    );
+    return f;
+  }
+  function singleton(operation: Parameters<typeof prepareTransactionSingleton>[1], input: unknown) {
+    return prepareTransactionSingleton(scope, operation, JSON.stringify(input));
+  }
+  function owned(
+    store: ReturnType<typeof openTransactionStore>,
+    request: ReturnType<typeof prepareTransaction>,
+    key: string,
+  ) {
+    const admission = store.admit("principal", key, request);
+    if (admission.kind !== "owned") throw new Error("expected owned witness admission");
+    return admission.claim;
+  }
+  function savedKey(f: ReturnType<typeof fixture>, key: string) {
+    f.store.close();
+    const raw = new DatabaseSync(f.options.file, { readOnly: true });
+    try {
+      const row = raw
+        .prepare("SELECT * FROM receipts WHERE principal='principal' AND key=?")
+        .get(key);
+      if (!row) throw new Error("missing durable witness row");
+      return row;
+    } finally {
+      raw.close();
+      f.reopen();
+    }
+  }
+  it("captures an admitted alias target for execution and pending/replayed singleton-batch comparison", () => {
+    const f = witnessFixture();
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    const input = {
+      bead: "alias/work",
+      propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
+    };
+    const request = singleton("updateBead", input);
+    const claim = owned(f.store, request, "mutate");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/b" }, "repoint");
+    const retry = prepareTransaction(
+      scope,
+      JSON.stringify({
+        operations: [{ operation: "updateBead", ...input, bead: `${scope}alias/work` }],
+      }),
+    );
+    expect(f.store.admit("principal", "mutate", retry)).toEqual({
+      kind: "existing",
+      receipt: claim.receipt,
+    });
+    expect(
+      f.store.admit("principal", "mutate", singleton("updateBead", { ...input, bead: "beads/a" })),
+    ).toEqual({ kind: "existing", receipt: claim.receipt });
+    expect(
+      f.store.admit("principal", "mutate", singleton("updateBead", { ...input, bead: "beads/b" })),
+    ).toEqual({ kind: "conflict" });
+    const receipt = f.store.execute(claim);
+    expect(receipt).toMatchObject({
+      status: "completed",
+      results: [{ resource: { id: `${scope}beads/a`, properties: { n: 1 } } }],
+    });
+    expect(latestGroup(f.store).changes.map((c) => c.resource.id)).toEqual([`${scope}beads/a`]);
+    expect(f.store.inspect().resources).toContainEqual(
+      expect.objectContaining({ id: `${scope}beads/b`, properties: { n: 0 } }),
+    );
+    aliasExecute(f.store, "deleteAlias", { alias: "alias/work" }, "delete");
+    expect(f.reopen().admit("principal", "mutate", retry)).toEqual({ kind: "existing", receipt });
+    expect(receiptSchema(receipt), JSON.stringify(receiptSchema.errors)).toBe(true);
+  });
+  it("reuses original locator witnesses across endpoint slots while preserving pinned revision identity", () => {
+    const f = witnessFixture();
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    const a = (f.store.inspect().resources as { id: string; revision: string }[]).find(
+      (r) => r.id === `${scope}beads/a`,
+    );
+    if (!a) throw new Error("missing target");
+    const input = {
+      type: link,
+      source: { uri: "alias/work", revision: a.revision },
+      target: { uri: "beads/a", revision: a.revision },
+    };
+    const request = prepareTransaction(
+      scope,
+      JSON.stringify({ operations: [{ operation: "createLink", name: "original", ...input }] }),
+    );
+    const claim = owned(f.store, request, "pins");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/b" }, "repoint");
+    const moved = singleton("createLink", {
+      ...input,
+      source: { uri: `${scope}beads/a`, revision: a.revision },
+      target: { uri: `${scope}alias/work`, revision: a.revision },
+    });
+    expect(f.store.admit("principal", "pins", moved)).toEqual({
+      kind: "existing",
+      receipt: claim.receipt,
+    });
+    const receipt = f.store.execute(claim);
+    expect(receipt).toMatchObject({
+      status: "completed",
+      results: [
+        {
+          operationName: "original",
+          resource: {
+            source: { uri: `${scope}beads/a`, revision: a.revision },
+            target: { uri: `${scope}beads/a`, revision: a.revision },
+          },
+        },
+      ],
+    });
+    expect(f.reopen().admit("principal", "pins", moved)).toEqual({ kind: "existing", receipt });
+    expect(
+      f.store.admit(
+        "principal",
+        "pins",
+        singleton("createLink", { ...input, target: { uri: "beads/a", revision: "different" } }),
+      ),
+    ).toEqual({ kind: "conflict" });
+    expect(groupSchema(f.store.inspect().groups.at(-1)), JSON.stringify(groupSchema.errors)).toBe(
+      true,
+    );
+  });
+  it("preserves a recorded miss after later assignment and distinguishes other misses and direct targets", () => {
+    let now = 1000;
+    const f = witnessFixture({ clock: () => now });
+    const input = { type: link, source: "alias/missing", target: "beads/a" };
+    const request = singleton("createLink", input);
+    const claim = owned(f.store, request, "miss");
+    aliasExecute(f.store, "putAlias", { alias: "alias/missing", target: "beads/a" }, "later-bind");
+    const receipt = f.store.execute(claim);
+    expect(receipt).toMatchObject({ status: "failed", problem: { code: "resource-not-found" } });
+    const saved = savedKey(f, "miss");
+    expect(JSON.parse(String(saved.witnesses)).operations[0].aliases).toEqual([
+      { locator: `${scope}alias/missing`, target: null },
+    ]);
+    expect(
+      f.store.admit(
+        "principal",
+        "miss",
+        prepareTransaction(
+          scope,
+          JSON.stringify({
+            operations: [{ operation: "createLink", ...input, source: `${scope}alias/missing` }],
+          }),
+        ),
+      ),
+    ).toEqual({ kind: "existing", receipt });
+    for (const source of ["alias/other-missing", "beads/a"])
+      expect(
+        f.store.admit("principal", "miss", singleton("createLink", { ...input, source })),
+      ).toEqual({ kind: "conflict" });
+    expect(f.store.inspect().resources).toHaveLength(2);
+    expect(savedKey(f, "miss")).toEqual(saved);
+    now = Date.parse(String(receipt.expiresAt)) + 1;
+    const fresh = owned(f.store, request, "miss");
+    expect(fresh.receipt.id).not.toBe(receipt.id);
+    expect(f.store.execute(fresh).status).toBe("completed");
+    expect(f.store.receipt("principal", receipt.id)).toBeUndefined();
+  });
+  it("uses fresh retry locators transiently and preserves original witnesses through detail expiry and restart", () => {
+    let now = 1000;
+    const f = witnessFixture({ clock: () => now });
+    aliasExecute(f.store, "putAlias", { alias: "alias/original", target: "beads/a" }, "original");
+    const input = {
+      bead: "alias/original",
+      propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
+    };
+    const request = singleton("updateBead", input);
+    const receipt = f.store.execute(owned(f.store, request, "retained"));
+    const saved = savedKey(f, "retained");
+    const retry = singleton("updateBead", { ...input, bead: "alias/new" });
+    expect(f.store.admit("principal", "retained", retry)).toEqual({ kind: "conflict" });
+    expect(savedKey(f, "retained")).toEqual(saved);
+    aliasExecute(f.store, "putAlias", { alias: "alias/new", target: "beads/a" }, "new-locator");
+    expect(f.store.admit("principal", "retained", retry)).toEqual({ kind: "existing", receipt });
+    expect(savedKey(f, "retained")).toEqual(saved);
+    aliasExecute(f.store, "putAlias", { alias: "alias/new", target: "beads/b" }, "new-repoint");
+    expect(f.store.admit("principal", "retained", retry)).toEqual({ kind: "conflict" });
+    aliasExecute(f.store, "deleteAlias", { alias: "alias/original" }, "old-delete");
+    now = Date.parse(String(receipt.expiresAt)) + 1;
+    f.store.maintain();
+    const expired = savedKey(f, "retained");
+    expect(expired.witnesses).toBe(saved.witnesses);
+    expect(expired.identity).toBe(saved.identity);
+    expect(JSON.parse(String(expired.receipt))).toMatchObject({
+      id: receipt.id,
+      detail: "expired",
+      allocated: [],
+    });
+    expect(f.store.admit("principal", "retained", request)).toMatchObject({
+      kind: "existing",
+      receipt: { id: receipt.id, detail: "expired" },
+    });
+    expect(
+      f.store.admit(
+        "principal",
+        "retained",
+        singleton("updateBead", { ...input, bead: `${scope}beads/a` }),
+      ),
+    ).toMatchObject({ kind: "existing", receipt: { id: receipt.id, detail: "expired" } });
+    expect(f.store.admit("principal", "retained", retry)).toEqual({ kind: "conflict" });
+  });
+  it("keeps each batch operation's original witnesses independent and preserves symbolic creator bindings", () => {
+    const f = witnessFixture();
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    const operations = [
+      { operation: "createBead", name: "new", type: bead },
+      { operation: "createLink", type: link, source: "@new", target: "alias/work" },
+      { operation: "createLink", type: link, source: "@new", target: "beads/a" },
+    ];
+    const request = prepareTransaction(scope, JSON.stringify({ operations }));
+    const receipt = f.store.execute(owned(f.store, request, "batch-witnesses"));
+    expect(receipt.status).toBe("completed");
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/b" }, "repoint");
+    const renamed = operations.map((op, index) =>
+      index === 0 ? { ...op, name: "renamed" } : { ...op, source: "@renamed" },
+    );
+    expect(
+      f.store.admit(
+        "principal",
+        "batch-witnesses",
+        prepareTransaction(scope, JSON.stringify({ operations: renamed })),
+      ),
+    ).toEqual({ kind: "existing", receipt });
+    const moved = renamed.map((op, index) =>
+      index === 1
+        ? { ...op, target: "beads/a" }
+        : index === 2
+          ? { ...op, target: "alias/work" }
+          : op,
+    );
+    expect(
+      f.store.admit(
+        "principal",
+        "batch-witnesses",
+        prepareTransaction(scope, JSON.stringify({ operations: moved })),
+      ),
+    ).toEqual({ kind: "conflict" });
+    const data = JSON.parse(String(savedKey(f, "batch-witnesses").witnesses));
+    expect(data.operations.map((op: { aliases: unknown[] }) => op.aliases.length)).toEqual([
+      0, 1, 0,
+    ]);
+  });
+  it("rolls back earlier batch effects after an admitted missing alias later becomes bound", () => {
+    const f = witnessFixture();
+    const operations = [
+      { operation: "createBead", name: "new", type: bead },
+      { operation: "createLink", type: link, source: "@new", target: "alias/later" },
+    ];
+    const request = prepareTransaction(scope, JSON.stringify({ operations }));
+    const claim = owned(f.store, request, "rollback-witness");
+    aliasExecute(f.store, "putAlias", { alias: "alias/later", target: "beads/a" }, "bind");
+    const before = f.store.inspect();
+    const receipt = f.store.execute(claim);
+    expect(receipt).toMatchObject({
+      status: "failed",
+      problem: { operationIndex: 1, code: "resource-not-found" },
+    });
+    expect(f.store.inspect()).toEqual(before);
+    expect(f.reopen().admit("principal", "rollback-witness", request)).toEqual({
+      kind: "existing",
+      receipt,
+    });
+  });
+  it("keeps alias mutation targets and Link subjects out of Resource alias resolution", () => {
+    const f = witnessFixture();
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    const put = aliasExecute(
+      f.store,
+      "putAlias",
+      { alias: "alias/other", target: "alias/work" },
+      "invalid-alias-target",
+    );
+    expect(put).toMatchObject({ status: "failed", problem: { code: "validation-failed" } });
+    const linkRequest = singleton("deleteLink", { link: "alias/work" });
+    const linkReceipt = f.store.execute(owned(f.store, linkRequest, "invalid-link-subject"));
+    expect(linkReceipt).toMatchObject({
+      status: "failed",
+      problem: { code: "resource-not-found" },
+    });
+    expect(
+      JSON.parse(String(savedKey(f, "invalid-alias-target").witnesses)).operations[0].aliases,
+    ).toEqual([]);
+    expect(
+      JSON.parse(String(savedKey(f, "invalid-link-subject").witnesses)).operations[0].aliases,
+    ).toEqual([]);
+  });
+  it("refuses the preceding alias format byte-identically before expired receipt maintenance or pending retraction", () => {
+    let now = 1000;
+    const f = witnessFixture({ clock: () => now });
+    const pending = owned(f.store, singleton("deleteBead", { bead: "beads/a" }), "pending");
+    f.store.close();
+    const raw = new DatabaseSync(f.options.file);
+    try {
+      const config = JSON.parse(
+        String(raw.prepare("SELECT value FROM metadata WHERE name='configuration'").get()?.value),
+      );
+      config.format = "bdp-private-transaction-alias-2";
+      config.identityPolicy = "transaction-context-default-1";
+      raw
+        .prepare("UPDATE metadata SET value=? WHERE name='configuration'")
+        .run(JSON.stringify(config));
+      raw.exec("ALTER TABLE receipts DROP COLUMN witnesses");
+    } finally {
+      raw.close();
+    }
+    now += 2 * 86400000;
+    const before = readFileSync(f.options.file);
+    expect(() => f.reopen()).toThrow("identity policy mismatch");
+    expect(readFileSync(f.options.file)).toEqual(before);
+    const verify = new DatabaseSync(f.options.file, { readOnly: true });
+    try {
+      expect(
+        JSON.parse(
+          String(verify.prepare("SELECT receipt FROM receipts WHERE key='pending'").get()?.receipt),
+        ),
+      ).toEqual(pending.receipt);
+    } finally {
+      verify.close();
+    }
+  });
+  it("deletes through an admitted alias with canonical tombstones and keeps replay equal after target deletion", () => {
+    const f = witnessFixture();
+    execute(
+      f.store,
+      [
+        {
+          operation: "createLink",
+          type: link,
+          id: "links/self",
+          source: "beads/a",
+          target: "beads/a",
+        },
+      ],
+      "self",
+    );
+    aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+    const deletion = (subject: string) =>
+      prepareTransaction(
+        scope,
+        JSON.stringify({
+          operations: [
+            { operation: "deleteLink", link: "links/self" },
+            { operation: "deleteBead", bead: subject },
+          ],
+        }),
+      );
+    const request = deletion("alias/work");
+    const receipt = f.store.execute(owned(f.store, request, "delete-through-alias"));
+    expect(receipt.status).toBe("completed");
+    expect(latestGroup(f.store).changes.map((c) => c.resource.id)).toEqual([
+      `${scope}links/self`,
+      `${scope}beads/a`,
+    ]);
+    expect(f.store.aliasTarget("work")).toBe(`${scope}beads/a`);
+    expect(f.reopen().admit("principal", "delete-through-alias", request)).toEqual({
+      kind: "existing",
+      receipt,
+    });
+    expect(f.store.admit("principal", "delete-through-alias", deletion("beads/a"))).toEqual({
+      kind: "existing",
+      receipt,
+    });
+    expect(groupSchema(f.store.inspect().groups.at(-1)), JSON.stringify(groupSchema.errors)).toBe(
+      true,
+    );
+  });
+  for (const stage of ["after-admission", "after-terminal", "committed"] as const)
+    it(`recovers Resource alias witnesses after abrupt ${stage} without resuming stale admission`, () => {
+      const f = witnessFixture();
+      aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+      f.store.close();
+      const moduleUrl = new URL("../dist/transaction-store.js", import.meta.url).href;
+      const batchUrl = new URL("../dist/transaction-batch.js", import.meta.url).href;
+      const input = {
+        bead: "alias/work",
+        propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
+      };
+      const script = `import {writeSync} from 'node:fs'; import {openTransactionStore} from ${JSON.stringify(moduleUrl)}; import {prepareTransactionSingleton} from ${JSON.stringify(batchUrl)}; const s=openTransactionStore({...${JSON.stringify(f.options)}, create:false, fault(stage){if(stage===${JSON.stringify(stage)})process.exit(79)}}); const a=s.admit('principal','crashed-witness',prepareTransactionSingleton(${JSON.stringify(scope)},'updateBead',${JSON.stringify(JSON.stringify(input))}));if(a.kind!=='owned')process.exit(80);writeSync(1,JSON.stringify(s.execute(a.claim)));process.exit(79);`;
+      const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+        timeout: 15000,
+        encoding: "utf8",
+      });
+      expect(child.status, child.stderr).toBe(79);
+      const raw = new DatabaseSync(f.options.file, { readOnly: true });
+      try {
+        const row = raw.prepare("SELECT witnesses FROM receipts WHERE key='crashed-witness'").get();
+        expect(JSON.parse(String(row?.witnesses)).operations[0].aliases).toEqual([
+          { locator: `${scope}alias/work`, target: `${scope}beads/a` },
+        ]);
+      } finally {
+        raw.close();
+      }
+      const recovered = f.reopen();
+      expect(recovered.recoveredPending).toBe(stage === "committed" ? 0 : 1);
+      aliasExecute(
+        recovered,
+        "putAlias",
+        { alias: "alias/work", target: "beads/b" },
+        "repoint-after-crash",
+      );
+      const retry = recovered.admit("principal", "crashed-witness", singleton("updateBead", input));
+      if (stage === "committed")
+        expect(retry).toEqual({ kind: "existing", receipt: JSON.parse(child.stdout) });
+      else {
+        if (retry.kind !== "owned") throw new Error("expected fresh captured admission");
+        expect(recovered.execute(retry.claim)).toMatchObject({
+          status: "completed",
+          results: [{ resource: { id: `${scope}beads/b` } }],
+        });
+      }
+      const resources = recovered.inspect().resources as {
+        id: string;
+        properties: { n: number };
+      }[];
+      expect(resources.find((r) => r.id === `${scope}beads/a`)?.properties.n).toBe(
+        stage === "committed" ? 1 : 0,
+      );
+      expect(resources.find((r) => r.id === `${scope}beads/b`)?.properties.n).toBe(
+        stage === "committed" ? 0 : 1,
+      );
+      expect(recovered.inspect().groups).toHaveLength(2);
+    });
+  for (const corruption of ["duplicate", "foreign-scope", "wrong-target-root", "version"] as const)
+    it(`refuses ${corruption} persisted witnesses as an owner fault without rewriting the original disposition`, () => {
+      const f = witnessFixture();
+      aliasExecute(f.store, "putAlias", { alias: "alias/work", target: "beads/a" }, "put");
+      const request = singleton("createLink", {
+        type: link,
+        source: "alias/work",
+        target: "beads/a",
+      });
+      const receipt = f.store.execute(owned(f.store, request, "corrupt"));
+      f.store.close();
+      const raw = new DatabaseSync(f.options.file);
+      let corruptRow: Record<string, import("node:sqlite").SQLOutputValue> | undefined;
+      try {
+        const data = JSON.parse(
+          String(
+            raw.prepare("SELECT witnesses FROM receipts WHERE key='corrupt'").get()?.witnesses,
+          ),
+        );
+        if (corruption === "duplicate")
+          data.operations[0].aliases.push({ ...data.operations[0].aliases[0] });
+        if (corruption === "foreign-scope") data.scope = "https://other.test/";
+        if (corruption === "wrong-target-root")
+          data.operations[0].aliases[0].target = `${scope}links/a`;
+        if (corruption === "version") data.format = "future";
+        raw
+          .prepare("UPDATE receipts SET witnesses=? WHERE key='corrupt'")
+          .run(JSON.stringify(data));
+        corruptRow = raw.prepare("SELECT * FROM receipts WHERE key='corrupt'").get();
+      } finally {
+        raw.close();
+      }
+      f.reopen();
+      expect(() => f.store.admit("principal", "corrupt", request)).toThrow();
+      expect(f.store.receipt("principal", receipt.id)).toEqual(receipt);
+      expect(savedKey(f, "corrupt")).toEqual(corruptRow);
+    });
 });

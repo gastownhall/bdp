@@ -25,8 +25,10 @@ is fixed all-visible/all-writable. The principal argument selects the receipt/ke
 namespace; it is supplied by a trusted caller and is **not authentication**.
 There is no policy configuration or grant change support in this composition.
 
-Admission commits the key, exact normalized semantic identity, pending receipt,
-transaction identity and execution owner together. A proven equal pending
+Preparation performs syntax and Scope checks without resolving aliases. Admission
+normalizes inside the authority database transaction, then commits the key, exact
+semantic identity, original alias witnesses, pending receipt, transaction identity
+and execution owner together. A proven equal pending
 request receives that same pending receipt; a different request conflicts.
 Batch identity preserves operation order and exact numeric equality, excludes
 label spelling, expands empty properties/metadata defaults and canonicalizes
@@ -72,13 +74,13 @@ canonical schema bundle.
 
 The store is explicitly provisioned at a new absolute file path. Reopen verifies
 its format, canonical Scope, exact installed Type configuration and identity
-normalization policy. Files created before the empty-context normalization policy
-was recorded, or carrying another policy, are refused with an explicit identity-policy
-diagnostic before pending recovery or receipt maintenance. This deliberately changes
-the private identity-policy fingerprint. Alias-aware stores additionally use
-format `bdp-private-transaction-alias-2`, with a locator table. Earlier private
-formats are refused before recovery or maintenance; an older Resource-only owner
-must not write a database while ignoring alias/Bead path uniqueness.
+normalization policy. The current format is
+`bdp-private-transaction-alias-witnesses-3`, with an alias locator table and a
+witness column beside each receipt. The identity policy is
+`transaction-context-and-alias-witnesses-2`. Missing or mismatched policies and
+earlier formats are refused before pending recovery or receipt maintenance.
+This prevents an older owner from silently ignoring alias path uniqueness or
+reinterpreting retained identities without their original alias witnesses.
 There is no migration, in-place upgrade or reseed: new disposable stores require
 explicit provisioning at a new path. Old retained outcomes and pending owners are
 never reinterpreted or removed by a refused open. The Scope epoch persists
@@ -109,15 +111,45 @@ write checks under the fixed private policy. Deleting a Bead does not delete its
 aliases or treat them as Link incidences. A subsequent operation whose current
 alias target is missing fails `resource-not-found`, as in the reused evaluator.
 
-This is **not full alias support**: Resource mutation operands using an in-Scope
-alias locator are explicitly refused during preparation, before any key lookup
-or admission. Correct retry equality requires durable original locator-to-target
-or missing-target witnesses, including in expired dispositions. That witness
-layer is not implemented here; the owner must not resolve Resource aliases only
-at execution and mistake changed locator state for an equivalent retry. Canonical
-Resource operands remain supported. Alias operations remain forbidden in batches,
-as required by the normative contract. There are no HTTP alias routes, redirects,
-replica alias projections or new profile claims.
+## Resource alias witnesses
+
+Resource aliases are supported for Bead update/delete subjects and Link creation
+endpoints, including pinned endpoints. Each operation durably records its
+original canonical alias locators and their canonical Bead targets or misses.
+The map is per operation, following the specification's sequence of operation
+identities; it is not shared across all operations in a batch. Within one
+operation, an original locator keeps its captured meaning across reference slots
+and equivalent local/canonical spellings.
+
+Alias resolution and durable admission share one database transaction. Execution
+uses the admitted targets and an overlay for captured misses, so repointing,
+deleting or assigning an alias before execution changes neither its admitted
+identity nor the Resource it addresses. Numeric admission, Resource existence,
+revision guards and Type checks still run at execution against staged Resource
+state. The existing Resource evaluator and the Read+Update capture/overlay
+pattern are reused without adopting Read+Update's key-state machine. Batch-local
+creator references remain symbolic operation indices or supplied canonical IDs;
+they are never replaced with provisional allocated identities.
+
+Retry comparison first consults the original operation's locator map. An
+original miss stays unresolved even if that alias has since been assigned;
+distinct missing locators remain distinct. Direct canonical references compare
+with the recorded target. A previously unseen retry locator resolves through the
+current alias table, without a Resource visibility lookup, solely for comparison.
+That transient witness is never added to the original metadata: a later retry
+resolves it again. Pins retain their original revision value. Alias mutation
+subjects/targets and Link subjects do not acquire Bead-alias resolution.
+
+Witness metadata commits with pending admission and remains unchanged beside
+available or expired completed receipts. Failed-key forgetting and pending
+retraction remove its row. Startup never resumes an old captured execution: a
+fresh admission after retraction captures current locator state. Malformed
+persisted witnesses are owner faults, not ordinary missing aliases or key
+conflicts. These are internal metadata, not new receipt or wire fields.
+
+Alias operations remain forbidden in batches, as required by the normative
+contract. There are no HTTP alias routes, redirects, replica alias projections,
+sequence routes or new profile claims.
 
 ## Receipt retention in a live owner
 
@@ -152,7 +184,7 @@ Retention adds no separate schema change or migration.
 
 ## Observed verification
 
-The bounded six-file suite exercises 464 tests, including 68 atomic-owner
+The bounded six-file suite exercises 479 tests, including 83 atomic-owner
 cases, Resource and alias evaluation, semantic identity, Transactional wire/schema
 fixtures and the Transactional catalog. Build, typecheck, dependency boundaries,
 formatting and installed-package smoke pass. Lint completes with the existing
@@ -205,8 +237,15 @@ three warnings and one informational finding. Observations cover:
   forgetting; live fault rollback and abrupt process-exit recovery before/after
   commit, with unchanged graph groups and positions.
 - Bead/alias path uniqueness, deleted-Bead reservation and independent Link
-  identity; refused earlier private formats without pending retraction;
-  explicit pre-admission refusal of Resource alias operands.
+  identity; refused earlier private formats without pending retraction.
+- Durable original Resource-alias targets and misses, canonical/singleton/batch
+  equivalence, endpoint-slot changes, pins and symbolic batch creator indices.
+- Transient new retry locators before/after assignment and repoint, unchanged
+  original metadata through replay and expiry, and per-operation map isolation.
+- Captured-miss late failure with full graph rollback, canonical alias deletion
+  tombstones, persisted-witness validation and abrupt Resource-alias execution
+  recovery before/after commit. Earlier alias stores are refused byte-identically
+  before pending retraction or expiry maintenance.
 - Abrupt child-process exit after commit. Reopen returns the exact original
   terminal receipt/IDs and continues the Scope's ordered group chain.
 
@@ -225,14 +264,12 @@ existing receiver.
 
 All eight singleton preparation paths already use batch's owner and
 receipt/key namespace. Before any Transactional HTTP integration, extend that
-same owner with durable Resource-alias witnesses and sequence routes, including
-unresolved sequence dependencies. They must not keep writing through a parallel
+same owner with sequence routes, including unresolved sequence dependencies. They must not keep writing through a parallel
 Read+Update owner. A migration or explicit new-Scope provisioning path, startup
 qualification and unified read authority must accompany that integration.
 
-Remaining requirements include set operations; owned-Link transitions; Resource
-alias resolution with durable retry witnesses; sequence carriers with unresolved
-dependent admission; authorization projection and reauthorized receipt disclosure
+Remaining requirements include set operations; owned-Link transitions; sequence
+carriers with unresolved dependent admission; authorization projection and reauthorized receipt disclosure
 and pagination; Event Sources, changefeed, snapshots and erasure;
 duration/recovery bounds under operational failure; complete native schemas,
 aggregate policies and limits; HTTP reception/status/conditional behavior; and
