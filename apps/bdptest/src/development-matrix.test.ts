@@ -63,6 +63,13 @@ function developmentActions(
       execution.scope,
     ).href;
     if (!target.startsWith(execution.scope)) throw new Error("action target escaped the Scope");
+    if (
+      input.resolveAlias === true &&
+      (input.method !== "GET" || !target.startsWith(`${execution.scope}alias/`))
+    )
+      throw new Error("alias observation requires GET at the current Scope's alias root");
+    const get = input.resolveAlias === true ? transport.resolveAlias : transport.get;
+    if (get === undefined) throw new Error("transport lacks alias resolution");
     const body = structuredClone(record(second ? input.secondBody : (input.body ?? {})));
     if (input.referenceBindings !== undefined)
       for (const [field, binding] of Object.entries(record(input.referenceBindings)))
@@ -82,7 +89,7 @@ function developmentActions(
     const key = input.key === undefined ? undefined : string(input.key);
     const response =
       input.method === "GET"
-        ? await transport.get(target, { signal: execution.signal })
+        ? await get(target, { signal: execution.signal })
         : input.method === "POST"
           ? await transport.post(target, {
               bodyText: JSON.stringify(body),
@@ -108,7 +115,13 @@ function developmentActions(
         ? {}
         : {
             identity: {
-              canonical: new URL(identity).href === identity,
+              urlSerializationStable: new URL(identity).href === identity,
+              ...(input.excludedIdentity === undefined
+                ? {}
+                : {
+                    differsFromExcludedIdentity:
+                      identity !== new URL(string(input.excludedIdentity), execution.scope).href,
+                  }),
               inScope: identity.startsWith(execution.scope),
               root: segments[0],
               childSegments: segments.length - 1,
@@ -255,6 +268,25 @@ describe("DEVELOPMENT ONLY: non-attesting Read+Update contract observations", ()
         token,
       ),
     ).rejects.toThrow("fixed development credential");
+  });
+
+  it("bounds alias setup observations to GET within the fixture alias root", async () => {
+    const execute = developmentActions(createDevelopmentProcessActions(token));
+    for (const input of [
+      { method: "GET", target: "beads/a", resolveAlias: true },
+      { method: "POST", target: "alias/a", resolveAlias: true },
+      { method: "GET", target: "https://example.invalid/alias/a", resolveAlias: true },
+    ])
+      await expect(
+        execute({
+          family: "client",
+          operation: "development.request",
+          scope: "http://127.0.0.1:1/",
+          bindings: {},
+          signal: new AbortController().signal,
+          input,
+        }),
+      ).rejects.toThrow(/current Scope's alias root|escaped the Scope/);
   });
 
   it("cleans up the parked child when the runner rejects its first observation", async () => {

@@ -6738,7 +6738,8 @@
               }
             },
             "key": "allocate",
-            "observeIdentity": true
+            "observeIdentity": true,
+            "excludedIdentity": "beads/reserved"
           },
           "captures": [
             {
@@ -6765,9 +6766,16 @@
               "equals": "created"
             },
             {
-              "id": "canonical",
+              "id": "url-serialization-stable",
               "kind": "json-pointer",
-              "pointer": "/identity/canonical",
+              "pointer": "/identity/urlSerializationStable",
+              "exists": true,
+              "equals": true
+            },
+            {
+              "id": "differs-from-reserved-alias",
+              "kind": "json-pointer",
+              "pointer": "/identity/differsFromExcludedIdentity",
               "exists": true,
               "equals": true
             },
@@ -7960,6 +7968,40 @@
           ]
         },
         {
+          "id": "repoint-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/old",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 307
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "no-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
+            }
+          ]
+        },
+        {
           "id": "recorded-after-repoint",
           "family": "client",
           "operation": "development.request",
@@ -8078,6 +8120,33 @@
               "pointer": "/status",
               "exists": true,
               "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "delete-original-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/old",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
             }
           ]
         },
@@ -8228,6 +8297,40 @@
           ]
         },
         {
+          "id": "fresh-repoint-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/fresh",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 307
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "no-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
+            }
+          ]
+        },
+        {
           "id": "new-locator-rechecked",
           "family": "client",
           "operation": "development.request",
@@ -8280,6 +8383,33 @@
               "pointer": "/status",
               "exists": true,
               "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "delete-fresh-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/fresh",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
             }
           ]
         },
@@ -8337,6 +8467,40 @@
               "pointer": "/status",
               "exists": true,
               "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "fresh-restored-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/fresh",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 307
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "no-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
             }
           ]
         },
@@ -8460,6 +8624,40 @@
               "pointer": "/status",
               "exists": true,
               "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "original-reassigned-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/old",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 307
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "no-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
             }
           ]
         },
@@ -8738,6 +8936,40 @@
           ]
         },
         {
+          "id": "assign-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/missing",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 307
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": true,
+              "equals": "beads/a",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "no-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
+            }
+          ]
+        },
+        {
           "id": "recorded-miss",
           "family": "client",
           "operation": "development.request",
@@ -8882,6 +9114,33 @@
           ]
         },
         {
+          "id": "unassign-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/missing",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
           "id": "deleted-still-miss",
           "family": "client",
           "operation": "development.request",
@@ -8932,6 +9191,40 @@
               "pointer": "/status",
               "exists": true,
               "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "reassign-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/missing",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 307
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "no-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
             }
           ]
         },
@@ -9214,6 +9507,40 @@
           ]
         },
         {
+          "id": "repoint-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/old",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 307
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/headers/location",
+              "exists": true,
+              "equals": "beads/b",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "no-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": false
+            }
+          ]
+        },
+        {
           "id": "retry-recorded",
           "family": "client",
           "operation": "development.request",
@@ -9297,6 +9624,33 @@
               "pointer": "/status",
               "exists": true,
               "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "delete-alias-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/old",
+            "resolveAlias": true
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "missing",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
             }
           ]
         },

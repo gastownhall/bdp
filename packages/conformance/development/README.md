@@ -5,7 +5,7 @@ assertions in the existing conformance runner. It is **development-only and
 non-attesting**. It does not make the normative Read+Update catalog executable,
 admit a public write profile, or certify an implementation.
 
-The manifest contains 25 diagnostic scenarios and 253 HTTP/lifecycle actions. The
+The manifest contains 25 diagnostic scenarios and 264 HTTP/lifecycle actions. The
 receiver runs against a fresh disposable SQLite store for each scenario. The
 executor uses the actual Read+Update SDK Fetch transport or the existing raw
 HTTP executor and returns observed status, headers and body. The shared runner evaluates the assertions, captures
@@ -114,10 +114,12 @@ the associated inventory rows.
 ## Alias and pinned-reference observations
 
 Six SDK plans extend allocation, alias validation and retained-reference cases.
-Allocation returns an in-Scope canonical Bead identity with one nonempty child
-segment, permits read-back of the submitted properties, and leaves an existing
-alias usable. Explicit creation at that alias path fails. This does **not** force
-the private allocator's next candidate to collide: deterministic collision
+Allocation returns an in-Scope Bead identity with one nonempty child segment
+that differs from the live reserved alias segment in this single observation.
+The identity is stable under URL serialization; the independent BDP canonical
+segment grammar is not checked here. Read-back observes the submitted properties
+and the existing alias remains usable. Explicit creation at that alias path fails.
+This does **not** force the private allocator's next candidate to collide: deterministic collision
 skipping remains an unqualified obligation on the allocation row.
 
 Alias puts reject alias, Link and external targets with a diagnostic. Unknown
@@ -132,6 +134,12 @@ reference slot. A fresh locator resolves again on each retry: repointing or
 deleting it conflicts, while restoring the original target succeeds. Recorded
 misses remain misses after assignment without deleting newly reachable Beads;
 unrecorded misses and canonical references conflict with the recorded miss.
+
+Eleven immediate alias reads establish the live target or absence after setup
+mutations, before retained-replay assertions. The SDK resolves aliases with
+redirects disabled: live observations require 307 with the canonical Location
+and no body, while deleted aliases require resource-not-found. HTTP 200 from
+the preceding mutation alone is not treated as proof of its resulting state.
 
 Pinned endpoints preserve opaque revision strings while canonicalizing the local
 alias reference. Equivalent canonical references replay; changed pin bytes,
