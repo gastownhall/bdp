@@ -64,7 +64,8 @@ import {
   ReadPaginationError,
   type ReadPaginationOptions,
 } from "./read-pagination.js";
-import { applyReadHttpSemantics } from "./read-http.js";
+import { applyReadHttpSemantics, resourceRevisionEtag } from "./read-http.js";
+import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import {
   ReadSelectorError,
   type ReadSelectorLimits,
@@ -234,9 +235,6 @@ interface NodeHttpRequestOptions {
   readonly signal?: AbortSignal;
   readonly headers?: Headers;
 }
-
-const RAW_AUTHORITY_REG_NAME = /^(?:[A-Za-z0-9._~!$&'()*+,;=-]|%[0-9A-Fa-f]{2})+$/;
-const RAW_AUTHORITY_IP_LITERAL = /^(?:[A-Za-z0-9._~!$&'()*+,;=:-]|%[0-9A-Fa-f]{2})+$/;
 
 interface NodeHttpDisconnectSource {
   once(event: "aborted", listener: () => void): unknown;
@@ -441,55 +439,6 @@ function nodeRequestHeaders(rawHeaders: readonly string[]): Headers {
     if (name !== undefined && value !== undefined) headers.append(name, value);
   }
   return headers;
-}
-
-function normalizationSafeRawRequestPath(target: string): string | undefined {
-  if (target.includes("#")) return undefined;
-  const queryIndex = target.indexOf("?");
-  const withoutQuery = queryIndex === -1 ? target : target.slice(0, queryIndex);
-  const search = queryIndex === -1 ? "" : target.slice(queryIndex);
-  const schemeAuthority = /^https?:\/\//i.exec(withoutQuery);
-  if (!withoutQuery.startsWith("/") && schemeAuthority === null) return undefined;
-  const authorityStart =
-    schemeAuthority !== null
-      ? schemeAuthority[0].length
-      : withoutQuery.startsWith("//")
-        ? 2
-        : undefined;
-  const pathStart =
-    authorityStart === undefined ? 0 : Math.max(withoutQuery.indexOf("/", authorityStart), 0);
-  if (authorityStart !== undefined) {
-    const authorityEnd = pathStart === 0 ? withoutQuery.length : pathStart;
-    const authority = withoutQuery.slice(authorityStart, authorityEnd);
-    if (!isNormalizationSafeRawAuthority(authority)) return undefined;
-  }
-  const pathname =
-    pathStart === 0 && authorityStart !== undefined ? "/" : withoutQuery.slice(pathStart);
-  if (target.includes("\\") || /%5c/i.test(pathname)) return undefined;
-  if (!pathname.split("/").every((segment) => ![".", ".."].includes(segment.replace(/%2e/gi, "."))))
-    return undefined;
-  try {
-    const parsed = new URL(target, "http://request.invalid");
-    const pathAndQuery = `${pathname}${search}`;
-    return `${parsed.pathname}${parsed.search}` === pathAndQuery ? pathAndQuery : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function isNormalizationSafeRawAuthority(authority: string): boolean {
-  if (authority.length === 0 || authority.includes("@")) return false;
-  if (authority.startsWith("[")) {
-    const closingBracket = authority.indexOf("]");
-    if (closingBracket === -1) return false;
-    const literal = authority.slice(1, closingBracket);
-    const port = authority.slice(closingBracket + 1);
-    return RAW_AUTHORITY_IP_LITERAL.test(literal) && (port === "" || /^:[0-9]+$/.test(port));
-  }
-  const portSeparator = authority.lastIndexOf(":");
-  const host = portSeparator === -1 ? authority : authority.slice(0, portSeparator);
-  const port = portSeparator === -1 ? undefined : authority.slice(portSeparator + 1);
-  return RAW_AUTHORITY_REG_NAME.test(host) && (port === undefined || /^[0-9]+$/.test(port));
 }
 
 /** Propagates either Node-side disconnect signal into one Web AbortSignal. */
@@ -846,48 +795,6 @@ function scopeDataResponse(operation: ReadRequest, body: unknown): HttpResponse 
     response.headers.set("etag", resourceRevisionEtag(body.revision));
   }
   return response;
-}
-
-function resourceRevisionEtag(revision: string): string {
-  // RFC 9110 entity tags are quoted opaque byte sequences, not HTTP quoted-
-  // strings: a quote or control byte cannot be escaped inside the tag. BDP's
-  // ordinary ASCII revisions are emitted unchanged as shown in the spec. For
-  // revisions outside the entity-tag character profile, use an unambiguous
-  // base64url projection whose marker cannot collide with an unchanged tag.
-  const bytes = Buffer.from(revision, "utf8");
-  const unchanged =
-    bytes.length === revision.length &&
-    bytes.every((byte) => byte === 0x21 || (byte >= 0x23 && byte <= 0x7e));
-  let opaque: string;
-  if (unchanged && !revision.startsWith("bdp-b64_") && !revision.startsWith("bdp-u16_")) {
-    opaque = revision;
-  } else if (isWellFormedUnicode(revision)) {
-    opaque = `bdp-b64_${bytes.toString("base64url")}`;
-  } else {
-    // JavaScript can represent lone UTF-16 surrogates, for which UTF-8's
-    // replacement encoding is not injective. Preserve those otherwise-valid
-    // JSON strings with a separate code-unit projection.
-    const codeUnits = Buffer.allocUnsafe(revision.length * 2);
-    for (let index = 0; index < revision.length; index += 1) {
-      codeUnits.writeUInt16BE(revision.charCodeAt(index), index * 2);
-    }
-    opaque = `bdp-u16_${codeUnits.toString("base64url")}`;
-  }
-  return `"${opaque}"`;
-}
-
-function isWellFormedUnicode(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code >= 0xd800 && code <= 0xdbff) {
-      const following = value.charCodeAt(index + 1);
-      if (index + 1 >= value.length || following < 0xdc00 || following > 0xdfff) return false;
-      index += 1;
-    } else if (code >= 0xdc00 && code <= 0xdfff) {
-      return false;
-    }
-  }
-  return true;
 }
 
 function problemResponse(problem: ReadProblem): HttpResponse {

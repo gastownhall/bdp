@@ -2684,3 +2684,126 @@ describe("explicit runtime compatibility before authority transfer", () => {
     },
   );
 });
+
+describe("pre-admission mutation response negotiation", () => {
+  it("never claims an unknown key and preserves pending/retained comparison before refusal", async () => {
+    const f = fixture();
+    const owner = f.owner();
+    const carrier = prepareReadUpdateSingleton(
+      scope,
+      "createBead",
+      stringifyJsonValue({ id: "beads/negotiate", type }),
+      "negotiate",
+    );
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    expect(f.key("negotiate")).toEqual({ kind: "unknown" });
+    expect(f.store.read((r) => r.resource("beads/negotiate"))).toBeUndefined();
+    const pending = submit(owner, carrier);
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toMatchObject({
+      kind: "refused",
+      problem: { code: "idempotency-in-progress" },
+    });
+    f.queue.drain();
+    await pending;
+    const before = f.key("negotiate");
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    expect(f.key("negotiate")).toEqual(before);
+    const changed = prepareReadUpdateSingleton(
+      scope,
+      "createBead",
+      stringifyJsonValue({ id: "beads/negotiate", type, properties: { changed: true } }),
+      "negotiate",
+    );
+    expect(owner.submit(changed, principal, { acceptsJson: false })).toMatchObject({
+      kind: "refused",
+      problem: { code: "idempotency-conflict" },
+    });
+    expect(f.key("negotiate")).toEqual(before);
+  });
+
+  it("returns retained singleton failure before negotiation without renewing it", async () => {
+    const f = fixture();
+    const owner = f.owner();
+    const carrier = prepareReadUpdateSingleton(
+      scope,
+      "deleteBead",
+      stringifyJsonValue({ bead: "beads/missing" }),
+      "missing_negotiate",
+    );
+    const submitted = submit(owner, carrier);
+    f.queue.drain();
+    expect(await submitted).toMatchObject({
+      kind: "singleton",
+      disposition: { code: "resource-not-found" },
+    });
+    const before = f.key("missing_negotiate");
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toMatchObject({
+      kind: "refused",
+      problem: { code: "resource-not-found" },
+    });
+    expect(f.key("missing_negotiate")).toEqual(before);
+  });
+
+  it("compares retained creator witnesses without executing unknown sequence tails", async () => {
+    const f = fixture();
+    const owner = f.owner();
+    const carrier = sequence([
+      create("creator", { name: "a" }),
+      { operation: "putAlias", idempotencyKey: "bound_alias", alias: "alias/bound", target: "@a" },
+    ]);
+    const original = submit(owner, carrier);
+    f.queue.drain();
+    const completed = await original;
+    expect(completed.kind).toBe("sequence");
+    const before = [f.key("creator"), f.key("bound_alias")];
+    const retry = sequence([
+      create("creator", { name: "renamed" }),
+      {
+        operation: "putAlias",
+        idempotencyKey: "bound_alias",
+        alias: "alias/bound",
+        target: "@renamed",
+      },
+      create("unclaimed_tail"),
+    ]);
+    expect(owner.submit(retry, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    expect([f.key("creator"), f.key("bound_alias")]).toEqual(before);
+    expect(f.key("unclaimed_tail")).toEqual({ kind: "unknown" });
+    const conflicting = sequence([create("creator", { properties: { changed: true } })]);
+    expect(owner.submit(conflicting, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    // Sequence member conflict remains part of the success envelope, not a
+    // direct carrier Problem. An acceptable retry still exposes that conflict.
+    const conflict = submit(owner, conflicting);
+    f.queue.drain();
+    expect(await conflict).toMatchObject({
+      kind: "sequence",
+      response: { results: [{ code: "idempotency-conflict" }] },
+    });
+  });
+
+  it("leaves every unknown sequence key unclaimed and preserves carrier limit precedence", () => {
+    const f = fixture();
+    const owner = f.owner({ maximumSequenceOperations: 2 });
+    const carrier = sequence([
+      create("one", { name: "one" }),
+      { operation: "putAlias", idempotencyKey: "alias", alias: "alias/one", target: "@one" },
+    ]);
+    expect(owner.submit(carrier, principal, { acceptsJson: false })).toEqual({
+      kind: "not-acceptable",
+    });
+    expect(f.key("one")).toEqual({ kind: "unknown" });
+    expect(f.key("alias")).toEqual({ kind: "unknown" });
+    expect(owner.submit(five(), principal, { acceptsJson: false })).toMatchObject({
+      kind: "refused",
+      problem: { code: "limit-exceeded" },
+    });
+  });
+});

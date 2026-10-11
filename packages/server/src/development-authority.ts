@@ -177,18 +177,20 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
     const reads = lifecycle.readFor({ kind: "authenticated", principal });
     return Object.freeze({
       scope,
-      async mutate(operation: ReadUpdateOperation, text: string, key: string) {
+      async mutate(operation: ReadUpdateOperation, text: string, key: string, acceptsJson = true) {
         const carrier = prepareReadUpdateSingleton(scope, operation, text, key);
-        const submission = lifecycle.submit(carrier, principal);
+        const submission = lifecycle.submit(carrier, principal, { acceptsJson });
         if (submission.kind === "refused") return submission.problem;
+        if (submission.kind === "not-acceptable") return submission;
         const result = await submission.completion;
         if (result.kind !== "singleton") throw new Error("unexpected development completion");
         return result.disposition;
       },
-      async sequence(text: string) {
+      async sequence(text: string, acceptsJson = true) {
         const carrier = prepareReadUpdateSequence(scope, text);
-        const submission = lifecycle.submit(carrier, principal);
+        const submission = lifecycle.submit(carrier, principal, { acceptsJson });
         if (submission.kind === "refused") return submission.problem;
+        if (submission.kind === "not-acceptable") return submission;
         const result = await submission.completion;
         if (result.kind !== "sequence") throw new Error("unexpected development completion");
         return result.response;
@@ -197,7 +199,8 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
         if (url.pathname.startsWith("/alias/")) return reads.resolveAlias(url.href);
         const request = requestFromUrl(url, scope);
         if (isReadProblem(request)) return { kind: "problem" as const, problem: request };
-        return reads.perform(request);
+        const result = await reads.perform(request);
+        return result.kind === "success" ? { ...result, request } : result;
       },
       close: () => lifecycle.close(),
     });
