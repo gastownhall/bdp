@@ -978,6 +978,102 @@ describe("private atomic transaction owner", () => {
     expect(f.store.admit("principal", "failure", changed)).toEqual({ kind: "conflict" });
     expect(f.store.inspect().resources).toEqual([]);
   });
+  for (const operation of ["createBead", "updateBead"] as const)
+    for (const firstCarrier of ["singleton", "batch"] as const)
+      for (const firstContext of ["omitted", "empty"] as const)
+        it(`${operation} joins ${firstCarrier}-first ${firstContext} context with its equivalent default`, () => {
+          const f = fixture();
+          const input =
+            operation === "createBead"
+              ? { type: bead }
+              : {
+                  bead: seed(f.store).beadRecord.id,
+                  propertiesChange: [{ op: "add", path: "/changed", value: true }],
+                };
+          function prepare(
+            carrier: "singleton" | "batch",
+            context: "omitted" | "empty" | { agent: null } | { message: null },
+          ) {
+            const body = {
+              ...input,
+              ...(context === "omitted"
+                ? {}
+                : { changeContext: context === "empty" ? {} : context }),
+            };
+            return carrier === "singleton"
+              ? prepareTransactionSingleton(scope, operation, JSON.stringify(body))
+              : prepareTransaction(scope, JSON.stringify({ operations: [{ operation, ...body }] }));
+          }
+          const secondCarrier = firstCarrier === "singleton" ? "batch" : "singleton";
+          const first = prepare(firstCarrier, firstContext);
+          const retry = prepare(secondCarrier, firstContext === "omitted" ? "empty" : "omitted");
+          expect(first.identity).toBe(retry.identity);
+          const admitted = f.store.admit("principal", "context-default", first);
+          if (admitted.kind !== "owned") throw new Error("expected owner");
+          expect(f.store.admit("principal", "context-default", retry)).toEqual({
+            kind: "existing",
+            receipt: admitted.claim.receipt,
+          });
+          for (const context of [{ agent: null }, { message: null }] as const)
+            expect(
+              f.store.admit("principal", "context-default", prepare(secondCarrier, context)),
+            ).toEqual({ kind: "conflict" });
+          const completed = f.store.execute(admitted.claim);
+          expect(completed.status).toBe("completed");
+          const state = f.store.inspect();
+          expect(f.store.admit("principal", "context-default", retry)).toEqual({
+            kind: "existing",
+            receipt: completed,
+          });
+          expect(f.reopen().admit("principal", "context-default", retry)).toEqual({
+            kind: "existing",
+            receipt: completed,
+          });
+          expect(f.store.inspect()).toEqual(state);
+          for (const context of [{ agent: null }, { message: null }] as const)
+            expect(
+              f.store.admit("principal", "context-default", prepare(secondCarrier, context)),
+            ).toEqual({ kind: "conflict" });
+        });
+  for (const policy of [undefined, "unknown-policy"])
+    it(`refuses ${policy ?? "unversioned"} identity policy without altering retained outcomes or pending ownership`, () => {
+      let now = 1000;
+      const f = fixture({ clock: () => now });
+      const completed = execute(f.store, batch.operations, "completed");
+      const pending = admit(f.store, batch, "pending");
+      f.store.close();
+      const raw = new DatabaseSync(f.options.file);
+      let pendingRow;
+      try {
+        const row = raw.prepare("SELECT value FROM metadata WHERE name='configuration'").get();
+        const configuration = JSON.parse(String(row?.value));
+        if (policy === undefined) delete configuration.identityPolicy;
+        else configuration.identityPolicy = policy;
+        raw
+          .prepare("UPDATE metadata SET value=? WHERE name='configuration'")
+          .run(JSON.stringify(configuration));
+        pendingRow = raw.prepare("SELECT * FROM receipts WHERE key='pending'").get();
+      } finally {
+        raw.close();
+      }
+      now = Date.parse(String(completed.expiresAt)) + 1;
+      const before = readFileSync(f.options.file);
+      expect(() => openTransactionStore({ ...f.options, create: false })).toThrow(
+        "transaction identity policy mismatch; explicit new-store provisioning required",
+      );
+      expect(readFileSync(f.options.file)).toEqual(before);
+      const inspected = new DatabaseSync(f.options.file, { readOnly: true });
+      try {
+        expect(inspected.prepare("SELECT * FROM receipts WHERE key='pending'").get()).toEqual(
+          pendingRow,
+        );
+        expect(JSON.parse(String(pendingRow?.receipt)).id).toBe(pending.receipt.id);
+        const row = inspected.prepare("SELECT receipt FROM receipts WHERE key='completed'").get();
+        expect(JSON.parse(String(row?.receipt))).toEqual(completed);
+      } finally {
+        inspected.close();
+      }
+    });
   it("retracts a singleton attempt then admits its equivalent batch without inheriting ownership", () => {
     const f = fixture();
     const singleton = prepareTransactionSingleton(

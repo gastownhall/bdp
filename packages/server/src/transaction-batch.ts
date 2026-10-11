@@ -105,6 +105,11 @@ function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction
         ? { properties: op.input.properties ?? {}, metadata: op.input.metadata ?? {} }
         : {}),
     };
+    // Empty context supplies no explicit states, exactly like omission. Null
+    // agent/message members remain meaningful and must keep distinct identities.
+    const context = input.changeContext;
+    if (context !== null && typeof context === "object" && Object.keys(context).length === 0)
+      delete input.changeContext;
     for (const field of ["id", "source", "target", "bead", "link"]) {
       const value = input[field];
       if (value === undefined) continue;

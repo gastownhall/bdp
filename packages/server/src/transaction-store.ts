@@ -51,6 +51,9 @@ interface Row {
 }
 const day = 86400000;
 const format = "bdp-private-transaction-create-1";
+// Identity equality changed without changing the value codec or SQL tables.
+// Old private files cannot safely reinterpret retained keys under this policy.
+const identityPolicy = "transaction-context-default-1";
 const schema = `
 CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
 CREATE TABLE resources(id TEXT PRIMARY KEY, body TEXT NOT NULL, kind TEXT NOT NULL, source TEXT, target TEXT) STRICT;
@@ -79,6 +82,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   const installed = new Map(descriptors.map((d) => [d.id, json(d)]));
   const configuration = json({
     format,
+    identityPolicy,
     scope,
     types: [...installed].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
   });
@@ -241,8 +245,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         put.run("configuration", configuration);
         put.run("epoch", randomUUID());
         put.run("position", "0");
-      } else if (metadata("configuration") !== configuration)
-        throw new Error("transaction installation mismatch");
+      } else {
+        const storedConfiguration = metadata("configuration");
+        if (JSON.parse(storedConfiguration).identityPolicy !== identityPolicy)
+          throw new Error(
+            "transaction identity policy mismatch; explicit new-store provisioning required",
+          );
+        if (storedConfiguration !== configuration)
+          throw new Error("transaction installation mismatch");
+      }
       const retracted = Number(
         db.prepare("DELETE FROM receipts WHERE owner IS NOT NULL").run().changes,
       );
