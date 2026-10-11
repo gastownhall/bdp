@@ -151,9 +151,9 @@ export async function startDevelopmentReferenceServer(options: DevelopmentServer
       // After admission, delivery is only an observer. Disconnect never cancels
       // committed/admitted work; an exact-key retry retrieves its disposition.
       const result =
-        name === "sequence"
-          ? await authority.sequence(text)
-          : await authority.mutate(operation!, text, key!);
+        operation !== undefined && key !== undefined
+          ? await authority.mutate(operation, text, key)
+          : await authority.sequence(text);
       const problem = "code" in result;
       json(response, problem ? (result.status ?? 500) : 200, result, problem);
     } catch (error) {

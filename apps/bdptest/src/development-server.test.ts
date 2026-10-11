@@ -333,10 +333,17 @@ describe("non-attesting bdptest HTTP development authority", () => {
       { operationIndex: 2, outcome: "created" },
       { operationIndex: 3, outcome: "updated", resource: { properties: { ready: true } } },
     ]);
-    const first = result.results[0]!;
-    const link = result.results[1]!;
-    const updated = result.results[3]!;
-    if (!("resource" in first) || !("resource" in link) || !("resource" in updated))
+    const first = result.results[0];
+    const link = result.results[1];
+    const updated = result.results[3];
+    if (
+      !first ||
+      !link ||
+      !updated ||
+      !("resource" in first) ||
+      !("resource" in link) ||
+      !("resource" in updated)
+    )
       throw new Error("missing resource");
     const firstBead = parseBeadRecord(first.resource);
     const firstLink = parseLinkRecord(link.resource);
@@ -354,7 +361,9 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect(aliasRead.headers.get("location")).toBe(firstBead.id);
     await aliasRead.body?.cancel();
     const changed = structuredClone(input);
-    changed.operations[0]!.type = DEVELOPMENT_LINK_TYPE;
+    const changedCreator = changed.operations[0];
+    if (!changedCreator) throw new Error("missing creator");
+    changedCreator.type = DEVELOPMENT_LINK_TYPE;
     const conflict = parseReadUpdateSequenceResponse(jsonBody(await reopened.sequence(changed)));
     expect(conflict.results[0]).toMatchObject({ code: "idempotency-conflict", operationIndex: 0 });
   });
@@ -383,7 +392,9 @@ describe("non-attesting bdptest HTTP development authority", () => {
       { alias: "alias/shared-name", target: singleton.id },
       "shared_alias",
     );
-    const { operationIndex: _index, ...retainedAlias } = result.results[1]!;
+    const aliasMember = result.results[1];
+    if (!aliasMember) throw new Error("missing alias result");
+    const { operationIndex: _index, ...retainedAlias } = aliasMember;
     expect(jsonBody(alias)).toEqual(retainedAlias);
     const changed = { operations: [{ ...operations[0], properties: { different: true } }] };
     expect(
@@ -496,8 +507,8 @@ describe("non-attesting bdptest HTTP development authority", () => {
     });
     const recovered = parseReadUpdateSequenceResponse(jsonBody(await h.sequence(input)));
     expect(recovered.results).toMatchObject([{ outcome: "created" }, { outcome: "created" }]);
-    const first = recovered.results[0]!;
-    if (!("resource" in first)) throw new Error("missing retained resource");
+    const first = recovered.results[0];
+    if (!first || !("resource" in first)) throw new Error("missing retained resource");
     const bead = parseBeadRecord(first.resource);
     expect(jsonBody(await h.get(bead.id))).toEqual(bead);
     expect(jsonBody(await h.sequence(input))).toEqual(recovered);
