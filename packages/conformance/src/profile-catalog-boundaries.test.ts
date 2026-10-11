@@ -43,9 +43,14 @@ function headingOwners(markdown: string): Map<string, number> {
 }
 
 const owners = headingOwners(spec);
-const catalogs = readdirSync(new URL("packages/conformance/catalog/", root)).filter((name) =>
-  name.endsWith(".json"),
-);
+const catalogs = [
+  ...readdirSync(new URL("packages/conformance/catalog/", root))
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => `packages/conformance/catalog/${name}`),
+  // Citation ownership also applies to diagnostic observations; loading their
+  // metadata here does not admit them through the production artifact factory.
+  "packages/conformance/development/read-update-catalog-v1.json",
+];
 
 describe("catalog citations respect cumulative profile boundaries", () => {
   it("recognizes each normative part", () => {
@@ -54,7 +59,7 @@ describe("catalog citations respect cumulative profile boundaries", () => {
     expect(owners.get("#discovery-profile-membership")).toBe(3);
   });
   it.each(catalogs)("audits every requirement in %s", (name) => {
-    const catalog = loadScenarioCatalogJson(read(`packages/conformance/catalog/${name}`));
+    const catalog = loadScenarioCatalogJson(read(name));
     validateCatalogCitations(catalog, read);
     for (const scenario of catalog.scenarios) {
       for (const requirement of scenario.requirements) {

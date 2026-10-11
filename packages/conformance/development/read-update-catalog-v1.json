@@ -25,26 +25,26 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-results",
-          "selectedText": "A semantic no-op update, defined under [Revisions](#revisions), succeeds with outcome `updated` and the retained revision."
+          "selectedText": "A semantic no-op update, defined under [Mutation revisions and guards](#mutation-revisions-and-guards), succeeds with outcome `updated` and the retained revision."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#conformance-profiles-and-reading-guide",
-          "selectedText": "`expectedRevision` remains optional for updates and deletes, and it produces a conflict on mismatch."
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "An explicit update or deletion may supply `expectedRevision`: the revision observed by an earlier read or mutation result. The authority applies the operation only if the Resource still has that revision. A mismatch fails the individual operation without changing state. Omitting `expectedRevision` applies the change to the Resource's current state."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`revision-mismatch`: the member's `expectedRevision` is not the Resource's current revision."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#carried-attribution",
+          "anchor": "#attribution-on-mutations",
           "selectedText": "An operation that mints more than one version records its one attribution on every version it mints"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#carried-attribution",
+          "anchor": "#attribution-on-mutations",
           "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
         },
         {
@@ -87,7 +87,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#carried-attribution",
+          "anchor": "#attribution-on-mutations",
           "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
         },
         {
@@ -115,7 +115,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#batch-local-resource-references",
+          "anchor": "#sequence-local-resource-references",
           "selectedText": "The pin is provenance, not a constraint: an authority stores and echoes it byte-identically, compares it only for equality, and performs no semantic validation, dereferencing, or interpretation"
         },
         {
@@ -130,7 +130,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#batch-local-resource-references",
+          "anchor": "#sequence-local-resource-references",
           "selectedText": "Creating or deleting a Link does not mutate an in-Scope endpoint Bead or change that Bead's Resource revision"
         },
         {
@@ -150,7 +150,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`incident-links-exist`: a Bead deletion reached while a live Link is incident upon the Bead."
         },
         {
@@ -160,17 +160,17 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`identity-taken`: a supplied `id` whose canonical Resource URL was ever committed in the logical Scope, including a deleted one."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "This is inherently an existence signal for the identity the creator chose, hidden or deleted alike"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "An alias put is a cheaper existence probe than a creation \u2014 it allocates no Resource, mints no version, and is deletable \u2014 gated only by permission to put aliases, which is therefore what that permission grants."
         }
       ]
@@ -253,17 +253,17 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "an alias put whose path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope, a deleted one included, fails the same way, while a Bead creation whose supplied `id` has the `{id-path}` of a live alias is `alias-path-taken`"
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "`alias-path-taken`: a Bead creation whose supplied `id` has the `{id-path}` of a live alias, under [Alias targets](#alias-targets). The path is held by an alias rather than by a committed identity, so the condition clears when the alias is deleted and the retry disposition is `after-state-change`, where `identity-taken`'s is `never`."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#aliases",
+          "anchor": "#alias-mutation-model",
           "selectedText": "They share it because the realizations the alias root fronts share one \u2014 in the beads realization, keys and aliases occupy one project-wide namespace \u2014 so the invariant is imported from the store rather than required by resolution, which spelling alone decides."
         },
         {
@@ -288,12 +288,12 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#aliases",
+          "anchor": "#alias-mutation-model",
           "selectedText": "A reference written using an alias is resolved to the canonical Bead URL when the authority admits the write; stored and served references are always canonical, so aliases never appear in Resource data."
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "except that a `bead` subject or a Link endpoint spelled by alias is admitted and resolved under [Alias targets](#alias-targets), and fails this way only when the spelling names no live alias"
         },
         {
@@ -391,7 +391,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#sequence-problem-envelopes",
           "selectedText": "Each failed member contains the same Problem Details shape with its would-be `status`, its zero-based `operationIndex`, and, when the member declared one, its `operationName`."
         },
         {
@@ -478,7 +478,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#sequence-request-envelope",
-          "selectedText": "A `@name` reference that is forward, unknown, or of the wrong Resource kind is carrier syntax, decidable from the request text: the sequence is rejected before execution with `malformed-request`, exactly as a batch rejects it."
+          "selectedText": "A `@name` reference that is forward, unknown, or of the wrong Resource kind is carrier syntax, decidable from the request text: the sequence is rejected before execution with `malformed-request`."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -497,7 +497,7 @@
         },
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#problem-details",
+          "anchor": "#readupdate-problem-details",
           "selectedText": "a value that is not a reference shape at all \u2014 neither a relative path nor an absolute URL under the local-ID grammar, or a `@name` where none is admitted \u2014 is carrier syntax, `malformed-request`"
         },
         {
@@ -543,13 +543,13 @@
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
-          "anchor": "#revisions",
+          "anchor": "#mutation-revisions-and-guards",
           "selectedText": "The authority applies the operation only if the Resource still has that revision."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#validation-and-results",
-          "selectedText": "At commit, the authority also ensures that concurrent transactions cannot jointly violate those invariants."
+          "selectedText": "At commit, the authority also ensures that concurrent mutations cannot jointly violate those invariants."
         }
       ]
     }
