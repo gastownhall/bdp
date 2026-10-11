@@ -76,9 +76,9 @@ canonical schema bundle.
 The store is explicitly provisioned at a new absolute file path. Reopen verifies
 its format, canonical Scope, exact installed Type configuration and identity
 normalization policy. The current format is
-`bdp-private-transaction-alias-witnesses-3`, with an alias locator table and a
-witness column beside each receipt. The identity policy is
-`transaction-context-and-alias-witnesses-2`. Missing or mismatched policies and
+`bdp-private-transaction-dependencies-4`, with durable creator facts and unresolved
+receipt templates as well as the alias table and receipt witnesses. The identity
+policy is `transaction-dependencies-3`. Missing or mismatched policies and
 earlier formats are refused before pending recovery or receipt maintenance.
 This prevents an older owner from silently ignoring alias path uniqueness or
 reinterpreting retained identities without their original alias witnesses.
@@ -156,9 +156,10 @@ or new profile claims.
 
 The sequence preparer applies the shared protocol syntax and Scope checks to the
 whole carrier before key effects. It accepts the eight singleton operation kinds
-with explicit Resource operands and creation labels for reporting. Repeated keys
-remain a whole-carrier error. Every `@name` operand and every Resource-alias
-operand is explicitly refused before any key lookup or reservation. This is a
+with canonical Resource operands and backward `@name` dependencies, including
+pinned endpoints and alias puts targeting an earlier Bead creation. Repeated keys
+and invalid/forward/wrong-kind labels remain whole-carrier errors. Resource-alias
+operands remain explicitly refused before any key lookup or reservation. This is a
 private implementation limit, not an advertised narrower sequence contract.
 
 The store reserves all unknown member keys and their pending receipts in one
@@ -186,15 +187,31 @@ reservations. A replacement attempt can acquire the released tail; the cancelled
 attempt cannot execute or cancel those replacement keys. On process restart,
 the existing recovery path retracts abandoned pending member receipts and never
 resumes the tail. An explicit client retry replays the prefix and admits the
-remaining unknown members. This slice adds no storage format or identity-policy
-change: all supported member identities were already fully resolvable.
+remaining unknown members.
 
-The next dependency slice needs durable creator-attempt/operation-slot
-reservations, successful and unbound binding facts, failed-key retention
-independence, pending-dependent projection without dependent-key lookup, and the
-finite direct-carrier comparison wait. Even supplied-ID `@name` references must
-wait for the creator's disposition because a failed creator binds no identity;
-textual substitution would be incorrect.
+Canonical dependencies reserve their pending receipts with an unresolved template
+that pins the sequence attempt, creator member and operation slot, retaining every
+other normalized semantic field. Creator binding facts commit atomically with the
+creator's effects and terminal receipt, independently of receipt retention. A failed
+creator therefore remains unbound even after its failed key is forgotten and reused.
+A completed dependent stores the ordinary immutable canonical identity; a permanently
+failed creator gives its dependent the private unbound identity and a retained
+`binding-unavailable` failed receipt. Supplied-ID creators also wait for disposition.
+A pending/transient creator skips dependent-key comparison entirely and releases
+only this attempt's dependent reservation. Internal bindings are independent of
+projected result entries; the current composition still has fixed all-visible policy.
+
+`transaction-dependencies.ts` holds pure template/binding comparison helpers.
+`transaction-comparison.ts` provides the private asynchronous direct-carrier seam.
+It rejects provable differences in known fields, pins, repeated references and
+already durable creator facts. Otherwise it waits outside any database transaction,
+with one finite monotonic comparison deadline separate from transaction duration.
+As soon as durable facts prove equality it returns the existing pending/terminal
+receipt. Unresolved timeout yields an internal `temporarily-unavailable` result for
+future direct 503 mapping, without changing the owner's receipt. Retraction permits
+fresh ordinary admission under the same deadline; no owner or receipt is inherited.
+Epoch change stops comparison. The low-level store's `comparison-pending` value is
+internal, not a receipt or a new wire outcome. Sequence presentations never wait.
 
 Sequence Resource aliases also need a representation follow-up. The Transactional
 admission rule records normalized identity, while the inherited sequence rules
@@ -202,7 +219,7 @@ resolve aliases when each member is reached. Earlier alias mutations and other
 requests may change a later member's locator before its turn. Freezing a missing
 alias at sequence admission would violate that behavior. This is recorded as a
 representation question for the next slice, not a new wire ruling or a blocker
-for the supported explicit-reference carrier.
+for the supported canonical dependency carrier.
 
 ## Receipt retention in a live owner
 
@@ -237,11 +254,13 @@ Retention adds no separate schema change or migration.
 
 ## Observed verification
 
-The bounded seven-file suite exercises 494 tests, including 83 atomic-owner
-cases and 15 sequence-adapter cases, Resource and alias evaluation, semantic
-identity, Transactional wire/schema fixtures and the Transactional catalog. Build, typecheck, dependency boundaries,
-formatting and installed-package smoke pass. Lint completes with the existing
-three warnings and one informational finding. Observations cover:
+The bounded 11-file regression suite passes 807 tests, including 83 atomic-owner,
+15 sequence-adapter and 23 canonical dependency cases. Resource/alias evaluation,
+semantic identity and existing RU sequence behavior are included. Build, typecheck,
+dependency boundaries, formatting and installed-package smoke are checked locally.
+Lint retains the existing three warnings and one informational finding. These are
+private implementation observations, not product acceptance or full-profile
+qualification. Observations cover:
 
 - Bead plus local-reference Link success, ordered Events, schema-valid receipt
   and group, one durable commit, and principal-bound receipt lookup.
@@ -305,8 +324,16 @@ three warnings and one informational finding. Observations cover:
   precedence; mixed retained/conflicting/failed/unknown keys; cross-carrier value
   equality; current labels; expired creation and alias projections.
 - Response-independent async continuation, fenced abort/replacement cleanup,
-  crash-prefix recovery and pre-effect refusal of duplicate keys, `@name` edges
-  and Resource-alias operands.
+  crash-prefix recovery and pre-effect refusal of duplicate keys, invalid `@name`
+  edges and Resource-alias operands.
+- Durable creator-attempt facts, transitive dependencies, supplied-ID failure,
+  failed-key forgetting/reuse, immutable unbound retry identity, interleaved guards
+  and independent-prefix preservation.
+- Direct finite comparison outside SQLite transactions, provable partial conflicts,
+  pending equality after creator commit, unchanged timeout state, fresh admission
+  after retraction, non-resetting deadlines under churn and epoch-change refusal.
+- Abrupt dependency-prefix recovery, creator/fact/receipt rollback, fenced dependent
+  finalization and byte-identical refusal of the previous private storage format.
 - Abrupt child-process exit after commit. Reopen returns the exact original
   terminal receipt/IDs and continues the Scope's ordered group chain.
 
@@ -325,12 +352,12 @@ existing receiver.
 
 All eight singleton preparation paths already use batch's owner and
 receipt/key namespace. Before any Transactional HTTP integration, extend that
-same owner with full sequence dependencies and turn-time Resource-alias handling.
+same owner with turn-time Resource-alias handling and current authorization/disclosure.
 These routes must not write through a parallel Read+Update owner. A migration or
 explicit new-Scope provisioning path, startup qualification and unified read authority must accompany that integration.
 
 Remaining requirements include set operations; owned-Link transitions; sequence
-carriers with unresolved dependent admission and turn-time Resource aliases;
+carriers with turn-time Resource aliases;
 authorization projection and reauthorized receipt disclosure and pagination; Event Sources, changefeed, snapshots and erasure;
 duration/recovery bounds under operational failure; complete native schemas,
 aggregate policies and limits; HTTP reception/status/conditional behavior; and

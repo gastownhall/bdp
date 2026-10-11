@@ -14,7 +14,11 @@ import {
   type ReadUpdateOperation,
   type PreparedReadUpdateCarrier,
 } from "@bdp/protocol";
-import { encodeSemanticValue, type SemanticValue } from "./semantic-identity.js";
+import {
+  encodeSemanticValue,
+  UNBOUND_SEMANTIC_REFERENCE,
+  type SemanticValue,
+} from "./semantic-identity.js";
 import {
   evaluateAliasMutation,
   type AliasMutation,
@@ -106,11 +110,17 @@ export interface PreparedTransactionSequence {
     readonly operation: ReadUpdateOperation;
     readonly name?: string;
     readonly request: PreparedTransaction;
+    readonly dependencies: readonly {
+      field: string;
+      creator: number;
+      resourceKind: "bead" | "link";
+      suppliedId?: string;
+    }[];
   }[];
 }
 const sequences = new WeakSet<object>();
 /** First private sequence boundary. Full syntax/Scope checks precede all key
- * effects; dependency and turn-time alias resolution are not implemented here. */
+ * effects; canonical dependencies use durable reservations, while aliases remain refused. */
 export function prepareTransactionSequence(
   scope: string,
   text: string,
@@ -119,41 +129,55 @@ export function prepareTransactionSequence(
   const carrier = prepareReadUpdateSequence(scope, text);
   if (carrier.operations.length > 32) throw new RangeError("development sequence member limit");
   losslessText(object(decodeJsonDocument(text)));
+  const labels = new Map<string, number>();
   const members = carrier.operations.map((op, index) => {
+    const dependencies: {
+      field: string;
+      creator: number;
+      resourceKind: "bead" | "link";
+      suppliedId?: string;
+    }[] = [];
     for (const field of ["bead", "link", "source", "target"]) {
       const ref = op.input[field];
       if (ref === undefined) continue;
       const uri = typeof ref === "string" ? ref : (ref as { uri: string }).uri;
-      if (uri.startsWith("@"))
-        throw new TypeError("development sequence dependencies require durable reservations");
+      if (uri.startsWith("@")) {
+        const creator = labels.get(uri.slice(1));
+        if (creator === undefined) throw new TypeError("unknown sequence creator");
+        const creation = carrier.operations[creator];
+        if (!creation) throw new Error("prepared sequence lost creator");
+        const supplied = creation.input.id as string | undefined;
+        dependencies.push({
+          field,
+          creator,
+          resourceKind: creation.operation === "createBead" ? "bead" : "link",
+          ...(supplied === undefined ? {} : { suppliedId: canonicalReference(scope, supplied) }),
+        });
+      }
       if (
         aliasFields(op.operation).includes(field) &&
         canonicalReference(scope, uri).startsWith(`${scope}alias/`)
       )
         throw new TypeError("development sequence Resource aliases require turn-time resolution");
     }
-    const request =
-      op.operation === "putAlias" || op.operation === "deleteAlias"
-        ? prepareTransactionSingleton(scope, op.operation, losslessText(op.input))
-        : prepareTransaction(
-            scope,
-            losslessText({
-              operations: [
-                {
-                  operation: op.operation,
-                  ...op.input,
-                  ...(op.name === undefined ? {} : { name: op.name }),
-                },
-              ],
-            }),
-          );
+    // The whole carrier already validated backward labels and Resource kinds.
+    // Preserve its branded numeric operation without reparsing as a singleton,
+    // whose syntax correctly rejects @name outside a sequence.
     const key = carrier.keys[index];
     if (key === undefined) throw new Error("prepared sequence lost member key");
+    const request = prepareCarrier({
+      kind: "singleton",
+      scope: carrier.scope,
+      operations: [op],
+      keys: [key],
+    });
+    if (op.name) labels.set(op.name, index);
     return Object.freeze({
       key,
       operation: op.operation,
       ...(op.name === undefined ? {} : { name: op.name }),
       request,
+      dependencies: Object.freeze(dependencies),
     });
   });
   const result = Object.freeze({ scope: carrier.scope, members: Object.freeze(members) });
@@ -235,12 +259,14 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
 export interface NormalizedTransaction {
   readonly identity: string;
   readonly witnessesJson: string;
+  readonly referenceIdentities: ReadonlyMap<string, string>;
 }
 const normalizedState = new WeakMap<
   NormalizedTransaction,
   {
     readonly batch: PreparedTransaction;
     readonly aliases: readonly ReadonlyMap<string, string | null>[];
+    readonly references: ReadonlyMap<string, string | typeof UNBOUND_SEMANTIC_REFERENCE>;
   }
 >();
 /** Invoke under the owner's admission/comparison transaction after key lookup.
@@ -252,12 +278,14 @@ export function normalizeTransaction(
   batch: PreparedTransaction,
   resolveAlias: (locator: string) => string | undefined,
   priorWitnessesJson?: string,
+  references: ReadonlyMap<string, string | typeof UNBOUND_SEMANTIC_REFERENCE> = new Map(),
 ): NormalizedTransaction {
   assertPreparedTransaction(batch, batch.carrier.scope);
   const scope = batch.carrier.scope;
   const prior =
     priorWitnessesJson === undefined ? undefined : parseWitnesses(priorWitnessesJson, scope);
   const creators = new Map<string, SemanticValue>();
+  const referenceIdentities = new Map<string, string>();
   const identities: SemanticValue[] = [];
   const witnesses: OperationWitnesses[] = [];
   const captured: ReadonlyMap<string, string | null>[] = [];
@@ -282,7 +310,8 @@ export function normalizeTransaction(
       const uri = typeof value === "string" ? value : (value as { uri: string }).uri;
       const locator = canonical(uri);
       let normalized: SemanticValue | undefined;
-      if (aliasFields(op.operation).includes(field) && locator.startsWith(`${scope}alias/`)) {
+      if (index === 0 && references.has(field)) normalized = references.get(field);
+      else if (aliasFields(op.operation).includes(field) && locator.startsWith(`${scope}alias/`)) {
         if (!aliases.has(locator)) {
           const old =
             previous?.operation === op.operation
@@ -294,6 +323,7 @@ export function normalizeTransaction(
         normalized = aliases.get(locator) ?? { unresolvedAlias: locator };
       } else normalized = uri.startsWith("@") ? creators.get(uri.slice(1)) : locator;
       if (normalized === undefined) throw new TypeError("unknown batch binding");
+      if (index === 0) referenceIdentities.set(field, encodeSemanticValue(normalized));
       input[field] =
         typeof value === "string"
           ? normalized
@@ -315,9 +345,10 @@ export function normalizeTransaction(
   }
   const result = Object.freeze({
     identity: encodeSemanticValue(identities),
+    referenceIdentities,
     witnessesJson: JSON.stringify({ format: witnessFormat, scope, operations: witnesses }),
   });
-  normalizedState.set(result, { batch, aliases: captured });
+  normalizedState.set(result, { batch, aliases: captured, references });
   return result;
 }
 export interface TransactionEvent {
@@ -389,6 +420,17 @@ export function evaluateTransaction(
     });
   }
   for (const [operationIndex, op] of batch.carrier.operations.entries()) {
+    if ([...state.references.values()].includes(UNBOUND_SEMANTIC_REFERENCE))
+      return {
+        ok: false,
+        problem: {
+          type: "https://github.com/gastownhall/bdp/problems/request",
+          status: 400,
+          code: "binding-unavailable",
+          retry: "never",
+          operationIndex,
+        },
+      };
     const admitted = admitReadUpdateOperationNumbers(op, {
       diagnostics: 16,
       diagnosticBytes: 65536,
@@ -409,8 +451,14 @@ export function evaluateTransaction(
         },
       };
     const input: Record<string, unknown> = { ...admitted.input };
+    if (operationIndex === 0)
+      for (const [field, value] of state.references) {
+        const prior = input[field];
+        input[field] = typeof prior === "string" ? value : { ...(prior as object), uri: value };
+      }
     if (op.operation === "putAlias" || op.operation === "deleteAlias") {
-      // Only singleton preparation admits these operations. Locator effects have
+      // Alias singletons and sequence members share this one-operation owner.
+      // Locator effects have
       // a durable receipt but deliberately no Resource Event or Scope position.
       if (batch.carrier.kind !== "singleton" || batch.carrier.operations.length !== 1)
         throw new Error("alias operation escaped singleton admission");

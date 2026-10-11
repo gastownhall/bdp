@@ -17,6 +17,15 @@ import {
   type TransactionMutationContext,
 } from "./transaction-batch.js";
 
+import {
+  dependencyTemplate,
+  compareDependencyTemplate,
+  resolveDependencies,
+  type CreatorFact,
+  type DependencyTemplate,
+  type ReferenceBindings,
+} from "./transaction-dependencies.js";
+
 interface ReceiptCore {
   readonly id: string;
   readonly status: "pending" | "completed" | "failed";
@@ -32,7 +41,8 @@ export interface TransactionClaim {
 export type TransactionAdmission =
   | { readonly kind: "owned"; readonly claim: TransactionClaim }
   | { readonly kind: "existing"; readonly receipt: TransactionReceipt }
-  | { readonly kind: "conflict" };
+  | { readonly kind: "conflict" }
+  | { readonly kind: "comparison-pending" };
 export interface TransactionSequenceAdmission {
   readonly memberCount: number;
 }
@@ -41,7 +51,8 @@ export type TransactionSequenceTurn = {
   readonly done: boolean;
   readonly result:
     | { readonly kind: "receipt"; readonly receipt: TransactionReceipt }
-    | { readonly kind: "conflict" };
+    | { readonly kind: "conflict" }
+    | { readonly kind: "transient" };
 };
 export interface TransactionStoreOptions {
   /** New format, absolute file path in an existing disposable directory. */
@@ -60,7 +71,8 @@ export interface TransactionStoreOptions {
       | "after-terminal"
       | "before-maintenance-commit"
       | "after-sequence-reservation"
-      | "after-sequence-admission",
+      | "after-sequence-admission"
+      | "after-dependency-resolution",
   ) => void;
 }
 interface Row {
@@ -70,18 +82,20 @@ interface Row {
   witnesses: string;
   owner: string | null;
   receipt: string;
+  dependency: string | null;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-alias-witnesses-3";
+const format = "bdp-private-transaction-dependencies-4";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
-const identityPolicy = "transaction-context-and-alias-witnesses-2";
+const identityPolicy = "transaction-dependencies-3";
 const schema = `
 CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
 CREATE TABLE resources(id TEXT PRIMARY KEY, body TEXT NOT NULL, kind TEXT NOT NULL, source TEXT, target TEXT) STRICT;
 CREATE TABLE identities(id TEXT PRIMARY KEY) STRICT;
 CREATE TABLE aliases(path TEXT PRIMARY KEY, target TEXT NOT NULL) STRICT;
-CREATE TABLE receipts(principal TEXT NOT NULL, key TEXT NOT NULL, identity TEXT NOT NULL, witnesses TEXT NOT NULL, owner TEXT, receipt TEXT NOT NULL, PRIMARY KEY(principal,key)) STRICT;
+CREATE TABLE receipts(principal TEXT NOT NULL, key TEXT NOT NULL, identity TEXT NOT NULL, witnesses TEXT NOT NULL, owner TEXT, receipt TEXT NOT NULL, dependency TEXT, PRIMARY KEY(principal,key)) STRICT;
+CREATE TABLE creator_facts(attempt TEXT NOT NULL, member INTEGER NOT NULL, fact TEXT, PRIMARY KEY(attempt,member)) STRICT;
 CREATE TABLE groups(position INTEGER PRIMARY KEY, body TEXT NOT NULL) STRICT;
 `;
 /** Owns a single SQLite connection under persistent EXCLUSIVE locking. Admission
@@ -133,12 +147,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   let maintenanceFailure: { readonly cause: unknown } | undefined;
   const claims = new WeakMap<
     TransactionClaim,
-    { principal: string; key: string; owner: string; normalized: NormalizedTransaction }
+    {
+      principal: string;
+      key: string;
+      owner: string;
+      normalized: NormalizedTransaction | undefined;
+      creator?: { attempt: string; member: number; operation: string };
+    }
   >();
   const sequenceAdmissions = new WeakMap<
     TransactionSequenceAdmission,
     {
       principal: string;
+      id: string;
       sequence: PreparedTransactionSequence;
       owned: Map<number, TransactionClaim>;
       next: number;
@@ -146,6 +167,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       busy: boolean;
     }
   >();
+  function ownedClaim(claim: TransactionClaim | undefined) {
+    const value = claim && claims.get(claim);
+    if (!value) throw new Error("lost transaction owner");
+    return value;
+  }
   function enter<T>(run: () => T): T {
     if (maintenanceFailure)
       throw new Error("transaction maintenance failed; owner fenced", maintenanceFailure);
@@ -298,6 +324,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       const retracted = Number(
         db.prepare("DELETE FROM receipts WHERE owner IS NOT NULL").run().changes,
       );
+      db.exec("DELETE FROM creator_facts");
       sweep(instant());
       return retracted;
     });
@@ -339,6 +366,37 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     )
       throw new TypeError("principal/key required");
   }
+  function resolveAlias(locator: string): string | undefined {
+    const target = alias(locator.slice(scope.length + 6));
+    return target === undefined ? undefined : `${scope}${target}`;
+  }
+  function creatorFact(operation: string, receipt?: TransactionReceipt): CreatorFact {
+    if (!receipt || receipt.status === "failed") return { kind: "unbound" };
+    if (receipt.status === "pending") return { kind: "transient" };
+    const entry =
+      receipt.detail === "expired"
+        ? (receipt.allocated as { id: string; type: string }[])[0]
+        : (receipt.results as { resource: { id: string } }[])[0]?.resource;
+    if (!entry || typeof entry.id !== "string") throw new Error("creator lost allocation");
+    return {
+      kind: "bound",
+      id: entry.id,
+      resourceKind: operation === "createBead" ? "bead" : "link",
+    };
+  }
+  function writeFact(attempt: string, member: number, fact: CreatorFact): void {
+    const changed = db
+      .prepare("UPDATE creator_facts SET fact=? WHERE attempt=? AND member=? AND fact IS NULL")
+      .run(json(fact), attempt, member);
+    if (changed.changes !== 1) throw new Error("creator fact absent or already resolved");
+  }
+  function fact(attempt: string, member: number): CreatorFact {
+    const stored = db
+      .prepare("SELECT fact FROM creator_facts WHERE attempt=? AND member=?")
+      .get(attempt, member);
+    if (typeof stored?.fact !== "string") throw new Error("creator turn not resolved");
+    return JSON.parse(stored.fact) as CreatorFact;
+  }
   /** Caller holds the one SQLite transaction. Sequence turns project foreign
    * pending ownership before comparison, unlike direct singleton/batch routes. */
   function admitKey(
@@ -346,23 +404,39 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     key: string,
     batch: PreparedTransaction,
     pendingWins = false,
+    references?: ReferenceBindings,
+    template?: DependencyTemplate,
   ): TransactionAdmission {
     const stored = row(principal, key);
     const prior = stored ? expireRow(stored, instant()).row : undefined;
     if (pendingWins && prior?.owner !== null && prior !== undefined)
       return { kind: "existing", receipt: parseReceipt(prior.receipt) };
-    const normalized = normalizeTransaction(
-      batch,
-      (locator) => {
-        const target = alias(locator.slice(scope.length + 6));
-        return target === undefined ? undefined : `${scope}${target}`;
-      },
-      prior?.witnesses,
-    );
-    if (prior)
+    if (prior?.dependency) {
+      const template = JSON.parse(prior.dependency) as DependencyTemplate;
+      const comparison = compareDependencyTemplate(template, batch, resolveAlias, (index) => {
+        const stored = db
+          .prepare("SELECT fact FROM creator_facts WHERE attempt=? AND member=?")
+          .get(template.attempt, index);
+        if (!stored) throw new Error("unresolved receipt lost creator fact");
+        return typeof stored.fact === "string"
+          ? (JSON.parse(stored.fact) as CreatorFact)
+          : undefined;
+      });
+      return comparison === "conflict"
+        ? { kind: "conflict" }
+        : comparison === "equal"
+          ? { kind: "existing", receipt: parseReceipt(prior.receipt) }
+          : { kind: "comparison-pending" };
+    }
+    const normalized = template
+      ? undefined
+      : normalizeTransaction(batch, resolveAlias, prior?.witnesses, references);
+    if (prior) {
+      if (!normalized) throw new Error("existing key cannot acquire a new unresolved template");
       return prior.identity !== normalized.identity
         ? { kind: "conflict" }
         : { kind: "existing", receipt: parseReceipt(prior.receipt) };
+    }
     const receipt: TransactionReceipt = {
       id: `${scope}receipts/${randomUUID()}`,
       status: "pending",
@@ -373,13 +447,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     };
     const owner = randomUUID(),
       claim = Object.freeze({ receipt });
-    db.prepare("INSERT INTO receipts VALUES(?,?,?,?,?,?)").run(
+    db.prepare("INSERT INTO receipts VALUES(?,?,?,?,?,?,?)").run(
       principal,
       key,
-      normalized.identity,
-      normalized.witnessesJson,
+      normalized?.identity ?? "",
+      normalized?.witnessesJson ?? "",
       owner,
       json(receipt),
+      template ? json(template) : null,
     );
     claims.set(claim, { principal, key, owner, normalized });
     return { kind: "owned", claim };
@@ -392,6 +467,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         return atomic(() => {
           const current = row(owned.principal, owned.key);
           if (current?.owner !== owned.owner) throw new Error("transaction execution fenced");
+          const normalized = owned.normalized;
+          if (!normalized || current.dependency) throw new Error("unresolved execution");
           const core = parseReceipt(current.receipt);
           const previous = Number(metadata("position"));
           if (
@@ -470,7 +547,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           const result = (() => {
             try {
               return evaluateTransaction(
-                owned.normalized,
+                normalized,
                 tx,
                 {
                   scope,
@@ -554,6 +631,12 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             )
             .run(json(receipt), owned.principal, owned.key, owned.owner);
           if (changed.changes !== 1) throw new Error("terminal ownership lost");
+          if (owned.creator)
+            writeFact(
+              owned.creator.attempt,
+              owned.creator.member,
+              creatorFact(owned.creator.operation, receipt),
+            );
           options.fault?.("after-terminal");
           return receipt;
         });
@@ -590,6 +673,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               .run(owner.principal, owner.key, owner.owner).changes,
           );
         }
+        db.prepare("DELETE FROM creator_facts WHERE attempt=?").run(state.id);
         return count;
       }),
     );
@@ -621,6 +705,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     scope,
     scopeEpoch: epoch,
     recoveredPending,
+    comparisonEpoch: () => (closed ? undefined : enter(() => metadata("epoch"))),
     maintain,
     admit(principal: string, key: string, batch: PreparedTransaction): TransactionAdmission {
       return enter(() => {
@@ -657,13 +742,32 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         assertPreparedTransactionSequence(sequence, scope);
         for (const member of sequence.members) checkPrincipalKey(principal, member.key);
         const owned = new Map<number, TransactionClaim>();
+        const id = randomUUID();
         const attempt = Object.freeze({ memberCount: sequence.members.length });
         try {
           atomic(() => {
             for (const [index, member] of sequence.members.entries()) {
-              const admitted = admitKey(principal, member.key, member.request, true);
+              if (member.operation === "createBead" || member.operation === "createLink")
+                db.prepare("INSERT INTO creator_facts VALUES(?,?,NULL)").run(id, index);
+              // Existing keys are classified only at the eligible member turn.
+              const existing = row(principal, member.key);
+              if (existing && expireRow(existing, instant()).row) continue;
+              const template = member.dependencies.length
+                ? dependencyTemplate(id, member)
+                : undefined;
+              const admitted = admitKey(
+                principal,
+                member.key,
+                member.request,
+                true,
+                undefined,
+                template,
+              );
               if (admitted.kind === "owned") {
                 owned.set(index, admitted.claim);
+                const claim = ownedClaim(admitted.claim);
+                if (member.operation === "createBead" || member.operation === "createLink")
+                  claim.creator = { attempt: id, member: index, operation: member.operation };
                 options.fault?.("after-sequence-reservation");
               }
             }
@@ -682,12 +786,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                   owner.owner,
                 );
             }
+            db.prepare("DELETE FROM creator_facts WHERE attempt=?").run(id);
           });
           for (const claim of owned.values()) claims.delete(claim);
           throw error;
         }
         sequenceAdmissions.set(attempt, {
           principal,
+          id,
           sequence,
           owned,
           next: 0,
@@ -708,24 +814,109 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           member = state.sequence.members[index];
         if (!member) throw new Error("lost sequence member");
         let claim = state.owned.get(index);
-        let result: TransactionSequenceTurn["result"];
-        if (claim) result = { kind: "receipt", receipt: executeClaim(claim) };
-        else {
-          const admission = enter(() =>
-            atomic(() => admitKey(state.principal, member.key, member.request, true)),
-          );
-          if (admission.kind === "owned") {
-            claim = admission.claim;
-            state.owned.set(index, claim);
+        const template = member.dependencies.length
+          ? dependencyTemplate(state.id, member)
+          : undefined;
+        const references = template
+          ? enter(() => resolveDependencies(template, (index) => fact(state.id, index)))
+          : new Map();
+        let result: TransactionSequenceTurn["result"] | undefined;
+        let wroteCreator = false;
+        if (references === undefined) {
+          // Dependency precedence: never classify the dependent key here.
+          if (claim)
+            enter(() =>
+              atomic(() => {
+                const owner = ownedClaim(claim);
+                db.prepare("DELETE FROM receipts WHERE principal=? AND key=? AND owner=?").run(
+                  owner.principal,
+                  owner.key,
+                  owner.owner,
+                );
+                if (claim) claims.delete(claim);
+              }),
+            );
+          result = { kind: "transient" };
+        } else {
+          if (claim && template)
+            enter(() =>
+              atomic(() => {
+                const owner = ownedClaim(claim);
+                const current = row(owner.principal, owner.key);
+                if (current?.owner !== owner.owner) throw new Error("dependent resolution fenced");
+                const normalized = normalizeTransaction(
+                  member.request,
+                  resolveAlias,
+                  undefined,
+                  references,
+                );
+                db.prepare(
+                  "UPDATE receipts SET identity=?,witnesses=?,dependency=NULL WHERE principal=? AND key=? AND owner=?",
+                ).run(
+                  normalized.identity,
+                  normalized.witnessesJson,
+                  owner.principal,
+                  owner.key,
+                  owner.owner,
+                );
+                owner.normalized = normalized;
+                options.fault?.("after-dependency-resolution");
+              }),
+            );
+          if (!claim) {
+            const admission = enter(() =>
+              atomic(() => admitKey(state.principal, member.key, member.request, true, references)),
+            );
+            if (admission.kind === "owned") {
+              claim = admission.claim;
+              state.owned.set(index, claim);
+              if (member.operation === "createBead" || member.operation === "createLink")
+                ownedClaim(claim).creator = {
+                  attempt: state.id,
+                  member: index,
+                  operation: member.operation,
+                };
+            } else {
+              if (admission.kind === "comparison-pending")
+                throw new Error("sequence compared unresolved foreign owner");
+              result =
+                admission.kind === "conflict"
+                  ? admission
+                  : { kind: "receipt", receipt: admission.receipt };
+            }
+          }
+          if (claim) {
             result = { kind: "receipt", receipt: executeClaim(claim) };
-          } else
-            result =
-              admission.kind === "conflict"
-                ? admission
-                : { kind: "receipt", receipt: admission.receipt };
+            wroteCreator = member.operation === "createBead" || member.operation === "createLink";
+          }
         }
+        const completed = result;
+        if (!completed) throw new Error("sequence turn lost its disposition");
+        if (
+          !wroteCreator &&
+          (member.operation === "createBead" || member.operation === "createLink")
+        )
+          enter(() =>
+            atomic(() =>
+              writeFact(
+                state.id,
+                index,
+                completed.kind === "transient"
+                  ? { kind: "transient" }
+                  : creatorFact(
+                      member.operation,
+                      completed.kind === "receipt" ? completed.receipt : undefined,
+                    ),
+              ),
+            ),
+          );
         state.next++;
-        return { index, done: state.next === state.sequence.members.length, result };
+        const done = state.next === state.sequence.members.length;
+        if (done)
+          enter(() =>
+            atomic(() => db.prepare("DELETE FROM creator_facts WHERE attempt=?").run(state.id)),
+          );
+        return { index, done, result: completed };
       } catch (error) {
         state.busy = false;
         try {
