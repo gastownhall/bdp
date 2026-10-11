@@ -5,7 +5,7 @@ assertions in the existing conformance runner. It is **development-only and
 non-attesting**. It does not make the normative Read+Update catalog executable,
 admit a public write profile, or certify an implementation.
 
-The manifest contains 25 diagnostic scenarios and 264 HTTP/lifecycle actions. The
+The manifest contains 27 diagnostic scenarios and 280 HTTP/lifecycle actions. The
 receiver runs against a fresh disposable SQLite store for each scenario. The
 executor uses the actual Read+Update SDK Fetch transport or the existing raw
 HTTP executor and returns observed status, headers and body. The shared runner evaluates the assertions, captures
@@ -14,10 +14,10 @@ catalog/manifest/fixture bytes into its report. A guard race dispatches two
 real requests with the same observed revision and distinct keys.
 
 `read-update-coverage-v1.json` inventories all 81 current normative catalog rows
-in their original order. Fifty-four rows have **bounded observations**, with
+in their original order. Fifty-five rows have **bounded observations**, with
 stable `scenario` and `action.assertion` references. These are partial behavioral
 evidence, not passing normative rows. Per-binding `limits` record known missing
-variants. Twenty-seven rows are explicitly omitted with a category and reason.
+variants. Twenty-six rows are explicitly omitted with a category and reason.
 An empty limits array does not certify exhaustive coverage of a normative row.
 
 The diagnostic catalog uses `development.read-update.*` IDs and `kind:
@@ -193,3 +193,25 @@ real clock remain unchanged; no time-travel or manufactured outcomes were used.
   single all-visible local principal cannot establish them.
 - Keep discovery, Operation Directory and public profile claims gated on the
   complete required evidence and a deliberate admission decision.
+
+## Contextual sequence validation observations
+
+Two plans distinguish a wrong-kind local binding from a wrong-kind durable
+subject. A named Bead used as an updateLink subject rejects the whole carrier;
+a read proves the prefix absent, and correcting the operation under both
+original keys creates and updates the Bead. The result indices, declared name
+and final properties are asserted directly.
+
+A live Link used as an updateBead subject fails that member with
+resource-not-found while the independent tail commits. Reads establish the
+unchanged Link and live tail. Exact-key retry retains the selected original
+result fields; correcting the subject under the retained key conflicts, while a
+fresh key updates the Bead. A guarded no-op using the Link's originally captured
+revision establishes that the rejected operations did not advance its revision.
+
+These are bounded contextual-validation observations, not closure of the
+normative row. Owned results/sourceRevision, broader Scope containment,
+forward/unknown labels, key/name uniqueness and other contextual combinations
+remain unqualified by these plans. Replay assertions compare selected fields and
+key behavior, not entire response bytes. Existing SDK request actions suffice;
+no runtime, harness, schema, public profile or fixture policy changes are made.

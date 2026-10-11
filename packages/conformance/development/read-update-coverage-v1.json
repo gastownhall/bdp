@@ -777,10 +777,51 @@
     },
     {
       "id": "read-update.sequence.contextual-validation",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.contextual-local-kind",
+          "assertions": [
+            "wrong-kind.problem",
+            "prefix-absent.problem",
+            "corrected-same-keys.creator",
+            "corrected-same-keys.update",
+            "corrected-same-keys.creator-index",
+            "corrected-same-keys.creator-name",
+            "corrected-same-keys.update-index",
+            "corrected-same-keys.update-unnamed",
+            "corrected-live.properties"
+          ],
+          "limits": [
+            "Wrong-kind local Resource binding only. Forward/unknown labels and key/name uniqueness variants are not added by this plan."
+          ]
+        },
+        {
+          "scenario": "development.read-update.contextual-durable-kind",
+          "assertions": [
+            "wrong-kind.member-problem",
+            "wrong-kind.member-status",
+            "wrong-kind.member-index",
+            "wrong-kind.member-unnamed",
+            "wrong-kind.tail-outcome",
+            "wrong-kind.tail-index",
+            "wrong-kind.tail-name",
+            "link-unchanged.properties",
+            "tail-live.properties",
+            "retry.member-problem",
+            "retry.tail-outcome",
+            "corrected-same-key.problem",
+            "bead-before-fresh.properties",
+            "corrected-fresh-key.outcome",
+            "corrected-live.properties",
+            "link-revision-unchanged.outcome",
+            "link-still-unchanged.properties"
+          ],
+          "limits": [
+            "Wrong-kind durable subject at the Bead mutation target only, using a live unowned Link. Owned results/sourceRevision, broader Scope containment, other Resource/reference kinds and all contextual combinations remain unqualified. Retained replay is observed through selected result fields and key behavior, not full response byte equality."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.sequence.idempotent-retry",

@@ -1065,6 +1065,147 @@
           "selectedText": "Bindings are confined to one sequence request and do not add isolation: an interleaving request may update or delete the committed Resource before a later member uses it."
         }
       ]
+    },
+    {
+      "id": "development.read-update.contextual-local-kind",
+      "title": "Development observation: contextual-local-kind",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "The bundle validates wire shape, not admission."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "Scope containment of durable references, Resource kind, `@name` resolution and its kind, ownership \u2014 whether `source` and `sourceRevision` apply to a Link result \u2014 correspondence between a result and its request"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "the resolution of an alias spelling to a live alias, and, for an alias member, whether a put's `target` is a canonical Bead reference and whether its alias path is taken"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind \u2014 the subject does not exist as the required kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "`operations` is bounded by `sequence.operations` when that limit is advertised; a longer sequence is rejected before execution with `limit-exceeded`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Two members of one sequence MUST NOT carry the same `idempotencyKey`; a sequence that repeats a key is rejected before execution with `malformed-request`, as is one whose `name` values repeat or whose key or name violates its syntax."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "A `@name` reference that is forward, unknown, or of the wrong Resource kind is carrier syntax, decidable from the request text: the sequence is rejected before execution with `malformed-request`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "a sequence request that carries the field is rejected before execution with `malformed-request`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "are direct problem responses and execute nothing"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-problem-envelopes",
+          "selectedText": "Each failed member contains the same Problem Details shape with its would-be `status`, its zero-based `operationIndex`, and, when the member declared one, its `operationName`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "Every entry carries `operationIndex`, the member's zero-based position in the request's `operations` array, and carries `operationName` exactly when the member declared `name`."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.contextual-durable-kind",
+      "title": "Development observation: contextual-durable-kind",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "The bundle validates wire shape, not admission."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "Scope containment of durable references, Resource kind, `@name` resolution and its kind, ownership \u2014 whether `source` and `sourceRevision` apply to a Link result \u2014 correspondence between a result and its request"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "the resolution of an alias spelling to a live alias, and, for an alias member, whether a put's `target` is a canonical Bead reference and whether its alias path is taken"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind \u2014 the subject does not exist as the required kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "starts members strictly in declaration order and never runs them in parallel;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "commits each successful member immediately and never rolls it back because a later member fails;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "continues after a failed member so later independent work can run;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "Every other disposition, success or failure, is retained, and a retained failure answers a retry exactly as a retained success does for as long as it is retained"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained disposition is returned without re-executing anything."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Re-keying a creating member changes the identity of every member that references its binding: a client that corrects a creator presents new keys for its dependents as well."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition, positioned with the present member's `operationIndex` and `operationName`;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "The authority runs the remaining members to their terminal dispositions and retains those dispositions under their keys, so a retry recovers a lost response member by member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "The namespace is shared by every mutation carrier in the profile: a sequence member and a singleton request that present the same key in the same namespace present the same key."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "Singleton and sequence forms share one idempotency namespace, one semantic-identity rule, and one retention rule."
+        }
+      ]
     }
   ]
 }
