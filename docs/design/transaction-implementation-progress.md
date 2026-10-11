@@ -7,8 +7,9 @@ Read+Update development store.
 
 ## Executable boundary
 
-`transaction-batch.ts` prepares bounded Resource batches and eight singleton
-request kinds, reusing the Resource and alias evaluators. `transaction-store.ts`
+`transaction-batch.ts` prepares bounded Resource batches, eight singleton
+request kinds and a restricted sequence carrier, reusing the Resource and alias
+evaluators. `transaction-sequence.ts` owns sequence stepping and receipt projection. `transaction-store.ts`
 owns a SQLite file, its exclusive connection, key namespace, pending receipts,
 Resource state, alias locator state, identity allocation and change groups. The
 supported Resource operations are `createBead`, `updateBead`, `deleteBead`,
@@ -148,8 +149,60 @@ persisted witnesses are owner faults, not ordinary missing aliases or key
 conflicts. These are internal metadata, not new receipt or wire fields.
 
 Alias operations remain forbidden in batches, as required by the normative
-contract. There are no HTTP alias routes, redirects, replica alias projections,
-sequence routes or new profile claims.
+contract. There are no HTTP alias routes, redirects, replica alias projections
+or new profile claims.
+
+## First private sequence adapter
+
+The sequence preparer applies the shared protocol syntax and Scope checks to the
+whole carrier before key effects. It accepts the eight singleton operation kinds
+with explicit Resource operands and creation labels for reporting. Repeated keys
+remain a whole-carrier error. Every `@name` operand and every Resource-alias
+operand is explicitly refused before any key lookup or reservation. This is a
+private implementation limit, not an advertised narrower sequence contract.
+
+The store reserves all unknown member keys and their pending receipts in one
+SQLite admission transaction. It then executes members in declaration order,
+with a separate commit per member through the same owner used by singleton and
+batch. An earlier successful member remains committed when a later member fails;
+independent members continue after ordinary failure. A source-private stepping
+interface permits unrelated owner calls between members. The async adapter uses
+one event-loop turn per member and continues after admission without requiring a
+caller to consume its response. There is no HTTP disconnection handler in this
+slice; dropping response consumption is tested independently of authority abort.
+
+The envelope projects available results and retained failures with the current
+member's index and creation label. A foreign pending owner projects
+`idempotency-in-progress` before comparing immutable fields; it is never executed
+or retracted by this carrier. A later turn that finds the earlier owner completed
+compares and replays that receipt. Expired Resource creations project exactly
+`allocated: { id, type }`, without receipt allocation indices; expired alias and
+noncreation results omit it. The adapter has the owner's fixed all-visible
+policy and does not implement withholding or erasure projection.
+
+An internal failure or explicit authority abort retracts only pending keys still
+owned by this attempt. It preserves its committed prefix and another owner's
+reservations. A replacement attempt can acquire the released tail; the cancelled
+attempt cannot execute or cancel those replacement keys. On process restart,
+the existing recovery path retracts abandoned pending member receipts and never
+resumes the tail. An explicit client retry replays the prefix and admits the
+remaining unknown members. This slice adds no storage format or identity-policy
+change: all supported member identities were already fully resolvable.
+
+The next dependency slice needs durable creator-attempt/operation-slot
+reservations, successful and unbound binding facts, failed-key retention
+independence, pending-dependent projection without dependent-key lookup, and the
+finite direct-carrier comparison wait. Even supplied-ID `@name` references must
+wait for the creator's disposition because a failed creator binds no identity;
+textual substitution would be incorrect.
+
+Sequence Resource aliases also need a representation follow-up. The Transactional
+admission rule records normalized identity, while the inherited sequence rules
+resolve aliases when each member is reached. Earlier alias mutations and other
+requests may change a later member's locator before its turn. Freezing a missing
+alias at sequence admission would violate that behavior. This is recorded as a
+representation question for the next slice, not a new wire ruling or a blocker
+for the supported explicit-reference carrier.
 
 ## Receipt retention in a live owner
 
@@ -184,9 +237,9 @@ Retention adds no separate schema change or migration.
 
 ## Observed verification
 
-The bounded six-file suite exercises 479 tests, including 83 atomic-owner
-cases, Resource and alias evaluation, semantic identity, Transactional wire/schema
-fixtures and the Transactional catalog. Build, typecheck, dependency boundaries,
+The bounded seven-file suite exercises 494 tests, including 83 atomic-owner
+cases and 15 sequence-adapter cases, Resource and alias evaluation, semantic
+identity, Transactional wire/schema fixtures and the Transactional catalog. Build, typecheck, dependency boundaries,
 formatting and installed-package smoke pass. Lint completes with the existing
 three warnings and one informational finding. Observations cover:
 
@@ -246,6 +299,14 @@ three warnings and one informational finding. Observations cover:
   tombstones, persisted-witness validation and abrupt Resource-alias execution
   recovery before/after commit. Earlier alias stores are refused byte-identically
   before pending retraction or expiry maintenance.
+- Atomic sequence admission with fault rollback after its second reservation,
+  separate member commits, interleaving and continuation after ordinary failure.
+- All eight explicit operation kinds; overlapping presentations and pending-owner
+  precedence; mixed retained/conflicting/failed/unknown keys; cross-carrier value
+  equality; current labels; expired creation and alias projections.
+- Response-independent async continuation, fenced abort/replacement cleanup,
+  crash-prefix recovery and pre-effect refusal of duplicate keys, `@name` edges
+  and Resource-alias operands.
 - Abrupt child-process exit after commit. Reopen returns the exact original
   terminal receipt/IDs and continues the Scope's ordered group chain.
 
@@ -264,13 +325,13 @@ existing receiver.
 
 All eight singleton preparation paths already use batch's owner and
 receipt/key namespace. Before any Transactional HTTP integration, extend that
-same owner with sequence routes, including unresolved sequence dependencies. They must not keep writing through a parallel
-Read+Update owner. A migration or explicit new-Scope provisioning path, startup
-qualification and unified read authority must accompany that integration.
+same owner with full sequence dependencies and turn-time Resource-alias handling.
+These routes must not write through a parallel Read+Update owner. A migration or
+explicit new-Scope provisioning path, startup qualification and unified read authority must accompany that integration.
 
 Remaining requirements include set operations; owned-Link transitions; sequence
-carriers with unresolved dependent admission; authorization projection and reauthorized receipt disclosure
-and pagination; Event Sources, changefeed, snapshots and erasure;
+carriers with unresolved dependent admission and turn-time Resource aliases;
+authorization projection and reauthorized receipt disclosure and pagination; Event Sources, changefeed, snapshots and erasure;
 duration/recovery bounds under operational failure; complete native schemas,
 aggregate policies and limits; HTTP reception/status/conditional behavior; and
 executable whole-profile conformance evidence. Live receipt retention now runs,
