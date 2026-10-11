@@ -74,9 +74,40 @@ retracts uncommitted pending receipts immediately, before admitting new work; it
 never executes an abandoned request on its own initiative. A committed receipt
 and its allocations replay after a fresh process starts.
 
+## Receipt retention in a live owner
+
+Terminal receipts promise the existing fixed one-day minimum, measured after
+Resource evaluation reaches its terminal decision rather than from admission or
+the beginning of evaluation. At the exact `expiresAt` instant their detail remains
+available. Once that instant has passed, completed receipts compact to
+`detail: expired`: their original receipt and transaction identities, key, epoch,
+view, positions and ordered creation allocations remain. The compact form contains
+no results, next page or expiry field. Allocations come from the original retained
+creation entries, preserving their operation indices and names even if those
+Resources were subsequently deleted. Completed no-op receipts compact with an
+empty allocation list and continue to omit `effectPosition`. Their keys remain
+bound for the epoch, and semantic conflicts remain conflicts.
+
+Failed receipts are forgotten whole after their promised instant. Their old URLs
+then become unknown, and their keys can admit a new request under current state
+and guards. They never acquire `detail: expired`. This differs deliberately from
+completed receipts and from pending ownership. Live detail maintenance never
+retracts a pending execution; abandoned pending receipts are still retracted
+synchronously during startup recovery.
+
+Maintenance runs on startup, through the private `maintain()` entry point, on
+access to a key or receipt, and on an unreferenced periodic timer (one second by
+default). Each full sweep is atomic. A background sweep failure rolls back its
+changes, stops the timer, closes and fences the owner; subsequent owner operations
+report that failure rather than continuing silently. Closing the owner cancels
+its timer. The private test/configuration cadence is not an advertised retention
+or transaction-duration limit. The reference sweep scans available terminal
+receipts; population, work and operational timing bounds remain unqualified.
+There is no schema change or automatic migration in this slice.
+
 ## Observed verification
 
-The bounded five-file suite exercises 364 tests, including 20 atomic-owner
+The bounded five-file suite exercises 371 tests, including 27 atomic-owner
 tests, existing Resource evaluation and semantic identity tests, Transactional
 wire/schema fixtures and the Transactional catalog. New observations cover:
 
@@ -99,6 +130,14 @@ wire/schema fixtures and the Transactional catalog. New observations cover:
   rounding, refused numeric identity and metadata-sensitive conflict.
 - Unsupported/malformed operations refused without effects; separate principals;
   refusal of a concurrent live store, implicit reseeding and duplicate creation.
+- Receipt availability through the promised instant, ordered retained creation
+  allocations after Resource deletion, compact no-op replay after restart, and
+  principal-bound expired-receipt lookup.
+- Failed receipt forgetting and fresh same-key admission against changed state;
+  unchanged pending joins/fencing across the detail-retention interval.
+- Terminal-time retention calculation, maintenance while idle, timer cleanup,
+  atomic rollback of a failed sweep and sticky background failure with restart
+  recovery.
 - Abrupt child-process exit after durable admission, after staged Resource
   changes and after terminal writes but before commit. Each restart retracts one
   pending receipt with no partial Resources, identities or group, and an explicit
@@ -128,11 +167,11 @@ qualification and unified read authority must accompany that integration.
 Remaining requirements include set operations; owned-Link transitions; aliases
 outside batch; singleton and sequence
 carriers with unresolved dependent admission; authorization projection and
-reauthorized receipt disclosure; receipt expiry/compaction, failed-receipt
-forgetting and pagination; Event Sources, changefeed, snapshots and erasure;
+reauthorized receipt disclosure and pagination; Event Sources, changefeed,
+snapshots and erasure;
 duration/recovery bounds under operational failure; complete native schemas,
 aggregate policies and limits; HTTP reception/status/conditional behavior; and
-executable whole-profile conformance evidence. This first owner retains receipt
-detail beyond its declared minimum rather than expiring it; it does not implement
-a maintenance policy for bounded retention. There is no Read+Update or
-Transactional admission change in this slice.
+executable whole-profile conformance evidence. Live receipt retention now runs,
+but it does not qualify workload bounds, policy/erasure projection or a complete
+Transactional lifecycle. There is no Read+Update or Transactional profile
+admission change in this slice.
