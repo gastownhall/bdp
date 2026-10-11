@@ -2056,7 +2056,16 @@ describe("private transaction storage failure fencing", () => {
     throw new Error("expected injected failure");
   }
   function assertFenced(store: ReturnType<typeof openTransactionStore>, claim: TransactionClaim) {
+    const readCallback = vi.fn();
+    const refusal = store.withRead(readCallback);
+    expect(refusal).toMatchObject({ kind: "entry-refused", reason: "not-accepting" });
+    if (refusal.kind === "entry-refused")
+      expect(failures(refusal.cause)).toContain(
+        "transaction storage failure; owner fenced; reopen before use",
+      );
+    expect(readCallback).not.toHaveBeenCalled();
     for (const action of [
+      () => store.readConfiguration(),
       () => store.inspect(),
       () => store.aliasTarget("x"),
       () => store.receipt("principal", claim.receipt.id),
@@ -2451,4 +2460,98 @@ describe("private transaction storage failure fencing", () => {
       expect(recovered.inspect().groups).toHaveLength(3);
     },
   );
+});
+
+describe("private transaction reader lifetime", () => {
+  it.each(["return", "throw", "async", "thenable"])(
+    "expires every method after callback %s and leaves owner usable",
+    async (mode) => {
+      const f = fixture();
+      f.store.execute(admit(f.store));
+      let escaped: import("./authority-read.js").AuthorityReadReader | undefined;
+      const invoke = () =>
+        f.store.withRead((reader) => {
+          escaped = reader;
+          expect(Object.keys(reader).sort()).toEqual([
+            "alias",
+            "incidentLinks",
+            "policy",
+            "resource",
+            "resources",
+          ]);
+          expect(reader.resources()).toHaveLength(2);
+          expect(reader.policy("any")).toBeUndefined();
+          if (mode === "throw") throw new Error("read callback failure");
+          if (mode === "async") return Promise.resolve().then(() => reader.resources());
+          if (mode === "thenable")
+            return {
+              // biome-ignore lint/suspicious/noThenProperty: exercise forbidden thenable callbacks.
+              then(resolve: (value: unknown) => void) {
+                resolve(reader.resources());
+              },
+            };
+          return 42;
+        });
+      if (mode === "return") expect(invoke()).toEqual({ kind: "read", value: 42 });
+      else
+        expect(invoke).toThrow(mode === "throw" ? "read callback failure" : "must be synchronous");
+      if (!escaped) throw new Error("reader not captured");
+      const expired = escaped;
+      for (const action of [
+        () => expired.resource("beads/a"),
+        () => expired.resources(),
+        () => expired.incidentLinks("beads/a"),
+        () => expired.alias("a"),
+        () => expired.policy("any"),
+      ])
+        expect(action).toThrow("expired transaction reader");
+      await Promise.resolve();
+      expect(f.store.withRead((reader) => reader.resources().length)).toEqual({
+        kind: "read",
+        value: 2,
+      });
+    },
+  );
+
+  it("freezes row snapshots and refuses reentry, mutation and close without losing the owner", () => {
+    const f = fixture(),
+      claim = admit(f.store);
+    f.store.execute(claim);
+    f.store.withRead((reader) => {
+      const rows = reader.resources(),
+        beadRow = rows.find((r) => r.kind === "bead");
+      if (!beadRow) throw new Error("missing fixture Bead");
+      expect(Object.isFrozen(reader)).toBe(true);
+      expect(Object.isFrozen(rows)).toBe(true);
+      for (const row of rows) expect(Object.isFrozen(row)).toBe(true);
+      expect(Object.isFrozen(reader.resource(beadRow.id))).toBe(true);
+      const links = reader.incidentLinks(beadRow.id);
+      expect(links).toHaveLength(1);
+      expect(Object.isFrozen(links)).toBe(true);
+      expect(Object.isFrozen(links[0])).toBe(true);
+      expect(() => Object.assign(beadRow, { bodyJson: "{}" })).toThrow();
+      const callback = vi.fn();
+      expect(f.store.withRead(callback)).toMatchObject({
+        kind: "entry-refused",
+        reason: "reentrant",
+      });
+      expect(callback).not.toHaveBeenCalled();
+      for (const action of [
+        () => admit(f.store, batch, "nested"),
+        () => f.store.readConfiguration(),
+        () => f.store.close(),
+      ])
+        expect(action).toThrow("reentrant");
+    });
+    expect(
+      f.store.admit("principal", "key", prepareTransaction(scope, JSON.stringify(batch))),
+    ).toMatchObject({ kind: "existing", receipt: { status: "completed" } });
+    f.store.close();
+    const callback = vi.fn();
+    expect(f.store.withRead(callback)).toMatchObject({
+      kind: "entry-refused",
+      reason: "not-accepting",
+    });
+    expect(callback).not.toHaveBeenCalled();
+  });
 });

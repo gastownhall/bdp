@@ -4,6 +4,7 @@ import { closeSync, existsSync, openSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@bdp/protocol";
+import type { AuthorityReadReader, OwnerReadEntryResult } from "./authority-read.js";
 import type { EvaluatorStoredResource } from "./resource-evaluator.js";
 import {
   TransactionDevelopmentLimitError,
@@ -404,6 +405,93 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   }
   const epoch = metadata("epoch"),
     view = "development-all-visible";
+  // Immutable installation facts are the same ones used by mutation evaluation.
+  // No named policy registry exists in this fixed all-visible development owner.
+  const readConfiguration = Object.freeze({
+    scopeEpoch: epoch,
+    authorizationView: view,
+    installedTypes: Object.freeze(descriptors),
+    scopeConfiguration: Object.freeze({
+      policyIdentity: view,
+      configurationIdentity: configuration,
+      maximumEndpointMultiplicity: Object.freeze([]),
+    }),
+  });
+  function withRead<T>(callback: (reader: AuthorityReadReader) => T): OwnerReadEntryResult<T> {
+    if (busy)
+      return {
+        kind: "entry-refused",
+        reason: "reentrant",
+        cause: new Error("transaction store reentrant read"),
+      };
+    if (ownerFailure || maintenanceFailure || closed)
+      return {
+        kind: "entry-refused",
+        reason: "not-accepting",
+        cause:
+          ownerFailure ?? new Error("transaction store not accepting reads", maintenanceFailure),
+      };
+    return enter(() => {
+      let active = true;
+      const check = () => {
+        if (!active) throw new Error("expired transaction reader");
+      };
+      const immutableResource = (id: string) => {
+        const row = resource(id);
+        return row === undefined ? undefined : Object.freeze(row);
+      };
+      const reader: AuthorityReadReader = Object.freeze({
+        resource(id: string) {
+          check();
+          return immutableResource(id);
+        },
+        resources() {
+          check();
+          return Object.freeze(
+            db
+              .prepare("SELECT id FROM resources ORDER BY id")
+              .all()
+              .map((row) => Object.freeze(requiredResource(String(row.id)))),
+          );
+        },
+        incidentLinks(id: string) {
+          check();
+          return Object.freeze(
+            db
+              .prepare(
+                "SELECT id FROM resources WHERE kind='link' AND (source=? OR target=?) ORDER BY id",
+              )
+              .all(id, id)
+              .map((row) => Object.freeze(requiredResource(String(row.id)))),
+          );
+        },
+        alias(path: string) {
+          check();
+          return alias(path);
+        },
+        policy(_name: string) {
+          check();
+          return undefined;
+        },
+      });
+      try {
+        const value = callback(reader);
+        if (
+          value !== null &&
+          (typeof value === "object" || typeof value === "function") &&
+          "then" in value &&
+          typeof value.then === "function"
+        ) {
+          // Observe forbidden asynchronous work; it cannot retain a live reader.
+          void Promise.resolve(value).catch(() => {});
+          throw new Error("transaction read callbacks must be synchronous");
+        }
+        return Object.freeze({ kind: "read", value });
+      } finally {
+        active = false;
+      }
+    });
+  }
   function resource(id: string): EvaluatorStoredResource | undefined {
     const found = db.prepare("SELECT * FROM resources WHERE id=?").get(id);
     if (!found) return undefined;
@@ -849,6 +937,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     scope,
     scopeEpoch: epoch,
     recoveredPending,
+    withRead,
+    readConfiguration: () => enter(() => readConfiguration),
     comparisonEpoch: () => (closed ? undefined : enter(() => metadata("epoch"))),
     maintain,
     admit,
