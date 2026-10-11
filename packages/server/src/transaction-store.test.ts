@@ -6,7 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseTypeDescriptor, isJsonSchemaDateTime, isJsonSchemaUri } from "@bdp/protocol";
-import { prepareTransaction } from "./transaction-batch.js";
+import { prepareTransaction, prepareTransactionSingleton } from "./transaction-batch.js";
 import { openTransactionStore, type TransactionClaim } from "./transaction-store.js";
 
 const scope = "https://example.test/transaction/";
@@ -860,6 +860,305 @@ describe("private atomic transaction owner", () => {
     expect(reopened.receipt("principal", failed.id)).toBeUndefined();
     expect(reopened.receipt("principal", pending.receipt.id)).toBeUndefined();
     expect(reopened.inspect()).toEqual(initial);
+  });
+  for (const operation of [
+    "createBead",
+    "createLink",
+    "updateBead",
+    "updateLink",
+    "deleteBead",
+    "deleteLink",
+  ] as const) {
+    for (const firstCarrier of ["singleton", "batch"] as const) {
+      it(`${operation} shares one receipt/key with an equivalent ${firstCarrier}-first request across carriers`, () => {
+        const f = fixture(),
+          { beadRecord, linkRecord } = seed(f.store);
+        if (operation === "deleteBead")
+          execute(
+            f.store,
+            [{ operation: "deleteLink", link: linkRecord.id }],
+            "unlink-before-delete",
+          );
+        const relative = (id: string) => id.slice(scope.length);
+        const bodies: Record<typeof operation, Record<string, unknown>> = {
+          createBead: { type: bead, id: "beads/new", properties: { n: 1 } },
+          createLink: {
+            type: link,
+            id: "links/new",
+            source: relative(beadRecord.id),
+            target: relative(beadRecord.id),
+          },
+          updateBead: {
+            bead: relative(beadRecord.id),
+            expectedRevision: beadRecord.revision,
+            propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
+          },
+          updateLink: {
+            link: relative(linkRecord.id),
+            expectedRevision: linkRecord.revision,
+            metadataChange: [{ op: "add", path: "/note", value: "x" }],
+          },
+          deleteBead: { bead: relative(beadRecord.id), expectedRevision: beadRecord.revision },
+          deleteLink: { link: relative(linkRecord.id), expectedRevision: linkRecord.revision },
+        };
+        const input = bodies[operation],
+          canonical = { ...input };
+        for (const field of ["id", "source", "target", "bead", "link"]) {
+          const value = canonical[field];
+          if (typeof value === "string" && /^(beads|links)\//.test(value))
+            canonical[field] = `${scope}${value}`;
+        }
+        if (operation.startsWith("create")) canonical.metadata = {};
+        const singleton = prepareTransactionSingleton(scope, operation, JSON.stringify(input));
+        const oneBatch = prepareTransaction(
+          scope,
+          JSON.stringify({
+            operations: [
+              {
+                operation,
+                ...(operation.startsWith("create") ? { name: "named" } : {}),
+                ...canonical,
+              },
+            ],
+          }),
+        );
+        expect(singleton.identity).toBe(oneBatch.identity);
+        const first = firstCarrier === "singleton" ? singleton : oneBatch,
+          retry = firstCarrier === "singleton" ? oneBatch : singleton;
+        const admission = f.store.admit("principal", "cross", first);
+        if (admission.kind !== "owned") throw new Error("expected owner");
+        expect(f.store.admit("principal", "cross", retry)).toEqual({
+          kind: "existing",
+          receipt: admission.claim.receipt,
+        });
+        const receipt = f.store.execute(admission.claim),
+          state = f.store.inspect();
+        expect(receipt.status).toBe("completed");
+        expect(receiptSchema(receipt), JSON.stringify(receiptSchema.errors)).toBe(true);
+        expect(receipt.results).toHaveLength(1);
+        const result = (receipt.results as { operationIndex: number; operationName?: string }[])[0];
+        expect(result?.operationIndex).toBe(0);
+        expect(result?.operationName).toBe(
+          firstCarrier === "batch" && operation.startsWith("create") ? "named" : undefined,
+        );
+        expect(f.store.admit("principal", "cross", retry)).toEqual({ kind: "existing", receipt });
+        expect(f.reopen().admit("principal", "cross", retry)).toEqual({
+          kind: "existing",
+          receipt,
+        });
+        expect(f.store.inspect()).toEqual(state);
+        for (const group of state.groups)
+          expect(groupSchema(group), JSON.stringify(groupSchema.errors)).toBe(true);
+      });
+    }
+  }
+  it("keeps carrier-independent conflicts, refused numbers and permanent failures", () => {
+    const f = fixture();
+    const input = JSON.stringify({ type: bead, properties: { n: 1 } }).replace(
+      '"n":1',
+      '"n":1e999',
+    );
+    const singleton = prepareTransactionSingleton(scope, "createBead", input);
+    const pending = f.store.admit("principal", "failure", singleton);
+    if (pending.kind !== "owned") throw new Error("expected owner");
+    const receipt = f.store.execute(pending.claim);
+    expect(receipt).toMatchObject({
+      status: "failed",
+      problem: { code: "validation-failed", operationIndex: 0 },
+    });
+    const same = prepareTransaction(
+      scope,
+      `{"operations":[{"operation":"createBead","name":"new",${input.slice(1)}]}`,
+    );
+    expect(f.store.admit("principal", "failure", same)).toEqual({ kind: "existing", receipt });
+    const changed = prepareTransaction(
+      scope,
+      `{"operations":[{"operation":"createBead",${input.slice(1).replace("1e999", "2e999")}]}`,
+    );
+    expect(f.store.admit("principal", "failure", changed)).toEqual({ kind: "conflict" });
+    expect(f.store.inspect().resources).toEqual([]);
+  });
+  for (const operation of ["createBead", "updateBead"] as const)
+    for (const firstCarrier of ["singleton", "batch"] as const)
+      for (const firstContext of ["omitted", "empty"] as const)
+        it(`${operation} joins ${firstCarrier}-first ${firstContext} context with its equivalent default`, () => {
+          const f = fixture();
+          const input =
+            operation === "createBead"
+              ? { type: bead }
+              : {
+                  bead: seed(f.store).beadRecord.id,
+                  propertiesChange: [{ op: "add", path: "/changed", value: true }],
+                };
+          function prepare(
+            carrier: "singleton" | "batch",
+            context: "omitted" | "empty" | { agent: null } | { message: null },
+          ) {
+            const body = {
+              ...input,
+              ...(context === "omitted"
+                ? {}
+                : { changeContext: context === "empty" ? {} : context }),
+            };
+            return carrier === "singleton"
+              ? prepareTransactionSingleton(scope, operation, JSON.stringify(body))
+              : prepareTransaction(scope, JSON.stringify({ operations: [{ operation, ...body }] }));
+          }
+          const secondCarrier = firstCarrier === "singleton" ? "batch" : "singleton";
+          const first = prepare(firstCarrier, firstContext);
+          const retry = prepare(secondCarrier, firstContext === "omitted" ? "empty" : "omitted");
+          expect(first.identity).toBe(retry.identity);
+          const admitted = f.store.admit("principal", "context-default", first);
+          if (admitted.kind !== "owned") throw new Error("expected owner");
+          expect(f.store.admit("principal", "context-default", retry)).toEqual({
+            kind: "existing",
+            receipt: admitted.claim.receipt,
+          });
+          for (const context of [{ agent: null }, { message: null }] as const)
+            expect(
+              f.store.admit("principal", "context-default", prepare(secondCarrier, context)),
+            ).toEqual({ kind: "conflict" });
+          const completed = f.store.execute(admitted.claim);
+          expect(completed.status).toBe("completed");
+          const state = f.store.inspect();
+          expect(f.store.admit("principal", "context-default", retry)).toEqual({
+            kind: "existing",
+            receipt: completed,
+          });
+          expect(f.reopen().admit("principal", "context-default", retry)).toEqual({
+            kind: "existing",
+            receipt: completed,
+          });
+          expect(f.store.inspect()).toEqual(state);
+          for (const context of [{ agent: null }, { message: null }] as const)
+            expect(
+              f.store.admit("principal", "context-default", prepare(secondCarrier, context)),
+            ).toEqual({ kind: "conflict" });
+        });
+  for (const policy of [undefined, "unknown-policy"])
+    it(`refuses ${policy ?? "unversioned"} identity policy without altering retained outcomes or pending ownership`, () => {
+      let now = 1000;
+      const f = fixture({ clock: () => now });
+      const completed = execute(f.store, batch.operations, "completed");
+      const pending = admit(f.store, batch, "pending");
+      f.store.close();
+      const raw = new DatabaseSync(f.options.file);
+      let pendingRow;
+      try {
+        const row = raw.prepare("SELECT value FROM metadata WHERE name='configuration'").get();
+        const configuration = JSON.parse(String(row?.value));
+        if (policy === undefined) delete configuration.identityPolicy;
+        else configuration.identityPolicy = policy;
+        raw
+          .prepare("UPDATE metadata SET value=? WHERE name='configuration'")
+          .run(JSON.stringify(configuration));
+        pendingRow = raw.prepare("SELECT * FROM receipts WHERE key='pending'").get();
+      } finally {
+        raw.close();
+      }
+      now = Date.parse(String(completed.expiresAt)) + 1;
+      const before = readFileSync(f.options.file);
+      expect(() => openTransactionStore({ ...f.options, create: false })).toThrow(
+        "transaction identity policy mismatch; explicit new-store provisioning required",
+      );
+      expect(readFileSync(f.options.file)).toEqual(before);
+      const inspected = new DatabaseSync(f.options.file, { readOnly: true });
+      try {
+        expect(inspected.prepare("SELECT * FROM receipts WHERE key='pending'").get()).toEqual(
+          pendingRow,
+        );
+        expect(JSON.parse(String(pendingRow?.receipt)).id).toBe(pending.receipt.id);
+        const row = inspected.prepare("SELECT receipt FROM receipts WHERE key='completed'").get();
+        expect(JSON.parse(String(row?.receipt))).toEqual(completed);
+      } finally {
+        inspected.close();
+      }
+    });
+  it("retracts a singleton attempt then admits its equivalent batch without inheriting ownership", () => {
+    const f = fixture();
+    const singleton = prepareTransactionSingleton(
+      scope,
+      "createBead",
+      JSON.stringify({ type: bead }),
+    );
+    const first = f.store.admit("principal", "retract", singleton);
+    if (first.kind !== "owned") throw new Error("expected owner");
+    expect(f.store.retract(first.claim)).toBe(true);
+    const equivalent = prepareTransaction(
+      scope,
+      JSON.stringify({ operations: [{ operation: "createBead", type: bead, name: "created" }] }),
+    );
+    const next = f.store.admit("principal", "retract", equivalent);
+    if (next.kind !== "owned") throw new Error("expected replacement owner");
+    expect(next.claim.receipt.id).not.toBe(first.claim.receipt.id);
+    expect(() => f.store.execute(first.claim)).toThrow("fenced");
+    const receipt = f.store.execute(next.claim);
+    expect(f.store.admit("principal", "retract", singleton)).toEqual({ kind: "existing", receipt });
+    expect(f.store.inspect().groups).toHaveLength(1);
+  });
+  it("preserves expired singleton allocation through batch retry and makes expired failed keys fresh across carriers", () => {
+    let now = 1000;
+    const f = fixture({ clock: () => now });
+    const singleton = prepareTransactionSingleton(
+      scope,
+      "createBead",
+      JSON.stringify({ type: bead }),
+    );
+    const admitted = f.store.admit("principal", "expires", singleton);
+    if (admitted.kind !== "owned") throw new Error("expected owner");
+    const original = f.store.execute(admitted.claim);
+    const failedInput = { operation: "deleteBead", bead: "beads/missing" };
+    const failed = execute(f.store, [failedInput], "failed-cross");
+    now = Date.parse(String(original.expiresAt)) + 1;
+    const equivalent = prepareTransaction(
+      scope,
+      JSON.stringify({ operations: [{ operation: "createBead", name: "retry-name", type: bead }] }),
+    );
+    const replay = f.reopen().admit("principal", "expires", equivalent);
+    expect(replay).toMatchObject({
+      kind: "existing",
+      receipt: { id: original.id, detail: "expired", allocated: [{ operationIndex: 0 }] },
+    });
+    if (replay.kind !== "existing") throw new Error("expected retained allocation");
+    expect((replay.receipt.allocated as unknown[])[0]).not.toHaveProperty("operationName");
+    expect(f.store.admit("principal", "expires", singleton)).toEqual(replay);
+    expect(f.store.inspect().groups).toHaveLength(1);
+    const fresh = f.store.admit(
+      "principal",
+      "failed-cross",
+      prepareTransactionSingleton(scope, "deleteBead", JSON.stringify({ bead: "beads/missing" })),
+    );
+    expect(fresh.kind).toBe("owned");
+    if (fresh.kind !== "owned") throw new Error("expected fresh failed key");
+    expect(fresh.claim.receipt.id).not.toBe(failed.id);
+    expect(f.store.receipt("principal", failed.id)).toBeUndefined();
+  });
+  it("rejects singleton batch-only syntax and local labels before owner admission", () => {
+    const f = fixture();
+    for (const input of [
+      { type: bead, operation: "createBead" },
+      { type: bead, name: "x" },
+      { type: bead, idempotencyKey: "body-key" },
+      { type: bead, id: "@x" },
+    ])
+      expect(() =>
+        prepareTransactionSingleton(scope, "createBead", JSON.stringify(input)),
+      ).toThrow();
+    expect(() =>
+      prepareTransactionSingleton(
+        scope,
+        "createLink",
+        JSON.stringify({ type: link, source: "@x", target: "beads/a" }),
+      ),
+    ).toThrow();
+    expect(() =>
+      prepareTransactionSingleton(
+        scope,
+        "putAlias" as never,
+        JSON.stringify({ alias: "alias/a", target: "beads/a" }),
+      ),
+    ).toThrow("unsupported");
+    expect(f.store.inspect().groups).toEqual([]);
   });
   for (const stage of ["after-admission", "after-effects", "after-terminal"] as const)
     it(`recovers abrupt process exit ${stage} without partial graph, receipt or group`, () => {

@@ -3,6 +3,7 @@ import {
   JsonNumberLiteral,
   decodeJsonDocument,
   prepareReadUpdateSequence,
+  prepareReadUpdateSingleton,
   admitReadUpdateOperationNumbers,
   referenceUri,
   stringifyJsonValue,
@@ -15,6 +16,7 @@ import {
   evaluateResourceMutation,
   readStoredResource,
   type ResourceMutation,
+  type ResourceOperation,
   type ResourceEvaluationOptions,
   type ResourceTransaction,
   type ResourceRecord,
@@ -25,6 +27,15 @@ export interface PreparedTransaction {
   readonly carrier: PreparedReadUpdateCarrier;
 }
 const prepared = new WeakSet<object>();
+function assertResourceOperation(operation: unknown): asserts operation is ResourceOperation {
+  if (
+    typeof operation !== "string" ||
+    !["createBead", "createLink", "updateBead", "updateLink", "deleteBead", "deleteLink"].includes(
+      operation,
+    )
+  )
+    throw new TypeError("unsupported development transaction operation");
+}
 function object(value: LosslessJsonValue | undefined): Record<string, LosslessJsonValue> {
   if (
     !value ||
@@ -60,21 +71,28 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
     throw new TypeError("expected 1..32 batch operations");
   const operations = root.operations.map((value, index) => {
     const op = object(value);
-    if (
-      ![
-        "createBead",
-        "createLink",
-        "updateBead",
-        "updateLink",
-        "deleteBead",
-        "deleteLink",
-      ].includes(String(op.operation))
-    )
-      throw new TypeError("unsupported development transaction operation");
+    assertResourceOperation(op.operation);
     if (Object.hasOwn(op, "idempotencyKey")) throw new TypeError("batch members cannot carry keys");
     return { ...op, idempotencyKey: `internal-${index}` };
   });
-  const carrier = prepareReadUpdateSequence(scope, losslessText({ operations }));
+  return prepareCarrier(prepareReadUpdateSequence(scope, losslessText({ operations })));
+}
+/** A singleton is the same one-operation Transactional request, not a RU
+ * execution. Its raw record excludes the discriminator, label and body key.
+ * Synthetic parsing keys are never consulted or persisted by the owner. */
+export function prepareTransactionSingleton(
+  scope: string,
+  operation: ResourceOperation,
+  text: string,
+): PreparedTransaction {
+  assertResourceOperation(operation);
+  if (Buffer.byteLength(text) > 65536) throw new RangeError("development singleton byte limit");
+  // Apply the same operation-content depth bound as the batch wrapper.
+  losslessText(object(decodeJsonDocument(text)), 2);
+  return prepareCarrier(prepareReadUpdateSingleton(scope, operation, text, "internal-singleton"));
+}
+function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction {
+  const scope = carrier.scope;
   const creators = new Map<string, SemanticValue>();
   const identities: SemanticValue[] = [];
   const canonical = (uri: string): string =>
@@ -87,6 +105,11 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
         ? { properties: op.input.properties ?? {}, metadata: op.input.metadata ?? {} }
         : {}),
     };
+    // Empty context supplies no explicit states, exactly like omission. Null
+    // agent/message members remain meaningful and must keep distinct identities.
+    const context = input.changeContext;
+    if (context !== null && typeof context === "object" && Object.keys(context).length === 0)
+      delete input.changeContext;
     for (const field of ["id", "source", "target", "bead", "link"]) {
       const value = input[field];
       if (value === undefined) continue;
@@ -114,7 +137,7 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
 }
 export function assertPreparedTransaction(batch: PreparedTransaction, scope: string): void {
   if (!prepared.has(batch) || batch.carrier.scope !== scope)
-    throw new TypeError("expected prepared batch for this Scope");
+    throw new TypeError("expected prepared transaction for this Scope");
 }
 export interface TransactionEvent {
   readonly id: string;

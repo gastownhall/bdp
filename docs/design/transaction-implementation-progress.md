@@ -7,8 +7,8 @@ Read+Update development store.
 
 ## Executable boundary
 
-`transaction-batch.ts` prepares a bounded batch and reuses the existing Resource
-evaluator. `transaction-store.ts` owns a SQLite file, its exclusive connection,
+`transaction-batch.ts` prepares bounded batches and six Resource singleton
+request records, then reuses the existing Resource evaluator. `transaction-store.ts` owns a SQLite file, its exclusive connection,
 key namespace, pending receipts, Resource state, identity allocation and change
 groups. The supported operations are `createBead`, `updateBead`, `deleteBead`,
 `createLink`, `updateLink` and `deleteLink`, with preceding local creation
@@ -28,7 +28,9 @@ transaction identity and execution owner together. A proven equal pending
 request receives that same pending receipt; a different request conflicts.
 Batch identity preserves operation order and exact numeric equality, excludes
 label spelling, expands empty properties/metadata defaults and canonicalizes
-local Resource references. An allocated creator is identified by operation index;
+local Resource references. Omitted `changeContext` and an empty object share
+one identity; explicit null agent/message members remain distinct. An allocated
+creator is identified by operation index;
 a creator with a supplied ID is identified by its canonical Resource URL. The
 Read+Update parser is reused for operation syntax and binding checks, with
 synthetic member keys that never enter storage. Its admission/key-state machine
@@ -67,8 +69,15 @@ Receipts and groups produced by executable tests are validated against the
 canonical schema bundle.
 
 The store is explicitly provisioned at a new absolute file path. Reopen verifies
-its format, canonical Scope and exact installed Type configuration. The Scope
-epoch persists across restart. Persistent SQLite EXCLUSIVE locking prevents two
+its format, canonical Scope, exact installed Type configuration and identity
+normalization policy. Files created before the empty-context normalization policy
+was recorded, or carrying another policy, are refused with an explicit identity-policy
+diagnostic before pending recovery or receipt maintenance. This deliberately changes
+the private configuration fingerprint without changing the SQL format number.
+There is no migration, in-place upgrade or reseed: new disposable stores require
+explicit provisioning at a new path. Old retained outcomes and pending owners are
+never reinterpreted or removed by a refused open. The Scope epoch persists
+across restart. Persistent SQLite EXCLUSIVE locking prevents two
 live connections from admitting independently into the same file. Startup
 retracts uncommitted pending receipts immediately, before admitting new work; it
 never executes an abandoned request on its own initiative. A committed receipt
@@ -107,9 +116,12 @@ There is no schema change or automatic migration in this slice.
 
 ## Observed verification
 
-The bounded five-file suite exercises 371 tests, including 27 atomic-owner
-tests, existing Resource evaluation and semantic identity tests, Transactional
-wire/schema fixtures and the Transactional catalog. New observations cover:
+The prior bounded five-file suite exercised 387 tests, including 43 atomic-owner
+tests alongside Resource evaluation, semantic identity, Transactional wire/schema
+fixtures and catalog tests. The context-default correction adds ten atomic-owner
+tests for a total of 53 in that file; its focused rerun does not repeat that broader
+suite. The focused 53-test run, build, typecheck, dependency-boundary and format
+checks passed for the correction. Observations cover:
 
 - Bead plus local-reference Link success, ordered Events, schema-valid receipt
   and group, one durable commit, and principal-bound receipt lookup.
@@ -130,6 +142,16 @@ wire/schema fixtures and the Transactional catalog. New observations cover:
   rounding, refused numeric identity and metadata-sensitive conflict.
 - Unsupported/malformed operations refused without effects; separate principals;
   refusal of a concurrent live store, implicit reseeding and duplicate creation.
+- All six Resource operations executed with singleton-first and batch-first
+  admission, equivalent local/canonical references and one shared receipt through
+  pending join, completion and restart; creation labels remain as first admitted.
+- Empty/omitted context equality for create and update, both carrier directions
+  and both default spellings, through pending join, completion and restart; explicit
+  null context members remain conflicts. Unversioned and unknown-policy files are
+  refused without changing file bytes, retained completed receipts or pending owners.
+- Cross-carrier numeric failure and conflict, retraction and stale-owner fencing,
+  completed expiry/replay, failed-key forgetting and rejection of singleton-only
+  syntax violations before owner admission.
 - Receipt availability through the promised instant, ordered retained creation
   allocations after Resource deletion, compact no-op replay after restart, and
   principal-bound expired-receipt lookup.
@@ -158,15 +180,15 @@ not the old store's state machine. It does not open, migrate or concurrently
 serve the Read+Update database. Its new format must not be substituted behind the
 existing receiver.
 
-Before any Transactional HTTP integration, build one common Transactional owner
-for every mutation route. Its singleton and sequence paths must use the same
-receipt/key namespace as batch. They must not keep writing through a parallel
-Read+Update owner. A migration or explicit new-Scope provisioning path, startup
+The six Resource singleton preparation paths already use batch's owner and
+receipt/key namespace. Before any Transactional HTTP integration, extend that
+same owner to the remaining alias and sequence routes, including unresolved
+sequence dependencies. They must not keep writing through a parallel Read+Update
+owner. A migration or explicit new-Scope provisioning path, startup
 qualification and unified read authority must accompany that integration.
 
 Remaining requirements include set operations; owned-Link transitions; aliases
-outside batch; singleton and sequence
-carriers with unresolved dependent admission; authorization projection and
+outside batch; sequence carriers with unresolved dependent admission; authorization projection and
 reauthorized receipt disclosure and pagination; Event Sources, changefeed,
 snapshots and erasure;
 duration/recovery bounds under operational failure; complete native schemas,
