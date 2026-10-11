@@ -10,15 +10,19 @@ const scheduler = new URL("../../../packages/server/dist/sequence-executor.js", 
   .href;
 const executable = new URL("../dist/development-main.js", import.meta.url);
 
-// This child changes scheduling only. The real emitted HTTP receiver, durable
+// This child controls scheduling or a fixed retention clock only. The real emitted HTTP receiver, durable
 // owner, evaluator and store execute every request. No mocked admission or
-// synthetic outcome stands in for committed state. Dispatch 2 is parked before
-// its callback: dispatch 1 has committed, and all later members remain unrun.
+// synthetic outcome stands in for committed state. Scheduling mode parks dispatch
+// 2 after dispatch 1 commits. Retention mode leaves scheduling alone and pins only
+// the private retention clock; reopening lets normal startup expiry run.
 const controlledProgram = `
 import { readFileSync } from "node:fs";
 import { startDevelopmentReferenceRuntime } from ${JSON.stringify(runtime)};
 import { createNodeLifecycleScheduler } from ${JSON.stringify(scheduler)};
 const config = JSON.parse(readFileSync(process.argv[2], "utf8"));
+const epoch = process.argv[3] === undefined ? undefined : Number(process.argv[3]);
+if (epoch !== undefined && (!Number.isSafeInteger(epoch) || epoch < 0))
+  throw Error("invalid private retention epoch");
 if (process.version !== "v24.16.0") throw Error("wrong pinned Node");
 const adapter = createNodeLifecycleScheduler();
 const send = (message) => process.send(message);
@@ -40,7 +44,10 @@ const controlled = {
     return () => { cancelled = true; cancel(); };
   },
 };
-const server = await startDevelopmentReferenceRuntime(config, controlled);
+const server = await startDevelopmentReferenceRuntime(
+  config, epoch === undefined ? controlled : undefined,
+  epoch === undefined ? undefined : () => epoch,
+);
 process.on("message", (message) => {
   if (message === "release") {
     if (!parked) throw Error("no parked member");
@@ -90,7 +97,20 @@ export function createDevelopmentProcessHarness(token: string) {
       for (const owned of directories.splice(0)) rmSync(owned, { recursive: true, force: true });
     }
   }
-  async function start(store: string, port = 0, create = true, controlled = true) {
+  async function start(
+    store: string,
+    port = 0,
+    create = true,
+    controlled = true,
+    retentionEpoch?: number,
+  ) {
+    if (
+      retentionEpoch !== undefined &&
+      (!controlled || !Number.isSafeInteger(retentionEpoch) || retentionEpoch < 0)
+    )
+      throw new Error(
+        "retention epoch requires a private controlled child and safe nonnegative time",
+      );
     const support = directory();
     const config = path.join(support, "config.json");
     writeFileSync(config, JSON.stringify({ directory: store, port, create, token }), {
@@ -98,9 +118,17 @@ export function createDevelopmentProcessHarness(token: string) {
     });
     const program = path.join(support, "controlled.mjs");
     writeFileSync(program, controlledProgram);
-    const child = spawn(process.execPath, [controlled ? program : executable.pathname, config], {
-      stdio: ["ignore", "pipe", "pipe", "ipc"],
-    });
+    const child = spawn(
+      process.execPath,
+      [
+        controlled ? program : executable.pathname,
+        config,
+        ...(retentionEpoch === undefined ? [] : [String(retentionEpoch)]),
+      ],
+      {
+        stdio: ["ignore", "pipe", "pipe", "ipc"],
+      },
+    );
     children.push(child);
     const messages: Message[] = [];
     const listeners = new Set<() => void>();

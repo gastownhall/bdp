@@ -186,7 +186,9 @@ async function runDevelopmentMatrix(
       ...(selection === undefined ? {} : { scenarioSelection: selection }),
       harness: {
         async prepare(scenario, _scope, _seed, fixture) {
-          if (scenario.setup.requires.includes("development-process"))
+          if (scenario.setup.requires.includes("development-retention-process"))
+            await processes.prepare(path.join(directory, scenario.id), port, true);
+          else if (scenario.setup.requires.includes("development-process"))
             await processes.prepare(path.join(directory, scenario.id), port);
           else
             server = await startDevelopmentReferenceServer({
@@ -322,6 +324,117 @@ describe("DEVELOPMENT ONLY: non-attesting Read+Update contract observations", ()
     );
     expect(controller.signal.aborted).toBe(true);
     expect(result.scenarios).toHaveLength(1);
+    expect(result.scenarios[0]).toMatchObject({ state: "harness-error", category: "aborted" });
+    expect(result.scenarios[0]?.cleanupError).toBeUndefined();
+  });
+
+  it.each([
+    null,
+    {},
+    [],
+    { elapsedMs: "86400000" },
+    { elapsedMs: -1 },
+    { elapsedMs: 0.5 },
+    { elapsedMs: 604800001 },
+    { elapsedMs: 0, extra: true },
+  ])("refuses malformed retention controls and cleans up the child: %j", async (input) => {
+    const sources = await artifacts();
+    const manifest = JSON.parse(sources.manifest.bytes.toString());
+    const scenario = manifest.scenarios.find(
+      (entry: { id: string }) => entry.id === "development.read-update.retention-reopen",
+    );
+    scenario.actions.find((entry: { id: string }) => entry.id === "before-expiry").input = input;
+    const bundle = createDevelopmentReadUpdateArtifactBundle({
+      ...sources,
+      manifest: { bytes: Buffer.from(JSON.stringify(manifest)) },
+    });
+    const result = await runDevelopmentMatrix(bundle, [scenario.id]);
+    expect(result.scenarios[0]).toMatchObject({ state: "fail" });
+    expect(result.scenarios[0]?.actions?.at(-1)).toMatchObject({
+      action: { id: "before-expiry" },
+      executionError: { category: "execution" },
+    });
+    expect(result.scenarios[0]?.cleanupError).toBeUndefined();
+  });
+
+  it("refuses backward retention time after a completed reopen", async () => {
+    const sources = await artifacts();
+    const manifest = JSON.parse(sources.manifest.bytes.toString());
+    const scenario = manifest.scenarios.find(
+      (entry: { id: string }) => entry.id === "development.read-update.retention-reopen",
+    );
+    scenario.actions.find((entry: { id: string }) => entry.id === "at-expiry").input = {
+      elapsedMs: 0,
+    };
+    const bundle = createDevelopmentReadUpdateArtifactBundle({
+      ...sources,
+      manifest: { bytes: Buffer.from(JSON.stringify(manifest)) },
+    });
+    const result = await runDevelopmentMatrix(bundle, [scenario.id]);
+    expect(result.scenarios[0]).toMatchObject({ state: "fail" });
+    expect(result.scenarios[0]?.actions?.at(-1)).toMatchObject({
+      action: { id: "at-expiry" },
+      executionError: { category: "execution" },
+    });
+    expect(result.scenarios[0]?.cleanupError).toBeUndefined();
+  });
+
+  it("refuses ordinary process controls in the retention fixture", async () => {
+    const sources = await artifacts();
+    const manifest = JSON.parse(sources.manifest.bytes.toString());
+    const scenario = manifest.scenarios.find(
+      (entry: { id: string }) => entry.id === "development.read-update.retention-reopen",
+    );
+    scenario.actions.find((entry: { id: string }) => entry.id === "before-expiry").operation =
+      "development.process.reopen";
+    const bundle = createDevelopmentReadUpdateArtifactBundle({
+      ...sources,
+      manifest: { bytes: Buffer.from(JSON.stringify(manifest)) },
+    });
+    const result = await runDevelopmentMatrix(bundle, [scenario.id]);
+    expect(result.scenarios[0]).toMatchObject({ state: "fail" });
+    expect(result.scenarios[0]?.actions?.at(-1)).toMatchObject({
+      action: { id: "before-expiry" },
+      executionError: { category: "execution" },
+    });
+    expect(result.scenarios[0]?.cleanupError).toBeUndefined();
+  });
+
+  it("cleans up the retention child after a failed observation following reopen", async () => {
+    const sources = await artifacts();
+    const manifest = JSON.parse(sources.manifest.bytes.toString());
+    const scenario = manifest.scenarios.find(
+      (entry: { id: string }) => entry.id === "development.read-update.retention-reopen",
+    );
+    scenario.actions
+      .find((entry: { id: string }) => entry.id === "retained-create")
+      .assertions.find((entry: { id: string }) => entry.id === "properties").equals = {
+      value: 999,
+    };
+    const bundle = createDevelopmentReadUpdateArtifactBundle({
+      ...sources,
+      manifest: { bytes: Buffer.from(JSON.stringify(manifest)) },
+    });
+    const result = await runDevelopmentMatrix(bundle, [scenario.id]);
+    expect(result.scenarios[0]).toMatchObject({ state: "fail" });
+    expect(result.scenarios[0]?.actions?.at(-1)?.action.id).toBe("retained-create");
+    expect(result.scenarios[0]?.cleanupError).toBeUndefined();
+  });
+
+  it("cleans up the retention child when the runner aborts after reopen", async () => {
+    const bundle = createDevelopmentReadUpdateArtifactBundle(await artifacts());
+    const controller = new AbortController();
+    const result = await runDevelopmentMatrix(
+      bundle,
+      ["development.read-update.retention-reopen"],
+      {
+        signal: controller.signal,
+        afterAction(execution) {
+          if (execution.operation === "development.retention.reopen") controller.abort();
+        },
+      },
+    );
+    expect(controller.signal.aborted).toBe(true);
     expect(result.scenarios[0]).toMatchObject({ state: "harness-error", category: "aborted" });
     expect(result.scenarios[0]?.cleanupError).toBeUndefined();
   });

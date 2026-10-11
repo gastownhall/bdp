@@ -6,7 +6,8 @@
     "development-http",
     "fixed-unowned-types",
     "single-local-principal",
-    "development-process"
+    "development-process",
+    "development-retention-process"
   ],
   "bindings": {}
 }

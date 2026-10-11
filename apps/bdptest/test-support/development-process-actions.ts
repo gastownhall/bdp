@@ -9,17 +9,20 @@ export function createDevelopmentProcessActions(token: string) {
   let store = "";
   let port = 0;
   let submission: unknown;
+  const retentionEpoch = 1_700_000_000_000;
+  let retentionElapsed: number | undefined;
   let controller: AbortController | undefined;
   let delivery: Promise<{ delivered: boolean }> | undefined;
   let original: Promise<Response | undefined> | undefined;
   const prefixDigests: string[] = [];
   const replayDigests: string[] = [];
-  async function prepare(directory: string, assignedPort: number) {
+  async function prepare(directory: string, assignedPort: number, retention = false) {
     store = directory;
     port = assignedPort;
     prefixDigests.length = 0;
     replayDigests.length = 0;
-    active = await processes.start(store, port);
+    retentionElapsed = retention ? 0 : undefined;
+    active = await processes.start(store, port, true, true, retention ? retentionEpoch : undefined);
   }
   async function close() {
     controller?.abort();
@@ -32,6 +35,7 @@ export function createDevelopmentProcessActions(token: string) {
       original = undefined;
       controller = undefined;
       submission = undefined;
+      retentionElapsed = undefined;
     }
   }
   async function execute(execution: ScenarioActionExecution) {
@@ -43,7 +47,38 @@ export function createDevelopmentProcessActions(token: string) {
       throw new Error("process action requires its active disposable fixture Scope");
     if (execution.signal.aborted) throw new Error("process action was aborted");
     const child = active;
+    if (retentionElapsed !== undefined && execution.operation !== "development.retention.reopen")
+      throw new Error("retention fixture only supports its reopen control");
     switch (execution.operation) {
+      case "development.retention.reopen": {
+        const input = execution.input;
+        if (
+          retentionElapsed === undefined ||
+          typeof input !== "object" ||
+          input === null ||
+          Array.isArray(input) ||
+          Object.keys(input).length !== 1 ||
+          !("elapsedMs" in input) ||
+          typeof input.elapsedMs !== "number" ||
+          !Number.isSafeInteger(input.elapsedMs) ||
+          input.elapsedMs < retentionElapsed ||
+          input.elapsedMs > 7 * 86_400_000
+        )
+          throw new Error(
+            "retention reopen requires nondecreasing safe elapsedMs within the seven-day fixture window",
+          );
+        const elapsedMs = input.elapsedMs;
+        child.send("close");
+        await child.wait("closed");
+        const exit = await child.waitForExit();
+        if (exit.code !== 0 || exit.signal !== null)
+          throw new Error("retention child did not close cleanly");
+        if (execution.signal.aborted) throw new Error("retention reopen was aborted");
+        active = await processes.start(store, port, false, true, retentionEpoch + elapsedMs);
+        retentionElapsed = elapsedMs;
+        if (execution.signal.aborted) throw new Error("retention reopen was aborted");
+        return { elapsedMs, scope: active.scope, priorExit: exit };
+      }
       case "development.process.submit": {
         if (delivery !== undefined) throw new Error("process fixture already has a submission");
         submission = execution.input;

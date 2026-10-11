@@ -12324,6 +12324,874 @@
       "cleanup": {
         "resetFixture": true
       }
+    },
+    {
+      "id": "development.read-update.retention-reopen",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http", "development-retention-process"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "create",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/kept",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "value": 1
+              }
+            },
+            "key": "kept"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "advance-live-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/kept",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/value",
+                  "value": 2
+                }
+              ]
+            },
+            "key": "advance"
+          },
+          "captures": [
+            {
+              "binding": "kept-current-revision",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "value": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "failed-delete",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/later"
+            },
+            "key": "delete-later"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            }
+          ]
+        },
+        {
+          "id": "make-subject-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/later",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "live": true
+              }
+            },
+            "key": "make-later"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "live": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "before-expiry",
+          "family": "lifecycle",
+          "operation": "development.retention.reopen",
+          "input": {
+            "elapsedMs": 86399999
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "elapsed",
+              "kind": "json-pointer",
+              "pointer": "/elapsedMs",
+              "exists": true,
+              "equals": 86399999
+            },
+            {
+              "id": "clean-exit",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/code",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-signal",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/signal",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "retained-create",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/kept",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "value": 1
+              }
+            },
+            "key": "kept"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "retained-failure",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/later"
+            },
+            "key": "delete-later"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            }
+          ]
+        },
+        {
+          "id": "subject-still-live",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/later"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "live": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "kept-still-current",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/kept"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "value": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "at-expiry",
+          "family": "lifecycle",
+          "operation": "development.retention.reopen",
+          "input": {
+            "elapsedMs": 86400000
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "elapsed",
+              "kind": "json-pointer",
+              "pointer": "/elapsedMs",
+              "exists": true,
+              "equals": 86400000
+            },
+            {
+              "id": "clean-exit",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/code",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-signal",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/signal",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "expired-create",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/kept",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "value": 1
+              }
+            },
+            "key": "kept"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 410
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-expired"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "no-resource",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "no-outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "changed-expired-key",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/kept",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "value": 3
+              }
+            },
+            "key": "kept"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "kept-revision-unchanged",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/update-bead",
+            "body": {
+              "bead": "beads/kept",
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/value",
+                  "value": 2
+                }
+              ]
+            },
+            "key": "kept-guard",
+            "expectedRevisionBinding": "kept-current-revision"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "value": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "forgotten-failure-executes",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/later"
+            },
+            "key": "delete-later"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/id",
+              "exists": true,
+              "equals": "beads/later",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "subject-deleted",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/later"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            }
+          ]
+        },
+        {
+          "id": "retained-new-delete",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/later"
+            },
+            "key": "delete-later"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/id",
+              "exists": true,
+              "equals": "beads/later",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "durable-reopen",
+          "family": "lifecycle",
+          "operation": "development.retention.reopen",
+          "input": {
+            "elapsedMs": 86400001
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "elapsed",
+              "kind": "json-pointer",
+              "pointer": "/elapsedMs",
+              "exists": true,
+              "equals": 86400001
+            },
+            {
+              "id": "clean-exit",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/code",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "no-signal",
+              "kind": "json-pointer",
+              "pointer": "/priorExit/signal",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "durable-expired-create",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/kept",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "value": 1
+              }
+            },
+            "key": "kept"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 410
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-expired"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "no-resource",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "no-outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "durable-expired-conflict",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/create-bead",
+            "body": {
+              "id": "beads/kept",
+              "type": "https://bdp.example/development/bead",
+              "properties": {
+                "value": 3
+              }
+            },
+            "key": "kept"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            }
+          ]
+        },
+        {
+          "id": "durable-retained-delete",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "POST",
+            "target": "development/delete-bead",
+            "body": {
+              "bead": "beads/later"
+            },
+            "key": "delete-later"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/id",
+              "exists": true,
+              "equals": "beads/later",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "durable-subject-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/later"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            }
+          ]
+        },
+        {
+          "id": "durable-kept-state",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/kept"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "value": 2
+              }
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
     }
   ]
 }
