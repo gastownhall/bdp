@@ -5444,6 +5444,1226 @@
       "cleanup": {
         "resetFixture": true
       }
+    },
+    {
+      "id": "development.read-update.process-disconnect",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http", "development-process"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "submit",
+          "family": "lifecycle",
+          "operation": "development.process.submit",
+          "input": {
+            "operations": [
+              {
+                "operation": "createBead",
+                "idempotencyKey": "prefix",
+                "id": "beads/prefix",
+                "name": "prefix",
+                "type": "https://bdp.example/development/bead"
+              },
+              {
+                "operation": "deleteBead",
+                "idempotencyKey": "failed-middle",
+                "bead": "beads/missing"
+              },
+              {
+                "operation": "putAlias",
+                "idempotencyKey": "alias-tail",
+                "alias": "alias/prefix-name",
+                "target": "@prefix"
+              },
+              {
+                "operation": "createBead",
+                "idempotencyKey": "independent-tail",
+                "id": "beads/tail",
+                "type": "https://bdp.example/development/bead"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "parked",
+              "kind": "json-pointer",
+              "pointer": "/barrier/event",
+              "exists": true,
+              "equals": "parked"
+            },
+            {
+              "id": "second-member",
+              "kind": "json-pointer",
+              "pointer": "/barrier/index",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "committed-prefix",
+              "kind": "json-pointer",
+              "pointer": "/prefix/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "unrun-tail",
+              "kind": "json-pointer",
+              "pointer": "/tail/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "prefix-identity",
+              "kind": "json-pointer",
+              "pointer": "/prefix/body/id",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "disconnect",
+          "family": "lifecycle",
+          "operation": "development.process.disconnect",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "not-delivered",
+              "kind": "json-pointer",
+              "pointer": "/delivered",
+              "exists": true,
+              "equals": false
+            }
+          ]
+        },
+        {
+          "id": "release",
+          "family": "lifecycle",
+          "operation": "development.process.release",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "completed",
+              "kind": "json-pointer",
+              "pointer": "/event",
+              "exists": true,
+              "equals": "turn-completed"
+            },
+            {
+              "id": "last-member",
+              "kind": "json-pointer",
+              "pointer": "/index",
+              "exists": true,
+              "equals": 4
+            }
+          ]
+        },
+        {
+          "id": "tail",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/tail"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "prefix",
+          "family": "lifecycle",
+          "operation": "development.process.prefix",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "replay",
+          "family": "lifecycle",
+          "operation": "development.process.replay",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "index-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "index-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationIndex",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "index-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationIndex",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "index-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/operationIndex",
+              "exists": true,
+              "equals": 3
+            },
+            {
+              "id": "prefix",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "failed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "failed-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "alias",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "alias-target",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/target",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "retry",
+          "family": "lifecycle",
+          "operation": "development.process.replay",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "index-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "index-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationIndex",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "index-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationIndex",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "index-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/operationIndex",
+              "exists": true,
+              "equals": 3
+            },
+            {
+              "id": "prefix",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "failed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "failed-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "alias",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "alias-target",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/target",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "equal",
+          "family": "lifecycle",
+          "operation": "development.process.digest-counts",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "prefix-count",
+              "kind": "json-pointer",
+              "pointer": "/prefixObservations",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "prefix-identical",
+              "kind": "json-pointer",
+              "pointer": "/prefixDistinctDigests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "replay-count",
+              "kind": "json-pointer",
+              "pointer": "/replayObservations",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "replay-identical",
+              "kind": "json-pointer",
+              "pointer": "/replayDistinctDigests",
+              "exists": true,
+              "equals": 1
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.process-drain",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http", "development-process"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "submit",
+          "family": "lifecycle",
+          "operation": "development.process.submit",
+          "input": {
+            "operations": [
+              {
+                "operation": "createBead",
+                "idempotencyKey": "prefix",
+                "id": "beads/prefix",
+                "name": "prefix",
+                "type": "https://bdp.example/development/bead"
+              },
+              {
+                "operation": "deleteBead",
+                "idempotencyKey": "failed-middle",
+                "bead": "beads/missing"
+              },
+              {
+                "operation": "putAlias",
+                "idempotencyKey": "alias-tail",
+                "alias": "alias/prefix-name",
+                "target": "@prefix"
+              },
+              {
+                "operation": "createBead",
+                "idempotencyKey": "independent-tail",
+                "id": "beads/tail",
+                "type": "https://bdp.example/development/bead"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "parked",
+              "kind": "json-pointer",
+              "pointer": "/barrier/event",
+              "exists": true,
+              "equals": "parked"
+            },
+            {
+              "id": "second-member",
+              "kind": "json-pointer",
+              "pointer": "/barrier/index",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "committed-prefix",
+              "kind": "json-pointer",
+              "pointer": "/prefix/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "unrun-tail",
+              "kind": "json-pointer",
+              "pointer": "/tail/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "prefix-identity",
+              "kind": "json-pointer",
+              "pointer": "/prefix/body/id",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "drain",
+          "family": "lifecycle",
+          "operation": "development.process.drain",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "not-delivered",
+              "kind": "json-pointer",
+              "pointer": "/delivered",
+              "exists": true,
+              "equals": false
+            },
+            {
+              "id": "not-exited",
+              "kind": "json-pointer",
+              "pointer": "/exitCode",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "not-signaled",
+              "kind": "json-pointer",
+              "pointer": "/signalCode",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "release",
+          "family": "lifecycle",
+          "operation": "development.process.release-drain",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "clean-exit",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "not-signaled",
+              "kind": "json-pointer",
+              "pointer": "/signal",
+              "exists": true,
+              "equals": null
+            }
+          ]
+        },
+        {
+          "id": "reopen",
+          "family": "lifecycle",
+          "operation": "development.process.reopen",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "same-scope",
+              "kind": "json-pointer",
+              "pointer": "/scope",
+              "exists": true,
+              "equals": "",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "tail",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/tail"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "prefix",
+          "family": "lifecycle",
+          "operation": "development.process.prefix",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "replay",
+          "family": "lifecycle",
+          "operation": "development.process.replay",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "index-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "index-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationIndex",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "index-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationIndex",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "index-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/operationIndex",
+              "exists": true,
+              "equals": 3
+            },
+            {
+              "id": "prefix",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "failed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "failed-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "alias",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "alias-target",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/target",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "retry",
+          "family": "lifecycle",
+          "operation": "development.process.replay",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "index-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "index-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationIndex",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "index-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationIndex",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "index-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/operationIndex",
+              "exists": true,
+              "equals": 3
+            },
+            {
+              "id": "prefix",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "failed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "failed-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "alias",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "alias-target",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/target",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "equal",
+          "family": "lifecycle",
+          "operation": "development.process.digest-counts",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "prefix-count",
+              "kind": "json-pointer",
+              "pointer": "/prefixObservations",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "prefix-identical",
+              "kind": "json-pointer",
+              "pointer": "/prefixDistinctDigests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "replay-count",
+              "kind": "json-pointer",
+              "pointer": "/replayObservations",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "replay-identical",
+              "kind": "json-pointer",
+              "pointer": "/replayDistinctDigests",
+              "exists": true,
+              "equals": 1
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "development.read-update.process-crash",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "development-read-update-v1",
+        "requires": ["development-http", "development-process"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "submit",
+          "family": "lifecycle",
+          "operation": "development.process.submit",
+          "input": {
+            "operations": [
+              {
+                "operation": "createBead",
+                "idempotencyKey": "prefix",
+                "id": "beads/prefix",
+                "name": "prefix",
+                "type": "https://bdp.example/development/bead"
+              },
+              {
+                "operation": "deleteBead",
+                "idempotencyKey": "failed-middle",
+                "bead": "beads/missing"
+              },
+              {
+                "operation": "putAlias",
+                "idempotencyKey": "alias-tail",
+                "alias": "alias/prefix-name",
+                "target": "@prefix"
+              },
+              {
+                "operation": "createBead",
+                "idempotencyKey": "independent-tail",
+                "id": "beads/tail",
+                "type": "https://bdp.example/development/bead"
+              }
+            ]
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "parked",
+              "kind": "json-pointer",
+              "pointer": "/barrier/event",
+              "exists": true,
+              "equals": "parked"
+            },
+            {
+              "id": "second-member",
+              "kind": "json-pointer",
+              "pointer": "/barrier/index",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "committed-prefix",
+              "kind": "json-pointer",
+              "pointer": "/prefix/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "unrun-tail",
+              "kind": "json-pointer",
+              "pointer": "/tail/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "prefix-identity",
+              "kind": "json-pointer",
+              "pointer": "/prefix/body/id",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "kill",
+          "family": "lifecycle",
+          "operation": "development.process.kill",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "signal",
+              "kind": "json-pointer",
+              "pointer": "/signal",
+              "exists": true,
+              "equals": "SIGKILL"
+            },
+            {
+              "id": "no-exit-code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "not-delivered",
+              "kind": "json-pointer",
+              "pointer": "/delivered",
+              "exists": true,
+              "equals": false
+            }
+          ]
+        },
+        {
+          "id": "reopen",
+          "family": "lifecycle",
+          "operation": "development.process.reopen",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "same-scope",
+              "kind": "json-pointer",
+              "pointer": "/scope",
+              "exists": true,
+              "equals": "",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "prefix",
+          "family": "lifecycle",
+          "operation": "development.process.prefix",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            }
+          ]
+        },
+        {
+          "id": "tail-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/tail"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            }
+          ]
+        },
+        {
+          "id": "alias-absent",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "alias/prefix-name"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            }
+          ]
+        },
+        {
+          "id": "replay",
+          "family": "lifecycle",
+          "operation": "development.process.replay",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "index-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "index-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationIndex",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "index-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationIndex",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "index-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/operationIndex",
+              "exists": true,
+              "equals": 3
+            },
+            {
+              "id": "prefix",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "failed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "failed-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "alias",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "alias-target",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/target",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "tail",
+          "family": "client",
+          "operation": "development.request",
+          "input": {
+            "method": "GET",
+            "target": "beads/tail"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "retry",
+          "family": "lifecycle",
+          "operation": "development.process.replay",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "index-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationIndex",
+              "exists": true,
+              "equals": 0
+            },
+            {
+              "id": "index-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationIndex",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "index-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationIndex",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "index-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/operationIndex",
+              "exists": true,
+              "equals": 3
+            },
+            {
+              "id": "prefix",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "failed",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "failed-status",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "alias",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "alias-target",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/target",
+              "exists": true,
+              "equals": "beads/prefix",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "tail",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "equal",
+          "family": "lifecycle",
+          "operation": "development.process.digest-counts",
+          "input": {},
+          "captures": [],
+          "assertions": [
+            {
+              "id": "prefix-count",
+              "kind": "json-pointer",
+              "pointer": "/prefixObservations",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "prefix-identical",
+              "kind": "json-pointer",
+              "pointer": "/prefixDistinctDigests",
+              "exists": true,
+              "equals": 1
+            },
+            {
+              "id": "replay-count",
+              "kind": "json-pointer",
+              "pointer": "/replayObservations",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "replay-identical",
+              "kind": "json-pointer",
+              "pointer": "/replayDistinctDigests",
+              "exists": true,
+              "equals": 1
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
     }
   ]
 }

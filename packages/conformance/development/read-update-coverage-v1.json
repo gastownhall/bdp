@@ -615,15 +615,61 @@
           "scenario": "development.read-update.sequence-partial",
           "assertions": ["retry.first", "retry.bound", "retry.failed", "retry.tail"],
           "limits": ["Same positions; reordered presentation remains separate."]
+        },
+        {
+          "scenario": "development.read-update.process-disconnect",
+          "assertions": [
+            "replay.prefix",
+            "replay.failed",
+            "replay.alias-target",
+            "replay.tail",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal."
+          ]
         }
       ]
     },
     {
       "id": "read-update.sequence.disconnect",
-      "status": "omitted",
-      "category": "process-harness-binding",
-      "reason": "Real process tests exist separately; not yet converted into this manifest/action runner.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-disconnect",
+          "assertions": [
+            "submit.parked",
+            "submit.committed-prefix",
+            "submit.unrun-tail",
+            "disconnect.not-delivered",
+            "release.last-member",
+            "tail.status",
+            "equal.prefix-count",
+            "equal.prefix-identical",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "Client abort occurs after first member commit while member 2 remains parked; all later work then completes without resubmission."
+          ]
+        },
+        {
+          "scenario": "development.read-update.process-drain",
+          "assertions": [
+            "drain.not-delivered",
+            "drain.not-exited",
+            "release.clean-exit",
+            "tail.status",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "Graceful close drains admitted work before exiting; ordinary emitted executable reopens the store."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.sequence.internal-fault",
@@ -746,17 +792,74 @@
     },
     {
       "id": "read-update.idempotency.durable-boundary",
-      "status": "omitted",
-      "category": "process-harness-binding",
-      "reason": "Real process tests exist separately; not yet converted into this manifest/action runner.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-drain",
+          "assertions": [
+            "submit.committed-prefix",
+            "submit.unrun-tail",
+            "release.clean-exit",
+            "reopen.same-scope",
+            "tail.status",
+            "equal.prefix-count",
+            "equal.prefix-identical",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "Graceful close/reopen only here; no power-loss, failover or mid-commit fault qualification."
+          ]
+        },
+        {
+          "scenario": "development.read-update.process-crash",
+          "assertions": [
+            "kill.signal",
+            "reopen.same-scope",
+            "equal.prefix-count",
+            "equal.prefix-identical",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "Committed prefix survives an abrupt process exit; atomic disposition/state behavior inside a commit and storage power-loss durability remain unqualified."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.idempotency.crash-mid-sequence",
-      "status": "omitted",
-      "category": "process-harness-binding",
-      "reason": "Real process tests exist separately; not yet converted into this manifest/action runner.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.process-crash",
+          "assertions": [
+            "submit.parked",
+            "submit.committed-prefix",
+            "submit.unrun-tail",
+            "kill.signal",
+            "kill.not-delivered",
+            "reopen.same-scope",
+            "tail-absent.status",
+            "alias-absent.status",
+            "replay.prefix",
+            "replay.failed",
+            "replay.alias-target",
+            "replay.tail",
+            "tail.status",
+            "equal.prefix-count",
+            "equal.prefix-identical",
+            "equal.replay-count",
+            "equal.replay-identical"
+          ],
+          "limits": [
+            "Equality is SHA-256 over canonicalJson of parsed JSON response bodies, not raw HTTP bytes. One process, fixed unowned Types and local principal.",
+            "SIGKILL between individually committed members; after normal startup serves reads, tail remains absent until explicit resubmission. Not power loss or a crash inside SQLite commit."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.idempotency.restore",
