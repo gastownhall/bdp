@@ -40,6 +40,13 @@
           "scenario": "development.read-update.bead-crud-guards",
           "assertions": ["create.identity", "create.properties", "create.outcome"],
           "limits": ["Honored ID only; allocated-ID path remains a separate observation."]
+        },
+        {
+          "scenario": "development.read-update.alias-allocation",
+          "assertions": ["allocate.outcome", "allocated-live.allocated"],
+          "limits": [
+            "Authority-allocated ID observed; deterministic collision skipping remains unqualified."
+          ]
         }
       ]
     },
@@ -120,6 +127,19 @@
           "scenario": "development.read-update.links-delete",
           "assertions": ["link.source", "link.target", "link.outcome"],
           "limits": ["Ordinary references only; pinned endpoint spelling is not yet bound."]
+        },
+        {
+          "scenario": "development.read-update.pinned-references",
+          "assertions": [
+            "pinned.source",
+            "pinned.source-pin",
+            "pinned.external",
+            "local-pin.source",
+            "local-pin.pin"
+          ],
+          "limits": [
+            "In-Scope alias and @name pins, plus opaque external URI pin, are stored/echoed without interpreting the unrelated supplied revision. No history resolution or external fetch claim."
+          ]
         }
       ]
     },
@@ -272,6 +292,17 @@
           "limits": [
             "Negotiation refusal preserves retained success; exact historical postimage replay is separately bound."
           ]
+        },
+        {
+          "scenario": "development.read-update.alias-invalid-targets",
+          "assertions": [
+            "retained-invalid.problem",
+            "changed-key-identity.problem",
+            "corrected-live.source"
+          ],
+          "limits": [
+            "Admitted alias target failure stays retained after a separate corrected request; it is not a pre-admission carrier refusal."
+          ]
         }
       ]
     },
@@ -412,24 +443,76 @@
     },
     {
       "id": "read-update.alias.allocation-avoids-aliases",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.alias-allocation",
+          "assertions": [
+            "allocate.canonical",
+            "allocate.in-scope",
+            "allocate.root",
+            "allocate.single-segment",
+            "allocate.nonempty",
+            "allocated-live.allocated",
+            "reserved-bead.problem",
+            "alias-still-live.source"
+          ],
+          "limits": [
+            "Allocation is observed with a live reserved alias and the alias remains unchanged. The private random allocation namespace prevents forcing the next candidate to collide through HTTP; collision-skipping itself is NOT exercised or qualified."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.alias.non-canonical-target",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.alias-invalid-targets",
+          "assertions": [
+            "local-alias.problem",
+            "local-alias.diagnostic",
+            "absolute-alias.problem",
+            "link.problem",
+            "external.problem",
+            "opaque.problem",
+            "local-alias-absent.problem",
+            "absolute-alias-absent.problem",
+            "link-absent.problem",
+            "external-absent.problem",
+            "opaque-absent.problem",
+            "corrected-live.source"
+          ],
+          "limits": [
+            "One fixed development diagnostic message is asserted; no authority-specific wording is proposed for other implementations."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.alias.unknown-subject",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.alias-unknown-subjects",
+          "assertions": [
+            "missing-target.problem",
+            "missing-alias.problem",
+            "wrong-root-put.problem",
+            "wrong-root-delete.problem",
+            "alias-absent.status",
+            "retained-missing-target.problem",
+            "still-absent.status",
+            "new-request.outcome",
+            "retained-missing-alias.problem",
+            "alias-survives.source",
+            "target-survives.status"
+          ],
+          "limits": [
+            "Unknown and wrong-root subjects only; hidden subjects are not observable under the fixed all-visible policy."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.alias.carrier-syntax",
@@ -498,10 +581,61 @@
     },
     {
       "id": "read-update.alias.reference-idempotency",
-      "status": "omitted",
-      "category": "unbound-receiver-observation",
-      "reason": "Receiver/component observations exist or are feasible, but no reviewed executable binding in this initial manifest yet.",
-      "bindings": []
+      "status": "bounded-observation",
+      "bindings": [
+        {
+          "scenario": "development.read-update.alias-recorded-targets",
+          "assertions": [
+            "recorded-after-repoint.source",
+            "cross-slot.target",
+            "recorded-after-delete.source",
+            "new-locator.source",
+            "new-locator-rechecked.problem",
+            "new-locator-missing.problem",
+            "new-locator-restored.source",
+            "direct-canonical.source",
+            "original-still-recorded.source",
+            "new-request-current.source",
+            "original-link-state.source",
+            "original-link-state.target",
+            "a-live.status",
+            "b-live.status"
+          ],
+          "limits": [
+            "Recorded targets and transient fresh-locator comparison are observed across repoint/delete/reassignment and cross-slot equivalent absolute spellings. Internal retained metadata, retention renewal, disclosure changes and expired tombstones remain unqualified."
+          ]
+        },
+        {
+          "scenario": "development.read-update.alias-recorded-misses",
+          "assertions": [
+            "recorded-miss.problem",
+            "absolute-miss.problem",
+            "distinct-miss.problem",
+            "direct-is-different.problem",
+            "deleted-still-miss.problem",
+            "reassigned-still-miss.problem",
+            "a-survives.status",
+            "b-survives.status",
+            "current-resolution.source"
+          ],
+          "limits": [
+            "Recorded misses persist after assignment, deletion and reassignment; distinct missing locators and direct references compare unequally. Failure expiry and authorization variants are not configured."
+          ]
+        },
+        {
+          "scenario": "development.read-update.pinned-references",
+          "assertions": [
+            "retry-recorded.source",
+            "retry-deleted.source",
+            "direct-equal.source",
+            "direct-equal.source-pin",
+            "retained-state.source-pin"
+          ],
+          "limits": [
+            "Pinned locator spellings reuse recorded target; retry disclosure/expiry remains unqualified."
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.sequence.order-and-partial-commit",
@@ -733,6 +867,22 @@
           ],
           "limits": [
             "Labels and changed properties only; pins, defaults, guards, array order and locator equivalence remain separate."
+          ]
+        },
+        {
+          "scenario": "development.read-update.pinned-references",
+          "assertions": [
+            "changed-pin.problem",
+            "removed-pin.problem",
+            "changed-external.problem",
+            "direct-equal.source-pin",
+            "renamed-local.name",
+            "renamed-local.pin",
+            "retained-state.source-pin",
+            "retained-state.external"
+          ],
+          "limits": [
+            "Pin presence, byte-distinct revision strings, opaque external URI spelling and renamed creator labels are exercised; remaining defaults, attribution, guards, member/object/array-order variants remain separate."
           ]
         }
       ]

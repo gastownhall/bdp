@@ -54,9 +54,29 @@ function developmentActions(
         cleanupTimeoutMs: 1000,
       },
     });
-    const target = new URL(string(input.target), execution.scope).href;
+    const target = new URL(
+      string(
+        input.targetBinding === undefined
+          ? input.target
+          : execution.bindings[string(input.targetBinding)],
+      ),
+      execution.scope,
+    ).href;
     if (!target.startsWith(execution.scope)) throw new Error("action target escaped the Scope");
     const body = structuredClone(record(second ? input.secondBody : (input.body ?? {})));
+    if (input.referenceBindings !== undefined)
+      for (const [field, binding] of Object.entries(record(input.referenceBindings)))
+        body[field] = string(execution.bindings[string(binding)]);
+    if (input.absoluteReferences !== undefined) {
+      if (!Array.isArray(input.absoluteReferences)) throw new Error("expected reference fields");
+      for (const field of input.absoluteReferences.map(string)) {
+        const value = body[field];
+        body[field] =
+          typeof value === "string"
+            ? new URL(value, execution.scope).href
+            : { ...record(value), uri: new URL(string(record(value).uri), execution.scope).href };
+      }
+    }
     if (input.expectedRevisionBinding !== undefined)
       body.expectedRevision = string(execution.bindings[string(input.expectedRevisionBinding)]);
     const key = input.key === undefined ? undefined : string(input.key);
@@ -78,7 +98,23 @@ function developmentActions(
             })
           : undefined;
     if (response === undefined) throw new Error("unsupported development method");
+    const identity =
+      input.observeIdentity === true && response.kind === "json"
+        ? string(record(record(response.body).resource).id)
+        : undefined;
+    const segments = identity?.slice(execution.scope.length).split("/");
     return {
+      ...(identity === undefined || segments === undefined
+        ? {}
+        : {
+            identity: {
+              canonical: new URL(identity).href === identity,
+              inScope: identity.startsWith(execution.scope),
+              root: segments[0],
+              childSegments: segments.length - 1,
+              emptySegments: segments.filter((value) => value.length === 0).length,
+            },
+          }),
       status: response.status,
       headers: response.headers,
       ...(response.kind === "json" ? { body: response.body } : {}),
