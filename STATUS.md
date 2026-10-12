@@ -11,13 +11,16 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | Read-profile body client implements exact old Beads/Links and explicit versions paging; controlled HTTP walkthrough exercises the actual SDK. No History server/adapter realization, capability admission or executable History conformance evidence |
 
 The current common-provenance Read cohort was generated from
-`a68db90f995c1d3317c19acb0b6dcdf63cd21b0e` and committed with its matching
-capability constant at `c8c8c2d2ab14cd93b677a87c19903eff519a79c7`.
-The actual two-target run took 229.33 seconds and verifies 89 applicable rows,
+`919baf57897359287c5cbd4b7e8c0eae9dd03537` and committed with its matching
+capability constant at `fccaa537c478b8f70046eb5b685326147714ad48`.
+The actual two-target run took 234.36 seconds and verifies 89 applicable rows,
 with 38 packaged and 11 self-certified case definitions. Eight optional
 variants remain explicitly uncovered. Earlier cohort commits retain their
 original observed sources and are historical evidence, not observations of
 this representation. The gate re-derives the artifact bindings and ancestry.
+The preceding standalone provenance cohort observed source
+`a68db90f995c1d3317c19acb0b6dcdf63cd21b0e` and was sealed at
+`c8c8c2d2ab14cd93b677a87c19903eff519a79c7` in 229.33 seconds.
 The earlier 187.06-second cohort observed source
 `90228b35015f124a242345e10c4e8557289314fa` and was sealed at
 `f1e83dc3ca6014d6fae3cea119ce1a521f33c277`; those historical observations
@@ -30,6 +33,16 @@ preserves existing bytes and cannot silently reseed an existing database;
 there is no automatic migration. Preserve old stores for any separately
 planned migration. Content-derived adapter revisions use the new projected
 record bytes and are not relabeled as earlier revisions.
+
+The private Transactional owner uses format
+`bdp-private-transaction-provenance-5` and identity policy
+`transaction-revision-provenance-4`; it refuses incompatible stored identities
+before recovery maintenance. The development authority uses incarnation
+`bdptest-development-2-revision-provenance`. These boundaries preserve the old
+stores rather than reinterpret their prior-envelope bytes. Atomic Resource
+mutations, alias witnesses, sequences, retained receipts and recovery have
+component tests; Transactional HTTP serving and full required-profile evidence
+remain unfinished. Read+Update diagnostic runs remain `claimEligible: false`.
 
 Real-bd fixture provisioning now separates every consecutive Bead creation by
 more than one second, matching the accepted baseline's timestamp granularity.
