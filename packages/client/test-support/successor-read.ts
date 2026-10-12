@@ -146,7 +146,7 @@ export async function observeSuccessorRead(
             resource: "link",
             id: localId(id, execution.scope),
           });
-          // Structural comparison preserves array order and every opaque field, including pins/attribution.
+          // Structural comparison preserves array order and every opaque field, including pins/revisionProvenance.
           firstClassEqual &&= isDeepStrictEqual(inline[index], actual);
         }
       }

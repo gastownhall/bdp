@@ -303,7 +303,7 @@ describe("private Transactional sequence slice", () => {
     const receipt = f.store.execute(own(f.store, "same", batch));
     const seq = prepareTransactionSequence(
       scope,
-      `{"operations":[{"idempotencyKey":"same","operation":"createBead","name":"now","type":"${bead}","properties":{"n":1e0},"metadata":{},"changeContext":{}}]}`,
+      `{"operations":[{"idempotencyKey":"same","operation":"createBead","name":"now","type":"${bead}","properties":{"n":1e0},"metadata":{},"revisionProvenance":{}}]}`,
     );
     const response = runSteps(createTransactionSequenceStepper(f.store, "p", seq));
     expect(response?.results[0]?.resource).toEqual(

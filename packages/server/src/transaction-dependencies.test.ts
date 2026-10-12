@@ -477,7 +477,7 @@ describe("durable Transactional sequence dependencies", () => {
     const f = fixture();
     const input = prepareTransactionSequence(
       scope,
-      `{"operations":[{"operation":"createBead","type":"${bead}","name":"a","idempotencyKey":"a"},{"operation":"createLink","type":"${link}","source":"@a","target":"@a","properties":{"n":1.00},"changeContext":{},"idempotencyKey":"edge"}]}`,
+      `{"operations":[{"operation":"createBead","type":"${bead}","name":"a","idempotencyKey":"a"},{"operation":"createLink","type":"${link}","source":"@a","target":"@a","properties":{"n":1.00},"revisionProvenance":{},"idempotencyKey":"edge"}]}`,
     );
     const response = runSteps(createTransactionSequenceStepper(f.store, "p", input));
     const firstResource = response?.results[0]?.resource as { id: string };
@@ -574,6 +574,52 @@ describe("durable Transactional sequence dependencies", () => {
     expect(() => f.reopen()).toThrow("identity policy mismatch");
     expect(readFileSync(f.options.file)).toEqual(before);
   });
+  it.each(["format", "identityPolicy"] as const)(
+    "refuses pre-provenance %s before touching creator facts, receipts or graph",
+    (field) => {
+      let now = 1000;
+      const f = fixture({ clock: () => now });
+      const attempt = createTransactionSequenceStepper(f.store, "p", dependentSequence());
+      attempt.step();
+      const completed = commit(f.store, "completed", "createBead", { type: bead });
+      f.store.close();
+      const raw = new DatabaseSync(f.options.file);
+      const tables = ["resources", "groups", "receipts", "creator_facts"];
+      let rows: unknown[];
+      try {
+        const config = JSON.parse(
+          String(raw.prepare("SELECT value FROM metadata WHERE name='configuration'").get()?.value),
+        );
+        config[field] =
+          field === "format"
+            ? "bdp-private-transaction-dependencies-4"
+            : "transaction-dependencies-3";
+        raw
+          .prepare("UPDATE metadata SET value=? WHERE name='configuration'")
+          .run(JSON.stringify(config));
+        rows = tables.map((table) => raw.prepare(`SELECT * FROM ${table}`).all());
+        expect(raw.prepare("SELECT count(*) AS n FROM creator_facts").get()?.n).toBe(2);
+        expect(
+          raw.prepare("SELECT count(*) AS n FROM receipts WHERE owner IS NOT NULL").get()?.n,
+        ).toBe(1);
+      } finally {
+        raw.close();
+      }
+      now = Date.parse(String(completed.expiresAt)) + 1;
+      const before = readFileSync(f.options.file);
+      expect(() => f.reopen()).toThrow(
+        field === "format" ? "installation mismatch" : "identity policy mismatch",
+      );
+      expect(readFileSync(f.options.file)).toEqual(before);
+      const after = new DatabaseSync(f.options.file, { readOnly: true });
+      try {
+        expect(tables.map((table) => after.prepare(`SELECT * FROM ${table}`).all())).toEqual(rows);
+      } finally {
+        after.close();
+      }
+    },
+  );
+
   it("does not reset direct comparison deadline under ownership churn or epoch change", async () => {
     const f = fixture();
     let stepper = createTransactionSequenceStepper(f.store, "p", dependentSequence()),

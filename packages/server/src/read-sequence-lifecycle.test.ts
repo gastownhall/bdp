@@ -528,7 +528,7 @@ describe("G11 actual committed prefixes, shared source and delivery", () => {
       await facet.perform({ kind: "resource", resource: "link", id: url("links/l") }),
     );
     expect((linked.ownedLinks as Record<string, unknown[]>)[linkType]).toEqual([edge]);
-    expect(linked.changeContext).toEqual(edge.changeContext);
+    expect(linked.revisionProvenance).toEqual(edge.revisionProvenance);
     f.queue.step();
     expect(await facet.resolveAlias(url("alias/current"))).toMatchObject({
       kind: "target",

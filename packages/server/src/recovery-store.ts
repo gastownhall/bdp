@@ -185,7 +185,7 @@ export interface RecoveryStore {
   close(): void;
 }
 
-const formatVersion = "2";
+const formatVersion = "3";
 const dayMs = 86_400_000;
 const schema = `
  CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
@@ -512,7 +512,7 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
   let startupCommitAttempted = false;
   try {
     // SQLite's built-in JSON parser rejects otherwise admitted deeply nested text.
-    // A named format-2 CHECK uses the same native syntax guard as the facade;
+    // A named JSON-syntax CHECK uses the same native syntax guard as the facade;
     // register it before schema creation or integrity checks on every connection.
     db.function("bdp_json_syntax_v2", { deterministic: true }, (text) => {
       if (typeof text !== "string") return 0;

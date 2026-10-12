@@ -45,12 +45,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "The member is absent when no attribution was recorded."
+          "selectedText": "The actor is absent when no attribution was recorded; the envelope is absent when no revision provenance was recorded."
         }
       ]
     },
@@ -88,12 +88,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#attribution-on-mutations",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#property-changes",
-          "selectedText": "The authority validates the complete `properties` result \u2014 not merely its changed members \u2014 against every effective Type contract; `metadata` has no Type schema."
+          "selectedText": "The authority validates the complete `properties` result — not merely its changed members — against every effective Type contract; `metadata` has no Type schema."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -171,7 +171,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "An alias put is a cheaper existence probe than a creation \u2014 it allocates no Resource, mints no version, and is deletable \u2014 gated only by permission to put aliases, which is therefore what that permission grants."
+          "selectedText": "An alias put is a cheaper existence probe than a creation — it allocates no Resource, mints no version, and is deletable — gated only by permission to put aliases, which is therefore what that permission grants."
         }
       ]
     },
@@ -204,7 +204,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "A put reports `created` when the alias path was not in use as an alias and `updated` when it repointed an existing alias \u2014 including a put whose `target` the alias already had, which changes nothing and reports `updated`"
+          "selectedText": "A put reports `created` when the alias path was not in use as an alias and `updated` when it repointed an existing alias — including a put whose `target` the alias already had, which changes nothing and reports `updated`"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -234,7 +234,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "Canonical Bead segments and alias paths share one uniqueness namespace in the Scope, a store invariant the authority enforces when the member is reached: a put whose alias path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope \u2014 a deleted one included, since canonical segments are never released \u2014 fails with `identity-taken`, and a Bead creation that supplies an `id` whose `{id-path}` is a live alias path fails with `alias-path-taken`, a condition that clears when the alias is deleted."
+          "selectedText": "Canonical Bead segments and alias paths share one uniqueness namespace in the Scope, a store invariant the authority enforces when the member is reached: a put whose alias path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope — a deleted one included, since canonical segments are never released — fails with `identity-taken`, and a Bead creation that supplies an `id` whose `{id-path}` is a live alias path fails with `alias-path-taken`, a condition that clears when the alias is deleted."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -264,7 +264,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-mutation-model",
-          "selectedText": "They share it because the realizations the alias root fronts share one \u2014 in the beads realization, keys and aliases occupy one project-wide namespace \u2014 so the invariant is imported from the store rather than required by resolution, which spelling alone decides."
+          "selectedText": "They share it because the realizations the alias root fronts share one — in the beads realization, keys and aliases occupy one project-wide namespace — so the invariant is imported from the store rather than required by resolution, which spelling alone decides."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -274,12 +274,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "An alias spelling \u2014 `alias/{alias-path}` or the absolute alias URL \u2014 is admitted wherever a canonical in-Scope Bead reference is: as the `bead` subject of an update or a deletion and as a Link endpoint `source` or `target`, bare or as the `uri` of a Pinned Reference, in a singleton and in a sequence member alike."
+          "selectedText": "An alias spelling — `alias/{alias-path}` or the absolute alias URL — is admitted wherever a canonical in-Scope Bead reference is: as the `bead` subject of an update or a deletion and as a Link endpoint `source` or `target`, bare or as the `uri` of a Pinned Reference, in a singleton and in a sequence member alike."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "The authority resolves it to the alias's current target when the member is reached \u2014 exactly as a `@name` binding is resolved when its member is reached, so an alias put earlier in the same sequence is what a later member observes \u2014 and stores and serves the canonical Bead URL, as [Aliases](#aliases) requires: a reference resolved through an alias does not follow a later repoint."
+          "selectedText": "The authority resolves it to the alias's current target when the member is reached — exactly as a `@name` binding is resolved when its member is reached, so an alias put earlier in the same sequence is what a later member observes — and stores and serves the canonical Bead URL, as [Aliases](#aliases) requires: a reference resolved through an alias does not follow a later repoint."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -304,7 +304,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-results",
-          "selectedText": "putting or deleting an alias mints no version and moves no revision \u2014 the target Bead's revision is unchanged by alias mutation, and the alias result defined under [Alias targets](#alias-targets) carries none."
+          "selectedText": "putting or deleting an alias mints no version and moves no revision — the target Bead's revision is unchanged by alias mutation, and the alias result defined under [Alias targets](#alias-targets) carries none."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -455,7 +455,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `attribution` are members of the record and therefore of its identity."
+          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `revisionProvenance` are members of the record and therefore of its identity."
         }
       ]
     },
@@ -498,7 +498,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "a value that is not a reference shape at all \u2014 neither a relative path nor an absolute URL under the local-ID grammar, or a `@name` where none is admitted \u2014 is carrier syntax, `malformed-request`"
+          "selectedText": "a value that is not a reference shape at all — neither a relative path nor an absolute URL under the local-ID grammar, or a `@name` where none is admitted — is carrier syntax, `malformed-request`"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -562,7 +562,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#duplicate-keys-and-retained-dispositions",
-          "selectedText": "A request rejected before admission \u2014 an unauthenticated principal, a carrier-level rejection \u2014 creates no disposition."
+          "selectedText": "A request rejected before admission — an unauthenticated principal, a carrier-level rejection — creates no disposition."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -747,7 +747,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#sequence-request-envelope",
-          "selectedText": "Once the authority has admitted a sequence \u2014 validated its carrier and operation-record syntax and started its first member \u2014 client disconnection does not decide any member's outcome."
+          "selectedText": "Once the authority has admitted a sequence — validated its carrier and operation-record syntax and started its first member — client disconnection does not decide any member's outcome."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -770,7 +770,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#sequence-request-envelope",
-          "selectedText": "Once the authority has admitted a sequence \u2014 validated its carrier and operation-record syntax and started its first member \u2014 client disconnection does not decide any member's outcome."
+          "selectedText": "Once the authority has admitted a sequence — validated its carrier and operation-record syntax and started its first member — client disconnection does not decide any member's outcome."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -785,12 +785,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#durability-and-recovery",
-          "selectedText": "A claim abandoned by a crash \u2014 one whose member reached no durable disposition \u2014 is cleared during restart or failover, so a retry executes the member once"
+          "selectedText": "A claim abandoned by a crash — one whose member reached no durable disposition — is cleared during restart or failover, so a retry executes the member once"
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#durability-and-recovery",
-          "selectedText": "Every mutation route \u2014 each singleton target, the sequence target, and every replica that accepts mutations \u2014 consults one authoritative key state for the namespace"
+          "selectedText": "Every mutation route — each singleton target, the sequence target, and every replica that accepts mutations — consults one authoritative key state for the namespace"
         }
       ]
     },
@@ -818,12 +818,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#durability-and-recovery",
-          "selectedText": "A claim abandoned by a crash \u2014 one whose member reached no durable disposition \u2014 is cleared during restart or failover, so a retry executes the member once"
+          "selectedText": "A claim abandoned by a crash — one whose member reached no durable disposition — is cleared during restart or failover, so a retry executes the member once"
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#durability-and-recovery",
-          "selectedText": "Every mutation route \u2014 each singleton target, the sequence target, and every replica that accepts mutations \u2014 consults one authoritative key state for the namespace"
+          "selectedText": "Every mutation route — each singleton target, the sequence target, and every replica that accepts mutations — consults one authoritative key state for the namespace"
         }
       ]
     },
@@ -864,7 +864,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#alias-targets",
-          "selectedText": "A put whose `target` is not a canonical Bead reference \u2014 an alias, absolute or local, a Link, or an external URI \u2014 fails with `validation-failed`, carrying one diagnostic that names the cause: an alias targets a canonical Bead URL only, so no chain is ever admitted"
+          "selectedText": "A put whose `target` is not a canonical Bead reference — an alias, absolute or local, a Link, or an external URI — fails with `validation-failed`, carrying one diagnostic that names the cause: an alias targets a canonical Bead URL only, so no chain is ever admitted"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -874,7 +874,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "an endpoint or target reference of the wrong category \u2014 an alias, a Link, or an external URI as an alias put's `target`, or a Link path as a Link endpoint \u2014 is `validation-failed`"
+          "selectedText": "an endpoint or target reference of the wrong category — an alias, a Link, or an external URI as an alias put's `target`, or a Link path as a Link endpoint — is `validation-failed`"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -912,7 +912,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "a subject reference \u2014 `bead`, `link`, or the `alias` member of an alias record \u2014 whose spelling has the wrong root is `resource-not-found`, since the subject does not exist as the required kind"
+          "selectedText": "a subject reference — `bead`, `link`, or the `alias` member of an alias record — whose spelling has the wrong root is `resource-not-found`, since the subject does not exist as the required kind"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -930,7 +930,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member\u2019s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal\u2019s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
+          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member’s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal’s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -948,7 +948,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member\u2019s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal\u2019s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
+          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member’s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal’s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -976,7 +976,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member\u2019s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal\u2019s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
+          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member’s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal’s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -991,7 +991,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `attribution` are members of the record and therefore of its identity."
+          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `revisionProvenance` are members of the record and therefore of its identity."
         }
       ]
     },
@@ -1019,7 +1019,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#duplicate-keys-and-retained-dispositions",
-          "selectedText": "the key is in flight \u2014 claimed by a request whose member has not reached a terminal outcome: the member fails with `idempotency-in-progress`, the authority executes nothing and retains nothing for the presenting member, and a retry after the delay receives the retained disposition once the first presentation has reached a retained outcome"
+          "selectedText": "the key is in flight — claimed by a request whose member has not reached a terminal outcome: the member fails with `idempotency-in-progress`, the authority executes nothing and retains nothing for the presenting member, and a retry after the delay receives the retained disposition once the first presentation has reached a retained outcome"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1044,7 +1044,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#duplicate-keys-and-retained-dispositions",
-          "selectedText": "A disposition whose `retry` is `after-delay` \u2014 `rate-limited`, `temporarily-unavailable`, and `idempotency-in-progress` \u2014 is transient and is never retained: the member was not executed, and a later member presenting the same key executes it."
+          "selectedText": "A disposition whose `retry` is `after-delay` — `rate-limited`, `temporarily-unavailable`, and `idempotency-in-progress` — is transient and is never retained: the member was not executed, and a later member presenting the same key executes it."
         }
       ]
     },
@@ -1080,7 +1080,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#schema-validity-and-mutation-admission",
-          "selectedText": "Scope containment of durable references, Resource kind, `@name` resolution and its kind, ownership \u2014 whether `source` and `sourceRevision` apply to a Link result \u2014 correspondence between a result and its request"
+          "selectedText": "Scope containment of durable references, Resource kind, `@name` resolution and its kind, ownership — whether `source` and `sourceRevision` apply to a Link result — correspondence between a result and its request"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1090,7 +1090,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind \u2014 the subject does not exist as the required kind"
+          "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind — the subject does not exist as the required kind"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1143,7 +1143,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#schema-validity-and-mutation-admission",
-          "selectedText": "Scope containment of durable references, Resource kind, `@name` resolution and its kind, ownership \u2014 whether `source` and `sourceRevision` apply to a Link result \u2014 correspondence between a result and its request"
+          "selectedText": "Scope containment of durable references, Resource kind, `@name` resolution and its kind, ownership — whether `source` and `sourceRevision` apply to a Link result — correspondence between a result and its request"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1153,7 +1153,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-problem-details",
-          "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind \u2014 the subject does not exist as the required kind"
+          "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind — the subject does not exist as the required kind"
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1231,7 +1231,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#outcome-retention",
-          "selectedText": "For a disposition that committed state \u2014 `created`, `updated` including a semantic no-op, or `deleted` \u2014 it MUST then retain a compact tombstone"
+          "selectedText": "For a disposition that committed state — `created`, `updated` including a semantic no-op, or `deleted` — it MUST then retain a compact tombstone"
         }
       ]
     },
@@ -1254,7 +1254,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "resolves each `@name` reference to the identity its creating member bound \u2014 taken from that member's fresh, retained, or expired disposition, never from the spelling"
+          "selectedText": "resolves each `@name` reference to the identity its creating member bound — taken from that member's fresh, retained, or expired disposition, never from the spelling"
         }
       ]
     }

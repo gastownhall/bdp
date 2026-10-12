@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { request as httpRequest } from "node:http";
@@ -73,6 +74,31 @@ function resource(
 }
 
 describe("non-attesting bdptest HTTP development authority", () => {
+  it("refuses the preceding installation without changing its existing store", async () => {
+    const first = await start();
+    await first.post(
+      "create-bead",
+      { type: DEVELOPMENT_BEAD_TYPE, properties: { retained: true } },
+      "retained",
+    );
+    const port = Number(new URL(first.server.scope).port);
+    await first.server.close();
+    const file = path.join(first.dir, "reference.sqlite");
+    const raw = new DatabaseSync(file);
+    try {
+      raw
+        .prepare("UPDATE metadata SET value=? WHERE name IN ('installation','lineage')")
+        .run("bdptest-development-1-metadata-basis");
+    } finally {
+      raw.close();
+    }
+    const before = readFileSync(file);
+    await expect(start(first.dir, port, false)).rejects.toThrow(
+      "store format/Scope/installation/lineage mismatch",
+    );
+    expect(readFileSync(file)).toEqual(before);
+  });
+
   it("persists create/read/guarded update/delete and retained replay across reopen", async () => {
     const h = await start();
     const create = {
@@ -80,13 +106,13 @@ describe("non-attesting bdptest HTTP development authority", () => {
       type: DEVELOPMENT_BEAD_TYPE,
       properties: { title: "before" },
       metadata: { origin: "test" },
-      attribution: { principal: "writer", basis: "writer-supplied" },
+      revisionProvenance: { actor: { id: "writer", basis: "writer-supplied" } },
     };
     const created = resource(await h.post("create-bead", create, "create_a"));
     expect(created).toMatchObject({
       properties: { title: "before" },
       metadata: { origin: "test" },
-      attribution: { principal: "writer", basis: "writer-supplied" },
+      revisionProvenance: { actor: { id: "writer", basis: "writer-supplied" } },
     });
     expect(jsonBody(await h.get("beads/a"))).toEqual(created);
     expect(resource(await h.post("create-bead", create, "create_a"))).toEqual(created);

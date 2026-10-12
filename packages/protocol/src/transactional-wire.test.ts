@@ -1742,8 +1742,8 @@ function expectEntriesCorrespond(
         expect(resource.revision, `${entryLabel}: no-op needs a before-state oracle`).not.toBe(
           operation.expectedRevision,
         );
-      if (operation.attribution !== undefined)
-        expect(resource.attribution, entryLabel).toEqual(operation.attribution);
+      if (operation.revisionProvenance !== undefined)
+        expect(resource.revisionProvenance, entryLabel).toEqual(operation.revisionProvenance);
     }
     if (resource.type === OWNED_LINK_TYPE) {
       expect(entry.source, entryLabel).toBe(resource.source);
@@ -1804,9 +1804,11 @@ function expectChangeGroup(group: JsonRecord, label: string): void {
           (change.resource as JsonRecord).revision === data.revision,
       )?.resource as JsonRecord | undefined;
       // Groups contain all ordered Events, but only final postimages;
-      // compare attribution only when the exact version is present.
+      // compare revisionProvenance only when the exact version is present.
       if (postimage !== undefined) {
-        expect(data.attribution, `${label}: Event attribution`).toEqual(postimage.attribution);
+        expect(data.revisionProvenance, `${label}: Event revisionProvenance`).toEqual(
+          postimage.revisionProvenance,
+        );
       }
       const owned = data.ownedLink as JsonRecord | undefined;
       if (owned !== undefined && owned.operation !== "deleted") {
@@ -1818,8 +1820,8 @@ function expectChangeGroup(group: JsonRecord, label: string): void {
             (change.resource as JsonRecord).revision === link.revision,
         )?.resource as JsonRecord | undefined;
         if (linkPostimage !== undefined)
-          expect(link.attribution, `${label}: nested Link attribution`).toEqual(
-            linkPostimage.attribution,
+          expect(link.revisionProvenance, `${label}: nested Link revisionProvenance`).toEqual(
+            linkPostimage.revisionProvenance,
           );
       }
     }
@@ -2053,7 +2055,7 @@ describe("Transactional correction regression probes", () => {
     },
   );
 
-  it("rejects a no-op response that mints a revision or replaces prior attribution", () => {
+  it("rejects a no-op response that mints a revision or replaces prior revisionProvenance", () => {
     const fixture = fixtures.find((candidate) =>
       candidate.exchanges.some(
         (exchange) => exchange.id === "no-op-preserves-existing-attribution",
@@ -2069,8 +2071,8 @@ describe("Transactional correction regression probes", () => {
     ).not.toThrow();
     for (const mutation of [
       { revision: "noop-r2" },
-      { attribution: operations[0]?.attribution },
-      { revision: "noop-r2", attribution: operations[0]?.attribution },
+      { revisionProvenance: operations[0]?.revisionProvenance },
+      { revision: "noop-r2", revisionProvenance: operations[0]?.revisionProvenance },
     ]) {
       const corrupt = structuredClone(entries) as JsonRecord[];
       corrupt[0] = {
@@ -2083,27 +2085,27 @@ describe("Transactional correction regression probes", () => {
     }
   });
 
-  it("rejects omitted attribution in either successor Event and its nested Link delta", () => {
+  it("rejects omitted revisionProvenance in either successor Event and its nested Link delta", () => {
     const example = fixtures
       .flatMap((fixture) => fixture.groupExamples ?? [])
       .find((candidate) => candidate.id === "isolated-live-owned-link-erasure");
     expect(example).toBeDefined();
     const group = example?.body as JsonRecord;
     expect(() => expectChangeGroup(group, "valid erasure successor")).not.toThrow();
-    // Equality is required only when attribution was recorded. Omitting it
+    // Equality is required only when revisionProvenance was recorded. Omitting it
     // consistently is valid too; this probe imposes no administrative policy.
     const unattributed = JSON.parse(JSON.stringify(group), (key, value: unknown) =>
-      key === "attribution" ? undefined : value,
+      key === "revisionProvenance" ? undefined : value,
     ) as JsonRecord;
-    expect(() => expectChangeGroup(unattributed, "no attribution recorded")).not.toThrow();
+    expect(() => expectChangeGroup(unattributed, "no revisionProvenance recorded")).not.toThrow();
     for (const target of ["link", "source", "nested"]) {
       const corrupt = structuredClone(group);
       const events = corrupt.events as JsonRecord[];
       const data = events[target === "link" ? 0 : 1]?.data as JsonRecord;
       if (target === "nested")
-        delete ((data.ownedLink as JsonRecord).link as JsonRecord).attribution;
-      else delete data.attribution;
-      expect(() => expectChangeGroup(corrupt, `missing ${target} attribution`)).toThrow();
+        delete ((data.ownedLink as JsonRecord).link as JsonRecord).revisionProvenance;
+      else delete data.revisionProvenance;
+      expect(() => expectChangeGroup(corrupt, `missing ${target} revisionProvenance`)).toThrow();
     }
   });
 
@@ -2131,7 +2133,7 @@ describe("Transactional correction regression probes", () => {
     expect(() => expectReceiptPagination(pageOverflow, 3)).toThrow();
   });
 
-  it("compares attribution only for the Event's exact version, including nested Link versions", () => {
+  it("compares revisionProvenance only for the Event's exact version, including nested Link versions", () => {
     const example = fixtures
       .flatMap((fixture) => fixture.groupExamples ?? [])
       .find((candidate) => candidate.id === "isolated-live-owned-link-erasure");
@@ -2143,17 +2145,17 @@ describe("Transactional correction regression probes", () => {
       event.id = `${event.id}-earlier`;
       data.previousRevision = `${data.previousRevision}-before`;
       data.revision = `${data.revision}-intermediate`;
-      data.attribution = { principal: "human:earlier-author", basis: "writer-supplied" };
+      data.revisionProvenance = { actor: { id: "human:earlier-author", basis: "writer-supplied" } };
       const owned = data.ownedLink as JsonRecord | undefined;
       if (owned !== undefined) {
         const link = owned.link as JsonRecord;
         link.previousRevision = `${link.previousRevision}-before`;
         link.revision = `${link.revision}-intermediate`;
-        link.attribution = data.attribution;
+        link.revisionProvenance = data.revisionProvenance;
       }
     }
     // Only the final postimages appear in changes; ordered earlier facts
-    // retain their own version's attribution and must not be compared to them.
+    // retain their own version's revisionProvenance and must not be compared to them.
     for (const [index, event] of finalEvents.entries()) {
       const data = event.data as JsonRecord;
       const earlier = (earlierEvents[index] as JsonRecord).data as JsonRecord;
@@ -2169,7 +2171,7 @@ describe("Transactional correction regression probes", () => {
       ordinal,
     }));
     group.eventCount = 4;
-    expect(() => expectChangeGroup(group, "intermediate attribution")).not.toThrow();
+    expect(() => expectChangeGroup(group, "intermediate revisionProvenance")).not.toThrow();
   });
 
   it("rejects missing or duplicate singleton outcomes across the complete receipt page chain", () => {

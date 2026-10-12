@@ -408,7 +408,7 @@ describe("Read schema projection drift over the committed cohort", () => {
         required: ["operations"],
         properties: {
           operations: { type: "array", items: { $ref: "#/$defs/beadRecord" } },
-          attribution: { $ref: "#/$defs/attribution" },
+          revisionProvenance: { $ref: "#/$defs/revisionProvenance" },
         },
         additionalProperties: false,
       };

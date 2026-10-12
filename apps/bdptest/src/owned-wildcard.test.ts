@@ -59,7 +59,7 @@ function wildcardFixture(wildcardMax = 3, explicitMax = 2) {
     ],
     links: [
       // Deliberately reverse the canonical IDs within a group. Pins and
-      // attribution must match the first-class records exactly.
+      // revisionProvenance must match the first-class records exactly.
       {
         localId: "links/z",
         type: cites,
@@ -74,7 +74,7 @@ function wildcardFixture(wildcardMax = 3, explicitMax = 2) {
         revision: "a-1",
         source: "beads/a",
         target: { uri: "urn:external:cited", revision: "e-1" },
-        attribution: { principal: "agent:writer", basis: "writer-supplied" },
+        revisionProvenance: { actor: { id: "agent:writer", basis: "writer-supplied" } },
         properties: {},
       },
       {

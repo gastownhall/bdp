@@ -116,22 +116,22 @@
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Every Link endpoint MUST be a Reference: a URI, or a Pinned Reference with exactly `uri` and `revision`."
+          "selectedText": "Any Reference may carry a pin: an authority MUST preserve and echo the pin byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it in v0."
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "An in-Scope endpoint MUST identify a live Bead by its canonical URL."
+          "selectedText": "Any Reference may carry a pin: an authority MUST preserve and echo the pin byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it in v0."
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "At least one endpoint of every v0 Link MUST be an in-Scope Bead."
+          "selectedText": "Any Reference may carry a pin: an authority MUST preserve and echo the pin byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it in v0."
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "A Bead whose\n  Type owns outgoing Link Types MUST carry its `ownedLinks` member — one\n  entry per declared owned type, keyed by Link Type URL, valued by the\n  owned Links' complete records in ascending code-unit order of their\n  canonical `id`s — on every record read, and the member MUST be absent\n  for Beads whose Type owns nothing."
+          "selectedText": "Any Reference may carry a pin: an authority MUST preserve and echo the pin byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it in v0."
         }
       ]
     },
@@ -594,7 +594,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "Every Bead and Link record MAY carry an **`attribution`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
+          "selectedText": "Every Bead and Link record MAY carry a **`revisionProvenance`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -604,7 +604,7 @@
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, basis }` with `basis` one of `writer-supplied`,\n  `unknown` — that is carried per version and never attested"
+          "selectedText": "Bead and Link records MAY carry a common `revisionProvenance`\n  member with optional `actor: { id, basis }`, with `basis` one of `writer-supplied`,\n  `unknown` — that is carried per version and never attested"
         }
       ]
     },
@@ -617,7 +617,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "Every Bead and Link record MAY carry an **`attribution`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
+          "selectedText": "Every Bead and Link record MAY carry a **`revisionProvenance`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -627,7 +627,7 @@
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Bead and Link records MAY carry a common `attribution`\n  member — `{ principal, basis }` with `basis` one of `writer-supplied`,\n  `unknown` — that is carried per version and never attested"
+          "selectedText": "Bead and Link records MAY carry a common `revisionProvenance`\n  member with optional `actor: { id, basis }`, with `basis` one of `writer-supplied`,\n  `unknown` — that is carried per version and never attested"
         }
       ]
     },

@@ -1,6 +1,6 @@
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
-import type { Attribution, BeadRecord, LinkRecord, ReadDiscovery } from "./index.js";
-import type { ChangeContextInput } from "./history-values.js";
+import type { BeadRecord, LinkRecord, ReadDiscovery } from "./index.js";
+import type { RevisionProvenanceInput } from "./history-values.js";
 import {
   admitJsonNumbers,
   decodeJsonDocument,
@@ -59,8 +59,7 @@ export type PropertyChange = readonly (
   | { readonly op: "remove"; readonly path: string }
 )[];
 interface MintInput {
-  readonly attribution?: Attribution;
-  readonly changeContext?: ChangeContextInput;
+  readonly revisionProvenance?: RevisionProvenanceInput;
 }
 export interface ReadUpdateInputs {
   readonly createBead: MintInput & {

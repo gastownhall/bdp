@@ -33,7 +33,7 @@ export const DEVELOPMENT_LIMITS = Object.freeze({
   diagnosticCount: 32,
 });
 const day = 86_400_000;
-const installation = "bdptest-development-1-metadata-basis";
+const installation = "bdptest-development-2-revision-provenance";
 const principal = Object.freeze({ id: "bdptest-development-operator" });
 const policy = Object.freeze({
   canRead: () => true,

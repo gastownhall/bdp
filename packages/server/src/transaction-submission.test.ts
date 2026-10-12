@@ -262,7 +262,7 @@ describe("private direct Transactional receiving order", () => {
     const singleton: TransactionSubmission = {
       ...submission(),
       carrier: { kind: "singleton", operation: "createBead" },
-      body: `{"id":"beads/a","type":"${bead}","properties":{"n":1e0},"changeContext":{}}`,
+      body: `{"id":"beads/a","type":"${bead}","properties":{"n":1e0},"revisionProvenance":{}}`,
     };
     const original = await submitTransaction(f.store, singleton);
     const equivalent = {

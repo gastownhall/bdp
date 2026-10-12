@@ -1,5 +1,8 @@
 # History resolution decision packet
 
+> Current wire naming: the common `revisionProvenance` envelope supersedes this packet’s earlier `attribution` and `changeContext` containers. Actor data is `actor: { id, basis }`, with `basis: writer-supplied | unknown`; time, agent, and message retain their existing value states inside the same envelope. The historical decisions and quoted review text below preserve their original spelling. Use [the current normative contract](../specs/bdp.md#carried-attribution) and the canonical schema for implementations. Sources, completeness, Activity records and terminal deletion versions are outside this bounded change.
+
+
 Status: **38 presented History answer units ACKed; normative/wire materialization pending; non-normative; not implemented**.
 Prepared 2026-09-08; operator ACKs recorded 2026-09-09. Plan of record: [gastownhall/bdp#1](https://github.com/gastownhall/bdp/issues/1).
 The word “History” names this design lane, not a selected fourth `profile` value.

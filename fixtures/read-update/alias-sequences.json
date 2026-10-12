@@ -28,9 +28,11 @@
                   "value": "accepted"
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -57,10 +59,6 @@
                 "id": "https://beads.example/acme/beads/note-120",
                 "type": "https://work.example/types/decision",
                 "revision": "note-120-r2",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Alias mutation joins Read+Update",
                   "status": "accepted"
@@ -68,6 +66,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -116,9 +120,11 @@
                   "value": "accepted"
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -145,10 +151,6 @@
                 "id": "https://beads.example/acme/beads/note-120",
                 "type": "https://work.example/types/decision",
                 "revision": "note-120-r2",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Alias mutation joins Read+Update",
                   "status": "accepted"
@@ -156,6 +158,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -187,9 +195,11 @@
             "title": "Take the released alias path",
             "status": "open"
           },
-          "attribution": {
-            "principal": "agent:planner",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -206,15 +216,17 @@
             "id": "https://beads.example/acme/beads/notes/alias-mutation",
             "type": "https://work.example/types/task",
             "revision": "alias-mutation-r1",
-            "attribution": {
-              "principal": "agent:planner",
-              "basis": "writer-supplied"
-            },
             "properties": {
               "title": "Take the released alias path",
               "status": "open"
             },
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:planner",
+                "basis": "writer-supplied"
+              }
+            }
           }
         }
       }
@@ -241,9 +253,11 @@
                 "title": "First, well-formed",
                 "status": "open"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -293,9 +307,11 @@
                 "title": "Second, committed",
                 "status": "open"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -324,15 +340,17 @@
                 "id": "https://beads.example/acme/beads/task-119",
                 "type": "https://work.example/types/task",
                 "revision": "task-119-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Second, committed",
                   "status": "open"
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             },
             {

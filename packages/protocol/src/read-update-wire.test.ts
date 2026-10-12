@@ -390,10 +390,10 @@ describe("illustrative property and metadata replacement examples", () => {
         JSON.stringify(metadata) === JSON.stringify(before.metadata);
       if (noOp) {
         expect(after.revision, exchange.id).toBe(before.revision);
-        expect(after.attribution, exchange.id).toEqual(before.attribution);
+        expect(after.revisionProvenance, exchange.id).toEqual(before.revisionProvenance);
       } else {
         expect(after.revision, exchange.id).not.toBe(before.revision);
-        expect(after.attribution, exchange.id).toEqual(input.attribution);
+        expect(after.revisionProvenance, exchange.id).toEqual(input.revisionProvenance);
       }
     }
   });
@@ -667,8 +667,8 @@ describe("shapes the bundle now rejects", () => {
     ],
     [
       "deleteAliasRequest",
-      "an alias delete carrying attribution",
-      { alias: "alias/x", attribution: { principal: "p", basis: "writer-supplied" } },
+      "an alias delete carrying revisionProvenance",
+      { alias: "alias/x", revisionProvenance: { actor: { id: "p", basis: "writer-supplied" } } },
     ],
     [
       "sequenceRequest",
@@ -960,12 +960,12 @@ function expectResultShape(entry: JsonRecord, member: JsonRecord, label: string)
     expect(entry.deleted, label).toBeUndefined();
     if (member.type !== undefined) expect(resource.type, label).toBe(member.type);
     if (isSemanticNoOp(entry, member)) {
-      // A no-op mints no version and records no attribution: the retained
-      // version keeps whatever attribution it already carried, so the input
-      // attribution is not expected on the postimage.
+      // A no-op mints no version and records no revisionProvenance: the retained
+      // version keeps whatever revisionProvenance it already carried, so the input
+      // revisionProvenance is not expected on the postimage.
       expect(resource.revision, label).toBe(member.expectedRevision);
-    } else if (member.attribution !== undefined) {
-      expect(resource.attribution, label).toEqual(member.attribution);
+    } else if (member.revisionProvenance !== undefined) {
+      expect(resource.revisionProvenance, label).toEqual(member.revisionProvenance);
     }
   }
   if (!LINK_OPERATIONS.has(operation)) {

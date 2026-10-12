@@ -140,9 +140,11 @@
           }
         }
       },
-      "attribution": {
-        "principal": "agent:reference-wildcard",
-        "basis": "writer-supplied"
+      "revisionProvenance": {
+        "actor": {
+          "id": "agent:reference-wildcard",
+          "basis": "writer-supplied"
+        }
       }
     },
     {

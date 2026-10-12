@@ -830,3 +830,13 @@ The schema regression digest is updated independently; it is not a cohort bindin
 The historical artifact and capability constant remain untouched until genuinely
 new two-target observations bind the final source, inputs and projection. No
 History runtime or capability admission follows from this schema coverage change.
+
+### Common revision provenance
+
+Current Read records use one optional `revisionProvenance` envelope. The existing
+`read.attribution.carried` and `read.attribution.link` scenario IDs and fixture
+feature names remain stable; their assertions now compare the whole envelope,
+including `actor: { id, basis }`, outside Type properties. The schema projection
+replaces the old `attribution` and `changeContext` definition names with
+`revisionActor` and `revisionProvenance`. Earlier sealed evidence remains
+historical; changes to these source bytes require a fresh observed Read cohort.

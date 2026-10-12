@@ -304,9 +304,9 @@ export function normalizeTransaction(
         : {}),
     };
     // Empty context supplies no explicit states; null members remain distinct.
-    const context = input.changeContext;
+    const context = input.revisionProvenance;
     if (context !== null && typeof context === "object" && Object.keys(context).length === 0)
-      delete input.changeContext;
+      delete input.revisionProvenance;
     const previous = prior?.[index];
     const aliases = new Map<string, string | null>();
     for (const field of ["id", "source", "target", "bead", "link", "alias"]) {
@@ -554,7 +554,7 @@ export function evaluateTransaction(
         revision: subject.revision,
         properties: subject.properties,
         metadata: subject.metadata ?? {},
-        ...(subject.attribution ? { attribution: subject.attribution } : {}),
+        ...(subject.revisionProvenance ? { revisionProvenance: subject.revisionProvenance } : {}),
         ...("source" in subject ? { source: subject.source, target: subject.target } : {}),
       });
     } else if (outcome.outcome === "updated") {
@@ -564,7 +564,7 @@ export function evaluateTransaction(
         revision: subject.revision,
         ...(input.propertiesChange !== undefined ? { change: input.propertiesChange } : {}),
         ...(input.metadataChange !== undefined ? { metadataChange: input.metadataChange } : {}),
-        ...(subject.attribution ? { attribution: subject.attribution } : {}),
+        ...(subject.revisionProvenance ? { revisionProvenance: subject.revisionProvenance } : {}),
       });
     } else {
       scopeEvent(subject, "deleted", { revision: subject.revision });

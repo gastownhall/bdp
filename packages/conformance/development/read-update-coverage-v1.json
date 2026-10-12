@@ -190,7 +190,7 @@
         {
           "scenario": "development.read-update.bead-crud-guards",
           "assertions": ["create.attribution", "noop.kept-attribution", "update.status"],
-          "limits": ["Fixed unowned Types; no owned-source induced attribution."]
+          "limits": ["Fixed unowned Types; no owned-source induced revision provenance."]
         }
       ]
     },
@@ -1045,7 +1045,7 @@
             "retained-state.external"
           ],
           "limits": [
-            "Pin presence, byte-distinct revision strings, opaque external URI spelling and renamed creator labels are exercised; remaining defaults, attribution, guards, member/object/array-order variants remain separate."
+            "Pin presence, byte-distinct revision strings, opaque external URI spelling and renamed creator labels are exercised; remaining defaults, revision provenance, guards, member/object/array-order variants remain separate."
           ]
         }
       ]

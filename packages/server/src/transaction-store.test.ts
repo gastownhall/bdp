@@ -413,10 +413,45 @@ describe("private atomic transaction owner", () => {
           revision: string;
           properties?: Record<string, unknown>;
           metadata?: Record<string, unknown>;
+          revisionProvenance?: unknown;
         };
       }[];
     };
   }
+  it("copies complete created-version provenance into Events and retained postimages", () => {
+    const f = fixture({ clock: () => 1000 });
+    const operations = [
+      {
+        operation: "createBead",
+        type: bead,
+        revisionProvenance: {
+          actor: { id: "writer", basis: "writer-supplied" },
+          agent: null,
+          message: "created",
+        },
+      },
+    ];
+    const receipt = execute(f.store, operations, "provenance-create");
+    const group = latestGroup(f.store);
+    const provenance = group.changes[0]?.resource.revisionProvenance;
+    expect(group.events[0]?.data.revisionProvenance).toEqual(provenance);
+    expect(provenance).toEqual({
+      actor: { id: "writer", basis: "writer-supplied" },
+      committedAt: { state: "present", value: "1970-01-01T00:00:01.000Z" },
+      agent: { state: "absent" },
+      message: { state: "present", value: "created" },
+    });
+    expect(receipt.results).toMatchObject([{ resource: { revisionProvenance: provenance } }]);
+    expect(
+      f
+        .reopen()
+        .admit(
+          "principal",
+          "provenance-create",
+          prepareTransaction(scope, JSON.stringify({ operations })),
+        ),
+    ).toEqual({ kind: "existing", receipt });
+  });
   it("keeps intermediate update and reversal Events/results but only the final postimage", () => {
     const f = fixture(),
       { beadRecord } = seed(f.store);
@@ -538,7 +573,11 @@ describe("private atomic transaction owner", () => {
         expectedRevision: linkRecord.revision,
         propertiesChange,
         metadataChange,
-        attribution: { principal: "writer", basis: "writer-supplied" },
+        revisionProvenance: {
+          actor: { id: "writer", basis: "writer-supplied" },
+          agent: null,
+          message: "changed",
+        },
       },
     ];
     const receipt = execute(f.store, operations, "link-update"),
@@ -553,10 +592,18 @@ describe("private atomic transaction owner", () => {
         previousRevision: linkRecord.revision,
         change: propertiesChange,
         metadataChange,
-        attribution: { principal: "writer", basis: "writer-supplied" },
+        revisionProvenance: { actor: { id: "writer", basis: "writer-supplied" } },
       },
     });
     expect(group.changes).toHaveLength(1);
+    const provenance = group.changes[0]?.resource.revisionProvenance;
+    expect(group.events[0]?.data.revisionProvenance).toEqual(provenance);
+    expect(provenance).toMatchObject({
+      actor: { id: "writer", basis: "writer-supplied" },
+      committedAt: { state: "present" },
+      agent: { state: "absent" },
+      message: { state: "present", value: "changed" },
+    });
     expect(group.changes[0]?.resource).toMatchObject({
       properties: { weight: 3 },
       metadata: { note: "x" },
@@ -1011,7 +1058,7 @@ describe("private atomic transaction owner", () => {
               ...input,
               ...(context === "omitted"
                 ? {}
-                : { changeContext: context === "empty" ? {} : context }),
+                : { revisionProvenance: context === "empty" ? {} : context }),
             };
             return carrier === "singleton"
               ? prepareTransactionSingleton(scope, operation, JSON.stringify(body))

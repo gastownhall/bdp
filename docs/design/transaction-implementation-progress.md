@@ -76,9 +76,9 @@ canonical schema bundle.
 The store is explicitly provisioned at a new absolute file path. Reopen verifies
 its format, canonical Scope, exact installed Type configuration and identity
 normalization policy. The current format is
-`bdp-private-transaction-dependencies-4`, with durable creator facts and unresolved
+`bdp-private-transaction-provenance-5`, with durable creator facts and unresolved
 receipt templates as well as the alias table and receipt witnesses. The identity
-policy is `transaction-dependencies-3`. Missing or mismatched policies and
+policy is `transaction-revision-provenance-4`. Missing or mismatched policies and
 earlier formats are refused before pending recovery or receipt maintenance.
 This prevents an older owner from silently ignoring alias path uniqueness or
 reinterpreting retained identities without their original alias witnesses.
@@ -407,3 +407,22 @@ and cleanup faults. These are private implementation tests, not endpoint or
 whole-profile qualification. The next receiver still needs same-owner Resource
 reads and current serving observations, receipt HTTP semantics, and lifecycle
 ownership through disconnection; no discovery or executable admission changed.
+
+
+## Common revision provenance integration
+
+The private Transactional normalizer accepts the common `revisionProvenance`
+input envelope. Empty and omitted input still compare equally, while explicit
+null context members and actor values remain significant. Created/updated
+Events copy the complete envelope of their named version; Resource postimages,
+retained results and Event projections agree. Input agent/message values remain
+strings or null, while output context uses the protocol value-state objects.
+Deletion, aliases, Activity and public profile admission are unchanged.
+
+Previous private stores are refused before recovery or expiry maintenance.
+The Transactional format and identity policy above, the Read+Update recovery
+format (3), and the development installation identity all advance. No existing
+Resource, receipt, fingerprint, Event or key is rewritten or silently reseeded.
+Disposable compatibility tests retain pending claims, creator facts and outcomes
+byte-identically on refusal. Historical Read evidence remains attached to its
+original observed head until a fresh frozen-head qualification is performed.

@@ -109,10 +109,10 @@ interface Row {
   dependency: string | null;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-dependencies-4";
+const format = "bdp-private-transaction-provenance-5";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
-const identityPolicy = "transaction-dependencies-3";
+const identityPolicy = "transaction-revision-provenance-4";
 const schema = `
 CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
 CREATE TABLE resources(id TEXT PRIMARY KEY, body TEXT NOT NULL, kind TEXT NOT NULL, source TEXT, target TEXT) STRICT;

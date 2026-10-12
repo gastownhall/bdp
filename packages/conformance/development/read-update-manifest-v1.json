@@ -29,9 +29,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "create"
@@ -80,11 +82,13 @@
             {
               "id": "attribution",
               "kind": "json-pointer",
-              "pointer": "/body/resource/attribution",
+              "pointer": "/body/resource/revisionProvenance",
               "exists": true,
               "equals": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -112,9 +116,11 @@
                   "value": 1
                 }
               ],
-              "attribution": {
-                "principal": "replacement",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "replacement",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "noop",
@@ -139,7 +145,7 @@
             {
               "id": "kept-attribution",
               "kind": "json-pointer",
-              "pointer": "/body/resource/attribution/principal",
+              "pointer": "/body/resource/revisionProvenance/actor/id",
               "exists": true,
               "equals": "writer"
             },
@@ -387,9 +393,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "seed"
@@ -658,9 +666,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "a"
@@ -707,9 +717,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "b"
@@ -1074,9 +1086,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "recreate"
@@ -1138,9 +1152,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "a"
@@ -1187,9 +1203,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "b"
@@ -1290,9 +1308,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "collision"
@@ -1533,9 +1553,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "reuse"
@@ -1977,9 +1999,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "retained"
@@ -2055,9 +2079,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "retained"
@@ -2177,9 +2203,11 @@
                   "metadata": {
                     "keep": true
                   },
-                  "attribution": {
-                    "principal": "writer",
-                    "basis": "writer-supplied"
+                  "revisionProvenance": {
+                    "actor": {
+                      "id": "writer",
+                      "basis": "writer-supplied"
+                    }
                   }
                 }
               ]
@@ -2490,9 +2518,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "create"
@@ -2585,9 +2615,11 @@
               "metadata": {
                 "keep": true
               },
-              "attribution": {
-                "principal": "writer",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer",
+                  "basis": "writer-supplied"
+                }
               }
             },
             "key": "seed"
@@ -4408,7 +4440,7 @@
               "id": "beads/boundary",
               "type": "https://bdp.example/development/bead",
               "properties": {
-                "unicode": "\u00e9"
+                "unicode": "é"
               }
             },
             "headerLines": [
@@ -4470,7 +4502,7 @@
               "kind": "json-pointer",
               "pointer": "/body/properties/unicode",
               "exists": true,
-              "equals": "\u00e9"
+              "equals": "é"
             }
           ]
         }
@@ -9430,7 +9462,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
-                "revision": "past:\u00e9/%2F"
+                "revision": "past:é/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9468,7 +9500,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/revision",
               "exists": true,
-              "equals": "past:\u00e9/%2F"
+              "equals": "past:é/%2F"
             },
             {
               "id": "external",
@@ -9552,7 +9584,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
-                "revision": "past:\u00e9/%2F"
+                "revision": "past:é/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9590,7 +9622,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/revision",
               "exists": true,
-              "equals": "past:\u00e9/%2F"
+              "equals": "past:é/%2F"
             },
             {
               "id": "external",
@@ -9666,7 +9698,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
-                "revision": "past:\u00e9/%2F"
+                "revision": "past:é/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9704,7 +9736,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/revision",
               "exists": true,
-              "equals": "past:\u00e9/%2F"
+              "equals": "past:é/%2F"
             },
             {
               "id": "external",
@@ -9730,7 +9762,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "beads/a",
-                "revision": "past:\u00e9/%2F"
+                "revision": "past:é/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9769,7 +9801,7 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source/revision",
               "exists": true,
-              "equals": "past:\u00e9/%2F"
+              "equals": "past:é/%2F"
             },
             {
               "id": "external",
@@ -9795,7 +9827,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "beads/a",
-                "revision": "past:e\u0301/%2F"
+                "revision": "past:é/%2F"
               },
               "target": {
                 "uri": "urn:example:remote",
@@ -9870,7 +9902,7 @@
               "type": "https://bdp.example/development/link",
               "source": {
                 "uri": "alias/old",
-                "revision": "past:\u00e9/%2F"
+                "revision": "past:é/%2F"
               },
               "target": {
                 "uri": "urn:example:REMOTE",
@@ -9927,7 +9959,7 @@
               "kind": "json-pointer",
               "pointer": "/body/source/revision",
               "exists": true,
-              "equals": "past:\u00e9/%2F"
+              "equals": "past:é/%2F"
             },
             {
               "id": "external",
@@ -9964,7 +9996,7 @@
                   "type": "https://bdp.example/development/link",
                   "source": {
                     "uri": "@made",
-                    "revision": "past:\u00e9/%2F"
+                    "revision": "past:é/%2F"
                   },
                   "target": "beads/a"
                 }
@@ -10000,7 +10032,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/source/revision",
               "exists": true,
-              "equals": "past:\u00e9/%2F"
+              "equals": "past:é/%2F"
             }
           ]
         },
@@ -10027,7 +10059,7 @@
                   "type": "https://bdp.example/development/link",
                   "source": {
                     "uri": "@renamed",
-                    "revision": "past:\u00e9/%2F"
+                    "revision": "past:é/%2F"
                   },
                   "target": "beads/a"
                 }
@@ -10063,7 +10095,7 @@
               "kind": "json-pointer",
               "pointer": "/body/results/1/resource/source/revision",
               "exists": true,
-              "equals": "past:\u00e9/%2F"
+              "equals": "past:é/%2F"
             }
           ]
         }

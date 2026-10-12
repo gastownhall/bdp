@@ -419,7 +419,6 @@ describe("Read schema projection", () => {
     expect(roots).toEqual([
       "beadCollection",
       "beadRecord",
-      "changeContext",
       "currentBeadCollection",
       "currentBeadRecord",
       "currentLinkCollection",
@@ -434,6 +433,7 @@ describe("Read schema projection", () => {
       "properties",
       "readDiscovery",
       "readProblem",
+      "revisionProvenance",
       "typeDescriptor",
       "typeSummary",
       "typesInventory",

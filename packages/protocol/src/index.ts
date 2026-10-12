@@ -6,7 +6,7 @@ export type {
 } from "./property-validation.js";
 export { snapshotJsonValue, stringifyJsonValue } from "./json-values.js";
 import { parseHistoryMissing } from "./history-values.js";
-import type { ChangeContext, HistoryCapability, HistoryMissing } from "./history-values.js";
+import type { RevisionProvenance, HistoryCapability, HistoryMissing } from "./history-values.js";
 export * from "./history-values.js";
 
 /** Identifies this package. */
@@ -267,29 +267,28 @@ export interface PropertiesRecord {
   readonly [key: string]: unknown;
 }
 
-/** The realization's basis for a carried attribution value — never a BDP guarantee. */
-export const ATTRIBUTION_BASES = Object.freeze(["writer-supplied", "unknown"] as const);
-export type AttributionBasis = (typeof ATTRIBUTION_BASES)[number];
+/** The realization's basis for a carried actor value — never a BDP guarantee. */
+export const ACTOR_BASES = Object.freeze(["writer-supplied", "unknown"] as const);
+export type ActorBasis = (typeof ACTOR_BASES)[number];
 
 /**
- * Carried attribution: data, not evidence. Transported per version beside
+ * Carried actor: data, not evidence. Transported inside revision provenance beside
  * `revision`, outside `properties`; attested by nothing. A generic client
  * never treats it as an authority claim. v0 has exactly two bases —
  * `writer-supplied` (supplied by that version's writer) and `unknown` (carried from
  * data whose relationship to this version the realization cannot
  * establish); neither basis asserts authentication.
  */
-export interface Attribution {
-  readonly principal: string;
-  readonly basis: AttributionBasis;
+export interface RevisionActor {
+  readonly id: string;
+  readonly basis: ActorBasis;
 }
 
 export interface BeadRecord {
   readonly id: AbsoluteHttpUrl;
   readonly type: AbsoluteHttpUrl;
   readonly revision: string;
-  readonly attribution?: Attribution;
-  readonly changeContext?: ChangeContext;
+  readonly revisionProvenance?: RevisionProvenance;
   readonly properties: PropertiesRecord;
   readonly metadata?: PropertiesRecord;
   /**
@@ -307,8 +306,7 @@ export interface LinkRecord {
   readonly id: AbsoluteHttpUrl;
   readonly type: AbsoluteHttpUrl;
   readonly revision: string;
-  readonly attribution?: Attribution;
-  readonly changeContext?: ChangeContext;
+  readonly revisionProvenance?: RevisionProvenance;
   readonly source: Reference;
   readonly target: Reference;
   readonly properties: PropertiesRecord;

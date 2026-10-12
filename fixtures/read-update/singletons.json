@@ -22,9 +22,11 @@
             "title": "Draft the singleton fixtures",
             "status": "open"
           },
-          "attribution": {
-            "principal": "human:janet",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "human:janet",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -41,15 +43,17 @@
             "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
             "type": "https://work.example/types/task",
             "revision": "t-1-r1",
-            "attribution": {
-              "principal": "human:janet",
-              "basis": "writer-supplied"
-            },
             "properties": {
               "title": "Draft the singleton fixtures",
               "status": "open"
             },
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "human:janet",
+                "basis": "writer-supplied"
+              }
+            }
           }
         }
       }
@@ -76,9 +80,11 @@
               "value": "open"
             }
           ],
-          "attribution": {
-            "principal": "agent:planner",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -95,15 +101,17 @@
             "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
             "type": "https://work.example/types/task",
             "revision": "t-1-r1",
-            "attribution": {
-              "principal": "human:janet",
-              "basis": "writer-supplied"
-            },
             "properties": {
               "title": "Draft the singleton fixtures",
               "status": "open"
             },
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "human:janet",
+                "basis": "writer-supplied"
+              }
+            }
           }
         }
       }
@@ -163,9 +171,11 @@
             "revision": "v3"
           },
           "properties": {},
-          "attribution": {
-            "principal": "agent:planner",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -182,17 +192,19 @@
             "id": "https://beads.example/acme/links/cites-110",
             "type": "https://work.example/types/cites",
             "revision": "cites-110-r1",
-            "attribution": {
-              "principal": "agent:planner",
-              "basis": "writer-supplied"
-            },
             "source": "https://beads.example/acme/beads/decision-7",
             "target": {
               "uri": "urn:doi:10.1000/182",
               "revision": "v3"
             },
             "properties": {},
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:planner",
+                "basis": "writer-supplied"
+              }
+            }
           },
           "source": "https://beads.example/acme/beads/decision-7",
           "sourceRevision": "decision-7-r5"
@@ -220,9 +232,11 @@
               "value": "primary source"
             }
           ],
-          "attribution": {
-            "principal": "agent:planner",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -239,10 +253,6 @@
             "id": "https://beads.example/acme/links/cites-110",
             "type": "https://work.example/types/cites",
             "revision": "cites-110-r2",
-            "attribution": {
-              "principal": "agent:planner",
-              "basis": "writer-supplied"
-            },
             "source": "https://beads.example/acme/beads/decision-7",
             "target": {
               "uri": "urn:doi:10.1000/182",
@@ -251,7 +261,13 @@
             "properties": {
               "note": "primary source"
             },
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:planner",
+                "basis": "writer-supplied"
+              }
+            }
           },
           "source": "https://beads.example/acme/beads/decision-7",
           "sourceRevision": "decision-7-r6"
@@ -280,9 +296,11 @@
               "value": "primary source"
             }
           ],
-          "attribution": {
-            "principal": "human:janet",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "human:janet",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -299,10 +317,6 @@
             "id": "https://beads.example/acme/links/cites-110",
             "type": "https://work.example/types/cites",
             "revision": "cites-110-r2",
-            "attribution": {
-              "principal": "agent:planner",
-              "basis": "writer-supplied"
-            },
             "source": "https://beads.example/acme/beads/decision-7",
             "target": {
               "uri": "urn:doi:10.1000/182",
@@ -311,7 +325,13 @@
             "properties": {
               "note": "primary source"
             },
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:planner",
+                "basis": "writer-supplied"
+              }
+            }
           },
           "source": "https://beads.example/acme/beads/decision-7",
           "sourceRevision": "decision-7-r6"
@@ -332,9 +352,11 @@
         "body": {
           "link": "links/cites-110",
           "expectedRevision": "cites-110-r2",
-          "attribution": {
-            "principal": "agent:planner",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -412,9 +434,11 @@
             "title": "Check the media-type parameter",
             "status": "open"
           },
-          "attribution": {
-            "principal": "human:janet",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "human:janet",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -431,15 +455,17 @@
             "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-2",
             "type": "https://work.example/types/task",
             "revision": "t-2-r1",
-            "attribution": {
-              "principal": "human:janet",
-              "basis": "writer-supplied"
-            },
             "properties": {
               "title": "Check the media-type parameter",
               "status": "open"
             },
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "human:janet",
+                "basis": "writer-supplied"
+              }
+            }
           }
         }
       }
@@ -587,9 +613,11 @@
             "title": "Bad status",
             "status": "unknown-state"
           },
-          "attribution": {
-            "principal": "agent:planner",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -745,9 +773,11 @@
             "title": "Draft the singleton fixtures",
             "status": "open"
           },
-          "attribution": {
-            "principal": "human:janet",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "human:janet",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -764,15 +794,17 @@
             "id": "https://beads.example/acme/beads/projects/alpha/tasks/t-1",
             "type": "https://work.example/types/task",
             "revision": "t-1-r1",
-            "attribution": {
-              "principal": "human:janet",
-              "basis": "writer-supplied"
-            },
             "properties": {
               "title": "Draft the singleton fixtures",
               "status": "open"
             },
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "human:janet",
+                "basis": "writer-supplied"
+              }
+            }
           }
         }
       }
