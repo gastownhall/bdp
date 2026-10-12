@@ -42,7 +42,7 @@ together before this packet can be called implemented.
 
 1. `metadata` is a JSON object on every Bead and Link record, including an
    empty `{}` on creation when no metadata was supplied. It is distinct from
-   `properties`, `attribution`, Type descriptors, and transport metadata.
+   `properties`, `revisionProvenance`, Type descriptors, and transport metadata.
    Resource metadata is client-authored state; the authority does not infer
    timestamps, provenance, actor names or Type classification from it.
 2. The same admissible-number, validation, authorization, revision, no-op,

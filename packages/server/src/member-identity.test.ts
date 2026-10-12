@@ -111,20 +111,19 @@ describe("exact member identity normalization", () => {
     expect(empty.identityJson).toBe(omitted.identityJson);
     expect(nonempty.identityJson).not.toBe(omitted.identityJson);
   });
-  it("does not insert an allocated identity or generated attribution/context into omitted input", () => {
+  it("does not insert an allocated identity or generated revisionProvenance/context into omitted input", () => {
     const one = ready(singleton("createBead", { type }));
     const supplied = ready(singleton("createBead", { type, id: a }));
     expect(one.identityJson).not.toBe(supplied.identityJson);
     const result = execution(one);
     expect(result.input).not.toHaveProperty("id");
-    expect(result.input).not.toHaveProperty("changeContext");
-    expect(result.input).not.toHaveProperty("attribution");
+    expect(result.input).not.toHaveProperty("revisionProvenance");
   });
   it.each([
     { expectedRevision: "r2" },
-    { changeContext: { message: null } },
-    { changeContext: { message: "" } },
-    { attribution: { principal: "other", status: "claimed" } },
+    { revisionProvenance: { message: null } },
+    { revisionProvenance: { message: "" } },
+    { revisionProvenance: { actor: { id: "other", basis: "writer-supplied" } } },
   ])("preserves meaningful request context and CAS differences %#", (extra) => {
     const base = { bead: a, propertiesChange: [{ op: "add", path: "/value", value: 1 }] };
     expect(ready(singleton("updateBead", { ...base, ...extra })).identityJson).not.toBe(
@@ -153,10 +152,10 @@ describe("exact member identity normalization", () => {
         { agent: null, message: null },
       ];
       const identities = new Set([omitted.identityJson]);
-      for (const changeContext of [{}, ...meaningful]) {
+      for (const revisionProvenance of [{}, ...meaningful]) {
         for (const carrier of [
-          singleton(operation, { ...input, changeContext }),
-          sequence([{ operation, idempotencyKey: "other", ...input, changeContext }]),
+          singleton(operation, { ...input, revisionProvenance }),
+          sequence([{ operation, idempotencyKey: "other", ...input, revisionProvenance }]),
         ]) {
           const direct = ready(carrier);
           const dependencies = prepareMemberDependencies(
@@ -171,10 +170,10 @@ describe("exact member identity normalization", () => {
           if (prepared.kind !== "ready") throw Error("expected ready identity");
           expect(prepared.identityJson).toBe(direct.identityJson);
           expect(serializeMemberMetadata(prepared)).toBe(serializeMemberMetadata(omitted));
-          expect(execution(prepared).input).toMatchObject({ changeContext });
+          expect(execution(prepared).input).toMatchObject({ revisionProvenance });
           // Meaningful explicit null/string states stay different from default and
           // each other; only the empty closed object takes the omitted identity.
-          if (Object.keys(changeContext).length === 0) {
+          if (Object.keys(revisionProvenance).length === 0) {
             expect(prepared.identityJson).toBe(omitted.identityJson);
           } else {
             expect(prepared.identityJson).not.toBe(omitted.identityJson);
@@ -183,7 +182,7 @@ describe("exact member identity normalization", () => {
         }
       }
       expect(identities.size).toBe(meaningful.length + 1);
-      expect(execution(omitted).input).not.toHaveProperty("changeContext");
+      expect(execution(omitted).input).not.toHaveProperty("revisionProvenance");
       expect(omitted.identityJson).not.toContain("committedAt");
     },
   );
@@ -208,7 +207,7 @@ describe("exact member identity normalization", () => {
     const input = {
       type,
       properties: { source: "alias/x", target: "@made", nested: { uri: a } },
-      changeContext: { message: "alias/x" },
+      revisionProvenance: { message: "alias/x" },
     };
     const member = ready(singleton("createBead", input), 0, { resolveAlias });
     expect(execution(member).input).toEqual(input);

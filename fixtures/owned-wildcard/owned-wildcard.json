@@ -77,10 +77,6 @@
       "id": "https://beads.example/acme/beads/mem-1",
       "type": "https://memory.example/types/memory",
       "revision": "mem-1-r3",
-      "attribution": {
-        "principal": "agent:recall",
-        "status": "claimed"
-      },
       "properties": {
         "title": "Owned Links version their source",
         "body": "Every outgoing reference a Memory makes is part of its own versioned state."
@@ -93,16 +89,18 @@
             "id": "https://beads.example/acme/links/contradicts-7",
             "type": "https://memory.example/types/contradicts",
             "revision": "contradicts-7-r1",
-            "attribution": {
-              "principal": "agent:recall",
-              "status": "claimed"
-            },
             "source": "https://beads.example/acme/beads/mem-1",
             "target": "https://beads.example/acme/beads/mem-2",
             "properties": {
               "note": "the earlier reading assumed incoming Links version the target"
             },
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:recall",
+                "basis": "writer-supplied"
+              }
+            }
           }
         ],
         "https://memory.example/types/supports": [
@@ -110,32 +108,42 @@
             "id": "https://beads.example/acme/links/supports-3",
             "type": "https://memory.example/types/supports",
             "revision": "supports-3-r2",
-            "attribution": {
-              "principal": "agent:recall",
-              "status": "claimed"
-            },
             "source": "https://beads.example/acme/beads/mem-1",
             "target": {
               "uri": "https://github.example/issues/5877",
               "revision": "8f0e2b"
             },
             "properties": {},
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:recall",
+                "basis": "writer-supplied"
+              }
+            }
           },
           {
             "id": "https://beads.example/acme/links/supports-9",
             "type": "https://memory.example/types/supports",
             "revision": "supports-9-r1",
-            "attribution": {
-              "principal": "agent:recall",
-              "status": "claimed"
-            },
             "source": "https://beads.example/acme/beads/mem-1",
             "target": "https://beads.example/acme/beads/mem-2",
             "properties": {},
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:recall",
+                "basis": "writer-supplied"
+              }
+            }
           }
         ]
+      },
+      "revisionProvenance": {
+        "actor": {
+          "id": "agent:recall",
+          "basis": "writer-supplied"
+        }
       }
     },
     {

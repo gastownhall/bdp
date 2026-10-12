@@ -431,7 +431,7 @@ describe("owned-member alias evaluator", () => {
 
   it.each([
     { alias: "alias/latest", target: { uri: "beads/a", revision: "pin" } },
-    { alias: "alias/latest", target: "beads/a", attribution: {} },
+    { alias: "alias/latest", target: "beads/a", revisionProvenance: { actor: {} } },
     { alias: "alias/latest", target: "beads/a", expectedRevision: "r" },
     { alias: "alias/latest", target: "beads/a", name: "bound" },
     { alias: "alias/latest", target: "@earlier" },

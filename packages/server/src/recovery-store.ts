@@ -185,7 +185,10 @@ export interface RecoveryStore {
   close(): void;
 }
 
-const formatVersion = "2";
+// Format 3 stores the canonical revisionProvenance envelope and its identity
+// inputs. Refuse prior formats before recovery; never rewrite retained outcomes
+// or silently reseed an existing store under the new representation.
+const formatVersion = "3";
 const dayMs = 86_400_000;
 const schema = `
  CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
@@ -265,7 +268,7 @@ export function isKnownNetworkFilesystem(platform: NodeJS.Platform, type: number
  * the returned handle is ready only after a real exclusive startup write commits.
  * Restore without complete recovery continuity must use a different canonical Scope.
  * The caller must arrange a supported local filesystem; known network types refuse.
- * Format 2 is application-owned: writes and SQLite integrity checks require the
+ * Format 3 is application-owned: writes and SQLite integrity checks require the
  * exact bdp_json_syntax_v2 function registered below. A stock SQLite connection
  * can inspect rows but cannot run those checks or replay a logical SQL dump.
  * Any logical restore must preserve the complete recovery/identity state and
@@ -512,7 +515,7 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
   let startupCommitAttempted = false;
   try {
     // SQLite's built-in JSON parser rejects otherwise admitted deeply nested text.
-    // A named format-2 CHECK uses the same native syntax guard as the facade;
+    // A named JSON-syntax CHECK uses the same native syntax guard as the facade;
     // register it before schema creation or integrity checks on every connection.
     db.function("bdp_json_syntax_v2", { deterministic: true }, (text) => {
       if (typeof text !== "string") return 0;

@@ -35,7 +35,7 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
  * a failure here is the re-seal trigger, seen before the gate sees it.
  */
 const COMMITTED_READ_SCHEMA_PROJECTION =
-  "26db67b2f8611a641df6b44bc42959bf047a9efc8b2d5a7d665fc3dd47d631a7";
+  "bd7da0fc3f8082e0bfb6f4969c04409f2a610e12408dbc6a0bd14b4b351127cc";
 
 type Json = Record<string, unknown>;
 
@@ -417,7 +417,6 @@ describe("Read schema projection", () => {
     const committed = committedBundle();
     const roots = committedRoots();
     expect(roots).toEqual([
-      "changeContext",
       "currentBeadCollection",
       "currentBeadRecord",
       "currentLinkCollection",
@@ -430,6 +429,7 @@ describe("Read schema projection", () => {
       "properties",
       "readDiscovery",
       "readProblem",
+      "revisionProvenance",
       "typeDescriptor",
       "typeSummary",
       "typesInventory",

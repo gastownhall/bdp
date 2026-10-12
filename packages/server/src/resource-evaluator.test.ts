@@ -411,13 +411,13 @@ describe("pure member Resource evaluation", () => {
     f.createBead(
       "a",
       { n: 1, zero: 0, nested: { a: 1, b: [2] } },
-      { changeContext: { message: "original" } },
+      { revisionProvenance: { message: "original" } },
     );
     const before = f.body("beads/a");
     const allocated = f.allocations();
     const writes = f.writes();
     const raw =
-      '{"bead":"beads/a","propertiesChange":[{"op":"replace","path":"/n","value":1e0},{"op":"replace","path":"/zero","value":-0.0},{"op":"replace","path":"/nested","value":{"b":[2.0],"a":1}}],"changeContext":{"message":"ignored no-op"}}';
+      '{"bead":"beads/a","propertiesChange":[{"op":"replace","path":"/n","value":1e0},{"op":"replace","path":"/zero","value":-0.0},{"op":"replace","path":"/nested","value":{"b":[2.0],"a":1}}],"revisionProvenance":{"message":"ignored no-op"}}';
     const admitted = admitReadUpdateOperationNumbers(parseReadUpdateRequest("updateBead", raw), {
       diagnostic: ({ pointer }) => ({
         message: "inadmissible number",
@@ -1181,22 +1181,31 @@ describe("pure member Resource evaluation", () => {
     // Serialization/competing connection behavior belongs to S6; this proves
     // the evaluator reads the supplied member-turn state instead of a cache.
   });
-  it("preserves attribution on no-ops and removes it on a new unattributed version", () => {
+  it("preserves revisionProvenance on no-ops and removes it on a new unattributed version", () => {
     const f = fixture();
-    const attribution = { principal: "urn:claimed-author", status: "claimed" };
-    f.createBead("a", { n: 1 }, { attribution });
+    const revisionProvenance = { actor: { id: "urn:claimed-author", basis: "writer-supplied" } };
+    const clock = vi.fn(() => {
+      throw new Error("actor-only input must not observe commit time");
+    });
+    f.execute(
+      "createBead",
+      { id: "beads/a", type: beadType, properties: { n: 1 }, revisionProvenance },
+      { observeCommitTime: clock },
+    );
+    expect(clock).not.toHaveBeenCalled();
+    expect(f.body("beads/a").revisionProvenance).toEqual(revisionProvenance);
     const before = f.body("beads/a");
     f.execute("updateBead", {
       bead: "beads/a",
       propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
-      attribution: { principal: "urn:different", status: "unknown" },
+      revisionProvenance: { actor: { id: "urn:different", basis: "unknown" } },
     });
     expect(f.body("beads/a")).toEqual(before);
     f.execute("updateBead", {
       bead: "beads/a",
       propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
     });
-    expect(f.body("beads/a").attribution).toBeUndefined();
+    expect(f.body("beads/a").revisionProvenance).toBeUndefined();
   });
   it("records native context defaults only on actual minted versions", () => {
     const f = fixture();
@@ -1204,7 +1213,7 @@ describe("pure member Resource evaluation", () => {
       f.execute("createBead", { id: "beads/a", type: beadType }, { recordChangeContext: true })
         .effect,
     ).toBe("success");
-    expect(f.body("beads/a").changeContext).toEqual({
+    expect(f.body("beads/a").revisionProvenance).toEqual({
       committedAt: { state: "present", value: instant },
       agent: { state: "undetermined" },
       message: { state: "undetermined" },
@@ -1249,7 +1258,11 @@ describe("owned Link and Scope aggregate effects", () => {
     f.createBead("b");
     const target = f.body("beads/b");
     const created = f.createLink("edge", "beads/a", "beads/b", {
-      changeContext: { agent: null, message: "create" },
+      revisionProvenance: {
+        actor: { id: "human:writer", basis: "writer-supplied" },
+        agent: null,
+        message: "create",
+      },
     });
     expect(created.outcome).toMatchObject({
       source: `${scope}beads/a`,
@@ -1259,9 +1272,10 @@ describe("owned Link and Scope aggregate effects", () => {
     const source = f.body("beads/a");
     expect(source).toMatchObject({
       ownedLinks: { [linkType]: [edge] },
-      changeContext: edge.changeContext,
+      revisionProvenance: edge.revisionProvenance,
     });
-    expect(source.changeContext).toMatchObject({
+    expect(source.revisionProvenance).toMatchObject({
+      actor: { id: "human:writer", basis: "writer-supplied" },
       committedAt: { state: "present", value: instant },
       agent: { state: "absent" },
       message: { state: "present", value: "create" },
@@ -1270,7 +1284,10 @@ describe("owned Link and Scope aggregate effects", () => {
     f.execute("updateLink", {
       link: "links/edge",
       propertiesChange: [{ op: "replace", path: "", value: {} }],
-      changeContext: { message: "not a version" },
+      revisionProvenance: {
+        actor: { id: "human:ignored", basis: "unknown" },
+        message: "not a version",
+      },
     });
     expect(f.body("beads/a")).toEqual(source);
     expect(f.allocations()).toEqual(counters);
@@ -1279,12 +1296,12 @@ describe("owned Link and Scope aggregate effects", () => {
       propertiesChange: [{ op: "add", path: "/n", value: 1 }],
     });
     expect(f.body("beads/a").revision).not.toBe(source.revision);
-    expect(f.body("links/edge").changeContext).toBeUndefined();
+    expect(f.body("links/edge").revisionProvenance).toBeUndefined();
     const lastLink = f.body("links/edge");
     const beforeDelete = f.allocations();
     const deleted = f.execute("deleteLink", {
       link: "links/edge",
-      changeContext: { message: "delete" },
+      revisionProvenance: { message: "delete" },
     });
     expect(deleted.outcome).toMatchObject({
       deleted: { resource: { revision: lastLink.revision } },
@@ -1293,7 +1310,7 @@ describe("owned Link and Scope aggregate effects", () => {
     expect(f.allocations().nextRevision).toBe(beforeDelete.nextRevision + 1);
     expect(f.body("beads/a")).toMatchObject({
       ownedLinks: { [linkType]: [] },
-      changeContext: { message: { state: "present", value: "delete" } },
+      revisionProvenance: { message: { state: "present", value: "delete" } },
     });
     expect(f.body("beads/b")).toEqual(target);
   });
@@ -1557,7 +1574,7 @@ describe("deep admitted Resource round trips", () => {
     expect(
       f.createLink("deep", "beads/a", "beads/b", {
         properties: { nested },
-        changeContext: { message: "deep native Link" },
+        revisionProvenance: { message: "deep native Link" },
       }).effect,
     ).toBe("success");
     const source = f.body("beads/a");
@@ -2021,7 +2038,7 @@ describe("late native context materialization", () => {
     const check = (record: ResourceRecord | undefined) => {
       if (!record) throw Error("expected full postimage");
       expect(Object.isFrozen(record)).toBe(true);
-      expect(record.changeContext?.committedAt).toEqual({
+      expect(record.revisionProvenance?.committedAt).toEqual({
         state: "present",
         value: new Date(milliseconds + 3000).toISOString(),
       });
@@ -2036,7 +2053,7 @@ describe("late native context materialization", () => {
         type: linkType,
         source: "beads/a",
         target: "beads/b",
-        changeContext: { message: "final" },
+        revisionProvenance: { message: "final" },
       },
       {
         observeCommitTime: clock,
@@ -2185,7 +2202,7 @@ describe("late native context materialization", () => {
           policy: {
             ...f.options.policy,
             canWrite: (before, after) => {
-              expect(after?.changeContext?.committedAt).toEqual({
+              expect(after?.revisionProvenance?.committedAt).toEqual({
                 state: "present",
                 value: instant,
               });
@@ -2209,7 +2226,7 @@ describe("late native context materialization", () => {
       type: linkType,
       source: "beads/a",
       target: "beads/b",
-      changeContext: { agent: "worker", message: 'é "\n'.repeat(20) },
+      revisionProvenance: { agent: "worker", message: 'é "\n'.repeat(20) },
     };
     const baseline = ownedFixture();
     baseline.execute("createLink", input);
@@ -2236,7 +2253,7 @@ describe("late native context materialization", () => {
     "preserves old inline versions, no-ops and context-free deletions with recording %s",
     (recordChangeContext) => {
       const f = ownedFixture();
-      f.createLink("old", "beads/a", "beads/b", { changeContext: { message: "old version" } });
+      f.createLink("old", "beads/a", "beads/b", { revisionProvenance: { message: "old version" } });
       f.createLink("edge");
       const old = f.body("links/old");
       const target = f.body("beads/b");
@@ -2244,7 +2261,7 @@ describe("late native context materialization", () => {
       const options = { recordChangeContext, observeCommitTime: clock };
       const updated = f.execute(
         "updateLink",
-        { link: "links/edge", propertiesChange: change, changeContext: { agent: null } },
+        { link: "links/edge", propertiesChange: change, revisionProvenance: { agent: null } },
         options,
       );
       expect(updated).toMatchObject({ effect: "success", changed: ["links/edge", "beads/a"] });
@@ -2256,13 +2273,13 @@ describe("late native context materialization", () => {
       expect(clock).toHaveBeenCalledTimes(1);
       const before = [...f.records.entries()];
       const writes = f.writes();
-      for (const changeContext of [undefined, {}, { message: "ignored" }, { agent: null }]) {
+      for (const revisionProvenance of [undefined, {}, { message: "ignored" }, { agent: null }]) {
         const linkNoOp = f.execute(
           "updateLink",
           {
             link: "links/edge",
             propertiesChange: change,
-            ...(changeContext === undefined ? {} : { changeContext }),
+            ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
           },
           options,
         );
@@ -2271,7 +2288,7 @@ describe("late native context materialization", () => {
           {
             bead: "beads/a",
             propertiesChange: [{ op: "replace", path: "/source", value: "kept" }],
-            ...(changeContext === undefined ? {} : { changeContext }),
+            ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
           },
           options,
         );
@@ -2283,20 +2300,20 @@ describe("late native context materialization", () => {
       expect(f.writes()).toBe(writes);
       const deleted = f.execute(
         "deleteLink",
-        { link: "links/edge", changeContext: { message: null } },
+        { link: "links/edge", revisionProvenance: { message: null } },
         options,
       );
       expect(clock).toHaveBeenCalledTimes(2);
       expect(deleted).toMatchObject({ effect: "success", changed: ["beads/a"] });
-      expect(deleted.outcome).not.toHaveProperty("changeContext");
-      expect(f.body("beads/a").changeContext?.message).toEqual({ state: "absent" });
+      expect(deleted.outcome).not.toHaveProperty("revisionProvenance");
+      expect(f.body("beads/a").revisionProvenance?.message).toEqual({ state: "absent" });
       const unowned = fixture();
       unowned.createBead("a");
       unowned.createBead("b");
       unowned.createLink("edge");
       const unownedDeletion = unowned.execute(
         "deleteLink",
-        { link: "links/edge", changeContext: { message: "no version" } },
+        { link: "links/edge", revisionProvenance: { message: "no version" } },
         options,
       );
       const beadDeletion = unowned.execute("deleteBead", { bead: "beads/a" }, options);
@@ -2378,9 +2395,9 @@ function contextStoreSeed(owned = true) {
     linkDescriptor(),
   ]);
   f.createBead("unlinked");
-  f.createBead("a", { n: 0 }, { changeContext: { message: "old source" } });
+  f.createBead("a", { n: 0 }, { revisionProvenance: { message: "old source" } });
   f.createBead("b");
-  f.createLink("existing", "beads/a", "beads/b", { changeContext: { message: "old Link" } });
+  f.createLink("existing", "beads/a", "beads/b", { revisionProvenance: { message: "old Link" } });
   return f;
 }
 const contextStoreConfiguration = (directory: string) => ({
@@ -2474,7 +2491,10 @@ describe("native context inside actual durable members", () => {
                 store,
                 "key",
                 operation,
-                { ...input, ...(empty && operation !== "deleteBead" ? { changeContext: {} } : {}) },
+                {
+                  ...input,
+                  ...(empty && operation !== "deleteBead" ? { revisionProvenance: {} } : {}),
+                },
                 { ...f.options, recordChangeContext, observeCommitTime: clock },
               );
               expect(result.effect).toBe("success");
@@ -2487,7 +2507,7 @@ describe("native context inside actual durable members", () => {
               if (result.effect !== "success") throw Error("expected success");
               for (const id of expectedMintedIds) {
                 const record = resources.find((resource) => resource.id === id);
-                const context = JSON.parse(record?.bodyJson ?? "null").changeContext;
+                const context = JSON.parse(record?.bodyJson ?? "null").revisionProvenance;
                 if (recordChangeContext)
                   expect(context).toEqual({
                     committedAt: {
@@ -2574,7 +2594,7 @@ describe("native context inside actual durable members", () => {
       ...f.options.policy,
       canWrite: (_before: ResourceRecord, after: ResourceRecord | undefined) => {
         trace.push("policy");
-        expect(after?.changeContext?.committedAt).toEqual({
+        expect(after?.revisionProvenance?.committedAt).toEqual({
           state: "present",
           value: new Date(milliseconds + 3000).toISOString(),
         });
@@ -2591,7 +2611,7 @@ describe("native context inside actual durable members", () => {
         {
           link: "links/existing",
           propertiesChange: [{ op: "add", path: "/n", value: 1 }],
-          changeContext: { agent: null, message: "" },
+          revisionProvenance: { agent: null, message: "" },
         },
         {
           ...f.options,
@@ -2642,8 +2662,8 @@ describe("native context inside actual durable members", () => {
         records.find((record) => record.id === "beads/a")?.bodyJson ?? "null",
       );
       expect(source.ownedLinks[linkType][0]).toEqual(link);
-      expect(source.changeContext).toEqual(link.changeContext);
-      expect(link.changeContext).toMatchObject({
+      expect(source.revisionProvenance).toEqual(link.revisionProvenance);
+      expect(link.revisionProvenance).toMatchObject({
         agent: { state: "absent" },
         message: { state: "present", value: "" },
       });
@@ -2733,7 +2753,7 @@ describe("native context inside actual durable members", () => {
           store,
           "fault",
           "createBead",
-          { type: beadType, changeContext: { message: "new" } },
+          { type: beadType, revisionProvenance: { message: "new" } },
           {
             ...f.options,
             observeCommitTime: clock,
@@ -2787,7 +2807,7 @@ describe("native context inside actual durable members", () => {
         store,
         "retry",
         "createBead",
-        { type: beadType, changeContext: { message: "new" } },
+        { type: beadType, revisionProvenance: { message: "new" } },
         f.options,
       );
       expect(retry).toMatchObject({

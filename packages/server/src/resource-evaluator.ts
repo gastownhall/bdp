@@ -1,9 +1,9 @@
 import {
-  type Attribution,
+  type RevisionActor,
   type BeadRecord,
   type BeadTypeDescriptor,
-  type ChangeContext,
-  type ChangeContextInput,
+  type RevisionProvenance,
+  type RevisionProvenanceInput,
   type LinkRecord,
   type MaximumEndpointMultiplicityPolicy,
   type PropertyChange,
@@ -21,7 +21,7 @@ import {
   parseBeadRecord,
   parseCanonicalHttpUrl,
   parseCanonicalScope,
-  parseChangeContext,
+  parseRevisionProvenance,
   parseLinkRecord,
   parseReadUpdateProblem,
   parseTypeDescriptor,
@@ -864,7 +864,7 @@ function evaluate(
     !deleting &&
     equal(properties, before?.properties) &&
     equal(commonMetadata, before?.metadata ?? {});
-  const contextInput = "changeContext" in input ? input.changeContext : undefined;
+  const contextInput = "revisionProvenance" in input ? input.revisionProvenance : undefined;
   // Protocol defaults: omitted and {} both carry only undetermined states.
   const needsContext =
     !noOp &&
@@ -874,12 +874,11 @@ function evaluate(
   const metadata = (prior: ResourceRecord | undefined): VersionRecipe["metadata"] => {
     if (noOp && prior)
       return {
-        ...(prior.attribution ? { attribution: prior.attribution } : {}),
-        context: { kind: "preserved", value: prior.changeContext },
+        context: { kind: "preserved", value: prior.revisionProvenance },
       };
-    const attribution = "attribution" in input ? input.attribution : undefined;
+    const actor = contextInput?.actor;
     return {
-      ...(attribution === undefined ? {} : { attribution }),
+      ...(actor === undefined ? {} : { actor }),
       context: needsContext ? { kind: "native" } : { kind: "preserved", value: undefined },
     };
   };
@@ -1112,10 +1111,10 @@ interface VersionRecipe {
   readonly commonMetadata: NonNullable<BeadRecord["metadata"]>;
   readonly endpoints: { readonly source: Reference; readonly target: Reference } | undefined;
   readonly metadata: {
-    readonly attribution?: Attribution;
+    readonly actor?: RevisionActor;
     readonly context:
       | { readonly kind: "native" }
-      | { readonly kind: "preserved"; readonly value: ChangeContext | undefined };
+      | { readonly kind: "preserved"; readonly value: RevisionProvenance | undefined };
   };
   readonly ownedLinks?: Readonly<Record<string, readonly PreparedLink[]>>;
 }
@@ -1124,7 +1123,7 @@ type PreparedLink =
   | { readonly kind: "replacement"; readonly value: VersionRecipe };
 function materializeVersion(
   recipe: VersionRecipe,
-  nativeContext: ChangeContext | undefined,
+  nativeContext: RevisionProvenance | undefined,
   materialized: Map<VersionRecipe, ResourceRecord>,
 ): ResourceRecord {
   const existing = materialized.get(recipe);
@@ -1139,10 +1138,14 @@ function materializeVersion(
     revision: recipe.revision,
     properties: recipe.properties,
     metadata: recipe.commonMetadata,
-    ...(recipe.metadata.attribution === undefined
+    ...(context === undefined && recipe.metadata.actor === undefined
       ? {}
-      : { attribution: recipe.metadata.attribution }),
-    ...(context === undefined ? {} : { changeContext: context }),
+      : {
+          revisionProvenance: {
+            ...context,
+            ...(recipe.metadata.actor === undefined ? {} : { actor: recipe.metadata.actor }),
+          },
+        }),
     ...(recipe.endpoints ?? {}),
     ...(recipe.ownedLinks === undefined
       ? {}
@@ -1177,7 +1180,10 @@ function observeCommitTime(clock: () => number): string {
   // The canonical context parser also rejects Date's extended-year spelling.
   return new Date(value).toISOString();
 }
-function makeContext(input: ChangeContextInput | undefined, committedAt: string): ChangeContext {
+function makeContext(
+  input: RevisionProvenanceInput | undefined,
+  committedAt: string,
+): RevisionProvenance {
   const state = (
     value: string | null | undefined,
   ): { state: "undetermined" } | { state: "absent" } | { state: "present"; value: string } =>
@@ -1186,7 +1192,7 @@ function makeContext(input: ChangeContextInput | undefined, committedAt: string)
       : value === null
         ? { state: "absent" }
         : { state: "present", value };
-  return parseChangeContext({
+  return parseRevisionProvenance({
     committedAt: { state: "present", value: committedAt },
     agent: state(input?.agent),
     message: state(input?.message),

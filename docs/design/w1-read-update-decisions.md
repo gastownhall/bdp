@@ -1,5 +1,8 @@
 # W1 Read+Update wire decisions
 
+> Current wire naming: the common `revisionProvenance` envelope supersedes this packet’s earlier `attribution` and `changeContext` containers. Actor data is `actor: { id, basis }`, with `basis: writer-supplied | unknown`; time, agent, and message retain their existing value states inside the same envelope. The historical decisions and quoted review text below preserve their original spelling. Use [the current normative contract](../specs/bdp.md#carried-attribution) and the canonical schema for implementations. Sources, completeness, Activity records and terminal deletion versions are outside this bounded change.
+
+
 This packet records every provisional judgment taken while drafting the
 Read+Update wire artifacts — the `operations/sequence` request and response
 envelopes, mutation results, the singleton response, idempotency-key syntax

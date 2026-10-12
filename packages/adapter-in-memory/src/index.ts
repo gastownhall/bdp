@@ -1,8 +1,7 @@
 import {
   type AbsoluteHttpUrl,
-  ATTRIBUTION_STATUSES,
-  type Attribution,
-  type AttributionStatus,
+  parseRevisionProvenance,
+  type RevisionProvenance,
   compareCanonicalIds,
   referenceUri,
   type BeadCollectionRequest as BeadCollectionOperation,
@@ -379,10 +378,14 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       id: new URL(`beads/${localId}`, scope).href,
       type,
       revision: "1",
-      // Carried attribution, in lockstep with the portable fixture: demo-a
+      // Carried revisionProvenance, in lockstep with the portable fixture: demo-a
       // claims a fixture author; everything else records none.
       ...(localId === "demo-a"
-        ? { attribution: { principal: "agent:fixture-author", status: "claimed" as const } }
+        ? {
+            revisionProvenance: {
+              actor: { id: "agent:fixture-author", basis: "writer-supplied" as const },
+            },
+          }
         : {}),
       properties: parsePropertiesRecord({
         id: localId,
@@ -474,13 +477,24 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
       id: new URL(`links/${localId}`, scope).href,
       type,
       revision: "1",
-      // demo-j-k carries `unknown`-status attribution (lockstep with the
-      // portable fixture), while external-target carries claimed attribution
+      // demo-j-k carries `unknown`-basis provenance (lockstep with the
+      // portable fixture), while external-target carries writer-supplied actor provenance
       // through both the first-class and wildcard-owned inline planes.
       ...(localId === "demo-j-k"
-        ? { attribution: { principal: "svc:reference-realization", status: "unknown" as const } }
+        ? {
+            revisionProvenance: {
+              actor: { id: "svc:reference-realization", basis: "unknown" as const },
+            },
+          }
         : localId === "external-target"
-          ? { attribution: { principal: "agent:reference-wildcard", status: "claimed" as const } }
+          ? {
+              revisionProvenance: {
+                actor: {
+                  id: "agent:reference-wildcard",
+                  basis: "writer-supplied" as const,
+                },
+              },
+            }
           : {}),
       source: resolveEndpoint(String(source)),
       target: resolveEndpoint(String(target)),
@@ -570,18 +584,21 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
     const bead = readRecord(entry, path);
     requireAllowedKeys(
       bead,
-      ["localId", "type", "revision", "attribution", "properties", "metadata"],
+      ["localId", "type", "revision", "revisionProvenance", "properties", "metadata"],
       path,
     );
     const { localId, id } = readFixtureLocalId(scope, "bead", bead.localId, `${path}.localId`);
-    const attribution = readFixtureAttribution(bead.attribution, `${path}.attribution`);
+    const revisionProvenance = readFixtureRevisionProvenance(
+      bead.revisionProvenance,
+      `${path}.revisionProvenance`,
+    );
     return {
       localId,
       record: {
         id,
         type: parseCanonicalTypeId(bead.type, `${path}.type`),
         revision: readNonemptyString(bead.revision, `${path}.revision`),
-        ...(attribution === undefined ? {} : { attribution }),
+        ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
         properties: readProperties(bead.properties, `${path}.properties`),
         metadata: readProperties(bead.metadata ?? {}, `${path}.metadata`),
       } satisfies BeadRecord,
@@ -616,10 +633,22 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
     const link = readRecord(entry, path);
     requireAllowedKeys(
       link,
-      ["localId", "type", "revision", "attribution", "source", "target", "properties", "metadata"],
+      [
+        "localId",
+        "type",
+        "revision",
+        "revisionProvenance",
+        "source",
+        "target",
+        "properties",
+        "metadata",
+      ],
       path,
     );
-    const attribution = readFixtureAttribution(link.attribution, `${path}.attribution`);
+    const revisionProvenance = readFixtureRevisionProvenance(
+      link.revisionProvenance,
+      `${path}.revisionProvenance`,
+    );
     const source = readFixtureEndpoint(scope, link.source, `${path}.source`, beadsByLocalId);
     const target = readFixtureEndpoint(scope, link.target, `${path}.target`, beadsByLocalId);
     if (!source.local && !target.local)
@@ -632,7 +661,7 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
       id,
       type,
       revision: readNonemptyString(link.revision, `${path}.revision`),
-      ...(attribution === undefined ? {} : { attribution }),
+      ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
       source: source.endpoint,
       target: target.endpoint,
       properties: readProperties(link.properties, `${path}.properties`),
@@ -658,20 +687,17 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
   };
 }
 
-/**
- * Parses an optional carried-attribution member: exactly { principal, status }
- * with a nonempty principal and a status from the closed vocabulary. Bytes are
- * preserved; the realization asserts, the protocol attests nothing.
- */
-function readFixtureAttribution(value: unknown, path: string): Attribution | undefined {
+/** Parse the canonical optional envelope without inventing missing knowledge. */
+function readFixtureRevisionProvenance(
+  value: unknown,
+  path: string,
+): RevisionProvenance | undefined {
   if (value === undefined) return undefined;
-  const record = readRecord(value, path);
-  requireAllowedKeys(record, ["principal", "status"], path);
-  const principal = readNonemptyString(record.principal, `${path}.principal`);
-  const status = readNonemptyString(record.status, `${path}.status`);
-  if (!(ATTRIBUTION_STATUSES as readonly string[]).includes(status))
-    throw new Error(`${path}.status must be one of ${ATTRIBUTION_STATUSES.join(", ")}`);
-  return Object.freeze({ principal, status: status as AttributionStatus });
+  try {
+    return parseRevisionProvenance(value);
+  } catch (cause) {
+    throw new Error(`${path} is invalid revision provenance`, { cause });
+  }
 }
 
 /**

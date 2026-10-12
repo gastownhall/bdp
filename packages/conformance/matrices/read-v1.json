@@ -6918,14 +6918,14 @@
             {
               "id": "carried",
               "kind": "json-pointer",
-              "pointer": "/attribution",
+              "pointer": "/revisionProvenance",
               "exists": true,
-              "fixturePointer": "/oracles/attribution/bead"
+              "fixturePointer": "/oracles/revisionProvenance/bead"
             },
             {
               "id": "not-a-property",
               "kind": "json-pointer",
-              "pointer": "/properties/attribution",
+              "pointer": "/properties/revisionProvenance",
               "exists": false
             }
           ]
@@ -6965,14 +6965,14 @@
             {
               "id": "carried",
               "kind": "json-pointer",
-              "pointer": "/attribution",
+              "pointer": "/revisionProvenance",
               "exists": true,
-              "fixturePointer": "/oracles/attribution/link"
+              "fixturePointer": "/oracles/revisionProvenance/link"
             },
             {
               "id": "not-a-property",
               "kind": "json-pointer",
-              "pointer": "/properties/attribution",
+              "pointer": "/properties/revisionProvenance",
               "exists": false
             }
           ]

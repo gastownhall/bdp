@@ -22,9 +22,11 @@
           "cardinality": {
             "min": 1
           },
-          "attribution": {
-            "principal": "human:donna",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "human:donna",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -94,9 +96,11 @@
               "value": "closed"
             }
           ],
-          "attribution": {
-            "principal": "human:donna",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "human:donna",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -153,9 +157,11 @@
               "value": "open"
             }
           ],
-          "attribution": {
-            "principal": "agent:planner",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -231,9 +237,11 @@
               "value": "open"
             }
           ],
-          "attribution": {
-            "principal": "agent:planner",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -268,9 +276,11 @@
                   "title": "Draft the receipt schema",
                   "status": "open"
                 },
-                "attribution": {
-                  "principal": "agent:prior",
-                  "status": "claimed"
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:prior",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             }
@@ -288,9 +298,11 @@
             "title": "Draft the receipt schema",
             "status": "open"
           },
-          "attribution": {
-            "principal": "agent:prior",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:prior",
+              "basis": "writer-supplied"
+            }
           }
         }
       ]

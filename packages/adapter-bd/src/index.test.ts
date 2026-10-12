@@ -404,7 +404,7 @@ describe("bd process Scope port", () => {
     });
   });
 
-  it("carries created_by as unknown-status attribution, omits it when absent, and hashes it", async () => {
+  it("carries created_by as unknown-basis actor provenance, omits it when absent, and hashes it", async () => {
     const { port } = await createPort("normal");
     const attributed = await port.perform(
       { kind: "resource", resource: "bead", id: beadUrl("a") },
@@ -416,7 +416,7 @@ describe("bd process Scope port", () => {
         // The creator is not necessarily the writer of the current version,
         // so it is carried as `unknown`, never `claimed`; and it stays in
         // properties as native bd data.
-        attribution: { principal: "bdp-conformance", status: "unknown" },
+        revisionProvenance: { actor: { id: "bdp-conformance", basis: "unknown" } },
         properties: { created_by: "bdp-conformance" },
       },
     });
@@ -428,12 +428,16 @@ describe("bd process Scope port", () => {
     expect(unattributed.kind).toBe("success");
     const body = (
       unattributed as {
-        body: { attribution?: unknown; properties: Record<string, unknown>; revision: string };
+        body: {
+          revisionProvenance?: unknown;
+          properties: Record<string, unknown>;
+          revision: string;
+        };
       }
     ).body;
-    expect(body.attribution).toBeUndefined();
+    expect(body.revisionProvenance).toBeUndefined();
     expect(body.properties.created_by).toBeUndefined();
-    // The revision binds every byte of the projected record, attribution
+    // The revision binds every byte of the projected record, revisionProvenance
     // included: the two projections differ, so their revisions differ.
     const attributedRevision = (attributed as { body: { revision: string } }).body.revision;
     expect(body.revision).not.toBe(attributedRevision);

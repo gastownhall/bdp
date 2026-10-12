@@ -132,16 +132,18 @@
                 "id": "https://beads.example/acme/beads/dec-9",
                 "type": "https://work.example/types/decision",
                 "revision": "dec-9-r3",
-                "attribution": {
-                  "principal": "human:donna",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Adopt owned Links",
                   "status": "proposed"
                 },
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "human:donna",
+                    "basis": "writer-supplied"
+                  }
                 }
               },
               {

@@ -43,16 +43,18 @@
                 "id": "https://beads.example/acme/beads/dec-9",
                 "type": "https://work.example/types/decision",
                 "revision": "dec-9-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Adopt owned Links",
                   "status": "proposed"
                 },
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -64,14 +66,16 @@
                 "id": "https://beads.example/acme/links/9c1e",
                 "type": "https://work.example/types/cites",
                 "revision": "9c1e-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "source": "https://beads.example/acme/beads/dec-9",
                 "target": "https://beads.example/acme/beads/task-42",
                 "properties": {
                   "role": "evidence"
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               },
               "source": "https://beads.example/acme/beads/dec-9",
@@ -135,16 +139,18 @@
                 "id": "https://beads.example/acme/beads/dec-9",
                 "type": "https://work.example/types/decision",
                 "revision": "dec-9-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Adopt owned Links",
                   "status": "proposed"
                 },
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -156,14 +162,16 @@
                 "id": "https://beads.example/acme/links/9c1e",
                 "type": "https://work.example/types/cites",
                 "revision": "9c1e-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "source": "https://beads.example/acme/beads/dec-9",
                 "target": "https://beads.example/acme/beads/task-42",
                 "properties": {
                   "role": "evidence"
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               },
               "source": "https://beads.example/acme/beads/dec-9",
@@ -267,9 +275,11 @@
                 "title": "Adopt owned Links",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -281,9 +291,11 @@
               "properties": {
                 "role": "evidence"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -439,9 +451,11 @@
                 "title": "Adopt owned Links",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -453,9 +467,11 @@
               "properties": {
                 "role": "evidence"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {

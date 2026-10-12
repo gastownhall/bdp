@@ -26,9 +26,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -38,9 +40,11 @@
               "source": "@note",
               "target": "https://github.example/issues/130",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -63,10 +67,6 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
@@ -74,6 +74,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -84,14 +90,16 @@
                 "id": "https://beads.example/acme/links/cites-109",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-109-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "source": "https://beads.example/acme/beads/decision-108",
                 "target": "https://github.example/issues/130",
                 "properties": {},
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               },
               "source": "https://beads.example/acme/beads/decision-108",
               "sourceRevision": "decision-108-r2"
@@ -122,9 +130,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -134,9 +144,11 @@
               "source": "@note",
               "target": "https://github.example/issues/130",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -150,9 +162,11 @@
                   "value": "closed"
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -193,15 +207,17 @@
                 "id": "https://beads.example/acme/beads/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r2",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Tidy the fixture world",
                   "status": "closed"
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             }
           ]
@@ -242,9 +258,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -254,9 +272,11 @@
               "source": "@note",
               "target": "https://github.example/issues/130",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -279,10 +299,6 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
@@ -290,6 +306,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -300,14 +322,16 @@
                 "id": "https://beads.example/acme/links/cites-109",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-109-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "source": "https://beads.example/acme/beads/decision-108",
                 "target": "https://github.example/issues/130",
                 "properties": {},
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               },
               "source": "https://beads.example/acme/beads/decision-108",
               "sourceRevision": "decision-108-r2"
@@ -352,9 +376,11 @@
                   "value": 2
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -366,9 +392,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -378,9 +406,11 @@
               "source": "@note",
               "target": "https://github.example/issues/130",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -402,16 +432,18 @@
                 "id": "https://beads.example/acme/beads/task-7",
                 "type": "https://work.example/types/task",
                 "revision": "task-7-r2",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Review the retention ruling",
                   "status": "open",
                   "priority": 2
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             },
             {
@@ -422,10 +454,6 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
@@ -433,6 +461,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -443,14 +477,16 @@
                 "id": "https://beads.example/acme/links/cites-109",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-109-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "source": "https://beads.example/acme/beads/decision-108",
                 "target": "https://github.example/issues/130",
                 "properties": {},
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               },
               "source": "https://beads.example/acme/beads/decision-108",
               "sourceRevision": "decision-108-r2"
@@ -498,9 +534,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -510,9 +548,11 @@
               "source": "@note",
               "target": "https://github.example/issues/130",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -526,9 +566,11 @@
                   "value": "closed"
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -551,10 +593,6 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
@@ -562,6 +600,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -572,14 +616,16 @@
                 "id": "https://beads.example/acme/links/cites-109",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-109-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "source": "https://beads.example/acme/beads/decision-108",
                 "target": "https://github.example/issues/130",
                 "properties": {},
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               },
               "source": "https://beads.example/acme/beads/decision-108",
               "sourceRevision": "decision-108-r2"
@@ -591,15 +637,17 @@
                 "id": "https://beads.example/acme/beads/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r2",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Tidy the fixture world",
                   "status": "closed"
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             }
           ]
@@ -628,9 +676,11 @@
                 "title": "Claims are one step",
                 "status": "open"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -644,9 +694,11 @@
                   "value": "closed"
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -668,15 +720,17 @@
                 "id": "https://beads.example/acme/beads/notes/claims",
                 "type": "https://work.example/types/task",
                 "revision": "claims-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Claims are one step",
                   "status": "open"
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             },
             {
@@ -686,15 +740,17 @@
                 "id": "https://beads.example/acme/beads/notes/claims",
                 "type": "https://work.example/types/task",
                 "revision": "claims-r2",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Claims are one step",
                   "status": "closed"
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             }
           ]
@@ -723,9 +779,11 @@
                 "title": "Claims are one step",
                 "status": "open"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -739,9 +797,11 @@
                   "value": "closed"
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -812,9 +872,11 @@
                 "title": "Claims are one step",
                 "status": "open"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -828,9 +890,11 @@
                   "value": "closed"
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -852,15 +916,17 @@
                 "id": "https://beads.example/acme/beads/notes/claims",
                 "type": "https://work.example/types/task",
                 "revision": "claims-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Claims are one step",
                   "status": "open"
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             },
             {
@@ -870,15 +936,17 @@
                 "id": "https://beads.example/acme/beads/notes/claims",
                 "type": "https://work.example/types/task",
                 "revision": "claims-r2",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Claims are one step",
                   "status": "closed"
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             }
           ]

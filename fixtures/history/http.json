@@ -33,11 +33,11 @@
               "$ref": "not-a-protocol-reference"
             }
           },
-          "attribution": {
-            "principal": "donna",
-            "status": "claimed"
-          },
-          "changeContext": {
+          "revisionProvenance": {
+            "actor": {
+              "id": "donna",
+              "basis": "writer-supplied"
+            },
             "committedAt": {
               "state": "present",
               "value": "2026-09-09T14:00:00Z"
@@ -171,7 +171,7 @@
               "revision": "r4",
               "lineage": "current",
               "body": "complete",
-              "changeContext": {
+              "revisionProvenance": {
                 "committedAt": {
                   "state": "present",
                   "value": "2026-09-09T14:00:00Z"

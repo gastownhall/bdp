@@ -35,7 +35,7 @@ been regenerated or relabeled.
   remains a nonowner. C's type changes in both logical realizations while the
   topology, statuses and readiness result stay fixed. Exact group keys/order
   and every inline Link's equality with its first-class body are observed,
-  including a pinned external endpoint, claimed attribution and opaque
+  including a pinned external endpoint, writer-supplied attribution and opaque
   properties with protocol-looking names. No wildcard key or invented empty
   group is accepted in the record plane.
 - `read.owned-wildcard.closure` is an **in-process self-certified** lifecycle
@@ -830,3 +830,13 @@ The schema regression digest is updated independently; it is not a cohort bindin
 The historical artifact and capability constant remain untouched until genuinely
 new two-target observations bind the final source, inputs and projection. No
 History runtime or capability admission follows from this schema coverage change.
+
+### Common revision provenance
+
+Current Read records use one optional `revisionProvenance` envelope. The existing
+`read.attribution.carried` and `read.attribution.link` scenario IDs and fixture
+feature names remain stable; their assertions now compare the whole envelope,
+including `actor: { id, basis }`, outside Type properties. The schema projection
+replaces the old `attribution` and `changeContext` definition names with
+`revisionActor` and `revisionProvenance`. Earlier sealed evidence remains
+historical; changes to these source bytes require a fresh observed Read cohort.

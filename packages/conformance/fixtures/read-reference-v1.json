@@ -697,22 +697,14 @@
             },
             "id": "https://scope.example/acme/links/external-target",
             "metadata": {},
-            "attribution": {
-              "principal": "agent:reference-wildcard",
-              "status": "claimed"
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:reference-wildcard",
+                "basis": "writer-supplied"
+              }
             }
           }
         ]
-      }
-    },
-    "attribution": {
-      "bead": {
-        "principal": "agent:fixture-author",
-        "status": "claimed"
-      },
-      "link": {
-        "principal": "svc:reference-realization",
-        "status": "unknown"
       }
     },
     "wildcard-descriptors": {
@@ -1089,6 +1081,20 @@
           "https://work.example/types/relates": []
         }
       }
+    },
+    "revisionProvenance": {
+      "bead": {
+        "actor": {
+          "basis": "writer-supplied",
+          "id": "agent:fixture-author"
+        }
+      },
+      "link": {
+        "actor": {
+          "basis": "unknown",
+          "id": "svc:reference-realization"
+        }
+      }
     }
   },
   "beads": [
@@ -1096,10 +1102,6 @@
       "localId": "beads/demo-a",
       "type": "https://work.example/types/task",
       "revision": "1",
-      "attribution": {
-        "principal": "agent:fixture-author",
-        "status": "claimed"
-      },
       "properties": {
         "id": "demo-a",
         "title": "A",
@@ -1123,6 +1125,12 @@
         "dependent_count": 2,
         "comment_count": 0,
         "extension": "retained"
+      },
+      "revisionProvenance": {
+        "actor": {
+          "id": "agent:fixture-author",
+          "basis": "writer-supplied"
+        }
       }
     },
     {
@@ -1411,13 +1419,15 @@
       "localId": "links/demo-j-k",
       "type": "https://work.example/types/blocks",
       "revision": "1",
-      "attribution": {
-        "principal": "svc:reference-realization",
-        "status": "unknown"
-      },
       "source": "beads/demo-j",
       "target": "beads/demo-k",
-      "properties": {}
+      "properties": {},
+      "revisionProvenance": {
+        "actor": {
+          "id": "svc:reference-realization",
+          "basis": "unknown"
+        }
+      }
     },
     {
       "localId": "links/external-target",
@@ -1436,9 +1446,11 @@
           }
         }
       },
-      "attribution": {
-        "principal": "agent:reference-wildcard",
-        "status": "claimed"
+      "revisionProvenance": {
+        "actor": {
+          "id": "agent:reference-wildcard",
+          "basis": "writer-supplied"
+        }
       }
     },
     {

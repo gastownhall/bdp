@@ -139,7 +139,7 @@
     },
     {
       "id": "read-update.singleton.document-patch-atomicity",
-      "title": "One guarded update changes properties and metadata atomically; an equal result retains revision and attribution",
+      "title": "One guarded update changes properties and metadata atomically; an equal result retains revision and the entire `revisionProvenance` envelope",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
@@ -156,7 +156,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
         }
       ]
     },
@@ -313,7 +313,7 @@
     },
     {
       "id": "read-update.singleton.owned-link-no-op",
-      "title": "An owned-Link semantic no-op retains the Link's revision and attribution and reports the source's unchanged revision",
+      "title": "An owned-Link semantic no-op retains the Link's revision and the entire `revisionProvenance` envelope and reports the source's unchanged revision",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
@@ -330,13 +330,13 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
         }
       ]
     },
     {
       "id": "read-update.singleton.attribution",
-      "title": "The attribution input is recorded on every minted version; a no-op keeps the prior version's revision and attribution",
+      "title": "The revisionProvenance input is recorded on every minted version; a no-op keeps the prior version's revision and the entire `revisionProvenance` envelope",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
@@ -348,12 +348,12 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "The member is absent when no attribution was recorded."
+          "selectedText": "The actor is absent when no attribution was recorded; the envelope is absent when no revision provenance was recorded."
         }
       ]
     },
@@ -1286,7 +1286,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does (amended 2026-09-08, council 12); `expectedRevision` and `attribution` are members of the record and therefore of its identity."
+          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does (amended 2026-09-08, council 12); `expectedRevision` and `revisionProvenance` are members of the record and therefore of its identity."
         }
       ]
     },
@@ -1304,7 +1304,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "it is not the carried `attribution.principal`, which is data under [Carried attribution](#carried-attribution) and takes no part in the namespace"
+          "selectedText": "it is not the carried `revisionProvenance.actor.id`, which is data under [Carried attribution](#carried-attribution) and takes no part in the namespace"
         }
       ]
     },

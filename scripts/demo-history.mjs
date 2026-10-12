@@ -156,12 +156,12 @@ async function main() {
     });
     // Deliberate demo data, based on the protocol's illustrative wire shapes.
     // Kept here so future edits to shared fixtures cannot change this walkthrough.
-    const changeContext = {
+    const context = {
       committedAt: { state: "present", value: "2026-09-09T14:00:00Z" },
       agent: { state: "present", value: "assistant-a" },
       message: { state: "absent" },
     };
-    const attribution = { principal: "donna", status: "claimed" };
+    const revisionProvenance = { actor: { id: "donna", basis: "writer-supplied" }, ...context };
     add(`${scope}bdp.json`, {
       bdpVersion: "0",
       profile: "read",
@@ -178,7 +178,7 @@ async function main() {
       participation: "tracked",
       window: { newest: "r4", oldest: oldRevision, complete: true },
       items: [
-        { revision: "r4", lineage: "current", body: "complete", changeContext },
+        { revision: "r4", lineage: "current", body: "complete", revisionProvenance: context },
         { revision: "r3", lineage: "replaced", body: "complete" },
       ],
       next: `${subject}?view=versions&cursor=page-2&limit=2`,
@@ -198,8 +198,7 @@ async function main() {
       type: "https://work.example/types/decision",
       revision: oldRevision,
       properties: { title: "Original plan: launch on Monday" },
-      attribution,
-      changeContext,
+      revisionProvenance,
     };
     const oldLink = {
       id: linkId,
@@ -208,8 +207,7 @@ async function main() {
       source: subject,
       target: { uri: `${scope}beads/target`, revision: "target%2Fold" },
       properties: { opaque: { $ref: "not-a-protocol-reference" } },
-      attribution,
-      changeContext,
+      revisionProvenance,
     };
     const revisionUrl = (id, revision) => `${id}?${new URLSearchParams({ revision })}`;
     add(revisionUrl(subject, oldRevision), bead);
@@ -256,7 +254,7 @@ async function main() {
     assert.deepEqual(old, { ...bead, metadata: {} });
     say(`3. The selected old record says: ${JSON.stringify(old.properties.title)}.`);
     say(
-      `   Its revision is ${JSON.stringify(old.revision)}; recorded agent is ${JSON.stringify(old.changeContext.agent.value)}.`,
+      `   Its revision is ${JSON.stringify(old.revision)}; recorded agent is ${JSON.stringify(old.revisionProvenance.agent.value)}.`,
     );
     const link = await history({
       kind: "revision",

@@ -26,9 +26,11 @@
           "type": "https://work.example/types/cites",
           "source": "beads/decision-108",
           "target": "https://github.example/issues/130",
-          "attribution": {
-            "principal": "agent:planner",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -45,14 +47,16 @@
             "id": "https://beads.example/acme/links/cites-109",
             "type": "https://work.example/types/cites",
             "revision": "cites-109-r1",
-            "attribution": {
-              "principal": "agent:planner",
-              "status": "claimed"
-            },
             "source": "https://beads.example/acme/beads/decision-108",
             "target": "https://github.example/issues/130",
             "properties": {},
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:planner",
+                "basis": "writer-supplied"
+              }
+            }
           },
           "source": "https://beads.example/acme/beads/decision-108",
           "sourceRevision": "decision-108-r2"
@@ -88,9 +92,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "status": "claimed"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -113,10 +119,6 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "status": "claimed"
-                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
@@ -124,6 +126,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             }
@@ -151,9 +159,11 @@
             "revision": "abc123"
           },
           "properties": {},
-          "attribution": {
-            "principal": "agent:planner",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -190,9 +200,11 @@
           "source": "beads/decision-108",
           "target": "https://github.example/issues/130",
           "properties": {},
-          "attribution": {
-            "principal": "human:janet",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "human:janet",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -237,9 +249,11 @@
               "value": 1
             }
           ],
-          "attribution": {
-            "principal": "agent:planner",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -256,16 +270,18 @@
             "id": "https://beads.example/acme/beads/task-9",
             "type": "https://work.example/types/task",
             "revision": "task-9-r2",
-            "attribution": {
-              "principal": "agent:planner",
-              "status": "claimed"
-            },
             "properties": {
               "title": "Sort the semantic-identity cases",
               "status": "closed",
               "priority": 1
             },
-            "metadata": {}
+            "metadata": {},
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:planner",
+                "basis": "writer-supplied"
+              }
+            }
           }
         }
       }
@@ -296,9 +312,11 @@
               "value": "closed"
             }
           ],
-          "attribution": {
-            "principal": "agent:planner",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -345,9 +363,11 @@
               "value": 1
             }
           ],
-          "attribution": {
-            "principal": "agent:planner",
-            "status": "claimed"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },

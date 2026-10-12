@@ -7,8 +7,8 @@ import {
   HistoryQueryError,
   hasHistoryQueryIntent,
   historyUnretainedProblem,
-  parseChangeContext,
-  parseChangeContextInput,
+  parseRevisionProvenance,
+  parseRevisionProvenanceInput,
   parseHistoricalBeadRecord,
   parseHistoricalLinkRecord,
   parseHistoryCapability,
@@ -55,14 +55,14 @@ describe("History wire illustrations", () => {
   it("keeps parser roots explicit and write roots outside the History Read registry", () => {
     expect(HISTORY_VALUE_SCHEMA_REFS).toEqual({
       capability: "#/$defs/historyCapability",
-      context: "#/$defs/changeContext",
+      context: "#/$defs/revisionProvenance",
       missing: "#/$defs/historyMissing",
       versions: "#/$defs/historyVersionsPage",
       bead: "#/$defs/historicalBeadRecord",
       link: "#/$defs/historicalLinkRecord",
     });
     expect(HISTORY_WRITE_VALUE_SCHEMA_REFS).toEqual({
-      contextInput: "#/$defs/changeContextInput",
+      contextInput: "#/$defs/revisionProvenanceInput",
       allocation: "#/$defs/revisionAllocationUnsafeProblem",
     });
   });
@@ -197,7 +197,7 @@ describe("Historical records and pages", () => {
     expect(record.ownedLinks?.["https://work.example/types/cites"]?.[0]?.properties).toEqual({
       opaque: { $ref: "not-a-protocol-reference" },
     });
-    expect(Object.isFrozen(record.changeContext)).toBe(true);
+    expect(Object.isFrozen(record.revisionProvenance)).toBe(true);
     expect(() => parseHistoricalBeadRecord(input, { id: subject, revision: "current" })).toThrow(
       ProtocolArtifactValidationError,
     );
@@ -210,7 +210,7 @@ describe("Historical records and pages", () => {
     expect(
       parseHistoricalLinkRecord(example("exact-link"), { id: link, revision: "link-old" }).revision,
     ).toBe("link-old");
-    expect(parseHistoricalLinkRecord(example("legacy-link")).changeContext).toBeUndefined();
+    expect(parseHistoricalLinkRecord(example("legacy-link")).revisionProvenance).toBeUndefined();
   });
   it("rejects wrong inline source, Type grouping and incomplete record shapes", () => {
     const input = example("exact-bead");
@@ -423,7 +423,7 @@ describe("History diagnosis boundaries", () => {
 describe("Immutable context wire boundary", () => {
   it("distinguishes values, known absence and uncertainty without accepting forged time", () => {
     const context = example("native-context");
-    expect(parseChangeContext(context).message).toEqual({ state: "absent" });
+    expect(parseRevisionProvenance(context).message).toEqual({ state: "absent" });
     for (const change of [
       { committedAt: { state: "present", value: "not-a-time" } },
       { committedAt: { state: "absent" } },
@@ -431,10 +431,10 @@ describe("Immutable context wire boundary", () => {
       { message: { state: "absent", value: "leak" } },
       { actor: "different" },
     ])
-      expect(() => parseChangeContext({ ...context, ...change })).toThrow(
+      expect(() => parseRevisionProvenance({ ...context, ...change })).toThrow(
         ProtocolArtifactValidationError,
       );
-    expect(parseChangeContextInput({ agent: null, message: "" })).toEqual({
+    expect(parseRevisionProvenanceInput({ agent: null, message: "" })).toEqual({
       agent: null,
       message: "",
     });
@@ -444,7 +444,7 @@ describe("Immutable context wire boundary", () => {
       { agent: "" },
       { agent: { state: "undetermined" } },
     ])
-      expect(() => parseChangeContextInput(input)).toThrow(ProtocolArtifactValidationError);
+      expect(() => parseRevisionProvenanceInput(input)).toThrow(ProtocolArtifactValidationError);
   });
   it("accepts version-bearing Event/owned-delta context but rejects tombstone/alias/reference additions", () => {
     const context = example("native-context");
@@ -455,12 +455,12 @@ describe("Immutable context wire boundary", () => {
         previousRevision: "r1",
         revision: "r2",
         change: [{ op: "replace", path: "/title", value: "changed" }],
-        changeContext: context,
+        revisionProvenance: context,
       }),
     ).toBe(true);
-    expect(validate("createdData", { revision: "r", properties: {}, changeContext: context })).toBe(
-      true,
-    );
+    expect(
+      validate("createdData", { revision: "r", properties: {}, revisionProvenance: context }),
+    ).toBe(true);
     for (const [definition, value] of [
       [
         "resourceIdentity",
@@ -472,18 +472,20 @@ describe("Immutable context wire boundary", () => {
       ["deleteBeadRequest", { bead: subject }],
     ] as const) {
       expect(validate(definition, value), definition).toBe(true);
-      expect(validate(definition, { ...value, changeContext: context }), definition).toBe(false);
+      expect(validate(definition, { ...value, revisionProvenance: context }), definition).toBe(
+        false,
+      );
     }
     const batch = example("batch-inputs");
-    expect(validate("batchRequest", { ...batch, changeContext: {} })).toBe(false);
+    expect(validate("batchRequest", { ...batch, revisionProvenance: {} })).toBe(false);
     const record = example("exact-link");
-    delete record.changeContext;
+    delete record.revisionProvenance;
     expect(validate("linkRecord", record)).toBe(true);
-    expect(validate("linkRecord", { ...record, changeContext: context })).toBe(true);
+    expect(validate("linkRecord", { ...record, revisionProvenance: context })).toBe(true);
   });
   it("keeps context on both updated Event branches and singleton update inputs", () => {
     for (const id of ["updated-owned-event-context", "updated-properties-event-context"])
-      expect(example(id).changeContext).toEqual(example("native-context"));
+      expect(example(id).revisionProvenance).toEqual(example("native-context"));
     const ownedUpdate = example("updated-owned-event-context");
     expect(
       validate("updatedData", {
@@ -497,7 +499,7 @@ describe("Immutable context wire boundary", () => {
     ] as const) {
       expect(validate(definition, example(id))).toBe(true);
       expect(
-        validate(definition, { ...example(id), changeContext: example("native-context") }),
+        validate(definition, { ...example(id), revisionProvenance: example("native-context") }),
       ).toBe(false);
     }
   });
@@ -527,12 +529,12 @@ describe("Immutable context wire boundary", () => {
   });
   it("has independent parser snapshots and rejects cycles before schema traversal", () => {
     const input = example("native-context");
-    const parsed = parseChangeContext(input);
+    const parsed = parseRevisionProvenance(input);
     (input.agent as RecordValue).value = "changed after parsing";
     expect(parsed.agent).toEqual({ state: "present", value: "assistant-a" });
     input.cycle = input;
-    expect(() => parseChangeContext(input)).toThrow(ProtocolArtifactValidationError);
-    expect(parseChangeContext(example("native-context"))).toEqual(example("native-context"));
+    expect(() => parseRevisionProvenance(input)).toThrow(ProtocolArtifactValidationError);
+    expect(parseRevisionProvenance(example("native-context"))).toEqual(example("native-context"));
   });
 });
 

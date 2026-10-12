@@ -1,5 +1,8 @@
 # W1 Transactional packet: wire artifacts for the Transactional profile
 
+> Current wire naming: the common `revisionProvenance` envelope supersedes this packet’s earlier `attribution` and `changeContext` containers. Actor data is `actor: { id, basis }`, with `basis: writer-supplied | unknown`; time, agent, and message retain their existing value states inside the same envelope. The historical decisions and quoted review text below preserve their original spelling. Use [the current normative contract](../specs/bdp.md#carried-attribution) and the canonical schema for implementations. Sources, completeness, Activity records and terminal deletion versions are outside this bounded change.
+
+
 Current extension: G1–G5 = A are ACKed and materialized 2026-09-09; see
 [HTTP gap record](#shared-http-and-retained-handle-gap-materialization--2026-09-09).
 
@@ -527,13 +530,13 @@ attribution the Link's version carries.
         "id": "https://beads.example/acme/links/9c1e",
         "type": "https://work.example/types/cites",
         "revision": "9c1e-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "source": "https://beads.example/acme/beads/dec-9",
         "target": "https://beads.example/acme/beads/task-42",
         "properties": { "role": "evidence" }
       }
     },
-    "attribution": { "principal": "agent:planner", "status": "claimed" }
+    "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
   }
 }
 ```
@@ -565,10 +568,10 @@ Link's record; the source's version moved from `dec-11-r4` to `dec-11-r5`.
         "previousRevision": "7a0b-r1",
         "revision": "7a0b-r2",
         "change": [{ "op": "replace", "path": "/role", "value": "primary" }],
-        "attribution": { "principal": "human:donna", "status": "claimed" }
+        "attribution": { "principal": "human:donna", "basis": "writer-supplied" }
       }
     },
-    "attribution": { "principal": "human:donna", "status": "claimed" }
+    "attribution": { "principal": "human:donna", "basis": "writer-supplied" }
   }
 }
 ```
@@ -603,7 +606,7 @@ deletion; the delta carries the deleted Link's identity only.
             "revision": "9c1e-r1"
           }
         },
-        "attribution": { "principal": "human:donna", "status": "claimed" }
+        "attribution": { "principal": "human:donna", "basis": "writer-supplied" }
       }
     }
   ],
@@ -1132,7 +1135,7 @@ commits at `pos-43`.
       "id": "beads/dec-9",
       "type": "https://work.example/types/decision",
       "properties": { "title": "Adopt owned Links", "status": "proposed" },
-      "attribution": { "principal": "agent:planner", "status": "claimed" }
+      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
     },
     {
       "name": "cite",
@@ -1141,7 +1144,7 @@ commits at `pos-43`.
       "source": "@decision",
       "target": "beads/task-42",
       "properties": { "role": "evidence" },
-      "attribution": { "principal": "agent:planner", "status": "claimed" }
+      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
     },
     {
       "operation": "updateBeadProperties",
@@ -1167,7 +1170,7 @@ pinned external endpoint written the request-side way. It commits at
       "collection": "links",
       "selector": "$[?@.source == \"https://beads.example/acme/beads/task-42\" || @.target == \"https://beads.example/acme/beads/task-42\"]",
       "cardinality": { "max": 1000 },
-      "attribution": { "principal": "human:donna", "status": "claimed" }
+      "attribution": { "principal": "human:donna", "basis": "writer-supplied" }
     },
     {
       "operation": "deleteBead",
@@ -1194,7 +1197,7 @@ operation's members without `operation`.
   "collection": "links",
   "selector": "$[?@.type == \"https://work.example/types/relates\" && @.source == \"https://beads.example/acme/beads/task-43\"]",
   "cardinality": { "min": 1 },
-  "attribution": { "principal": "human:donna", "status": "claimed" }
+  "attribution": { "principal": "human:donna", "basis": "writer-supplied" }
 }
 ```
 
@@ -2174,7 +2177,7 @@ here.
         "id": "https://beads.example/acme/beads/dec-9",
         "type": "https://work.example/types/decision",
         "revision": "dec-9-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "properties": { "title": "Adopt owned Links", "status": "proposed" },
         "ownedLinks": { "https://work.example/types/cites": [] }
       }
@@ -2187,7 +2190,7 @@ here.
         "id": "https://beads.example/acme/links/9c1e",
         "type": "https://work.example/types/cites",
         "revision": "9c1e-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "source": "https://beads.example/acme/beads/dec-9",
         "target": "https://beads.example/acme/beads/task-42",
         "properties": { "role": "evidence" }
@@ -2240,7 +2243,7 @@ request's own observation is in its response fields
         "id": "https://beads.example/acme/beads/dec-9",
         "type": "https://work.example/types/decision",
         "revision": "dec-9-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "properties": { "title": "Adopt owned Links", "status": "proposed" },
         "ownedLinks": { "https://work.example/types/cites": [] }
       }
@@ -2253,7 +2256,7 @@ request's own observation is in its response fields
         "id": "https://beads.example/acme/links/9c1e",
         "type": "https://work.example/types/cites",
         "revision": "9c1e-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "source": "https://beads.example/acme/beads/dec-9",
         "target": "https://beads.example/acme/beads/task-42",
         "properties": { "role": "evidence" }
@@ -3174,7 +3177,7 @@ RFC 9457 extension member.
         "id": "https://beads.example/acme/beads/adr-104",
         "type": "https://work.example/types/decision",
         "revision": "adr-104-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "properties": { "title": "Adopt sequence envelopes", "status": "proposed" },
         "ownedLinks": { "https://work.example/types/cites": [] }
       }
@@ -3997,7 +4000,7 @@ the source's owned-Link `updated` fact, then the Task's update.
         "id": "https://beads.example/acme/beads/dec-9",
         "type": "https://work.example/types/decision",
         "revision": "dec-9-r2",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "properties": { "title": "Adopt owned Links", "status": "proposed" },
         "ownedLinks": {
           "https://work.example/types/cites": [
@@ -4005,7 +4008,7 @@ the source's owned-Link `updated` fact, then the Task's update.
               "id": "https://beads.example/acme/links/9c1e",
               "type": "https://work.example/types/cites",
               "revision": "9c1e-r1",
-              "attribution": { "principal": "agent:planner", "status": "claimed" },
+              "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
               "source": "https://beads.example/acme/beads/dec-9",
               "target": "https://beads.example/acme/beads/task-42",
               "properties": { "role": "evidence" }
@@ -4021,7 +4024,7 @@ the source's owned-Link `updated` fact, then the Task's update.
         "id": "https://beads.example/acme/links/9c1e",
         "type": "https://work.example/types/cites",
         "revision": "9c1e-r1",
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "source": "https://beads.example/acme/beads/dec-9",
         "target": "https://beads.example/acme/beads/task-42",
         "properties": { "role": "evidence" }
@@ -4052,7 +4055,7 @@ the source's owned-Link `updated` fact, then the Task's update.
       "data": {
         "revision": "dec-9-r1",
         "properties": { "title": "Adopt owned Links", "status": "proposed" },
-        "attribution": { "principal": "agent:planner", "status": "claimed" }
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
       }
     },
     {
@@ -4067,7 +4070,7 @@ the source's owned-Link `updated` fact, then the Task's update.
       "data": {
         "revision": "9c1e-r1",
         "properties": { "role": "evidence" },
-        "attribution": { "principal": "agent:planner", "status": "claimed" },
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
         "source": "https://beads.example/acme/beads/dec-9",
         "target": "https://beads.example/acme/beads/task-42"
       }
@@ -4128,13 +4131,13 @@ the source's owned-Link `updated` fact, then the Task's update.
             "id": "https://beads.example/acme/links/9c1e",
             "type": "https://work.example/types/cites",
             "revision": "9c1e-r1",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
             "source": "https://beads.example/acme/beads/dec-9",
             "target": "https://beads.example/acme/beads/task-42",
             "properties": { "role": "evidence" }
           }
         },
-        "attribution": { "principal": "agent:planner", "status": "claimed" }
+        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
       }
     },
     {
@@ -4436,7 +4439,7 @@ carries only the successor and the surviving Resources.
         "id": "https://beads.example/acme/beads/dec-9",
         "type": "https://work.example/types/decision",
         "revision": "dec-9-r3",
-        "attribution": { "principal": "human:donna", "status": "claimed" },
+        "attribution": { "principal": "human:donna", "basis": "writer-supplied" },
         "properties": { "title": "Adopt owned Links", "status": "proposed" },
         "ownedLinks": { "https://work.example/types/cites": [] }
       },

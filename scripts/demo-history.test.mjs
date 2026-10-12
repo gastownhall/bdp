@@ -146,7 +146,7 @@ describe.skipIf(!entries.every((entry) => existsSync(path.join(root, entry))))(
         expect(values[2].properties.title).toBe("Original plan: launch on Monday");
         expect(values[2].links).toBeUndefined();
         expect(values[2].ownedLinks).toBeUndefined();
-        expect(values[2].changeContext.agent.value).toBe("assistant-a");
+        expect(values[2].revisionProvenance.agent.value).toBe("assistant-a");
         expect(values[3].target.revision).toBe("target%2Fold");
         expect(values[3].source).toBe(`${evidence.scope}beads/decision`);
         expect(values[4]).toMatchObject({

@@ -853,7 +853,7 @@ describe("retained witnesses, equality and private creator facts", () => {
             source: { uri: "@renamed", revision: "pin" },
             target: `${scope}beads/b`,
             properties: {},
-            changeContext: {},
+            revisionProvenance: {},
             idempotencyKey: "dependent",
           },
         ],
@@ -884,7 +884,7 @@ describe("retained witnesses, equality and private creator facts", () => {
       code(
         f.run(
           "createBead",
-          { type, properties: { x: 1 }, changeContext: { agent: null } },
+          { type, properties: { x: 1 }, revisionProvenance: { agent: null } },
           "numeric",
         ),
       ),
@@ -923,7 +923,7 @@ describe("clock, policy snapshot and fault boundaries", () => {
       f.policyState.now = start + 100;
     };
     runMember(f.store, admission, { id: "alice" }, carrier, 0, unexpectedCreator, f.options);
-    expect(JSON.parse(f.body("beads/new") ?? "null").changeContext.committedAt.value).toBe(
+    expect(JSON.parse(f.body("beads/new") ?? "null").revisionProvenance.committedAt.value).toBe(
       new Date(start + 100).toISOString(),
     );
     expect(retained(f.key("maker")).completedAt).toBe(start + 101);
@@ -934,7 +934,7 @@ describe("clock, policy snapshot and fault boundaries", () => {
         ?.bodyJson ?? "null",
     );
     const source = JSON.parse(f.body("beads/a") ?? "null");
-    expect(source.changeContext).toEqual(link.changeContext);
+    expect(source.revisionProvenance).toEqual(link.revisionProvenance);
     expect(source.ownedLinks[linkType].find((v: { id: string }) => v.id === link.id)).toEqual(link);
     expect(retained(f.key("link")).completedAt).toBe(start + 1001);
     expect(f.clock).toHaveBeenCalledTimes(4);
@@ -1798,7 +1798,7 @@ describe("whole-plan cross-boundary regression controls", () => {
     );
     expect(() => f.run("updateBead", input)).toThrow("existing key changed");
   });
-  it("preserves ordered patches, CAS and attribution in retained identity", () => {
+  it("preserves ordered patches, CAS and revisionProvenance in retained identity", () => {
     const f = fixture();
     const input = {
       bead: "beads/free",
@@ -1819,7 +1819,7 @@ describe("whole-plan cross-boundary regression controls", () => {
     );
     const attributable = f.singleton(
       "createBead",
-      { type, attribution: { principal: "human:alice", status: "claimed" } },
+      { type, revisionProvenance: { actor: { id: "human:alice", basis: "writer-supplied" } } },
       "actor",
     );
     f.present(attributable);
@@ -1827,7 +1827,7 @@ describe("whole-plan cross-boundary regression controls", () => {
       code(
         f.run(
           "createBead",
-          { type, attribution: { principal: "human:bob", status: "claimed" } },
+          { type, revisionProvenance: { actor: { id: "human:bob", basis: "writer-supplied" } } },
           "actor",
         ),
       ),
