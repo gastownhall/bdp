@@ -39,6 +39,7 @@ import {
   controlledReadCapability,
   controlledReadProblemCapability,
   controlledReadScopeRestoreCapability,
+  createCurrentReadWireValidator,
   resolveBdExecutable,
   runBdWorkspaceCommand,
   seedBdWorkspacePair,
@@ -77,6 +78,7 @@ const IN_PROCESS_ONLY_CAPABILITIES = new Set<string>([
   controlledReadAdvertisedLimitsCapability,
   controlledReadProblemCapability,
   controlledReadScopeRestoreCapability,
+  createCurrentReadWireValidator,
 ]);
 
 const INTERNAL_FAULT_CAPABILITY = "unexpected-internal-fault";
@@ -264,6 +266,7 @@ async function runPackagedTarget(
   });
   try {
     const clientActions = createBdpClientScenarioActionExecutor({
+      validateReadWire: createCurrentReadWireValidator(schemaValidator),
       fetchImplementation: scenarioTarget.fetch,
       externalTypeDescriptorFetchImplementation: publisher.fetch,
     });
