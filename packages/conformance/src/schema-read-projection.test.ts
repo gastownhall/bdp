@@ -35,7 +35,7 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
  * a failure here is the re-seal trigger, seen before the gate sees it.
  */
 const COMMITTED_READ_SCHEMA_PROJECTION =
-  "2db57a82d9bf99f3fb5d18646e8bd6c7646590d1e806aa266de8af415ee83545";
+  "387cd60fc2a253885ae7cedbb9ee491a3dfd832af21e8c093664047f13c41dac";
 
 type Json = Record<string, unknown>;
 

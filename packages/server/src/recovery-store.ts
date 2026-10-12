@@ -185,6 +185,9 @@ export interface RecoveryStore {
   close(): void;
 }
 
+// Format 3 stores the canonical revisionProvenance envelope and its identity
+// inputs. Refuse prior formats before recovery; never rewrite retained outcomes
+// or silently reseed an existing store under the new representation.
 const formatVersion = "3";
 const dayMs = 86_400_000;
 const schema = `
