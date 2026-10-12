@@ -1858,19 +1858,20 @@ property change twice, under two subjects: once as the incident Link's
 `updated` fact and once as the source's own `updated` fact carrying the
 same delta.
 
-A no-op owned-Link property update — one whose patch yields `properties`
-equal, under the RFC 6902 Section 4.6 comparison, to the value immediately
-before it — retains the Link's revision and emits no Event, and it does not
-version the source: there is no transition for the source's version to
-cover.
+A no-op owned-Link update — one whose resulting `properties` and `metadata`
+both equal, under the RFC 6902 Section 4.6 comparison, their respective values
+immediately before it — retains the Link's revision and emits no Event, and
+it does not version the source: there is no transition for the source's
+version to cover. An omitted change leaves its corresponding value unchanged.
 
 A consumer that holds the source's record at `previousRevision` advances it
 to `revision` by applying `ownedLink` to the entry keyed by `link.type` in
 the record's `ownedLinks` member: for `created`, inserting `link` in
 ascending code-unit order of `id`; for `updated`, locating the entry whose
 `id` equals `link.id` and whose `revision` equals `link.previousRevision`,
-applying `link.change` to its `properties`, and setting its `revision` to
-`link.revision` and its `attribution` to `link.attribution`, removing that
+applying `link.change` to its `properties` when present and
+`link.metadataChange` to its `metadata` when present, leaving each omitted
+value unchanged, and setting its `revision` to `link.revision` and its `attribution` to `link.attribution`, removing that
 member when the delta carries none; for `deleted`, removing the entry whose
 `id` equals `link.id`; then setting the record's `revision` to the Event's
 `revision` and its `attribution` to the Event's `attribution`, removing the
@@ -1882,11 +1883,12 @@ change group's `changes` member carries the source Bead's complete
 postimage, `ownedLinks` inline, beside the Link's own postimage or
 tombstone.
 
-`CreatedData` contains the complete initial properties, because creation is
-the delta from absence to the initial state. For a Link, it also contains the
+`CreatedData` contains the complete initial properties and metadata, because
+creation is the delta from absence to the initial state; previously retained
+Events may omit metadata as described above. For a Link, it also contains the
 Link's source and target endpoint references. `UpdatedData` contains the
-committed Property Change — or the owned-Link change — rather than a
-resulting state snapshot.
+committed Property Change for properties and/or metadata — or the owned-Link
+change — rather than a resulting state snapshot.
 `DeletedData.revision` is the Resource's final live revision. Deleted Events
 do not retain the Resource's properties.
 
