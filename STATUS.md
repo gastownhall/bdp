@@ -28,7 +28,12 @@ original observed sources and are historical evidence, not observations of
 this representation. The gate re-derives the catalog, manifest, fixture and
 Read-projection bindings and checks ancestry. Remaining bindings record
 provenance and are checked for format, not re-derived from the current tree.
-The preceding standalone provenance cohort observed source
+The final standalone provenance cohort observed source
+`cca16bbe67faebddc9be6644b6002eee70be4895` and was sealed at
+`c197096c475af70a631e39e026af71c1e60c8ec2` in 162.25 seconds.
+It is preserved in the ordinary PR65 ancestry; the current integrated artifact
+continues to name its own observed source above.
+An earlier standalone provenance cohort observed source
 `a68db90f995c1d3317c19acb0b6dcdf63cd21b0e` and was sealed at
 `c8c8c2d2ab14cd93b677a87c19903eff519a79c7` in 229.33 seconds.
 The earlier 187.06-second cohort observed source
