@@ -242,6 +242,54 @@ function code(turn: MemberTurn) {
 const create = { operation: "createBead", idempotencyKey: "maker", name: "made", type };
 
 describe("real member execution and retention", () => {
+  it.each(["updateBead", "updateLink"] as const)(
+    "%s retains and replays numeric patch refusal without leaking request locations",
+    (operation) => {
+      const f = fixture();
+      const id = operation === "updateBead" ? "beads/a" : "links/old";
+      const raw = (literal: string) =>
+        JSON.stringify({
+          [operation === "updateBead" ? "bead" : "link"]: id,
+          propertiesChange: [{ op: "add", path: "/items/-", value: "BAD" }],
+        }).replace('"BAD"', literal);
+      const before = ["beads/a", "beads/b", "links/old"].map((id) => f.body(id));
+      const opts = {
+        ...f.options,
+        numericBudget: {
+          diagnostic: ({ pointer }: { pointer: string }) => ({
+            message: `inadmissible number at request location ${pointer}`,
+            instanceLocation: pointer,
+          }),
+        },
+      };
+      const refusal = f.run(operation, raw("1e400"), "numeric-update", opts);
+      expect(refusal.disposition).toMatchObject({
+        code: "validation-failed",
+        diagnostics: [
+          { message: "inadmissible number at request location /propertiesChange/0/value" },
+        ],
+      });
+      if (!("diagnostics" in refusal.disposition)) throw Error("expected diagnostics");
+      expect(refusal.disposition.diagnostics?.[0]).not.toHaveProperty("instanceLocation");
+      const key = f.key("numeric-update");
+      f.reopen();
+      const replay = f.run(operation, raw("10e399"), "numeric-update", {
+        ...opts,
+        numericBudget: {
+          diagnostic: () => {
+            throw Error("numeric refusal must replay without reformatting");
+          },
+        },
+      });
+      expect(replay.storage).toBe("replayed");
+      expect(replay.disposition).toEqual(refusal.disposition);
+      expect(f.key("numeric-update")).toEqual(key);
+      expect(code(f.run(operation, raw("1e401"), "numeric-update", opts))).toBe(
+        "idempotency-conflict",
+      );
+      expect(["beads/a", "beads/b", "links/old"].map((id) => f.body(id))).toEqual(before);
+    },
+  );
   it("commits creation with exact guarded envelope/metadata, no-op and alias effects, then replays without renewal across reopen", () => {
     const f = fixture();
     const made = f.run("createBead", { type });

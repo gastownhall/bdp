@@ -1388,7 +1388,7 @@ describe("paired create numeric diagnostic locations", () => {
       diagnosticsTruncated: false,
     });
   });
-  it("rejects numeric properties roots at S1 and keeps the existing update formatter path", () => {
+  it("rejects numeric properties roots at S1", () => {
     expect(() =>
       prepareReadUpdateSingleton(
         scope,
@@ -1397,25 +1397,55 @@ describe("paired create numeric diagnostic locations", () => {
         "root",
       ),
     ).toThrow();
-    const member = ready(
-      prepareReadUpdateSingleton(
-        scope,
-        "updateBead",
-        '{"bead":"beads/a","propertiesChange":[{"op":"add","path":"/items/-","value":1e400}]}',
-        "update",
-      ),
-    );
-    const admission = prepareMemberExecution(member, {
-      diagnostic: (o) => ({
-        message: o.pointer,
-        instanceLocation: "/caller-location",
-        document: "metadata",
-      }),
-    }).admission;
-    expect(admission).toMatchObject({
-      ok: false,
-      diagnostics: [{ message: "/propertiesChange/0/value", instanceLocation: "/caller-location" }],
-    });
-    if (!admission.ok) expect(admission.diagnostics[0]).not.toHaveProperty("document");
   });
+  it.each(["updateBead", "updateLink"] as const)(
+    "%s omits unapplied properties patch locations and prevents document relabeling",
+    (operation) => {
+      const member = ready(
+        prepareReadUpdateSingleton(
+          scope,
+          operation,
+          JSON.stringify({
+            [operation === "updateBead" ? "bead" : "link"]:
+              operation === "updateBead" ? "beads/a" : "links/a",
+            propertiesChange: [{ op: "add", path: "/items/-", value: "BAD" }],
+          }).replace('"BAD"', "1e400"),
+          "update",
+        ),
+      );
+      const expected = {
+        message: "inadmissible number at input /propertiesChange/0/value",
+        type,
+        schemaLocation: "https://schema.test/#/x",
+      };
+      for (const callerLocation of ["/propertiesChange/0/value", "/caller-location"]) {
+        const formatted = Object.freeze({
+          ...expected,
+          instanceLocation: callerLocation,
+          document: "metadata" as const,
+        });
+        const diagnosticBytes = Buffer.byteLength(JSON.stringify([expected]));
+        const admission = prepareMemberExecution(member, {
+          diagnostic: () => formatted,
+          diagnosticBytes,
+        }).admission;
+        expect(admission).toMatchObject({
+          ok: false,
+          offending: [{ pointer: "/propertiesChange/0/value", literal: "1e400" }],
+        });
+        if (admission.ok) throw Error("expected numeric rejection");
+        expect(admission.diagnostics).toEqual([expected]);
+        expect(admission.diagnostics[0]).not.toHaveProperty("instanceLocation");
+        expect(admission.diagnostics[0]).not.toHaveProperty("document");
+        expect(formatted.instanceLocation).toBe(callerLocation);
+        expect(formatted.document).toBe("metadata");
+        expect(() =>
+          prepareMemberExecution(member, {
+            diagnostic: () => formatted,
+            diagnosticBytes: diagnosticBytes - 1,
+          }),
+        ).toThrow("first entry");
+      }
+    },
+  );
 });

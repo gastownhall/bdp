@@ -429,8 +429,8 @@ export function prepareMemberExecution(
   if (!state) throw new TypeError("expected a normalized member identity");
   // S1's occurrences are operation-relative; create diagnostics name either
   // Resource object. Locations in each object's validation are relative to it.
-  // Property update formatting retains its existing caller convention; metadata
-  // updates identify the document without inventing an unapplied target. No I/O.
+  // Unapplied patches identify their document without inventing a postimage
+  // location from an operation-relative input or caller-supplied pointer. No I/O.
   let selectedBudget = budget;
   if (state.original.operation === "createBead" || state.original.operation === "createLink") {
     const { diagnostics, diagnosticBytes, diagnostic } = budget;
@@ -462,14 +462,13 @@ export function prepareMemberExecution(
       diagnostic: (occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
         const formatted = diagnostic(occurrence);
         if (!occurrence.pointer.startsWith("/metadataChange/")) {
-          // The caller still owns property update locations, but cannot relabel
-          // a properties value as a metadata diagnostic.
-          const { message, type, schemaLocation, instanceLocation } = formatted;
+          // Preserve property diagnostics without allowing the caller to relabel
+          // the document or pass an input pointer off as a postimage location.
+          const { message, type, schemaLocation } = formatted;
           return {
             message,
             ...(type !== undefined ? { type } : {}),
             ...(schemaLocation !== undefined ? { schemaLocation } : {}),
-            ...(instanceLocation !== undefined ? { instanceLocation } : {}),
           };
         }
         // The patch has not been applied. An input value location (especially
