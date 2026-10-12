@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   BDP_PROBLEM_FAMILY_PREFIX,
@@ -14,6 +14,8 @@ import {
   parseLinkRecord,
   parseReadUpdateRequest,
   parseRevisionProvenance,
+  parseRevisionProvenanceInput,
+  type RevisionProvenance,
 } from "./index.js";
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -58,13 +60,14 @@ describe("BDP v0 schema bundle", () => {
       [parseBeadRecord, bead],
       [parseLinkRecord, link],
     ] as const) {
-      for (const revisionProvenance of [undefined, {}, { actor }, context, { actor, ...context }]) {
+      for (const revisionProvenance of [undefined, { actor }, context, { actor, ...context }]) {
         const parsed = parse({
           ...record,
           ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
         });
         expect(parsed.revisionProvenance).toEqual(revisionProvenance);
       }
+      expect(() => parse({ ...record, revisionProvenance: {} })).toThrow();
       for (const legacy of [
         { attribution: { principal: "old", basis: "unknown" } },
         { changeContext: context },
@@ -78,7 +81,15 @@ describe("BDP v0 schema bundle", () => {
         ).toThrow();
       }
     }
+    expect(parseRevisionProvenanceInput({})).toEqual({});
+    expect(() =>
+      parseReadUpdateRequest(
+        "createBead",
+        JSON.stringify({ type: bead.type, revisionProvenance: {} }),
+      ),
+    ).not.toThrow();
     for (const invalid of [
+      {},
       { committedAt: context.committedAt },
       { agent: context.agent },
       { message: context.message },
@@ -99,6 +110,18 @@ describe("BDP v0 schema bundle", () => {
     const parsed = parseRevisionProvenance({ actor, ...context });
     expect(Object.isFrozen(parsed.actor)).toBe(true);
     expect(Object.isFrozen(parsed.committedAt)).toBe(true);
+  });
+
+  it("requires the complete context group in the exported provenance type", () => {
+    type Undetermined = { readonly state: "undetermined" };
+    expectTypeOf<{ committedAt: Undetermined }>().not.toExtend<RevisionProvenance>();
+    expectTypeOf<{ agent: Undetermined }>().not.toExtend<RevisionProvenance>();
+    expectTypeOf<{ message: Undetermined }>().not.toExtend<RevisionProvenance>();
+    expectTypeOf<{
+      committedAt: Undetermined;
+      agent: Undetermined;
+      message: Undetermined;
+    }>().toExtend<RevisionProvenance>();
   });
 
   it("ships the package schema copy without drifting from the canonical artifact", () => {

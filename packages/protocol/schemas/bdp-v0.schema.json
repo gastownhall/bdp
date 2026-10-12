@@ -5540,6 +5540,7 @@
     },
     "revisionProvenance": {
       "type": "object",
+      "minProperties": 1,
       "properties": {
         "actor": {
           "$ref": "#/$defs/revisionActor"

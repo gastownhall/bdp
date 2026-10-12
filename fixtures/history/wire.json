@@ -590,10 +590,11 @@
     {
       "id": "create-bead-input",
       "schema": "#/$defs/createBeadRequest",
-      "condition": "Optional operation-level context input; timestamps and actor overrides prohibited.",
+      "condition": "Optional operation-level provenance input; caller timestamps prohibited, an optional actor may be supplied.",
       "body": {
         "type": "https://work.example/types/decision",
         "revisionProvenance": {
+          "actor": { "id": "human:donna", "basis": "writer-supplied" },
           "agent": "assistant-a",
           "message": null
         }
@@ -602,7 +603,7 @@
     {
       "id": "delete-owned-link-input",
       "schema": "#/$defs/deleteLinkRequest",
-      "condition": "Optional operation-level context input; timestamps and actor overrides prohibited.",
+      "condition": "Optional operation-level provenance input; caller timestamps prohibited, an optional actor may be supplied.",
       "body": {
         "link": "https://work.example/scope/links/citation",
         "revisionProvenance": {

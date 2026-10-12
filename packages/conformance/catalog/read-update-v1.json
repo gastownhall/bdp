@@ -139,7 +139,7 @@
     },
     {
       "id": "read-update.singleton.document-patch-atomicity",
-      "title": "One guarded update changes properties and metadata atomically; an equal result retains revision and attribution",
+      "title": "One guarded update changes properties and metadata atomically; an equal result retains revision and the entire `revisionProvenance` envelope",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
@@ -313,7 +313,7 @@
     },
     {
       "id": "read-update.singleton.owned-link-no-op",
-      "title": "An owned-Link semantic no-op retains the Link's revision and attribution and reports the source's unchanged revision",
+      "title": "An owned-Link semantic no-op retains the Link's revision and the entire `revisionProvenance` envelope and reports the source's unchanged revision",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
@@ -341,7 +341,7 @@
     },
     {
       "id": "read-update.singleton.attribution",
-      "title": "The attribution input is recorded on every minted version; a no-op keeps the prior version's revision and attribution",
+      "title": "The revisionProvenance input is recorded on every minted version; a no-op keeps the prior version's revision and the entire `revisionProvenance` envelope",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [

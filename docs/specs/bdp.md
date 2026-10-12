@@ -4245,7 +4245,7 @@ operations, including `UpdateBead` or `UpdateLink` operations in a batch.
 
 Selection and mutation occur atomically at one serialization point. The
 Selector is evaluated when its operation is reached, so it observes the
-effects of preceding operations in the same Mutation Transaction. An
+effects of preceding operations in the same Mutation Transaction. A
 `revisionProvenance` supplied to a set mutation fans out exactly as the
 corresponding singleton operations would record it: on every version
 `UpdateWhere` mints (each selected Resource's new version, and the source
@@ -6711,7 +6711,7 @@ profile is not realized until every applicable row is proved.
 | `read-update.singleton.create-bead` | `create-bead` returns the created postimage; omitted `id` is allocated, supplied `id` is honored |
 | `read-update.singleton.update-bead` | `update-bead` applies the patch, returns the postimage and fresh revision, and retains the revision on a semantic no-op |
 | `read-update.singleton.document-patch-merge-replace` | On both Beads and Links, top-level `add` replaces only the named member while root `replace` replaces the complete selected `properties` or `metadata` object; `{}` clears that object |
-| `read-update.singleton.document-patch-atomicity` | One update changes `properties` and `metadata` atomically under one revision; an equal combined result retains the revision and attribution |
+| `read-update.singleton.document-patch-atomicity` | One update changes `properties` and `metadata` atomically under one revision; an equal combined result retains the revision and the entire `revisionProvenance` envelope |
 | `read-update.singleton.document-patch-validation` | A patch yielding a non-object document or Type-invalid `properties` fails the whole update without changing either document |
 | `read-update.singleton.delete-bead` | `delete-bead` returns the deleted identity, the identity then reads as `404`, and a live incident Link fails it with `incident-links-exist` |
 | `read-update.singleton.incident-links-nondisclosure` | A Bead deletion blocked by hidden incident Links fails with `incident-links-exist` and withholds the hidden Links that caused it |
@@ -6719,8 +6719,8 @@ profile is not realized until every applicable row is proved.
 | `read-update.singleton.update-link` | `update-link` returns the Link postimage; an unowned Link's update moves only the Link's own revision and versions no endpoint |
 | `read-update.singleton.delete-link` | `delete-link` returns the deleted identity and the Link then reads as `404` |
 | `read-update.singleton.owned-link-source-revision` | An effectful owned-Link creation, update, or deletion carries `source` and `sourceRevision` and versions the source; an unowned one carries neither and versions no endpoint |
-| `read-update.singleton.owned-link-no-op` | A semantic no-op update of an owned Link retains the Link's revision and attribution and reports the source's unchanged revision in `sourceRevision` |
-| `read-update.singleton.attribution` | The `revisionProvenance` input is recorded on every version an effectful mutation mints, the owned source's included; a semantic no-op keeps the prior version's revision and attribution |
+| `read-update.singleton.owned-link-no-op` | A semantic no-op update of an owned Link retains the Link's revision and the entire `revisionProvenance` envelope and reports the source's unchanged revision in `sourceRevision` |
+| `read-update.singleton.attribution` | The `revisionProvenance` input is recorded on every version an effectful mutation mints, the owned source's included; a semantic no-op keeps the prior version's revision and the entire `revisionProvenance` envelope |
 | `read-update.singleton.expected-revision` | A matching `expectedRevision` applies; a stale one fails with `revision-mismatch` and changes nothing |
 | `read-update.singleton.expected-revision-race` | Of two concurrent guarded updates of one Resource, exactly one applies and the other fails with `revision-mismatch` |
 | `read-update.singleton.hidden-subject` | A subject or in-Scope endpoint hidden from the request's Authorization View fails with the uniform `resource-not-found`, never `revision-mismatch` or `forbidden` |
