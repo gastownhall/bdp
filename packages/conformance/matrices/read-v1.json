@@ -670,7 +670,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/beadCollection"
+              "schema": "#/$defs/currentBeadCollection"
             },
             {
               "id": "complete-page",
@@ -788,7 +788,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -947,7 +947,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/beadCollection"
+              "schema": "#/$defs/currentBeadCollection"
             },
             {
               "id": "complete-page",
@@ -987,7 +987,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/beadCollection"
+              "schema": "#/$defs/currentBeadCollection"
             },
             {
               "id": "complete-page",
@@ -1028,7 +1028,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/beadCollection"
+              "schema": "#/$defs/currentBeadCollection"
             },
             {
               "id": "complete-page",
@@ -1068,7 +1068,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/beadCollection"
+              "schema": "#/$defs/currentBeadCollection"
             },
             {
               "id": "complete-page",
@@ -1109,7 +1109,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/beadCollection"
+              "schema": "#/$defs/currentBeadCollection"
             },
             {
               "id": "complete-page",
@@ -1153,7 +1153,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -1197,7 +1197,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -1241,7 +1241,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -1285,7 +1285,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -1326,7 +1326,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -1380,7 +1380,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -1421,7 +1421,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -1462,7 +1462,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -1503,7 +1503,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -1552,7 +1552,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "complete-page",
@@ -2219,7 +2219,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/beadRecord"
+              "schema": "#/$defs/currentBeadRecord"
             },
             {
               "id": "id",
@@ -2402,7 +2402,7 @@
             {
               "id": "schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkRecord"
+              "schema": "#/$defs/currentLinkRecord"
             },
             {
               "id": "id",
@@ -2476,7 +2476,7 @@
             {
               "id": "demo-a-inbound-schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "demo-a-inbound-next",
@@ -2531,7 +2531,7 @@
             {
               "id": "demo-a-outbound-schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "demo-a-outbound-next",
@@ -2586,7 +2586,7 @@
             {
               "id": "demo-b-outbound-schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "demo-b-outbound-next",
@@ -2628,7 +2628,7 @@
             {
               "id": "demo-b-inbound-schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "demo-b-inbound-next",
@@ -2670,7 +2670,7 @@
             {
               "id": "demo-a-both-schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "demo-a-both-next",
@@ -2724,7 +2724,7 @@
             {
               "id": "demo-a-default-schema",
               "kind": "json-schema",
-              "schema": "#/$defs/linkCollection"
+              "schema": "#/$defs/currentLinkCollection"
             },
             {
               "id": "demo-a-default-next",

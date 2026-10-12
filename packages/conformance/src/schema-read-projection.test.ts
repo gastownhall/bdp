@@ -417,8 +417,6 @@ describe("Read schema projection", () => {
     const committed = committedBundle();
     const roots = committedRoots();
     expect(roots).toEqual([
-      "beadCollection",
-      "beadRecord",
       "currentBeadCollection",
       "currentBeadRecord",
       "currentLinkCollection",
@@ -428,8 +426,6 @@ describe("Read schema projection", () => {
       "historyCapability",
       "historyMissing",
       "historyVersionsPage",
-      "linkCollection",
-      "linkRecord",
       "properties",
       "readDiscovery",
       "readProblem",

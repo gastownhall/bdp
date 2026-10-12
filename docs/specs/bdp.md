@@ -834,14 +834,17 @@ Links
 The candidate values are conceptually:
 
 ```text
-{ id, type, properties }
+{ id, type, properties, metadata }
 ```
 
 and:
 
 ```text
-{ id, type, source, target, properties }
+{ id, type, source, target, properties, metadata }
 ```
+
+Singular paths under `metadata` select common metadata independently of
+`properties`; a property named `metadata` remains under `properties.metadata`.
 
 A **Selector** uses a bounded profile of
 [RFC 9535 JSONPath](https://www.rfc-editor.org/rfc/rfc9535.html) filter

@@ -39,6 +39,7 @@ import {
   controlledReadCapability,
   controlledReadProblemCapability,
   controlledReadScopeRestoreCapability,
+  createCurrentReadWireValidator,
   resolveBdExecutable,
   runBdWorkspaceCommand,
   seedBdWorkspacePair,
@@ -264,6 +265,7 @@ async function runPackagedTarget(
   });
   try {
     const clientActions = createBdpClientScenarioActionExecutor({
+      validateReadWire: createCurrentReadWireValidator(schemaValidator),
       fetchImplementation: scenarioTarget.fetch,
       externalTypeDescriptorFetchImplementation: publisher.fetch,
     });
