@@ -127,7 +127,6 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
               pointer.startsWith("/propertiesChange/") || pointer.startsWith("/metadataChange/")
                 ? `unsupported number at request location ${pointer}`
                 : "unsupported number",
-            instanceLocation: pointer,
           }),
         },
         retentionMs: day,

@@ -4,6 +4,7 @@ import {
   prepareTransaction,
   prepareTransactionSingleton,
   TransactionDevelopmentLimitError,
+  TRANSACTION_RUNTIME_LIMITS,
 } from "./transaction-batch.js";
 import { compareAndAdmitTransaction } from "./transaction-comparison.js";
 import {
@@ -57,7 +58,7 @@ export async function submitTransaction(
 ): Promise<TransactionSubmissionResult> {
   const receiving = snapshotTransactionReceivingControls(submission.receiving);
   const { body, key } = submission;
-  if (Buffer.byteLength(body) > 65536)
+  if (Buffer.byteLength(body) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     return { kind: "refused", status: 413, code: "request-too-large" };
   let prepared: ReturnType<typeof prepareTransaction>;
   try {

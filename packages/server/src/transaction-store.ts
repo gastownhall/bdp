@@ -7,6 +7,7 @@ import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@
 import type { EvaluatorStoredResource } from "./resource-evaluator.js";
 import {
   TransactionDevelopmentLimitError,
+  TRANSACTION_RUNTIME_LIMITS,
   assertPreparedTransaction,
   assertPreparedTransactionSequence,
   normalizeTransaction,
@@ -655,10 +656,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                   observeCommitTime: instant,
                   recordChangeContext: false,
                   limits: {
-                    propertiesBytes: 65536,
+                    propertiesBytes: TRANSACTION_RUNTIME_LIMITS.propertiesBytes,
                     representationBytes: 262144,
-                    diagnosticCount: 16,
-                    diagnosticBytes: 65536,
+                    diagnosticCount: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
+                    diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
                   },
                 },
                 core.transaction,

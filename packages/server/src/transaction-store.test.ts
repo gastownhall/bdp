@@ -16,6 +16,7 @@ import {
   prepareTransactionSingleton,
   prepareTransactionSequence,
   normalizeTransaction,
+  TRANSACTION_RUNTIME_LIMITS,
 } from "./transaction-batch.js";
 import { openTransactionStore, type TransactionClaim } from "./transaction-store.js";
 
@@ -2601,50 +2602,57 @@ describe("Transactional numeric diagnostic documents", () => {
       },
     );
   }
-  it("includes the metadata discriminator in the exact 65536-byte bound before truncation", () => {
+  it("includes the metadata discriminator in the qualified byte bound before truncation", () => {
     const f = fixture();
+    const bound = TRANSACTION_RUNTIME_LIMITS.diagnosticBytes;
     const base = { message: "metadata: unsupported number", document: "metadata" };
-    // A shared long parent is short on input but appears in each diagnostic.
-    // This reaches the diagnostic limit without violating the request byte cap.
-    const suffixes: [string, string] = ["a", "b"];
-    const empty = suffixes.map((suffix) => ({ ...base, instanceLocation: `//${suffix}` }));
-    if ((65536 - Buffer.byteLength(JSON.stringify(empty))) % 2 !== 0) suffixes[1] = "bb";
-    const overhead = Buffer.byteLength(
-      JSON.stringify(suffixes.map((suffix) => ({ ...base, instanceLocation: `//${suffix}` }))),
-    );
-    const key = "x".repeat((65536 - overhead) / 2);
+    // The shared parent occurs once on input and sixteen times in diagnostics.
+    const suffixes = Array.from({ length: 16 }, (_, i) => `n${i}`);
+    const entries = (parent: string) =>
+      suffixes.map((suffix) => ({ ...base, instanceLocation: `/${parent}/${suffix}` }));
+    const remainder = (bound - Buffer.byteLength(JSON.stringify(entries("")))) % 16;
+    suffixes[0] = `n0${"x".repeat(remainder)}`;
+    const overhead = Buffer.byteLength(JSON.stringify(entries("")));
+    const key = "x".repeat((bound - overhead) / 16);
     const textFor = (parent: string) =>
       JSON.stringify({
         operations: [
           {
             operation: "createBead",
             type: bead,
-            metadata: { [parent]: { [suffixes[0]]: "BAD", [suffixes[1]]: "BAD", third: "BAD" } },
+            metadata: {
+              [parent]: Object.fromEntries([...suffixes, "extra"].map((suffix) => [suffix, "BAD"])),
+            },
           },
         ],
       }).replaceAll('"BAD"', "1e999");
-    const prepared = prepareTransaction(scope, textFor(key));
-    const admitted = f.store.admit("principal", "exact", prepared);
-    if (admitted.kind !== "owned") throw Error("expected ownership");
-    const receipt = f.store.execute(admitted.claim);
-    expect(parseReadUpdateProblem(receipt.problem).diagnostics).toEqual(
-      suffixes.map((suffix) => ({ ...base, instanceLocation: `/${key}/${suffix}` })),
-    );
-    expect(
-      Buffer.byteLength(JSON.stringify(parseReadUpdateProblem(receipt.problem).diagnostics)),
-    ).toBe(65536);
-    expect(parseReadUpdateProblem(receipt.problem).diagnosticsTruncated).toBe(true);
-    expect(f.store.inspect()).toEqual({ resources: [], groups: [], identities: [], position: "0" });
-    f.reopen();
-    expect(f.store.admit("principal", "exact", prepared)).toEqual({ kind: "existing", receipt });
-    const over = f.store.admit("principal", "over", prepareTransaction(scope, textFor(`${key}x`)));
-    if (over.kind !== "owned") throw Error("expected ownership");
-    const shorter = f.store.execute(over.claim);
-    expect(parseReadUpdateProblem(shorter.problem).diagnostics).toEqual([
-      { ...base, instanceLocation: `/${key}x/${suffixes[0]}` },
-    ]);
-    expect(parseReadUpdateProblem(shorter.problem).diagnosticsTruncated).toBe(true);
-    expect(f.store.inspect()).toEqual({ resources: [], groups: [], identities: [], position: "0" });
+    for (const [id, parent, count] of [
+      ["exact", key, 16],
+      ["over", `${key}x`, 15],
+    ] as const) {
+      const text = textFor(parent);
+      expect(Buffer.byteLength(text)).toBeLessThanOrEqual(
+        TRANSACTION_RUNTIME_LIMITS.requestBodyBytes,
+      );
+      const prepared = prepareTransaction(scope, text);
+      const admitted = f.store.admit("principal", id, prepared);
+      if (admitted.kind !== "owned") throw Error("expected ownership");
+      const receipt = f.store.execute(admitted.claim);
+      const problem = parseReadUpdateProblem(receipt.problem);
+      expect(problem.diagnostics).toEqual(entries(parent).slice(0, count));
+      const bytes = Buffer.byteLength(JSON.stringify(problem.diagnostics));
+      if (count === 16) expect(bytes).toBe(bound);
+      else expect(bytes).toBeLessThan(bound);
+      expect(problem.diagnosticsTruncated).toBe(true);
+      expect(f.store.inspect()).toEqual({
+        resources: [],
+        groups: [],
+        identities: [],
+        position: "0",
+      });
+      f.reopen();
+      expect(f.store.admit("principal", id, prepared)).toEqual({ kind: "existing", receipt });
+    }
   });
   it("retains sixteen complete metadata diagnostics and marks the seventeenth omitted", () => {
     const f = fixture();
@@ -2677,20 +2685,19 @@ it("counts unapplied update request locations in diagnostic message byte bounds"
     ),
   );
   const before = f.store.inspect();
-  const suffixes: [string, string] = ["a", "b"];
+  const bound = TRANSACTION_RUNTIME_LIMITS.diagnosticBytes;
+  const suffixes = Array.from({ length: 16 }, (_, i) => `n${i}`);
   const entry = (parent: string, suffix: string) => ({
     message: `unsupported number at request location /propertiesChange/0/value/${parent}/${suffix}`,
   });
-  if (
-    (65536 - Buffer.byteLength(JSON.stringify(suffixes.map((suffix) => entry("", suffix))))) % 2 !==
-    0
-  )
-    suffixes[1] = "bb";
-  const overhead = Buffer.byteLength(JSON.stringify(suffixes.map((suffix) => entry("", suffix))));
-  const parent = "x".repeat((65536 - overhead) / 2);
+  const entries = (parent: string) => suffixes.map((suffix) => entry(parent, suffix));
+  const remainder = (bound - Buffer.byteLength(JSON.stringify(entries("")))) % 16;
+  suffixes[0] = `n0${"x".repeat(remainder)}`;
+  const overhead = Buffer.byteLength(JSON.stringify(entries("")));
+  const parent = "x".repeat((bound - overhead) / 16);
   for (const [key, name, count] of [
-    ["exact-update", parent, 2],
-    ["over-update", `${parent}x`, 1],
+    ["exact-update", parent, 16],
+    ["over-update", `${parent}x`, 15],
   ] as const) {
     const text = JSON.stringify({
       operations: [
@@ -2701,24 +2708,124 @@ it("counts unapplied update request locations in diagnostic message byte bounds"
             {
               op: "add",
               path: "/items/-",
-              value: { [name]: { [suffixes[0]]: "BAD", [suffixes[1]]: "BAD", third: "BAD" } },
+              value: {
+                [name]: Object.fromEntries([...suffixes, "extra"].map((suffix) => [suffix, "BAD"])),
+              },
             },
           ],
         },
       ],
     }).replaceAll('"BAD"', "1e999");
+    expect(Buffer.byteLength(text)).toBeLessThanOrEqual(
+      TRANSACTION_RUNTIME_LIMITS.requestBodyBytes,
+    );
     const prepared = prepareTransaction(scope, text);
     const admitted = f.store.admit("principal", key, prepared);
     if (admitted.kind !== "owned") throw Error("expected ownership");
     const receipt = f.store.execute(admitted.claim);
     const problem = parseReadUpdateProblem(receipt.problem);
-    expect(problem.diagnostics).toEqual(
-      suffixes.slice(0, count).map((suffix) => entry(name, suffix)),
-    );
+    expect(problem.diagnostics).toEqual(entries(name).slice(0, count));
     expect(problem.diagnosticsTruncated).toBe(true);
-    if (count === 2) expect(Buffer.byteLength(JSON.stringify(problem.diagnostics))).toBe(65536);
+    const bytes = Buffer.byteLength(JSON.stringify(problem.diagnostics));
+    if (count === 16) expect(bytes).toBe(bound);
+    else expect(bytes).toBeLessThan(bound);
     expect(f.store.inspect()).toEqual(before);
     f.reopen();
     expect(f.store.admit("principal", key, prepared)).toEqual({ kind: "existing", receipt });
+  }
+});
+
+describe("maximum request numeric diagnostic feasibility", () => {
+  for (const carrier of ["batch", "singleton"] as const) {
+    for (const document of ["properties", "metadata"] as const) {
+      it.each(["createBead", "createLink", "updateBead", "updateLink"] as const)(
+        `${carrier} ${document} %s retains the first escaped diagnostic at the request cap`,
+        (operation) => {
+          const f = fixture();
+          f.store.execute(
+            admit(
+              f.store,
+              {
+                operations: [
+                  { operation: "createBead", id: "beads/a", type: bead },
+                  {
+                    operation: "createLink",
+                    id: "links/old",
+                    type: link,
+                    source: "beads/a",
+                    target: "beads/a",
+                  },
+                ],
+              },
+              "seed",
+            ),
+          );
+          const before = f.store.inspect();
+          const creating = operation.startsWith("create");
+          const isLink = operation.endsWith("Link");
+          const textFor = (key: string) => {
+            const value = { [key]: "BAD" };
+            const input = creating
+              ? {
+                  id: isLink ? "links/new" : "beads/new",
+                  type: isLink ? link : bead,
+                  ...(isLink ? { source: "beads/a", target: "beads/a" } : {}),
+                  [document]: value,
+                }
+              : {
+                  [isLink ? "link" : "bead"]: isLink ? "links/old" : "beads/a",
+                  [`${document}Change`]: [{ op: "add", path: "/items/-", value }],
+                };
+            return JSON.stringify(
+              carrier === "singleton"
+                ? input
+                : {
+                    operations: [
+                      {
+                        operation: "updateBead",
+                        bead: "beads/a",
+                        propertiesChange: [{ op: "add", path: "/prefix", value: true }],
+                      },
+                      { operation, ...input },
+                      { operation: "createBead", id: "beads/tail", type: bead },
+                    ],
+                  },
+            ).replace('"BAD"', "1e999");
+          };
+          const key = "/".repeat(65536 - Buffer.byteLength(textFor("")));
+          const text = textFor(key);
+          expect(Buffer.byteLength(text)).toBe(65536);
+          const prepared =
+            carrier === "singleton"
+              ? prepareTransactionSingleton(scope, operation, text)
+              : prepareTransaction(scope, text);
+          const admitted = f.store.admit("principal", "large-number", prepared);
+          if (admitted.kind !== "owned") throw Error("expected ownership");
+          const receipt = f.store.execute(admitted.claim);
+          expect(receipt.status).toBe("failed");
+          const pointer = key.replaceAll("/", "~1");
+          const diagnostic = {
+            message: `${document === "metadata" ? "metadata: " : ""}unsupported number${creating ? "" : ` at request location /${document}Change/0/value/${pointer}`}`,
+            ...(document === "metadata" ? { document: "metadata" } : {}),
+            ...(creating ? { instanceLocation: `/${pointer}` } : {}),
+          };
+          const problem = parseReadUpdateProblem(receipt.problem);
+          expect(problem.code).toBe("validation-failed");
+          expect(problem.diagnostics).toEqual([diagnostic]);
+          expect(problem.diagnosticsTruncated).toBeUndefined();
+          const bytes = Buffer.byteLength(JSON.stringify(problem.diagnostics));
+          expect(bytes).toBeGreaterThan(65536);
+          expect(bytes).toBeLessThanOrEqual(512 * 1024);
+          expect(receiptSchema(receipt), JSON.stringify(receiptSchema.errors)).toBe(true);
+          expect(f.store.inspect()).toEqual(before);
+          f.reopen();
+          expect(f.store.admit("principal", "large-number", prepared)).toEqual({
+            kind: "existing",
+            receipt,
+          });
+          expect(f.store.inspect()).toEqual(before);
+        },
+      );
+    }
   }
 });

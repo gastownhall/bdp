@@ -1,4 +1,5 @@
 /** Private first Transactional slice. No transport or profile admission. */
+import { snapshotReadUpdateRuntimeLimits } from "./read-update-runtime-limits.js";
 import { memberNumericDiagnosticBudget } from "./member-numeric-diagnostics.js";
 import {
   JsonNumberLiteral,
@@ -35,6 +36,16 @@ import {
   type ResourceTransaction,
   type ResourceRecord,
 } from "./resource-evaluator.js";
+
+/** Private owner bounds. Check first-diagnostic feasibility against the same
+ * receiving/property caps, including pointer escaping. No profile advertisement. */
+export const TRANSACTION_RUNTIME_LIMITS = Object.freeze({
+  requestBodyBytes: 64 * 1024,
+  propertiesBytes: 64 * 1024,
+  diagnosticBytes: 512 * 1024,
+  diagnosticCount: 16,
+});
+snapshotReadUpdateRuntimeLimits(TRANSACTION_RUNTIME_LIMITS);
 
 /** An unsupported private composition is not a protocol syntax ruling. */
 export class TransactionDevelopmentLimitError extends Error {}
@@ -79,7 +90,8 @@ function losslessText(value: LosslessJsonValue, depth = 0): string {
  * Reuses RU parsing, not RU admission or identity: synthetic member keys never
  * enter storage. This bounded owner accepts the six singleton Resource operation kinds. */
 export function prepareTransaction(scope: string, text: string): PreparedTransaction {
-  if (Buffer.byteLength(text) > 65536) throw new RangeError("development batch byte limit");
+  if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
+    throw new RangeError("development batch byte limit");
   const root = object(decodeJsonDocument(text));
   if (
     Object.keys(root).length !== 1 ||
@@ -104,7 +116,8 @@ export function prepareTransactionSingleton(
   text: string,
 ): PreparedTransaction {
   if (operation !== "putAlias" && operation !== "deleteAlias") assertResourceOperation(operation);
-  if (Buffer.byteLength(text) > 65536) throw new RangeError("development singleton byte limit");
+  if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
+    throw new RangeError("development singleton byte limit");
   // Apply the same operation-content depth bound as the batch wrapper.
   losslessText(object(decodeJsonDocument(text)), 2);
   return prepareCarrier(prepareReadUpdateSingleton(scope, operation, text, "internal-singleton"));
@@ -131,7 +144,8 @@ export function prepareTransactionSequence(
   scope: string,
   text: string,
 ): PreparedTransactionSequence {
-  if (Buffer.byteLength(text) > 65536) throw new RangeError("development sequence byte limit");
+  if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
+    throw new RangeError("development sequence byte limit");
   const carrier = prepareReadUpdateSequence(scope, text);
   if (carrier.operations.length > 32) throw new RangeError("development sequence member limit");
   losslessText(object(decodeJsonDocument(text)));
@@ -440,14 +454,13 @@ export function evaluateTransaction(
     const admitted = admitReadUpdateOperationNumbers(
       op,
       memberNumericDiagnosticBudget(op.operation, {
-        diagnostics: 16,
-        diagnosticBytes: 65536,
+        diagnostics: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
+        diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
         diagnostic: ({ pointer }) => ({
           message:
             pointer.startsWith("/propertiesChange/") || pointer.startsWith("/metadataChange/")
               ? `unsupported number at request location ${pointer}`
               : "unsupported number",
-          instanceLocation: pointer,
         }),
       }),
     );
