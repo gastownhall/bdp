@@ -321,3 +321,54 @@ The subsequent [present-contract editorial map](spec-present-contract-map.md)
 accounts for removing development chronology and consolidating optional History
 within Read. Its ledger disposition and validation supersede this earlier round's
 bookmark-preservation counts; no draft-reader compatibility scaffold is required.
+
+
+## Four-part organization
+
+The current structure separates the common Data Model from the three protocol
+profiles. This follow-up is based on `cd22ac3e388be3baffaf1d3a4caac7c4bd288502`;
+the first-relocation destinations and previous verification counts above remain
+records of their original passes.
+
+| Current part | Contents and ownership |
+| --- | --- |
+| Part I — Data Model | Shared Scope/Resource identity, aliases, Beads, Links, References, ownership, Type identity and effective constraints, aggregate constraints, revisions and carried attribution. These are common Read-level concepts, not a fourth advertised profile. |
+| Part II — Read | Authorization projections, selection, JSON/HTTP, discovery, schema/limits, descriptor inventory and retrieval, Resource/collection reads, optional History, errors, validators and Read conformance. |
+| Part III — Read+Update | Inherits the model and Read; existing single-operation, sequence, mutation and retry obligations remain here. |
+| Part IV — Transactional | Inherits the model and both lower profiles; existing transaction, receipt, Event, snapshot, changefeed and erasure obligations remain here. |
+
+The `Types and Type Descriptors` inventory/wire block and its `Descriptor
+resolution and installation` subsection move to Read. `Effective Type contracts`
+and `Link endpoint constraints` remain beside `Types` in the shared model.
+Every operative section body is unchanged. Only the reading guide and part/model
+introductions are revised. Existing Part anchors and `bead-data-model` resolve
+through explicit aliases; the four new Part headings have their own anchors.
+No draft amendment narration is added to the normative specification.
+
+The profile ownership inventory explicitly classifies both Data Model and Read
+at Read rank. Existing citation admission, shared-excerpt restrictions and
+ambiguous-anchor rejection remain intact. Internal links are now checked for
+resolution and lower-profile forward dependencies, including a negative case
+through a retained Part alias. Catalog IDs, excerpts, profile tags and requirement
+counts are untouched. Data Model does not acquire any write- or transaction-only
+requirements from this organization.
+
+Verification with Node 24.16.0 / pnpm 11.20.0:
+
+- `pnpm exec vitest run packages/conformance packages/protocol --maxWorkers=2 --reporter=verbose`:
+  43 files, 1,661 tests passed, no failures or skips.
+- `pnpm typecheck`, `pnpm check:boundaries`, `pnpm format:check` and
+  `git diff --check`: passed.
+- A section-body audit against the base preserves all 137 operative section
+  bodies byte-for-byte after removing added standalone anchor lines. All 144
+  prior anchors remain; there are 148 anchors and 171 resolving internal links.
+- All tables, conformance end matter and capitalized requirement-word counts
+  remain unchanged. Runtime, schema, fixture, catalog and historical evidence
+  files are untouched. These checks are editorial/artifact consistency checks,
+  not new provider qualification or public profile admission.
+
+The separate revision-provenance work still owns the carried-attribution and
+History metadata definitions. Integration must preserve that worker's revised
+bodies in the shared model and optional History section respectively; this pass
+changes neither envelope. Logs and the mechanical preservation audit are stored
+outside the checkout under `/tmp/bdp-four-part-*`.

@@ -85,12 +85,14 @@ every lower profile:
 | **Read+Update** | Read plus the six single-Resource targets, the two alias targets, and an ordered, non-atomic `sequence` carrier | Set mutation, atomic `batch`, Scope history, receipts, snapshots, Events, and changefeed replication |
 | **Transactional** | The complete transaction and replication contract | Nothing |
 
-The three parts below are cumulative specifications within this one document.
-Part I defines Read, Part II adds Read+Update, and Part III adds Transactional.
-Each part defines its own data and operation semantics, HTTP surface, errors
-and conformance obligations. A later part may strengthen an inherited contract
-or change a response envelope only where it says so explicitly. A lower part
-does not depend on a later part's definitions. The profile overview here is a
+The four parts below separate the shared data model from the three cumulative
+protocol profiles. Part I defines the Data Model, Part II defines Read,
+Part III adds Read+Update, and Part IV adds Transactional. The Data Model
+is common to every profile; it is not a separately advertised profile. Each
+profile part defines its operation semantics, HTTP surface, errors and
+conformance obligations. A later part may strengthen an inherited contract
+or change a response envelope only where it says so explicitly. A lower profile
+does not depend on a higher profile's definitions. The profile overview here is a
 navigation guide, not an additional source of requirements.
 
 The Read profile exposes no BDP mutation target. It also does not inherit
@@ -207,19 +209,15 @@ model does not restrict the underlying implementation. An implementation
 might use file directories, relational or non-relational databases, or
 repositories.
 
-## Part I — Read
+<a id="bead-data-model"></a>
 
-Part I is the complete minimum Read contract, with optional capabilities
-identified locally. It requires canonical records, opaque revisions and
-consistent pagination. It introduces no exposed epoch, transaction,
-checkpoint or replica-bootstrap snapshot. State may originate from any store.
+## Part I — Data Model
 
-### Bead Data Model
-
-The Read profile defines the state a generic client can observe: Scope and
-Resource identity, typed Beads and Links, properties and metadata, opaque
-revisions, References and authorization projections. Its representations do
-not require clients to understand how a store creates or changes that state.
+The shared data model defines the state a generic client can observe: Scope
+and Resource identity, typed Beads and Links, properties and metadata, opaque
+revisions and References. Every protocol profile uses this model. Its
+representations do not require clients to understand how a store creates or
+changes that state. State may originate from any store.
 
 ### Scopes and identity
 
@@ -559,161 +557,6 @@ contains only domain-defined Type relationships. Category collection and
 selection use the distinct Bead and Link roots rather than a synthetic root
 Type.
 
-### Types and Type Descriptors
-
-The discovered `types/` Resource is an inventory of the Bead and Link Type
-Descriptors that the Scope advertises as known. It supports generic tooling,
-lets clients preload schemas, and reveals which contracts the service can
-validate. It is not a closed-world claim: it does not assert that no other
-Type exists.
-The response is paginated, and it follows the same authoritative continuation
-and snapshot rules as the Bead and Link collections. Each page is an object
-containing `items` and `next`; each item is exactly the Type summary `{id,
-name, describes}`.
-
-```http
-GET /acme/types/ HTTP/1.1
-Host: beads.example
-Accept: application/json
-```
-
-```json
-{
-  "items": [
-    {
-      "id": "https://work.example/types/task",
-      "name": "Task",
-      "describes": "bead"
-    },
-    {
-      "id": "https://work.example/types/assigned-to",
-      "name": "Assigned To",
-      "describes": "link"
-    }
-  ],
-  "next": null
-}
-```
-
-Each `id` is the Type Descriptor URL. A descriptor may be hosted inside or
-outside the Scope. The inventory says that the Scope knows the Type. It does
-not relocate or rename the descriptor. Inventory entries are summaries; the
-globally scoped descriptor URL names the complete contract. A mutation
-authority inventories a Type only after it has installed the contract closure
-that it will use for validation.
-
-A Type ID is the absolute URL of its Type Descriptor. `GET` of that URL returns
-a self-contained JSON descriptor and may use ordinary HTTP caching and entity
-tags. For example:
-
-```http
-GET /types/task HTTP/1.1
-Host: work.example
-Accept: application/json
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-ETag: "task-type-1"
-Link: <https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json#/$defs/typeDescriptor>; rel="describedby"; type="application/schema+json"
-```
-
-A Bead Type Descriptor contains the common Type members:
-
-```json
-{
-  "id": "https://work.example/types/task",
-  "name": "Task",
-  "description": "A unit of work that can be completed.",
-  "describes": "bead",
-  "conformsTo": [
-    "https://work.example/types/issue"
-  ],
-  "propertiesSchema": "https://work.example/schemas/task-properties-v1"
-}
-```
-
-A Link Type Descriptor is the same contract plus `source` and `target`
-endpoint constraints. This `assigned-to` Link Type accepts any Issue as its
-source and any Person as its target:
-
-```json
-{
-  "id": "https://work.example/types/assigned-to",
-  "name": "Assigned To",
-  "description": "Associates a work item with the person responsible for it.",
-  "describes": "link",
-  "conformsTo": [],
-  "propertiesSchema": "https://work.example/schemas/assigned-to-properties-v1",
-  "source": {
-    "conformsTo": [
-      "https://work.example/types/issue"
-    ]
-  },
-  "target": {
-    "conformsTo": [
-      "https://people.example/types/person"
-    ]
-  }
-}
-```
-
-The descriptor members have these meanings:
-
-- `id` is the absolute canonical Type ID used by Resources;
-- `name` is a required nonempty human-readable name and does not establish
-  identity;
-- `description` is optional human-readable documentation;
-- `describes` is exactly `bead` or `link` and must agree with every Resource
-  declaring the Type;
-- `conformsTo` contains the direct parent Type IDs, in no significant order,
-  and is always an array;
-- `propertiesSchema`, when present, is the absolute URL of a JSON Schema for
-  the Resource's `properties` object — not for its generic BDP record; and
-- for a Link Type, `source.conformsTo` and `target.conformsTo` list Types that
-  the corresponding in-Scope endpoint Bead must satisfy. Every listed Type is
-  required, and an empty list accepts any in-Scope Bead at that endpoint. An
-  out-of-Scope endpoint is opaque and is not checked against these lists; and
-- for a Bead Type, `ownsOutgoing`, when present, declares the outgoing
-  Link Types the Type owns: an object keyed by owned Link Type URL whose
-  values are `{ label?, max }`, under
-  [Owned Links](#owned-links). `max` is the required bound on
-  the owned set, and `label` is display documentation, like `name`: it
-  appears only in the descriptor and never in any Resource record. The
-  key MAY also be the wildcard `"*"`, whose value is exactly `{ max }`:
-  it owns every outgoing Link Type not named explicitly, its `max` bounds
-  the whole owned set, and explicit entries take precedence for the types
-  they name, under [Owned Links](#owned-links). A Link Type Descriptor
-  must not carry `ownsOutgoing`. An explicitly declared entry's `max`
-  MUST NOT exceed the wildcard's `max` in the same descriptor, since the
-  wildcard's `max` bounds the whole owned set: such a descriptor is
-  invalid and is not installed — a descriptor-validation rule beyond the
-  schema bundle, which cannot compare the two members — under
-  [Owned Links](#owned-links).
-
-Descriptor objects and endpoint-constraint objects are closed: no members are
-allowed except those defined above. An `ownsOutgoing` entry is closed the same
-way: `{ label?, max }` under a Link Type URL, `{ max }` under the wildcard.
-Type-ID arrays contain unique Type URLs and
-may be empty where this specification permits an unconstrained endpoint.
-
-The canonical `typeDescriptor` definition exists only in the single BDP v0
-schema bundle at `schemas/bdp-v0.schema.json#/$defs/typeDescriptor`. The
-specification prose above and that schema definition must remain aligned.
-This section therefore does not carry a second inline schema copy.
-
-#### Descriptor resolution and installation
-
-A client may dereference a Type ID directly using ordinary Web retrieval and
-caching. A BDP service SHOULD retain any descriptor it successfully resolves so
-globally shared and well-known Type IDs do not require repeated network access.
-This recommendation does not require a read-only service to resolve every Type
-that appears in data before it can return the Resource record.
-
-Every BDP properties schema uses JSON Schema 2020-12. An omitted `$schema` is
-interpreted as that dialect. A schema declaring another dialect is invalid for
-BDP v0. `$id`, `$ref`, anchors, and the declared vocabularies have their Draft
-2020-12 meanings.
-
 #### Effective Type contracts
 
 The same composition rules apply to Bead Types and Link Types. A Resource has
@@ -938,6 +781,15 @@ recorded. Principal identifiers SHOULD be namespaced opaque strings — for
 example `agent:…`, `human:…`, `svc:…` — so agents, humans, and service
 accounts coexist without a global identity system; BDP mandates no
 namespace and compares principals only for byte equality.
+
+<a id="part-i--read"></a>
+
+## Part II — Read
+
+Part II defines the complete minimum Read protocol over the shared Data Model,
+with optional capabilities identified locally. It requires canonical records,
+opaque revisions and consistent pagination. It introduces no exposed epoch,
+transaction, checkpoint or replica-bootstrap snapshot.
 
 ### Authorization views
 
@@ -1222,6 +1074,161 @@ For example:
   }
 }
 ```
+
+### Types and Type Descriptors
+
+The discovered `types/` Resource is an inventory of the Bead and Link Type
+Descriptors that the Scope advertises as known. It supports generic tooling,
+lets clients preload schemas, and reveals which contracts the service can
+validate. It is not a closed-world claim: it does not assert that no other
+Type exists.
+The response is paginated, and it follows the same authoritative continuation
+and snapshot rules as the Bead and Link collections. Each page is an object
+containing `items` and `next`; each item is exactly the Type summary `{id,
+name, describes}`.
+
+```http
+GET /acme/types/ HTTP/1.1
+Host: beads.example
+Accept: application/json
+```
+
+```json
+{
+  "items": [
+    {
+      "id": "https://work.example/types/task",
+      "name": "Task",
+      "describes": "bead"
+    },
+    {
+      "id": "https://work.example/types/assigned-to",
+      "name": "Assigned To",
+      "describes": "link"
+    }
+  ],
+  "next": null
+}
+```
+
+Each `id` is the Type Descriptor URL. A descriptor may be hosted inside or
+outside the Scope. The inventory says that the Scope knows the Type. It does
+not relocate or rename the descriptor. Inventory entries are summaries; the
+globally scoped descriptor URL names the complete contract. A mutation
+authority inventories a Type only after it has installed the contract closure
+that it will use for validation.
+
+A Type ID is the absolute URL of its Type Descriptor. `GET` of that URL returns
+a self-contained JSON descriptor and may use ordinary HTTP caching and entity
+tags. For example:
+
+```http
+GET /types/task HTTP/1.1
+Host: work.example
+Accept: application/json
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+ETag: "task-type-1"
+Link: <https://github.com/gastownhall/bdp/schemas/bdp-v0.schema.json#/$defs/typeDescriptor>; rel="describedby"; type="application/schema+json"
+```
+
+A Bead Type Descriptor contains the common Type members:
+
+```json
+{
+  "id": "https://work.example/types/task",
+  "name": "Task",
+  "description": "A unit of work that can be completed.",
+  "describes": "bead",
+  "conformsTo": [
+    "https://work.example/types/issue"
+  ],
+  "propertiesSchema": "https://work.example/schemas/task-properties-v1"
+}
+```
+
+A Link Type Descriptor is the same contract plus `source` and `target`
+endpoint constraints. This `assigned-to` Link Type accepts any Issue as its
+source and any Person as its target:
+
+```json
+{
+  "id": "https://work.example/types/assigned-to",
+  "name": "Assigned To",
+  "description": "Associates a work item with the person responsible for it.",
+  "describes": "link",
+  "conformsTo": [],
+  "propertiesSchema": "https://work.example/schemas/assigned-to-properties-v1",
+  "source": {
+    "conformsTo": [
+      "https://work.example/types/issue"
+    ]
+  },
+  "target": {
+    "conformsTo": [
+      "https://people.example/types/person"
+    ]
+  }
+}
+```
+
+The descriptor members have these meanings:
+
+- `id` is the absolute canonical Type ID used by Resources;
+- `name` is a required nonempty human-readable name and does not establish
+  identity;
+- `description` is optional human-readable documentation;
+- `describes` is exactly `bead` or `link` and must agree with every Resource
+  declaring the Type;
+- `conformsTo` contains the direct parent Type IDs, in no significant order,
+  and is always an array;
+- `propertiesSchema`, when present, is the absolute URL of a JSON Schema for
+  the Resource's `properties` object — not for its generic BDP record; and
+- for a Link Type, `source.conformsTo` and `target.conformsTo` list Types that
+  the corresponding in-Scope endpoint Bead must satisfy. Every listed Type is
+  required, and an empty list accepts any in-Scope Bead at that endpoint. An
+  out-of-Scope endpoint is opaque and is not checked against these lists; and
+- for a Bead Type, `ownsOutgoing`, when present, declares the outgoing
+  Link Types the Type owns: an object keyed by owned Link Type URL whose
+  values are `{ label?, max }`, under
+  [Owned Links](#owned-links). `max` is the required bound on
+  the owned set, and `label` is display documentation, like `name`: it
+  appears only in the descriptor and never in any Resource record. The
+  key MAY also be the wildcard `"*"`, whose value is exactly `{ max }`:
+  it owns every outgoing Link Type not named explicitly, its `max` bounds
+  the whole owned set, and explicit entries take precedence for the types
+  they name, under [Owned Links](#owned-links). A Link Type Descriptor
+  must not carry `ownsOutgoing`. An explicitly declared entry's `max`
+  MUST NOT exceed the wildcard's `max` in the same descriptor, since the
+  wildcard's `max` bounds the whole owned set: such a descriptor is
+  invalid and is not installed — a descriptor-validation rule beyond the
+  schema bundle, which cannot compare the two members — under
+  [Owned Links](#owned-links).
+
+Descriptor objects and endpoint-constraint objects are closed: no members are
+allowed except those defined above. An `ownsOutgoing` entry is closed the same
+way: `{ label?, max }` under a Link Type URL, `{ max }` under the wildcard.
+Type-ID arrays contain unique Type URLs and
+may be empty where this specification permits an unconstrained endpoint.
+
+The canonical `typeDescriptor` definition exists only in the single BDP v0
+schema bundle at `schemas/bdp-v0.schema.json#/$defs/typeDescriptor`. The
+specification prose above and that schema definition must remain aligned.
+This section therefore does not carry a second inline schema copy.
+
+#### Descriptor resolution and installation
+
+A client may dereference a Type ID directly using ordinary Web retrieval and
+caching. A BDP service SHOULD retain any descriptor it successfully resolves so
+globally shared and well-known Type IDs do not require repeated network access.
+This recommendation does not require a read-only service to resolve every Type
+that appears in data before it can return the Resource record.
+
+Every BDP properties schema uses JSON Schema 2020-12. An omitted `$schema` is
+interpreted as that dialect. A schema declaring another dialect is invalid for
+BDP v0. `$id`, `$ref`, anchors, and the declared vocabularies have their Draft
+2020-12 meanings.
 
 ### Resource records
 
@@ -1987,9 +1994,11 @@ complete capability is advertised. The shared conformance index records
 case identifiers and evidence requirements; profile tags select only Read
 obligations for a Read implementation.
 
-## Part II — Read+Update
+<a id="part-ii--readupdate"></a>
 
-Part II inherits Part I and adds single-operation atomic writes, aliases,
+## Part III — Read+Update
+
+Part III inherits the Data Model and Read and adds single-operation atomic writes, aliases,
 ordered non-atomic sequence and durable per-operation retry semantics. Each
 successful member commits independently. Every mutation applies to exactly
 one Scope. No later profile is needed to
@@ -3597,9 +3606,11 @@ sequence, alias, revision, idempotency, recovery, validation and HTTP
 obligations defined in this part. The shared conformance index records their
 case identifiers. Its later-profile rows add no requirement to Read+Update.
 
-## Part III — Transactional
+<a id="part-iii--transactional"></a>
 
-Part III inherits Parts I and II and adds atomic multi-operation mutation
+## Part IV — Transactional
+
+Part IV inherits the Data Model, Read and Read+Update and adds atomic multi-operation mutation
 and replication. It defines exposed history fences, durable receipts and
 complete committed change groups. The operation directory and singleton,
 sequence and error envelopes have the explicit Transactional forms defined

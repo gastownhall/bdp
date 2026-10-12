@@ -15,9 +15,10 @@ const sections: Record<string, number | undefined> = {
   "Status and conformance": 1,
   "Conformance profiles and reading guide": undefined,
   "The uniformity principle": 1,
-  "Part I — Read": 1,
-  "Part II — Read+Update": 2,
-  "Part III — Transactional": 3,
+  "Part I — Data Model": 1,
+  "Part II — Read": 1,
+  "Part III — Read+Update": 2,
+  "Part IV — Transactional": 3,
   "Conformance index and informative end matter": undefined,
 };
 const sharedAnchors: Record<string, number> = {
@@ -72,6 +73,19 @@ function assertProfileCitation(
   }
 }
 
+function assertProfileLinks(markdown: string): void {
+  const indexed = headingOwners(markdown);
+  const headings = markdownAnchors(markdown).filter((entry) => entry.title !== undefined);
+  for (const link of markdown.matchAll(/\[[^\]]*\]\((#[^)]+)\)/g)) {
+    const target = link[1] ?? "";
+    if (!indexed.has(target)) throw new Error(`Missing internal anchor: ${target}`);
+    const source = headings.findLast((heading) => heading.index < link.index);
+    const profile = source === undefined ? undefined : indexed.get(source.anchor)?.profile;
+    if (profile === 1) assertProfileCitation(target, "read", indexed);
+    if (profile === 2) assertProfileCitation(target, "read-update", indexed);
+  }
+}
+
 const owners = headingOwners(spec);
 const catalogs = [
   ...readdirSync(new URL("packages/conformance/catalog/", root))
@@ -96,8 +110,35 @@ describe("catalog citations respect cumulative profile boundaries", () => {
     ).not.toThrow();
   });
   it("uses rendered Part anchors without collapsing their spaces", () => {
+    expect(owners.get("#part-i--data-model")?.profile).toBe(1);
+    expect(owners.get("#part-ii--read")?.profile).toBe(1);
+    expect(owners.has("#part-ii-read")).toBe(false);
+  });
+  it("preserves the profile ownership of existing Part and model anchors", () => {
+    expect(owners.get("#bead-data-model")?.profile).toBe(1);
     expect(owners.get("#part-i--read")?.profile).toBe(1);
-    expect(owners.has("#part-i-read")).toBe(false);
+    expect(owners.get("#part-ii--readupdate")?.profile).toBe(2);
+    expect(owners.get("#part-iii--transactional")?.profile).toBe(3);
+    expect(() => assertProfileCitation("#part-ii--readupdate", "read")).toThrow("Later-profile");
+    expect(() => assertProfileCitation("#part-iii--transactional", "read-update")).toThrow(
+      "Later-profile",
+    );
+  });
+  it("resolves internal links without lower-profile forward dependencies", () => {
+    expect(() => assertProfileLinks(spec)).not.toThrow();
+    expect(() =>
+      assertProfileLinks(
+        spec.replace(
+          "### Authorization views",
+          "### Authorization views\n\nSee [batch](#batch-operation-target).",
+        ),
+      ),
+    ).toThrow("Later-profile anchor: #batch-operation-target");
+    expect(() =>
+      assertProfileLinks(
+        spec.replace("### Types", "### Types\n\nSee [writes](#part-ii--readupdate)."),
+      ),
+    ).toThrow("Later-profile anchor: #part-ii--readupdate");
   });
   it("owns explicit anchors in their containing profile", () => {
     expect(owners.get("#references")?.profile).toBe(1);
@@ -123,7 +164,7 @@ describe("catalog citations respect cumulative profile boundaries", () => {
   });
   it("does not let an explicit alias bypass a later Part's ownership", () => {
     const indexed = headingOwners(
-      '## Part I — Read\nRead.\n<a id="later"></a>\n\n## Part III — Transactional\nLater.',
+      '## Part II — Read\nRead.\n<a id="later"></a>\n\n## Part IV — Transactional\nLater.',
     );
     expect(() => assertProfileCitation("#later", "read", indexed)).toThrow("Later-profile");
     expect(() => assertProfileCitation("#later", "transactional", indexed)).not.toThrow();
@@ -162,7 +203,7 @@ describe("catalog citations respect cumulative profile boundaries", () => {
   });
   it("rejects duplicate explicit/generated anchor ownership instead of using the last owner", () => {
     const changed =
-      '## Part III — Transactional\n### Collision\nTX rule.\n## Part I — Read\n<a id="collision"></a>\nRead rule.';
+      '## Part IV — Transactional\n### Collision\nTX rule.\n## Part II — Read\n<a id="collision"></a>\nRead rule.';
     expect(() => headingOwners(changed)).toThrow("Ambiguous Markdown anchor");
     expect(() =>
       headingOwners(
