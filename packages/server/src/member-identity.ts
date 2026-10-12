@@ -429,8 +429,8 @@ export function prepareMemberExecution(
   if (!state) throw new TypeError("expected a normalized member identity");
   // S1's occurrences are operation-relative; create diagnostics name either
   // Resource object. Locations in each object's validation are relative to it.
-  // Update formatting remains the caller's existing responsibility pending its
-  // separate unapplied-patch-location convention. No store read or clock here.
+  // Property update formatting retains its existing caller convention; metadata
+  // updates identify the document without inventing an unapplied target. No I/O.
   let selectedBudget = budget;
   if (state.original.operation === "createBead" || state.original.operation === "createLink") {
     const { diagnostics, diagnosticBytes, diagnostic } = budget;
@@ -445,10 +445,38 @@ export function prepareMemberExecution(
           throw new TypeError("unexpected numeric position in admitted create operation");
         const { message, type, schemaLocation } = diagnostic(occurrence);
         return Object.freeze({
-          message,
-          ...(type !== undefined ? { type } : {}),
-          ...(schemaLocation !== undefined ? { schemaLocation } : {}),
+          message: object === "metadata" ? `metadata: ${message}` : message,
+          ...(object === "metadata" ? { document: "metadata" as const } : {}),
+          ...(object === "properties" && type !== undefined ? { type } : {}),
+          ...(object === "properties" && schemaLocation !== undefined ? { schemaLocation } : {}),
           instanceLocation: occurrence.pointer.slice(object.length + 1),
+        });
+      },
+    });
+  }
+  if (state.original.operation === "updateBead" || state.original.operation === "updateLink") {
+    const { diagnostics, diagnosticBytes, diagnostic } = budget;
+    selectedBudget = Object.freeze({
+      ...(diagnostics !== undefined ? { diagnostics } : {}),
+      ...(diagnosticBytes !== undefined ? { diagnosticBytes } : {}),
+      diagnostic: (occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
+        const formatted = diagnostic(occurrence);
+        if (!occurrence.pointer.startsWith("/metadataChange/")) {
+          // The caller still owns property update locations, but cannot relabel
+          // a properties value as a metadata diagnostic.
+          const { message, type, schemaLocation, instanceLocation } = formatted;
+          return {
+            message,
+            ...(type !== undefined ? { type } : {}),
+            ...(schemaLocation !== undefined ? { schemaLocation } : {}),
+            ...(instanceLocation !== undefined ? { instanceLocation } : {}),
+          };
+        }
+        // The patch has not been applied. An input value location (especially
+        // an array append) need not identify a position in the resulting document.
+        return Object.freeze({
+          message: `metadata: ${formatted.message}`,
+          document: "metadata" as const,
         });
       },
     });

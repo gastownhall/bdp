@@ -704,7 +704,7 @@
           "diagnostics": [
             {
               "instanceLocation": "",
-              "message": "resulting document must be an object"
+              "message": "resulting properties must be an object"
             }
           ]
         }
@@ -774,7 +774,8 @@
           "diagnostics": [
             {
               "instanceLocation": "",
-              "message": "resulting document must be an object"
+              "message": "resulting metadata must be an object",
+              "document": "metadata"
             }
           ]
         }

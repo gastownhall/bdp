@@ -2560,24 +2560,29 @@ The Read+Update rows mean:
   itself transient and fails with `idempotency-in-progress` instead.
 - `validation-failed`: the mutation is well-formed but its result is not
   admissible — the resulting `properties` violates an effective Type
-  contract or is not a JSON object, a `replace` or `remove` names a missing
-  target, an in-Scope endpoint fails an effective endpoint constraint or
+  contract, the resulting `properties` or `metadata` is not a JSON object,
+  a `replace` or `remove` names a missing target, an in-Scope endpoint fails an effective endpoint constraint or
   describes the wrong Resource category, or an out-of-Scope endpoint violates
   the Link Type's external-endpoint policy, or the source's resulting owned
   set would exceed the owning Type's declared `max`, or an alias put's
   `target` is not a canonical Bead reference — an alias, a Link, or an
   external URI — under [Alias targets](#alias-targets). The problem MUST
   carry `diagnostics`: a nonempty, bounded array of `{ type?, schemaLocation?,
-  instanceLocation?, message }` entries. When the failure is an effective
-  Type contract, every entry names the failing effective Type in `type` and
+  instanceLocation?, document?, message }` entries. When the failure is an
+  effective Type contract, every entry names the failing effective Type in `type` and
   the failed keyword in `schemaLocation` — the absolute keyword location,
   the contract schema's `$id` plus a JSON Pointer fragment, as JSON Schema
   output defines it; an owned-set overflow names the owning Bead Type and
   its descriptor's `ownsOutgoing` entry — and, when the failure lies within
   `properties`, `instanceLocation`, a JSON Pointer within `properties`. For
   every other cause `type` and `schemaLocation` are absent, `message` names
-  the cause, and `instanceLocation` locates it within `properties` when it
-  lies there; `type` and `schemaLocation` are present together or not at
+  the cause, and `instanceLocation`, when present, is a JSON Pointer relative
+  to the failing document. The optional `document` is `properties` or
+  `metadata`; omission means `properties`. A metadata failure MUST carry
+  `document: "metadata"`, and its message names metadata. An empty pointer
+  denotes that document's root. A numeric failure in an unapplied metadata
+  patch may omit `instanceLocation` rather than identify a position that does
+  not yet exist. `type` and `schemaLocation` are present together or not at
   all. `validation.diagnostics` and `validation.diagnosticBytes` bound the
   list: an authority that omits entries beyond a bound MUST advertise that
   bound, keeps at least one entry in evaluation order, and sets
