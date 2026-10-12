@@ -10,7 +10,16 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | Read-profile body client implements exact old Beads/Links and explicit versions paging; controlled HTTP walkthrough exercises the actual SDK. No History server/adapter realization, capability admission or executable History conformance evidence |
 
-The current common-provenance Read cohort was generated from
+The current Read cohort observes the final numeric diagnostic correction and
+final PR64 ancestry at source `cca16bbe67faebddc9be6644b6002eee70be4895`,
+committed with its matching capability constant at
+`c197096c475af70a631e39e026af71c1e60c8ec2`.
+The actual two-target run took 162.25 seconds and verifies 89 applicable rows,
+with 38 packaged and 11 self-certified case definitions. Eight optional
+variants remain explicitly uncovered. The full suite on that evidence successor
+passed 7,624 tests across 108 files, with one optional skip.
+
+The preceding common-provenance Read cohort was generated from
 `a68db90f995c1d3317c19acb0b6dcdf63cd21b0e` and committed with its matching
 capability constant at `c8c8c2d2ab14cd93b677a87c19903eff519a79c7`.
 The actual two-target run took 229.33 seconds and verifies 89 applicable rows,
