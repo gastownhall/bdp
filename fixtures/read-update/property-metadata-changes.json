@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "read-update-property-metadata-changes",
-  "description": "Illustrative Bead and unowned Link update exchanges: per-key JSON Patch add preserves other top-level members, root replacement drops them, {} clears both documents, equal replacements retain revisions and attribution, and a non-object result rejects the entire update. Prior records are narrated assumptions; not evidence.",
+  "description": "Illustrative Bead and unowned Link update exchanges: per-key JSON Patch add preserves other top-level members, root replacement drops them, {} clears both documents, equal replacements retain revisions and the entire prior revisionProvenance envelopes, and a non-object result rejects the entire update. Prior records are narrated assumptions; not evidence.",
   "scope": "https://beads.example/acme/",
   "exchanges": [
     {
