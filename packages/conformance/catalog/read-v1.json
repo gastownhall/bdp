@@ -594,7 +594,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "Every Bead and Link record MAY carry an **`attribution`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
+          "selectedText": "Every Bead and Link record MAY carry a **`revisionProvenance`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -617,7 +617,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "Every Bead and Link record MAY carry an **`attribution`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
+          "selectedText": "Every Bead and Link record MAY carry a **`revisionProvenance`** member: a\ncommon, generic member in a common place, so that no Type has to declare\nattribution as a domain property."
         },
         {
           "source": "docs/specs/bdp.md",

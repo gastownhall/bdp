@@ -339,7 +339,7 @@ records of their original passes.
 
 The `Types and Type Descriptors` inventory/wire block and its `Descriptor
 resolution and installation` subsection move to Read. `Effective Type contracts`
-and `Link endpoint constraints` remain beside `Types` in the shared model.
+and `Link endpoint constraints` remain nested under `Types` in the shared model.
 Every operative section body is unchanged. Only the reading guide and part/model
 introductions are revised. Existing Part anchors and `bead-data-model` resolve
 through explicit aliases; the four new Part headings have their own anchors.
@@ -360,7 +360,8 @@ Verification with Node 24.16.0 / pnpm 11.20.0:
 - `pnpm typecheck`, `pnpm check:boundaries`, `pnpm format:check` and
   `git diff --check`: passed.
 - A section-body audit against the base preserves all 137 operative section
-  bodies byte-for-byte after removing added standalone anchor lines. All 144
+  bodies byte-for-byte after removing added standalone anchor lines and their
+  insertion-only blank lines. All 144
   prior anchors remain; there are 148 anchors and 171 resolving internal links.
 - All tables, conformance end matter and capitalized requirement-word counts
   remain unchanged. Runtime, schema, fixture, catalog and historical evidence
@@ -370,5 +371,38 @@ Verification with Node 24.16.0 / pnpm 11.20.0:
 The separate revision-provenance work still owns the carried-attribution and
 History metadata definitions. Integration must preserve that worker's revised
 bodies in the shared model and optional History section respectively; this pass
-changes neither envelope. Logs and the mechanical preservation audit are stored
-outside the checkout under `/tmp/bdp-four-part-*`.
+changes neither envelope. These counts describe the original96ffc56 pass, not the later provenance
+integration. Its audit and logs are archived outside the checkout under
+`/Users/dbox/repos/wt/vickie/bdp-integration-logs/four-part-editorial/`;
+that machine-local evidence is not a repository-distributed reproduction tool.
+
+
+## Provenance and four-part integration follow-up
+
+Scratch source is96ffc56 (four-part layout overcd22ac3); operative provenance
+changes are fromd7fccb4, plus the owned-Link metadata Event-fold correction
+c1712f2. The combined spec retains current clauses and profile-local History
+ownership. Read need not advertise History or provide an actor, timestamp or
+provenance envelope. A minted version carries one revisionProvenance envelope;
+History's committedAt/agent/message group remains all-or-none independently
+of actor. No-op keeps the entire existing envelope. Old wire shapes are rejected.
+
+The data-model introduction explicitly distinguishes shared state constraints
+from Read representation definitions. The reading guide deliberately describes
+backwards dependencies between profiles; Data Model is shared, not a profile.
+An additional part-order link check protects the model-to-Read boundary without
+an allow-list; the History link now lives in Resource records. The model anchor
+is bounded to its introduction, and nested Type headings remain explicitly
+described as children. Catalog IDs, profile ownership and obligations are
+preserved while selectedText follows the revised operative clauses.
+
+Scratch validation (Node24.16.0 / pnpm11.20.0): six focused catalog/profile/HTTP
+files passed219 tests; typecheck, dependency boundaries, format and diff checks
+passed. The final audit retains142 heading sections and all148 prior anchors;
+172 internal links resolve. Of142 normalized section bodies,112 are unchanged
+from96ffc56;30 change for the listed provenance, metadata-fold and editorial
+corrections. All744 spec citations (768 total) in seven catalogs remain valid.
+Catalog changes are selectedText only: IDs, profile tags, anchors, requirement
+counts and other metadata are identical. This scratch branch does not integrate
+runtime/schema changes; combined runtime/example/evidence checks belong to the
+integration worker and these checks do not constitute qualification.

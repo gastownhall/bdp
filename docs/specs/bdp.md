@@ -12,7 +12,7 @@ review and after validation against real implementations.
 
 ## Status and conformance
 
-The entire document is a single draft with one status. Its Bead Data Model,
+The entire document is a single draft with one status. Its Data Model,
 JSON representations, HTTP interface, Event model, examples, and schemas are
 all under review together, and all of them are intended to become normative.
 Until the draft is adopted, it is not a conformance target. The requirement
@@ -91,9 +91,9 @@ Part III adds Read+Update, and Part IV adds Transactional. The Data Model
 is common to every profile; it is not a separately advertised profile. Each
 profile part defines its operation semantics, HTTP surface, errors and
 conformance obligations. A later part may strengthen an inherited contract
-or change a response envelope only where it says so explicitly. A lower profile
-does not depend on a higher profile's definitions. The profile overview here is a
-navigation guide, not an additional source of requirements.
+or change a response envelope only where it says so explicitly. A lower
+profile does not depend on a higher profile's definitions. The profile
+overview here is a navigation guide, not an additional source of requirements.
 
 The Read profile exposes no BDP mutation target. It also does not inherit
 transaction, receipt, snapshot, changefeed, or replication obligations merely
@@ -209,15 +209,17 @@ model does not restrict the underlying implementation. An implementation
 might use file directories, relational or non-relational databases, or
 repositories.
 
-<a id="bead-data-model"></a>
-
 ## Part I — Data Model
+
+<a id="bead-data-model"></a>
 
 The shared data model defines the state a generic client can observe: Scope
 and Resource identity, typed Beads and Links, properties and metadata, opaque
 revisions and References. Every protocol profile uses this model. Its
 representations do not require clients to understand how a store creates or
-changes that state. State may originate from any store.
+changes that state. State may originate from any store. The shared model names
+Read-profile wire members where it constrains them; Part II defines their
+representations and retrieval.
 
 ### Scopes and identity
 
@@ -300,7 +302,7 @@ Bead {
   type: BeadTypeId
   properties: JsonObject
   metadata: JsonObject  // common, Type-independent; {} when empty
-  attribution?  // carried per version; data, not evidence
+  revisionProvenance?  // carried per version; data, not evidence
   ownedLinks?   // owned-Links plane; owning Types only
 }
 ```
@@ -316,7 +318,7 @@ Link {
   target: Reference
   properties: JsonObject
   metadata: JsonObject  // common, Type-independent; {} when empty
-  attribution?  // carried per version; data, not evidence
+  revisionProvenance?  // carried per version; data, not evidence
 }
 ```
 
@@ -626,8 +628,8 @@ never dereferences it to find out. A reference remains a claim about the
 time it was written.
 
 Maximum endpoint multiplicity is different: it is a Scope-owned aggregate
-policy, because checking it means inspecting other Links. The data-model
-section defines its semantics and the optional discovery representation.
+policy, because checking it means inspecting other Links. [Scope aggregate constraints](#scope-aggregate-constraints) defines its
+semantics and the optional discovery representation.
 
 The descriptor deliberately does not restate generic BDP operations. The BDP
 project MAY publish one generated
@@ -737,50 +739,56 @@ the existing revision laws.
 
 ### Actor attribution
 
-[Immutable change context](#immutable-change-context) adds capability-scoped
-metadata beside carried attribution; neither envelope is an authentication claim.
-
-BDP v0 does not expose an authority-attested actor in Resource records. The authenticated principal is
-an input to authorization, not protocol data. An implementation may retain
-private audit records, and a domain Type may define ordinary actor-related
-properties. But neither is a generic BDP attribution guarantee — and
-neither is the carried `attribution` member defined next.
-Standardizing principal identity, delegation, impersonation, privacy, and
-attestation is deferred.
+BDP v0 does not expose an authority-attested actor in Resource records. The
+authenticated principal is an input to authorization, not protocol data. An
+implementation may retain private audit records, and a domain Type may define
+ordinary actor-related properties. But neither is a generic BDP attribution
+guarantee — and neither is the carried `revisionProvenance` member defined
+next. Standardizing principal identity, delegation, impersonation, privacy,
+and attestation is deferred.
 
 ### Carried attribution
 
-Every Bead and Link record MAY carry an **`attribution`** member: a
+Every Bead and Link record MAY carry a **`revisionProvenance`** member: a
 common, generic member in a common place, so that no Type has to declare
-attribution as a domain property. It is **data, not evidence**: the
-protocol transports it and attests nothing, and a generic client MUST NOT
-treat any value of it as an authority claim about who acted. A future
-authority-attested form, if one arrives, is a distinct member with a
-distinct name; `attribution` never becomes it.
+attribution as a domain property. It is **data, not evidence**: the protocol
+transports it and attests nothing, and a generic client MUST NOT treat any
+value of it as an authority claim about who acted. A future
+authority-attested form, if one arrives, is a distinct member with a distinct
+name; `revisionProvenance` never becomes it.
 
 ```text
-Attribution {
-  principal   // nonempty opaque string naming who the version is attributed to
-  basis       // "writer-supplied" | "unknown"
+RevisionProvenance {
+  actor?: {
+    id        // nonempty opaque string naming who the version is attributed to
+    basis     // "writer-supplied" | "unknown"
+  }
+  committedAt? // optional version time value state
+  agent?       // optional agent value state
+  message?     // optional message value state
 }
 ```
 
-`basis` records the realization's basis for the value, not a BDP
-guarantee, and v0 defines exactly two: `writer-supplied` — the principal was
-supplied by the writer of that version, as written; `unknown` — the
-principal is carried from data whose relationship to this version the
-realization cannot establish (an imported record; a creator recorded
-where the writer of the current version was not). There is deliberately
-no basis that asserts authentication: a value meaning "the authority
-verified this principal" would be an authority claim, which this member
-never carries — that vocabulary belongs to the future attested member. If `attribution` is present, both `principal` and `basis` are required; absent `attribution` means no principal was recorded, while absent `basis` inside a present attribution is invalid.
-Attribution is immutable for the version it accompanies. It is outside
-`properties`, never part of the `properties` view.
-The member is absent when no attribution was
-recorded. Principal identifiers SHOULD be namespaced opaque strings — for
-example `agent:…`, `human:…`, `svc:…` — so agents, humans, and service
-accounts coexist without a global identity system; BDP mandates no
-namespace and compares principals only for byte equality.
+`basis` records the realization's basis for the value, not a BDP guarantee,
+and v0 defines exactly two: `writer-supplied` — the principal was supplied by
+the writer of that version, as written; `unknown` — the principal is carried
+from data whose relationship to this version the realization cannot establish
+(an imported record; a creator recorded where the writer of the current
+version was not). There is deliberately no basis that asserts authentication:
+a value meaning "the authority verified this principal" would be an authority
+claim, which this member never carries — that vocabulary belongs to the
+future attested member. If `revisionProvenance.actor` is present, both `id`
+and `basis` are required. An absent actor means no actor was recorded; time
+or other provenance fields do not imply an actor. Missing `basis` inside a
+present actor is invalid. The former top-level `attribution` and
+`changeContext` shapes are not accepted aliases. Attribution is immutable for
+the version it accompanies. It is outside `properties`, never part of the
+`properties` view. The actor is absent when no attribution was recorded; the
+envelope is absent when no revision provenance was recorded. Principal
+identifiers SHOULD be namespaced opaque strings — for example `agent:…`,
+`human:…`, `svc:…` — so agents, humans, and service accounts coexist without
+a global identity system; BDP mandates no namespace and compares principals
+only for byte equality.
 
 <a id="part-i--read"></a>
 
@@ -1245,7 +1253,7 @@ A Bead record is:
   "id": "https://beads.example/acme/beads/task-42",
   "type": "https://work.example/types/task",
   "revision": "opaque-task-revision",
-  "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
+  "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } },
   "properties": {
     "title": "Specify BDP mutation",
     "status": "open"
@@ -1270,31 +1278,33 @@ A Link record is:
 }
 ```
 
-`id` and `type` are always absolute canonical URLs in responses. A Bead
-whose Type owns outgoing Link Types additionally carries its `ownedLinks`
-member — one entry per owned Link Type present on the Bead and one,
-possibly empty, per explicitly declared Link Type, keyed by the Link
-Type URL and never by the wildcard `"*"`, valued by the owned Links'
-complete records in ascending code-unit order of their canonical `id`s
-— on every record read; the member is absent for Beads whose Type owns
-nothing. Link
-`source` and `target` are References as defined under
-[Beads and Links](#beads-and-links): an in-Scope endpoint's `uri` is the
-Bead's absolute canonical URL, an out-of-Scope endpoint's `uri` is its
-opaque absolute URI, and either may be a Pinned Reference. `revision` is protocol metadata rather than mutable Bead or Link
-state, and so is `attribution`: when present it is the per-version carried
-attribution defined under [Carried attribution](#carried-attribution),
-beside `revision` and outside `properties`. Common `metadata` is a mutable,
+`id` and `type` are always absolute canonical URLs in responses. A Bead whose
+Type owns outgoing Link Types additionally carries its `ownedLinks` member —
+one entry per owned Link Type present on the Bead and one, possibly empty,
+per explicitly declared Link Type, keyed by the Link Type URL and never by
+the wildcard `"*"`, valued by the owned Links' complete records in ascending
+code-unit order of their canonical `id`s — on every record read; the member
+is absent for Beads whose Type owns nothing. Link `source` and `target` are
+References as defined under [Beads and Links](#beads-and-links): an in-Scope
+endpoint's `uri` is the Bead's absolute canonical URL, an out-of-Scope
+endpoint's `uri` is its opaque absolute URI, and either may be a Pinned
+Reference. `revision` is protocol metadata rather than mutable Bead or Link
+state, and so is `revisionProvenance`: when present it is the per-version
+carried attribution defined under [Carried
+attribution](#carried-attribution), beside `revision` and outside
+`properties`. [Immutable change context](#immutable-change-context) defines
+the optional History time, agent and message fields in that same envelope;
+none authenticates the actor. Common `metadata` is a mutable,
 Type-independent JSON object on both Resource kinds. It is distinct from
-Type-validated `properties` and from per-version `attribution` and
-`changeContext`. Successful reads always expose `metadata`: `{}` means no
-members are set. A retained pre-metadata version that lacks the member is
-projected with `metadata: {}` on reads without rewriting stored bytes or
-minting a revision; a later metadata update starts from that empty object.
-`id`, `type`, `revision`, and, for Links, `source` and `target` are
-returned on every successful read. That does not mean they are accepted as
-update targets. An implementation may store local identifiers internally.
-That choice does not alter the response spelling.
+Type-validated `properties` and from per-version `revisionProvenance`.
+Successful reads always expose `metadata`: `{}` means no members are set. A
+retained pre-metadata version that lacks the member is projected with
+`metadata: {}` on reads without rewriting stored bytes or minting a revision;
+a later metadata update starts from that empty object. `id`, `type`,
+`revision`, and, for Links, `source` and `target` are returned on every
+successful read. That does not mean they are accepted as update targets. An
+implementation may store local identifiers internally. That choice does not
+alter the response spelling.
 
 A pinned endpoint is represented the same way for both reference classes.
 For example, pinning an external target:
@@ -1618,24 +1628,29 @@ GET {resource}?view=versions[&limit={count}][&cursor={cursor}]
 
 #### Immutable change context
 
-`changeContext` is a distinct immutable
-version envelope, separate from `attribution` and `properties`. The responsible
-actor remains the existing carried attribution, including truthful absence and
-`basis: writer-supplied|unknown`; context never supplies a competing actor or authentication/
-authorization claim. Shared record schemas permit absent context for legacy and
-non-History versions. Native versions under advertised History MUST carry context
-on current/historical complete record reads and retained history rows.
-No context is synthesized on deleted identities, aliases, References or
-properties views. These metadata requirements do not establish full Memory
+`revisionProvenance` is the single immutable version envelope outside
+`properties` and common `metadata`. Its optional `actor` is the carried
+attribution defined above, including truthful absence and
+`writer-supplied|unknown`; grouping the fields does not authenticate the
+actor. Read does not require History, a timestamp, an actor, or this
+envelope. Shared schemas permit absent provenance and actor-only provenance
+for legacy and non-History versions.
+
+Native versions under advertised History MUST carry `committedAt`, `agent`, and
+`message` in this envelope on current/historical complete record reads and retained
+history rows. No provenance is synthesized on deleted identities, aliases,
+References or properties views. These requirements do not establish full Memory
 compatibility.
 
-The closed envelope has `committedAt`, `agent`, and `message`. `committedAt` is
-`{ "state": "present", "value": <RFC 3339 date-time> }` or
+The closed envelope permits only `actor`, `committedAt`, `agent`, and `message`.
+The last three fields are an all-or-none group, independently of actor presence.
+`committedAt` is `{ "state": "present", "value": <RFC 3339 date-time> }` or
 `{ "state": "undetermined" }`. Agent and message are each a closed
-`{ "state": "present", "value": <string> }` or
-`{ "state": "absent" }` or `{ "state": "undetermined" }`; a present agent
-identity is nonempty, while an intentionally empty message is valid. Absence,
-uncertainty and a recorded value are distinct; never fabricate legacy metadata.
+`{ "state": "present", "value": <string> }` or `{ "state": "absent" }` or
+`{ "state": "undetermined" }`; a present agent identity is nonempty, while an
+intentionally empty message is valid. Absence, uncertainty and a recorded value
+are distinct; never fabricate legacy metadata. Sources, source completeness,
+Activity records and terminal deletion versions are not introduced here.
 
 #### Historical authorization
 
@@ -1759,16 +1774,17 @@ applicable maximum follows the existing `limit-exceeded` rule. Limits bound
 pages, never retention. Continuations are absolute same-subject URLs carrying
 `view=versions` and `cursor`, with any applicable `limit` preserved.
 
-The page contains `subject` (the canonical Resource URL), `population` fixed to
-`all-retained`, `participation` (`tracked`, `not-tracked`, or `undetermined`),
-`window`, `items`, and `next` (an absolute continuation URL or null). Each row
-contains opaque `revision`, `lineage` (`current` or `replaced`), stored `body`
-state (`complete` or `incomplete`), and the actual retained `attribution` and
-`changeContext` when recorded. Rows contain no properties, owned payload, timestamp-
-order claim or protocol position. Metadata absence is truthful legacy absence,
-not redaction of known metadata into unknown. Authorize the subject-history
-surface and every whole row's revision, attribution and context before including
-it; otherwise omit that row. Row permission grants no Resource body permission.
+The page contains `subject` (the canonical Resource URL), `population` fixed
+to `all-retained`, `participation` (`tracked`, `not-tracked`, or
+`undetermined`), `window`, `items`, and `next` (an absolute continuation URL
+or null). Each row contains opaque `revision`, `lineage` (`current` or
+`replaced`), stored `body` state (`complete` or `incomplete`), and the actual
+retained `revisionProvenance` when recorded. Rows contain no properties,
+owned payload, timestamp- order claim or protocol position. Metadata absence
+is truthful legacy absence, not redaction of known metadata into unknown.
+Authorize the subject-history surface and every whole row's revision,
+attribution and context before including it; otherwise omit that row. Row
+permission grants no Resource body permission.
 
 `window` contains `newest` and `oldest` revision bounds (both null for an empty
 window) and `complete`. Bounds refer to the selected enumeration snapshot, not
@@ -1998,10 +2014,10 @@ obligations for a Read implementation.
 
 ## Part III — Read+Update
 
-Part III inherits the Data Model and Read and adds single-operation atomic writes, aliases,
-ordered non-atomic sequence and durable per-operation retry semantics. Each
-successful member commits independently. Every mutation applies to exactly
-one Scope. No later profile is needed to
+Part III inherits the Data Model and the Read profile, adding
+single-operation atomic writes, aliases, ordered non-atomic sequence and durable
+per-operation retry semantics. Each successful member commits independently.
+Every mutation applies to exactly one Scope. No later profile is needed to
 interpret a request, result or failure in this part.
 
 ### Read+Update discovery
@@ -2161,18 +2177,18 @@ specific identity information is disclosed by the allocation problem.
 BDP v0 does not expose an authority-attested actor in mutation results.
 
 Attribution is **per version**: it is supplied with a write (the
-`attribution` input on every version-minting operation — creating,
-updating, and an owned-Link deletion that mints the source's
-fresh version), immutable for the version it accompanies, and a later
-version may carry different attribution. An operation that mints more than
-one version records its one attribution on every version it mints:
-creating or updating an owned
+`revisionProvenance` input on every version-minting operation — creating,
+updating, and an owned-Link deletion that mints the source's fresh version),
+immutable for the version it accompanies, and a later version may carry
+different attribution. An operation that mints more than one version records
+its one attribution on every version it mints: creating or updating an owned
 Link versions both the Link and its source, and both carry it; deleting an
-owned Link mints no Link version (deletion never does) and versions only
-the source, which carries it. It is outside `properties`, never part of
-the `properties` view, and takes no part in the semantic no-op
-comparison: a write whose `properties` and common `metadata` changes are both no-ops mints no revision and
-records no attribution.
+owned Link mints no Link version (deletion never does) and versions only the
+source, which carries it. It is outside `properties`, never part of the
+`properties` view, and takes no part in the semantic no-op comparison: a
+write whose `properties` and common `metadata` changes are both no-ops mints
+no revision and records no new provenance and retains the existing version’s
+entire envelope.
 
 ### Property changes
 
@@ -2253,7 +2269,7 @@ are defined under [Revisions](#revisions).
   type,
   properties = {},
   metadata = {},
-  attribution?
+  revisionProvenance?
 ) -> BeadState
 ```
 
@@ -2267,7 +2283,7 @@ UpdateBead(
   propertiesChange?,
   metadataChange?,  // at least one change array is required
   expectedRevision?,
-  attribution?
+  revisionProvenance?
 ) -> BeadState
 ```
 
@@ -2295,7 +2311,7 @@ add a Link before the Bead deletion is reached, causing that member to fail.
   target,
   properties = {},
   metadata = {},
-  attribution?
+  revisionProvenance?
 ) -> LinkState
 ```
 
@@ -2312,7 +2328,7 @@ UpdateLink(
   propertiesChange?,
   metadataChange?,  // at least one change array is required
   expectedRevision?,
-  attribution?
+  revisionProvenance?
 ) -> LinkState
 ```
 
@@ -2320,7 +2336,7 @@ UpdateLink(
 DeleteLink(
   link,
   expectedRevision?,
-  attribution?   // recorded on the owning source's fresh version, if any
+  revisionProvenance?   // recorded on the owning source's fresh version, if any
 ) -> DeletionResult
 ```
 
@@ -2487,10 +2503,11 @@ The singleton target for an operation accepts the corresponding record with
 `operation`, and a sequence supplies the meaning of `name`. Thus sequence and
 singleton request bodies share one field vocabulary.
 
-When History is advertised, version-minting operation inputs also accept the
-operation-local `changeContext` member, under
-[History context on mutation results](#history-context-on-mutation-results).
-It is never a carrier-wide override.
+Version-minting operation inputs accept the operation-local
+`revisionProvenance` member; History adds agent/message recording
+requirements under [History context on mutation
+results](#history-context-on-mutation-results). It is never a carrier-wide
+override.
 
 ### JSON mutation admission
 
@@ -2678,8 +2695,9 @@ claim about those checks.
 Omission of a mutation bound does not permit partial mutation, silent
 truncation or a non-normative failure response.
 
-- `patch.operations`, `patch.pathBytes`, and `patch.pathDepth` bound one
-  property patch;
+- `patch.operations` bounds the combined operation count of `propertiesChange`
+  and `metadataChange` in one Resource update; `patch.pathBytes` and
+  `patch.pathDepth` bound each path in either patch;
 - `sequence.operations` bounds members in one Read+Update sequence;
 - `validation.diagnostics` counts entries in, and `validation.diagnosticBytes`
   counts UTF-8 bytes of, the serialized `diagnostics` list a
@@ -2779,7 +2797,7 @@ plus one required `idempotencyKey`:
         "title": "Adopt sequence envelopes",
         "status": "proposed"
       },
-      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
+      "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } }
     },
     {
       "idempotencyKey": "w1-adr-cite",
@@ -2791,7 +2809,7 @@ plus one required `idempotencyKey`:
         "revision": "8f0e2b"
       },
       "properties": {},
-      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
+      "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } }
     },
     {
       "idempotencyKey": "w1-task-42-close",
@@ -2805,7 +2823,7 @@ plus one required `idempotencyKey`:
           "value": "closed"
         }
       ],
-      "attribution": { "principal": "agent:planner", "basis": "writer-supplied" }
+      "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } }
     }
   ]
 }
@@ -2877,36 +2895,34 @@ MutationResult {
 ```
 
 `created` and `updated` carry `resource`, the complete Resource record as a
-`GET` of its URL would now return it: `id`, `type`, `revision`, the
-version's `attribution` when one was recorded, `properties`, and, for a
-Bead whose Type owns outgoing Link Types, `ownedLinks`. A semantic no-op
-update, defined under [Mutation revisions and guards](#mutation-revisions-and-guards), succeeds with outcome
-`updated` and the retained revision. `deleted` carries `deleted`, the
-identity record of the removed Resource, and no Resource record:
-`resourceKind`, `bead` or `link`, and `resource`, holding the absolute
-canonical `id`, the immutable `type`, and `revision`, the Resource's final
-live revision. Deletion mints no version: the identity's `revision` is the
-revision the Resource had when it was deleted, never a newly minted one,
-The bundle defines
-the identity record as `deletedIdentity`, over `resourceKind` and
-`resourceIdentity`. When the mutated Link's type is owned by its source
-Bead's declared Type, the result additionally carries `source`, the source
-Bead's absolute canonical URL, and `sourceRevision`, the source Bead's
-resulting revision, on creation, update, and deletion alike; a deletion
-returns the Link's identity and no Link record, so `source` is the only
-member that names the source Bead whose revision `sourceRevision` reports.
-On a semantic no-op update
+`GET` of its URL would now return it: `id`, `type`, `revision`, the version's
+`revisionProvenance` when one was recorded, `properties`, and, for a Bead
+whose Type owns outgoing Link Types, `ownedLinks`. A semantic no-op update,
+defined under [Mutation revisions and
+guards](#mutation-revisions-and-guards), succeeds with outcome `updated` and
+the retained revision. `deleted` carries `deleted`, the identity record of
+the removed Resource, and no Resource record: `resourceKind`, `bead` or
+`link`, and `resource`, holding the absolute canonical `id`, the immutable
+`type`, and `revision`, the Resource's final live revision. Deletion mints no
+version: the identity's `revision` is the revision the Resource had when it
+was deleted, never a newly minted one, The bundle defines the identity record
+as `deletedIdentity`, over `resourceKind` and `resourceIdentity`. When the
+mutated Link's type is owned by its source Bead's declared Type, the result
+additionally carries `source`, the source Bead's absolute canonical URL, and
+`sourceRevision`, the source Bead's resulting revision, on creation, update,
+and deletion alike; a deletion returns the Link's identity and no Link
+record, so `source` is the only member that names the source Bead whose
+revision `sourceRevision` reports. On a semantic no-op update
 `sourceRevision` is the source's unchanged current revision. The source's
-full postimage is available at its own URL. `source` and `sourceRevision`
-are absent from every other result, and each is present exactly when the
-other is. That is the only secondary revision any result reports: putting
-or deleting an alias mints no version and moves no revision — the target
-Bead's revision is unchanged by alias mutation, and the alias result
-defined under [Alias targets](#alias-targets) carries none. A result is
-closed. The bundle defines
-`mutationResult`; a singleton target returns it as the body of a `200 OK`
-response, under
-[Operation Directory and singleton targets](#operation-directory-and-singleton-targets).
+full postimage is available at its own URL. `source` and `sourceRevision` are
+absent from every other result, and each is present exactly when the other
+is. That is the only secondary revision any result reports: putting or
+deleting an alias mints no version and moves no revision — the target Bead's
+revision is unchanged by alias mutation, and the alias result defined under
+[Alias targets](#alias-targets) carries none. A result is closed. The bundle
+defines `mutationResult`; a singleton target returns it as the body of a `200
+OK` response, under [Operation Directory and singleton
+targets](#operation-directory-and-singleton-targets).
 
 #### Alias targets
 
@@ -2922,14 +2938,14 @@ A **put** creates an alias or repoints an existing one to exactly one
 canonical in-Scope Bead URL; repointing is the same operation, not a second
 one. Its record carries `alias`, the alias named by its local spelling
 `alias/{alias-path}` or by its absolute alias URL, and `target`, one
-canonical in-Scope Bead reference — a durable local ID, an absolute
-canonical Bead URL, or, in a sequence, a `@name` bound by an earlier
-creation of a Bead in the same sequence. A **delete** removes the alias;
-its record carries `alias` alone, and the path is reusable afterwards, as
-[Aliases](#aliases) says. Neither record carries `expectedRevision`, since
-an alias has no revision, nor `attribution`, since attribution is per
-version and alias mutation mints none; neither binds a `name`, since
-neither creates a Resource.
+canonical in-Scope Bead reference — a durable local ID, an absolute canonical
+Bead URL, or, in a sequence, a `@name` bound by an earlier creation of a Bead
+in the same sequence. A **delete** removes the alias; its record carries
+`alias` alone, and the path is reusable afterwards, as [Aliases](#aliases)
+says. Neither record carries `expectedRevision`, since an alias has no
+revision, nor `revisionProvenance`, since attribution is per version and
+alias mutation mints none; neither binds a `name`, since neither creates a
+Resource.
 
 ```json
 {
@@ -3076,7 +3092,7 @@ An entry is the member's mutation result, its alias result under
         "id": "https://beads.example/acme/beads/adr-104",
         "type": "https://work.example/types/decision",
         "revision": "opaque-adr-revision-1",
-        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
+        "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } },
         "properties": {
           "title": "Adopt sequence envelopes",
           "status": "proposed"
@@ -3093,7 +3109,7 @@ An entry is the member's mutation result, its alias result under
         "id": "https://beads.example/acme/links/cites-105",
         "type": "https://work.example/types/cites",
         "revision": "opaque-cites-revision-1",
-        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
+        "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } },
         "source": "https://beads.example/acme/beads/adr-104",
         "target": {
           "uri": "https://github.example/issues/123",
@@ -3159,24 +3175,25 @@ the field or carries it more than once: the authority rejects a repeated
 mints keys; the authority never allocates, normalizes, or case-folds them,
 and compares them byte-exactly.
 
-A key identifies one semantic mutation within one **idempotency
-namespace**: the pair of the canonical Scope URL and the authenticated
-principal, an anonymous principal counting as one principal. The
-authenticated principal is the identity authentication established for the
-request, as the authority identifies it across restart, failover, and
-credential rotation; it is not the carried `attribution.principal`, which is
-data under [Carried attribution](#carried-attribution) and takes no part in
-the namespace. Keys presented by other principals, in other Scopes, or to
-other authorities are unrelated. Anonymous principals share one namespace,
-so an authority that admits anonymous mutation exposes every anonymous key
-to every anonymous client: such an authority SHOULD require authentication
-for mutation, and an anonymous client SHOULD mint unguessable keys. Authorization View changes do not create a new
-namespace: the principal-bound disposition remains retained and cannot
-execute again, though its disclosure is re-authorized on every replay under
-[Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions).
-The namespace is shared by every mutation carrier in the profile: a
-sequence member and a singleton request that present the same key in the
-same namespace present the same key.
+A key identifies one semantic mutation within one **idempotency namespace**:
+the pair of the canonical Scope URL and the authenticated principal, an
+anonymous principal counting as one principal. The authenticated principal is
+the identity authentication established for the request, as the authority
+identifies it across restart, failover, and credential rotation; it is not
+the carried `revisionProvenance.actor.id`, which is data under [Carried
+attribution](#carried-attribution) and takes no part in the namespace. Keys
+presented by other principals, in other Scopes, or to other authorities are
+unrelated. Anonymous principals share one namespace, so an authority that
+admits anonymous mutation exposes every anonymous key to every anonymous
+client: such an authority SHOULD require authentication for mutation, and an
+anonymous client SHOULD mint unguessable keys. Authorization View changes do
+not create a new namespace: the principal-bound disposition remains retained
+and cannot execute again, though its disclosure is re-authorized on every
+replay under [Duplicate keys and retained
+dispositions](#duplicate-keys-and-retained-dispositions). The namespace is
+shared by every mutation carrier in the profile: a sequence member and a
+singleton request that present the same key in the same namespace present the
+same key.
 
 The **semantic identity** of a member is its operation kind — from
 `operation`, or from the singleton target — plus its normalized operation
@@ -3185,43 +3202,41 @@ references, resolves each `@name` reference to the identity its creating
 member bound — taken from that member's fresh, retained, or expired
 disposition, never from the spelling — expands creation defaults so omitted
 `properties` and omitted common `metadata` each compare as `{}`, preserves
-the order of each change array and every other
-array, ignores JSON object member order, and excludes `idempotencyKey` and
-`name`, and compares the normalized records under the JSON value-equality
-rules of RFC 6902 Section 4.6. A reference that resolves to no identity
-because its creating member failed and allocated none is normalized to one
-distinguished unbound marker rather than to its spelling, so renaming a
-label never changes an identity. A transient creator yields
-no identity to compare: the dependent member is answered transiently before
-any comparison, under
-[Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions).
-Opaque external URIs and Pinned References are compared byte-exactly as
-written, a pinned `uri` spelled by `@name` or by alias having first
-resolved as the bare spelling does;
-`expectedRevision` and `attribution` are members of the record and
-therefore of its identity. The authority MUST retain the original alias
-locators and their canonical targets or recorded misses with the member’s
-disposition and in any successful tombstone. An alias locator recorded with
-the original member retains its recorded
-canonical Bead target or recorded miss on retry, including equivalent
-canonical spellings of that locator and its use in another reference slot.
-A repoint or deletion therefore changes no identity for that locator. A
-previously unrecorded alias locator is resolved in the current retry member
-turn through a store lookup, without filtering the alias by the principal’s
-Authorization View. Its canonical Bead target participates only in comparison
-with the original identity; retained-Resource disclosure still requires current
-authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias
-resolution. A missing alias has unresolved identity specific to its canonical
-locator: two distinct missing locators are not equal merely because both
-miss, and this identity differs from the failed-creator unbound marker.
-An originally recorded miss remains a miss even if that alias is later
-assigned. Retry-time witnesses are transient comparison input: they change
-neither the original retained metadata and disposition nor a successful
-tombstone's identity, creator binding or retention. Each retry resolves an
-originally unrecorded locator anew.
-The authority may store the normalized
-record or an internal fingerprint; BDP does not require a public
-request-hash algorithm.
+the order of each change array and every other array, ignores JSON object
+member order, and excludes `idempotencyKey` and `name`, and compares the
+normalized records under the JSON value-equality rules of RFC 6902 Section
+4.6. A reference that resolves to no identity because its creating member
+failed and allocated none is normalized to one distinguished unbound marker
+rather than to its spelling, so renaming a label never changes an identity. A
+transient creator yields no identity to compare: the dependent member is
+answered transiently before any comparison, under [Duplicate keys and
+retained dispositions](#duplicate-keys-and-retained-dispositions). Opaque
+external URIs and Pinned References are compared byte-exactly as written, a
+pinned `uri` spelled by `@name` or by alias having first resolved as the bare
+spelling does; `expectedRevision` and `revisionProvenance` are members of the
+record and therefore of its identity. The authority MUST retain the original
+alias locators and their canonical targets or recorded misses with the
+member’s disposition and in any successful tombstone. An alias locator
+recorded with the original member retains its recorded canonical Bead target
+or recorded miss on retry, including equivalent canonical spellings of that
+locator and its use in another reference slot. A repoint or deletion
+therefore changes no identity for that locator. A previously unrecorded alias
+locator is resolved in the current retry member turn through a store lookup,
+without filtering the alias by the principal’s Authorization View. Its
+canonical Bead target participates only in comparison with the original
+identity; retained-Resource disclosure still requires current authorization
+under [Duplicate keys and retained
+dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical
+reference compares without alias resolution. A missing alias has unresolved
+identity specific to its canonical locator: two distinct missing locators are
+not equal merely because both miss, and this identity differs from the
+failed-creator unbound marker. An originally recorded miss remains a miss
+even if that alias is later assigned. Retry-time witnesses are transient
+comparison input: they change neither the original retained metadata and
+disposition nor a successful tombstone's identity, creator binding or
+retention. Each retry resolves an originally unrecorded locator anew. The
+authority may store the normalized record or an internal fingerprint; BDP
+does not require a public request-hash algorithm.
 
 #### Duplicate keys and retained dispositions
 
@@ -3568,9 +3583,10 @@ rules.
 
 ### History context on mutation results
 
-Native versions minted under advertised History MUST carry `changeContext`
-on complete mutation postimages. The read representation and provenance rules
-are defined under [Immutable change context](#immutable-change-context).
+Native versions minted under advertised History MUST carry `committedAt`,
+`agent`, and `message` in `revisionProvenance` on complete mutation
+postimages. The read representation and provenance rules are defined under
+[Immutable change context](#immutable-change-context).
 
 For native versions, commit time is the authority-observed mutation commit instant,
 not admission, import or editable Inception time. Independently committed sequence members carry
@@ -3578,17 +3594,19 @@ their respective commit instants. Imported original time is present only with
 available provenance; otherwise it is undetermined. This promises neither an
 accurate/authenticated clock nor global chronology. Extra import provenance stays internal, not a second protocol envelope.
 
-Each version-minting operation may carry optional `changeContext` input, the
-closed `changeContextInput` object with optional `agent` (nonempty string or null)
-and `message` (string or null). Omitted members mean undetermined; null explicitly
-records known absence. Callers supply no timestamp or responsible-actor override.
-The member appears on create/update Bead and Link, owned-capable deleteLink,
-including their sequence forms; alias
-operations and deleteBead, which mint no version, gain no input. It is operation-
-local, never a shared carrier-wide override. Preserve it in semantic mutation
-identity so different recorded inputs cannot replay as the same request. Apply
-the existing protocol-default normalization: an omitted input and an empty object
-both mean undetermined agent and message; explicit null remains distinct. Context
+Each version-minting operation may carry optional `revisionProvenance` input,
+the closed `revisionProvenanceInput` object with optional `actor` (the same
+`{ id, basis }` shape), `agent` (nonempty string or null), and `message`
+(string or null). Omitted members mean undetermined; null explicitly records
+known absence. Callers supply no timestamp. Actor omission records no actor
+on a newly minted version; it does not copy the prior actor. The member
+appears on create/update Bead and Link, owned-capable deleteLink, including
+their sequence forms; alias operations and deleteBead, which mint no version,
+gain no input. It is operation- local, never a shared carrier-wide override.
+Preserve it in semantic mutation identity so different recorded inputs cannot
+replay as the same request. Apply the existing protocol-default
+normalization: an omitted input and an empty object both mean no actor and
+undetermined agent and message; explicit null remains distinct. Context
 remains excluded from Resource no-op comparison.
 
 Copy the originating operation's agent/message states to every version it actually
@@ -3610,11 +3628,12 @@ case identifiers. Its later-profile rows add no requirement to Read+Update.
 
 ## Part IV — Transactional
 
-Part IV inherits the Data Model, Read and Read+Update and adds atomic multi-operation mutation
-and replication. It defines exposed history fences, durable receipts and
-complete committed change groups. The operation directory and singleton,
-sequence and error envelopes have the explicit Transactional forms defined
-here; clients use the advertised profile to select those forms.
+Part IV inherits the Data Model, Read and Read+Update and adds atomic
+multi-operation mutation and replication. It defines exposed history fences,
+durable receipts and complete committed change groups. The operation
+directory and singleton, sequence and error envelopes have the explicit
+Transactional forms defined here; clients use the advertised profile to
+select those forms.
 
 ### Scope history
 
@@ -3876,22 +3895,21 @@ Mutation Receipt, and the carrier is delivery metadata that the semantic
 comparison excludes.
 
 The semantic identity of a Mutation Transaction is the sequence, in
-declaration order, of its operations' semantic identities under
-[Idempotency keys](#idempotency-keys): each is the operation kind plus its
-normalized record — durable references canonicalized, protocol defaults
-expanded, array order preserved, member order ignored, `name` and the
-carrier excluded, `expectedRevision` and `attribution` included, opaque
-URIs and pins compared byte-exactly, and the records compared under RFC
-6902 Section 4.6. In a batch, a `@label` reference is normalized to the
-creating operation's zero-based index when that operation supplies no
-`id`, and to the supplied identity's canonical URL when it does — never to
-the label's spelling, so renaming a label is not a semantic change, and
-never to an allocated identity, which does not exist before commit. In a
-sequence, a `@name` reference is normalized to the identity its creating
-member bound, as in Read+Update. A one-operation batch, the equivalent
-singleton request, and the equivalent sequence member therefore present
-one semantic request, and any of them retrieves the receipt the others
-created.
+declaration order, of its operations' semantic identities under [Idempotency
+keys](#idempotency-keys): each is the operation kind plus its normalized
+record — durable references canonicalized, protocol defaults expanded, array
+order preserved, member order ignored, `name` and the carrier excluded,
+`expectedRevision` and `revisionProvenance` included, opaque URIs and pins
+compared byte-exactly, and the records compared under RFC 6902 Section 4.6.
+In a batch, a `@label` reference is normalized to the creating operation's
+zero-based index when that operation supplies no `id`, and to the supplied
+identity's canonical URL when it does — never to the label's spelling, so
+renaming a label is not a semantic change, and never to an allocated
+identity, which does not exist before commit. In a sequence, a `@name`
+reference is normalized to the identity its creating member bound, as in
+Read+Update. A one-operation batch, the equivalent singleton request, and the
+equivalent sequence member therefore present one semantic request, and any of
+them retrieves the receipt the others created.
 
 Concurrent identical requests join one execution and receive the same
 receipt identity, pending or terminal. Read+Update refuses a concurrent
@@ -4197,7 +4215,7 @@ UpdateWhere(
   selector,
   change,
   cardinality?,
-  attribution?
+  revisionProvenance?
 ) -> UpdatedResources
 ```
 
@@ -4206,19 +4224,21 @@ DeleteWhere(
   collection,
   selector,
   cardinality?,
-  attribution?
+  revisionProvenance?
 ) -> DeletedResourceIdentities
 ```
+
+The inherited patch limits apply to each member update of a set update.
 
 Selection and mutation occur atomically at one serialization point. The
 Selector is evaluated when its operation is reached, so it observes the
 effects of preceding operations in the same Mutation Transaction. An
-`attribution` supplied to a set mutation fans out exactly as the
+`revisionProvenance` supplied to a set mutation fans out exactly as the
 corresponding singleton operations would record it: on every version
 `UpdateWhere` mints (each selected Resource's new version, and the source
-Bead's fresh version for each selected owned Link), and, for
-`DeleteWhere`, on the fresh source versions of any owned Links it deletes
-— deletion mints no version for the deleted Resources themselves.
+Bead's fresh version for each selected owned Link), and, for `DeleteWhere`,
+on the fresh source versions of any owned Links it deletes — deletion mints
+no version for the deleted Resources themselves.
 
 An optional cardinality record constrains the number of selected Resources:
 
@@ -4591,9 +4611,9 @@ let a caller who may not see the receipt learn about its pages or history.
 
 ### Batch operation record schema
 
-Version-minting operation inputs additionally
-accept operation-local `changeContextInput` as the `changeContext` member under
-[Immutable change context](#immutable-change-context). This applies equally to
+Version-minting operation inputs additionally accept operation-local
+`revisionProvenanceInput` as the `revisionProvenance` member under [Immutable
+change context](#immutable-change-context). This applies equally to
 singleton, sequence, set and batch compositions, never carrier-wide context.
 
 > **Transactional/Replication constructs within this section.**
@@ -4649,12 +4669,21 @@ discriminator selects one of the eight generic operation records:
       },
       "additionalProperties": false
     },
-    "attribution": {
+    "revisionActor": {
       "type": "object",
-      "required": ["principal", "basis"],
+      "required": ["id", "basis"],
       "properties": {
-        "principal": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
         "basis": { "enum": ["writer-supplied", "unknown"] }
+      },
+      "additionalProperties": false
+    },
+    "revisionProvenanceInput": {
+      "type": "object",
+      "properties": {
+        "actor": { "$ref": "#/$defs/revisionActor" },
+        "agent": { "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }] },
+        "message": { "type": ["string", "null"] }
       },
       "additionalProperties": false
     },
@@ -4722,7 +4751,7 @@ discriminator selects one of the eight generic operation records:
         "type": { "$ref": "#/$defs/typeId" },
         "properties": { "$ref": "#/$defs/properties" },
         "metadata": { "$ref": "#/$defs/metadata" },
-        "attribution": { "$ref": "#/$defs/attribution" }
+        "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
       },
       "additionalProperties": false
     },
@@ -4736,7 +4765,7 @@ discriminator selects one of the eight generic operation records:
         "propertiesChange": { "$ref": "#/$defs/change" },
         "metadataChange": { "$ref": "#/$defs/change" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
-        "attribution": { "$ref": "#/$defs/attribution" }
+        "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
       },
       "additionalProperties": false
     },
@@ -4762,7 +4791,7 @@ discriminator selects one of the eight generic operation records:
         "target": { "$ref": "#/$defs/reference" },
         "properties": { "$ref": "#/$defs/properties" },
         "metadata": { "$ref": "#/$defs/metadata" },
-        "attribution": { "$ref": "#/$defs/attribution" }
+        "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
       },
       "additionalProperties": false
     },
@@ -4776,7 +4805,7 @@ discriminator selects one of the eight generic operation records:
         "propertiesChange": { "$ref": "#/$defs/change" },
         "metadataChange": { "$ref": "#/$defs/change" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
-        "attribution": { "$ref": "#/$defs/attribution" }
+        "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
       },
       "additionalProperties": false
     },
@@ -4787,7 +4816,7 @@ discriminator selects one of the eight generic operation records:
         "operation": { "const": "deleteLink" },
         "link": { "$ref": "#/$defs/resourceReference" },
         "expectedRevision": { "$ref": "#/$defs/expectedRevision" },
-        "attribution": { "$ref": "#/$defs/attribution" }
+        "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
       },
       "additionalProperties": false
     },
@@ -4800,7 +4829,7 @@ discriminator selects one of the eight generic operation records:
         "selector": { "$ref": "#/$defs/selector" },
         "change": { "$ref": "#/$defs/change" },
         "cardinality": { "$ref": "#/$defs/cardinality" },
-        "attribution": { "$ref": "#/$defs/attribution" }
+        "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
       },
       "additionalProperties": false
     },
@@ -4812,7 +4841,7 @@ discriminator selects one of the eight generic operation records:
         "collection": { "enum": ["beads", "links"] },
         "selector": { "$ref": "#/$defs/selector" },
         "cardinality": { "$ref": "#/$defs/cardinality" },
-        "attribution": { "$ref": "#/$defs/attribution" }
+        "revisionProvenance": { "$ref": "#/$defs/revisionProvenanceInput" }
       },
       "additionalProperties": false
     }
@@ -4969,7 +4998,7 @@ per selected Resource, in declaration order:
         "id": "https://beads.example/acme/beads/dec-9",
         "type": "https://work.example/types/decision",
         "revision": "dec-9-r1",
-        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
+        "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } },
         "properties": { "title": "Adopt owned Links", "status": "proposed" },
         "ownedLinks": { "https://work.example/types/cites": [] }
       }
@@ -4982,7 +5011,7 @@ per selected Resource, in declaration order:
         "id": "https://beads.example/acme/links/9c1e",
         "type": "https://work.example/types/cites",
         "revision": "9c1e-r1",
-        "attribution": { "principal": "agent:planner", "basis": "writer-supplied" },
+        "revisionProvenance": { "actor": { "id": "agent:planner", "basis": "writer-supplied" } },
         "source": "https://beads.example/acme/beads/dec-9",
         "target": "https://beads.example/acme/beads/task-42",
         "properties": { "role": "evidence" }
@@ -5351,19 +5380,15 @@ CreatedData {
   revision: Revision
   properties: JsonObject
   metadata: JsonObject             // newly emitted Events: {} when empty
-  attribution?: Attribution   // the created version's carried attribution
+  revisionProvenance?: RevisionProvenance   // the created version's carried attribution
   source?: Reference
   target?: Reference
 }
 
-UpdatedData {
-  previousRevision: Revision
-  revision: Revision
-  change?: PropertyChange        // changes properties
-  metadataChange?: PropertyChange // changes common metadata
-  ownedLink?: OwnedLinkChange
-  attribution?: Attribution      // the new version's carried attribution
-}
+UpdatedData { previousRevision: Revision revision: Revision change?:
+PropertyChange // changes properties metadataChange?: PropertyChange //
+changes common metadata ownedLink?: OwnedLinkChange revisionProvenance?:
+RevisionProvenance // the new version's carried attribution }
 
 OwnedLinkChange {
   operation: created | updated | deleted
@@ -5372,15 +5397,12 @@ OwnedLinkChange {
       | ResourceIdentity         // deleted: id, type, and final live revision
 }
 
-OwnedLinkDelta {
-  id: URI                        // the owned Link's canonical URL
-  type: TypeId
-  previousRevision: Revision     // the Link's revisions, not the source's
-  revision: Revision
-  change?: PropertyChange       // changes the Link's properties
-  metadataChange?: PropertyChange // changes the Link's common metadata
-  attribution?: Attribution      // the Link's new version's carried attribution
-}
+OwnedLinkDelta { id: URI // the owned Link's canonical URL type: TypeId
+previousRevision: Revision // the Link's revisions, not the source's
+revision: Revision change?: PropertyChange // changes the Link's properties
+metadataChange?: PropertyChange // changes the Link's common metadata
+revisionProvenance?: RevisionProvenance // the Link's new version's carried
+attribution }
 
 ResourceIdentity {
   id: URI                        // the canonical Resource URL
@@ -5409,25 +5431,25 @@ Transaction that changes both — or that changes two owned Links of one
 source — produces one `updated` Event per transition, each with its own
 `previousRevision` and `revision`, in operation order.
 
-`ownedLink.operation` names the transition, and `ownedLink.link` is the
-delta of that transition, never a snapshot. For `created`, it is the owned
-Link's complete record: exactly the record the Link serves at its own URL
-after the transition, because creation is the delta from absence, so its
-`revision` is the Link's fresh revision and its `attribution`, when present,
-is the Link's own. For `updated`, it is the owned Link's delta — the Link's
-`id` and `type`, its `previousRevision` and fresh `revision`, the committed
-`change` and/or `metadataChange`, and the Link's new version's `attribution` when one was recorded —
-the same delta the Link's own `updated` fact carries, so that neither fact
-carries the Link's properties in full. For `deleted`, it is the deleted
-Link's identity — `id`, `type`, and its final live `revision` — because
-deletion mints no Link version and a deleted Event does not retain
+`ownedLink.operation` names the transition, and `ownedLink.link` is the delta
+of that transition, never a snapshot. For `created`, it is the owned Link's
+complete record: exactly the record the Link serves at its own URL after the
+transition, because creation is the delta from absence, so its `revision` is
+the Link's fresh revision and its `revisionProvenance`, when present, is the
+Link's own. For `updated`, it is the owned Link's delta — the Link's `id` and
+`type`, its `previousRevision` and fresh `revision`, the committed `change`
+and/or `metadataChange`, and the Link's new version's `revisionProvenance`
+when one was recorded — the same delta the Link's own `updated` fact carries,
+so that neither fact carries the Link's properties in full. For `deleted`, it
+is the deleted Link's identity — `id`, `type`, and its final live `revision`
+— because deletion mints no Link version and a deleted Event does not retain
 properties. `previousRevision` and `revision` at the Event level are the
-source Bead's. `attribution` at the Event level, when present, is the
+source Bead's. `revisionProvenance` at the Event level, when present, is the
 source's new version's carried attribution. An operation that mints both a
 Link version and a source version records its one attribution on both, so a
 `created` or `updated` delta whose Link record or Link delta carries
-`attribution` carries the same value at the Event level, and a delta whose
-Link record or Link delta carries none carries none.
+`revisionProvenance` carries the same value at the Event level, and a delta
+whose Link record or Link delta carries none carries none.
 
 `CreatedData` and `DeletedData` carry no owned-Link data. A Bead is created
 with an empty owned set for every Link Type its Type owns, and the record's
@@ -5452,35 +5474,37 @@ property change twice, under two subjects: once as the incident Link's
 `updated` fact and once as the source's own `updated` fact carrying the
 same delta.
 
-A no-op owned-Link property update — one whose patch yields `properties`
-equal, under the RFC 6902 Section 4.6 comparison, to the value immediately
-before it — retains the Link's revision and emits no Event, and it does not
-version the source: there is no transition for the source's version to
-cover.
+A no-op owned-Link update — one whose resulting `properties` and `metadata`
+both equal, under the RFC 6902 Section 4.6 comparison, their respective values
+immediately before it — retains the Link's revision and emits no Event, and
+it does not version the source: there is no transition for the source's
+version to cover. An omitted change leaves its corresponding value unchanged.
 
 A consumer that holds the source's record at `previousRevision` advances it
 to `revision` by applying `ownedLink` to the entry keyed by `link.type` in
 the record's `ownedLinks` member: for `created`, inserting `link` in
 ascending code-unit order of `id`; for `updated`, locating the entry whose
 `id` equals `link.id` and whose `revision` equals `link.previousRevision`,
-applying `link.change` to its `properties`, and setting its `revision` to
-`link.revision` and its `attribution` to `link.attribution`, removing that
-member when the delta carries none; for `deleted`, removing the entry whose
-`id` equals `link.id`; then setting the record's `revision` to the Event's
-`revision` and its `attribution` to the Event's `attribution`, removing the
+applying `link.change` to its `properties` when present and
+`link.metadataChange` to its `metadata` when present, leaving each omitted
+value unchanged, and setting its `revision` to `link.revision` and its
+`revisionProvenance` to `link.revisionProvenance`, removing that member when
+the delta carries none; for `deleted`, removing the entry whose `id` equals
+`link.id`; then setting the record's `revision` to the Event's `revision` and
+its `revisionProvenance` to the Event's `revisionProvenance`, removing the
 member when the Event carries none. A consumer whose held revision is not
-`previousRevision`, or whose held entry is not at `link.previousRevision`,
-is not positioned to apply the delta; it re-reads the record or resumes
-from a snapshot. Replicas do not need the delta at all: the containing
-change group's `changes` member carries the source Bead's complete
-postimage, `ownedLinks` inline, beside the Link's own postimage or
-tombstone.
+`previousRevision`, or whose held entry is not at `link.previousRevision`, is
+not positioned to apply the delta; it re-reads the record or resumes from a
+snapshot. Replicas do not need the delta at all: the containing change
+group's `changes` member carries the source Bead's complete postimage,
+`ownedLinks` inline, beside the Link's own postimage or tombstone.
 
-`CreatedData` contains the complete initial properties, because creation is
-the delta from absence to the initial state. For a Link, it also contains the
+`CreatedData` contains the complete initial properties and metadata, because
+creation is the delta from absence to the initial state; previously retained
+Events may omit metadata as described above. For a Link, it also contains the
 Link's source and target endpoint references. `UpdatedData` contains the
-committed Property Change — or the owned-Link change — rather than a
-resulting state snapshot.
+committed Property Change for properties and/or metadata — or the owned-Link
+change — rather than a resulting state snapshot.
 `DeletedData.revision` is the Resource's final live revision. Deleted Events
 do not retain the Resource's properties.
 
@@ -5558,12 +5582,14 @@ set-oriented storage operations so long as it emits the same committed facts.
 
 ### History context in receipts and Events
 
-Native versions minted under advertised History MUST carry
-`changeContext` wherever their complete version record is returned: current and historical
-reads, mutation postimages, retained receipt postimages and retained history rows.
-Created/updated Event data, including an updated owned-Link delta, carries the
-context of the version it names. No context is synthesized on tombstones, deleted identities, aliases, References or properties
-views. These metadata requirements do not establish full Memory compatibility.
+Native versions minted under advertised History MUST carry `committedAt`,
+`agent`, and `message` in `revisionProvenance` wherever their complete
+version record is returned: current and historical reads, mutation
+postimages, retained receipt postimages and retained history rows.
+Created/updated Event data, including an updated owned-Link delta, carries
+the context of the version it names. No context is synthesized on tombstones,
+deleted identities, aliases, References or properties views. These metadata
+requirements do not establish full Memory compatibility.
 
 ### Transactional revision and History extensions
 
@@ -6153,19 +6179,19 @@ contains deltas rather than Resource snapshots:
 
 - Newly emitted `created` carries `revision`, the complete initial `properties` and common
   `metadata` (`{}` when empty), and the
-  created version's `attribution` when one was recorded. For a
+  created version's `revisionProvenance` when one was recorded. For a
   Link it also carries the `source` and `target` endpoint references, with a
   stored pin preserved byte-identically.
 - `updated` carries `previousRevision`, `revision`, either `ownedLink` or at
   least one of `change` and `metadataChange`, and the new version's
-  `attribution` when one was recorded. `change` targets `properties`;
+  `revisionProvenance` when one was recorded. `change` targets `properties`;
   `metadataChange` targets common `metadata`. Both may appear for one atomic
   Resource update and use the same committed Property Change representation
   accepted by singleton DML. `ownedLink` carries one owned-Link transition
   of the source Bead: `operation` is `created`, `updated`, or `deleted`, and
   `link` is the owned Link's complete record for the first, its own delta —
   `id`, `type`, `previousRevision`, `revision`, `change` and/or
-  `metadataChange`, and `attribution`
+  `metadataChange`, and `revisionProvenance`
   when recorded — for the second, and its identity — `id`, `type`, and final
   live `revision` — for the third.
 - `deleted` carries only `revision`, meaning the final live Resource
@@ -6245,10 +6271,10 @@ cross-cutting contracts defined above.
 
 ### Version erasure
 
-Version content includes its retained
-`changeContext`, including every returned row, Event or receipt copy that
-carries it. [History recovery, imports and assurance](#history-recovery-imports-and-assurance)
-binds all History profiles; the Transactional rules below remain independently
+Version content includes its retained `revisionProvenance`, including every
+returned row, Event or receipt copy that carries it. [History recovery,
+imports and assurance](#history-recovery-imports-and-assurance) binds all
+History profiles; the Transactional rules below remain independently
 mandatory where applicable.
 
 Retention removals and erasures replicate oppositely, by nature. A store
@@ -6290,36 +6316,35 @@ the Scope epoch: every token anchored at or after the erasure position
 remains exactly as valid as it was.
 
 Each `erasures` entry carries `subject`, the canonical Resource URL;
-`revision`, the erased version's token; and `digest`, an object with
-`scheme` and `value`. BDP v0 defines exactly one scheme, `sha-256-jcs`:
-`value` is the lowercase hexadecimal SHA-256 of the RFC 8785 (JCS)
-serialization of the erased version's complete Resource record — the
-record the authority served for that revision, `attribution` and
-`ownedLinks` included and the `links` aggregate excluded — with JCS's
-ES6 number serialization and its UTF-16 code-unit member ordering. Under
-the current Resource contract this record includes common `metadata`, even
-when it is `{}`. A digest already committed for a pre-metadata version remains
-bound to that version's original pre-projection record, which lacked the
-member. Projecting `{}` for a later History read does not rewrite that
-version or its erasure digest; verification of that historical digest uses
-the retained original record, never the later compatibility projection.
-Under
-the number model of [Revisions](#revisions) every admitted number is a
-binary64 value, so every record has exactly one canonical serialization
-and one digest, and implementations agree on it without a BDP-specific
-canonicalization rule. Digest computation never gates erasure: an
-authority that cannot serialize a version under JCS has committed a value
-outside the data contract, which is its own conformance failure; it erases
-the content all the same, emits the record with the digest it computes
-over its best canonical serialization, and reports the escape out of band,
-and the mismatch a replica then reports is the correct audit signal for a
-record that escaped the contract, never a reason to hold the content.
+`revision`, the erased version's token; and `digest`, an object with `scheme`
+and `value`. BDP v0 defines exactly one scheme, `sha-256-jcs`: `value` is the
+lowercase hexadecimal SHA-256 of the RFC 8785 (JCS) serialization of the
+erased version's complete Resource record — the record the authority served
+for that revision, `revisionProvenance` and `ownedLinks` included and the
+`links` aggregate excluded — with JCS's ES6 number serialization and its
+UTF-16 code-unit member ordering. Under the current Resource contract this
+record includes common `metadata`, even when it is `{}`. A digest already
+committed for a pre-metadata version remains bound to that version's original
+pre-projection record, which lacked the member. Projecting `{}` for a later
+History read does not rewrite that version or its erasure digest;
+verification of that historical digest uses the retained original record,
+never the later compatibility projection. Under the number model of
+[Revisions](#revisions) every admitted number is a binary64 value, so every
+record has exactly one canonical serialization and one digest, and
+implementations agree on it without a BDP-specific canonicalization rule.
+Digest computation never gates erasure: an authority that cannot serialize a
+version under JCS has committed a value outside the data contract, which is
+its own conformance failure; it erases the content all the same, emits the
+record with the digest it computes over its best canonical serialization, and
+reports the escape out of band, and the mismatch a replica then reports is
+the correct audit signal for a record that escaped the contract, never a
+reason to hold the content.
 
-The **erased content** of a version is its record less its lineage marker
-— everything but `id`, `type`, and `revision`: `properties`,
-common `metadata`, `attribution`, a Link's `source`, `target`, and pin, and a source Bead's
-inline owned-Link records. The lineage marker, the erasure record, and the
-digest survive erasure everywhere; the erased content survives nowhere.
+The **erased content** of a version is its record less its lineage marker —
+everything but `id`, `type`, and `revision`: `properties`, common `metadata`,
+`revisionProvenance`, a Link's `source`, `target`, and pin, and a source
+Bead's inline owned-Link records. The lineage marker, the erasure record, and
+the digest survive erasure everywhere; the erased content survives nowhere.
 
 An erasure group is an ordinary visible group at its own position —
 `projectionAdvance` `false`, `transaction` present and minted by the
@@ -6676,7 +6701,7 @@ profile is not realized until every applicable row is proved.
 | `read-update.singleton.delete-link` | `delete-link` returns the deleted identity and the Link then reads as `404` |
 | `read-update.singleton.owned-link-source-revision` | An effectful owned-Link creation, update, or deletion carries `source` and `sourceRevision` and versions the source; an unowned one carries neither and versions no endpoint |
 | `read-update.singleton.owned-link-no-op` | A semantic no-op update of an owned Link retains the Link's revision and attribution and reports the source's unchanged revision in `sourceRevision` |
-| `read-update.singleton.attribution` | The `attribution` input is recorded on every version an effectful mutation mints, the owned source's included; a semantic no-op keeps the prior version's revision and attribution |
+| `read-update.singleton.attribution` | The `revisionProvenance` input is recorded on every version an effectful mutation mints, the owned source's included; a semantic no-op keeps the prior version's revision and attribution |
 | `read-update.singleton.expected-revision` | A matching `expectedRevision` applies; a stale one fails with `revision-mismatch` and changes nothing |
 | `read-update.singleton.expected-revision-race` | Of two concurrent guarded updates of one Resource, exactly one applies and the other fails with `revision-mismatch` |
 | `read-update.singleton.hidden-subject` | A subject or in-Scope endpoint hidden from the request's Authorization View fails with the uniform `resource-not-found`, never `revision-mismatch` or `forbidden` |
@@ -6723,7 +6748,7 @@ profile is not realized until every applicable row is proved.
 | `read-update.idempotency.concurrent-dependent-retry` | A concurrent retry that meets its creator in flight fails the dependent member transiently and claims nothing, so the first presentation's dependent member commits and retains normally |
 | `read-update.idempotency.transient-not-retained` | A transient disposition is never retained: a later presentation of the key executes the member |
 | `read-update.idempotency.semantic-identity` | Semantic identity ignores the label, protocol defaults, member order, and local-versus-canonical spelling, and includes pins, attribution, revision guards, and array order |
-| `read-update.idempotency.principal-isolation` | A key is scoped to the authenticated principal: another principal's identical key is unknown and executes, and carried `attribution.principal` plays no part |
+| `read-update.idempotency.principal-isolation` | A key is scoped to the authenticated principal: another principal's identical key is unknown and executes, and carried `revisionProvenance.actor.id` plays no part |
 | `read-update.idempotency.cross-carrier` | A sequence member and a singleton request presenting the same key in the same namespace present the same key and share one semantic identity |
 | `read-update.idempotency.authorization-view` | An Authorization View change keeps the key, identity, and disposition retained; a replay re-authorizes disclosure, answers a no-longer-visible retained result with `forbidden`, and executes and replaces nothing |
 | `read-update.idempotency.forbidden-retained` | A `forbidden` disposition is retained for the retention interval: a retry after a grant under the same key still answers `forbidden`, and the principal presents a new key |

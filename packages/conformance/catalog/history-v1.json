@@ -197,7 +197,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#immutable-change-context",
-          "selectedText": "`changeContext` is a distinct immutable version envelope, separate from `attribution` and `properties`. The responsible actor remains the existing carried attribution, including truthful absence and `basis: writer-supplied|unknown`; context never supplies a competing actor or authentication/ authorization claim. Shared record schemas permit absent context for legacy and non-History versions. Native versions under advertised History MUST carry context on current/historical complete record reads and retained history rows. No context is synthesized on deleted identities, aliases, References or properties views. These metadata requirements do not establish full Memory compatibility."
+          "selectedText": "`revisionProvenance` is the single immutable version envelope outside `properties` and common `metadata`. Its optional `actor` is the carried attribution defined above, including truthful absence and `writer-supplied|unknown`; grouping the fields does not authenticate the actor. Read does not require History, a timestamp, an actor, or this envelope. Shared schemas permit absent provenance and actor-only provenance for legacy and non-History versions. Native versions under advertised History MUST carry `committedAt`, `agent`, and `message` in this envelope on current/historical complete record reads and retained history rows. No provenance is synthesized on deleted identities, aliases, References or properties views. These requirements do not establish full Memory compatibility."
         }
       ]
     },
@@ -223,7 +223,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#history-context-on-mutation-results",
-          "selectedText": "Each version-minting operation may carry optional `changeContext` input, the closed `changeContextInput` object with optional `agent` (nonempty string or null) and `message` (string or null). Omitted members mean undetermined; null explicitly records known absence. Callers supply no timestamp or responsible-actor override. The member appears on create/update Bead and Link, owned-capable deleteLink, including their sequence forms; alias operations and deleteBead, which mint no version, gain no input. It is operation- local, never a shared carrier-wide override. Preserve it in semantic mutation identity so different recorded inputs cannot replay as the same request. Apply the existing protocol-default normalization: an omitted input and an empty object both mean undetermined agent and message; explicit null remains distinct. Context remains excluded from Resource no-op comparison."
+          "selectedText": "Each version-minting operation may carry optional `revisionProvenance` input, the closed `revisionProvenanceInput` object with optional `actor` (the same `{ id, basis }` shape), `agent` (nonempty string or null), and `message` (string or null). Omitted members mean undetermined; null explicitly records known absence. Callers supply no timestamp. Actor omission records no actor on a newly minted version; it does not copy the prior actor. The member appears on create/update Bead and Link, owned-capable deleteLink, including their sequence forms; alias operations and deleteBead, which mint no version, gain no input. It is operation- local, never a shared carrier-wide override. Preserve it in semantic mutation identity so different recorded inputs cannot replay as the same request. Apply the existing protocol-default normalization: an omitted input and an empty object both mean no actor and undetermined agent and message; explicit null remains distinct. Context remains excluded from Resource no-op comparison."
         }
       ]
     },
@@ -314,7 +314,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#history-context-on-mutation-results",
-          "selectedText": "Native versions minted under advertised History MUST carry `changeContext` on complete mutation postimages. The read representation and provenance rules are defined under [Immutable change context](#immutable-change-context)."
+          "selectedText": "Native versions minted under advertised History MUST carry `committedAt`, `agent`, and `message` in `revisionProvenance` on complete mutation postimages. The read representation and provenance rules are defined under [Immutable change context](#immutable-change-context)."
         }
       ]
     },
@@ -327,7 +327,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#history-context-in-receipts-and-events",
-          "selectedText": "Native versions minted under advertised History MUST carry `changeContext` wherever their complete version record is returned: current and historical reads, mutation postimages, retained receipt postimages and retained history rows. Created/updated Event data, including an updated owned-Link delta, carries the context of the version it names. No context is synthesized on tombstones, deleted identities, aliases, References or properties views. These metadata requirements do not establish full Memory compatibility."
+          "selectedText": "Native versions minted under advertised History MUST carry `committedAt`, `agent`, and `message` in `revisionProvenance` wherever their complete version record is returned: current and historical reads, mutation postimages, retained receipt postimages and retained history rows. Created/updated Event data, including an updated owned-Link delta, carries the context of the version it names. No context is synthesized on tombstones, deleted identities, aliases, References or properties views. These metadata requirements do not establish full Memory compatibility."
         }
       ]
     },

@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadScenarioCatalogJson, validateCatalogCitations } from "./index.js";
-import { markdownAnchors } from "./markdown.js";
+import { markdownAnchors, markdownSection } from "./markdown.js";
 
 const root = new URL("../../../", import.meta.url);
 const read = (source: string) => readFileSync(new URL(source, root), "utf8");
@@ -86,6 +86,35 @@ function assertProfileLinks(markdown: string): void {
   }
 }
 
+function assertPartLinks(markdown: string): void {
+  const headings = markdownAnchors(markdown);
+  const parts = new Map<string, number | undefined>();
+  let part: number | undefined;
+  for (const heading of headings) {
+    if (heading.level === 2 && heading.title !== undefined) {
+      part = [
+        "Part I — Data Model",
+        "Part II — Read",
+        "Part III — Read+Update",
+        "Part IV — Transactional",
+      ].indexOf(heading.title);
+      if (part < 0) part = undefined;
+    }
+    parts.set(heading.anchor, part);
+  }
+  for (const heading of headings)
+    if (heading.aliasOf !== undefined) parts.set(heading.anchor, parts.get(heading.aliasOf));
+  for (const link of markdown.matchAll(/\[[^\]]*\]\((#[^)]+)\)/g)) {
+    const source = headings.findLast(
+      (heading) => heading.title !== undefined && heading.index < link.index,
+    );
+    const sourcePart = source === undefined ? undefined : parts.get(source.anchor);
+    const targetPart = parts.get(link[1] ?? "");
+    if (sourcePart !== undefined && targetPart !== undefined && targetPart > sourcePart)
+      throw new Error(`Later-part anchor: ${link[1]}`);
+  }
+}
+
 const owners = headingOwners(spec);
 const catalogs = [
   ...readdirSync(new URL("packages/conformance/catalog/", root))
@@ -114,6 +143,11 @@ describe("catalog citations respect cumulative profile boundaries", () => {
     expect(owners.get("#part-ii--read")?.profile).toBe(1);
     expect(owners.has("#part-ii-read")).toBe(false);
   });
+  it("bounds the model introduction anchor before its child sections", () => {
+    const model = markdownSection(spec, "#bead-data-model");
+    expect(model).toContain("The shared data model defines");
+    expect(model).not.toContain("A **BDP Scope** contains");
+  });
   it("preserves the profile ownership of existing Part and model anchors", () => {
     expect(owners.get("#bead-data-model")?.profile).toBe(1);
     expect(owners.get("#part-i--read")?.profile).toBe(1);
@@ -139,6 +173,25 @@ describe("catalog citations respect cumulative profile boundaries", () => {
         spec.replace("### Types", "### Types\n\nSee [writes](#part-ii--readupdate)."),
       ),
     ).toThrow("Later-profile anchor: #part-ii--readupdate");
+  });
+  it("rejects model-to-Read dependencies despite their shared profile rank", () => {
+    expect(() => assertPartLinks(spec)).not.toThrow();
+    expect(() =>
+      assertPartLinks(
+        spec.replace(
+          "### Actor attribution",
+          "### Actor attribution\n\nSee [History](#immutable-change-context).",
+        ),
+      ),
+    ).toThrow("Later-part anchor: #immutable-change-context");
+    expect(() =>
+      assertPartLinks(
+        spec.replace(
+          "### Actor attribution",
+          "### Actor attribution\n\nSee [Read](#part-i--read).",
+        ),
+      ),
+    ).toThrow("Later-part anchor: #part-i--read");
   });
   it("owns explicit anchors in their containing profile", () => {
     expect(owners.get("#references")?.profile).toBe(1);
