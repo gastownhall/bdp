@@ -4624,7 +4624,7 @@ f51ab17bca9039a933d2780986bbc02d3efacae2e4dc372c9c26fe3646543677
 `9c1e-r1` (attribution, unpinned in-Scope endpoints):
 
 ```text
-{"attribution":{"principal":"agent:planner","basis": "writer-supplied"},"id":"https://beads.example/acme/links/9c1e","properties":{"role":"evidence"},"revision":"9c1e-r1","source":"https://beads.example/acme/beads/dec-9","target":"https://beads.example/acme/beads/task-42","type":"https://work.example/types/cites"}
+{"attribution":{"principal":"agent:planner","status":"claimed"},"id":"https://beads.example/acme/links/9c1e","properties":{"role":"evidence"},"revision":"9c1e-r1","source":"https://beads.example/acme/beads/dec-9","target":"https://beads.example/acme/beads/task-42","type":"https://work.example/types/cites"}
 e9de824dfe1c19c21703d7644e5d248fd52a74e99a8c31e94cc441e21725119e
 ```
 
@@ -4638,7 +4638,7 @@ a1997ba742b515687a1fea7949b82e4276e1381ba6f110a86831514cc3fb4a78
 `dec-9-r2` (an inline owned Link inside `ownedLinks`):
 
 ```text
-{"attribution":{"principal":"agent:planner","basis": "writer-supplied"},"id":"https://beads.example/acme/beads/dec-9","ownedLinks":{"https://work.example/types/cites":[{"attribution":{"principal":"agent:planner","basis": "writer-supplied"},"id":"https://beads.example/acme/links/9c1e","properties":{"role":"evidence"},"revision":"9c1e-r1","source":"https://beads.example/acme/beads/dec-9","target":"https://beads.example/acme/beads/task-42","type":"https://work.example/types/cites"}]},"properties":{"status":"proposed","title":"Adopt owned Links"},"revision":"dec-9-r2","type":"https://work.example/types/decision"}
+{"attribution":{"principal":"agent:planner","status":"claimed"},"id":"https://beads.example/acme/beads/dec-9","ownedLinks":{"https://work.example/types/cites":[{"attribution":{"principal":"agent:planner","status":"claimed"},"id":"https://beads.example/acme/links/9c1e","properties":{"role":"evidence"},"revision":"9c1e-r1","source":"https://beads.example/acme/beads/dec-9","target":"https://beads.example/acme/beads/task-42","type":"https://work.example/types/cites"}]},"properties":{"status":"proposed","title":"Adopt owned Links"},"revision":"dec-9-r2","type":"https://work.example/types/decision"}
 be72a080a2fcdf1d964ce0e23b85d82d9f4b54a45ab2e25b584cfd079b2307f0
 ```
 

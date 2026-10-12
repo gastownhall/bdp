@@ -379,12 +379,12 @@ export function normalizePreparedMemberIdentity(
     Object.keys(normalized.metadata).length === 0
   )
     delete normalized.metadata;
-  // Context's protocol default is omission: {} carries no explicit states.
-  // Keep null/string members and never insert generated version metadata.
-  // This correction changes old explicit-empty identity bytes and fingerprints,
-  // despite the unchanged codec grammar/version. Before affected or unknown
-  // stores use this equality, require the separately reviewed provenance /
-  // compatibility readiness gate; expired rows cannot identify the old fold.
+  // Provenance input's protocol default is omission: {} carries no explicit states.
+  // Keep actor/null/string members and never insert generated version metadata.
+  // Renaming either former envelope (attribution or changeContext) changes every
+  // affected input's semantic-identity bytes, not only explicit-empty spellings.
+  // Recovery-store format 3 is the compatibility boundary for those bytes:
+  // prior formats are refused before recovery, never reinterpreted or rewritten.
   const contextInput = normalized.revisionProvenance;
   if (
     contextInput !== null &&

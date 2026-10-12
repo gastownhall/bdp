@@ -47,14 +47,16 @@ export interface HistoryCapability {
 export type ContextValue<T> =
   | { readonly state: "present"; readonly value: T }
   | { readonly state: "absent" | "undetermined" };
-export interface RevisionProvenance {
-  readonly actor?: RevisionActor;
-  readonly committedAt?:
-    | { readonly state: "present"; readonly value: string }
-    | { readonly state: "undetermined" };
-  readonly agent?: ContextValue<string>;
-  readonly message?: ContextValue<string>;
-}
+type RevisionContext =
+  | {
+      readonly committedAt:
+        | { readonly state: "present"; readonly value: string }
+        | { readonly state: "undetermined" };
+      readonly agent: ContextValue<string>;
+      readonly message: ContextValue<string>;
+    }
+  | { readonly committedAt?: never; readonly agent?: never; readonly message?: never };
+export type RevisionProvenance = { readonly actor?: RevisionActor } & RevisionContext;
 /** Omission is undetermined; explicit null records known absence. No caller timestamp. */
 export interface RevisionProvenanceInput {
   readonly actor?: RevisionActor;
