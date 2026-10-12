@@ -2069,6 +2069,9 @@
         "schemaLocation": {
           "$ref": "#/$defs/absoluteUri"
         },
+        "document": {
+          "enum": ["properties", "metadata"]
+        },
         "instanceLocation": {
           "$ref": "#/$defs/jsonPointer"
         },

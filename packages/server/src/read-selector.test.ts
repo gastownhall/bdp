@@ -63,6 +63,51 @@ describe("Read Selector", () => {
     expect(JSON.stringify(candidates)).toBe(before);
   });
 
+  it.each(["bead", "link"] as const)(
+    "selects %s metadata independently of colliding properties",
+    (kind) => {
+      const resource =
+        kind === "bead"
+          ? bead("meta", { owner: "property", metadata: { owner: "nested" } })
+          : link(
+              "meta",
+              "https://beads.example/acme/beads/a",
+              "https://beads.example/acme/beads/b",
+              { owner: "property", metadata: { owner: "nested" } },
+            );
+      const candidate = {
+        ...resource,
+        metadata: { owner: "team", "slash/key~": { 'quote"key': ["first", "last"] }, empty: null },
+      };
+      const before = JSON.stringify(candidate);
+      expect(selectReadResources('$[?@.metadata.owner == "team"]', LIMITS, [candidate])).toEqual([
+        candidate,
+      ]);
+      expect(
+        selectReadResources('$[?@.metadata.owner == "property"]', LIMITS, [candidate]),
+      ).toEqual([]);
+      expect(
+        selectReadResources(
+          '$[?@.properties.metadata.owner == "nested" && @.properties.owner == "property"]',
+          LIMITS,
+          [candidate],
+        ),
+      ).toEqual([candidate]);
+      expect(
+        selectReadResources(`$[?@.metadata["slash/key~"]['quote"key'][-1] == "last"]`, LIMITS, [
+          candidate,
+        ]),
+      ).toEqual([candidate]);
+      expect(
+        selectReadResources("$[?@.metadata.empty == null && !@.metadata.missing]", LIMITS, [
+          candidate,
+        ]),
+      ).toEqual([candidate]);
+      expect(selectReadResources("$[?@.metadata.owner]", LIMITS, [resource])).toEqual([]);
+      expect(JSON.stringify(candidate)).toBe(before);
+    },
+  );
+
   it("applies !, &&, ||, and parentheses with JSONPath precedence", () => {
     const onlyA = bead("a", { a: true, b: false, c: false });
     const bAndC = bead("bc", { a: false, b: true, c: true });

@@ -3214,3 +3214,81 @@ describe("staged properties before endpoint constraints", () => {
     }
   });
 });
+
+describe("metadata patch diagnostic document and atomicity", () => {
+  for (const kind of ["bead", "link"] as const) {
+    it.each([
+      {
+        change: [{ op: "replace", path: "", value: [] }],
+        pointer: "",
+        message: "resulting metadata must be an object",
+      },
+      {
+        change: [{ op: "remove", path: "" }],
+        pointer: "",
+        message: "resulting metadata must be an object",
+      },
+      {
+        change: [{ op: "replace", path: "/missing", value: 2 }],
+        pointer: "/missing",
+        message: "metadata: Property Change target does not exist",
+      },
+      {
+        change: [{ op: "add", path: "/missing/child", value: 2 }],
+        pointer: "/missing/child",
+        message: "metadata: Property Change parent does not exist",
+      },
+      {
+        change: [{ op: "remove", path: "/items/3" }],
+        pointer: "/items/3",
+        message: "metadata: Property Change array index does not exist",
+      },
+    ])(
+      `${kind} distinguishes metadata failure and rolls back both documents %#`,
+      ({ change, pointer, message }) => {
+        const f = fixture();
+        f.createBead("a", { unchanged: true }, { metadata: { items: [1] } });
+        f.createBead("b");
+        if (kind === "link")
+          f.createLink("x", "beads/a", "beads/b", {
+            properties: { unchanged: true },
+            metadata: { items: [1] },
+          });
+        const id = kind === "bead" ? "beads/a" : "links/x";
+        const before = [...f.records.entries()];
+        const writes = f.writes();
+        const allocations = f.allocations();
+        const expected = [{ document: "metadata", instanceLocation: pointer, message }];
+        const bytes = Buffer.byteLength(JSON.stringify(expected));
+        const input = {
+          [kind]: id,
+          propertiesChange: [{ op: "add", path: "/changed", value: true }],
+          metadataChange: change,
+        };
+        const operation = kind === "bead" ? "updateBead" : "updateLink";
+        const result = failure(
+          f.execute(operation, input, { limits: { diagnosticCount: 1, diagnosticBytes: bytes } }),
+          "validation-failed",
+        );
+        expect(result.diagnostics).toEqual(expected);
+        expect(result).not.toHaveProperty("diagnosticsTruncated");
+        expect(() =>
+          f.execute(operation, input, { limits: { diagnosticBytes: bytes - 1 } }),
+        ).toThrow("one complete diagnostic");
+        expect([...f.records.entries()]).toEqual(before);
+        expect(f.writes()).toBe(writes);
+        expect(f.allocations()).toEqual(allocations);
+        const propertyFailure = failure(
+          f.execute(operation, {
+            [kind]: id,
+            propertiesChange: [{ op: "replace", path: "/missing", value: 2 }],
+          }),
+          "validation-failed",
+        );
+        expect(propertyFailure.diagnostics).toEqual([
+          { instanceLocation: "/missing", message: "Property Change target does not exist" },
+        ]);
+      },
+    );
+  }
+});

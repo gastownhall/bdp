@@ -2297,3 +2297,59 @@ it("keeps a complete large first diagnostic and deep valid/invalid neighbors thr
   );
   expect(f.key("deep-bad")).toEqual(savedBad);
 });
+
+describe("durable metadata numeric failure", () => {
+  it.each(["createBead", "createLink", "updateBead", "updateLink"] as const)(
+    "%s rejects before effects, retains a metadata diagnostic and replays it after reopen",
+    (operation) => {
+      const f = fixture();
+      const creating = operation.startsWith("create");
+      const link = operation.endsWith("Link");
+      const input = creating
+        ? {
+            id: link ? "links/new" : "beads/new",
+            type: link ? linkType : type,
+            ...(link ? { source: "beads/a", target: "beads/b" } : {}),
+            properties: { valid: true },
+            metadata: { nested: { bad: "BAD" } },
+          }
+        : {
+            [link ? "link" : "bead"]: link ? "links/old" : "beads/a",
+            propertiesChange: [{ op: "add", path: "/changed", value: true }],
+            metadataChange: [{ op: "add", path: "/items/-", value: "BAD" }],
+          };
+      const raw = JSON.stringify(input).replace('"BAD"', "1e400");
+      const ids = ["beads/a", "beads/b", "links/old", "beads/new", "links/new"];
+      const before = ids.map((id) => f.body(id));
+      const opts = {
+        ...f.options,
+        numericBudget: {
+          diagnostic: () => ({
+            message: "inadmissible number",
+            document: "properties" as const,
+            instanceLocation: "/wrong",
+          }),
+        },
+      };
+      const result = f.run(operation, raw, "metadata-failed", opts);
+      expect(code(result)).toBe("validation-failed");
+      expect(result.disposition).toMatchObject({
+        diagnostics: [
+          {
+            message: "metadata: inadmissible number",
+            document: "metadata",
+            ...(creating ? { instanceLocation: "/nested/bad" } : {}),
+          },
+        ],
+      });
+      expect(ids.map((id) => f.body(id))).toEqual(before);
+      const retainedFailure = retained(f.key("metadata-failed"));
+      f.reopen();
+      expect(f.run(operation, raw, "metadata-failed", opts).disposition).toEqual(
+        result.disposition,
+      );
+      expect(f.key("metadata-failed")).toEqual(retainedFailure);
+      expect(ids.map((id) => f.body(id))).toEqual(before);
+    },
+  );
+});
