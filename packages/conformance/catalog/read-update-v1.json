@@ -97,20 +97,84 @@
       ]
     },
     {
-      "id": "read-update.singleton.update-bead-properties",
-      "title": "update-bead-properties applies the patch and retains the revision on a semantic no-op",
+      "id": "read-update.singleton.update-bead",
+      "title": "update-bead applies the patch and retains the revision on a semantic no-op",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#property-change-values",
-          "selectedText": "Applying the patch must yield a JSON object satisfying every effective Type schema."
+          "selectedText": "Applying the properties patch must yield a JSON object satisfying every effective Type schema. The metadata patch must yield a JSON object."
         },
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-results",
           "selectedText": "A semantic no-op update, defined under [Revisions](#revisions), succeeds with outcome `updated` and the retained revision."
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-merge-replace",
+      "title": "A top-level add changes only one member; root replace substitutes the complete properties or metadata object and {} clears it",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "`propertiesChange` targets `properties` and `metadataChange` targets common `metadata`; each JSON Pointer is relative to its own complete object."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "`add` has RFC 6902 object replacement and array insertion/append semantics."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "A root-pointer `replace` with `{}` clears either object, including common `metadata`."
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-atomicity",
+      "title": "One guarded update changes properties and metadata atomically; an equal result retains revision and attribution",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-changes",
+          "selectedText": "A Resource update can apply one to `properties`, one to common `metadata`, or both atomically."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, the operation is a no-op."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#carried-attribution",
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-validation",
+      "title": "A non-object result or Type-invalid properties fails the whole Resource update",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-changes",
+          "selectedText": "The authority validates the complete `properties` result — not merely its changed members — against every effective Type contract; `metadata` has no Type schema."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "The metadata patch must yield a JSON object."
         }
       ]
     },
@@ -174,8 +238,8 @@
       ]
     },
     {
-      "id": "read-update.singleton.update-link-properties",
-      "title": "update-link-properties returns the Link postimage; an unowned Link's update versions no endpoint",
+      "id": "read-update.singleton.update-link",
+      "title": "update-link returns the Link postimage; an unowned Link's update versions no endpoint",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
@@ -266,7 +330,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "a write whose `properties` are a no-op mints no revision and records no attribution."
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
         }
       ]
     },
@@ -284,7 +348,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#carried-attribution",
-          "selectedText": "a write whose `properties` are a no-op mints no revision and records no attribution."
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
         },
         {
           "source": "docs/specs/bdp.md",
@@ -1217,7 +1281,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#idempotency-keys",
-          "selectedText": "expands protocol defaults such as an omitted `properties`, preserves the order of `change` and every other array, ignores JSON object member order, and excludes `idempotencyKey` and `name`"
+          "selectedText": "expands creation defaults so omitted `properties` and omitted common `metadata` each compare as `{}`, preserves the order of each change array and every other array, ignores JSON object member order, and excludes `idempotencyKey` and `name`"
         },
         {
           "source": "docs/specs/bdp.md",

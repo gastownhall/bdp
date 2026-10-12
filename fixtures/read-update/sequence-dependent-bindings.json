@@ -26,7 +26,10 @@
                 "title": "Memo: dependency normalization",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             },
             {
               "idempotencyKey": "w1-memo-cite",
@@ -35,14 +38,26 @@
               "source": "@memo",
               "target": "https://github.example/issues/140",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             },
             {
               "idempotencyKey": "w1-task-11-priority",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/task-11",
-              "change": [{ "op": "add", "path": "/priority", "value": 3 }],
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/priority",
+                  "value": 3
+                }
+              ],
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -80,12 +95,16 @@
                 "id": "https://beads.example/acme/beads/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r3",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "properties": {
                   "title": "Tidy the fixture world",
                   "status": "closed",
                   "priority": 3
-                }
+                },
+                "metadata": {}
               }
             }
           ]
@@ -96,7 +115,11 @@
       "id": "retry-executes-the-creator-and-its-dependent",
       "condition": "After the delay. Neither w1-memo-create nor w1-memo-cite was claimed, so both execute; w1-task-11-priority answers from its retained disposition.",
       "retained": [
-        { "from": "creator-ends-transiently-dependent-is-not-claimed", "index": 2, "at": 2 }
+        {
+          "from": "creator-ends-transiently-dependent-is-not-claimed",
+          "index": 2,
+          "at": 2
+        }
       ],
       "request": {
         "method": "POST",
@@ -117,7 +140,10 @@
                 "title": "Memo: dependency normalization",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             },
             {
               "idempotencyKey": "w1-memo-cite",
@@ -126,14 +152,26 @@
               "source": "@memo",
               "target": "https://github.example/issues/140",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             },
             {
               "idempotencyKey": "w1-task-11-priority",
-              "operation": "updateBeadProperties",
+              "operation": "updateBead",
               "bead": "beads/task-11",
-              "change": [{ "op": "add", "path": "/priority", "value": 3 }],
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/priority",
+                  "value": 3
+                }
+              ],
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -155,11 +193,15 @@
                 "id": "https://beads.example/acme/beads/decision-112",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-112-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "properties": {
                   "title": "Memo: dependency normalization",
                   "status": "proposed"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }
@@ -172,10 +214,14 @@
                 "id": "https://beads.example/acme/links/cites-113",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-113-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "source": "https://beads.example/acme/beads/decision-112",
                 "target": "https://github.example/issues/140",
-                "properties": {}
+                "properties": {},
+                "metadata": {}
               },
               "source": "https://beads.example/acme/beads/decision-112",
               "sourceRevision": "decision-112-r2"
@@ -187,12 +233,16 @@
                 "id": "https://beads.example/acme/beads/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r3",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "properties": {
                   "title": "Tidy the fixture world",
                   "status": "closed",
                   "priority": 3
-                }
+                },
+                "metadata": {}
               }
             }
           ]
@@ -202,7 +252,13 @@
     {
       "id": "expired-creator-still-binds-its-dependent",
       "condition": "Much later. w1-memo-create's disposition was discarded by controlled eviction while w1-memo-cite's remains retained. The creator's tombstone keeps the identity it allocated and its kind, so @memo resolves to beads/decision-112 and the dependent's semantic identity matches its retained one.",
-      "retained": [{ "from": "retry-executes-the-creator-and-its-dependent", "index": 1, "at": 1 }],
+      "retained": [
+        {
+          "from": "retry-executes-the-creator-and-its-dependent",
+          "index": 1,
+          "at": 1
+        }
+      ],
       "request": {
         "method": "POST",
         "target": "operations/sequence",
@@ -222,7 +278,10 @@
                 "title": "Memo: dependency normalization",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             },
             {
               "idempotencyKey": "w1-memo-cite",
@@ -231,7 +290,10 @@
               "source": "@memo",
               "target": "https://github.example/issues/140",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -261,10 +323,14 @@
                 "id": "https://beads.example/acme/links/cites-113",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-113-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "source": "https://beads.example/acme/beads/decision-112",
                 "target": "https://github.example/issues/140",
-                "properties": {}
+                "properties": {},
+                "metadata": {}
               },
               "source": "https://beads.example/acme/beads/decision-112",
               "sourceRevision": "decision-112-r2"
@@ -295,7 +361,10 @@
                 "title": "Memo with an inadmissible status",
                 "status": "unknown-state"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             },
             {
               "idempotencyKey": "w1-bad-memo-cite",
@@ -304,7 +373,10 @@
               "source": "@bad",
               "target": "https://github.example/issues/141",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           ]
         }
@@ -381,7 +453,10 @@
                 "title": "Memo with an inadmissible status",
                 "status": "unknown-state"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             },
             {
               "idempotencyKey": "w1-bad-memo-cite",
@@ -390,7 +465,10 @@
               "source": "@bad",
               "target": "https://github.example/issues/141",
               "properties": {},
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             }
           ]
         }

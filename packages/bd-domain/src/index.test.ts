@@ -229,7 +229,9 @@ describe("bd readiness", () => {
 
     const result = await readyBeadsFromClient(client, { blockingLinkType: BLOCKS });
     expect(isReadinessProblem(result)).toBe(false);
-    expect(result).toEqual([{ bead: { ...open, links: { items: [], next: null } }, blockers: [] }]);
+    expect(result).toEqual([
+      { bead: { ...open, metadata: {}, links: { items: [], next: null } }, blockers: [] },
+    ]);
     expect(urls).toContain(continuation);
   });
 

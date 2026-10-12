@@ -466,8 +466,8 @@ describe("G1 strict receiving and G2 same-entry observations", () => {
       const escaped = f.state.facades[0];
       expect(() => escaped?.resource("beads/a")).toThrow(/expired/);
       const update = f.write(
-        "updateBeadProperties",
-        { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 2 }] },
+        "updateBead",
+        { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
         "r2",
       );
       expect(update.disposition).toMatchObject({ outcome: "updated" });
@@ -563,16 +563,16 @@ describe("G3 current values and qualified Type construction", () => {
     const original = f.resource("beads/a");
     expect(body(await facet.perform(resourceRequest()))).toEqual(original);
     f.write(
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 2 }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
       "update",
     );
     const changed = f.resource("beads/a");
     expect(changed.revision).not.toBe(original.revision);
     expect(body(await facet.perform(resourceRequest()))).toEqual(changed);
     f.write(
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "replace", path: "/n", value: 2 }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "replace", path: "/n", value: 2 }] },
       "noop",
     );
     expect(f.resource("beads/a")).toEqual(changed);
@@ -656,8 +656,8 @@ describe("G4 complete current ownership and observed integrity", () => {
     });
     const beforeLink = f.resource("links/a");
     const changed = f.write(
-      "updateLinkProperties",
-      { link: "links/a", change: [{ op: "add", path: "/n", value: 1 }] },
+      "updateLink",
+      { link: "links/a", propertiesChange: [{ op: "add", path: "/n", value: 1 }] },
       "edge_update",
     );
     expect(changed.disposition).toMatchObject({ outcome: "updated", source: url("beads/a") });
@@ -670,8 +670,8 @@ describe("G4 complete current ownership and observed integrity", () => {
     expect(after.changeContext).toEqual(f.resource("links/a").changeContext);
     expect(source.ownedLinks).toEqual({ [linkType]: [beforeLink, f.resource("links/z")] });
     f.write(
-      "updateLinkProperties",
-      { link: "links/a", change: [{ op: "replace", path: "/n", value: 1 }] },
+      "updateLink",
+      { link: "links/a", propertiesChange: [{ op: "replace", path: "/n", value: 1 }] },
       "edge_noop",
     );
     expect(body(await facet.perform(resourceRequest()))).toEqual(after);
@@ -1343,8 +1343,8 @@ describe("G9 deep immutable values and existing bounded pagination", () => {
     }
     expect(observation(properties).resourceRevision).toBe(before.revision);
     f.write(
-      "updateBeadProperties",
-      { bead: "beads/a", change: [{ op: "add", path: "/other", value: 2 }] },
+      "updateBead",
+      { bead: "beads/a", propertiesChange: [{ op: "add", path: "/other", value: 2 }] },
       "deep_update",
     );
     expect(stringifyJsonValue(body(properties))).toBe(deep);

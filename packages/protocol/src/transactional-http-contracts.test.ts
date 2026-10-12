@@ -162,7 +162,7 @@ function checkPremises(example: Example): void {
   if (example.kind === "mutation") {
     expect(request.method).toBe("POST");
     expect(relative).toMatch(
-      /^operations\/(batch|sequence|create-bead|update-bead-properties|delete-bead|create-link|update-link-properties|delete-link|update-where|delete-where|put-alias|delete-alias)$/,
+      /^operations\/(batch|sequence|create-bead|update-bead|delete-bead|create-link|update-link|delete-link|update-where|delete-where|put-alias|delete-alias)$/,
     );
   } else {
     expect(["GET", "HEAD"]).toContain(request.method);

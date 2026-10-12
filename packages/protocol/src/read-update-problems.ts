@@ -21,6 +21,8 @@ export interface ValidationDiagnostic {
   readonly type?: string;
   readonly schemaLocation?: string;
   readonly instanceLocation?: string;
+  /** Omission selects properties; metadata diagnostics identify their document. */
+  readonly document?: "properties" | "metadata";
 }
 /** RFC9457 extensions remain open; the owning schema constrains known codes
  * and their conditionally legal fields (including erased-pointer prohibition).

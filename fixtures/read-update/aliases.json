@@ -69,7 +69,12 @@
     {
       "id": "put-alias-idempotent-retry",
       "condition": "The first put retried under its key after the repoint: the retained disposition is returned without re-execution and still reports the target that put established, although the alias now resolves to adr-104. An alias result discloses no Resource record, so it is returned as retained.",
-      "retained": [{ "from": "put-alias-creates", "index": 0 }],
+      "retained": [
+        {
+          "from": "put-alias-creates",
+          "index": 0
+        }
+      ],
       "request": {
         "method": "POST",
         "target": "operations/put-alias",
@@ -144,7 +149,10 @@
         "body": {
           "id": "beads/adr/sequence-envelopes",
           "type": "https://work.example/types/decision",
-          "properties": { "title": "Collide with a live alias", "status": "proposed" }
+          "properties": {
+            "title": "Collide with a live alias",
+            "status": "proposed"
+          }
         }
       },
       "response": {
@@ -274,7 +282,10 @@
           "source": "beads/adr-104",
           "target": "beads/decision-7",
           "properties": {},
-          "attribution": { "principal": "agent:planner", "status": "claimed" }
+          "attribution": {
+            "principal": "agent:planner",
+            "status": "claimed"
+          }
         }
       },
       "response": {
@@ -290,10 +301,14 @@
             "id": "https://beads.example/acme/links/adr/sequence-envelopes",
             "type": "https://work.example/types/relates",
             "revision": "adr-sequence-envelopes-r1",
-            "attribution": { "principal": "agent:planner", "status": "claimed" },
+            "attribution": {
+              "principal": "agent:planner",
+              "status": "claimed"
+            },
             "source": "https://beads.example/acme/beads/adr-104",
             "target": "https://beads.example/acme/beads/decision-7",
-            "properties": {}
+            "properties": {},
+            "metadata": {}
           }
         }
       }
@@ -320,7 +335,10 @@
                 "title": "Alias mutation joins Read+Update",
                 "status": "proposed"
               },
-              "attribution": { "principal": "agent:planner", "status": "claimed" }
+              "attribution": {
+                "principal": "agent:planner",
+                "status": "claimed"
+              }
             },
             {
               "idempotencyKey": "w1-a-note-alias",
@@ -348,11 +366,15 @@
                 "id": "https://beads.example/acme/beads/note-120",
                 "type": "https://work.example/types/decision",
                 "revision": "note-120-r1",
-                "attribution": { "principal": "agent:planner", "status": "claimed" },
+                "attribution": {
+                  "principal": "agent:planner",
+                  "status": "claimed"
+                },
                 "properties": {
                   "title": "Alias mutation joins Read+Update",
                   "status": "proposed"
                 },
+                "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
                 }

@@ -1,3 +1,4 @@
+import { createCurrentReadTransport, type ReadWireValidator } from "./current-read-transport.js";
 import { observeSuccessorRead } from "./successor-read.js";
 import type { AbsoluteHttpUrl, ReadDiscovery } from "@bdp/protocol";
 import { referenceRevision, referenceUri, parseCanonicalTypeId } from "@bdp/protocol";
@@ -26,6 +27,8 @@ export type BdpClientScenarioActionExecutor = (
 export interface BdpClientScenarioActionExecutorOptions {
   /** Public Fetch implementation used by target-facing diagnostic actions. */
   readonly fetchImplementation?: typeof fetch;
+  /** Conformance-only strict wire check; the public client remains legacy-compatible. */
+  readonly validateReadWire?: ReadWireValidator;
   /** Isolated Fetch implementation for the controlled external Type publisher. */
   readonly externalTypeDescriptorFetchImplementation?: typeof fetch;
 }
@@ -73,6 +76,7 @@ export function createBdpClientScenarioActionExecutor(
           execution,
           fetchImplementation,
           externalTypeDescriptorFetchImplementation,
+          options.validateReadWire,
         );
       case "unsupported-discovery":
         return observeUnsupportedDiscovery(execution);
@@ -83,19 +87,28 @@ export function createBdpClientScenarioActionExecutor(
         return observeMalformedSuccessResponse(execution);
       case "disconnect-recovery":
         requireEmptyInput(execution.input);
-        return observeDisconnectRecovery(execution, fetchImplementation);
+        return observeDisconnectRecovery(execution, fetchImplementation, options.validateReadWire);
       case "public-logical-projection":
-        return observePublicLogicalProjection(execution, fetchImplementation);
+        return observePublicLogicalProjection(
+          execution,
+          fetchImplementation,
+          options.validateReadWire,
+        );
       case "external-type-descriptors":
         return observeExternalTypeDescriptors(
           execution,
           fetchImplementation,
           externalTypeDescriptorFetchImplementation,
+          options.validateReadWire,
         );
       case "external-link-endpoints":
-        return observeExternalLinkEndpoints(execution, fetchImplementation);
+        return observeExternalLinkEndpoints(
+          execution,
+          fetchImplementation,
+          options.validateReadWire,
+        );
       case "owned-links":
-        return observeOwnedLinks(execution, fetchImplementation);
+        return observeOwnedLinks(execution, fetchImplementation, options.validateReadWire);
       default:
         throw new Error("unsupported client scenario operation");
     }
@@ -105,6 +118,7 @@ export function createBdpClientScenarioActionExecutor(
 async function observeExternalLinkEndpoints(
   execution: BdpClientScenarioActionExecution,
   fetchImplementation: typeof fetch | undefined,
+  validateReadWire?: ReadWireValidator,
 ) {
   if (fetchImplementation === undefined)
     throw new Error("external-link-endpoints requires a routed public Fetch implementation");
@@ -126,7 +140,11 @@ async function observeExternalLinkEndpoints(
     throw new Error("external-link-endpoints Link IDs must be unique");
   const client = new BdpClient({
     scope,
-    transport: createFetchTransport(fetchImplementation, TARGET_DIAGNOSTIC_TRANSPORT_LIMITS),
+    transport: createCurrentReadTransport(
+      fetchImplementation,
+      TARGET_DIAGNOSTIC_TRANSPORT_LIMITS,
+      validateReadWire,
+    ),
   });
   const normalizeType = (id: string): string =>
     id.startsWith(scope) ? id.slice(scope.length) : id;
@@ -192,6 +210,7 @@ async function observeExternalLinkEndpoints(
 async function observeOwnedLinks(
   execution: BdpClientScenarioActionExecution,
   fetchImplementation: typeof fetch | undefined,
+  validateReadWire?: ReadWireValidator,
 ) {
   if (fetchImplementation === undefined)
     throw new Error("owned-links requires a routed public Fetch implementation");
@@ -208,7 +227,11 @@ async function observeOwnedLinks(
   if (!id.startsWith(scope)) throw new Error("owned-links bead escaped the Scope");
   const client = new BdpClient({
     scope,
-    transport: createFetchTransport(fetchImplementation, TARGET_DIAGNOSTIC_TRANSPORT_LIMITS),
+    transport: createCurrentReadTransport(
+      fetchImplementation,
+      TARGET_DIAGNOSTIC_TRANSPORT_LIMITS,
+      validateReadWire,
+    ),
   });
   try {
     const result = await client.perform(
@@ -228,6 +251,7 @@ async function observeExternalTypeDescriptors(
   execution: BdpClientScenarioActionExecution,
   scopeFetchImplementation: typeof fetch | undefined,
   externalFetchImplementation: typeof fetch | undefined,
+  validateReadWire?: ReadWireValidator,
 ) {
   if (scopeFetchImplementation === undefined || externalFetchImplementation === undefined)
     throw new Error(
@@ -248,7 +272,11 @@ async function observeExternalTypeDescriptors(
     throw new Error("external-type-descriptors accepts only the controlled work.example Type IDs");
   const client = new BdpClient({
     scope: execution.scope as AbsoluteHttpUrl,
-    transport: createFetchTransport(scopeFetchImplementation, TARGET_DIAGNOSTIC_TRANSPORT_LIMITS),
+    transport: createCurrentReadTransport(
+      scopeFetchImplementation,
+      TARGET_DIAGNOSTIC_TRANSPORT_LIMITS,
+      validateReadWire,
+    ),
     externalTypeDescriptors: {
       typeIds: ids,
       fetchImplementation: externalFetchImplementation,
@@ -274,6 +302,7 @@ async function observeExternalTypeDescriptors(
 async function observeDisconnectRecovery(
   execution: BdpClientScenarioActionExecution,
   fetchImplementation: typeof fetch | undefined,
+  validateReadWire?: ReadWireValidator,
 ) {
   if (fetchImplementation === undefined)
     throw new Error("disconnect-recovery requires a public target Fetch implementation");
@@ -305,7 +334,11 @@ async function observeDisconnectRecovery(
   };
   const client = new BdpClient({
     scope,
-    transport: createFetchTransport(disconnectingFetch, TARGET_DIAGNOSTIC_TRANSPORT_LIMITS),
+    transport: createCurrentReadTransport(
+      disconnectingFetch,
+      TARGET_DIAGNOSTIC_TRANSPORT_LIMITS,
+      validateReadWire,
+    ),
   });
   try {
     const first = await client.perform(
@@ -336,6 +369,7 @@ async function observeDisconnectRecovery(
 async function observePublicLogicalProjection(
   execution: BdpClientScenarioActionExecution,
   fetchImplementation: typeof fetch | undefined,
+  validateReadWire?: ReadWireValidator,
 ) {
   if (fetchImplementation === undefined)
     throw new Error("public-logical-projection requires a public target Fetch implementation");
@@ -352,7 +386,11 @@ async function observePublicLogicalProjection(
   );
   const client = new BdpClient({
     scope,
-    transport: createFetchTransport(fetchImplementation, TARGET_DIAGNOSTIC_TRANSPORT_LIMITS),
+    transport: createCurrentReadTransport(
+      fetchImplementation,
+      TARGET_DIAGNOSTIC_TRANSPORT_LIMITS,
+      validateReadWire,
+    ),
   });
   try {
     const beads = await client.perform(

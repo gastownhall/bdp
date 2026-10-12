@@ -31,6 +31,7 @@ import {
   controlledReadUnauthenticatedChallenge,
   controlledReadViewHeader,
   createControlledReadActionExecutor,
+  createCurrentReadWireValidator,
   emitMatrixRunForCohort,
   resolveBdExecutable as resolveExecutable,
   runBdWorkspaceCommand as runCommand,
@@ -542,6 +543,7 @@ setTimeout(() => process.exit(0), 1500);
           >;
           const schemaValidator = createJsonSchemaValidator(schema);
           const clientActions = createBdpClientScenarioActionExecutor({
+            validateReadWire: createCurrentReadWireValidator(schemaValidator),
             fetchImplementation: scenarioTarget.fetch,
             ...(descriptorPublisher === undefined
               ? {}
@@ -796,6 +798,7 @@ function expectLogicalReadinessEquivalence(
       source: sourceId,
       target: targetId,
       properties: {},
+      metadata: {},
     });
     return [
       toFixtureId(id),

@@ -192,7 +192,7 @@ function collectDiagnostics(limits: ResourceEvaluationOptions["limits"]) {
     append(diagnostic: ValidationDiagnostic): boolean {
       // Snapshot only closed wire fields before measuring. No caller mutation,
       // arbitrary extension or toJSON can change the retained entry's byte cost.
-      const { message, type, schemaLocation, instanceLocation } = diagnostic;
+      const { message, type, schemaLocation, instanceLocation, document } = diagnostic;
       const entry = parseReadUpdateProblem({
         type: "https://github.com/gastownhall/bdp/problems/validation",
         code: "validation-failed",
@@ -204,6 +204,7 @@ function collectDiagnostics(limits: ResourceEvaluationOptions["limits"]) {
             ...(type === undefined ? {} : { type }),
             ...(schemaLocation === undefined ? {} : { schemaLocation }),
             ...(instanceLocation === undefined ? {} : { instanceLocation }),
+            ...(document === undefined ? {} : { document }),
           },
         ],
       }).diagnostics?.[0];
@@ -313,9 +314,16 @@ function bad(
   message: string,
   options: ResourceEvaluationOptions,
   instanceLocation?: string,
+  document?: "properties" | "metadata",
 ): never {
   return diagnosticFailure(
-    [{ message, ...(instanceLocation === undefined ? {} : { instanceLocation }) }],
+    [
+      {
+        message,
+        ...(instanceLocation === undefined ? {} : { instanceLocation }),
+        ...(document === undefined ? {} : { document }),
+      },
+    ],
     options.limits,
   );
 }
@@ -344,7 +352,28 @@ export { storedRecord as readStoredResource };
 
 function storedRecord(stored: EvaluatorStoredResource, scope: string): ResourceRecord {
   const value = JSON.parse(stored.bodyJson) as unknown;
-  const record = stored.kind === "bead" ? parseBeadRecord(value) : parseLinkRecord(value);
+  // Legacy retained bodies have no common metadata member. Project the empty
+  // object for reads without changing their stored bytes or revision token.
+  const withMetadata = (candidate: unknown): unknown =>
+    candidate && typeof candidate === "object" && !Array.isArray(candidate)
+      ? { ...candidate, metadata: "metadata" in candidate ? candidate.metadata : {} }
+      : candidate;
+  let projected = withMetadata(value);
+  if (stored.kind === "bead" && projected && typeof projected === "object") {
+    const bead = projected as Record<string, unknown>;
+    const owned = bead.ownedLinks;
+    if (owned && typeof owned === "object" && !Array.isArray(owned))
+      projected = {
+        ...bead,
+        ownedLinks: Object.fromEntries(
+          Object.entries(owned).map(([type, links]) => [
+            type,
+            Array.isArray(links) ? links.map(withMetadata) : links,
+          ]),
+        ),
+      };
+  }
+  const record = stored.kind === "bead" ? parseBeadRecord(projected) : parseLinkRecord(projected);
   if (resourcePath(scope, record.id, stored.kind) !== stored.id)
     throw new Error("stored Resource identity differs from its index");
   return record;
@@ -419,8 +448,17 @@ function freeze<T>(value: T): T {
 function patch(
   properties: Readonly<Record<string, unknown>>,
   changes: PropertyChange,
+  document: "properties" | "metadata",
   options: ResourceEvaluationOptions,
 ): Readonly<Record<string, unknown>> {
+  function invalid(message: string, pointer: string): never {
+    return bad(
+      document === "metadata" ? `metadata: ${message}` : message,
+      options,
+      pointer,
+      document === "metadata" ? document : undefined,
+    );
+  }
   let result = copy(properties);
   for (const change of changes) {
     const tokens =
@@ -432,7 +470,7 @@ function patch(
             .map((token) => token.replace(/~1/g, "/").replace(/~0/g, "~"));
     if (tokens.length === 0) {
       if (change.op !== "add" && result === undefined)
-        bad("Property Change target does not exist", options, change.path);
+        invalid("Property Change target does not exist", change.path);
       if (change.op === "remove") result = undefined;
       else result = copy(change.value);
       continue;
@@ -445,12 +483,12 @@ function patch(
         !Object.hasOwn(parent, token) ||
         (Array.isArray(parent) && !/^(0|[1-9][0-9]*)$/.test(token))
       )
-        bad("Property Change parent does not exist", options, change.path);
+        invalid("Property Change parent does not exist", change.path);
       parent = (parent as Record<string, unknown>)[token];
     }
     const key = tokens[tokens.length - 1];
     if (key === undefined || !parent || typeof parent !== "object")
-      bad("Property Change target does not exist", options, change.path);
+      invalid("Property Change target does not exist", change.path);
     if (Array.isArray(parent)) {
       const index =
         key === "-" && change.op === "add"
@@ -464,13 +502,13 @@ function patch(
         index > parent.length ||
         (change.op !== "add" && index === parent.length)
       )
-        bad("Property Change array index does not exist", options, change.path);
+        invalid("Property Change array index does not exist", change.path);
       if (change.op === "add") parent.splice(index, 0, copy(change.value));
       else if (change.op === "remove") parent.splice(index, 1);
       else parent[index] = copy(change.value);
     } else {
       if (change.op !== "add" && !Object.hasOwn(parent, key))
-        bad("Property Change target does not exist", options, change.path);
+        invalid("Property Change target does not exist", change.path);
       if (change.op === "remove") delete (parent as Record<string, unknown>)[key];
       else
         Object.defineProperty(parent, key, {
@@ -482,7 +520,12 @@ function patch(
     }
   }
   if (!result || typeof result !== "object" || Array.isArray(result))
-    bad("resulting properties must be an object", options, "");
+    bad(
+      `resulting ${document} must be an object`,
+      options,
+      "",
+      document === "metadata" ? document : undefined,
+    );
   return freeze(result as Record<string, unknown>);
 }
 
@@ -754,11 +797,18 @@ function evaluate(
   }
   const properties = deleting
     ? (before?.properties ?? {})
-    : "change" in input
-      ? patch(before?.properties ?? {}, input.change, options)
+    : "propertiesChange" in input && input.propertiesChange !== undefined
+      ? patch(before?.properties ?? {}, input.propertiesChange, "properties", options)
       : "properties" in input
         ? (input.properties ?? {})
-        : {};
+        : (before?.properties ?? {});
+  const commonMetadata = deleting
+    ? (before?.metadata ?? {})
+    : "metadataChange" in input && input.metadataChange !== undefined
+      ? patch(before?.metadata ?? {}, input.metadataChange, "metadata", options)
+      : "metadata" in input
+        ? (input.metadata ?? {})
+        : (before?.metadata ?? {});
   if (!deleting) validatePropertyContracts(effective, properties, options.limits, fault);
   for (const { type: declaringType, side, constraint, address, actual } of endpointChecks) {
     if (actual !== undefined) {
@@ -809,7 +859,11 @@ function evaluate(
     sourceDescriptor?.describes === "bead" ? sourceDescriptor.ownsOutgoing : undefined;
   const owned =
     ownership !== undefined && (Object.hasOwn(ownership, type) || Object.hasOwn(ownership, "*"));
-  const noOp = !creating && !deleting && equal(properties, before?.properties);
+  const noOp =
+    !creating &&
+    !deleting &&
+    equal(properties, before?.properties) &&
+    equal(commonMetadata, before?.metadata ?? {});
   const contextInput = "changeContext" in input ? input.changeContext : undefined;
   // Protocol defaults: omitted and {} both carry only undetermined states.
   const needsContext =
@@ -837,6 +891,7 @@ function evaluate(
         type,
         revision: revision as string,
         properties,
+        commonMetadata,
         metadata: metadata(before),
         endpoints,
       };
@@ -913,6 +968,7 @@ function evaluate(
         type: source.type,
         revision: sourceRevision,
         properties: source.properties,
+        commonMetadata: source.metadata ?? {},
         metadata: metadata(source),
         endpoints: undefined,
       },
@@ -972,11 +1028,15 @@ function evaluate(
     fail("revision-mismatch");
   if (deleting && resourceKind === "bead" && tx.incidentLinks(id).length)
     fail("incident-links-exist");
-  if ("change" in input) {
+  if ("propertiesChange" in input || "metadataChange" in input) {
     const limits = options.limits;
-    if (limits.patchOperations !== undefined && input.change.length > limits.patchOperations)
+    const changes = [
+      ...("propertiesChange" in input ? (input.propertiesChange ?? []) : []),
+      ...("metadataChange" in input ? (input.metadataChange ?? []) : []),
+    ];
+    if (limits.patchOperations !== undefined && changes.length > limits.patchOperations)
       fail("limit-exceeded");
-    for (const change of input.change)
+    for (const change of changes)
       if (
         (limits.patchPathBytes !== undefined &&
           Buffer.byteLength(change.path) > limits.patchPathBytes) ||
@@ -1049,6 +1109,7 @@ interface VersionRecipe {
   readonly type: string;
   readonly revision: string;
   readonly properties: BeadRecord["properties"];
+  readonly commonMetadata: NonNullable<BeadRecord["metadata"]>;
   readonly endpoints: { readonly source: Reference; readonly target: Reference } | undefined;
   readonly metadata: {
     readonly attribution?: Attribution;
@@ -1077,6 +1138,7 @@ function materializeVersion(
     type: recipe.type,
     revision: recipe.revision,
     properties: recipe.properties,
+    metadata: recipe.commonMetadata,
     ...(recipe.metadata.attribution === undefined
       ? {}
       : { attribution: recipe.metadata.attribution }),

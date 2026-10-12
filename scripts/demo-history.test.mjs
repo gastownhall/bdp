@@ -122,7 +122,13 @@ describe.skipIf(!entries.every((entry) => existsSync(path.join(root, entry))))(
         expect(urls[5].searchParams.getAll("revision")).toEqual(["link-old"]);
         expect(urls[6].searchParams.getAll("revision")).toEqual(["r2"]);
         const values = evidence.observations.map((observation) => observation.value);
-        expect(values).toEqual(http.slice(2).map((row) => row.body));
+        expect(values).toEqual(
+          http
+            .slice(2)
+            .map((row, index) =>
+              index === 2 || index === 3 ? { ...row.body, metadata: {} } : row.body,
+            ),
+        );
         expect(values).toHaveLength(5);
         expect(
           [...values[0].items, ...values[1].items].map((row) => [

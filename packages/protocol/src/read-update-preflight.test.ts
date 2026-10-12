@@ -113,18 +113,18 @@ describe("whole-carrier Read+Update Scope preflight", () => {
 
   it.each([
     [
-      "updateBeadProperties",
+      "updateBead",
       {
         bead: "https://example.test:443/s/beads/a",
-        change: [{ op: "add", path: "/n", value: true }],
+        propertiesChange: [{ op: "add", path: "/n", value: true }],
       },
     ],
     ["deleteLink", { link: "https://example.test:443/s/links/a" }],
     [
-      "updateLinkProperties",
+      "updateLink",
       {
         link: "https://example.test:443/s/links/a",
-        change: [{ op: "add", path: "/n", value: true }],
+        propertiesChange: [{ op: "add", path: "/n", value: true }],
       },
     ],
     ["createLink", { type, source: "https://example.test:443/s/beads/a", target: "beads/b" }],

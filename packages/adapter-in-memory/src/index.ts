@@ -410,6 +410,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
         comment_count: 0,
         ...(localId === "demo-a" ? { extension: "retained" } : {}),
       }),
+      metadata: {},
     };
   });
   const beadById = new Map(beads.map((bead) => [bead.id, bead]));
@@ -495,6 +496,7 @@ function createBuiltInReferenceFixture(scope: AbsoluteHttpUrl): PreparedReferenc
                 }
               : {},
       ),
+      metadata: {},
     };
   });
   // Disclosure subjects, kept in lockstep with the portable fixture's
@@ -566,7 +568,11 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
   const beadsWithLocalIds = readArray(fixture.beads, "fixture.beads").map((entry, index) => {
     const path = `fixture.beads[${index}]`;
     const bead = readRecord(entry, path);
-    requireAllowedKeys(bead, ["localId", "type", "revision", "attribution", "properties"], path);
+    requireAllowedKeys(
+      bead,
+      ["localId", "type", "revision", "attribution", "properties", "metadata"],
+      path,
+    );
     const { localId, id } = readFixtureLocalId(scope, "bead", bead.localId, `${path}.localId`);
     const attribution = readFixtureAttribution(bead.attribution, `${path}.attribution`);
     return {
@@ -577,6 +583,7 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
         revision: readNonemptyString(bead.revision, `${path}.revision`),
         ...(attribution === undefined ? {} : { attribution }),
         properties: readProperties(bead.properties, `${path}.properties`),
+        metadata: readProperties(bead.metadata ?? {}, `${path}.metadata`),
       } satisfies BeadRecord,
     };
   });
@@ -609,7 +616,7 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
     const link = readRecord(entry, path);
     requireAllowedKeys(
       link,
-      ["localId", "type", "revision", "attribution", "source", "target", "properties"],
+      ["localId", "type", "revision", "attribution", "source", "target", "properties", "metadata"],
       path,
     );
     const attribution = readFixtureAttribution(link.attribution, `${path}.attribution`);
@@ -629,6 +636,7 @@ function prepareReferenceFixture(scope: AbsoluteHttpUrl, value: unknown): Prepar
       source: source.endpoint,
       target: target.endpoint,
       properties: readProperties(link.properties, `${path}.properties`),
+      metadata: readProperties(link.metadata ?? {}, `${path}.metadata`),
     } satisfies LinkRecord;
   });
   requireUnique(

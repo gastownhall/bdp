@@ -153,6 +153,7 @@ const ROOT_SELECTOR_MEMBERS: ReadonlySet<string> = new Set([
   "source",
   "target",
   "properties",
+  "metadata",
 ]);
 
 /**

@@ -262,7 +262,7 @@ describe("Transactional wire fixtures", () => {
       "operations/delete-where",
       "operations/put-alias",
       "operations/sequence",
-      "operations/update-bead-properties",
+      "operations/update-bead",
       "operations/update-where",
       "receipts/",
       "receipts/rcpt-0",
@@ -876,10 +876,10 @@ describe("Transactional discovery and limits", () => {
   it("pins all twelve Operation Directory targets", () => {
     const entries = [
       ["createBead", "create-bead"],
-      ["updateBeadProperties", "update-bead-properties"],
+      ["updateBead", "update-bead"],
       ["deleteBead", "delete-bead"],
       ["createLink", "create-link"],
-      ["updateLinkProperties", "update-link-properties"],
+      ["updateLink", "update-link"],
       ["deleteLink", "delete-link"],
       ["putAlias", "put-alias"],
       ["deleteAlias", "delete-alias"],
@@ -902,10 +902,10 @@ describe("Transactional discovery and limits", () => {
     );
     expect(union).toEqual([
       "#/$defs/createBeadOperation",
-      "#/$defs/updateBeadPropertiesOperation",
+      "#/$defs/updateBeadOperation",
       "#/$defs/deleteBeadOperation",
       "#/$defs/createLinkOperation",
-      "#/$defs/updateLinkPropertiesOperation",
+      "#/$defs/updateLinkOperation",
       "#/$defs/deleteLinkOperation",
       "#/$defs/updateWhereOperation",
       "#/$defs/deleteWhereOperation",
@@ -920,7 +920,7 @@ describe("Transactional discovery and limits", () => {
       expect(record.required, name).toEqual(["operation"]);
     }
     expect(propertiesOf("createBeadOperation").name).toEqual({ $ref: "#/$defs/localName" });
-    expect(propertiesOf("updateBeadPropertiesOperation").name).toBeUndefined();
+    expect(propertiesOf("updateBeadOperation").name).toBeUndefined();
     // The receipt entry's deleted identity is the Read+Update record (X1).
     expect(propertiesOf("receiptResult").deleted).toEqual({ $ref: "#/$defs/deletedIdentity" });
     expect(propertiesOf("receiptResult").erased).toEqual({ $ref: "#/$defs/resourceIdentity" });
@@ -1330,10 +1330,10 @@ describe("shapes the bundle now rejects", () => {
       "a directory without the alias targets",
       {
         createBead: "create-bead",
-        updateBeadProperties: "update-bead-properties",
+        updateBead: "update-bead",
         deleteBead: "delete-bead",
         createLink: "create-link",
-        updateLinkProperties: "update-link-properties",
+        updateLink: "update-link",
         deleteLink: "delete-link",
         sequence: "sequence",
         updateWhere: "update-where",
@@ -1439,10 +1439,10 @@ describe("shapes the bundle now rejects", () => {
 
 const SINGLETON_OPERATIONS: ReadonlyMap<string, string> = new Map([
   ["operations/create-bead", "createBead"],
-  ["operations/update-bead-properties", "updateBeadProperties"],
+  ["operations/update-bead", "updateBead"],
   ["operations/delete-bead", "deleteBead"],
   ["operations/create-link", "createLink"],
-  ["operations/update-link-properties", "updateLinkProperties"],
+  ["operations/update-link", "updateLink"],
   ["operations/delete-link", "deleteLink"],
   ["operations/update-where", "updateWhere"],
   ["operations/delete-where", "deleteWhere"],
@@ -1648,7 +1648,7 @@ function expectEntriesCorrespond(
       const identity = entry.erased as JsonRecord;
       const isBead =
         kind === "createBead" ||
-        kind === "updateBeadProperties" ||
+        kind === "updateBead" ||
         (kind === "updateWhere" && operation.collection === "beads");
       // Kind comes from the originating operation; ownership comes from
       // this fixture domain's declared Type, never from a new wire member.
@@ -1708,7 +1708,7 @@ function expectEntriesCorrespond(
       // Prove the request is a no-op before examining the returned revision.
       expect(kind, entryLabel).toMatch(/^update/);
       expect(operation.expectedRevision, entryLabel).toBe(prior.revision);
-      const patches = operation.change as readonly JsonRecord[];
+      const patches = operation.propertiesChange as readonly JsonRecord[];
       expect(patches.length, entryLabel).toBeGreaterThan(0);
       for (const patch of patches) {
         expect(patch.op, entryLabel).toBe("replace");

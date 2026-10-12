@@ -253,7 +253,7 @@ async function main() {
       id: subject,
       revision: oldRevision,
     });
-    assert.deepEqual(old, bead);
+    assert.deepEqual(old, { ...bead, metadata: {} });
     say(`3. The selected old record says: ${JSON.stringify(old.properties.title)}.`);
     say(
       `   Its revision is ${JSON.stringify(old.revision)}; recorded agent is ${JSON.stringify(old.changeContext.agent.value)}.`,
@@ -264,7 +264,7 @@ async function main() {
       id: linkId,
       revision: "link-old",
     });
-    assert.deepEqual(link, oldLink);
+    assert.deepEqual(link, { ...oldLink, metadata: {} });
     say(
       `4. We separately request an old Link. Its target pin is still ${JSON.stringify(link.target.revision)}. No target is fetched.`,
     );
@@ -297,7 +297,11 @@ async function main() {
     assert.deepEqual(actualQuery.getAll("revision"), [oldRevision]);
     assert.deepEqual(
       observations.map((entry) => entry.value),
-      http.slice(2).map((entry) => entry.body),
+      http
+        .slice(2)
+        .map((entry, index) =>
+          index === 2 || index === 3 ? { ...entry.body, metadata: {} } : entry.body,
+        ),
     );
     controller.signal.throwIfAborted();
     completed = true;
