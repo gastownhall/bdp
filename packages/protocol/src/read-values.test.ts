@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   parseBeadCollection,
   parseBeadRecord,
+  parseHistoricalBeadRecord,
+  parseHistoricalLinkRecord,
+  parseReadUpdateMutationResult,
   parseCanonicalHttpUrl,
   parseCanonicalScope,
   parseLinkCollection,
@@ -78,6 +81,40 @@ describe("Read envelope parsing", () => {
     expect(parsed.source).toEqual({ uri: "urn:external:pin-witness", revision: "pin-1" });
     expect(Object.isFrozen(parsed.source)).toBe(true);
     expect(Object.isFrozen(parsed.target)).toBe(true);
+  });
+
+  it("keeps synthesized legacy metadata immutable in direct and historical records and results", () => {
+    const bead = {
+      id: `${scope}beads/a`,
+      type: "https://work.example/types/task",
+      revision: "r1",
+      properties: {},
+    };
+    const link = {
+      id: `${scope}links/a`,
+      type: "https://work.example/types/blocks",
+      revision: "r1",
+      source: bead.id,
+      target: "urn:external:b",
+      properties: {},
+    };
+    const records = [
+      parseBeadRecord(bead),
+      parseLinkRecord(link),
+      parseHistoricalBeadRecord(bead),
+      parseHistoricalLinkRecord(link),
+      parseReadUpdateMutationResult({ outcome: "updated", resource: bead }).resource,
+      parseReadUpdateMutationResult({ outcome: "updated", resource: link }).resource,
+    ];
+    for (const record of records) {
+      expect(record).toBeDefined();
+      expect(Object.isFrozen(record?.metadata)).toBe(true);
+      expect(Reflect.set(record?.metadata as object, "tampered", true)).toBe(false);
+      expect(record?.metadata).toEqual({});
+      expect(record?.revision).toBe("r1");
+    }
+    expect(bead).not.toHaveProperty("metadata");
+    expect(link).not.toHaveProperty("metadata");
   });
 
   it("snapshots and closes Read discovery", () => {
