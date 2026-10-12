@@ -972,7 +972,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#events-and-event-sources",
-          "selectedText": "at least one of `change` and `metadataChange`"
+          "selectedText": "its delta carries `ownedLink` in place of `change` and `metadataChange`"
         }
       ]
     },
@@ -985,7 +985,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#events-and-event-sources",
-          "selectedText": "`change` and/or `metadataChange`"
+          "selectedText": "For `updated`, it is the owned Link's delta — the Link's `id` and `type`, its `previousRevision` and fresh `revision`, the committed `change` and/or `metadataChange`, and the Link's new version's `revisionProvenance` when one was recorded"
         }
       ]
     },

@@ -629,6 +629,17 @@ describe("shapes the bundle now rejects", () => {
     ],
     [
       "validationDiagnostic",
+      "an unknown diagnostic document",
+      { message: "m", document: "record" },
+    ],
+    ["validationDiagnostic", "a null diagnostic document", { message: "m", document: null }],
+    [
+      "validationDiagnostic",
+      "a metadata location that is not a JSON Pointer",
+      { message: "m", document: "metadata", instanceLocation: "nested" },
+    ],
+    [
+      "validationDiagnostic",
       "a Type without its schema location",
       { message: "m", type: "https://t.example/t" },
     ],
@@ -780,6 +791,17 @@ describe("shapes the bundle now rejects", () => {
       },
       "an absolute keyword location and a JSON Pointer",
     );
+    for (const document of [undefined, "properties", "metadata"]) {
+      expectValid(
+        "#/$defs/validationDiagnostic",
+        {
+          message: "document failure",
+          instanceLocation: "/nested~1key",
+          ...(document === undefined ? {} : { document }),
+        },
+        "document-relative pointer",
+      );
+    }
     expectValid(
       "#/$defs/sequenceMemberProblem",
       {

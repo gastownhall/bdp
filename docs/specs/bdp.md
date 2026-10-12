@@ -1057,7 +1057,8 @@ value is a binding positive integer or ISO 8601 duration:
 - `request.targetBytes` counts octets in the encoded HTTP request target, and
   `request.bodyBytes` counts octets in the representation body;
 - `resource.representationBytes` and `resource.propertiesBytes` count UTF-8
-  bytes in the corresponding JSON serialization;
+  bytes in the corresponding JSON serialization; metadata is covered by the
+  complete representation bound, not by the properties-only bound;
 - `selector.bytes` counts UTF-8 bytes after percent-decoding, while
   `selector.depth` and `selector.nodes` count parsed Selector structure;
 - `retention.maximumSnapshotLifetime` bounds the lifetime of a pagination
@@ -3437,15 +3438,15 @@ The Read+Update rows mean:
   itself transient and fails with `idempotency-in-progress` instead.
 - `validation-failed`: the mutation is well-formed but its result is not
   admissible — the resulting `properties` violates an effective Type
-  contract or is not a JSON object, a `replace` or `remove` names a missing
-  target, an in-Scope endpoint fails an effective endpoint constraint or
+  contract, the resulting `properties` or `metadata` is not a JSON object,
+  a `replace` or `remove` names a missing target, an in-Scope endpoint fails an effective endpoint constraint or
   describes the wrong Resource category, or an out-of-Scope endpoint violates
   the Link Type's external-endpoint policy, or the source's resulting owned
   set would exceed the owning Type's declared `max`, or an alias put's
   `target` is not a canonical Bead reference — an alias, a Link, or an
   external URI — under [Alias targets](#alias-targets). The problem MUST
   carry `diagnostics`: a nonempty, bounded array of `{ type?, schemaLocation?,
-  instanceLocation?, message }` entries. When the failure is an effective
+  instanceLocation?, document?, message }` entries. When the failure is an effective
   Type contract, every entry names the failing effective Type in `type` and
   the failed keyword in `schemaLocation` — the absolute keyword location,
   the contract schema's `$id` plus a JSON Pointer fragment, as JSON Schema
@@ -3453,8 +3454,13 @@ The Read+Update rows mean:
   its descriptor's `ownsOutgoing` entry — and, when the failure lies within
   `properties`, `instanceLocation`, a JSON Pointer within `properties`. For
   every other cause `type` and `schemaLocation` are absent, `message` names
-  the cause, and `instanceLocation` locates it within `properties` when it
-  lies there; `type` and `schemaLocation` are present together or not at
+  the cause, and `instanceLocation`, when present, is a JSON Pointer relative
+  to the failing document. The optional `document` is `properties` or
+  `metadata`; omission means `properties`. A metadata failure MUST carry
+  `document: "metadata"`, and its message names metadata. An empty pointer
+  denotes that document's root. A numeric failure in an unapplied metadata
+  patch may omit `instanceLocation` rather than identify a position that does
+  not yet exist. `type` and `schemaLocation` are present together or not at
   all. `validation.diagnostics` and `validation.diagnosticBytes` bound the
   list: an authority that omits entries beyond a bound MUST advertise that
   bound, keeps at least one entry in evaluation order, and sets
@@ -4229,6 +4235,10 @@ DeleteWhere(
 ```
 
 The inherited patch limits apply to each member update of a set update.
+
+`UpdateWhere.change` applies only to each selected Resource's `properties`.
+It leaves `metadata` unchanged. To change metadata, use the Resource update
+operations, including `UpdateBead` or `UpdateLink` operations in a batch.
 
 Selection and mutation occur atomically at one serialization point. The
 Selector is evaluated when its operation is reached, so it observes the
@@ -6051,7 +6061,10 @@ the three non-empty. A `changes` entry is either an `upsert` — `operation`
 Link record at its final projected revision, without the `links`
 aggregate — or a `tombstone` — `operation` `tombstone`, `resourceKind`,
 and `resource` carrying the `id`, the immutable `type`, and the last
-visible `revision`. A tombstone has the same shape whether the Resource
+visible `revision`. Newly committed
+upserts include `metadata`, including `{}` when empty. A previously retained
+change group may contain a pre-metadata record; serving it preserves its
+original record representation, as with previously retained Events. A tombstone has the same shape whether the Resource
 was deleted or merely left the view, because an authorization-projection
 tombstone does not assert underlying deletion. A projection advance
 carries `projectionAdvance` `true`, no `transaction`, `eventCount` `0`, and
@@ -6328,7 +6341,10 @@ committed for a pre-metadata version remains bound to that version's original
 pre-projection record, which lacked the member. Projecting `{}` for a later
 History read does not rewrite that version or its erasure digest;
 verification of that historical digest uses the retained original record,
-never the later compatibility projection. Under the number model of
+never the later compatibility projection. A
+consumer holding only a projected record cannot reproduce that historical
+digest from that record alone; verification requires the original retained
+bytes. Current reads do not provide proof of the pre-projection form. Under the number model of
 [Revisions](#revisions) every admitted number is a binary64 value, so every
 record has exactly one canonical serialization and one digest, and
 implementations agree on it without a BDP-specific canonicalization rule.

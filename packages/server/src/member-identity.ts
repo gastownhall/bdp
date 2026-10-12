@@ -1,3 +1,4 @@
+import { memberNumericDiagnosticBudget } from "./member-numeric-diagnostics.js";
 import {
   type JsonNumberDiagnosticBudget,
   type LosslessJsonValue,
@@ -427,32 +428,7 @@ export function prepareMemberExecution(
 ): MemberExecutionValues {
   const state = identityState.get(member);
   if (!state) throw new TypeError("expected a normalized member identity");
-  // S1's occurrences are operation-relative; create diagnostics name either
-  // Resource object. Locations in each object's validation are relative to it.
-  // Update formatting remains the caller's existing responsibility pending its
-  // separate unapplied-patch-location convention. No store read or clock here.
-  let selectedBudget = budget;
-  if (state.original.operation === "createBead" || state.original.operation === "createLink") {
-    const { diagnostics, diagnosticBytes, diagnostic } = budget;
-    selectedBudget = Object.freeze({
-      ...(diagnostics !== undefined ? { diagnostics } : {}),
-      ...(diagnosticBytes !== undefined ? { diagnosticBytes } : {}),
-      diagnostic: (occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
-        const object = ["properties", "metadata"].find((name) =>
-          occurrence.pointer.startsWith(`/${name}/`),
-        );
-        if (!object)
-          throw new TypeError("unexpected numeric position in admitted create operation");
-        const { message, type, schemaLocation } = diagnostic(occurrence);
-        return Object.freeze({
-          message,
-          ...(type !== undefined ? { type } : {}),
-          ...(schemaLocation !== undefined ? { schemaLocation } : {}),
-          instanceLocation: occurrence.pointer.slice(object.length + 1),
-        });
-      },
-    });
-  }
+  const selectedBudget = memberNumericDiagnosticBudget(state.original.operation, budget);
   const admission = admitReadUpdateOperationNumbers(state.original, selectedBudget);
   if (!admission.ok || state.unavailableBinding)
     return Object.freeze({ admission, unavailableBinding: state.unavailableBinding });

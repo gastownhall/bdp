@@ -5,7 +5,12 @@ import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseTypeDescriptor, isJsonSchemaDateTime, isJsonSchemaUri } from "@bdp/protocol";
+import {
+  parseTypeDescriptor,
+  parseReadUpdateProblem,
+  isJsonSchemaDateTime,
+  isJsonSchemaUri,
+} from "@bdp/protocol";
 import {
   prepareTransaction,
   prepareTransactionSingleton,
@@ -2498,4 +2503,162 @@ describe("private transaction storage failure fencing", () => {
       expect(recovered.inspect().groups).toHaveLength(3);
     },
   );
+});
+
+describe("Transactional numeric diagnostic documents", () => {
+  for (const document of ["properties", "metadata"] as const) {
+    it.each(["createBead", "createLink", "updateBead", "updateLink"] as const)(
+      `${document} failure in %s rolls back the prefix, skips the tail and replays after restart`,
+      (operation) => {
+        const f = fixture();
+        f.store.execute(
+          admit(
+            f.store,
+            {
+              operations: [
+                { operation: "createBead", id: "beads/a", type: bead, properties: { n: 0 } },
+                {
+                  operation: "createLink",
+                  id: "links/old",
+                  type: link,
+                  source: "beads/a",
+                  target: "beads/a",
+                },
+              ],
+            },
+            "seed",
+          ),
+        );
+        const before = f.store.inspect();
+        const creating = operation.startsWith("create");
+        const isLink = operation.endsWith("Link");
+        const input = creating
+          ? {
+              operation,
+              id: isLink ? "links/new" : "beads/new",
+              type: isLink ? link : bead,
+              ...(isLink ? { source: "beads/a", target: "beads/a" } : {}),
+              [document]: { nested: { bad: "BAD" } },
+            }
+          : {
+              operation,
+              [isLink ? "link" : "bead"]: isLink ? "links/old" : "beads/a",
+              [`${document}Change`]: [{ op: "add", path: "/items/-", value: "BAD" }],
+            };
+        const text = JSON.stringify({
+          operations: [
+            {
+              operation: "updateBead",
+              bead: "beads/a",
+              propertiesChange: [{ op: "add", path: "/prefix", value: true }],
+            },
+            { ...input, ...(creating ? { name: "bad" } : {}) },
+            { operation: "createBead", id: "beads/tail", type: bead },
+          ],
+        }).replace('"BAD"', "1e999");
+        const prepared = prepareTransaction(scope, text);
+        const admitted = f.store.admit("principal", "bad", prepared);
+        if (admitted.kind !== "owned") throw Error("expected ownership");
+        const receipt = f.store.execute(admitted.claim);
+        expect(receipt.status).toBe("failed");
+        const diagnostic =
+          document === "metadata"
+            ? {
+                message: "metadata: unsupported number",
+                document: "metadata",
+                ...(creating ? { instanceLocation: "/nested/bad" } : {}),
+              }
+            : {
+                message: "unsupported number",
+                instanceLocation: creating ? "/nested/bad" : "/propertiesChange/0/value",
+              };
+        expect(receipt.problem).toMatchObject({
+          code: "validation-failed",
+          operationIndex: 1,
+          ...(creating ? { operationName: "bad" } : {}),
+          diagnostics: [diagnostic],
+        });
+        expect(parseReadUpdateProblem(receipt.problem).diagnostics).toEqual([diagnostic]);
+        expect(receiptSchema(receipt), JSON.stringify(receiptSchema.errors)).toBe(true);
+        expect(f.store.inspect()).toEqual(before);
+        f.reopen();
+        expect(f.store.admit("principal", "bad", prepareTransaction(scope, text))).toEqual({
+          kind: "existing",
+          receipt,
+        });
+        expect(
+          f.store.admit(
+            "principal",
+            "bad",
+            prepareTransaction(scope, text.replace("1e999", "2e999")),
+          ),
+        ).toEqual({ kind: "conflict" });
+        expect(f.store.inspect()).toEqual(before);
+      },
+    );
+  }
+  it("includes the metadata discriminator in the exact 65536-byte bound before truncation", () => {
+    const f = fixture();
+    const base = { message: "metadata: unsupported number", document: "metadata" };
+    // A shared long parent is short on input but appears in each diagnostic.
+    // This reaches the diagnostic limit without violating the request byte cap.
+    const suffixes = ["a", "b"];
+    const empty = suffixes.map((suffix) => ({ ...base, instanceLocation: `//${suffix}` }));
+    if ((65536 - Buffer.byteLength(JSON.stringify(empty))) % 2 !== 0) suffixes[1] = "bb";
+    const overhead = Buffer.byteLength(
+      JSON.stringify(suffixes.map((suffix) => ({ ...base, instanceLocation: `//${suffix}` }))),
+    );
+    const key = "x".repeat((65536 - overhead) / 2);
+    const textFor = (parent: string) =>
+      JSON.stringify({
+        operations: [
+          {
+            operation: "createBead",
+            type: bead,
+            metadata: { [parent]: { [suffixes[0]!]: "BAD", [suffixes[1]!]: "BAD", third: "BAD" } },
+          },
+        ],
+      }).replaceAll('"BAD"', "1e999");
+    const prepared = prepareTransaction(scope, textFor(key));
+    const admitted = f.store.admit("principal", "exact", prepared);
+    if (admitted.kind !== "owned") throw Error("expected ownership");
+    const receipt = f.store.execute(admitted.claim);
+    expect(parseReadUpdateProblem(receipt.problem).diagnostics).toEqual(
+      suffixes.map((suffix) => ({ ...base, instanceLocation: `/${key}/${suffix}` })),
+    );
+    expect(
+      Buffer.byteLength(JSON.stringify(parseReadUpdateProblem(receipt.problem).diagnostics)),
+    ).toBe(65536);
+    expect(parseReadUpdateProblem(receipt.problem).diagnosticsTruncated).toBe(true);
+    expect(f.store.inspect()).toEqual({ resources: [], groups: [], identities: [], position: "0" });
+    f.reopen();
+    expect(f.store.admit("principal", "exact", prepared)).toEqual({ kind: "existing", receipt });
+    const over = f.store.admit("principal", "over", prepareTransaction(scope, textFor(`${key}x`)));
+    if (over.kind !== "owned") throw Error("expected ownership");
+    const shorter = f.store.execute(over.claim);
+    expect(parseReadUpdateProblem(shorter.problem).diagnostics).toEqual([
+      { ...base, instanceLocation: `/${key}x/${suffixes[0]}` },
+    ]);
+    expect(parseReadUpdateProblem(shorter.problem).diagnosticsTruncated).toBe(true);
+    expect(f.store.inspect()).toEqual({ resources: [], groups: [], identities: [], position: "0" });
+  });
+  it("retains sixteen complete metadata diagnostics and marks the seventeenth omitted", () => {
+    const f = fixture();
+    const metadata = Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`n${i}`, "BAD"]));
+    const text = JSON.stringify({
+      operations: [{ operation: "createBead", type: bead, metadata }],
+    }).replaceAll('"BAD"', "1e999");
+    const admitted = f.store.admit("principal", "count", prepareTransaction(scope, text));
+    if (admitted.kind !== "owned") throw Error("expected ownership");
+    const receipt = f.store.execute(admitted.claim);
+    expect(parseReadUpdateProblem(receipt.problem).diagnostics).toEqual(
+      Array.from({ length: 16 }, (_, i) => ({
+        message: "metadata: unsupported number",
+        document: "metadata",
+        instanceLocation: `/n${i}`,
+      })),
+    );
+    expect(parseReadUpdateProblem(receipt.problem).diagnosticsTruncated).toBe(true);
+    expect(f.store.inspect()).toEqual({ resources: [], groups: [], identities: [], position: "0" });
+  });
 });

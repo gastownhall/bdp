@@ -1,4 +1,5 @@
 /** Private first Transactional slice. No transport or profile admission. */
+import { memberNumericDiagnosticBudget } from "./member-numeric-diagnostics.js";
 import {
   JsonNumberLiteral,
   decodeJsonDocument,
@@ -436,11 +437,14 @@ export function evaluateTransaction(
           operationIndex,
         },
       };
-    const admitted = admitReadUpdateOperationNumbers(op, {
-      diagnostics: 16,
-      diagnosticBytes: 65536,
-      diagnostic: ({ pointer }) => ({ message: "unsupported number", instanceLocation: pointer }),
-    });
+    const admitted = admitReadUpdateOperationNumbers(
+      op,
+      memberNumericDiagnosticBudget(op.operation, {
+        diagnostics: 16,
+        diagnosticBytes: 65536,
+        diagnostic: ({ pointer }) => ({ message: "unsupported number", instanceLocation: pointer }),
+      }),
+    );
     if (!admitted.ok)
       return {
         ok: false,
