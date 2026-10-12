@@ -1116,6 +1116,44 @@ describe("native JSON syntax storage format", () => {
     expect(() => openRecoveryStore({ ...options(dir), create: {} })).toThrow();
   });
 
+  it("refuses pre-provenance format 2 byte-identically before pending recovery", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    effect(store, "expired");
+    store.expire(100 + day);
+    effect(store, "retained", (tx) =>
+      tx.putResource({
+        id: "beads/old",
+        kind: "bead",
+        bodyJson:
+          '{"attribution":{"principal":"old","basis":"unknown"},"changeContext":{"message":{"state":"present","value":"old"}}}',
+      }),
+    );
+    store.admit("alice", ["pending"]);
+    store.close();
+    const filename = path.join(dir, "reference.sqlite");
+    const raw = new DatabaseSync(filename);
+    // The old format uses the same tables/JSON codec, but different record and identity fields.
+    raw.exec("UPDATE metadata SET value='2' WHERE name='format'");
+    const rows = raw.prepare("SELECT * FROM key_state ORDER BY key").all();
+    expect(rows.map((row) => row.state)).toEqual(["expired", "claimed", "retained"]);
+    raw.close();
+    const before = readFileSync(filename);
+    expect(() => open(dir)).toThrow(expect.objectContaining({ reason: "store-mismatch" }));
+    expect(readFileSync(filename)).toEqual(before);
+    const after = new DatabaseSync(filename, { readOnly: true });
+    try {
+      expect(after.prepare("SELECT * FROM key_state ORDER BY key").all()).toEqual(rows);
+      expect(
+        after.prepare("SELECT body FROM resources WHERE id='beads/old'").get()?.body,
+      ).toContain('"changeContext"');
+    } finally {
+      after.close();
+    }
+    expect(() => openRecoveryStore({ ...options(dir), create: {} })).toThrow();
+    expect(readFileSync(filename)).toEqual(before);
+  });
+
   it("cleans up an uncommitted new file when syntax function registration fails", () => {
     const dir = directory();
     const spy = vi.spyOn(DatabaseSync.prototype, "function").mockImplementationOnce(() => {
