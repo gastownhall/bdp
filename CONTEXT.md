@@ -66,3 +66,9 @@ _Avoid_: revision source list
 A Bead recording a reported activity concerning a Bead, Link, or external
 resource. Its own revision provenance describes recording the report.
 _Avoid_: protocol Event
+
+**Source relation**:
+An optional statement of how referenced information relates to a revision or
+activity, such as evidence used or an output produced. It does not identify the
+referenced resource's Type or create a graph Link.
+_Avoid_: target Type

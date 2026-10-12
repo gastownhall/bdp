@@ -25,10 +25,10 @@ the separate BDP `attribution` and `changeContext` containers and the preview's
 combined attribution/time container with this one common representation. This is
 a proposed amendment and migration target, not a claim that either has changed.
 
-Prefer `revisionProvenance` to bare `provenance`, which also describes activity
-history, and to `changeProvenance`, which suggests a change operation. The
-containing version is the subject even when it is the initial creation or a
-historical read. No extra subject reference is needed.
+There is only one common provenance field: `revisionProvenance`. The containing
+version is its subject, including initial creation and historical reads. Activity
+provenance names a different kind of information, recorded in Activity Beads; it
+is not another common provenance envelope.
 
 Use **activity provenance** for the independently recorded work history served by
 `bd provenance`. Its records remain **Activity Beads**, whose Type-specific fields
@@ -40,15 +40,27 @@ a second common envelope to Activity Beads. Each Activity Bead has ordinary
 
 | Information | **EXISTING — BDP** | **EXISTING — graph CLI preview** | **PROPOSED — both** |
 | --- | --- | --- | --- |
-| Responsible actor and qualification | `attribution.principal`, `.status` | `attribution.actor`, `.status` | `revisionProvenance.actor.id`, `.status` |
+| Responsible actor and qualification | Main: `attribution.principal`, `.status`; PR65: `.principal`, `.basis` | Public graph output: `attribution.actor`, `.basis` | `revisionProvenance.actor.id`, `.basis` |
 | Revision time | `changeContext.committedAt` where History context is available | `attribution.recordedAt` | `revisionProvenance.committedAt` |
 | Assisting agent | `changeContext.agent` | Not in the preview attribution structure | `revisionProvenance.agent` |
 | Change message | `changeContext.message` | Not in the preview attribution structure | `revisionProvenance.message` |
 | Information sources | No shared source member | No shared source member | `revisionProvenance.sources` |
 | Source-list completeness | No shared source member | No shared source member | `revisionProvenance.sourcesCompleteness` |
 
-The actor retains its `claimed` or `unknown` qualification; grouping it with a
-server-observed time does not authenticate the actor or verify the source list.
+Use **`basis: writer-supplied | unknown`**, following
+[BDP PR65](https://github.com/gastownhall/bdp/pull/65), not the older `status` /
+`claimed` vocabulary. PR65 is open at `a7edb0c`; its normative source is `de99030`
+and it is included in Vickie's open PR83. The paired
+[Beads PR79](https://github.com/donnabox/beads/pull/79) is merged into the fork;
+public graph output already uses `basis`, even though private storage retains
+older names. This draft's previous CLI comparison incorrectly used that private
+shape as the public contract. `writer-supplied` says how the identity was obtained,
+not that it was authenticated; `unknown` preserves an identity with an uncertain
+relationship to this revision. A present actor requires both `id` and `basis`.
+Grouping it with server-observed time does not authenticate it or verify sources.
+Vickie confirmed these spellings and PR states on October 11; no separate new
+CLI basis-input flag was established by that output rename. The flag below is
+part of this strawman.
 An absent actor stays absent. For this draft, retain the existing History value
 states for time, agent, and message rather than silently dropping distinctions
 between known absence and missing knowledge. The example below shows that
@@ -140,9 +152,10 @@ omitted for brevity. These are recommended field names, not an adopted wire sche
   "revisionProvenance": {
     "actor": {
       "id": "human:alice",
-      "status": "claimed"
+      "basis": "writer-supplied"
     },
     "committedAt": { "state": "present", "value": "2026-10-11T18:00:00Z" },
+    "agent": { "state": "present", "value": "agent:research-assistant" },
     "message": { "state": "present", "value": "Record the storage decision" },
     "sources": [
       {
@@ -150,6 +163,7 @@ omitted for brevity. These are recommended field names, not an adopted wire sche
           "uri": "https://example.org/project/beads/benchmark",
           "revision": "r17"
         },
+        "rel": "evidence",
         "note": "Supplied the measurements used to choose the storage engine."
       }
     ],
@@ -158,12 +172,52 @@ omitted for brevity. These are recommended field names, not an adopted wire sche
 }
 ```
 
-Here Alice is the claimed author of the decision version, and benchmark R17 is
-its declared information source. This does not say Alice authored the benchmark.
-The optional assisting-agent field is omitted; no agent is inferred. During
-mapping from existing History, preserve explicit absent/undetermined agent or
+Here Alice is the writer-supplied responsible actor, the research assistant is
+the assisting agent, and benchmark R17 is the declared information source. This
+does not say Alice authored the benchmark or that the server verified these
+identities. During mapping from existing History, preserve explicit
+absent/undetermined agent or
 message states when present. Unknown legacy commit time uses the existing
 `{ "state": "undetermined" }` representation.
+
+## Shared reference entries and optional relationship tags
+
+Use the same entry shape for revision `sources` and Activity `artifacts`:
+`{ ref, rel?, note? }`. Make activity artifacts a list, so one report can refer to
+several inputs or outputs. The reference keeps ordinary URI/exact-pin semantics.
+
+Recommend **`rel`**, an optional relationship tag describing how the referenced
+item relates to the containing revision or activity. This follows the useful
+[HTTP Link relation pattern](https://www.rfc-editor.org/rfc/rfc8288.html#section-2.1),
+not the HTTP target `type` attribute. It is neither the referenced resource's Bead
+Type nor a new graph Link Type. No graph edge or automatic target fetch is created.
+
+Candidate short relations for discussion are `input`, `evidence`, `policy`,
+`output`, and `related`; final names and their definitions need agreement.
+For example, a revision source could carry `rel: evidence`, while a commit
+produced by an activity could carry `rel: output`. A source remains information
+used to produce the revision, so a known output-only relation does not belong in
+its `sources` list. An Activity may legitimately have both inputs and outputs.
+An omitted relation on a source means an unspecified input role; on an artifact,
+it means unspecified association. The tag records a claim, not proof of support.
+
+Allow agreed short names plus absolute URI extension relations. Preserve unknown
+extension relations without guessing their meaning; do not require a registry
+lookup or dereference to read the record. This borrows the extensibility pattern,
+not the entire IANA relation vocabulary or HTTP header grammar. Relationship
+extensions must still respect the containing field's meaning.
+
+One shared shape does not make every Activity artifact a source of its subject
+or of the Activity record. A CI report can be the source used to write an Activity
+record while a resulting commit is the output of the reported activity.
+
+Legacy `bd provenance --ref` values may be arbitrary strings, not Resource URIs.
+Keep their spelling and optional `refKind` in an explicitly marked legacy artifact
+entry during conversion; do not silently promote a SHA to a global Resource
+identity. The compatibility extension is `{ legacyRef, refKind?, rel?, note? }`,
+mutually exclusive with `ref`. New native entries use `ref`. Artifact kind (for
+example `git-sha`) describes the identifier; relation describes its role. Existing
+opaque references need this adapter even when their spelling resembles a URL.
 
 ## Saving, reading, and correcting
 
@@ -194,7 +248,8 @@ the ordinary attribution and history rules for their respective writes.
 These are the author's recorded sources, not proof that the sources are true,
 that the list is exhaustive, or that the decision was correct. An optional note
 can say a source supplied evidence, imposed a requirement, or described a rejected
-alternative. No mandatory relationship taxonomy is introduced.
+alternative. Optional relationship tags refine that explanation without requiring
+every source to be classified; see the shared entry shape above.
 
 Who changed the record and when remain distinct fields in the same envelope. The
 decision's explanation can remain in its content. Approval, access policy,
@@ -211,7 +266,17 @@ It does not claim full Memory proposal conformance.
 
 If adopted, the Memory proposal should map its derived-from and derivation
 completeness fields to this member, rather than keep a second independently
-editable copy. Inception and Change Attribution remain separate concepts.
+editable copy. The Memory proposal's **Change Attribution** is the actor, time,
+assisting agent, and message now housed in `revisionProvenance`; it is not an
+additional field or competing mechanism.
+
+**Inception** is that proposal's name for how a Memory first entered the system
+(native creation, conversion, or import). That differs from who wrote its latest
+revision: importing an old Memory today does not make today its original creation
+or original revision time. This speclet introduces no new Inception field. A
+future mapping may use an import Activity and appropriate source references;
+meeting the Memory proposal's exact origin requirements still needs a separate
+mapping, not a second copy of Change Attribution.
 
 Changes to sources or their completeness count when deciding whether to create a
 new version. Moving the existing actor/context fields into `revisionProvenance`
@@ -236,8 +301,8 @@ need selecting; the following is a proposed contract, not implemented behavior.
 | `kind` — required | What reportedly happened. Preserve today's `cut`, `claim`, `suspend`, `resume`, `handoff`, `commit`, `land`, and `used` meanings in the CLI mapping. Extension rules remain open. |
 | `producer` — required | The reporting system; maps to today's `--source`. This is not a source of information used to author the subject. |
 | `actor` — optional | Who reportedly performed the activity. This can differ from the attribution on the Activity Bead's own write. |
-| `occurredAt` — optional | When the activity reportedly happened. Omission means unknown. The Activity Bead's creation time separately records when the report was saved. |
-| `artifact` — optional | A related artifact reference, with an optional kind. Preserve today's opaque `--ref` values and `--ref-kind` classifications; do not require old artifact references to become URLs. |
+| `occurredAt` — optional | Caller/producer-supplied time when the activity reportedly happened. Never generated or defaulted by the server; omission means unknown. The Activity revision commit time separately records its write. |
+| `artifacts` — optional list | Related inputs/outputs using the shared `{ ref, rel?, note? }` shape. Legacy opaque artifact references use the explicit compatibility entry described above. |
 | `payload` — optional | Producer-supplied details. Preserve existing opaque payload strings without assuming they contain JSON. |
 
 The Activity Bead also has ordinary Bead identity, a pinned Type reference,
@@ -258,9 +323,9 @@ Link revision:
   "producer": "release-checker",
   "actor": "release-bot",
   "occurredAt": "2026-10-11T18:00:00Z",
-  "artifact": {
-    "ref": "https://ci.example.org/runs/123"
-  }
+  "artifacts": [
+    { "ref": "https://ci.example.org/runs/123", "rel": "related" }
+  ]
 }
 ```
 
@@ -305,7 +370,7 @@ work. See [BDP Events](https://github.com/gastownhall/bdp/blob/182f1fcf8a01d8969
 `log` finds Activity Beads by subject identity, optionally filtered by kind;
 an identity query includes both pinned and unpinned reports about that subject.
 An explicit exact-revision filter matches only that pin, excluding unpinned
-reports. `by-ref` matches the artifact's recorded reference exactly. Index subject
+reports. `by-ref` matches any artifact entry as defined in the CLI section. Index subject
 identity/revision, kind, occurrence time, and artifact reference so these queries
 do not require scanning every Bead or its history. Query spelling, paging, and
 ordering are proposed in the CLI strawman below; indexes are a storage choice.
@@ -461,35 +526,35 @@ Source check October 11: upstream main `7477ec13`, graph preview integration
 `72cd9dc3`, and BDP main `182f1fcf`, freshly rechecked. The preview's global
 [`--actor`](https://github.com/donnabox/beads/blob/72cd9dc3c7a2304f15dbe5d3e880d903cf077a35/cmd/bd/main.go#L935)
 is inherited by ordinary mutations and defaults from `BEADS_ACTOR`, Git user
-name, then the OS user. No common actor-status/source-list/change-message flags
+name, then the OS user. No common actor-basis/source-list/change-message flags
 are registered for all three lifecycle verbs in the inspected source.
 
 There are two important spelling collisions:
 
 - [`--message` / `-m`](https://github.com/donnabox/beads/blob/72cd9dc3c7a2304f15dbe5d3e880d903cf077a35/cmd/bd/flags.go#L11)
   already aliases the Issue description on create/update. Other commands also use
-  it for different purposes. Do not silently reinterpret it as revision metadata.
+  it for different purposes. The proposed lifecycle contract intentionally removes
+  the description alias: use `--description` or `--body` for content.
 - [`bd provenance record --actor`](https://github.com/donnabox/beads/blob/72cd9dc3c7a2304f15dbe5d3e880d903cf077a35/cmd/bd/provenance.go#L190)
   is a local flag for the activity's actor, and `--source` names its producer.
-  Neither should silently change meaning.
+  Both collisions require explicit migration in the proposed CLI contract.
 
 ### Common revision-provenance options
 
 | Proposed option, on create/update/delete | Meaning |
 | --- | --- |
-| `--revision-actor ID` | Set `revisionProvenance.actor.id`. Ordinary lifecycle `--actor` remains a compatibility alias; contradictory explicit values are an error. |
-| `--actor-status claimed\|unknown` | Qualify the revision actor. Default `claimed` when the CLI supplies an actor, including its configured default. `unknown` preserves an identity whose relationship to the version is uncertain. No `verified` or `authenticated` value. |
-| `--no-actor` | Suppress actor defaulting and leave revision actor absent; mutually exclusive with explicit revision actor or actor-status. |
-| `--revision-message TEXT` | Set the optional revision message, distinct from content/description or backend commit messages. An explicit empty string is a known empty message. |
+| `--actor ID` | Set `revisionProvenance.actor.id` consistently on create/update/delete and the Activity wrapper; retain ordinary configured defaults. |
+| `--actor-basis writer-supplied\|unknown` | Qualify the revision actor. Default `writer-supplied` when the CLI supplies an actor, including its configured default. `unknown` preserves an identity whose relationship to the version is uncertain. No authenticated value. |
+| `--no-actor` | Suppress actor defaulting and leave revision actor absent; mutually exclusive with explicit revision actor or actor-basis. |
+| `--message TEXT` | Set the optional revision message, distinct from content/description or backend commit messages. An explicit empty string is a known empty message. |
 | `--assisting-agent ID` | Record an optional assisting agent, distinct from the responsible actor. Do not infer it from login identity. |
-| `--no-revision-message`, `--no-assisting-agent` | Record known absence rather than undetermined; each excludes its corresponding value option. |
 | `--sources JSON`, `--sources @FILE`, or `--sources -` | Supply the entire source-entry array inline, from a UTF-8 JSON file, or stdin. Replaces the source list; no comma-splitting of URLs and no implicit append. |
 | `--sources-unknown` | Explicitly reset source knowledge to unknown; excludes `--sources` and any non-unknown completeness value. |
 | `--sources-completeness complete\|incomplete\|unknown` | Declare completeness of the source list. Reject complete/incomplete when the resulting sources are unknown. |
 
 Only one input may consume stdin, and only one `--sources` option is allowed.
-Reject empty explicit actor/agent IDs and actor-status without a resolved actor.
-Each source entry has `ref` and optional `note`, using the same reference grammar
+Reject empty explicit actor/agent IDs and actor-basis without a resolved actor.
+Each source entry has `ref` and optional `rel` and `note`, using the same reference grammar
 as BDP. A plain URI is unpinned; `{ "uri": "…", "revision": "…" }` pins exactly.
 Do not resolve unpinned sources to latest silently. CLI-local identity shorthand,
 if supported, must expand through the normal reference resolver without guessing
@@ -529,6 +594,7 @@ Example source file `sources.json`:
 [
   {
     "ref": { "uri": "https://example.org/project/beads/benchmark", "revision": "r17" },
+    "rel": "evidence",
     "note": "Measurements supporting this decision"
   }
 ]
@@ -537,19 +603,46 @@ Example source file `sources.json`:
 Illustrative commands; the flags are proposed:
 
 ```sh
-bd create "Choose storage engine" --revision-actor human:alice \
-  --revision-message "Record the decision" \
+bd create "Choose storage engine" --actor human:alice \
+  --assisting-agent agent:research-assistant \
+  --message "Record the decision" \
   --sources @sources.json --sources-completeness incomplete
 bd update DECISION_ID --sources @sources.json \
-  --revision-message "Correct the supporting sources"
+  --message "Correct the supporting sources"
 bd delete DECISION_ID --if-revision R2 --force \
   --sources '[{"ref":"https://example.org/policies/retention"}]' \
-  --revision-message "Remove under retention policy"
+  --message "Remove under retention policy"
 ```
 
 The delete example is logical deletion, not an erasure request. JSON output for
 an actual deletion should return a discriminated terminal-history record with
 its new revision and revision provenance; ordinary GET still returns 404.
+
+### Message naming, omission, and compatibility
+
+Recommend **`--message`** for the short explanation attached to this revision.
+The name comes from BDP History/Memory's change-message requirement and the
+familiar commit-message convention, not a need for another discussion system.
+`comment` would also be understandable prose, but Beads already has separate
+comments on Issues; avoid implying that this option creates one of those.
+If `comment` is selected later, rename field/flag consistently rather than keep
+multiple names for the same thing.
+
+No `--no-message` or `--no-agent` family is needed in the everyday CLI: neither
+message nor agent defaults or inherits from the previous revision. Omission
+means no value was supplied for this write; `--message ''` is an explicitly empty
+message. Keep existing known-absent versus undetermined states losslessly in
+History/import/structured inputs, without dedicated negative flags. This is a CLI
+simplification, not permission to erase those distinctions from saved records.
+`--no-actor` still has a purpose: it disables the existing automatic actor default.
+
+Reusing `--message` and making wrapper `--actor` consistent are deliberate breaking
+changes from the inspected legacy meanings. Cut them over at an explicit CLI
+contract/version boundary with migration notes and updated help/examples: old
+create/update `--message` content becomes `--description`; old `record --actor`
+becomes `--activity-actor`. Do not infer intended meaning from argument contents or
+silently accept both interpretations. Output adapters alone cannot solve a flag
+meaning change. No implementation ships before that compatibility choice is made.
 
 ### `bd provenance record` is an Activity-create convenience command
 
@@ -562,23 +655,23 @@ It retains useful validation and retry handling beyond a bare unkeyed create.
 | `--subject REF --subject-kind bead\|link\|external` | Activity subject; preserve an explicit pin. Existing `--issue ID` is a shorthand for an unpinned Issue subject; reject conflicting forms. |
 | `--kind KIND` | Activity kind |
 | `--producer NAME` | Activity producer; preserve `--source` as an alias and reject contradictory values |
-| `--activity-actor ID` | Activity participant; preserve this command's existing `--actor` as an alias |
-| `--ref`, `--ref-kind`, `--at`, `--payload` | Existing artifact, occurrence time, and opaque payload meanings |
+| `--activity-actor ID` | Activity participant; replaces this command's former local `--actor` meaning in the new contract |
+| `--artifacts JSON\|@FILE\|-` | Activity reference-entry list; same input conventions as `--sources`, different content role. Mutually exclusive with legacy `--ref` / `--ref-kind`. |
+| `--ref`, `--ref-kind`, `--at`, `--payload` | Legacy artifact shorthand, caller-supplied occurrence time, and opaque payload. The legacy pair creates one `legacyRef` entry. |
 | Common revision-provenance options above | Provenance of creating the Activity record, including any information sources used to write the report |
 
-On this wrapper, `--revision-actor` always names the record writer; local
-`--actor` always names the activity participant. Resolve the writer's default
-independently of the local activity-actor flag. `--no-actor` suppresses only the
-revision actor here; it does not erase an explicitly supplied activity actor.
-`--actor-status` qualifies only the revision actor. Help and JSON examples must
-make this legacy spelling exception visible.
+In the proposed contract, **`--actor` always names the record writer**, including
+this wrapper. `--activity-actor` names the participant. Do not retain the old local
+`--actor` meaning as an ambiguous alias. `--actor-basis` and `--no-actor` apply only
+to revision attribution. `--at` is supplied by a human or automated producer;
+there is no server or CLI fallback to now when it is omitted.
 
 ```sh
 bd provenance record --issue ISSUE_ID --kind land --producer ci \
-  --activity-actor human:alice --revision-actor svc:ci-reporter \
+  --activity-actor human:alice --actor svc:ci-reporter \
   --ref 0123456789abcdef0123456789abcdef01234567 --ref-kind git-sha \
   --at 2026-10-11T18:00:00Z --sources @sources.json \
-  --revision-message "Record CI landing report"
+  --message "Record CI landing report"
 ```
 
 Return the Activity identity and revision so ordinary `bd update` and `bd delete`
@@ -587,8 +680,9 @@ subject. Native Activity creation and this wrapper must share the Type schema,
 validation, authorization, and provenance semantics.
 
 Preserve legacy deterministic event identity for legacy inputs through a durable
-create-idempotency mapping; define a canonical key for new subject forms before
-implementation. A duplicate `record` is not an update: changed actor, payload,
+create-idempotency mapping; define a canonical key for new subject forms and
+multi-artifact records before implementation. Never choose the first artifact as
+a guessed retry identity. A duplicate `record` is not an update: changed actor, payload,
 or revision metadata must not overwrite the original. Return an explicit
 already-recorded disposition. If the Activity has since changed or been deleted,
 a replay must not recreate it or claim the original creation is its current
@@ -604,11 +698,13 @@ Recommend `--mode activity|revision|all` on both commands. Omission retains
 | Command | `activity` | `revision` |
 | --- | --- | --- |
 | `bd provenance log SUBJECT` | Current live Activity reports about that subject; identity includes both pinned and unpinned subjects | Retained revisions of that subject, including terminal deletion entries, with their revision provenance |
-| `bd provenance by-ref REF` | Activity reports whose artifact reference equals the supplied legacy value | Retained resource revisions whose `revisionProvenance.sources` reference the supplied resource |
+| `bd provenance by-ref REF` | Activity reports with a matching entry in `artifacts` | Retained resource revisions whose `revisionProvenance.sources` reference the supplied resource |
 
 For revision `by-ref`, an unpinned reference matches the source identity across
 pinned and unpinned citations; a pinned reference matches only that exact pin.
-The activity branch keeps exact opaque artifact-string equality. Reject a raw
+The activity branch uses exact reference equality for native entries (including
+any supplied pin), and exact opaque string equality for `legacyRef`. A matching
+legacy string remains labeled legacy even if it resembles a URI. Reject a raw
 artifact value that is not a valid Resource reference in revision/all mode,
 rather than guess a URI. Neither branch automatically searches actors, producers,
 subjects, or message text. `--kind` remains an activity filter and is rejected in
@@ -671,11 +767,16 @@ choice; explicit Activity deletion itself follows ordinary terminal-revision rul
 
 | Case | Required result |
 | --- | --- |
-| Create/update/delete a Bead or Link with sources, actor status and revision message | All supplied fields reach that operation's resulting revision or terminal entry; no silent drops |
+| Create/update/delete a Bead or Link with sources, actor basis and message | All supplied fields reach that operation's resulting revision or terminal entry; no silent drops |
 | Update omits sources; delete omits sources | Update preserves source knowledge; delete records unknown deletion sources |
 | Explicit empty sources versus unknown sources | Remain distinct through flags, JSON output, BDP and retained reads |
-| Two flags request stdin, conflicting actor aliases, invalid status, or client commit time | Fail before mutation |
+| Two flags request stdin, conflicting value/default-suppression flags, invalid basis, or client commit time | Fail before mutation |
 | Activity performed by Alice, recorded by CI | Separate activity participant and revision actor; no flag shadowing changes their meaning |
+| Actor supplied with no basis flag | Record `basis: writer-supplied`; never upgrade this to authenticated attribution |
+| Omitted activity occurrence time | Remains unknown, or fails the applicable required-time rule; never defaults to server time |
+| Message and agent omitted on an update | No copied prior values and no negative flags required |
+| Revision cites evidence; Activity identifies an output | Shared entry shape preserves their different roles; optional unknown extension relations round-trip |
+| Legacy opaque artifact reference | Survives in a labeled compatibility entry; never becomes a guessed global URI |
 | Retry Activity creation after later correction/deletion | No overwrite or resurrection; report retained original disposition or explicit retry expiry |
 | Ordinary update/delete of an Activity | New Activity revision/terminal entry; subject content unchanged |
 | Ordinary GET after resource deletion | 404; authorized provenance revision mode can show the terminal entry |
