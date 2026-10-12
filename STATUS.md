@@ -10,15 +10,22 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Transactional profile | Approved #20 batch, receipt, Event, snapshot and shared HTTP contracts integrated, including T57 canonicalization and independent vectors | Wire/catalog checks and shared Read runtime observations; no Transactional runtime capability claim |
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | Read-profile body client implements exact old Beads/Links and explicit versions paging; controlled HTTP walkthrough exercises the actual SDK. No History server/adapter realization, capability admission or executable History conformance evidence |
 
-The current History-client/demo integration Read cohort was genuinely generated from
-`dff218067f05570da0238de374e5da489ca51cdb` and committed with its matching capability constant at
-`ef672c4d812acf0255e01ea825cc44bc62f5c16e`. Generation ran for 151.81 seconds
-against the clean, built integration. It recorded 36 packaged/11 self-certified
-reference passes and 34 packaged/eight self-certified bd passes, with two/seven
-N/A slots and eight explicit uncovered qualifications.
-The prior #20, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #40, #41, #42, #43, #44, #47, #45, #46, #48, #49, #50, #51, #52, #53, #54 and #55 cohorts remain
-historical provenance.
-The five foundation source ancestries, including #24, remain preserved.
+The current common-provenance Read cohort was generated from
+`90228b35015f124a242345e10c4e8557289314fa` and committed with its matching
+capability constant at `f1e83dc3ca6014d6fae3cea119ce1a521f33c277`.
+The actual two-target run took 187.06 seconds and verifies 89 applicable rows,
+with 38 packaged and 11 self-certified case definitions. Eight optional
+variants remain explicitly uncovered. Earlier cohort commits retain their
+original observed sources and are historical evidence, not observations of
+this representation. The gate re-derives the artifact bindings and ancestry.
+
+The common `revisionProvenance` envelope replaces the separate public
+attribution and change-context fields. Private recovery-store format 3 refuses
+older formats before claim cleanup or other recovery writes. The refusal
+preserves existing bytes and cannot silently reseed an existing database;
+there is no automatic migration. Preserve old stores for any separately
+planned migration. Content-derived adapter revisions use the new projected
+record bytes and are not relabeled as earlier revisions.
 
 Real-bd fixture provisioning now separates every consecutive Bead creation by
 more than one second, matching the accepted baseline's timestamp granularity.
@@ -52,10 +59,9 @@ visibility on the tested filesystem, not power-loss durability. Native and actua
 Claude review are complete, including Claude's third-record coverage suggestion.
 The original failed run and its eventual cleanup evidence remain retained.
 
-The original ordered 27-definition Read seal is preserved as the prefix of the
-reviewed 42-name seal, with 41 reachable definitions and 16 roots, including the
-six History Read parser roots. The current cohort binds the projection
-`0feaa86a2ba5180d6396e1b52b0b2ee339b0a79a0650ecc0c0e6045b17d053e7`.
+The current Read projection covers 47 sealed definitions, of which 46 are
+reachable from the Read parser and manifest roots. Its digest is
+`387cd60fc2a253885ae7cedbb9ee491a3dfd832af21e8c093664047f13c41dac`.
 Coverage checks never choose digest inputs or turn old artifacts into new evidence.
 
 The runtime components introduce no write capability grant. Lossless carrier and
