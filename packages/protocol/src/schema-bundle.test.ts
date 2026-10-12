@@ -114,6 +114,16 @@ describe("BDP v0 schema bundle", () => {
 
   it("requires the complete context group in the exported provenance type", () => {
     type Undetermined = { readonly state: "undetermined" };
+    type Actor = { readonly id: "human:writer"; readonly basis: "writer-supplied" };
+    // biome-ignore lint/complexity/noBannedTypes: regression check for the formerly admitted empty output type.
+    expectTypeOf<{}>().not.toExtend<RevisionProvenance>();
+    expectTypeOf<{ actor: Actor }>().toExtend<RevisionProvenance>();
+    expectTypeOf<{
+      actor: Actor;
+      committedAt: Undetermined;
+      agent: Undetermined;
+      message: Undetermined;
+    }>().toExtend<RevisionProvenance>();
     expectTypeOf<{ committedAt: Undetermined }>().not.toExtend<RevisionProvenance>();
     expectTypeOf<{ agent: Undetermined }>().not.toExtend<RevisionProvenance>();
     expectTypeOf<{ message: Undetermined }>().not.toExtend<RevisionProvenance>();
