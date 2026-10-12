@@ -276,6 +276,14 @@ describe("catalog citations respect cumulative profile boundaries", () => {
     const catalog = loadScenarioCatalogJson(read(name));
     validateCatalogCitations(catalog, read);
     for (const scenario of catalog.scenarios) {
+      // A valid excerpt repeated in place of another obligation is still lost
+      // traceability, even though every individual citation resolves.
+      const citations = scenario.requirements.map(({ source, anchor, selectedText }) =>
+        JSON.stringify([source, anchor, selectedText.replace(/\s+/g, " ").trim()]),
+      );
+      expect(new Set(citations).size, `${scenario.id}: distinct requirement citations`).toBe(
+        citations.length,
+      );
       for (const requirement of scenario.requirements) {
         if (requirement.source !== "docs/specs/bdp.md") continue;
         const label = `${scenario.id}: ${requirement.anchor}`;

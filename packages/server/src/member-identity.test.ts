@@ -1388,7 +1388,7 @@ describe("paired create numeric diagnostic locations", () => {
       diagnosticsTruncated: false,
     });
   });
-  it("rejects numeric properties roots at S1 and keeps the existing update formatter path", () => {
+  it("rejects numeric properties roots at S1 and omits unapplied update locations", () => {
     expect(() =>
       prepareReadUpdateSingleton(
         scope,
@@ -1414,8 +1414,49 @@ describe("paired create numeric diagnostic locations", () => {
     }).admission;
     expect(admission).toMatchObject({
       ok: false,
-      diagnostics: [{ message: "/propertiesChange/0/value", instanceLocation: "/caller-location" }],
+      diagnostics: [{ message: "/propertiesChange/0/value" }],
     });
-    if (!admission.ok) expect(admission.diagnostics[0]).not.toHaveProperty("document");
+    if (!admission.ok) {
+      expect(admission.diagnostics[0]).not.toHaveProperty("document");
+      expect(admission.diagnostics[0]).not.toHaveProperty("instanceLocation");
+    }
   });
+});
+
+describe("unapplied property numeric diagnostics", () => {
+  it.each(["updateBead", "updateLink"] as const)(
+    "%s discards caller/request pointers before exact diagnostic budgeting",
+    (operation) => {
+      const raw = JSON.stringify({
+        [operation === "updateBead" ? "bead" : "link"]:
+          operation === "updateBead" ? "beads/a" : "links/a",
+        propertiesChange: [{ op: "add", path: "/items/-", value: ["BAD", "BAD"] }],
+      }).replaceAll('"BAD"', "1e400");
+      const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "property-location"));
+      const expected = { message: "bad", type, schemaLocation: "https://schema.test/#/number" };
+      const bytes = Buffer.byteLength(JSON.stringify([expected]));
+      for (const instanceLocation of [
+        "/propertiesChange/0/value/0",
+        `/guessed/${"x".repeat(1000)}`,
+      ]) {
+        const diagnostic = () => ({ ...expected, instanceLocation, document: "metadata" as const });
+        const result = prepareMemberExecution(member, {
+          diagnostic,
+          diagnosticBytes: bytes,
+          diagnostics: 1,
+        }).admission;
+        expect(result).toMatchObject({
+          ok: false,
+          diagnostics: [expected],
+          diagnosticsTruncated: true,
+        });
+        if (result.ok) throw Error("expected numeric refusal");
+        expect(result.diagnostics).toEqual([expected]);
+        expect(result.offending[0]?.pointer).toBe("/propertiesChange/0/value/0");
+        expect(() =>
+          prepareMemberExecution(member, { diagnostic, diagnosticBytes: bytes - 1 }),
+        ).toThrow("first entry");
+      }
+    },
+  );
 });

@@ -123,7 +123,10 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
           diagnostics: DEVELOPMENT_LIMITS.diagnosticCount,
           diagnosticBytes: bounds.diagnosticBytes,
           diagnostic: ({ pointer }) => ({
-            message: "unsupported number",
+            message:
+              pointer.startsWith("/propertiesChange/") || pointer.startsWith("/metadataChange/")
+                ? `unsupported number at request location ${pointer}`
+                : "unsupported number",
             instanceLocation: pointer,
           }),
         },

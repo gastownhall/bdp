@@ -840,3 +840,22 @@ including `actor: { id, basis }`, outside Type properties. The schema projection
 replaces the old `attribution` and `changeContext` definition names with
 `revisionActor` and `revisionProvenance`. Earlier sealed evidence remains
 historical; changes to these source bytes require a fresh observed Read cohort.
+
+
+### Current Read validation and diagnostic document boundaries
+
+The Read manifest now validates Resource responses with the `current*` record
+and collection definitions before the client projects legacy missing metadata.
+This changes the independently derived root set from 20 to 16: the four legacy
+record/collection names remain reachable through `current*` and remain in the
+47-name seal. Changing that root set does not itself change the sealed definition
+text or projection digest. The finite observer support bindings include the
+strict current-Read transport used by the client action executor.
+
+The output `revisionProvenance` definition now requires `minProperties: 1`;
+input `revisionProvenanceInput` still accepts `{}`. This is a change to a sealed
+Read definition and moves the projection digest. `validationDiagnostic.document`
+is a write-profile diagnostic discriminator outside the Read projection; its
+addition changes the complete schema bundle bytes but not the Read projection.
+Fresh Read observations bind the resulting projection and observer/manifest
+bytes. Earlier artifacts retain their original observed source and bindings.

@@ -116,22 +116,22 @@
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Any Reference may carry a pin: an authority MUST preserve and echo the pin byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it in v0."
+          "selectedText": "Every Link endpoint MUST be a Reference: a URI, or a Pinned Reference with exactly `uri` and `revision`."
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Any Reference may carry a pin: an authority MUST preserve and echo the pin byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it in v0."
+          "selectedText": "An in-Scope endpoint MUST identify a live Bead by its canonical URL."
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Any Reference may carry a pin: an authority MUST preserve and echo the pin byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it in v0."
+          "selectedText": "At least one endpoint of every v0 Link MUST be an in-Scope Bead."
         },
         {
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
-          "selectedText": "Any Reference may carry a pin: an authority MUST preserve and echo the pin byte-identically, MUST compare it only for equality, and MUST NOT validate, dereference, or interpret it in v0."
+          "selectedText": "A Bead whose\n  Type owns outgoing Link Types MUST carry its `ownedLinks` member — one\n  entry per declared owned type, keyed by Link Type URL, valued by the\n  owned Links' complete records in ascending code-unit order of their\n  canonical `id`s — on every record read, and the member MUST be absent\n  for Beads whose Type owns nothing."
         }
       ]
     },

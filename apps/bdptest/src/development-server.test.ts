@@ -924,3 +924,33 @@ describe("non-attesting bdptest HTTP development authority", () => {
     expect((await reopened.get("beads/")).status).toBe(200);
   });
 });
+
+it("labels numeric update request pointers in messages without claiming document locations", async () => {
+  const f = await start();
+  const created = resource(
+    await f.post(
+      "create-bead",
+      { type: DEVELOPMENT_BEAD_TYPE, properties: { unchanged: true } },
+      "numeric-target",
+    ),
+  );
+  for (const document of ["properties", "metadata"]) {
+    const bodyText = JSON.stringify({
+      bead: created.id,
+      [`${document}Change`]: [{ op: "add", path: "/items/-", value: "BAD" }],
+    }).replace('"BAD"', "1e400");
+    const response = await f.transport.post(`${f.server.scope}development/update-bead`, {
+      bodyText,
+      idempotencyKey: `bad-${document}`,
+    });
+    expect(response.status).toBe(422);
+    const problem = parseReadUpdateProblem(jsonBody(response));
+    expect(problem.diagnostics).toEqual([
+      {
+        message: `${document === "metadata" ? "metadata: " : ""}unsupported number at request location /${document}Change/0/value`,
+        ...(document === "metadata" ? { document } : {}),
+      },
+    ]);
+    expect(jsonBody(await f.get(created.id))).toEqual(created);
+  }
+});

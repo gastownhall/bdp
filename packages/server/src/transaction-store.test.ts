@@ -2564,13 +2564,17 @@ describe("Transactional numeric diagnostic documents", () => {
         const diagnostic =
           document === "metadata"
             ? {
-                message: "metadata: unsupported number",
+                message: creating
+                  ? "metadata: unsupported number"
+                  : "metadata: unsupported number at request location /metadataChange/0/value",
                 document: "metadata",
                 ...(creating ? { instanceLocation: "/nested/bad" } : {}),
               }
             : {
-                message: "unsupported number",
-                instanceLocation: creating ? "/nested/bad" : "/propertiesChange/0/value",
+                message: creating
+                  ? "unsupported number"
+                  : "unsupported number at request location /propertiesChange/0/value",
+                ...(creating ? { instanceLocation: "/nested/bad" } : {}),
               };
         expect(receipt.problem).toMatchObject({
           code: "validation-failed",
@@ -2602,7 +2606,7 @@ describe("Transactional numeric diagnostic documents", () => {
     const base = { message: "metadata: unsupported number", document: "metadata" };
     // A shared long parent is short on input but appears in each diagnostic.
     // This reaches the diagnostic limit without violating the request byte cap.
-    const suffixes = ["a", "b"];
+    const suffixes: [string, string] = ["a", "b"];
     const empty = suffixes.map((suffix) => ({ ...base, instanceLocation: `//${suffix}` }));
     if ((65536 - Buffer.byteLength(JSON.stringify(empty))) % 2 !== 0) suffixes[1] = "bb";
     const overhead = Buffer.byteLength(
@@ -2615,7 +2619,7 @@ describe("Transactional numeric diagnostic documents", () => {
           {
             operation: "createBead",
             type: bead,
-            metadata: { [parent]: { [suffixes[0]!]: "BAD", [suffixes[1]!]: "BAD", third: "BAD" } },
+            metadata: { [parent]: { [suffixes[0]]: "BAD", [suffixes[1]]: "BAD", third: "BAD" } },
           },
         ],
       }).replaceAll('"BAD"', "1e999");
@@ -2661,4 +2665,60 @@ describe("Transactional numeric diagnostic documents", () => {
     expect(parseReadUpdateProblem(receipt.problem).diagnosticsTruncated).toBe(true);
     expect(f.store.inspect()).toEqual({ resources: [], groups: [], identities: [], position: "0" });
   });
+});
+
+it("counts unapplied update request locations in diagnostic message byte bounds", () => {
+  const f = fixture();
+  f.store.execute(
+    admit(
+      f.store,
+      { operations: [{ operation: "createBead", id: "beads/a", type: bead }] },
+      "seed",
+    ),
+  );
+  const before = f.store.inspect();
+  const suffixes: [string, string] = ["a", "b"];
+  const entry = (parent: string, suffix: string) => ({
+    message: `unsupported number at request location /propertiesChange/0/value/${parent}/${suffix}`,
+  });
+  if (
+    (65536 - Buffer.byteLength(JSON.stringify(suffixes.map((suffix) => entry("", suffix))))) % 2 !==
+    0
+  )
+    suffixes[1] = "bb";
+  const overhead = Buffer.byteLength(JSON.stringify(suffixes.map((suffix) => entry("", suffix))));
+  const parent = "x".repeat((65536 - overhead) / 2);
+  for (const [key, name, count] of [
+    ["exact-update", parent, 2],
+    ["over-update", `${parent}x`, 1],
+  ] as const) {
+    const text = JSON.stringify({
+      operations: [
+        {
+          operation: "updateBead",
+          bead: "beads/a",
+          propertiesChange: [
+            {
+              op: "add",
+              path: "/items/-",
+              value: { [name]: { [suffixes[0]]: "BAD", [suffixes[1]]: "BAD", third: "BAD" } },
+            },
+          ],
+        },
+      ],
+    }).replaceAll('"BAD"', "1e999");
+    const prepared = prepareTransaction(scope, text);
+    const admitted = f.store.admit("principal", key, prepared);
+    if (admitted.kind !== "owned") throw Error("expected ownership");
+    const receipt = f.store.execute(admitted.claim);
+    const problem = parseReadUpdateProblem(receipt.problem);
+    expect(problem.diagnostics).toEqual(
+      suffixes.slice(0, count).map((suffix) => entry(name, suffix)),
+    );
+    expect(problem.diagnosticsTruncated).toBe(true);
+    if (count === 2) expect(Buffer.byteLength(JSON.stringify(problem.diagnostics))).toBe(65536);
+    expect(f.store.inspect()).toEqual(before);
+    f.reopen();
+    expect(f.store.admit("principal", key, prepared)).toEqual({ kind: "existing", receipt });
+  }
 });

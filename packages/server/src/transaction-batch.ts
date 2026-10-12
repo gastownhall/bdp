@@ -442,7 +442,13 @@ export function evaluateTransaction(
       memberNumericDiagnosticBudget(op.operation, {
         diagnostics: 16,
         diagnosticBytes: 65536,
-        diagnostic: ({ pointer }) => ({ message: "unsupported number", instanceLocation: pointer }),
+        diagnostic: ({ pointer }) => ({
+          message:
+            pointer.startsWith("/propertiesChange/") || pointer.startsWith("/metadataChange/")
+              ? `unsupported number at request location ${pointer}`
+              : "unsupported number",
+          instanceLocation: pointer,
+        }),
       }),
     );
     if (!admitted.ok)

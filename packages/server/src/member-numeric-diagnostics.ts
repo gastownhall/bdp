@@ -7,8 +7,8 @@ export function memberNumericDiagnosticBudget(
 ): JsonNumberDiagnosticBudget {
   // S1's occurrences are operation-relative; create diagnostics name either
   // Resource object. Locations in each object's validation are relative to it.
-  // Property update formatting retains its existing caller convention; metadata
-  // updates identify the document without inventing an unapplied target. No I/O.
+  // Unapplied updates omit a location in either document: the operation input
+  // pointer need not identify a resulting instance (for example array append).
   let selectedBudget = budget;
   if (operation === "createBead" || operation === "createLink") {
     const { diagnostics, diagnosticBytes, diagnostic } = budget;
@@ -40,14 +40,13 @@ export function memberNumericDiagnosticBudget(
       diagnostic: (occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
         const formatted = diagnostic(occurrence);
         if (!occurrence.pointer.startsWith("/metadataChange/")) {
-          // The caller still owns property update locations, but cannot relabel
-          // a properties value as a metadata diagnostic.
-          const { message, type, schemaLocation, instanceLocation } = formatted;
+          // Keep caller context without presenting a request pointer as a
+          // document location or relabeling properties as metadata.
+          const { message, type, schemaLocation } = formatted;
           return {
             message,
             ...(type !== undefined ? { type } : {}),
             ...(schemaLocation !== undefined ? { schemaLocation } : {}),
-            ...(instanceLocation !== undefined ? { instanceLocation } : {}),
           };
         }
         // The patch has not been applied. An input value location (especially

@@ -4599,6 +4599,12 @@ lowercase, and a manifest without its ledger.
 
 ### 5.4 Digest vectors
 
+These vectors are a historical council record of the wire shape considered by
+this packet, including its former attribution envelope. They do not describe
+the current `revisionProvenance` Resource representation. The recorded bytes and
+digests remain paired and unchanged; use the current specification for current
+wire shapes.
+
 Interoperability vectors for `sha-256-jcs`, computed by the packet's sanity
 script over the records the fixtures serve. Each line gives the JCS
 serialization — member names in UTF-16 code-unit order, numbers in ES6
