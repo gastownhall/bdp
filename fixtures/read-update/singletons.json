@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "id": "read-update-singletons",
-  "description": "The six singleton targets with their Idempotency-Key field and mutation-result bodies — including a supplied hierarchical id, a semantic no-op update that retains its revision and its prior attribution, the owned-Link cases that carry source and sourceRevision, and an owned-Link no-op that reports the source's unchanged revision — followed by the direct problems a singleton returns, the media-type parameter that is ignored, and the absent, repeated, and malformed Idempotency-Key cases. Illustrative wire example; not evidence.",
+  "description": "The six singleton targets with their Idempotency-Key field and mutation-result bodies — including a supplied hierarchical id, a semantic no-op update that retains its revision and the entire prior revisionProvenance envelope, the owned-Link cases that carry source and sourceRevision, and an owned-Link no-op that reports the source's unchanged revision — followed by the direct problems a singleton returns, the media-type parameter that is ignored, and the absent, repeated, and malformed Idempotency-Key cases. Illustrative wire example; not evidence.",
   "scope": "https://beads.example/acme/",
   "exchanges": [
     {
@@ -60,7 +60,7 @@
     },
     {
       "id": "update-bead-semantic-no-op",
-      "condition": "The replace writes the value the Bead already holds: a semantic no-op. The revision and the prior version's attribution (human:janet) are retained; the input attribution (agent:planner) is recorded nowhere.",
+      "condition": "The replace writes the value the Bead already holds: a semantic no-op. The revision and the prior version's entire revisionProvenance envelope, including actor human:janet, are retained; the input actor agent:planner is recorded nowhere.",
       "request": {
         "method": "POST",
         "target": "operations/update-bead",
@@ -276,7 +276,7 @@
     },
     {
       "id": "update-link-owned-semantic-no-op",
-      "condition": "The replace writes the value the Link already holds: a semantic no-op. The Link keeps its revision and its prior attribution, no source version is minted, and sourceRevision reports the source's unchanged revision.",
+      "condition": "The replace writes the value the Link already holds: a semantic no-op. The Link keeps its revision and its entire prior revisionProvenance envelope, no source version is minted, and sourceRevision reports the source's unchanged revision.",
       "request": {
         "method": "POST",
         "target": "operations/update-link",

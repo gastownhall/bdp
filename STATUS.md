@@ -11,13 +11,17 @@ The specification remains a draft. Runtime claims require the evidence gates bel
 | Optional History (all three profiles) | All 38 decisions recorded in merged #25 have owning text, mirrored schemas, protocol parsers, illustrative fixtures and 21 unbound catalog rows | Read-profile body client implements exact old Beads/Links and explicit versions paging; controlled HTTP walkthrough exercises the actual SDK. No History server/adapter realization, capability admission or executable History conformance evidence |
 
 The current common-provenance Read cohort was generated from
-`90228b35015f124a242345e10c4e8557289314fa` and committed with its matching
-capability constant at `f1e83dc3ca6014d6fae3cea119ce1a521f33c277`.
-The actual two-target run took 187.06 seconds and verifies 89 applicable rows,
+`a68db90f995c1d3317c19acb0b6dcdf63cd21b0e` and committed with its matching
+capability constant at `c8c8c2d2ab14cd93b677a87c19903eff519a79c7`.
+The actual two-target run took 229.33 seconds and verifies 89 applicable rows,
 with 38 packaged and 11 self-certified case definitions. Eight optional
 variants remain explicitly uncovered. Earlier cohort commits retain their
 original observed sources and are historical evidence, not observations of
 this representation. The gate re-derives the artifact bindings and ancestry.
+The earlier 187.06-second cohort observed source
+`90228b35015f124a242345e10c4e8557289314fa` and was sealed at
+`f1e83dc3ca6014d6fae3cea119ce1a521f33c277`; those historical observations
+preceded the output-envelope nonemptiness constraint and do not certify it.
 
 The common `revisionProvenance` envelope replaces the separate public
 attribution and change-context fields. Private recovery-store format 3 refuses
@@ -61,7 +65,7 @@ The original failed run and its eventual cleanup evidence remain retained.
 
 The current Read projection covers 47 sealed definitions, of which 46 are
 reachable from the Read parser and manifest roots. Its digest is
-`387cd60fc2a253885ae7cedbb9ee491a3dfd832af21e8c093664047f13c41dac`.
+`bd7da0fc3f8082e0bfb6f4969c04409f2a610e12408dbc6a0bd14b4b351127cc`.
 Coverage checks never choose digest inputs or turn old artifacts into new evidence.
 
 The runtime components introduce no write capability grant. Lossless carrier and
@@ -326,8 +330,8 @@ this change.
 The authority must also qualify worst-case patch work under its actual finite
 request and Resource bounds. An early patch-limit shortcut cannot bypass earlier
 postimage validation or authorization; no new limit or refusal order is selected.
-Storage format 2 uses an application-registered JSON syntax function for writes
-and integrity checks, preserves deep JSON bytes, and refuses old format-1 stores
+Storage format 3 uses an application-registered JSON syntax function for writes
+and integrity checks, preserves deep JSON bytes, and refuses prior formats
 before recovery writes. Generic logical SQLite restore is not a supported import.
 The client now supports fresh Read+Update discovery, all eight singleton operations,
 sequences, existing Read navigation and explicit current alias lookup. The shared
