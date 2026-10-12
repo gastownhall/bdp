@@ -17,7 +17,9 @@ The actual two-target run took 229.33 seconds and verifies 89 applicable rows,
 with 38 packaged and 11 self-certified case definitions. Eight optional
 variants remain explicitly uncovered. Earlier cohort commits retain their
 original observed sources and are historical evidence, not observations of
-this representation. The gate re-derives the artifact bindings and ancestry.
+this representation. The gate re-derives the catalog, manifest, fixture and Read-projection bindings
+and checks ancestry. Remaining bindings record provenance and are checked for
+format, not re-derived from the current tree.
 The earlier 187.06-second cohort observed source
 `90228b35015f124a242345e10c4e8557289314fa` and was sealed at
 `f1e83dc3ca6014d6fae3cea119ce1a521f33c277`; those historical observations
