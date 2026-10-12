@@ -9,10 +9,10 @@ const root = new URL("../../../", import.meta.url);
 const read = (name: string) => readFileSync(new URL(name, root), "utf8");
 const catalog = loadScenarioCatalogJson(read("packages/conformance/catalog/history-v1.json"));
 describe("History catalog remains unbound metadata", () => {
-  it("has 21 unique normative source-bound rows and no fourth profile", () => {
-    expect(catalog.scenarios).toHaveLength(21);
+  it("has 30 unique profile-owned normative rows and no fourth profile", () => {
+    expect(catalog.scenarios).toHaveLength(30);
     expect(() => validateCatalogCitations(catalog, read)).not.toThrow();
-    expect(new Set(catalog.scenarios.map((row) => row.id)).size).toBe(21);
+    expect(new Set(catalog.scenarios.map((row) => row.id)).size).toBe(30);
     for (const row of catalog.scenarios) {
       expect(row.kind).toBe("normative");
       expect(["read", "read-update", "transactional"]).toContain(row.requiredProfile);

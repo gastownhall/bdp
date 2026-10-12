@@ -24,7 +24,8 @@
     "evidence:generate": "vitest run --config vitest.evidence.config.ts",
     "evidence:verify": "node scripts/read-cohort-evidence.mjs",
     "test": "vitest run --reporter=verbose",
-    "typecheck": "tsc -p tsconfig.check.json"
+    "typecheck": "tsc -p tsconfig.check.json",
+    "smoke:development": "node scripts/smoke-development.mjs"
   },
   "devDependencies": {
     "@babel/parser": "8.0.4",

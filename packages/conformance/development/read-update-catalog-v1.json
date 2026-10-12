@@ -1,0 +1,1262 @@
+{
+  "catalogVersion": 1,
+  "scenarios": [
+    {
+      "id": "development.read-update.bead-crud-guards",
+      "title": "Development observation: bead-crud-guards",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#explicit-bead-operations",
+          "selectedText": "If `id` is omitted, the authority allocates one."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`created` and `updated` carry `resource`, the complete Resource record as a `GET` of its URL would now return it"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "Applying the properties patch must yield a JSON object satisfying every effective Type schema. The metadata patch must yield a JSON object."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "A semantic no-op update, defined under [Mutation revisions and guards](#mutation-revisions-and-guards), succeeds with outcome `updated` and the retained revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "An explicit update or deletion may supply `expectedRevision`: the revision observed by an earlier read or mutation result. The authority applies the operation only if the Resource still has that revision. A mismatch fails the individual operation without changing state. Omitting `expectedRevision` applies the change to the Resource's current state."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "`revision-mismatch`: the member's `expectedRevision` is not the Resource's current revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#attribution-on-mutations",
+          "selectedText": "An operation that mints more than one version records its one attribution on every version it mints"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#attribution-on-mutations",
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#carried-attribution",
+          "selectedText": "The actor is absent when no attribution was recorded; the envelope is absent when no revision provenance was recorded."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.documents",
+      "title": "Development observation: documents",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "`propertiesChange` targets `properties` and `metadataChange` targets common `metadata`; each JSON Pointer is relative to its own complete object."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "`add` has RFC 6902 object replacement and array insertion/append semantics."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "A root-pointer `replace` with `{}` clears either object, including common `metadata`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-changes",
+          "selectedText": "A Resource update can apply one to `properties`, one to common `metadata`, or both atomically."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, the operation is a no-op."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#attribution-on-mutations",
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no new provenance and retains the existing version’s entire envelope."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-changes",
+          "selectedText": "The authority validates the complete `properties` result — not merely its changed members — against every effective Type contract; `metadata` has no Type schema."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "The metadata patch must yield a JSON object."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.links-delete",
+      "title": "Development observation: links-delete",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-record-schema",
+          "selectedText": "A durable relative endpoint reference resolves against the canonical Scope URL, not against the request URL or the containing Link URL, and must name a live Bead."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-local-resource-references",
+          "selectedText": "The pin is provenance, not a constraint: an authority stores and echoes it byte-identically, compares it only for equality, and performs no semantic validation, dereferencing, or interpretation"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`created` and `updated` carry `resource`, the complete Resource record as a `GET` of its URL would now return it"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#owned-links",
+          "selectedText": "An owned Link remains a first-class Link with its own URL and its own revision: a caller addresses, reads, and updates it there like any other Link."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-local-resource-references",
+          "selectedText": "Creating or deleting a Link does not mutate an in-Scope endpoint Bead or change that Bead's Resource revision"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`deleted` carries `deleted`, the identity record of the removed Resource, and no Resource record: `resourceKind`, `bead` or `link`, and `resource`, holding the absolute canonical `id`, the immutable `type`, and `revision`, the Resource's final live revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "Deletion mints no version: the identity's `revision` is the revision the Resource had when it was deleted, never a newly minted one"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#reads-after-deletion",
+          "selectedText": "After a Bead or Link is deleted, ordinary `GET`, `view=properties`, and, for a Bead, `view=links` return the same `404` `resource-not-found` problem used for an unknown or non-visible identity."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "`incident-links-exist`: a Bead deletion reached while a live Link is incident upon the Bead."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#explicit-bead-operations",
+          "selectedText": "If `id` is supplied, its canonical Resource URL must never previously have been committed for any Resource in the logical Scope. Deletion does not make it available again."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "`identity-taken`: a supplied `id` whose canonical Resource URL was ever committed in the logical Scope, including a deleted one."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "This is inherently an existence signal for the identity the creator chose, hidden or deleted alike"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "An alias put is a cheaper existence probe than a creation — it allocates no Resource, mints no version, and is deletable — gated only by permission to put aliases, which is therefore what that permission grants."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.aliases",
+      "title": "Development observation: aliases",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A **put** creates an alias or repoints an existing one to exactly one canonical in-Scope Bead URL; repointing is the same operation, not a second one."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A put reports `created` when the alias path was not in use as an alias and `updated` when it repointed an existing alias"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "both carry `alias`, the absolute alias URL, `alias/{alias-path}` resolved against the canonical Scope URL, and `target`, the absolute canonical Bead URL the alias now resolves to."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "an alias mutation produces the alias result defined under [Alias targets](#alias-targets) instead"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A put reports `created` when the alias path was not in use as an alias and `updated` when it repointed an existing alias — including a put whose `target` the alias already had, which changes nothing and reports `updated`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#aliases",
+          "selectedText": "Unlike canonical segments, alias paths are repointable and, after deletion, reusable: an alias is a locator and carries no identity promise."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-resolution",
+          "selectedText": "The status is temporary by design: aliases repoint."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A **delete** removes the alias; its record carries `alias` alone, and the path is reusable afterwards"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A delete reports `deleted` with `alias` and no `target`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-resolution",
+          "selectedText": "An unknown alias, an alias URL carrying a query or fragment, and any alias URL at an authority that does not advertise `aliases` return the same `404` `resource-not-found` used for unknown Resources"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "Canonical Bead segments and alias paths share one uniqueness namespace in the Scope, a store invariant the authority enforces when the member is reached: a put whose alias path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope — a deleted one included, since canonical segments are never released — fails with `identity-taken`, and a Bead creation that supplies an `id` whose `{id-path}` is a live alias path fails with `alias-path-taken`, a condition that clears when the alias is deleted."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "An alias path in use as an alias is not taken for a put, which repoints it."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "Alias operations follow the model's check order under [Explicit alias operations](#explicit-alias-operations), identifier uniqueness first, so a put whose path is taken and whose target is unknown answers the uniqueness fault."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#explicit-alias-operations",
+          "selectedText": "When one is reached it follows the check order under [Validation and results](#validation-and-results), identifier uniqueness first, so a put whose path is taken and whose target is unknown answers the uniqueness fault."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "an alias put whose path is the `{id-path}` of a canonical Bead URL ever committed in the logical Scope, a deleted one included, fails the same way, while a Bead creation whose supplied `id` has the `{id-path}` of a live alias is `alias-path-taken`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "`alias-path-taken`: a Bead creation whose supplied `id` has the `{id-path}` of a live alias, under [Alias targets](#alias-targets). The path is held by an alias rather than by a committed identity, so the condition clears when the alias is deleted and the retry disposition is `after-state-change`, where `identity-taken`'s is `never`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-mutation-model",
+          "selectedText": "They share it because the realizations the alias root fronts share one — in the beads realization, keys and aliases occupy one project-wide namespace — so the invariant is imported from the store rather than required by resolution, which spelling alone decides."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "Link segments and alias paths coexist: `links/foo` and `alias/foo` do not collide, and a Link creation may supply an `id` whose `{id-path}` is a live alias path."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "An alias spelling — `alias/{alias-path}` or the absolute alias URL — is admitted wherever a canonical in-Scope Bead reference is: as the `bead` subject of an update or a deletion and as a Link endpoint `source` or `target`, bare or as the `uri` of a Pinned Reference, in a singleton and in a sequence member alike."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "The authority resolves it to the alias's current target when the member is reached — exactly as a `@name` binding is resolved when its member is reached, so an alias put earlier in the same sequence is what a later member observes — and stores and serves the canonical Bead URL, as [Aliases](#aliases) requires: a reference resolved through an alias does not follow a later repoint."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "An alias spelling that names no live alias fails with `resource-not-found`, under the same non-disclosure rule as an unknown Bead, and a `link` subject spelled by alias is of the wrong kind and fails with `resource-not-found` too, since an alias resolves to a Bead only."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-mutation-model",
+          "selectedText": "A reference written using an alias is resolved to the canonical Bead URL when the authority admits the write; stored and served references are always canonical, so aliases never appear in Resource data."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "except that a `bead` subject or a Link endpoint spelled by alias is admitted and resolved under [Alias targets](#alias-targets), and fails this way only when the spelling names no live alias"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "Alias mutation mints no version: an alias is a locator, not part of any Bead's durable state, so the target Bead's revision is unchanged by a put or a delete, and a repoint changes the revision of neither the former nor the new target."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "putting or deleting an alias mints no version and moves no revision — the target Bead's revision is unchanged by alias mutation, and the alias result defined under [Alias targets](#alias-targets) carries none."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#aliases",
+          "selectedText": "An alias is not a Resource: it has no representation, no revision, and no collection membership."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.sequence-partial",
+      "title": "Development observation: sequence-partial",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "starts members strictly in declaration order and never runs them in parallel;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "commits each successful member immediately and never rolls it back because a later member fails;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "continues after a failed member so later independent work can run;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "The binding becomes available only after the create commits"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "A reference to a creating member whose retained disposition is a failure fails that member with `binding-unavailable`, a retained failure"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "Alias members are sequence members under every rule of this section: keys are claimed at admission, carrier discipline and static reference checks apply unchanged, and a put's `target` may name a `@name` bound by an earlier Bead creation in the same sequence"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "The same key with the same semantic identity returns the retained disposition, as for every singleton, and the same key with a different identity is `idempotency-conflict`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "An alias disposition is retained, replayed, and tombstoned exactly as a Resource mutation's is"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A `@name` bound by a Link creation is of the wrong Resource kind and is rejected before execution."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "a sequence member's entry is the alias result plus `operationIndex`, and never `operationName`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "A result entry is the member's mutation result plus those two members, or its alias result plus `operationIndex` alone, and it is closed."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "Every other disposition, success or failure, is retained, and a retained failure answers a retry exactly as a retained success does for as long as it is retained"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained disposition is returned without re-executing anything."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Re-keying a creating member changes the identity of every member that references its binding: a client that corrects a creator presents new keys for its dependents as well."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-problem-envelopes",
+          "selectedText": "Each failed member contains the same Problem Details shape with its would-be `status`, its zero-based `operationIndex`, and, when the member declared one, its `operationName`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "Every entry carries `operationIndex`, the member's zero-based position in the request's `operations` array, and carries `operationName` exactly when the member declared `name`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition, positioned with the present member's `operationIndex` and `operationName`;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "The authority runs the remaining members to their terminal dispositions and retains those dispositions under their keys, so a retry recovers a lost response member by member."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.retained-keys",
+      "title": "Development observation: retained-keys",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained `created` result therefore always carries the same authority-allocated identity"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "a singleton whose key is retained, in flight, conflicting, or expired answers exactly as the corresponding sequence member would, as a direct response."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with a different semantic identity: the member fails with `idempotency-conflict`, nothing executes, and the retained disposition is unchanged;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "The namespace is shared by every mutation carrier in the profile: a sequence member and a singleton request that present the same key in the same namespace present the same key."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "Singleton and sequence forms share one idempotency namespace, one semantic-identity rule, and one retention rule."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "expands creation defaults so omitted `properties` and omitted common `metadata` each compare as `{}`, preserves the order of each change array and every other array, ignores JSON object member order, and excludes `idempotencyKey` and `name`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `revisionProvenance` are members of the record and therefore of its identity."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.carrier-rejection",
+      "title": "Development observation: carrier-rejection",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "`operations` is bounded by `sequence.operations` when that limit is advertised; a longer sequence is rejected before execution with `limit-exceeded`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Two members of one sequence MUST NOT carry the same `idempotencyKey`; a sequence that repeats a key is rejected before execution with `malformed-request`, as is one whose `name` values repeat or whose key or name violates its syntax."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "A `@name` reference that is forward, unknown, or of the wrong Resource kind is carrier syntax, decidable from the request text: the sequence is rejected before execution with `malformed-request`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "a sequence request that carries the field is rejected before execution with `malformed-request`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "are direct problem responses and execute nothing"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "a spelling that violates the grammar is carrier syntax rejected before execution with `malformed-request`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "a value that is not a reference shape at all — neither a relative path nor an absolute URL under the local-ID grammar, or a `@name` where none is admitted — is carrier syntax, `malformed-request`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "A carrier or operation-record syntax error is rejected before execution with a direct problem response."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "A singleton never accepts `@name`, bare or within a Pinned Reference; the bundle's singleton request definitions reject the spelling, so it is carrier syntax rejected before execution with `malformed-request`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "A key outside the profile is rejected before execution with `malformed-request`, as is a singleton request that omits the field or carries it more than once: the authority rejects a repeated `Idempotency-Key` field rather than choosing an occurrence."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.result-headers",
+      "title": "Development observation: result-headers",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "carries no `ETag` and no `Location`: the operation target is not the Resource's URL, and the result's `resource.id` and `resource.revision` say what those fields would."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "Mutation responses carry `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.guard-race",
+      "title": "Development observation: guard-race",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "The authority applies the operation only if the Resource still has that revision."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#validation-and-results",
+          "selectedText": "At commit, the authority also ensures that concurrent mutations cannot jointly violate those invariants."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.raw-admission",
+      "title": "Development observation: raw-admission",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A request rejected before admission — an unauthenticated principal, a carrier-level rejection — creates no disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "| `unauthenticated` | `authentication` | 401 | `after-state-change` |"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "A key outside the profile is rejected before execution with `malformed-request`, as is a singleton request that omits the field or carries it more than once: the authority rejects a repeated `Idempotency-Key` field rather than choosing an occurrence."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Each code fixes its HTTP status and retry disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "Scope-bounded representations that depend on authorization use `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.raw-media-json",
+      "title": "Development observation: raw-media-json",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "`unsupported-media-type`: a mutation-target request whose body media type is not `application/json` or is not declared; media-type parameters such as `charset` are ignored."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Each code fixes its HTTP status and retry disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "Scope-bounded representations that depend on authorization use `Cache-Control: private, no-store`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "Mutation responses carry `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.raw-body-limit",
+      "title": "Development observation: raw-body-limit",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#advertised-limits",
+          "selectedText": "`request.bodyBytes` counts octets in the representation body"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "| `request-too-large` | `size` | 413 | `never` |"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Each code fixes its HTTP status and retry disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "Scope-bounded representations that depend on authorization use `Cache-Control: private, no-store`."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.raw-method",
+      "title": "Development observation: raw-method",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "A mutation target responds `405 Method Not Allowed` with `Allow: POST` to every other method, and the Operation Directory responds `405` with `Allow: GET, HEAD` to every method but those two"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "when cross-origin access is enabled, `OPTIONS` is answered according to the CORS rules rather than with `405` and joins `Allow`; listing it in `Allow` is not the preflight behavior"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.raw-accept-keys",
+      "title": "Development observation: raw-accept-keys",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained `created` result therefore always carries the same authority-allocated identity"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "a singleton whose key is retained, in flight, conflicting, or expired answers exactly as the corresponding sequence member would, as a direct response."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with a different semantic identity: the member fails with `idempotency-conflict`, nothing executes, and the retained disposition is unchanged;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "Every other disposition, success or failure, is retained, and a retained failure answers a retry exactly as a retained success does for as long as it is retained"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained disposition is returned without re-executing anything."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Re-keying a creating member changes the identity of every member that references its binding: a client that corrects a creator presents new keys for its dependents as well."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "The Read+Update profile inherits the complete Read table unchanged and adds the rows below."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Each code fixes its HTTP status and retry disposition."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#http-consistency-caching-and-cors-fields",
+          "selectedText": "Scope-bounded representations that depend on authorization use `Cache-Control: private, no-store`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#problem-details",
+          "selectedText": "Ordinary HTTP media-range matching, specificity, and quality weights apply, including `q=0` exclusions;"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.process-disconnect",
+      "title": "Development observation: process-disconnect",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Once the authority has admitted a sequence — validated its carrier and operation-record syntax and started its first member — client disconnection does not decide any member's outcome."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "The authority runs the remaining members to their terminal dispositions and retains those dispositions under their keys, so a retry recovers a lost response member by member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition, positioned with the present member's `operationIndex` and `operationName`;"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.process-drain",
+      "title": "Development observation: process-drain",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Once the authority has admitted a sequence — validated its carrier and operation-record syntax and started its first member — client disconnection does not decide any member's outcome."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "The authority runs the remaining members to their terminal dispositions and retains those dispositions under their keys, so a retry recovers a lost response member by member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "an authority MUST NOT commit a mutation without retaining its disposition under its key, and MUST NOT retain a disposition for a mutation it did not commit"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "A claim abandoned by a crash — one whose member reached no durable disposition — is cleared during restart or failover, so a retry executes the member once"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "Every mutation route — each singleton target, the sequence target, and every replica that accepts mutations — consults one authoritative key state for the namespace"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.process-crash",
+      "title": "Development observation: process-crash",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "When the authority fails mid-sequence, members that reached a durable disposition stay retained, the member in flight is recovered as an abandoned claim, and unstarted members are never executed by recovery: the authority does not resume a sequence."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "The client resubmits the sequence; retained dispositions answer the committed members, and the remaining members execute in order."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "an authority MUST NOT commit a mutation without retaining its disposition under its key, and MUST NOT retain a disposition for a mutation it did not commit"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "A claim abandoned by a crash — one whose member reached no durable disposition — is cleared during restart or failover, so a retry executes the member once"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#durability-and-recovery",
+          "selectedText": "Every mutation route — each singleton target, the sequence target, and every replica that accepts mutations — consults one authoritative key state for the namespace"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.alias-allocation",
+      "title": "Development observation: alias-allocation",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "An authority never allocates a Bead id whose segment is a live alias path."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#creation-and-identity-allocation",
+          "selectedText": "An authority-allocated local ID is a single opaque segment, and for a Bead never one that is a live alias path under [Aliases](#aliases)"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#explicit-bead-operations",
+          "selectedText": "If `id` is omitted, the authority allocates one."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-results",
+          "selectedText": "`created` and `updated` carry `resource`, the complete Resource record as a `GET` of its URL would now return it"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.alias-invalid-targets",
+      "title": "Development observation: alias-invalid-targets",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A put whose `target` is not a canonical Bead reference — an alias, absolute or local, a Link, or an external URI — fails with `validation-failed`, carrying one diagnostic that names the cause: an alias targets a canonical Bead URL only, so no chain is ever admitted"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A put's own `target` admits no alias spelling: an alias target is `validation-failed`, as above."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "an endpoint or target reference of the wrong category — an alias, a Link, or an external URI as an alias put's `target`, or a Link path as a Link endpoint — is `validation-failed`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained `created` result therefore always carries the same authority-allocated identity"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "a singleton whose key is retained, in flight, conflicting, or expired answers exactly as the corresponding sequence member would, as a direct response."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.alias-unknown-subjects",
+      "title": "Development observation: alias-unknown-subjects",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "A put whose `target` is a canonical Bead reference naming a Bead that does not exist or is not visible in the request's Authorization View fails with `resource-not-found`, and a delete of an unknown alias fails with `resource-not-found`: aliases are not an enumeration oracle."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "a well-formed spelling that is not beneath the `alias/` root names no alias and fails with `resource-not-found` when the member is reached, as a wrong-root subject reference does under [Read+Update problem details](#readupdate-problem-details)"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "a subject reference — `bead`, `link`, or the `alias` member of an alias record — whose spelling has the wrong root is `resource-not-found`, since the subject does not exist as the required kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "An alias put whose canonical `target` names a Bead that does not exist or is not visible, and an alias delete whose alias is unknown, fail the same way: aliases are not an enumeration oracle."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.alias-recorded-targets",
+      "title": "Development observation: alias-recorded-targets",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member’s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal’s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "The semantic identity of a member that spelled a reference by alias records the resolution rather than the spelling, under [Idempotency keys](#idempotency-keys)."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.alias-recorded-misses",
+      "title": "Development observation: alias-recorded-misses",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member’s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal’s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "The semantic identity of a member that spelled a reference by alias records the resolution rather than the spelling, under [Idempotency keys](#idempotency-keys)."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.pinned-references",
+      "title": "Development observation: pinned-references",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-record-schema",
+          "selectedText": "A durable relative endpoint reference resolves against the canonical Scope URL, not against the request URL or the containing Link URL, and must name a live Bead."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-local-resource-references",
+          "selectedText": "The pin is provenance, not a constraint: an authority stores and echoes it byte-identically, compares it only for equality, and performs no semantic validation, dereferencing, or interpretation"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "The authority MUST retain the original alias locators and their canonical targets or recorded misses with the member’s disposition and in any successful tombstone. An alias locator recorded with the original member retains its recorded canonical Bead target or recorded miss on retry, including equivalent canonical spellings of that locator and its use in another reference slot. A repoint or deletion therefore changes no identity for that locator. A previously unrecorded alias locator is resolved in the current retry member turn through a store lookup, without filtering the alias by the principal’s Authorization View. Its canonical Bead target participates only in comparison with the original identity; retained-Resource disclosure still requires current authorization under [Duplicate keys and retained dispositions](#duplicate-keys-and-retained-dispositions). A direct canonical reference compares without alias resolution. A missing alias has unresolved identity specific to its canonical locator: two distinct missing locators are not equal merely because both miss, and this identity differs from the failed-creator unbound marker. An originally recorded miss remains a miss even if that alias is later assigned. Retry-time witnesses are transient comparison input: they change neither the original retained metadata and disposition nor a successful tombstone's identity, creator binding or retention. Each retry resolves an originally unrecorded locator anew."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#alias-targets",
+          "selectedText": "The semantic identity of a member that spelled a reference by alias records the resolution rather than the spelling, under [Idempotency keys](#idempotency-keys)."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "expands creation defaults so omitted `properties` and omitted common `metadata` each compare as `{}`, preserves the order of each change array and every other array, ignores JSON object member order, and excludes `idempotencyKey` and `name`"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "Opaque external URIs and Pinned References are compared byte-exactly as written, a pinned `uri` spelled by `@name` or by alias having first resolved as the bare spelling does; `expectedRevision` and `revisionProvenance` are members of the record and therefore of its identity."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.process-pending",
+      "title": "Development-only bounded observation: process-pending",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "the member fails with `idempotency-in-progress`, the authority consults no key state for it, executes nothing, retains nothing, and releases its claim on the member's key"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A member whose `@name` reference names a creating member of the same request whose disposition was transient is transient by the same rule"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "Neither prevents later independent members from running."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is in flight — claimed by a request whose member has not reached a terminal outcome: the member fails with `idempotency-in-progress`, the authority executes nothing and retains nothing for the presenting member, and a retry after the delay receives the retained disposition once the first presentation has reached a retained outcome"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "a delayed retry may instead find the key still in flight, meet a transient disposition of its own, or, after a long delay, find the disposition expired"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A sequence claims every member's unknown key at admission, in declaration order, before its first member starts; a singleton claims its key before executing."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "so it can neither execute a member ahead of the original's earlier members nor retain a disposition the original would contradict"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "so that a retry after the delay executes the creator and then the dependent, and a concurrent retry can never poison the dependent member of the request that first presented the keys"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A disposition whose `retry` is `after-delay` — `rate-limited`, `temporarily-unavailable`, and `idempotency-in-progress` — is transient and is never retained: the member was not executed, and a later member presenting the same key executes it."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.process-interleaving",
+      "title": "Development-only bounded observation: process-interleaving",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "permits unrelated requests to interleave between members, taking no sequence-wide transaction, reservation, or lock."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "Bindings are confined to one sequence request and do not add isolation: an interleaving request may update or delete the committed Resource before a later member uses it."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.contextual-local-kind",
+      "title": "Development observation: contextual-local-kind",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "The bundle validates wire shape, not admission."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "Scope containment of durable references, Resource kind, `@name` resolution and its kind, ownership — whether `source` and `sourceRevision` apply to a Link result — correspondence between a result and its request"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "the resolution of an alias spelling to a live alias, and, for an alias member, whether a put's `target` is a canonical Bead reference and whether its alias path is taken"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind — the subject does not exist as the required kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "`operations` is bounded by `sequence.operations` when that limit is advertised; a longer sequence is rejected before execution with `limit-exceeded`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Two members of one sequence MUST NOT carry the same `idempotencyKey`; a sequence that repeats a key is rejected before execution with `malformed-request`, as is one whose `name` values repeat or whose key or name violates its syntax."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "A `@name` reference that is forward, unknown, or of the wrong Resource kind is carrier syntax, decidable from the request text: the sequence is rejected before execution with `malformed-request`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "a sequence request that carries the field is rejected before execution with `malformed-request`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "are direct problem responses and execute nothing"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-problem-envelopes",
+          "selectedText": "Each failed member contains the same Problem Details shape with its would-be `status`, its zero-based `operationIndex`, and, when the member declared one, its `operationName`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-response-envelope",
+          "selectedText": "Every entry carries `operationIndex`, the member's zero-based position in the request's `operations` array, and carries `operationName` exactly when the member declared `name`."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.contextual-durable-kind",
+      "title": "Development observation: contextual-durable-kind",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "The bundle validates wire shape, not admission."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "Scope containment of durable references, Resource kind, `@name` resolution and its kind, ownership — whether `source` and `sourceRevision` apply to a Link result — correspondence between a result and its request"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#schema-validity-and-mutation-admission",
+          "selectedText": "the resolution of an alias spelling to a live alias, and, for an alias member, whether a put's `target` is a canonical Bead reference and whether its alias path is taken"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "so does a subject reference whose spelling is not a canonical reference of the required kind or that names a Resource of another kind — the subject does not exist as the required kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "starts members strictly in declaration order and never runs them in parallel;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "commits each successful member immediately and never rolls it back because a later member fails;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-sequence-target",
+          "selectedText": "continues after a failed member so later independent work can run;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "Every other disposition, success or failure, is retained, and a retained failure answers a retry exactly as a retained success does for as long as it is retained"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "A retained disposition is returned without re-executing anything."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "Re-keying a creating member changes the identity of every member that references its binding: a client that corrects a creator presents new keys for its dependents as well."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#duplicate-keys-and-retained-dispositions",
+          "selectedText": "the key is retained with the same semantic identity: the authority does not execute the member and returns the retained disposition, positioned with the present member's `operationIndex` and `operationName`;"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "The authority runs the remaining members to their terminal dispositions and retains those dispositions under their keys, so a retry recovers a lost response member by member."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "The namespace is shared by every mutation carrier in the profile: a sequence member and a singleton request that present the same key in the same namespace present the same key."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#operation-directory-and-singleton-targets",
+          "selectedText": "Singleton and sequence forms share one idempotency namespace, one semantic-identity rule, and one retention rule."
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.retention-reopen",
+      "title": "Development observation: retention-reopen",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "Presenting an expired key with the same semantic identity fails with `idempotency-expired`; the authority never executes the member again and never reports the discarded outcome."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "Presenting an expired key with a different semantic identity remains `idempotency-conflict`."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "A retained failure committed nothing: after the interval the authority MAY forget it entirely, and a later presentation of its key is unknown and executes"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "For a disposition that committed state — `created`, `updated` including a semantic no-op, or `deleted` — it MUST then retain a compact tombstone"
+        }
+      ]
+    },
+    {
+      "id": "development.read-update.expired-creator-binding",
+      "title": "Development observation: expired-creator-binding",
+      "kind": "diagnostic",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#outcome-retention",
+          "selectedText": "and, for a creation that allocated an identity, that identity and its Resource kind, through which a later `@name` reference still resolves"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#sequence-request-envelope",
+          "selectedText": "or an `idempotency-expired` disposition, whose tombstone keeps the identity the creation allocated and its Resource kind"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#idempotency-keys",
+          "selectedText": "resolves each `@name` reference to the identity its creating member bound — taken from that member's fresh, retained, or expired disposition, never from the spelling"
+        }
+      ]
+    }
+  ]
+}

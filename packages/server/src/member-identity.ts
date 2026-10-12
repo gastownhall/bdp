@@ -1,3 +1,4 @@
+import { memberNumericDiagnosticBudget } from "./member-numeric-diagnostics.js";
 import {
   type JsonNumberDiagnosticBudget,
   type LosslessJsonValue,
@@ -427,59 +428,7 @@ export function prepareMemberExecution(
 ): MemberExecutionValues {
   const state = identityState.get(member);
   if (!state) throw new TypeError("expected a normalized member identity");
-  // S1's occurrences are operation-relative; create diagnostics name either
-  // Resource object. Locations in each object's validation are relative to it.
-  // Unapplied patches identify their document without inventing a postimage
-  // location from an operation-relative input or caller-supplied pointer. No I/O.
-  let selectedBudget = budget;
-  if (state.original.operation === "createBead" || state.original.operation === "createLink") {
-    const { diagnostics, diagnosticBytes, diagnostic } = budget;
-    selectedBudget = Object.freeze({
-      ...(diagnostics !== undefined ? { diagnostics } : {}),
-      ...(diagnosticBytes !== undefined ? { diagnosticBytes } : {}),
-      diagnostic: (occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
-        const object = ["properties", "metadata"].find((name) =>
-          occurrence.pointer.startsWith(`/${name}/`),
-        );
-        if (!object)
-          throw new TypeError("unexpected numeric position in admitted create operation");
-        const { message, type, schemaLocation } = diagnostic(occurrence);
-        return Object.freeze({
-          message: object === "metadata" ? `metadata: ${message}` : message,
-          ...(object === "metadata" ? { document: "metadata" as const } : {}),
-          ...(object === "properties" && type !== undefined ? { type } : {}),
-          ...(object === "properties" && schemaLocation !== undefined ? { schemaLocation } : {}),
-          instanceLocation: occurrence.pointer.slice(object.length + 1),
-        });
-      },
-    });
-  }
-  if (state.original.operation === "updateBead" || state.original.operation === "updateLink") {
-    const { diagnostics, diagnosticBytes, diagnostic } = budget;
-    selectedBudget = Object.freeze({
-      ...(diagnostics !== undefined ? { diagnostics } : {}),
-      ...(diagnosticBytes !== undefined ? { diagnosticBytes } : {}),
-      diagnostic: (occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
-        const formatted = diagnostic(occurrence);
-        if (!occurrence.pointer.startsWith("/metadataChange/")) {
-          // Preserve property diagnostics without allowing the caller to relabel
-          // the document or pass an input pointer off as a postimage location.
-          const { message, type, schemaLocation } = formatted;
-          return {
-            message,
-            ...(type !== undefined ? { type } : {}),
-            ...(schemaLocation !== undefined ? { schemaLocation } : {}),
-          };
-        }
-        // The patch has not been applied. An input value location (especially
-        // an array append) need not identify a position in the resulting document.
-        return Object.freeze({
-          message: `metadata: ${formatted.message}`,
-          document: "metadata" as const,
-        });
-      },
-    });
-  }
+  const selectedBudget = memberNumericDiagnosticBudget(state.original.operation, budget);
   const admission = admitReadUpdateOperationNumbers(state.original, selectedBudget);
   if (!admission.ok || state.unavailableBinding)
     return Object.freeze({ admission, unavailableBinding: state.unavailableBinding });

@@ -4599,6 +4599,12 @@ lowercase, and a manifest without its ledger.
 
 ### 5.4 Digest vectors
 
+These vectors are a historical council record of the wire shape considered by
+this packet, including its former attribution envelope. They do not describe
+the current `revisionProvenance` Resource representation. The recorded bytes and
+digests remain paired and unchanged; use the current specification for current
+wire shapes.
+
 Interoperability vectors for `sha-256-jcs`, computed by the packet's sanity
 script over the records the fixtures serve. Each line gives the JCS
 serialization — member names in UTF-16 code-unit order, numbers in ES6
@@ -8206,7 +8212,7 @@ bounds, administrative erasure controls, or other unrelated residuals.
       },
       {
         "source": "docs/specs/bdp.md",
-        "anchor": "#problem-details",
+        "anchor": "#mutation-response-negotiation",
         "selectedText": "For a new mutation submission this refusal occurs before durable admission, key binding, receipt creation, or state change."
       }
     ]
@@ -8251,7 +8257,12 @@ bounds, administrative erasure controls, or other unrelated residuals.
       {
         "source": "docs/specs/bdp.md",
         "anchor": "#conditional-reads-and-head",
-        "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, Scope epoch/view and minimum-position checks, and erasure/expiry checks MUST precede any conditional not-modified shortcut."
+        "selectedText": "Normal authentication, authorization/non-disclosure, query and cursor checks, and applicable History erasure/expiry checks MUST precede any conditional not-modified shortcut. An ordinary refusal is not replaced by `304`."
+      },
+      {
+        "source": "docs/specs/bdp.md",
+        "anchor": "#transactional-conditional-reads",
+        "selectedText": "Scope epoch/view, minimum-position and erasure/expiry checks MUST precede any conditional shortcut. Required current Scope context remains required on 304 and 412 responses."
       },
       {
         "source": "docs/specs/bdp.md",
@@ -8260,7 +8271,7 @@ bounds, administrative erasure controls, or other unrelated residuals.
       },
       {
         "source": "docs/specs/bdp.md",
-        "anchor": "#conditional-reads-and-head",
+        "anchor": "#transactional-conditional-reads",
         "selectedText": "A `304` is not delivery or application of a change group or erasure record and MUST NOT advance a client's durable checkpoint."
       }
     ]
@@ -8278,8 +8289,8 @@ bounds, administrative erasure controls, or other unrelated residuals.
       },
       {
         "source": "docs/specs/bdp.md",
-        "anchor": "#conditional-reads-and-head",
-        "selectedText": "For an acceptable SSE representation, HEAD returns the corresponding response metadata and ends without SSE frames; it MUST NOT remain open merely to stream events."
+        "anchor": "#transactional-conditional-reads",
+        "selectedText": "For acceptable SSE, HEAD returns the response metadata and ends without frames; it MUST NOT remain open merely to stream events."
       }
     ]
   }

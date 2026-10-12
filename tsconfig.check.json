@@ -17,7 +17,8 @@
       "@bdp/conformance/testing": ["./packages/conformance/test-support/testing.ts"],
       "@bdp/protocol": ["./packages/protocol/src/index.ts"],
       "@bdp/server": ["./packages/server/src/index.ts"],
-      "@bdp/server/testing": ["./packages/server/test-support/testing.ts"]
+      "@bdp/server/testing": ["./packages/server/test-support/testing.ts"],
+      "@bdp/server/development": ["./packages/server/src/development.ts"]
     }
   },
   "include": [

@@ -15,6 +15,7 @@ import {
 } from "@bdp/protocol";
 import {
   runMember,
+  inspectExistingMember,
   snapshotMemberExecutorOptions,
   type MemberDisposition,
   type MemberExecutorOptions,
@@ -45,7 +46,12 @@ export interface SequenceLifecycleOptions {
 export type SubmissionCompletion =
   | { readonly kind: "singleton"; readonly disposition: MemberDisposition }
   | { readonly kind: "sequence"; readonly response: ReadUpdateSequenceResponse };
+export interface SubmissionOptions {
+  /** Reject an unacceptable success representation before unknown-key claims. */
+  readonly acceptsJson?: boolean;
+}
 export type Submission =
+  | { readonly kind: "not-acceptable" }
   | { readonly kind: "refused"; readonly problem: ReadUpdateProblem }
   | { readonly kind: "admitted"; readonly completion: Promise<SubmissionCompletion> };
 export interface SynchronousLifecycleState {
@@ -56,7 +62,11 @@ export interface SequenceLifecycle {
   readonly scope: string;
   inspectLifecycle(): SynchronousLifecycleState;
   withRead<T>(callback: (reader: StoreReader) => T): OwnerReadEntryResult<T>;
-  submit(carrier: PreparedReadUpdateCarrier, principal: StablePrincipal): Submission;
+  submit(
+    carrier: PreparedReadUpdateCarrier,
+    principal: StablePrincipal,
+    options?: SubmissionOptions,
+  ): Submission;
   readonly closed: Promise<void>;
   close(): Promise<void>;
 }
@@ -564,7 +574,11 @@ export function createSequenceLifecycle(options: SequenceLifecycleOptions): Sequ
       });
     },
     closed,
-    submit(carrier: PreparedReadUpdateCarrier, principal: StablePrincipal): Submission {
+    submit(
+      carrier: PreparedReadUpdateCarrier,
+      principal: StablePrincipal,
+      options?: SubmissionOptions,
+    ): Submission {
       return enter(() => {
         if (state !== "accepting")
           throw new SequenceLifecycleError("not-accepting", new Error("owner is not accepting"));
@@ -577,6 +591,42 @@ export function createSequenceLifecycle(options: SequenceLifecycleOptions): Sequ
             kind: "refused",
             problem: parseReadUpdateProblem(readProblem("limit-exceeded")),
           });
+        if (options?.acceptsJson === false) {
+          // No admission/store write occurs in this branch. Comparison and
+          // current disclosure checks run under the same exclusive owner as
+          // normal submission, so refusal cannot race into a mutation.
+          try {
+            return store.read((reader): Submission => {
+              const creators: MemberCreatorBinding[] = [];
+              for (let index = 0; index < carrier.operations.length; index++) {
+                const inspected = inspectExistingMember(
+                  reader,
+                  principal,
+                  carrier,
+                  index,
+                  (earlier) => {
+                    const fact = creators[earlier];
+                    if (!fact) throw new TypeError("missing inspected creator");
+                    return fact;
+                  },
+                  member,
+                );
+                if (carrier.kind === "singleton" && inspected && "code" in inspected.disposition)
+                  return Object.freeze({ kind: "refused", problem: inspected.disposition });
+                creators.push(inspected?.creator ?? Object.freeze({ kind: "transient" }));
+              }
+              // Member Problems are entries of a sequence success envelope; they
+              // do not turn into direct carrier failures during negotiation.
+              return Object.freeze({ kind: "not-acceptable" });
+            });
+          } catch (error) {
+            if (fenced(error)) {
+              storeFenced = true;
+              shutdown(failure("read", error));
+            }
+            throw error;
+          }
+        }
         let resolve!: (value: SubmissionCompletion) => void, reject!: (error: unknown) => void;
         const completion = new Promise<SubmissionCompletion>((yes, no) => {
           resolve = yes;

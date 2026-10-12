@@ -187,6 +187,10 @@ async function installPackedWorkspace() {
       "member-identity.d.ts.map",
       "member-identity.js",
       "member-identity.js.map",
+      "member-numeric-diagnostics.d.ts",
+      "member-numeric-diagnostics.d.ts.map",
+      "member-numeric-diagnostics.js",
+      "member-numeric-diagnostics.js.map",
       "recovery-store.d.ts",
       "recovery-store.d.ts.map",
       "recovery-store.js",
@@ -203,10 +207,46 @@ async function installPackedWorkspace() {
       "semantic-identity.d.ts.map",
       "semantic-identity.js",
       "semantic-identity.js.map",
+      "transaction-batch.d.ts",
+      "transaction-batch.d.ts.map",
+      "transaction-batch.js",
+      "transaction-batch.js.map",
+      "transaction-comparison.d.ts",
+      "transaction-comparison.d.ts.map",
+      "transaction-comparison.js",
+      "transaction-comparison.js.map",
+      "transaction-dependencies.d.ts",
+      "transaction-dependencies.d.ts.map",
+      "transaction-dependencies.js",
+      "transaction-dependencies.js.map",
+      "transaction-sequence.d.ts",
+      "transaction-sequence.d.ts.map",
+      "transaction-sequence.js",
+      "transaction-sequence.js.map",
+      "transaction-store.d.ts",
+      "transaction-store.d.ts.map",
+      "transaction-store.js",
+      "transaction-store.js.map",
+      "transaction-submission.d.ts",
+      "transaction-submission.d.ts.map",
+      "transaction-submission.js",
+      "transaction-submission.js.map",
       "sequence-executor.d.ts",
       "sequence-executor.d.ts.map",
       "sequence-executor.js",
       "sequence-executor.js.map",
+      "development.d.ts",
+      "development.d.ts.map",
+      "development.js",
+      "development.js.map",
+      "development-runtime.d.ts",
+      "development-runtime.d.ts.map",
+      "development-runtime.js",
+      "development-runtime.js.map",
+      "development-authority.d.ts",
+      "development-authority.d.ts.map",
+      "development-authority.js",
+      "development-authority.js.map",
       "index.d.ts",
       "index.d.ts.map",
       "index.js",
@@ -215,6 +255,10 @@ async function installPackedWorkspace() {
       "read-conformance-capability.d.ts.map",
       "read-conformance-capability.js",
       "read-conformance-capability.js.map",
+      "node-http-target.d.ts",
+      "node-http-target.d.ts.map",
+      "node-http-target.js",
+      "node-http-target.js.map",
       "read-http.d.ts",
       "read-http.d.ts.map",
       "read-http.js",
@@ -265,12 +309,32 @@ async function installPackedWorkspace() {
       (await realpath(path.join(installedServerRoot, "dist", "index.js")))
     )
       throw new Error("packed server public root does not resolve to its approved entry");
+    if (
+      (await realpath(consumer.resolve("@bdp/server/development"))) !==
+      (await realpath(path.join(installedServerRoot, "dist", "development.js")))
+    )
+      throw new Error("packed development facade does not resolve to its explicit entry");
     for (const module of installedServerOutput.filter(
-      (name) => name.startsWith("installed-schema-") && name.endsWith(".js"),
+      (name) =>
+        (name.startsWith("installed-schema-") || name.startsWith("transaction-")) &&
+        name.endsWith(".js"),
     )) {
       try {
         consumer.resolve(`@bdp/server/dist/${module}`);
-        throw new Error("packed private schema module unexpectedly resolves");
+        throw new Error("packed private implementation module unexpectedly resolves");
+      } catch (error) {
+        if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
+      }
+    }
+
+    for (const specifier of [
+      "@bdp/server/development-runtime",
+      "@bdp/server/dist/development-runtime.js",
+      "@bdp/server/development-authority",
+    ]) {
+      try {
+        consumer.resolve(specifier);
+        throw new Error("packed private development runtime unexpectedly resolves");
       } catch (error) {
         if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
       }

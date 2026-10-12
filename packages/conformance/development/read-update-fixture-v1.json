@@ -1,0 +1,13 @@
+{
+  "fixtureVersion": 1,
+  "id": "development-read-update-v1",
+  "seed": 0,
+  "capabilities": [
+    "development-http",
+    "fixed-unowned-types",
+    "single-local-principal",
+    "development-process",
+    "development-retention-process"
+  ],
+  "bindings": {}
+}

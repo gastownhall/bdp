@@ -286,6 +286,66 @@ Second section.
   });
 });
 
+describe("rendered citation anchors", () => {
+  const source = "docs/specs/bdp.md";
+  const validate = (markdown: string, anchor: string, selectedText: string) =>
+    validateCatalogCitations(catalogWithCitation({ source, anchor, selectedText }), () => markdown);
+
+  it("uses GitHub's current Part anchor rather than the collapsed spelling", () => {
+    const markdown = "## Part I — Read\nRead contract.\n## Part II — Read+Update\nUpdate contract.";
+    expect(() => validate(markdown, "#part-i--read", "Read contract.")).not.toThrow();
+    expect(() => validate(markdown, "#part-i-read", "Read contract.")).toThrow(
+      CatalogValidationError,
+    );
+    expect(() => validate(markdown, "#part-i--read", "Update contract.")).toThrow(
+      CatalogValidationError,
+    );
+  });
+
+  it("supports heading aliases without extending past the aliased section", () => {
+    const markdown =
+      '<a id="old-name"></a>\n\n### Renamed\nCurrent rule.\n#### Detail\nNested rule.\n### Next\nOutside.';
+    expect(() => validate(markdown, "#old-name", "Nested rule.")).not.toThrow();
+    expect(() => validate(markdown, "#old-name", "Outside.")).toThrow(CatalogValidationError);
+  });
+
+  it("bounds interior explicit anchors and ignores fenced anchors", () => {
+    const markdown =
+      '### Resources\nBefore anchor.\n<a name="references"></a>\nReference rule.\n```html\n<a id="fake"></a>\n```\n### Next\nOutside.';
+    expect(() => validate(markdown, "#references", "Reference rule.")).not.toThrow();
+    expect(() => validate(markdown, "#references", "Before anchor.")).toThrow(
+      CatalogValidationError,
+    );
+    expect(() => validate(markdown, "#references", "Outside.")).toThrow(CatalogValidationError);
+    expect(() => validate(markdown, "#fake", "fake")).toThrow(CatalogValidationError);
+  });
+
+  it("rejects explicit/generated and explicit/explicit anchor collisions", () => {
+    for (const markdown of [
+      '## Collision\nFirst.\n## Other\n<a id="collision"></a>\nSecond.',
+      '<a id="collision"></a>\nFirst.\n## Other\n<a name="collision"></a>\nSecond.',
+    ]) {
+      expectCitationIssue(
+        catalogWithCitation({ source, anchor: "#collision", selectedText: "First." }),
+        () => markdown,
+        "$.scenarios[0].requirements[0].anchor",
+      );
+    }
+  });
+
+  it("does not erase a fenced block when deciding whether an anchor aliases the next heading", () => {
+    const markdown = '<a id="before-code"></a>\n```text\nExample.\n```\n### Later\nOutside.';
+    expect(() => validate(markdown, "#before-code", "Example.")).not.toThrow();
+    expect(() => validate(markdown, "#before-code", "Outside.")).toThrow(CatalogValidationError);
+  });
+
+  it("avoids duplicate suffix collisions with literal numbered headings", () => {
+    const markdown = "## A\nOne.\n## A\nTwo.\n## A-1\nThree.\n## A\nFour.";
+    expect(() => validate(markdown, "#a-1-1", "Three.")).not.toThrow();
+    expect(() => validate(markdown, "#a-2", "Four.")).not.toThrow();
+  });
+});
+
 describe("cumulative profile selection", () => {
   const catalog = parseScenarioCatalog({
     catalogVersion: 1,

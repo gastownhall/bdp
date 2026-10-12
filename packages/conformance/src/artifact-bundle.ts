@@ -81,6 +81,21 @@ const factoryCreatedBundles = new WeakSet<ConformanceArtifactBundle>();
 export function createConformanceArtifactBundle(
   sources: ConformanceArtifactBundleSources,
 ): ConformanceArtifactBundle {
+  return createBoundArtifactBundle(sources, false);
+}
+
+/** Private diagnostic lane, exposed only by source-only test support. This
+ * cannot bind normative IDs or relax the production Read artifact guard. */
+export function createDevelopmentReadUpdateArtifactBundle(
+  sources: ConformanceArtifactBundleSources,
+): ConformanceArtifactBundle {
+  return createBoundArtifactBundle(sources, true);
+}
+
+function createBoundArtifactBundle(
+  sources: ConformanceArtifactBundleSources,
+  development: boolean,
+): ConformanceArtifactBundle {
   const catalogBytes = copySourceBytes(sources.catalog, "catalog");
   const manifestBytes = copySourceBytes(sources.manifest, "manifest");
   const fixtureBytes = copySourceBytes(sources.fixture, "fixture");
@@ -97,7 +112,35 @@ export function createConformanceArtifactBundle(
     sources.fixture.label,
   );
 
-  if (manifest.catalogId !== `read-v${catalog.catalogVersion}`) {
+  const expectedCatalogId = development
+    ? "development-read-update-v1"
+    : `read-v${catalog.catalogVersion}`;
+  if (
+    development &&
+    (catalog.scenarios.length === 0 ||
+      catalog.scenarios.some(
+        (row) =>
+          row.kind !== "diagnostic" ||
+          row.requiredProfile !== "read-update" ||
+          !row.id.startsWith("development.read-update.") ||
+          row.retires !== undefined,
+      ))
+  )
+    throw new ConformanceArtifactBundleError(
+      "development artifacts require diagnostic-only Read+Update rows",
+    );
+  if (development) {
+    const diagnosticIds = new Set(catalog.scenarios.map((row) => row.id));
+    if (
+      manifest.scenarios.some(
+        (row) => row.requiredProfile !== "read-update" || !diagnosticIds.has(row.id),
+      )
+    )
+      throw new ConformanceArtifactBundleError(
+        "development manifest must bind only its diagnostic Read+Update catalog",
+      );
+  }
+  if (manifest.catalogId !== expectedCatalogId) {
     throw new ConformanceArtifactBundleError(
       "manifest catalogId does not match the bound catalog source",
     );
