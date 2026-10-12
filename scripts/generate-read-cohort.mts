@@ -78,7 +78,6 @@ const IN_PROCESS_ONLY_CAPABILITIES = new Set<string>([
   controlledReadAdvertisedLimitsCapability,
   controlledReadProblemCapability,
   controlledReadScopeRestoreCapability,
-  createCurrentReadWireValidator,
 ]);
 
 const INTERNAL_FAULT_CAPABILITY = "unexpected-internal-fault";
