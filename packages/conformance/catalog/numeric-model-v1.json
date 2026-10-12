@@ -69,7 +69,7 @@
     },
     {
       "id": "read-update.numeric-model.nested-refusal",
-      "title": "The refusal applies at any depth and the diagnostic names the nested member",
+      "title": "The refusal applies at any depth; diagnostics name the offending input and unapplied patches may omit document-relative instanceLocation",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
@@ -87,6 +87,11 @@
           "source": "docs/design/requirements.md",
           "anchor": "#protocol-requirements",
           "selectedText": "any number literal in `properties`, at any depth"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#readupdate-problem-details",
+          "selectedText": "A numeric failure in an unapplied `properties` or `metadata` patch may omit `instanceLocation` rather than identify a postimage position that is not yet known. A request-body pointer does not identify a position in that document."
         }
       ]
     },
