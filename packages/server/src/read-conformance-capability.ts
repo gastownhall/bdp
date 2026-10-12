@@ -9,21 +9,22 @@ export type ReadServerTarget = "bdptest" | "bdpbd";
  * capability-gated row, per the ruled provenance split; the sealed artifact
  * itself carries the authoritative counts.
  *
- * `pnpm evidence:verify` re-derives the self-certifiable set from the bound
- * manifest, checks canonical artifact bytes against this value for both
- * targets, and confines the run-head-to-evidence-commit delta to the artifact
- * and this file. Regenerate with `pnpm evidence:generate`; any edit here
- * without a matching artifact fails the gate closed. Every segment binds
- * the Read schema projection: the sealed definitions by name, in sealed
- * order. The artifact contains observations from its recorded source head;
- * changing that projection requires fresh observations and a new seal.
+ * `pnpm evidence:verify` is the gate: it re-derives the self-certifiable set
+ * from the bound manifest, checks canonical artifact bytes against this value
+ * for both targets, and confines the run-head-to-evidence-commit delta to the
+ * artifact and this file. Regenerate with `pnpm evidence:generate`; any edit
+ * here without a matching artifact fails the gate closed. The gate also
+ * recomputes the Read schema projection of the schema bundle that every
+ * segment binds as `schemaReadProjection`: the sealed definition set by name
+ * and in sealed order. The current artifact records fresh observations from
+ * its declared run head; older evidence remains pinned to its original source.
  *
  * One value for both targets, never populated independently: one cohort covers
  * both, so the two entries must always agree. This internal-but-shipped module
  * is deliberately deep-imported by the smoke and E2E gate scripts; the record
  * itself stays private to prevent runtime callers from manufacturing evidence.
  */
-const READ_COHORT_EVIDENCE_CONSTANT = "43d304b0eb9c00faa926171082fb6aced1f13738";
+const READ_COHORT_EVIDENCE_CONSTANT = "e425bb5c8256e306b251800ba1ba738a4f82a1ed";
 
 const READ_CONFORMANCE_EVIDENCE_BY_TARGET: Readonly<Record<ReadServerTarget, string | undefined>> =
   Object.freeze({
