@@ -1405,17 +1405,17 @@ describe("paired create numeric diagnostic locations", () => {
         "update",
       ),
     );
-    expect(
-      prepareMemberExecution(member, {
-        diagnostic: (o) => ({
-          message: o.pointer,
-          instanceLocation: "/caller-location",
-          document: "metadata",
-        }),
-      }).admission,
-    ).toMatchObject({
+    const admission = prepareMemberExecution(member, {
+      diagnostic: (o) => ({
+        message: o.pointer,
+        instanceLocation: "/caller-location",
+        document: "metadata",
+      }),
+    }).admission;
+    expect(admission).toMatchObject({
       ok: false,
       diagnostics: [{ message: "/propertiesChange/0/value", instanceLocation: "/caller-location" }],
     });
+    if (!admission.ok) expect(admission.diagnostics[0]).not.toHaveProperty("document");
   });
 });
