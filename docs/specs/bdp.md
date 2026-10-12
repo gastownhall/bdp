@@ -1621,6 +1621,10 @@ DeleteWhere(
 ) -> DeletedResourceIdentities
 ```
 
+`UpdateWhere.change` applies only to each selected Resource's `properties`.
+It leaves `metadata` unchanged. To change metadata, use the Resource update
+operations, including `UpdateBead` or `UpdateLink` operations in a batch.
+
 Selection and mutation occur atomically at one serialization point. The
 Selector is evaluated when its operation is reached, so it observes the
 effects of preceding operations in the same Mutation Transaction. An
@@ -2347,7 +2351,8 @@ value is a binding positive integer or ISO 8601 duration:
 - `request.targetBytes` counts octets in the encoded HTTP request target, and
   `request.bodyBytes` counts octets in the representation body;
 - `resource.representationBytes` and `resource.propertiesBytes` count UTF-8
-  bytes in the corresponding JSON serialization;
+  bytes in the corresponding JSON serialization; metadata is covered by the
+  complete representation bound, not by the properties-only bound;
 - `selector.bytes` counts UTF-8 bytes after percent-decoding, while
   `selector.depth` and `selector.nodes` count parsed Selector structure;
 - `patch.operations` bounds the combined operation count of `propertiesChange`
@@ -5838,7 +5843,10 @@ when it is `{}`. A digest already committed for a pre-metadata version remains
 bound to that version's original pre-projection record, which lacked the
 member. Projecting `{}` for a later History read does not rewrite that
 version or its erasure digest; verification of that historical digest uses
-the retained original record, never the later compatibility projection.
+the retained original record, never the later compatibility projection. A
+consumer holding only a projected record cannot reproduce that historical
+digest from that record alone; verification requires the original retained
+bytes. Current reads do not provide proof of the pre-projection form.
 Under
 the number model of [Revisions](#revisions) every admitted number is a
 binary64 value, so every record has exactly one canonical serialization
@@ -6122,7 +6130,10 @@ the three non-empty. A `changes` entry is either an `upsert` — `operation`
 Link record at its final projected revision, without the `links`
 aggregate — or a `tombstone` — `operation` `tombstone`, `resourceKind`,
 and `resource` carrying the `id`, the immutable `type`, and the last
-visible `revision`. A tombstone has the same shape whether the Resource
+visible `revision`. Newly committed
+upserts include `metadata`, including `{}` when empty. A previously retained
+change group may contain a pre-metadata record; serving it preserves its
+original record representation, as with previously retained Events. A tombstone has the same shape whether the Resource
 was deleted or merely left the view, because an authorization-projection
 tombstone does not assert underlying deletion. A projection advance
 carries `projectionAdvance` `true`, no `transaction`, `eventCount` `0`, and

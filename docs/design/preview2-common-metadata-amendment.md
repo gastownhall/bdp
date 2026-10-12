@@ -1,7 +1,8 @@
 # Draft BDP v0 amendment: common Resource metadata
 
-This is a review packet for the normative BDP spec, schemas and conformance
-artifacts. It does not change the current v0 wire contract. The Graph CLI
+This is the historical decision packet. The current common-metadata contract
+is defined by the normative BDP spec, mirrored schemas and conformance
+artifacts; this packet does not supersede them. The Graph CLI
 Specification (Draft) requires a common top-level metadata object on Beads and
 informational Links; current BDP v0 describes only Type-validated `properties`.
 No BDP implementation is deployed, so the wire contract can still be amended
