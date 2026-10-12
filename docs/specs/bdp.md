@@ -2583,10 +2583,11 @@ The Read+Update rows mean:
   to the failing document. The optional `document` is `properties` or
   `metadata`; omission means `properties`. A metadata failure MUST carry
   `document: "metadata"`, and its message names metadata. An empty pointer
-  denotes that document's root. A numeric failure in an unapplied metadata
-  patch may omit `instanceLocation` rather than identify a position that does
-  not yet exist. `type` and `schemaLocation` are present together or not at
-  all. `validation.diagnostics` and `validation.diagnosticBytes` bound the
+  denotes that document's root. A numeric failure in an unapplied `properties`
+  or `metadata` patch may omit `instanceLocation` rather than identify a
+  postimage position that is not yet known. A request-body pointer does not
+  identify a position in that document. `type` and `schemaLocation` are
+  present together or not at all. `validation.diagnostics` and `validation.diagnosticBytes` bound the
   list: an authority that omits entries beyond a bound MUST advertise that
   bound, keeps at least one entry in evaluation order, and sets
   `diagnosticsTruncated` to `true`; an authority that advertises neither
@@ -6432,7 +6433,7 @@ rows describe. The rows become claimable only under the evidence law in
 | --- | --- |
 | `read-update.numeric-model.same-value-no-op` | A Property Change that rewrites a number as another admissible spelling of the same exact decimal value — `1.0` as `1` or `1e0`, `0` as `-0.0`, `1e300` as `1E300` — is a no-op that retains the revision and emits no `updated` Event, while an admissible literal of a different exact value mints a fresh revision |
 | `read-update.numeric-model.round-trip-admission` | A number literal whose exact decimal value does not round-trip through binary64 — an integer past 2^53, a decimal of twenty significant digits, a magnitude beyond binary64 — is refused at admission with `validation-failed` and a diagnostic naming the member, changing nothing, while `1.0`, `-0.0`, `1e300`, and its expanded form are admitted |
-| `read-update.numeric-model.nested-refusal` | The refusal applies at any depth within `properties`, whether the document is supplied whole or as a Property Change `value`, and the diagnostic names the nested member by its JSON Pointer within `properties` |
+| `read-update.numeric-model.nested-refusal` | The refusal applies at any depth within `properties`, whether the document is supplied whole or as a Property Change `value`, and the diagnostic names the offending input; an `instanceLocation` within an available failing document is document-relative, while an unapplied `properties` or `metadata` patch may omit it |
 | `read.numeric-model.declared-token-model` | A revision-token scheme that derives tokens from content declares its number model by name; a target declaring `sha256-jcs` produces one token for every admissible spelling of the same value, over RFC 8785 bytes with numbers as binary64; honestly not applicable to a target declaring no content-derived scheme |
 
 #### History conformance rows
