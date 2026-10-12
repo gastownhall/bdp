@@ -1,6 +1,6 @@
-# Proposal: revision provenance and activity provenance
+# Proposal: Provenance V2
 
-Status: discussion draft, October 11, 2026. Not an adopted BDP amendment or an
+Status: proposal for review, October 11, 2026. Not an adopted BDP amendment or an
 implementation commitment.
 
 ## Purpose
@@ -13,7 +13,22 @@ Also let someone answer **“What happened around this resource?”** Record tha
 activity independently, so reporting a commit or a use of information does not
 require editing the subject. These two questions need different record shapes.
 
-## Recommendation: one revision-provenance field
+## Recommendation: two mechanisms for provenance
+
+Adopt **two complementary mechanisms**, with the same shared meanings in BDP
+and Beads:
+
+| Mechanism | What it records | How it is written |
+| --- | --- | --- |
+| **Revision provenance** | Who a specific Bead or Link revision is attributed to, when it was committed, and what information it was based on | The common `revisionProvenance` field, saved by normal create/update/delete operations with the resulting live or proposed terminal revision |
+| **Activity provenance** | What reportedly happened around a Bead, Link, or external resource, including reports received later | Ordinary create/update/delete of an Activity-typed Bead; `bd provenance record` is a create convenience command |
+
+Revision provenance accompanies the subject's own revision. Activity provenance
+is recorded independently, without changing its subject. An Activity Bead has
+revision provenance of its own, just like any other Bead: who recorded the report
+is distinct from who performed the reported activity.
+
+### Revision provenance: one common field
 
 Use **`revisionProvenance`** as a common top-level member on every Bead and Link
 version, alongside `id`, `type`, and `properties`. It groups who the version is
@@ -25,10 +40,10 @@ the separate BDP `attribution` and `changeContext` containers and the preview's
 combined attribution/time container with this one common representation. This is
 a proposed amendment and migration target, not a claim that either has changed.
 
-There is only one common provenance field: `revisionProvenance`. The containing
-version is its subject, including initial creation and historical reads. Activity
-provenance names a different kind of information, recorded in Activity Beads; it
-is not another common provenance envelope.
+Within this mechanism, `revisionProvenance` is the one common field. The containing
+version is its subject, including initial creation and historical reads.
+
+### Activity provenance: ordinary Activity Beads
 
 Use **activity provenance** for the independently recorded work history served by
 `bd provenance`. Its records remain **Activity Beads**, whose Type-specific fields
@@ -53,14 +68,13 @@ Use **`basis: writer-supplied | unknown`**, following
 and it is included in Vickie's open PR83. The paired
 [Beads PR79](https://github.com/donnabox/beads/pull/79) is merged into the fork;
 public graph output already uses `basis`, even though private storage retains
-older names. This draft's previous CLI comparison incorrectly used that private
-shape as the public contract. `writer-supplied` says how the identity was obtained,
+older names. `writer-supplied` says how the identity was obtained,
 not that it was authenticated; `unknown` preserves an identity with an uncertain
 relationship to this revision. A present actor requires both `id` and `basis`.
 Grouping it with server-observed time does not authenticate it or verify sources.
-Vickie confirmed these spellings and PR states on October 11; no separate new
-CLI basis-input flag was established by that output rename. The flag below is
-part of this strawman.
+These spellings and PR states were verified October 11. No separate new CLI
+basis-input flag was established by that output rename; the flag below is part
+of this strawman.
 An absent actor stays absent. For this draft, retain the existing History value
 states for time, agent, and message rather than silently dropping distinctions
 between known absence and missing knowledge. The example below shows that
@@ -646,7 +660,7 @@ meaning change. No implementation ships before that compatibility choice is made
 
 ### `bd provenance record` is an Activity-create convenience command
 
-Yes: it builds an Activity Bead and invokes the same underlying create operation
+The command builds an Activity Bead and invokes the same underlying create operation
 as `bd create` with the Activity Type. It is not another event-storage API.
 It retains useful validation and retry handling beyond a bare unkeyed create.
 
