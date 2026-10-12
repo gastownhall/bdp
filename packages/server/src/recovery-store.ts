@@ -268,7 +268,7 @@ export function isKnownNetworkFilesystem(platform: NodeJS.Platform, type: number
  * the returned handle is ready only after a real exclusive startup write commits.
  * Restore without complete recovery continuity must use a different canonical Scope.
  * The caller must arrange a supported local filesystem; known network types refuse.
- * Format 2 is application-owned: writes and SQLite integrity checks require the
+ * Format 3 is application-owned: writes and SQLite integrity checks require the
  * exact bdp_json_syntax_v2 function registered below. A stock SQLite connection
  * can inspect rows but cannot run those checks or replay a logical SQL dump.
  * Any logical restore must preserve the complete recovery/identity state and
