@@ -1197,6 +1197,82 @@ describe("prepared member dependencies", () => {
   });
 });
 
+describe("metadata numeric diagnostic identity and budget", () => {
+  it.each(["createBead", "createLink", "updateBead", "updateLink"] as const)(
+    "%s preserves the mandatory document before counting or truncating diagnostics",
+    (operation) => {
+      const creating = operation.startsWith("create");
+      const link = operation.endsWith("Link");
+      const input = creating
+        ? {
+            ...(link ? { type: linkType, source: a, target: b } : { type }),
+            metadata: { a: "BAD", b: "BAD" },
+          }
+        : {
+            [link ? "link" : "bead"]: link ? "links/a" : "beads/a",
+            metadataChange: [{ op: "add", path: "/items/-", value: ["BAD", "BAD"] }],
+          };
+      const raw = JSON.stringify(input).replaceAll('"BAD"', "1e400");
+      const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "numeric-doc"));
+      const formatter = () => ({
+        message: "bad",
+        document: "properties" as const,
+        type,
+        schemaLocation: "https://schema.test/#/x",
+        instanceLocation: "/wrong",
+      });
+      const expected = {
+        message: "metadata: bad",
+        document: "metadata",
+        ...(creating ? { instanceLocation: "/a" } : {}),
+      };
+      const bytes = Buffer.byteLength(JSON.stringify([expected]));
+      const result = prepareMemberExecution(member, {
+        diagnostic: formatter,
+        diagnosticBytes: bytes,
+        diagnostics: 1,
+      }).admission;
+      expect(result).toMatchObject({
+        ok: false,
+        diagnostics: [expected],
+        diagnosticsTruncated: true,
+      });
+      if (result.ok) throw Error("expected refusal");
+      expect(result.diagnostics).toEqual([expected]);
+      expect(result.diagnostics[0]).not.toHaveProperty("type");
+      expect(result.diagnostics[0]).not.toHaveProperty("schemaLocation");
+      expect(result.offending[0]?.pointer).toBe(
+        creating ? "/metadata/a" : "/metadataChange/0/value/0",
+      );
+      expect(() =>
+        prepareMemberExecution(member, { diagnostic: formatter, diagnosticBytes: bytes - 1 }),
+      ).toThrow("first entry");
+      const all = prepareMemberExecution(member, { diagnostic: formatter }).admission;
+      expect(all).toMatchObject({ ok: false, diagnosticsTruncated: false });
+      if (all.ok) throw Error("expected refusal");
+      expect(all.diagnostics).toHaveLength(2);
+      expect(all.diagnostics.every((entry) => entry.document === "metadata")).toBe(true);
+    },
+  );
+  it.each(["createBead", "createLink"] as const)(
+    "%s rejects a nonobject metadata root before execution",
+    (operation) => {
+      const input =
+        operation === "createBead" ? { type } : { type: linkType, source: a, target: b };
+      for (const metadata of [null, [], 2, "bad"]) {
+        expect(() =>
+          prepareReadUpdateSingleton(
+            scope,
+            operation,
+            JSON.stringify({ ...input, metadata }),
+            "root",
+          ),
+        ).toThrow();
+      }
+    },
+  );
+});
+
 describe("paired create numeric diagnostic locations", () => {
   for (const operation of ["createBead", "createLink"] as const) {
     const input = operation === "createBead" ? { type } : { type: linkType, source: a, target: b };
@@ -1211,7 +1287,13 @@ describe("paired create numeric diagnostic locations", () => {
       }).admission;
       expect(result).toMatchObject({
         ok: false,
-        diagnostics: [{ message: "bad number", instanceLocation: "/nested/bad" }],
+        diagnostics: [
+          {
+            message: "metadata: bad number",
+            document: "metadata",
+            instanceLocation: "/nested/bad",
+          },
+        ],
         offending: [{ pointer: "/metadata/nested/bad", literal: "1e400" }],
       });
     });
@@ -1326,7 +1408,11 @@ describe("paired create numeric diagnostic locations", () => {
     );
     expect(
       prepareMemberExecution(member, {
-        diagnostic: (o) => ({ message: o.pointer, instanceLocation: "/caller-location" }),
+        diagnostic: (o) => ({
+          message: o.pointer,
+          instanceLocation: "/caller-location",
+          document: "metadata",
+        }),
       }).admission,
     ).toMatchObject({
       ok: false,
