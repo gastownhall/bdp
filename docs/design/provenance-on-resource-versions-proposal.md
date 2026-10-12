@@ -308,7 +308,7 @@ An explicit exact-revision filter matches only that pin, excluding unpinned
 reports. `by-ref` matches the artifact's recorded reference exactly. Index subject
 identity/revision, kind, occurrence time, and artifact reference so these queries
 do not require scanning every Bead or its history. Query spelling, paging, and
-ordering guarantees still need specifying; indexes are a storage choice.
+ordering are proposed in the CLI strawman below; indexes are a storage choice.
 
 For a compatible CLI adapter, retries must preserve today's durable duplicate
 handling: the same event identity produces one Activity Bead, and a retry with
@@ -320,14 +320,17 @@ be mapped to the existing deduplication key before claiming compatibility.
 
 ### Decisions and acceptance cases
 
-The existing CLI is append-only. A compatible Activity implementation must
-enforce that behavior through its write policy; an ordinary Bead wrapper alone
-does not prevent updates. Correction/retraction operations, if introduced, need
-an explicit policy. Likewise, today's Issue deletion cascades to its activity
-rows. A reference property does not implement that cascade: choose and implement
-equivalent deletion behavior, or explicitly approve a behavior change. Set
-activity access and retention rules without assuming subject permissions are
-automatically inherited.
+**Selected direction:** Activity Beads use ordinary create/update/delete. A
+correction creates a new Activity revision; deletion removes it from live queries
+and leaves the proposed terminal revision described below. This deliberately
+extends today's append-only command surface. A retry of `record` is still a
+create retry, never an implicit correction or resurrection of a deleted Activity.
+
+Deleting the activity's subject is a different operation. Today's Issue deletion
+cascades to its activity rows. Whether to retain Activity Beads about deleted
+subjects or preserve that cascade remains an explicit product decision; a
+reference property does not implement it automatically. Access and retention
+also require explicit policy, not presumed inheritance of subject permissions.
 
 | Acceptance case | Required result under this proposal |
 | --- | --- |
@@ -346,11 +349,10 @@ and adapter are **PROPOSED / NYI**; today's Issue event log is **EXISTING**.
 
 ## Source-member choices still to settle
 
-- **Sources omitted on update:** preserve the existing source list and its
-  completeness or require the writer to restate them? Suggested default: preserve
-  those source fields, like other editable state;
-  carrying it forward must not be presented as evidence of a new source read.
-  The wire form for explicitly resetting sources to unknown also needs choosing.
+- **Source defaults:** the CLI strawman below recommends preserving source fields
+  on update, and unknown sources on create/delete. Carry-forward does not prove a
+  new source read. Adopt or revise that rule and specify the BDP wire encoding for
+  omission versus an explicit reset to unknown.
 - **Exact source versions:** allow both pinned and unpinned references, as Memory
   R3 does, or require pins for Bead/Link sources? The draft above allows both and
   states their different promises.
@@ -408,6 +410,285 @@ migration require their own implementation/review pass after product decisions.
 BDP owns these shared meanings. Beads owns CLI spelling and storage realization.
 The open choices above need resolution before this becomes an implementable
 contract. Background: [proposal and product comparison](memory-provenance-governance-review-20261011.md).
+
+## Deletion and ordering foundations for the CLI strawman
+
+**Deletion recommendation:** an ordinary delete atomically creates a terminal
+history revision containing `revisionProvenance`, the deleted identity, and its
+last live revision, while removing the resource from the live graph. The terminal
+revision contains no live properties or endpoints. Ordinary GET returns 404;
+authorized history enumeration includes the deletion entry, and retained earlier
+live revisions remain available under normal History rules. Delete provenance
+sources explain the deletion, not the content of the last live revision.
+
+This changes current BDP's rule that deletion mints no revision. The amended
+contract must specify terminal-history row shape, exact-reference resolution to
+a terminal revision (a typed deleted-state result, never the previous live body),
+Event/receipt/replication representation, and interaction with pruning and erasure.
+Do not represent a projection-only disappearance as a deletion. Existing live
+Link safety and concurrency checks still apply. A failed delete saves no terminal
+revision; a retry under the same retained idempotency key creates no second one.
+Deletion of an owned Link can also version its source; all effects and provenance
+must remain atomic under the applicable operation contract.
+
+**Ordering recommendation:** timestamps describe time; they do not provide a
+reliable replay position. Transactional BDP's Scope epoch, ordered change groups,
+and stable Event ordinals provide commit order and resumable cursors. A late
+Activity appears at its newly committed position even if `occurredAt` is old.
+Activity corrections and deletions are later transitions in that stream. Never
+sort opaque Scope-position strings or use an occurrence-time watermark for replay.
+
+A display can sort by occurrence time with stable identity tie-breaking and
+unknown times last. Snapshot pagination must remain stable across concurrent
+writes. Reliable follow/replay requires an advertised ordered-stream capability;
+we do not add that guarantee to lower profiles by inventing timestamps. Ordering
+is per Scope epoch; a multi-Scope aggregation must identify its own ordering
+contract. Expired cursors or epoch changes require an explicit resnapshot/restart,
+not a silent claim that no changes were missed.
+
+## CLI strawman — proposed, not implemented
+
+These options apply to create/update/delete of both Beads and Links, through
+whatever command routes select those resources. Examples use the ordinary Bead
+verbs; equivalent Link writes must share the same option parser and semantics.
+Existing selectors, revision guards, dry-run behavior, and deletion confirmation
+remain in force. Unsupported backends must reject requested provenance features
+before a write, never silently discard them.
+
+### What exists today
+
+Source check October 11: upstream main `7477ec13`, graph preview integration
+`72cd9dc3`, and BDP main `182f1fcf`, freshly rechecked. The preview's global
+[`--actor`](https://github.com/donnabox/beads/blob/72cd9dc3c7a2304f15dbe5d3e880d903cf077a35/cmd/bd/main.go#L935)
+is inherited by ordinary mutations and defaults from `BEADS_ACTOR`, Git user
+name, then the OS user. No common actor-status/source-list/change-message flags
+are registered for all three lifecycle verbs in the inspected source.
+
+There are two important spelling collisions:
+
+- [`--message` / `-m`](https://github.com/donnabox/beads/blob/72cd9dc3c7a2304f15dbe5d3e880d903cf077a35/cmd/bd/flags.go#L11)
+  already aliases the Issue description on create/update. Other commands also use
+  it for different purposes. Do not silently reinterpret it as revision metadata.
+- [`bd provenance record --actor`](https://github.com/donnabox/beads/blob/72cd9dc3c7a2304f15dbe5d3e880d903cf077a35/cmd/bd/provenance.go#L190)
+  is a local flag for the activity's actor, and `--source` names its producer.
+  Neither should silently change meaning.
+
+### Common revision-provenance options
+
+| Proposed option, on create/update/delete | Meaning |
+| --- | --- |
+| `--revision-actor ID` | Set `revisionProvenance.actor.id`. Ordinary lifecycle `--actor` remains a compatibility alias; contradictory explicit values are an error. |
+| `--actor-status claimed\|unknown` | Qualify the revision actor. Default `claimed` when the CLI supplies an actor, including its configured default. `unknown` preserves an identity whose relationship to the version is uncertain. No `verified` or `authenticated` value. |
+| `--no-actor` | Suppress actor defaulting and leave revision actor absent; mutually exclusive with explicit revision actor or actor-status. |
+| `--revision-message TEXT` | Set the optional revision message, distinct from content/description or backend commit messages. An explicit empty string is a known empty message. |
+| `--assisting-agent ID` | Record an optional assisting agent, distinct from the responsible actor. Do not infer it from login identity. |
+| `--no-revision-message`, `--no-assisting-agent` | Record known absence rather than undetermined; each excludes its corresponding value option. |
+| `--sources JSON`, `--sources @FILE`, or `--sources -` | Supply the entire source-entry array inline, from a UTF-8 JSON file, or stdin. Replaces the source list; no comma-splitting of URLs and no implicit append. |
+| `--sources-unknown` | Explicitly reset source knowledge to unknown; excludes `--sources` and any non-unknown completeness value. |
+| `--sources-completeness complete\|incomplete\|unknown` | Declare completeness of the source list. Reject complete/incomplete when the resulting sources are unknown. |
+
+Only one input may consume stdin, and only one `--sources` option is allowed.
+Reject empty explicit actor/agent IDs and actor-status without a resolved actor.
+Each source entry has `ref` and optional `note`, using the same reference grammar
+as BDP. A plain URI is unpinned; `{ "uri": "…", "revision": "…" }` pins exactly.
+Do not resolve unpinned sources to latest silently. CLI-local identity shorthand,
+if supported, must expand through the normal reference resolver without guessing
+revisions. The exact JSON form supports notes and pins without extra flag syntax.
+
+All caller-provided values travel in the operation's proposed
+`revisionProvenance` input, with explicit absence/unknown intent preserved.
+`committedAt` is output-only for ordinary lifecycle writes; reject attempts to
+set it through a generic JSON write as well as flags. Imports remain a separately
+specified path and may not backdate native writes. Actor/message/agent describe
+this write: omission must never copy them from the previous revision. Omitted
+agent/message means undetermined; absent resolved actor stays absent.
+
+| Source input | Create | Update | Delete |
+| --- | --- | --- | --- |
+| Omitted | Unknown | Preserve previous sources and completeness | Unknown; never inherit reasons from the deleted content |
+| `--sources '[]'` | Known empty list | Replace with known empty list | Explicitly no information sources declared for deletion |
+| Nonempty `--sources` | Save list | Replace list | Save deletion's sources on terminal revision |
+| `--sources-unknown` | Unknown | Reset to unknown | Unknown |
+
+A replacement source list defaults its completeness to unknown unless supplied;
+a preserved list preserves completeness unless explicitly changed. Completeness
+alone may change a known existing list on update. An explicit empty list does
+not imply complete. These omission defaults are strawman recommendations replacing
+the earlier undecided source carry-forward question.
+
+Source-only changes mint a revision. Actor/message/agent-only submissions retain
+the existing no-op rule; the CLI must report that no revision was created and
+that those supplied values were not recorded. It must not imply that a message
+was saved on a no-op. Failed validation, revision guards, or writes save neither
+content nor provenance. For batch operations apply metadata only to actual
+successful transitions, preserving the batch's advertised atomicity boundary.
+
+Example source file `sources.json`:
+
+```json
+[
+  {
+    "ref": { "uri": "https://example.org/project/beads/benchmark", "revision": "r17" },
+    "note": "Measurements supporting this decision"
+  }
+]
+```
+
+Illustrative commands; the flags are proposed:
+
+```sh
+bd create "Choose storage engine" --revision-actor human:alice \
+  --revision-message "Record the decision" \
+  --sources @sources.json --sources-completeness incomplete
+bd update DECISION_ID --sources @sources.json \
+  --revision-message "Correct the supporting sources"
+bd delete DECISION_ID --if-revision R2 --force \
+  --sources '[{"ref":"https://example.org/policies/retention"}]' \
+  --revision-message "Remove under retention policy"
+```
+
+The delete example is logical deletion, not an erasure request. JSON output for
+an actual deletion should return a discriminated terminal-history record with
+its new revision and revision provenance; ordinary GET still returns 404.
+
+### `bd provenance record` is an Activity-create convenience command
+
+Yes: it builds an Activity Bead and invokes the same underlying create operation
+as `bd create` with the Activity Type. It is not another event-storage API.
+It retains useful validation and retry handling beyond a bare unkeyed create.
+
+| Wrapper option | Activity content or revision metadata |
+| --- | --- |
+| `--subject REF --subject-kind bead\|link\|external` | Activity subject; preserve an explicit pin. Existing `--issue ID` is a shorthand for an unpinned Issue subject; reject conflicting forms. |
+| `--kind KIND` | Activity kind |
+| `--producer NAME` | Activity producer; preserve `--source` as an alias and reject contradictory values |
+| `--activity-actor ID` | Activity participant; preserve this command's existing `--actor` as an alias |
+| `--ref`, `--ref-kind`, `--at`, `--payload` | Existing artifact, occurrence time, and opaque payload meanings |
+| Common revision-provenance options above | Provenance of creating the Activity record, including any information sources used to write the report |
+
+On this wrapper, `--revision-actor` always names the record writer; local
+`--actor` always names the activity participant. Resolve the writer's default
+independently of the local activity-actor flag. `--no-actor` suppresses only the
+revision actor here; it does not erase an explicitly supplied activity actor.
+`--actor-status` qualifies only the revision actor. Help and JSON examples must
+make this legacy spelling exception visible.
+
+```sh
+bd provenance record --issue ISSUE_ID --kind land --producer ci \
+  --activity-actor human:alice --revision-actor svc:ci-reporter \
+  --ref 0123456789abcdef0123456789abcdef01234567 --ref-kind git-sha \
+  --at 2026-10-11T18:00:00Z --sources @sources.json \
+  --revision-message "Record CI landing report"
+```
+
+Return the Activity identity and revision so ordinary `bd update` and `bd delete`
+can correct or delete it. Those operations target the Activity ID, never its
+subject. Native Activity creation and this wrapper must share the Type schema,
+validation, authorization, and provenance semantics.
+
+Preserve legacy deterministic event identity for legacy inputs through a durable
+create-idempotency mapping; define a canonical key for new subject forms before
+implementation. A duplicate `record` is not an update: changed actor, payload,
+or revision metadata must not overwrite the original. Return an explicit
+already-recorded disposition. If the Activity has since changed or been deleted,
+a replay must not recreate it or claim the original creation is its current
+state. Retry retention/expiry must be specified before claiming parity with the
+existing log. Ordinary creates without an equivalent idempotency key are not
+promised this deduplication behavior.
+
+### `log` and `by-ref`: explicit modes, activity-only by default
+
+Recommend `--mode activity|revision|all` on both commands. Omission retains
+**activity-only** meaning; do not silently mix two different kinds of result.
+
+| Command | `activity` | `revision` |
+| --- | --- | --- |
+| `bd provenance log SUBJECT` | Current live Activity reports about that subject; identity includes both pinned and unpinned subjects | Retained revisions of that subject, including terminal deletion entries, with their revision provenance |
+| `bd provenance by-ref REF` | Activity reports whose artifact reference equals the supplied legacy value | Retained resource revisions whose `revisionProvenance.sources` reference the supplied resource |
+
+For revision `by-ref`, an unpinned reference matches the source identity across
+pinned and unpinned citations; a pinned reference matches only that exact pin.
+The activity branch keeps exact opaque artifact-string equality. Reject a raw
+artifact value that is not a valid Resource reference in revision/all mode,
+rather than guess a URI. Neither branch automatically searches actors, producers,
+subjects, or message text. `--kind` remains an activity filter and is rejected in
+revision mode; in all mode it narrows only the activity branch.
+
+An optional `--subject-revision REV` narrows `log`: activity mode includes only
+that exact subject pin, excluding unpinned reports; revision mode selects that
+revision. In all mode apply each rule to its branch. Neither query recursively
+includes the revision history of every matching Activity unless those Activity
+identities are themselves selected as subjects.
+
+Emit each Activity identity or resource/revision pair once per result branch;
+multiple matching source entries are included as match details on that row.
+
+`--mode all` combines the two sets with explicit row discriminators (`activity`
+or `revision`), subject identity, exact revision where applicable, and labeled
+times. Human output labels rows; machine output uses distinct schemas. It must
+not imply that artifact association and source citation are the same relation.
+For activity rows expose the latest Activity revision and its own revision
+provenance; that is metadata on one result, not an additional revision-mode row.
+Preserve existing default JSON output through the compatibility adapter until a
+versioned output change is selected; opt-in modes use the new result envelope.
+
+```sh
+bd provenance log ISSUE_ID
+bd provenance log ISSUE_ID --mode revision
+bd provenance log ISSUE_ID --mode all
+bd provenance by-ref https://example.org/reports/benchmark --mode all
+```
+
+**Display versus following changes:** activity mode defaults to occurrence time,
+unknown last, then stable Activity identity. Recommend `--order recorded` for
+activity creation order, unaffected by later edits, using authority order rather
+than sorting timestamps. Revision mode orders by revision commit order; all mode
+uses the same Scope order, Activity rows placed at their original creation and
+revision rows at their own commits. An incompatible `--order occurred` with
+revision/all is an error. Returned rows still show actual timestamps for people.
+All pageable modes use one stable authorized snapshot and opaque continuation
+cursors. If the backend cannot supply the requested ordering/snapshot guarantee,
+it must report unsupported rather than silently fall back to timestamp order.
+
+A future `--follow --after CURSOR` consumes committed transitions, not repeated
+sorting of the current Activity list. Initially constrain follow to activity mode
+with `--order recorded` and the advertised ordered-stream capability. It includes
+Activity create/update/delete transitions and their exact revisions, including
+late reports at their newly committed positions. A correction that enters or
+leaves a subject/artifact filter needs an explicit added/changed/removed result;
+disappearance from a filtered projection must not falsely claim deletion. Deletes
+must be matchable from retained prior index state without fetching a now-404
+body. Cursor scope/filter/auth bindings, expiry and resnapshot behavior are part
+of this feature's contract. Reliable following is NYI, not a timestamp shortcut.
+
+History modes and reverse indexes obey retained-history authorization and erasure;
+no index may disclose a revision the caller cannot read. Return the applicable
+retention/completeness information, not an implication of an all-time complete
+log. Whether deleting a subject deletes its Activity Beads remains a product
+choice; explicit Activity deletion itself follows ordinary terminal-revision rules.
+
+### CLI acceptance and readiness
+
+| Case | Required result |
+| --- | --- |
+| Create/update/delete a Bead or Link with sources, actor status and revision message | All supplied fields reach that operation's resulting revision or terminal entry; no silent drops |
+| Update omits sources; delete omits sources | Update preserves source knowledge; delete records unknown deletion sources |
+| Explicit empty sources versus unknown sources | Remain distinct through flags, JSON output, BDP and retained reads |
+| Two flags request stdin, conflicting actor aliases, invalid status, or client commit time | Fail before mutation |
+| Activity performed by Alice, recorded by CI | Separate activity participant and revision actor; no flag shadowing changes their meaning |
+| Retry Activity creation after later correction/deletion | No overwrite or resurrection; report retained original disposition or explicit retry expiry |
+| Ordinary update/delete of an Activity | New Activity revision/terminal entry; subject content unchanged |
+| Ordinary GET after resource deletion | 404; authorized provenance revision mode can show the terminal entry |
+| Late Activity, identical timestamps, correction, deletion during pagination | Snapshot pages stay stable; ordered follow observes every visible transition or an explicit gap/expiry |
+| Default `log` / `by-ref` versus `--mode all` | Defaults retain activity meaning; all-mode rows identify which relation matched |
+| Backend lacks History or reliable stream/index support | Explicit unsupported capability, never misleading empty results or fake timestamp ordering |
+
+**EXISTING:** inherited actor option, Activity-log record/log/by-ref and its retry
+rules, preview actor/time metadata. **PROPOSED / NYI:** common provenance flags,
+unified output shape, Activity wrapper backed by Beads, ordinary Activity edits,
+terminal revisions, revision/all queries and ordered follow. Before implementation,
+settle the BDP terminal-history amendment, compatibility/output version, Activity
+subject deletion policy, retry mapping/retention and query capability declarations.
 
 ## Appendix A: relationship to today's `bd provenance`
 
