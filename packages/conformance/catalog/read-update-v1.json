@@ -115,6 +115,70 @@
       ]
     },
     {
+      "id": "read-update.singleton.document-patch-merge-replace",
+      "title": "A top-level add changes only one member; root replace substitutes the complete properties or metadata object and {} clears it",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "`propertiesChange` targets `properties` and `metadataChange` targets common `metadata`; each JSON Pointer is relative to its own complete object."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "`add` has RFC 6902 object replacement and array insertion/append semantics."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "A root-pointer `replace` with `{}` clears either object, including common `metadata`."
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-atomicity",
+      "title": "One guarded update changes properties and metadata atomically; an equal result retains revision and attribution",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-changes",
+          "selectedText": "A Resource update can apply one to `properties`, one to common `metadata`, or both atomically."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "If both results equal their respective preceding objects under RFC 6902 Section 4.6 JSON comparison, the operation is a no-op."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#carried-attribution",
+          "selectedText": "a write whose `properties` and common `metadata` changes are both no-ops mints no revision and records no attribution."
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-validation",
+      "title": "A non-object result or Type-invalid properties fails the whole Resource update",
+      "kind": "normative",
+      "requiredProfile": "read-update",
+      "requirements": [
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-changes",
+          "selectedText": "The authority validates the complete `properties` result — not merely its changed members — against every effective Type contract; `metadata` has no Type schema."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#property-change-values",
+          "selectedText": "The metadata patch must yield a JSON object."
+        }
+      ]
+    },
+    {
       "id": "read-update.singleton.delete-bead",
       "title": "delete-bead returns the deleted identity and refuses a Bead with live incident Links",
       "kind": "normative",

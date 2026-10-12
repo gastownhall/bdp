@@ -6470,6 +6470,9 @@ Read+Update profile is not realized until every row is proved.
 | `read-update.discovery.operation-directory` | The directory lists exactly eight singleton targets — the six Resource targets plus `put-alias` and `delete-alias` — and `sequence` |
 | `read-update.singleton.create-bead` | `create-bead` returns the created postimage; omitted `id` is allocated, supplied `id` is honored |
 | `read-update.singleton.update-bead` | `update-bead` applies the patch, returns the postimage and fresh revision, and retains the revision on a semantic no-op |
+| `read-update.singleton.document-patch-merge-replace` | On both Beads and Links, top-level `add` replaces only the named member while root `replace` replaces the complete selected `properties` or `metadata` object; `{}` clears that object |
+| `read-update.singleton.document-patch-atomicity` | One update changes `properties` and `metadata` atomically under one revision; an equal combined result retains the revision and attribution |
+| `read-update.singleton.document-patch-validation` | A patch yielding a non-object document or Type-invalid `properties` fails the whole update without changing either document |
 | `read-update.singleton.delete-bead` | `delete-bead` returns the deleted identity, the identity then reads as `404`, and a live incident Link fails it with `incident-links-exist` |
 | `read-update.singleton.incident-links-nondisclosure` | A Bead deletion blocked by hidden incident Links fails with `incident-links-exist` and withholds the hidden Links that caused it |
 | `read-update.singleton.create-link` | `create-link` resolves endpoint spellings to canonical URLs and echoes a pin byte-identically |

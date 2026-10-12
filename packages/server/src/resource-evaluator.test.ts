@@ -198,6 +198,71 @@ function failure(result: ReturnType<ReturnType<typeof fixture>["execute"]>, code
 }
 
 describe("pure member Resource evaluation", () => {
+  it.each(["bead", "link"] as const)(
+    "merges, replaces, clears and rejects two-document %s updates atomically",
+    (kind) => {
+      const f = fixture();
+      f.createBead(
+        "a",
+        { keep: true, change: "old" },
+        { metadata: { owner: "team", stale: true } },
+      );
+      f.createBead("b");
+      if (kind === "link")
+        f.createLink("edge", "beads/a", "beads/b", {
+          properties: { keep: true, change: "old" },
+          metadata: { owner: "team", stale: true },
+        });
+      const id = kind === "bead" ? "beads/a" : "links/edge";
+      const operation = kind === "bead" ? "updateBead" : "updateLink";
+      const subject = kind === "bead" ? { bead: id } : { link: id };
+      const update = (propertiesChange: unknown, metadataChange: unknown) =>
+        f.execute(operation, { ...subject, propertiesChange, metadataChange });
+
+      const merged = update(
+        [{ op: "add", path: "/change", value: "new" }],
+        [{ op: "add", path: "/reviewed", value: true }],
+      );
+      expect(merged.effect).toBe("success");
+      expect(f.body(id).properties).toEqual({ keep: true, change: "new" });
+      expect(f.body(id).metadata).toEqual({ owner: "team", stale: true, reviewed: true });
+
+      const replaced = update(
+        [{ op: "replace", path: "", value: { change: "final" } }],
+        [{ op: "replace", path: "", value: { reviewed: true } }],
+      );
+      expect(replaced.effect).toBe("success");
+      expect(f.body(id).properties).toEqual({ change: "final" });
+      expect(f.body(id).metadata).toEqual({ reviewed: true });
+
+      const cleared = update(
+        [{ op: "replace", path: "", value: {} }],
+        [{ op: "replace", path: "", value: {} }],
+      );
+      expect(cleared.effect).toBe("success");
+      const empty = f.body(id);
+      expect(empty.properties).toEqual({});
+      expect(empty.metadata).toEqual({});
+      const writes = f.writes();
+      expect(
+        update([{ op: "replace", path: "", value: {} }], [{ op: "replace", path: "", value: {} }])
+          .effect,
+      ).toBe("success");
+      expect(f.body(id).revision).toBe(empty.revision);
+      expect(f.writes()).toBe(writes);
+
+      failure(
+        update(
+          [{ op: "add", path: "/wouldApply", value: true }],
+          [{ op: "replace", path: "", value: [] }],
+        ),
+        "validation-failed",
+      );
+      expect(f.body(id)).toEqual(empty);
+      expect(f.writes()).toBe(writes);
+    },
+  );
+
   it("updates properties and metadata atomically, clears to empty, and preserves a no-op revision", () => {
     const f = fixture();
     f.createBead("a", { title: "before" }, { metadata: { owner: "team" } });
