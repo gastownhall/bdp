@@ -1263,7 +1263,7 @@ describe("actual scheduled policy, clocks and independent maintenance", () => {
       f.state.now = start + 100;
     };
     f.queue.step();
-    expect(body(f, "beads/new").changeContext.committedAt.value).toBe(
+    expect(body(f, "beads/new").revisionProvenance.committedAt.value).toBe(
       new Date(start + 100).toISOString(),
     );
     expect(retained(f.key("maker")).completedAt).toBe(start + 101);
@@ -1276,7 +1276,7 @@ describe("actual scheduled policy, clocks and independent maintenance", () => {
     if (!entry || !("resource" in entry) || !entry.resource) throw Error("expected Link result");
     const link = parseLinkRecord(entry.resource);
     const source = body(f, "beads/a");
-    expect(source.changeContext).toEqual(link.changeContext);
+    expect(source.revisionProvenance).toEqual(link.revisionProvenance);
     expect(
       source.ownedLinks[linkType].find((candidate: { id: string }) => candidate.id === link.id),
     ).toEqual(link);

@@ -26,9 +26,11 @@
                 "title": "Memo: dependency normalization",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -38,9 +40,11 @@
               "source": "@memo",
               "target": "https://github.example/issues/140",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -54,9 +58,11 @@
                   "value": 3
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -95,16 +101,18 @@
                 "id": "https://beads.example/acme/beads/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r3",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Tidy the fixture world",
                   "status": "closed",
                   "priority": 3
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             }
           ]
@@ -140,9 +148,11 @@
                 "title": "Memo: dependency normalization",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -152,9 +162,11 @@
               "source": "@memo",
               "target": "https://github.example/issues/140",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -168,9 +180,11 @@
                   "value": 3
                 }
               ],
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -193,10 +207,6 @@
                 "id": "https://beads.example/acme/beads/decision-112",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-112-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Memo: dependency normalization",
                   "status": "proposed"
@@ -204,6 +214,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             },
@@ -214,14 +230,16 @@
                 "id": "https://beads.example/acme/links/cites-113",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-113-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "source": "https://beads.example/acme/beads/decision-112",
                 "target": "https://github.example/issues/140",
                 "properties": {},
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               },
               "source": "https://beads.example/acme/beads/decision-112",
               "sourceRevision": "decision-112-r2"
@@ -233,16 +251,18 @@
                 "id": "https://beads.example/acme/beads/task-11",
                 "type": "https://work.example/types/task",
                 "revision": "task-11-r3",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Tidy the fixture world",
                   "status": "closed",
                   "priority": 3
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             }
           ]
@@ -278,9 +298,11 @@
                 "title": "Memo: dependency normalization",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -290,9 +312,11 @@
               "source": "@memo",
               "target": "https://github.example/issues/140",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -323,14 +347,16 @@
                 "id": "https://beads.example/acme/links/cites-113",
                 "type": "https://work.example/types/cites",
                 "revision": "cites-113-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "source": "https://beads.example/acme/beads/decision-112",
                 "target": "https://github.example/issues/140",
                 "properties": {},
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               },
               "source": "https://beads.example/acme/beads/decision-112",
               "sourceRevision": "decision-112-r2"
@@ -361,9 +387,11 @@
                 "title": "Memo with an inadmissible status",
                 "status": "unknown-state"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -373,9 +401,11 @@
               "source": "@bad",
               "target": "https://github.example/issues/141",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -453,9 +483,11 @@
                 "title": "Memo with an inadmissible status",
                 "status": "unknown-state"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -465,9 +497,11 @@
               "source": "@bad",
               "target": "https://github.example/issues/141",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]

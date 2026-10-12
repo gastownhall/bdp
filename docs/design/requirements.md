@@ -85,8 +85,8 @@ here rather than being invented by an implementation.
   owned closure. Every controlled History copy and context obeys applicable
   erasure before serving, including local recovery and positive-evidence imports;
   Read-only capability is no generic consumer-acquisition guarantee.
-- **PROTO-014**: Bead and Link records MAY carry a common `attribution`
-  member — `{ principal, basis }` with `basis` one of `writer-supplied`,
+- **PROTO-014**: Bead and Link records MAY carry a common `revisionProvenance`
+  member with optional `actor: { id, basis }`, with `basis` one of `writer-supplied`,
   `unknown` — that is carried per version and never attested: the
   protocol transports it, attests nothing, and a generic client MUST NOT
   treat it as an authority claim; neither basis asserts authentication. It is
@@ -96,7 +96,9 @@ here rather than being invented by an implementation.
   immutable for its version, and
   excluded from the semantic no-op comparison. Domain Types MUST NOT need
   to declare attribution as a property. A future attested form is a
-  distinct member.
+  distinct member. The same envelope carries capability-scoped `committedAt`,
+  `agent`, and `message` value states; Read requires neither History nor these
+  fields. Actor presence is independent of their all-or-none group.
 - **PROTO-015**: A Bead Type's `ownsOutgoing` MAY carry the wildcard entry
   `"*"` — exactly `{ max }` — owning every outgoing Link Type not named
   explicitly; the wildcard's `max` MUST bound the Bead's whole owned set,
@@ -271,7 +273,7 @@ profile is considered ready:
    disclosure remains governed by PROTO-013.
 10. **Resolved 2026-08-08:** authority-attested actor attribution is excluded
     from BDP v0. **Amended 2026-09-02:** a common carried-but-asserted
-    `attribution` member exists (PROTO-014); attestation remains excluded
+    `revisionProvenance` member exists (PROTO-014); attestation remains excluded
     and any future attested form is a distinct member.
 11. **Resolved 2026-08-08:** BDP defines no universal root Bead or Link Types.
 12. **Resolved 2026-08-08:** per-service OpenAPI is optional tooling; the BDP

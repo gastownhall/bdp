@@ -385,13 +385,13 @@ export function normalizePreparedMemberIdentity(
   // despite the unchanged codec grammar/version. Before affected or unknown
   // stores use this equality, require the separately reviewed provenance /
   // compatibility readiness gate; expired rows cannot identify the old fold.
-  const contextInput = normalized.changeContext;
+  const contextInput = normalized.revisionProvenance;
   if (
     contextInput !== null &&
     typeof contextInput === "object" &&
     Object.keys(contextInput).length === 0
   )
-    delete normalized.changeContext;
+    delete normalized.revisionProvenance;
   const metadata = remember({
     format: metadataFormat,
     scope,

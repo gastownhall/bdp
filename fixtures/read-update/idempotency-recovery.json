@@ -26,9 +26,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -85,9 +87,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -110,10 +114,6 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
@@ -121,6 +121,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             }
@@ -150,9 +156,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -175,10 +183,6 @@
                 "id": "https://beads.example/acme/beads/decision-114",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-114-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
@@ -186,6 +190,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             }
@@ -217,9 +227,11 @@
             "title": "Record the retention ruling",
             "status": "proposed"
           },
-          "attribution": {
-            "principal": "agent:planner",
-            "basis": "writer-supplied"
+          "revisionProvenance": {
+            "actor": {
+              "id": "agent:planner",
+              "basis": "writer-supplied"
+            }
           }
         }
       },
@@ -236,10 +248,6 @@
             "id": "https://beads.example/acme/beads/decision-108",
             "type": "https://work.example/types/decision",
             "revision": "decision-108-r1",
-            "attribution": {
-              "principal": "agent:planner",
-              "basis": "writer-supplied"
-            },
             "properties": {
               "title": "Record the retention ruling",
               "status": "proposed"
@@ -247,6 +255,12 @@
             "metadata": {},
             "ownedLinks": {
               "https://work.example/types/cites": []
+            },
+            "revisionProvenance": {
+              "actor": {
+                "id": "agent:planner",
+                "basis": "writer-supplied"
+              }
             }
           }
         }
@@ -281,9 +295,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -306,10 +322,6 @@
                 "id": "https://beads.example/acme/beads/decision-108",
                 "type": "https://work.example/types/decision",
                 "revision": "decision-108-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
@@ -317,6 +329,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             }
@@ -393,9 +411,11 @@
                 "title": "Plan the recovery fixtures",
                 "status": "open"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {
@@ -405,9 +425,11 @@
               "source": "@plan",
               "target": "beads/task-42",
               "properties": {},
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -430,15 +452,17 @@
                 "id": "https://beads.example/acme/beads/task-115",
                 "type": "https://work.example/types/task",
                 "revision": "task-115-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Plan the recovery fixtures",
                   "status": "open"
                 },
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             },
             {
@@ -448,14 +472,16 @@
                 "id": "https://beads.example/acme/links/blocks-116",
                 "type": "https://work.example/types/blocks",
                 "revision": "blocks-116-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "source": "https://beads.example/acme/beads/task-115",
                 "target": "https://beads.example/acme/beads/task-42",
                 "properties": {},
-                "metadata": {}
+                "metadata": {},
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
+                }
               }
             }
           ]
@@ -485,9 +511,11 @@
                 "title": "Record the retention ruling",
                 "status": "proposed"
               },
-              "attribution": {
-                "principal": "agent:planner",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:planner",
+                  "basis": "writer-supplied"
+                }
               }
             }
           ]
@@ -510,10 +538,6 @@
                 "id": "https://beads.example/acme-restored/beads/decision-1",
                 "type": "https://work.example/types/decision",
                 "revision": "restored-decision-1-r1",
-                "attribution": {
-                  "principal": "agent:planner",
-                  "basis": "writer-supplied"
-                },
                 "properties": {
                   "title": "Record the retention ruling",
                   "status": "proposed"
@@ -521,6 +545,12 @@
                 "metadata": {},
                 "ownedLinks": {
                   "https://work.example/types/cites": []
+                },
+                "revisionProvenance": {
+                  "actor": {
+                    "id": "agent:planner",
+                    "basis": "writer-supplied"
+                  }
                 }
               }
             }

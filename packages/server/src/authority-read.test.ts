@@ -667,7 +667,7 @@ describe("G4 complete current ownership and observed integrity", () => {
       [linkType]: [f.resource("links/a"), f.resource("links/z")],
     });
     expect(f.resource("links/a").revision).not.toBe(beforeLink.revision);
-    expect(after.changeContext).toEqual(f.resource("links/a").changeContext);
+    expect(after.revisionProvenance).toEqual(f.resource("links/a").revisionProvenance);
     expect(source.ownedLinks).toEqual({ [linkType]: [beforeLink, f.resource("links/z")] });
     f.write(
       "updateLink",
@@ -801,7 +801,7 @@ describe("G4 complete current ownership and observed integrity", () => {
     ).rejects.toBeInstanceOf(Error);
     expect(f.store.read((r) => r.resources())).toEqual(before);
   });
-  it.each(["missing", "revision", "properties", "attribution", "context", "pin"])(
+  it.each(["missing", "revision", "properties", "revisionProvenance", "context", "pin"])(
     "rejects complete inline/first-class %s disagreement",
     async (fault) => {
       const f = fixture(ownedDescriptors());
@@ -817,10 +817,10 @@ describe("G4 complete current ownership and observed integrity", () => {
           const value = JSON.parse(row.bodyJson);
           if (fault === "revision") value.revision = "different";
           if (fault === "properties") value.properties = { extra: 1 };
-          if (fault === "attribution")
-            value.attribution = { principal: "urn:test:different", basis: "unknown" };
+          if (fault === "revisionProvenance")
+            value.revisionProvenance = { actor: { id: "urn:test:different", basis: "unknown" } };
           if (fault === "context")
-            value.changeContext.committedAt.value = "2001-01-01T00:00:00.000Z";
+            value.revisionProvenance.committedAt.value = "2001-01-01T00:00:00.000Z";
           if (fault === "pin") value.target.revision = "other-pin";
           return { ...row, bodyJson: stringifyJsonValue(value) };
         },

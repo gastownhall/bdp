@@ -342,7 +342,7 @@
         {
           "source": "docs/specs/bdp.md",
           "anchor": "#set-mutation",
-          "selectedText": "An `attribution` supplied to a set mutation fans out exactly as the corresponding singleton operations would record it"
+          "selectedText": "An `revisionProvenance` supplied to a set mutation fans out exactly as the corresponding singleton operations would record it"
         }
       ]
     },

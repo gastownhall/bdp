@@ -1,5 +1,8 @@
 # W1 Transactional packet: wire artifacts for the Transactional profile
 
+> Current wire naming: the common `revisionProvenance` envelope supersedes this packet’s earlier `attribution` and `changeContext` containers. Actor data is `actor: { id, basis }`, with `basis: writer-supplied | unknown`; time, agent, and message retain their existing value states inside the same envelope. The historical decisions and quoted review text below preserve their original spelling. Use [the current normative contract](../specs/bdp.md#carried-attribution) and the canonical schema for implementations. Sources, completeness, Activity records and terminal deletion versions are outside this bounded change.
+
+
 Current extension: G1–G5 = A are ACKed and materialized 2026-09-09; see
 [HTTP gap record](#shared-http-and-retained-handle-gap-materialization--2026-09-09).
 

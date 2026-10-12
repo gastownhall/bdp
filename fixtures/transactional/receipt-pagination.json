@@ -88,9 +88,11 @@
               "cardinality": {
                 "max": 1000
               },
-              "attribution": {
-                "principal": "human:donna",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "human:donna",
+                  "basis": "writer-supplied"
+                }
               }
             },
             {

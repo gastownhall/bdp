@@ -48,10 +48,6 @@
                     "id": "https://beads.example/acme/beads/dec-9",
                     "type": "https://work.example/types/decision",
                     "revision": "dec-9-r2",
-                    "attribution": {
-                      "principal": "agent:planner",
-                      "basis": "writer-supplied"
-                    },
                     "properties": {
                       "title": "Adopt owned Links",
                       "status": "proposed"
@@ -62,17 +58,25 @@
                           "id": "https://beads.example/acme/links/9c1e",
                           "type": "https://work.example/types/cites",
                           "revision": "9c1e-r1",
-                          "attribution": {
-                            "principal": "agent:planner",
-                            "basis": "writer-supplied"
-                          },
                           "source": "https://beads.example/acme/beads/dec-9",
                           "target": "https://beads.example/acme/beads/task-42",
                           "properties": {
                             "role": "evidence"
+                          },
+                          "revisionProvenance": {
+                            "actor": {
+                              "id": "agent:planner",
+                              "basis": "writer-supplied"
+                            }
                           }
                         }
                       ]
+                    },
+                    "revisionProvenance": {
+                      "actor": {
+                        "id": "agent:planner",
+                        "basis": "writer-supplied"
+                      }
                     }
                   }
                 },
@@ -83,14 +87,16 @@
                     "id": "https://beads.example/acme/links/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r1",
-                    "attribution": {
-                      "principal": "agent:planner",
-                      "basis": "writer-supplied"
-                    },
                     "source": "https://beads.example/acme/beads/dec-9",
                     "target": "https://beads.example/acme/beads/task-42",
                     "properties": {
                       "role": "evidence"
+                    },
+                    "revisionProvenance": {
+                      "actor": {
+                        "id": "agent:planner",
+                        "basis": "writer-supplied"
+                      }
                     }
                   }
                 },
@@ -125,9 +131,11 @@
                       "title": "Adopt owned Links",
                       "status": "proposed"
                     },
-                    "attribution": {
-                      "principal": "agent:planner",
-                      "basis": "writer-supplied"
+                    "revisionProvenance": {
+                      "actor": {
+                        "id": "agent:planner",
+                        "basis": "writer-supplied"
+                      }
                     }
                   }
                 },
@@ -145,12 +153,14 @@
                     "properties": {
                       "role": "evidence"
                     },
-                    "attribution": {
-                      "principal": "agent:planner",
-                      "basis": "writer-supplied"
-                    },
                     "source": "https://beads.example/acme/beads/dec-9",
-                    "target": "https://beads.example/acme/beads/task-42"
+                    "target": "https://beads.example/acme/beads/task-42",
+                    "revisionProvenance": {
+                      "actor": {
+                        "id": "agent:planner",
+                        "basis": "writer-supplied"
+                      }
+                    }
                   }
                 },
                 {
@@ -209,20 +219,24 @@
                         "id": "https://beads.example/acme/links/9c1e",
                         "type": "https://work.example/types/cites",
                         "revision": "9c1e-r1",
-                        "attribution": {
-                          "principal": "agent:planner",
-                          "basis": "writer-supplied"
-                        },
                         "source": "https://beads.example/acme/beads/dec-9",
                         "target": "https://beads.example/acme/beads/task-42",
                         "properties": {
                           "role": "evidence"
+                        },
+                        "revisionProvenance": {
+                          "actor": {
+                            "id": "agent:planner",
+                            "basis": "writer-supplied"
+                          }
                         }
                       }
                     },
-                    "attribution": {
-                      "principal": "agent:planner",
-                      "basis": "writer-supplied"
+                    "revisionProvenance": {
+                      "actor": {
+                        "id": "agent:planner",
+                        "basis": "writer-supplied"
+                      }
                     }
                   }
                 },
@@ -540,14 +554,16 @@
               "id": "https://beads.example/owned-erasure/links/9c1e",
               "type": "https://work.example/types/cites",
               "revision": "9c1e-r2",
-              "attribution": {
-                "principal": "agent:erasure-administrator",
-                "basis": "writer-supplied"
-              },
               "source": "https://beads.example/owned-erasure/beads/dec-9",
               "target": "https://beads.example/owned-erasure/beads/task-42",
               "properties": {
                 "role": "sanitized"
+              },
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:erasure-administrator",
+                  "basis": "writer-supplied"
+                }
               }
             }
           },
@@ -558,10 +574,6 @@
               "id": "https://beads.example/owned-erasure/beads/dec-9",
               "type": "https://work.example/types/decision",
               "revision": "dec-9-owned-corrected-r3",
-              "attribution": {
-                "principal": "agent:erasure-administrator",
-                "basis": "writer-supplied"
-              },
               "properties": {
                 "title": "Adopt owned Links",
                 "status": "proposed"
@@ -572,17 +584,25 @@
                     "id": "https://beads.example/owned-erasure/links/9c1e",
                     "type": "https://work.example/types/cites",
                     "revision": "9c1e-r2",
-                    "attribution": {
-                      "principal": "agent:erasure-administrator",
-                      "basis": "writer-supplied"
-                    },
                     "source": "https://beads.example/owned-erasure/beads/dec-9",
                     "target": "https://beads.example/owned-erasure/beads/task-42",
                     "properties": {
                       "role": "sanitized"
+                    },
+                    "revisionProvenance": {
+                      "actor": {
+                        "id": "agent:erasure-administrator",
+                        "basis": "writer-supplied"
+                      }
                     }
                   }
                 ]
+              },
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:erasure-administrator",
+                  "basis": "writer-supplied"
+                }
               }
             }
           }
@@ -593,7 +613,7 @@
             "revision": "9c1e-r1",
             "digest": {
               "scheme": "sha-256-jcs",
-              "value": "0862b88ecf0ebc07b4dee8aae428be0308cf030672036f3dbdee0f57a664e7ff"
+              "value": "40c90c653514fbf2c0d33c47437c7d7cc8d3ba38b3d12cddabebe1e81fa3b3dc"
             }
           },
           {
@@ -601,7 +621,7 @@
             "revision": "dec-9-r2",
             "digest": {
               "scheme": "sha-256-jcs",
-              "value": "0770136fbe6f77dff6930feae2f4214354471990685f6d430eee8c2a0fccec09"
+              "value": "ea5e3142f625a3fd36adc98190cb48bf84e2083cd20ccc2d4fc4c8f8fb3a438e"
             }
           }
         ],
@@ -627,9 +647,11 @@
                   }
                 }
               ],
-              "attribution": {
-                "principal": "agent:erasure-administrator",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:erasure-administrator",
+                  "basis": "writer-supplied"
+                }
               }
             }
           },
@@ -661,15 +683,19 @@
                       }
                     }
                   ],
-                  "attribution": {
-                    "principal": "agent:erasure-administrator",
-                    "basis": "writer-supplied"
+                  "revisionProvenance": {
+                    "actor": {
+                      "id": "agent:erasure-administrator",
+                      "basis": "writer-supplied"
+                    }
                   }
                 }
               },
-              "attribution": {
-                "principal": "agent:erasure-administrator",
-                "basis": "writer-supplied"
+              "revisionProvenance": {
+                "actor": {
+                  "id": "agent:erasure-administrator",
+                  "basis": "writer-supplied"
+                }
               }
             }
           }
