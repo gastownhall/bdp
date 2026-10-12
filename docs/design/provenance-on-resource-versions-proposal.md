@@ -1,4 +1,4 @@
-# Proposal: revision sources and activity records
+# Proposal: revision provenance and activity provenance
 
 Status: discussion draft, October 11, 2026. Not an adopted BDP amendment or an
 implementation commitment.
@@ -13,55 +13,75 @@ Also let someone answer **“What happened around this resource?”** Record tha
 activity independently, so reporting a commit or a use of information does not
 require editing the subject. These two questions need different record shapes.
 
-## How this relates to actor and date
+## Recommendation: one revision-provenance field
 
-We already save part of a version's story. This proposal adds its sources:
+Use **`revisionProvenance`** as a common top-level member on every Bead and Link
+version, alongside `id`, `type`, and `properties`. It groups who the version is
+attributed to, when it was committed, and what information it was based on.
+Optional assisting-agent and change-message information belongs there too.
 
-| Status | Information | Question it answers |
-| --- | --- | --- |
-| **EXISTING** | Actor / attribution | Who is recorded as responsible for this version? |
-| **EXISTING** | Revision time / change context | When was this version recorded, and what change context is available? |
-| **PROPOSED** | Sources and completeness | What information does the author say it was based on, and how complete is that list? |
+Recommend the **same name, shape, and meaning in BDP and the graph CLI**. Replace
+the separate BDP `attribution` and `changeContext` containers and the preview's
+combined attribution/time container with this one common representation. This is
+a proposed amendment and migration target, not a claim that either has changed.
 
-Together these are **provenance information**: the recorded account of how this
-version came about. Sources are one part of provenance; actor and date are other
-parts. We do not need duplicate actor/date fields or a second history system.
-The resource's original creation date and a particular revision's recording date
-answer different questions; existing timestamp meanings stay unchanged.
+Prefer `revisionProvenance` to bare `provenance`, which also describes activity
+history, and to `changeProvenance`, which suggests a change operation. The
+containing version is the subject even when it is the initial creation or a
+historical read. No extra subject reference is needed.
 
-Being saved together does not give every field the same assurance. A server may
-observe the write time while merely carrying an actor name and source list
-supplied by the writer. Preserve those differences, including unknown values.
+Use **activity provenance** for the independently recorded work history served by
+`bd provenance`. Its records remain **Activity Beads**, whose Type-specific fields
+live in `properties`. Do not add an `activityProvenance` list to every subject or
+a second common envelope to Activity Beads. Each Activity Bead has ordinary
+`revisionProvenance` describing how that activity record was written.
 
-### Where actor, date, and sources live
+### Existing representations and the proposed common shape
 
-**Keep actor and sources as separate, neighboring members of the same version
-record.** Do not move the actor inside the source list or repeat it on every
-source. The existing `attribution` says who this version is attributed to; the
-proposed `provenance` says what information it was based on. Both sit outside
-the Type-specific `properties`.
+| Information | **EXISTING — BDP** | **EXISTING — graph CLI preview** | **PROPOSED — both** |
+| --- | --- | --- | --- |
+| Responsible actor and qualification | `attribution.principal`, `.status` | `attribution.actor`, `.status` | `revisionProvenance.actor.id`, `.status` |
+| Revision time | `changeContext.committedAt` where History context is available | `attribution.recordedAt` | `revisionProvenance.committedAt` |
+| Assisting agent | `changeContext.agent` | Not in the preview attribution structure | `revisionProvenance.agent` |
+| Change message | `changeContext.message` | Not in the preview attribution structure | `revisionProvenance.message` |
+| Information sources | No shared source member | No shared source member | `revisionProvenance.sources` |
+| Source-list completeness | No shared source member | No shared source member | `revisionProvenance.sourcesCompleteness` |
 
-| Location | Status | Meaning |
-| --- | --- | --- |
-| `attribution.principal` and `.status` | **EXISTING** | Who this version is attributed to, with the existing `claimed` or `unknown` qualification |
-| `changeContext.committedAt` | **EXISTING**, where History context is available | The version's recorded commit time, or explicitly undetermined |
-| `provenance.sources` and `.completeness` | **PROPOSED** | The version's declared information sources and how complete that list is |
-| `properties` | **EXISTING** | The Bead or Link's Type-specific content |
+The actor retains its `claimed` or `unknown` qualification; grouping it with a
+server-observed time does not authenticate the actor or verify the source list.
+An absent actor stays absent. For this draft, retain the existing History value
+states for time, agent, and message rather than silently dropping distinctions
+between known absence and missing knowledge. The example below shows that
+conservative encoding; simplifying those value encodings is a separate choice.
 
-This layout applies to an Activity Bead too. Its `properties.actor` names whoever
-reportedly performed the activity, while its outer `attribution.principal` names
-who the **activity record's version** is attributed to. For example, Alice may
-land a commit, and an importer may later write the Activity Bead: Alice is the
-activity actor; the importer can be the record's attributed principal. Neither
-field is automatically copied from the other.
+`committedAt` means the observed commit time of **this revision**, not the
+resource's original creation time or the time of an activity it describes. New
+native versions use the authority-observed instant, shared within an atomic
+transaction. Callers cannot backdate it. Preserve a known original commit time
+on import only with supporting evidence; otherwise mark it undetermined.
+The preview's `recordedAt` serves a similar purpose but has a looser wall-clock
+contract: migration must establish equivalence before relabeling old values as
+commit times. No second revision timestamp is proposed.
 
-Likewise, `properties.producer` identifies the reporting system (today's
-`--source`), while outer `provenance.sources` can identify information used to
-write the Activity record, such as a CI report. `properties.subject` identifies
-what the activity concerns; it does not implicitly become an information source.
-An Activity's `properties.occurredAt` says when the activity reportedly happened;
-its own change context describes recording the version. Missing information in
-any of these places stays unknown rather than being filled from another field.
+This consolidates information introduced by the existing
+[History H11 decision](history-profile-packet.md#h11--change-context-beyond-existing-attribution)
+to meet Memory R12's actor, assisting-agent, time, and change-message requirements.
+It keeps those meanings while replacing the separate containers.
+
+### An Activity has two different actors only when reality does
+
+Alice may land a commit, and an importer may later write the Activity Bead.
+`properties.actor` records Alice as the reported participant;
+`revisionProvenance.actor` attributes the saved record to its writer. Neither is
+automatically copied from the other. The distinction is between performing an
+activity and recording a report about it, not two competing authors of a revision.
+
+Similarly, `properties.producer` identifies the reporting system (today's
+`--source`), while `revisionProvenance.sources` identifies information used to
+write the Activity record, such as a CI report. Its `properties.subject` identifies
+what the activity concerns and does not implicitly become a source. The reported
+activity time is `properties.occurredAt`; recording the version has its own
+`revisionProvenance.committedAt`. Unknown values stay unknown.
 
 ## Provenance versus attestation
 
@@ -80,8 +100,9 @@ authenticated account Alice” is a narrower, checkable statement. It does not
 establish that Alice actually consulted A or that A supports the conclusion.
 Verifying who issued a statement does not prove that its contents are true.
 
-Use **attribution** for the existing actor information, **source provenance** for
-the new source information, and **provenance** for the broader story. Ordinary
+Use **revision provenance** for the containing version's account, **activity
+provenance** for reported work history, and **source provenance** for the input
+information within revision provenance. Attribution is the actor portion. Ordinary
 stored values remain recorded claims; do not call them attested merely because
 they have an actor, timestamp, or immutable revision.
 
@@ -91,45 +112,38 @@ attestation in [SLSA](https://slsa.dev/spec/v1.2/attestation-model). It is a nam
 recommendation for this proposal, not a claim that every field uses identical
 terminology or requires cryptographic signatures.
 
-## Proposed information
+## Proposed revision record
 
-Each version may carry a common `provenance` member, outside its Type-specific
-properties. That working field name holds only the **source** part described
-above; `sourceProvenance` is an alternative to consider when choosing wire names.
-It records:
+All fields below are outside Type-specific `properties`. In addition to the
+actor, time, agent, and message described above, `revisionProvenance` records:
 
-- **Sources:** references to the information used. A source may be a Bead, a
-  Link, or an external resource identified by a URL or URN. A reference may
-  identify an exact source revision. An optional note explains how it mattered.
-- **Completeness:** `complete`, `incomplete`, or `unknown`, as declared by the
-  author. Missing completeness means `unknown`, never `complete`.
+- **Sources:** references to information used. A source may be a Bead, Link, or
+  external URL/URN. It may identify an exact revision; an optional note explains
+  how it mattered.
+- **Sources completeness:** `complete`, `incomplete`, or `unknown`, as declared
+  by the writer. This qualifies only the source list, not the actor or timestamp.
+  Omission means `unknown`.
 
 An absent source list means the sources are unknown. An explicitly empty list
-means the author deliberately records no sources and asserts the content
-directly. These states are different. If sources are unknown, completeness is
-also unknown. Older records without provenance remain unknown; readers do not
-invent sources or authorship.
+means the writer deliberately records no sources and asserts the content directly.
+If sources are unknown, their completeness is also unknown. Older records without
+source information stay unknown; readers do not invent sources or authorship.
 
-Illustrative excerpt of a decision Bead version, showing the members alongside
-one another. Identity, Type, and revision are omitted for brevity; `provenance`
-is proposed spelling, not a final wire schema. The change context uses the
-existing History representation:
+Illustrative decision Bead version excerpt; identity, Type, and revision are
+omitted for brevity. These are recommended field names, not an adopted wire schema:
 
 ```json
 {
-  "attribution": {
-    "principal": "human:alice",
-    "status": "claimed"
-  },
-  "changeContext": {
-    "committedAt": { "state": "present", "value": "2026-10-11T18:00:00Z" },
-    "agent": { "state": "undetermined" },
-    "message": { "state": "present", "value": "Record the storage decision" }
-  },
   "properties": {
     "decision": "Use storage engine A"
   },
-  "provenance": {
+  "revisionProvenance": {
+    "actor": {
+      "id": "human:alice",
+      "status": "claimed"
+    },
+    "committedAt": { "state": "present", "value": "2026-10-11T18:00:00Z" },
+    "message": { "state": "present", "value": "Record the storage decision" },
     "sources": [
       {
         "ref": {
@@ -139,15 +153,17 @@ existing History representation:
         "note": "Supplied the measurements used to choose the storage engine."
       }
     ],
-    "completeness": "incomplete"
+    "sourcesCompleteness": "incomplete"
   }
 }
 ```
 
-The containing record already identifies the subject and its version. No
-separate subject reference, provenance identity, or graph Link is required.
 Here Alice is the claimed author of the decision version, and benchmark R17 is
 its declared information source. This does not say Alice authored the benchmark.
+The optional assisting-agent field is omitted; no agent is inferred. During
+mapping from existing History, preserve explicit absent/undetermined agent or
+message states when present. Unknown legacy commit time uses the existing
+`{ "state": "undetermined" }` representation.
 
 ## Saving, reading, and correcting
 
@@ -155,8 +171,11 @@ its declared information source. This does not say Alice authored the benchmark.
    or Link version. A failed write saves neither.
 2. A saved version's provenance is immutable. A complete read of that version
    returns the provenance saved with it, subject to ordinary access rules.
-3. Changing only provenance creates a new Resource version, even if its other
-   content is unchanged. Submitting an identical resulting record is a no-op.
+3. Changing sources or their completeness creates a new Resource version, even
+   if its content is unchanged. Grouping the fields does not change existing
+   attribution/context no-op rules: actor, agent, or message alone still do not
+   create a revision. Assign commit time only after deciding to mint a version;
+   a new clock value must not turn an otherwise identical write into a change.
 4. A source-list correction creates a new version. It does not edit the sources
    saved with an older version. An independently recorded activity, described
    below, may refer to an older version without changing that version's sources.
@@ -177,7 +196,7 @@ that the list is exhaustive, or that the decision was correct. An optional note
 can say a source supplied evidence, imposed a requirement, or described a rejected
 alternative. No mandatory relationship taxonomy is introduced.
 
-Who changed the record and when remain separate existing information. The
+Who changed the record and when remain distinct fields in the same envelope. The
 decision's explanation can remain in its content. Approval, access policy,
 automatic capture of agent inputs, and how a record entered a store are not
 defined by this source list.
@@ -194,9 +213,12 @@ If adopted, the Memory proposal should map its derived-from and derivation
 completeness fields to this member, rather than keep a second independently
 editable copy. Inception and Change Attribution remain separate concepts.
 
-Provenance changes would count when deciding whether to create a new version.
-That differs from current BDP's attribution/change-context-only no-op behavior;
-this proposal does not change the behavior of those existing fields.
+Changes to sources or their completeness count when deciding whether to create a
+new version. Moving the existing actor/context fields into `revisionProvenance`
+does not change their no-op behavior. On a real write, attribution is supplied
+for the new version and commit time is assigned by the authority. Do not blindly
+copy the entire previous envelope: that could credit the prior writer or preserve
+a stale time. The source-list carry-forward decision below is separate.
 
 ## Proposed activity records in BDP
 
@@ -219,7 +241,7 @@ need selecting; the following is a proposed contract, not implemented behavior.
 | `payload` — optional | Producer-supplied details. Preserve existing opaque payload strings without assuming they contain JSON. |
 
 The Activity Bead also has ordinary Bead identity, a pinned Type reference,
-revision, and attribution. Those describe the **record**, not proof of the
+revision, and `revisionProvenance`. Those describe the **record**, not proof of the
 reported activity. Illustrative Type-specific properties for activity about a
 Link revision:
 
@@ -324,8 +346,9 @@ and adapter are **PROPOSED / NYI**; today's Issue event log is **EXISTING**.
 
 ## Source-member choices still to settle
 
-- **Omitted on update:** preserve the existing provenance or require the writer
-  to restate it? Suggested default: preserve it, like other editable state;
+- **Sources omitted on update:** preserve the existing source list and its
+  completeness or require the writer to restate them? Suggested default: preserve
+  those source fields, like other editable state;
   carrying it forward must not be presented as evidence of a new source read.
   The wire form for explicitly resetting sources to unknown also needs choosing.
 - **Exact source versions:** allow both pinned and unpinned references, as Memory
@@ -333,10 +356,37 @@ and adapter are **PROPOSED / NYI**; today's Issue event log is **EXISTING**.
   states their different promises.
 - **Reference checks:** decide local and cross-Scope validation without making
   the write depend on a live external fetch.
-- **Compatibility:** select field names and write/read forms; define how clients
-  preserve the member and how history, exports, and applicable Event records
-  carry it. Legacy `bd provenance` events cannot be assigned subject revisions
+- **Compatibility:** adopt or revise the recommended names, then define negotiated
+  write/read forms and mapping for history, exports, and applicable Event records.
+  Legacy `bd provenance` events cannot be assigned subject revisions
   by guesswork; any conversion needs a separate explicit policy.
+
+## BDP and CLI alignment plan
+
+1. Adopt one shared `revisionProvenance` contract in BDP's specification and
+   schemas, including reference, absence, write-input, and no-op rules. Update
+   matching examples and conformance cases together.
+2. Map the graph CLI and its JSON output to that same contract, rather than
+   preserving a separate CLI attribution schema. Friendly display labels may
+   differ; actor/time/source meanings may not. Stored columns need not mirror
+   the public object's nesting.
+3. Define a versioned or negotiated compatibility boundary for existing clients.
+   Read legacy shapes through explicit adapters; write one canonical shape for
+   the selected contract. Do not expose independently editable copies of
+   `attribution`, `changeContext`, and `revisionProvenance`. Reject conflicting
+   duplicate inputs instead of guessing precedence. Preserve original historical
+   records; no migration silently rewrites a retained revision or fabricates facts.
+4. Map legacy Issue `created_at`/`created_by` and `updated_at` only under their
+   actual meanings. Creation information is not automatically the latest version's
+   attribution, and a legacy update time is not automatically a proven commit time.
+5. Describe today's `bd provenance` as activity provenance. Keep existing commands
+   working; selecting a clearer future command name or alias is a separate CLI
+   decision. Map its records to Activity Beads only after the activity compatibility
+   decisions above are resolved.
+
+This is a **PROPOSED / NYI** alignment plan. This draft changes no canonical schema,
+CLI output, storage, or historical records. Cross-profile transport changes and
+migration require their own implementation/review pass after product decisions.
 
 ## Acceptance examples
 
@@ -347,6 +397,13 @@ and adapter are **PROPOSED / NYI**; today's Issue event log is **EXISTING**.
   and its provenance remain unchanged. An identical write creates no version.
 - Updating a referenced source does not change either saved version's reference.
 - A failed combined content/provenance write publishes neither change.
+- BDP and graph CLI return the same actor/time/source structure for a new version.
+- An actor/message-only no-op creates no version or fresh timestamp; a source-only
+  change creates a version with that write's attribution and commit time.
+- Missing imported actor or time stays unknown; import time is not substituted.
+- Legacy adapters preserve known values and reject contradictory old/new inputs.
+- An Activity can name Alice as participant and an importer as record writer;
+  activity time and record commit time retain their different meanings.
 
 BDP owns these shared meanings. Beads owns CLI spelling and storage realization.
 The open choices above need resolution before this becomes an implementable
@@ -356,7 +413,7 @@ contract. Background: [proposal and product comparison](memory-provenance-govern
 
 Today's commands answer **“What happened around this Issue, and which artifacts
 were involved?”** The proposed Activity Beads carry that meaning into BDP. The
-separate per-version source member answers **“What information was this particular
+source portion of `revisionProvenance` answers **“What information was this particular
 Bead or Link version based on?”** Both are useful provenance, but they record
 different things.
 

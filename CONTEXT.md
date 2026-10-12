@@ -45,3 +45,24 @@ _Avoid_: identical definitions
 An explicit change of an instance's governing Type definition, represented in a
 new resource version when its exact affiliation changes.
 _Avoid_: automatic upgrade on property edit
+
+## Proposed provenance vocabulary
+
+These terms belong to the [provenance proposal](docs/design/provenance-on-resource-versions-proposal.md),
+not the adopted v0 specification.
+
+**Revision provenance**:
+The recorded account of who a Bead or Link version is attributed to, when it was
+committed, and which information it was based on, with optional assisting-agent
+and change-message information.
+_Avoid_: activity history of the subject
+
+**Activity provenance**:
+Recorded reports of work involving a subject, such as a handoff, commit, or use
+of information, which can arrive independently of changes to that subject.
+_Avoid_: revision source list
+
+**Activity Bead**:
+A Bead recording a reported activity concerning a Bead, Link, or external
+resource. Its own revision provenance describes recording the report.
+_Avoid_: protocol Event
