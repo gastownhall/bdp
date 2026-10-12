@@ -2353,8 +2353,10 @@ value is a binding positive integer or ISO 8601 duration:
   bytes in the corresponding JSON serialization;
 - `selector.bytes` counts UTF-8 bytes after percent-decoding, while
   `selector.depth` and `selector.nodes` count parsed Selector structure;
-- `patch.operations`, `patch.pathBytes`, and `patch.pathDepth` bound one
-  property patch;
+- `patch.operations` bounds the combined operation count of `propertiesChange`
+  and `metadataChange` in one Resource update; `patch.pathBytes` and
+  `patch.pathDepth` bound each path in either patch. A set update applies
+  these patch limits to each member update;
 - `sequence.operations` bounds members in one Read+Update sequence;
 - `validation.diagnostics` counts entries in, and `validation.diagnosticBytes`
   counts UTF-8 bytes of, the serialized `diagnostics` list a

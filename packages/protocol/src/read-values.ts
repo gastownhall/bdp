@@ -121,7 +121,7 @@ export function parseReadProblem(value: unknown, path = "Read Problem"): ReadPro
 // another invalid value must still fail validation. Never mutate retained bytes.
 function projectLegacyLinkMetadata(value: unknown, path: string): Record<string, unknown> {
   const record = readRecord(value, path);
-  return Object.hasOwn(record, "metadata") ? record : { ...record, metadata: {} };
+  return Object.hasOwn(record, "metadata") ? record : { ...record, metadata: Object.freeze({}) };
 }
 
 function projectLegacyLinkPageMetadata(value: unknown, path: string): unknown {
@@ -156,7 +156,7 @@ function projectLegacyBeadMetadata(value: unknown, path: string): Record<string,
         );
   return {
     ...record,
-    ...(Object.hasOwn(record, "metadata") ? {} : { metadata: {} }),
+    ...(Object.hasOwn(record, "metadata") ? {} : { metadata: Object.freeze({}) }),
     ...(ownedLinks === undefined ? {} : { ownedLinks }),
     ...(record.links === undefined
       ? {}
