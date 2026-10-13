@@ -584,3 +584,15 @@ fields. Authentication identity deliberately captures credential array order.
 Listener retry tests inject a failure that leaves the listener open; this does
 not establish that ordinary Node close produces that state. The actual owner
 close, released store lock and preserved terminal result remain observed.
+
+
+The explicit candidate response paths carrying the marker are JSON/Problem
+responses, shared empty responses, ordinary Read responses, captured schemas,
+composed Read responses (including installed alias redirects), the ordinary
+development alias redirect, and the installed raw CONNECT refusal. Direct
+ordinary alias and installed packed alias observations assert the marker. A
+bounded raw-socket observation asserts CONNECT405, Allow, marker and empty body
+in both emitted and packed runs. These statements cover responses written by
+the candidate receiver; Node-generated transport errors are outside this list.
+Readiness additionally requires the actual prefixed artifact digest shape
+`development-schema5-<64 lowercase hex digits>`.

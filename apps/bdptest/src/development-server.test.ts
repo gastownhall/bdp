@@ -303,6 +303,7 @@ describe("non-attesting bdptest HTTP development authority", () => {
       redirect: "manual",
     });
     expect(redirect.status).toBe(307);
+    expect(redirect.headers.get("x-bdp-development")).toBe("non-attesting");
     expect(redirect.headers.get("location")).toBe(a.id);
     await redirect.body?.cancel();
     const retarget = await h.post("put-alias", { ...put, target: b.id }, "alias_second");
