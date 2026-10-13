@@ -1,3 +1,4 @@
+/** Private Transactional evaluator. Set serving admission remains closed. */
 import {
   prepareSetCore,
   transactionInputText as losslessText,
@@ -6,11 +7,6 @@ import {
   type PreparedTransactionSet,
 } from "./transaction-set.js";
 import { selectReadResources } from "./read-selector.js";
-export { TransactionDevelopmentLimitError } from "./transaction-set.js";
-export const TRANSACTION_MAXIMUM_OPERATIONS = 32;
-const maximumInducedEvents = 4096;
-class EventExpansionLimit extends Error {}
-/** Private first Transactional slice. No transport or profile admission. */
 import { snapshotReadUpdateRuntimeLimits } from "./read-update-runtime-limits.js";
 import { memberNumericDiagnosticBudget } from "./member-numeric-diagnostics.js";
 import {
@@ -45,6 +41,7 @@ import {
 } from "./alias-evaluator.js";
 import {
   evaluateResourceMutation,
+  isResourceVisible,
   readStoredResource,
   type ResourceMutation,
   type ResourceOperation,
@@ -52,6 +49,13 @@ import {
   type ResourceTransaction,
   type ResourceRecord,
 } from "./resource-evaluator.js";
+
+export { TransactionDevelopmentLimitError } from "./transaction-set.js";
+export const TRANSACTION_MAXIMUM_OPERATIONS = 32;
+const maximumInducedEvents = 4096;
+const maximumMatchedResources = 4096;
+class EventExpansionLimit extends Error {}
+class MatchExpansionLimit extends Error {}
 
 /** Private owner bounds. Check first-diagnostic feasibility against the same
  * receiving/property caps, including pointer escaping. No profile advertisement. */
@@ -457,8 +461,17 @@ export type BatchEvaluation =
       readonly ok: false;
       readonly problem: Omit<ReadUpdateProblem, "code"> & {
         readonly code: ReadUpdateProblem["code"] | "cardinality-violated";
-        readonly operationIndex?: number;
+        readonly operationIndex: number;
         readonly operationName?: string;
+      };
+    }
+  | {
+      readonly ok: false;
+      readonly problem: ReadUpdateProblem & {
+        readonly code: "limit-exceeded";
+        readonly limit: "transaction.inducedEvents" | "transaction.matchedResources";
+        readonly operationIndex?: never;
+        readonly operationName?: never;
       };
     };
 export type TransactionMutationContext = ResourceTransaction &
@@ -471,6 +484,7 @@ export interface TransactionEvaluationOptions extends ResourceEvaluationOptions 
   readonly aliasPolicy: AliasEvaluationOptions["policy"];
   /** Evaluator-only test seam; cannot raise the private authority cap. */
   readonly maximumInducedEvents?: number;
+  readonly maximumMatchedResources?: number;
 }
 export function evaluateTransaction(
   normalized: NormalizedTransaction,
@@ -490,6 +504,14 @@ export function evaluateTransaction(
     eventMaximum > maximumInducedEvents
   )
     throw new TypeError("invalid evaluator Event bound");
+  const matchMaximum = options.maximumMatchedResources ?? maximumMatchedResources;
+  if (
+    !Number.isSafeInteger(matchMaximum) ||
+    matchMaximum < 1 ||
+    matchMaximum > maximumMatchedResources
+  )
+    throw new TypeError("invalid evaluator matched Resource bound");
+  let matchedResources = 0;
   const batch = state.batch;
   const bindings = new Map<string, string>();
   const results: unknown[] = [],
@@ -654,10 +676,15 @@ export function evaluateTransaction(
               if (!row) throw new Error("staged collection contains missing Resource");
               return readStoredResource(row, options.scope);
             })
-            .filter((record) => options.policy.canRead(record)),
+            .filter((record) => isResourceVisible(tx, record, options.scope, options.policy)),
         )
           .slice()
           .sort((a, b) => compareCanonicalIds(a.id, b.id));
+        // Count selections across operations, including repeat matches and
+        // semantic no-ops, before adding their result entries. Enumeration and
+        // selection above still scan the complete candidate collection.
+        matchedResources += selected.length;
+        if (matchedResources > matchMaximum) throw new MatchExpansionLimit();
         const cardinality = input.cardinality as { min?: number; max?: number } | undefined;
         if (
           (cardinality?.min !== undefined && selected.length < cardinality.min) ||
@@ -775,7 +802,8 @@ export function evaluateTransaction(
       if (failure) return failure;
     }
   } catch (error) {
-    if (!(error instanceof EventExpansionLimit)) throw error;
+    if (!(error instanceof EventExpansionLimit) && !(error instanceof MatchExpansionLimit))
+      throw error;
     return {
       ok: false,
       problem: {
@@ -783,7 +811,10 @@ export function evaluateTransaction(
         status: 413,
         code: "limit-exceeded",
         retry: "never",
-        limit: "transaction.inducedEvents",
+        limit:
+          error instanceof MatchExpansionLimit
+            ? "transaction.matchedResources"
+            : "transaction.inducedEvents",
       },
     };
   }

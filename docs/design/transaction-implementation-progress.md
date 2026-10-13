@@ -732,11 +732,17 @@ Matched entries, no-op results, intermediate postimages, final group state,
 provenance and metadata retain their existing meanings. Receipt pages persist the
 complete flat set result, including the matched entry, without recomputing selection.
 
-The private authority now enforces a total 4,096 induced-Event bound across ordinary
-members and set expansion. Exceeding it yields an atomic transaction-wide failed
-receipt with limit-exceeded; an evaluator-only test seam can lower but never raise
-that bound. It is not a new public configuration or protocol maximum. Selection and
-complete result materialization remain linear in collection/population size.
+The private authority enforces a total 4,096 induced-Event bound across ordinary
+members and set expansion, plus 4,096 matched Resources counted across set operations.
+Repeat matches and semantic no-ops each count toward the latter, bounding expanded
+result entries even when they emit no Events. Exceeding either yields an atomic
+transaction-wide failed receipt with limit-exceeded and the corresponding
+transaction.inducedEvents or transaction.matchedResources limit, without an operation
+index. Evaluator-only test seams can lower but never raise these fixed private bounds;
+they introduce no public configuration, advertised maximum or installation identity
+change. Collection enumeration, visibility traversal and selection still examine and
+materialize the full candidate population before the matched-resource check. This is
+not a bound on whole-collection scan work, memory or receipt byte size.
 
 Private format set-core-7 protects the expanded durable witness vocabulary; the
 identity codec is unchanged. No migration or reseed is provided. Core tests cover
@@ -757,3 +763,22 @@ cache. These are process-crash witnesses, not physical disk/power-loss testing.
 Concurrent page minimum waits also drain on close while an admitted commit can
 satisfy them. Unsupported root/page controls withhold serving context and do not
 trigger retention; independent maintenance can still expire or forget receipts.
+
+
+### Bounded set-core review repairs
+
+Set deletion accepts the bundle's revisionProvenance input for either collection.
+Syntax validation reuses the existing deleteLink root, which admits that same input;
+its synthetic Link subject never reaches identity or evaluation. Deleting Beads mints
+no version, so their supplied provenance is inert. Tests cross operation, collection,
+cardinality and provenance inputs against the canonical bundle, then execute all four
+operation/collection pairs against the real owner and inspect results and afterstate.
+
+Set candidates now use the shared isResourceVisible closure before selection and
+cardinality, including local endpoint visibility. Evaluator probes run the real owner
+with a narrowed per-turn policy to prove hidden-endpoint Links are not matched or
+mutated. This is not an installed variable-policy qualification: the actual owner
+remains all-visible, schema-free and unowned, and owned-source fanout and nonwritable
+match behavior remain outside this slice. Negative Selector wire admission remains
+closed. Operation-local failures require an operation index at the type boundary;
+only the currently implemented transaction-wide Event and match limits can omit it.
