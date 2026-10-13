@@ -629,9 +629,12 @@ export function transactionSnapshotStorage(
           ordinal = 0;
         do {
           const token = pageToken(seed, id, kind, ordinal);
-          // Reserve an actual next URL even for the final page; never truncate.
+          // A continuation names the successor, whose ordinal can have more
+          // digits (9 -> 10, 99 -> 100). Reserve that exact URL even for the
+          // final page, where emitted null is smaller; never truncate.
+          const successor = pageToken(seed, id, kind, ordinal + 1);
           const framing = bytes(
-            text({ items: [], next: transactionSnapshotUrl(scope, id, kind, token) }),
+            text({ items: [], next: transactionSnapshotUrl(scope, id, kind, successor) }),
           );
           let size = 0,
             end = start;

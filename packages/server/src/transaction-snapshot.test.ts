@@ -18,6 +18,7 @@ import { prepareTransactionSetCore } from "./transaction-batch.js";
 import {
   TRANSACTION_SNAPSHOT_LIMITS as limits,
   TransactionSnapshotFailure,
+  transactionSnapshotUrl,
   type TransactionSnapshotManifest,
   type TransactionSnapshotPage,
 } from "./transaction-snapshot.js";
@@ -505,7 +506,7 @@ it("failed Snapshot rollback fences tentative pages until reopen", () => {
     expect(db.prepare("SELECT count(*) AS n FROM snapshots").get()?.n).toBe(0);
   });
 });
-it("a genuine abrupt exit during capture recovers its hot journal without issuing the tentative handle", async () => {
+it("an abrupt exit during capture leaves no issued tentative handle after reopen", async () => {
   const { spawnSync } = await import("node:child_process");
   const f = fixture();
   f.run([create("a")]);
@@ -685,3 +686,94 @@ it("retains bounded recognition of issued page tokens after expiry/reopen, while
   });
   expect(() => f.owner.readSnapshotPage(firstId, "bead", token)).toThrow("disposition commitment");
 });
+it.each([9, 99])(
+  "packs below the byte cap when successor token grows at page %i",
+  (transition) => {
+    const f = fixture();
+    const placeholderId = "00000000-0000-0000-0000-000000000000";
+    const framing = (ordinal: number) =>
+      Buffer.byteLength(
+        stringifyJsonValue({
+          items: [],
+          next: transactionSnapshotUrl(
+            scope,
+            placeholderId,
+            "bead",
+            `sp_${ordinal}_${"a".repeat(43)}`,
+          ),
+        }),
+      );
+    expect(framing(transition + 1)).toBe(framing(transition) + 1);
+    const prefixCount = transition * limits.snapshotPageItems;
+    const finalLargeBytes = limits.pageBytes - framing(transition) - 15 - 15 * 262144;
+    expect(finalLargeBytes).toBeGreaterThan(0);
+    expect(finalLargeBytes).toBeLessThanOrEqual(262144);
+    // Sixteen complete records would fit exactly with the current-page token,
+    // but the actually emitted successor URL makes that page one byte too large.
+    expect(framing(transition + 1) + 15 * 262144 + finalLargeBytes + 15).toBe(limits.pageBytes + 1);
+    const count = prefixCount + 17;
+    f.offline((db) => {
+      db.exec("BEGIN");
+      const insert = db.prepare("INSERT INTO resources VALUES(?,?,'bead',NULL,NULL)");
+      for (let n = 0; n < count; n++) {
+        const id = `beads/${n.toString().padStart(4, "0")}`;
+        const record = {
+          id: `${scope}${id}`,
+          type: beadType,
+          revision: "fixture",
+          properties: { padding: "" },
+          metadata: {},
+          ownedLinks: { [linkType]: [] },
+        };
+        const targetSize =
+          n < prefixCount || n === prefixCount + 16
+            ? undefined
+            : n === prefixCount + 15
+              ? finalLargeBytes
+              : 262144;
+        if (targetSize !== undefined)
+          record.properties.padding = "x".repeat(
+            targetSize - Buffer.byteLength(stringifyJsonValue(record)),
+          );
+        const body = stringifyJsonValue(record);
+        if (targetSize !== undefined) expect(Buffer.byteLength(body)).toBe(targetSize);
+        insert.run(id, body);
+      }
+      db.exec("COMMIT");
+    });
+    const manifest = f.owner.captureSnapshot().manifest;
+    const expected = Array.from(
+      { length: count },
+      (_, n) => `${scope}beads/${n.toString().padStart(4, "0")}`,
+    );
+    for (const reopen of [false, true]) {
+      if (reopen) f.reopen();
+      expect(f.owner.readSnapshot(handle(manifest)).manifest).toEqual(manifest);
+      let page = manifest.beads,
+        ordinal = 0;
+      const observed: string[] = [];
+      while (true) {
+        expect(Buffer.byteLength(stringifyJsonValue(page))).toBeLessThanOrEqual(limits.pageBytes);
+        expect(page.items.length).toBeLessThanOrEqual(limits.snapshotPageItems);
+        if (ordinal === transition) {
+          expect(page.items).toHaveLength(15);
+          expect(new URL(page.next!).searchParams.get("page")).toMatch(
+            new RegExp(`^sp_${transition + 1}_`),
+          );
+        }
+        observed.push(...page.items.map((record) => record.id));
+        if (page.next === null) break;
+        const next = new URL(page.next);
+        page = f.owner.readSnapshotPage(
+          handle(manifest),
+          "bead",
+          next.searchParams.get("page")!,
+        ).page;
+        ordinal++;
+      }
+      expect(ordinal).toBe(transition + 1);
+      expect(observed).toEqual(expected);
+    }
+  },
+  15000,
+);
