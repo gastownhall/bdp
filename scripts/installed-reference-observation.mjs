@@ -62,6 +62,10 @@ export async function launchInstalledReference(entry, configuration) {
     assert.equal(ready.claimEligible, false);
     assert.match(ready.configurationIdentity, /^[a-f0-9]{64}$/);
     assert.match(ready.payloadIdentity, /^[a-f0-9]{64}$/);
+    assert.equal(typeof ready.policyIdentity, "string");
+    assert.match(ready.authenticationIdentity, /^[a-f0-9]{64}$/);
+    assert.equal(ready.profile, "read-update");
+    assert.equal(ready.history, false);
     return {
       child,
       ready,

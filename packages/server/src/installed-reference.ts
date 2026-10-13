@@ -2,111 +2,68 @@
  * independently verified profile evidence; P1a provides no such admission. */
 import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
-import {
-  parseReadUpdateDiscovery,
-  isReadProblem,
-  readProblem,
-  type ReadProblem,
-} from "@bdp/protocol";
-import * as routing from "./read-http-routing.js";
-import {
-  startDevelopmentReferenceRuntime,
-  type DevelopmentHttpComposition,
-} from "./development-runtime.js";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { startDevelopmentReferenceRuntime } from "./development-runtime.js";
+import { createDevelopmentComposition } from "./development-composition.js";
 import { captureInstalledReferenceConfiguration } from "./installed-reference-configuration.js";
 
 export async function startInstalledReferenceCandidate(input: unknown) {
   const config = captureInstalledReferenceConfiguration(input);
-  // Bind actual installed executable bytes, independently of caller assertions.
+  // Hash the actual installed package closure, including URI/schema compiler
+  // dependencies. Node and deployment/TLS are outside this payload identity.
   const payload = createHash("sha256");
-  for (const [name, root] of [
-    ["server", new URL("./", import.meta.url)],
-    ["protocol", new URL("./", import.meta.resolve("@bdp/protocol"))],
-  ] as const) {
-    for (const file of (await readdir(root)).filter((f) => f.endsWith(".js")).sort()) {
-      const bytes = await readFile(new URL(file, root));
-      payload.update(`${name}/${file}:${bytes.length}:`).update(bytes);
+  async function bindPackage(root: string, identity: string, ancestors: readonly string[]) {
+    if (ancestors.includes(root) || ancestors.length >= 32)
+      throw new TypeError("unsupported runtime dependency cycle/depth");
+    const manifestPath = path.join(root, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+      name: string;
+      dependencies?: Record<string, string>;
+    };
+    async function bindFiles(relative: string) {
+      for (const entry of (await readdir(path.join(root, relative), { withFileTypes: true })).sort(
+        (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+      )) {
+        if (entry.name === "node_modules" || entry.name === ".git") continue;
+        const file = path.posix.join(relative, entry.name);
+        if (entry.isDirectory()) await bindFiles(file);
+        else if (entry.isFile() && /\.(?:[cm]?js|json|node|wasm)$/.test(entry.name)) {
+          const bytes = await readFile(path.join(root, file));
+          payload.update(`${identity}/${file}:${bytes.length}:`).update(bytes);
+        }
+      }
+    }
+    if (manifest.name === "@bdp/server" || manifest.name === "@bdp/protocol") {
+      // Workspace-only source/configuration is not part of the installed package.
+      const bytes = await readFile(manifestPath);
+      payload.update(`${identity}/package.json:${bytes.length}:`).update(bytes);
+      await bindFiles("dist");
+      if (manifest.name === "@bdp/protocol") await bindFiles("schemas");
+    } else await bindFiles("");
+    const require = createRequire(manifestPath);
+    for (const dependency of Object.keys(manifest.dependencies ?? {}).sort()) {
+      let dependencyRoot = path.dirname(require.resolve(dependency));
+      for (;;) {
+        try {
+          const value = JSON.parse(
+            await readFile(path.join(dependencyRoot, "package.json"), "utf8"),
+          );
+          if (value.name === dependency) break;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+        const parent = path.dirname(dependencyRoot);
+        if (parent === dependencyRoot) throw new TypeError("runtime dependency manifest missing");
+        dependencyRoot = parent;
+      }
+      await bindPackage(dependencyRoot, `${identity}>${dependency}`, [...ancestors, root]);
     }
   }
+  await bindPackage(fileURLToPath(new URL("../", import.meta.url)), "@bdp/server", []);
   const payloadIdentity = payload.digest("hex");
-  const composition: DevelopmentHttpComposition = Object.freeze<DevelopmentHttpComposition>({
-    scopePath: new URL(config.scope).pathname,
-    createReadRoute(authority, directory) {
-      const { scope } = authority;
-      const serviceDescription = new URL("bdp.json", scope).href;
-      const operations = new URL("operations/", scope).href;
-      function problem(value: ReadProblem) {
-        const response = routing.jsonResponse(value);
-        response.headers.set("content-type", "application/problem+json");
-        return { ...response, status: value.status ?? 500 };
-      }
-      async function discovery() {
-        const result = await authority.discover();
-        if (result.kind === "problem") return problem(result.problem);
-        const { limits, ...data } = result.data;
-        return routing.jsonResponse(
-          parseReadUpdateDiscovery({
-            ...data,
-            bdpVersion: "0",
-            profile: "read-update",
-            operations,
-            limits: {
-              page: limits.page,
-              selector: limits.selector,
-              request: { bodyBytes: authority.limits.requestBodyBytes },
-              sequence: { operations: authority.limits.sequenceOperations },
-              validation: {
-                diagnostics: authority.limits.diagnosticCount,
-                diagnosticBytes: authority.limits.diagnosticBytes,
-              },
-            },
-          }),
-        );
-      }
-      const route = routing.createReadHttpRoute({
-        scope,
-        probe: async () => ({ serviceDescription }),
-        problem,
-        discover: discovery,
-        async alias(suffix, request) {
-          if (isReadProblem(suffix)) return problem(suffix);
-          const result = await authority.resolveAlias(request.url);
-          return result.kind === "problem"
-            ? problem(result.problem)
-            : {
-                status: 307,
-                headers: new Headers({
-                  location: result.target,
-                  "content-length": "0",
-                  "cache-control": "private, no-store",
-                }),
-              };
-        },
-        async perform(parsed) {
-          const result = await authority.perform(parsed);
-          return result.kind === "problem"
-            ? problem(result.problem)
-            : result.kind === "success"
-              ? routing.scopeDataResponse(
-                  parsed,
-                  result.body,
-                  "resourceRevision" in result.observation
-                    ? result.observation.resourceRevision
-                    : undefined,
-                )
-              : problem(readProblem("resource-not-found"));
-        },
-      });
-      return async (request) => {
-        // Gate every route through the current owner; no pre-auth/static directory escape.
-        const gate = await authority.discover();
-        if (gate.kind === "problem") return problem(gate.problem);
-        if (request.url === operations && (request.method === "GET" || request.method === "HEAD"))
-          return routing.jsonResponse(directory);
-        return route(request);
-      };
-    },
-  });
+  const composition = createDevelopmentComposition(new URL(config.scope).pathname);
   const first = config.credentials[0];
   if (first === undefined) throw new TypeError("credential required");
   const runtime = await startDevelopmentReferenceRuntime(
@@ -122,6 +79,10 @@ export async function startInstalledReferenceCandidate(input: unknown) {
     configurationIdentity: config.identity,
     artifactIdentity: config.artifactIdentity,
     payloadIdentity,
+    policyIdentity: config.policyIdentity,
+    authenticationIdentity: config.authenticationIdentity,
+    profile: config.profile,
+    history: config.history,
     claimEligible: false as const,
   });
 }
