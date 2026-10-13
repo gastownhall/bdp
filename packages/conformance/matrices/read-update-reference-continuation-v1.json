@@ -19433,7 +19433,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740993,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"beads/nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740993,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0}}"
             }
           },
           "captures": [],
@@ -19517,6 +19517,111 @@
           ]
         },
         {
+          "id": "nr-bead-integer-meta-create-refused",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "create-bead"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-bead-integer-meta-create-refused"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"beads/nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":1e-400}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 422
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "complete-problem",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/validation",
+                "status": 422,
+                "code": "validation-failed",
+                "retry": "never",
+                "diagnostics": [
+                  {
+                    "message": "metadata: unsupported number",
+                    "instanceLocation": "/number",
+                    "document": "metadata"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-integer-meta-absent",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr.bead-integer",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readProblem"
+            },
+            {
+              "id": "not-found",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
           "id": "nr-bead-integer-create-corrected",
           "family": "http",
           "method": "POST",
@@ -19537,7 +19642,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"beads/nr-bead-integer\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0}}"
             }
           },
           "captures": [],
@@ -19601,7 +19706,8 @@
               "pointer": "/resource/metadata",
               "exists": true,
               "equals": {
-                "phase": "created"
+                "phase": "created",
+                "number": 0
               }
             },
             {
@@ -19708,7 +19814,8 @@
               "pointer": "/body/metadata",
               "exists": true,
               "equals": {
-                "phase": "created"
+                "phase": "created",
+                "number": 0
               }
             },
             {
@@ -19746,7 +19853,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740993}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"beads/nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740993}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
             }
           },
           "captures": [],
@@ -19829,6 +19936,110 @@
           ]
         },
         {
+          "id": "nr-bead-integer-meta-patch-refused",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "update-bead"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-bead-integer-meta-patch-refused"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"bead\":\"beads/nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.12345678901234567891}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 422
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "complete-problem",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/validation",
+                "status": 422,
+                "code": "validation-failed",
+                "retry": "never",
+                "diagnostics": [
+                  {
+                    "message": "metadata: unsupported number at request location /metadataChange/1/value",
+                    "document": "metadata"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-integer-meta-unchanged",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr.bead-integer",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "nr-bead-integer-created-read"
+            }
+          ]
+        },
+        {
           "id": "nr-bead-integer-patch-corrected",
           "family": "http",
           "method": "POST",
@@ -19849,7 +20060,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"beads/nr-bead-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
             }
           },
           "captures": [],
@@ -19913,7 +20124,8 @@
               "pointer": "/resource/metadata",
               "exists": true,
               "equals": {
-                "phase": "updated"
+                "phase": "updated",
+                "number": 0.25
               }
             },
             {
@@ -20020,7 +20232,8 @@
               "pointer": "/body/metadata",
               "exists": true,
               "equals": {
-                "phase": "updated"
+                "phase": "updated",
+                "number": 0.25
               }
             },
             {
@@ -20058,7 +20271,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-precision\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":0.12345678901234567891,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"beads/nr-bead-precision\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
             }
           },
           "captures": [],
@@ -20095,7 +20308,7 @@
                 "diagnostics": [
                   {
                     "message": "unsupported number",
-                    "instanceLocation": "/value"
+                    "instanceLocation": "/value/items/0/a~1b~0c"
                   }
                 ]
               }
@@ -20162,7 +20375,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"beads/nr-bead-precision\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":0.125,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
+              "value": "{\"id\":\"beads/nr-bead-precision\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.125}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"}}"
             }
           },
           "captures": [],
@@ -20213,7 +20426,13 @@
               "pointer": "/resource/properties",
               "exists": true,
               "equals": {
-                "value": 0.125,
+                "value": {
+                  "items": [
+                    {
+                      "a/b~c": 0.125
+                    }
+                  ]
+                },
                 "one": 1,
                 "zero": 0,
                 "large": 1e300,
@@ -20320,7 +20539,13 @@
               "pointer": "/body/properties",
               "exists": true,
               "equals": {
-                "value": 0.125,
+                "value": {
+                  "items": [
+                    {
+                      "a/b~c": 0.125
+                    }
+                  ]
+                },
                 "one": 1,
                 "zero": 0,
                 "large": 1e300,
@@ -20371,7 +20596,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":0.12345678901234567891}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"beads/nr-bead-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -20407,7 +20632,7 @@
                 "retry": "never",
                 "diagnostics": [
                   {
-                    "message": "unsupported number at request location /propertiesChange/0/value"
+                    "message": "unsupported number at request location /propertiesChange/0/value/items/0/a~1b~0c"
                   }
                 ]
               }
@@ -20474,7 +20699,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"bead\":\"beads/nr-bead-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":0.25}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"bead\":\"beads/nr-bead-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.25}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -20525,7 +20750,13 @@
               "pointer": "/resource/properties",
               "exists": true,
               "equals": {
-                "value": 0.25,
+                "value": {
+                  "items": [
+                    {
+                      "a/b~c": 0.25
+                    }
+                  ]
+                },
                 "one": 1,
                 "zero": 0,
                 "large": 1e300,
@@ -20632,7 +20863,13 @@
               "pointer": "/body/properties",
               "exists": true,
               "equals": {
-                "value": 0.25,
+                "value": {
+                  "items": [
+                    {
+                      "a/b~c": 0.25
+                    }
+                  ]
+                },
                 "one": 1,
                 "zero": 0,
                 "large": 1e300,
@@ -21308,7 +21545,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740993,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"links/nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740993,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
             }
           },
           "captures": [],
@@ -21470,6 +21707,111 @@
           ]
         },
         {
+          "id": "nr-link-integer-meta-create-refused",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "create-link"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-link-integer-meta-create-refused"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"links/nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":1e-400},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 422
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "complete-problem",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/validation",
+                "status": 422,
+                "code": "validation-failed",
+                "retry": "never",
+                "diagnostics": [
+                  {
+                    "message": "metadata: unsupported number",
+                    "instanceLocation": "/number",
+                    "document": "metadata"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "nr-link-integer-meta-absent",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr.link-integer",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readProblem"
+            },
+            {
+              "id": "not-found",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
           "id": "nr-link-integer-create-corrected",
           "family": "http",
           "method": "POST",
@@ -21490,7 +21832,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"links/nr-link-integer\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":9007199254740992,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\",\"number\":0},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
             }
           },
           "captures": [],
@@ -21554,7 +21896,8 @@
               "pointer": "/resource/metadata",
               "exists": true,
               "equals": {
-                "phase": "created"
+                "phase": "created",
+                "number": 0
               }
             },
             {
@@ -21675,7 +22018,8 @@
               "pointer": "/body/metadata",
               "exists": true,
               "equals": {
-                "phase": "created"
+                "phase": "created",
+                "number": 0
               }
             },
             {
@@ -21727,7 +22071,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740993}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"links/nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740993}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
             }
           },
           "captures": [],
@@ -21888,6 +22232,110 @@
           ]
         },
         {
+          "id": "nr-link-integer-meta-patch-refused",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "update-link"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-link-integer-meta-patch-refused"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"link\":\"links/nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.12345678901234567891}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 422
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "complete-problem",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/validation",
+                "status": 422,
+                "code": "validation-failed",
+                "retry": "never",
+                "diagnostics": [
+                  {
+                    "message": "metadata: unsupported number at request location /metadataChange/1/value",
+                    "document": "metadata"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "nr-link-integer-meta-unchanged",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "nr.link-integer",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "nr-link-integer-created-read"
+            }
+          ]
+        },
+        {
           "id": "nr-link-integer-patch-corrected",
           "family": "http",
           "method": "POST",
@@ -21908,7 +22356,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"links/nr-link-integer\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":9007199254740994}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"},{\"op\":\"replace\",\"path\":\"/number\",\"value\":0.25}]}"
             }
           },
           "captures": [],
@@ -21972,7 +22420,8 @@
               "pointer": "/resource/metadata",
               "exists": true,
               "equals": {
-                "phase": "updated"
+                "phase": "updated",
+                "number": 0.25
               }
             },
             {
@@ -22093,7 +22542,8 @@
               "pointer": "/body/metadata",
               "exists": true,
               "equals": {
-                "phase": "updated"
+                "phase": "updated",
+                "number": 0.25
               }
             },
             {
@@ -22145,7 +22595,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-precision\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":0.12345678901234567891,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"links/nr-link-precision\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
             }
           },
           "captures": [],
@@ -22182,7 +22632,7 @@
                 "diagnostics": [
                   {
                     "message": "unsupported number",
-                    "instanceLocation": "/value"
+                    "instanceLocation": "/value/items/0/a~1b~0c"
                   }
                 ]
               }
@@ -22327,7 +22777,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"id\":\"links/nr-link-precision\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":0.125,\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+              "value": "{\"id\":\"links/nr-link-precision\",\"type\":\"https://reference.invalid/acme/types/relates\",\"properties\":{\"value\":{\"items\":[{\"a/b~c\":0.125}]},\"one\":1.0,\"zero\":-0.0,\"large\":1e300,\"expanded\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
             }
           },
           "captures": [],
@@ -22378,7 +22828,13 @@
               "pointer": "/resource/properties",
               "exists": true,
               "equals": {
-                "value": 0.125,
+                "value": {
+                  "items": [
+                    {
+                      "a/b~c": 0.125
+                    }
+                  ]
+                },
                 "one": 1,
                 "zero": 0,
                 "large": 1e300,
@@ -22499,7 +22955,13 @@
               "pointer": "/body/properties",
               "exists": true,
               "equals": {
-                "value": 0.125,
+                "value": {
+                  "items": [
+                    {
+                      "a/b~c": 0.125
+                    }
+                  ]
+                },
                 "one": 1,
                 "zero": 0,
                 "large": 1e300,
@@ -22564,7 +23026,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":0.12345678901234567891}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"links/nr-link-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.12345678901234567891}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -22600,7 +23062,7 @@
                 "retry": "never",
                 "diagnostics": [
                   {
-                    "message": "unsupported number at request location /propertiesChange/0/value"
+                    "message": "unsupported number at request location /propertiesChange/0/value/items/0/a~1b~0c"
                   }
                 ]
               }
@@ -22745,7 +23207,7 @@
             ],
             "body": {
               "encoding": "utf8",
-              "value": "{\"link\":\"links/nr-link-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":0.25}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
+              "value": "{\"link\":\"links/nr-link-precision\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/value\",\"value\":{\"items\":[{\"a/b~c\":0.25}]}}],\"metadataChange\":[{\"op\":\"replace\",\"path\":\"/phase\",\"value\":\"updated\"}]}"
             }
           },
           "captures": [],
@@ -22796,7 +23258,13 @@
               "pointer": "/resource/properties",
               "exists": true,
               "equals": {
-                "value": 0.25,
+                "value": {
+                  "items": [
+                    {
+                      "a/b~c": 0.25
+                    }
+                  ]
+                },
                 "one": 1,
                 "zero": 0,
                 "large": 1e300,
@@ -22917,7 +23385,13 @@
               "pointer": "/body/properties",
               "exists": true,
               "equals": {
-                "value": 0.25,
+                "value": {
+                  "items": [
+                    {
+                      "a/b~c": 0.25
+                    }
+                  ]
+                },
                 "one": 1,
                 "zero": 0,
                 "large": 1e300,
@@ -23794,6 +24268,598 @@
               "id": "no-provenance",
               "kind": "json-pointer",
               "pointer": "/body/revisionProvenance",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-schema-create-refused",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "create-bead"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-bead-schema-create-refused"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"beads/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-bead-child\",\"properties\":{\"n\":-1,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 422
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "complete-problem",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/validation",
+                "status": 422,
+                "code": "validation-failed",
+                "retry": "never",
+                "diagnostics": [
+                  {
+                    "message": "Schema assertion failed: minimum",
+                    "type": "https://reference.invalid/acme/types/schema-bead-base",
+                    "schemaLocation": "https://reference.invalid/acme/schemas/schema-bead-base#/properties/n/minimum",
+                    "instanceLocation": "/n"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-schema-absent",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/nr-schema"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "not-found",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-schema-create-corrected",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "create-bead"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-bead-schema-create-corrected"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"beads/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-bead-child\",\"properties\":{\"n\":0,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-schema"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/schema-bead-child"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 0,
+                "enabled": true,
+                "detail": "ok"
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/resource/metadata",
+              "exists": true,
+              "equals": {
+                "phase": "created"
+              }
+            },
+            {
+              "id": "no-owned-plane",
+              "kind": "json-pointer",
+              "pointer": "/resource/ownedLinks",
+              "exists": false
+            },
+            {
+              "id": "no-provenance",
+              "kind": "json-pointer",
+              "pointer": "/resource/revisionProvenance",
+              "exists": false
+            },
+            {
+              "id": "no-source",
+              "kind": "json-pointer",
+              "pointer": "/source",
+              "exists": false
+            },
+            {
+              "id": "no-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/sourceRevision",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "nr-bead-schema-read",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/nr-schema"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-schema"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/schema-bead-child"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/properties",
+              "exists": true,
+              "equals": {
+                "n": 0,
+                "enabled": true,
+                "detail": "ok"
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/metadata",
+              "exists": true,
+              "equals": {
+                "phase": "created"
+              }
+            },
+            {
+              "id": "no-owned-plane",
+              "kind": "json-pointer",
+              "pointer": "/ownedLinks",
+              "exists": false
+            },
+            {
+              "id": "no-provenance",
+              "kind": "json-pointer",
+              "pointer": "/revisionProvenance",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "nr-link-schema-create-refused",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "create-link"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-link-schema-create-refused"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"links/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-link-child\",\"properties\":{\"n\":-1,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 422
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateProblem"
+            },
+            {
+              "id": "complete-problem",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/validation",
+                "status": 422,
+                "code": "validation-failed",
+                "retry": "never",
+                "diagnostics": [
+                  {
+                    "message": "Schema assertion failed: minimum",
+                    "type": "https://reference.invalid/acme/types/schema-link-base",
+                    "schemaLocation": "https://reference.invalid/acme/schemas/schema-link-base#/properties/n/minimum",
+                    "instanceLocation": "/n"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "nr-link-schema-absent",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/nr-schema"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "not-found",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            }
+          ]
+        },
+        {
+          "id": "nr-link-schema-create-corrected",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "create-link"
+          },
+          "raw": {
+            "headerLines": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Idempotency-Key",
+                "value": "nr-link-schema-create-corrected"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"links/nr-schema\",\"type\":\"https://reference.invalid/acme/types/schema-link-child\",\"properties\":{\"n\":0,\"enabled\":true,\"detail\":\"ok\"},\"metadata\":{\"phase\":\"created\"},\"source\":\"beads/nr-source\",\"target\":\"beads/nr-target\"}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "complete-write",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/nr-schema"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/schema-link-child"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 0,
+                "enabled": true,
+                "detail": "ok"
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/resource/metadata",
+              "exists": true,
+              "equals": {
+                "phase": "created"
+              }
+            },
+            {
+              "id": "source-endpoint",
+              "kind": "json-pointer",
+              "pointer": "/resource/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-source"
+            },
+            {
+              "id": "target-endpoint",
+              "kind": "json-pointer",
+              "pointer": "/resource/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-target"
+            },
+            {
+              "id": "no-owned-plane",
+              "kind": "json-pointer",
+              "pointer": "/resource/ownedLinks",
+              "exists": false
+            },
+            {
+              "id": "no-provenance",
+              "kind": "json-pointer",
+              "pointer": "/resource/revisionProvenance",
+              "exists": false
+            },
+            {
+              "id": "no-source",
+              "kind": "json-pointer",
+              "pointer": "/source",
+              "exists": false
+            },
+            {
+              "id": "no-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/sourceRevision",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "nr-link-schema-read",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/nr-schema"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentLinkRecord"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/nr-schema"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/schema-link-child"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/properties",
+              "exists": true,
+              "equals": {
+                "n": 0,
+                "enabled": true,
+                "detail": "ok"
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/metadata",
+              "exists": true,
+              "equals": {
+                "phase": "created"
+              }
+            },
+            {
+              "id": "source-endpoint",
+              "kind": "json-pointer",
+              "pointer": "/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-source"
+            },
+            {
+              "id": "target-endpoint",
+              "kind": "json-pointer",
+              "pointer": "/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/nr-target"
+            },
+            {
+              "id": "no-owned-plane",
+              "kind": "json-pointer",
+              "pointer": "/ownedLinks",
+              "exists": false
+            },
+            {
+              "id": "no-provenance",
+              "kind": "json-pointer",
+              "pointer": "/revisionProvenance",
               "exists": false
             }
           ]
