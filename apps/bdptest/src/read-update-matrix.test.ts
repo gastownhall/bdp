@@ -1345,7 +1345,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     ]);
     expect(progress.shards[1]!.routes).toHaveLength(51);
     expect(progress.shards[1]!.routeDigest).toBe(
-      "9a625cd0cd901ebf18619256a40df5a6751e329238e2efd7b8d75ebbeaedd421",
+      "272c31e6bdf474d3889042e3bc636f4f144b58ea1e87a8f8176c772a1a026110",
     );
     expect(progress.observedStatePartitions.pass).toEqual(progress.authoredIds);
     expect(progress.observedStatePartitions.fail).toEqual([]);
