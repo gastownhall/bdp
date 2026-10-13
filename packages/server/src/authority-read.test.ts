@@ -23,6 +23,7 @@ import {
   type ReadPrincipal,
   type ScopeReadConfiguration,
   type ReadObservation,
+  type AuthorityReadReader,
   type ResourceReadObservation,
 } from "./authority-read.js";
 import { runMember, type MemberExecutorOptions, type MemberTurn } from "./member-executor.js";
@@ -125,7 +126,7 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
     }) as ScopeReadConfiguration,
     gate: undefined as ReturnType<typeof readProblem> | undefined,
     captureHook: undefined as
-      | ((r: StoreReader, p: ReadPrincipal, intent: ReadIntent) => void)
+      | ((r: AuthorityReadReader, p: ReadPrincipal, intent: ReadIntent) => void)
       | undefined,
     wrap: (reader: StoreReader): StoreReader => reader,
   };
@@ -135,7 +136,7 @@ function fixture(descriptors = [descriptor(), edgeDescriptor()]) {
     return actualRead(callback);
   });
   const source = {
-    capture(reader: StoreReader) {
+    capture(reader: AuthorityReadReader) {
       expect(this).toBe(source);
       reader.policy("fixture-policy");
       state.configurations++;

@@ -59,6 +59,12 @@ import {
   validateServerLocalResourceId,
 } from "./read-request.js";
 
+/** Resource/configuration reads only; receipt/key recovery belongs to the write owner. */
+export type AuthorityReadReader = Pick<
+  StoreReader,
+  "resource" | "resources" | "incidentLinks" | "alias" | "policy"
+>;
+
 export type ReadPrincipal =
   | { readonly kind: "authenticated"; readonly principal: StablePrincipal }
   | { readonly kind: "anonymous" };
@@ -68,7 +74,7 @@ export interface ScopeReadConfiguration {
   readonly maximumEndpointMultiplicity: readonly MaximumEndpointMultiplicityPolicy[];
 }
 export interface ScopeConfigurationSource {
-  capture(reader: StoreReader): ScopeReadConfiguration;
+  capture(reader: AuthorityReadReader): ScopeReadConfiguration;
 }
 export interface CapturedReadAuthorization {
   readonly authorizationView: string;
@@ -90,7 +96,7 @@ export type OwnerReadEntryResult<T> =
     };
 export interface AuthorityReadEntry {
   readonly scope: string;
-  withRead<T>(callback: (reader: StoreReader) => T): OwnerReadEntryResult<T>;
+  withRead<T>(callback: (reader: AuthorityReadReader) => T): OwnerReadEntryResult<T>;
 }
 export interface AuthorityReadOptions {
   readonly entry: AuthorityReadEntry;
@@ -103,7 +109,7 @@ export interface AuthorityReadOptions {
   };
   readonly advertisedLimits: ServerAdvertisedReadLimits;
   captureReadAuthorization(
-    reader: StoreReader,
+    reader: AuthorityReadReader,
     principal: ReadPrincipal,
     request: ReadIntent,
   ): ReadAuthorizationDecision;
@@ -431,7 +437,7 @@ function aggregateSnapshot(
 
 function captureContext(
   prepared: Prepared,
-  reader: StoreReader,
+  reader: AuthorityReadReader,
   principal: ReadPrincipal,
   intent: ReadIntent,
 ): ReadContext | ReadRefusal {
@@ -530,7 +536,7 @@ interface CheckedRecord {
 }
 
 /** Lives only inside one synchronous entry. This does not certify unseen rows. */
-function checkedGraph(reader: StoreReader, scope: AbsoluteHttpUrl) {
+function checkedGraph(reader: AuthorityReadReader, scope: AbsoluteHttpUrl) {
   const cache = new Map<string, CheckedRecord>();
   const points = new Set<string>();
   const missing = new Set<string>();
@@ -695,7 +701,7 @@ function aliasSuffix(url: string, scope: AbsoluteHttpUrl): string | undefined {
 
 function materialize(
   prepared: Prepared,
-  reader: StoreReader,
+  reader: AuthorityReadReader,
   context: ReadContext,
   intent: ReadIntent,
 ): Materialized {

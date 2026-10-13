@@ -426,3 +426,32 @@ Resource, receipt, fingerprint, Event or key is rewritten or silently reseeded.
 Disposable compatibility tests retain pending claims, creator facts and outcomes
 byte-identically on refusal. Historical Read evidence remains attached to its
 original observed head until a fresh frozen-head qualification is performed.
+
+## Private same-owner Read composition
+
+The Transactional owner now supplies an expiring synchronous Resource/configuration
+reader to the existing AuthorityReadPlane. The shared Read contract contains only
+resource, resources, incidentLinks, alias and policy; it does not require or fabricate
+Read+Update key outcomes. The owner's actual immutable installation supplies the
+Type inventory and fixed all-visible, schema-free/unowned configuration. Named
+policy lookups are absent in this private installation.
+
+The private transaction-read module composes canonical Resource/properties reads,
+revisions, collections/selectors, incident Links, Types, alias resolution and retained
+pagination with the same owner that commits mutations. Reader methods expire after
+callback completion or failure, reject asynchronous callbacks, and cannot reenter
+writes or close. Frozen row snapshots carry no live SQLite capability. Fenced owners
+refuse reads with their failure cause retained. The caller owns the store lifetime;
+closing the Read plane releases its cursors without closing the write owner.
+
+Tests exercise actual commits and failed-batch rollback, alias repoint/deletion and
+dangling targets, reopen recovery, pagination across later commits, callback lifetime,
+reentrant reads during tentative effects, and injected before/after-COMMIT failures.
+Those injections are not disk/power-loss qualification. Existing private format,
+public exports, profile advertisements and the pinned Read evidence remain unchanged.
+
+This is not yet a Transactional serving surface. Same-entry source-position
+propagation, continuation source context, current serving fields, minimum-position
+barriers, receipt reads and replication Snapshot/changefeed support remain outside
+this slice. Existing collection pagination is not a replication bootstrap. No HTTP
+listener or Transactional profile claim is introduced.
