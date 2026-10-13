@@ -1,3 +1,4 @@
+import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
   snapshotTransactionMinimum,
@@ -215,6 +216,11 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         resolveAlias: () => Promise.reject(new TypeError("minimum-read aliases unsupported")),
       };
       return Object.freeze(guarded);
+    },
+    snapshot(request: TransactionSnapshotRequest) {
+      // Finite synchronous owner work has no disconnect/interrupt claim. Track
+      // its delivery with the same close/drain machinery as other service work.
+      return run(async () => owner.observeSnapshot(request));
     },
     changes(
       intent: TransactionChangefeedIntent,
