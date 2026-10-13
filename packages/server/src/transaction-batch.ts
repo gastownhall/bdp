@@ -1,6 +1,7 @@
 /** Private Transactional evaluator. Valid bounded sets share singleton/batch admission; negative Selector policy remains private. */
 import {
   prepareSetShape,
+  assertTransactionInputDepth,
   validateSetSelector,
   type TransactionSetOperation,
   transactionInputText as losslessText,
@@ -140,7 +141,6 @@ function prepareMixedTransaction(
   root: Record<string, LosslessJsonValue>,
   singleton: boolean,
 ): PreparedTransaction {
-  losslessText(root);
   if (Object.keys(root).length !== 1 || !Array.isArray(root.operations) || !root.operations.length)
     throw new TypeError("expected nonempty batch operations");
   if (singleton && root.operations.length !== 1) throw new TypeError("expected one core operation");
@@ -164,7 +164,9 @@ function prepareMixedTransaction(
     const { operation, ...input } = op;
     return prepareSetShape(canonicalScope, operation, Object.freeze(input));
   });
-  // Finish every unambiguous shape/reference/label check before a private gap.
+  // Synthetic syntax parsers do not impose the execution depth bound. Finish
+  // every unambiguous shape/reference/label check before any private gap.
+  assertTransactionInputDepth(root);
   for (const op of operations)
     if (op.operation === "updateWhere" || op.operation === "deleteWhere") validateSetSelector(op);
   return prepareCarrier(
@@ -195,14 +197,16 @@ export function prepareTransactionSingleton(
     throw new RangeError("development singleton byte limit");
   // Apply the same operation-content depth bound as the batch wrapper.
   const input = object(decodeJsonDocument(text));
-  losslessText(input, 2);
   if (operation === "updateWhere" || operation === "deleteWhere") {
-    // Validate the raw closed singleton before adding its route discriminator.
-    prepareSetShape(scope, operation, input);
+    // A raw discriminator must never replace the route. The single mixed pass
+    // below validates all remaining closed fields and the complete set shape.
+    if (Object.hasOwn(input, "operation")) throw new TypeError("singleton cannot carry operation");
     // The byte cap applies to the submitted body, not a synthetic carrier.
     return prepareMixedTransaction(scope, { operations: [{ operation, ...input }] }, true);
   }
-  return prepareCarrier(prepareReadUpdateSingleton(scope, operation, text, "internal-singleton"));
+  const carrier = prepareReadUpdateSingleton(scope, operation, text, "internal-singleton");
+  assertTransactionInputDepth(input, 2);
+  return prepareCarrier(carrier);
 }
 export interface PreparedTransactionSequence {
   readonly scope: string;
@@ -231,7 +235,7 @@ export function prepareTransactionSequence(
   const carrier = prepareReadUpdateSequence(scope, text);
   if (carrier.operations.length > TRANSACTION_MAXIMUM_OPERATIONS)
     throw new RangeError("development sequence member limit");
-  losslessText(object(decodeJsonDocument(text)));
+  assertTransactionInputDepth(object(decodeJsonDocument(text)));
   const labels = new Map<string, number>();
   const members = carrier.operations.map((op, index) => {
     const dependencies: {

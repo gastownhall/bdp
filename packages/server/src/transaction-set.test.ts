@@ -4,8 +4,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, expect, expectTypeOf, it, vi } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { parseTypeDescriptor, isJsonSchemaUri, isJsonSchemaDateTime } from "@bdp/protocol";
+import {
+  decodeJsonDocument,
+  parseTypeDescriptor,
+  isJsonSchemaUri,
+  isJsonSchemaDateTime,
+} from "@bdp/protocol";
 import * as batch from "./transaction-batch.js";
+import { transactionInputText, assertTransactionInputDepth } from "./transaction-set.js";
 import * as evaluator from "./resource-evaluator.js";
 import { openTransactionStore } from "./transaction-store.js";
 const scope = "https://example.test/set/",
@@ -1013,4 +1019,12 @@ it("requires operation indices except for enumerated whole-transaction limits at
     Omit<WholeLimit, "status"> & { status: 200 } extends Failure ? true : false
   >().toEqualTypeOf<false>();
   expectTypeOf<WholeLimit extends Failure ? true : false>().toEqualTypeOf<true>();
+});
+
+it("serializes byte-bounded deep syntax iteratively without changing number lexemes or key order", () => {
+  const text = `{"z":[${"[".repeat(20000)}1e+30${"]".repeat(20000)}],"a":{"n":9007199254740993,"zero":-0,"escaped":"\\\""}}`;
+  expect(Buffer.byteLength(text)).toBeLessThan(65536);
+  const value = decodeJsonDocument(text);
+  expect(transactionInputText(value)).toBe(text);
+  expect(() => assertTransactionInputDepth(value)).toThrow("development batch depth limit");
 });

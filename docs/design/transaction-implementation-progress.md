@@ -1482,7 +1482,11 @@ original receipt rather than rewriting its location. Property Change failures ma
 to the unique original change path when the existing diagnostic identifies it;
 repeated paths and afterstate validation identify the original `/change` array.
 A final Resource diagnostic's instanceLocation is not repurposed as a request
-pointer. Shared evaluator behavior is unchanged.
+pointer. Shared evaluator behavior is unchanged. Ordinary non-set Resource-operation
+receipts still omit `problem.pointer` for some locatable failures, including a
+missing Property Change path or an inadmissible property number. Their shared
+RU/evaluator-to-receipt mapping needs separate scope; the conditional pointer
+obligation is not fully qualified by this set-only repair.
 
 Selectors compare stored values exactly: a bare endpoint URI comparison does not
 match a Pinned Reference object. The actual HTTP cascade regression first selects
@@ -1506,3 +1510,37 @@ No owner enumeration, Selector implementation, storage format or public limit wa
 changed in this slice. General scan-work bounds, negative Selector admission,
 metadata-only Event projection gaps and remaining discovery/consistency obligations
 remain unqualified. Historical larger-budget evidence above remains historical.
+
+
+### S2a review closure: syntax before private depth and one singleton shape pass
+
+The earlier present-tense set-refusal statements in **Private direct receiving
+and admission composition**, the first private HTTP increment, and **Private
+valid-set core, with serving admission still closed** are superseded by S2a.
+Valid supported sets now use the singleton and batch HTTP routes. Lists in those
+historical increments that identify all set operations as remaining work are
+historical; negative Selector policy, general scan-work bounds and complete
+qualification remain open. Those historical refusal tests and evidence are retained.
+The earlier depth/unsupported-input ordering is also superseded: complete known
+carrier syntax and key checks precede authorization, and authorization precedes
+an otherwise valid private depth or Selector gap.
+
+Synthetic Resource and set syntax parsing now uses one iterative lossless
+serializer that preserves numeric lexemes and object key order. It scans the
+already byte-bounded received input without applying the execution depth refusal
+inside a synthetic parser. All known closed shapes, references, labels and Property
+Change syntax are validated before the unchanged depth-32 execution check. The
+explicit depth traversal then checks the original batch root, or an equivalent
+singleton wrapper. This permits a determinate malformed request to return 400
+rather than being hidden by the private depth gap. It does not evaluate Selectors
+or graph candidates before that check, introduce a new work limit, or resolve
+negative Selector admission policy.
+
+Set singletons now reject a raw `operation` field before adding the route's
+operation, then use the one mixed-carrier shape validation. That same pass rejects
+all other disallowed raw fields, including name and idempotencyKey; no second full
+set/RU syntax parse is needed. The actual singleton body still owns the 64KiB
+receiving limit, and one-operation batch/singleton depth boundaries are unchanged.
+Actual HTTP regressions cover malformed-plus-deep Resource and set inputs, forbidden
+sequence set members with no earlier member/key effects, raw route-discriminator
+protection, both depth boundaries and the exact body-byte boundary.

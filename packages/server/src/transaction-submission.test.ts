@@ -817,3 +817,66 @@ it("charges actual singleton bytes rather than its synthetic batch wrapper", asy
     ),
   ).toMatchObject({ kind: "refused", status: 413, code: "request-too-large" });
 });
+
+it.each(["batch", "singleton"] as const)(
+  "finishes %s synthetic syntax before depth, including deeply nested received input",
+  async (kind) => {
+    const f = fixture();
+    const nested = `${"[".repeat(20000)}1e+30${"]".repeat(20000)}`;
+    const input = `{"collection":"beads","selector":"$[?@.id]","change":[{"op":"add","path":"/deep","value":${nested}}]}`;
+    const wrap = (text: string) =>
+      kind === "singleton" ? text : `{"operations":[{"operation":"updateWhere",${text.slice(1)}]}`;
+    const request: TransactionSubmission = {
+      ...submission([], "deep_key"),
+      carrier: kind === "singleton" ? { kind, operation: "updateWhere" } : { kind },
+      body: wrap(input),
+    };
+    const before = f.store.inspect();
+    expect(Buffer.byteLength(request.body)).toBeLessThan(65536);
+    expect(await submitTransaction(f.store, request)).toMatchObject({ kind: "development-limit" });
+    expect(await submitTransaction(f.store, { ...request, key: "bad key" })).toMatchObject({
+      kind: "refused",
+      status: 400,
+    });
+    for (const authorization of [{ kind: "unauthenticated" }, { kind: "forbidden" }] as const) {
+      expect(await submitTransaction(f.store, { ...request, authorization })).toMatchObject({
+        kind: "refused",
+        status: authorization.kind === "unauthenticated" ? 401 : 403,
+      });
+    }
+    const malformed = input.replace('"path":"/deep"', '"path":false');
+    expect(await submitTransaction(f.store, { ...request, body: wrap(malformed) })).toMatchObject({
+      kind: "refused",
+      status: 400,
+    });
+    expect(f.store.inspect()).toEqual(before);
+    expect(await submitTransaction(f.store, submission([create()], "deep_key"))).toMatchObject({
+      kind: "receipt",
+    });
+  },
+);
+
+it.each(["operation", "name", "idempotencyKey", "extra"])(
+  "keeps raw singleton %s fields closed without letting a body discriminator replace the route",
+  async (field) => {
+    const f = fixture();
+    for (const operation of ["updateWhere", "deleteWhere"] as const) {
+      const before = f.store.inspect();
+      expect(
+        await submitTransaction(f.store, {
+          ...submission([], "closed"),
+          carrier: { kind: "singleton", operation },
+          body: JSON.stringify({
+            collection: "beads",
+            selector: "$[?@.id]",
+            ...(operation === "updateWhere"
+              ? { change: [{ op: "add", path: "/n", value: 1 }] }
+              : {}),
+            [field]: "deleteWhere",
+          }),
+        }),
+      ).toMatchObject({ kind: "refused", status: 400 });
+      expect(f.store.inspect()).toEqual(before);
+    }
+  },
+);

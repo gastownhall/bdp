@@ -1661,3 +1661,143 @@ it("finishes an admitted set after actual client disconnect and replays it after
     n: 1,
   });
 });
+
+it.each(["root", "member", "member-key", "set-patch", "later-member"] as const)(
+  "finishes known %s shape checks before a private depth gap on actual HTTP",
+  async (defect) => {
+    const f = await fixture();
+    let value: unknown = 0;
+    for (let i = 0; i < 40; i++) value = { nested: value };
+    const deep = { ...create("deep"), properties: { value } };
+    const set = {
+      operation: "updateWhere",
+      collection: "beads",
+      selector: "$[?@.id]",
+      change: [{ op: "add", path: "/deep", value }],
+    };
+    const malformed =
+      defect === "root"
+        ? { operations: [deep], extra: 1 }
+        : defect === "member"
+          ? { operations: [{ ...deep, extra: 1 }] }
+          : defect === "member-key"
+            ? { operations: [{ ...deep, idempotencyKey: "member" }] }
+            : defect === "set-patch"
+              ? { operations: [{ ...set, change: [...set.change, { op: "bad", path: "/x" }] }] }
+              : { operations: [set, { ...create("late"), extra: 1 }] };
+    for (const authorization of [`Bearer ${token}`, ""]) {
+      const response = await f.post(JSON.stringify(malformed), "depth_shape", "batch", {
+        authorization,
+      });
+      expect(response.status).toBe(400);
+      expect(checkedProblem(await body(response)).code).toBe("malformed-request");
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+      expect(await f.receiptRows("depth_shape")).toEqual([]);
+      expect((await f.get(`${f.runtime.scope}beads/deep`)).status).toBe(404);
+    }
+    expect((await f.post(batch([create()]), "depth_shape")).status).toBe(200);
+  },
+);
+
+it.each(["updateWhere", "deleteWhere"] as const)(
+  "rejects %s sequence members before any member key or receipt is captured",
+  async (operation) => {
+    const f = await fixture();
+    const response = await f.post(
+      batch([
+        { ...create("before"), idempotencyKey: "before" },
+        {
+          operation,
+          collection: "beads",
+          selector: "$[?@.id]",
+          ...(operation === "updateWhere" ? { change: [{ op: "add", path: "/n", value: 1 }] } : {}),
+          idempotencyKey: "set_member",
+        },
+      ]),
+      null,
+      "sequence",
+    );
+    expect(response.status).toBe(400);
+    expect(checkedProblem(await body(response)).code).toBe("malformed-request");
+    expect(await f.receiptRows("before")).toEqual([]);
+    expect(await f.receiptRows("set_member")).toEqual([]);
+    expect((await f.get(`${f.runtime.scope}beads/before`)).status).toBe(404);
+    expect((await f.post(batch([create("before")]), "before")).status).toBe(200);
+  },
+);
+
+it("preserves actual singleton bytes and wrapper-equivalent depth without accepting a body operation override", async () => {
+  const f = await fixture();
+  const invalid = await f.post(
+    JSON.stringify({ operation: "deleteWhere", collection: "beads", selector: "$[?@.id]" }),
+    "override",
+    "updateWhere",
+  );
+  expect(invalid.status).toBe(400);
+  expect(await f.receiptRows("override")).toEqual([]);
+  for (const [depth, status] of [
+    [27, 200],
+    [28, 500],
+  ] as const) {
+    let value: unknown = 0;
+    for (let i = 0; i < depth; i++) value = { nested: value };
+    const input = {
+      collection: "beads",
+      selector: "$[?@.id]",
+      change: [{ op: "add", path: "/deep", value }],
+    };
+    for (const target of ["updateWhere", "batch"] as const) {
+      const key = `parity_${depth}_${target}`;
+      const response = await f.post(
+        target === "batch"
+          ? batch([{ operation: "updateWhere", ...input }])
+          : JSON.stringify(input),
+        key,
+        target,
+      );
+      expect(response.status).toBe(status);
+      if (status === 500) {
+        expect(response.headers.get("x-bdp-development-limit")).toBe(
+          "unsupported-transaction-composition",
+        );
+        expect(await response.text()).toBe("");
+        expect(await f.receiptRows(key)).toEqual([]);
+      } else
+        expect(await body(response)).toMatchObject({
+          status: "completed",
+          results: [{ outcome: "matched", count: 0 }],
+        });
+    }
+  }
+  const template = {
+    collection: "beads",
+    selector: "$[?@.id]",
+    change: [{ op: "add", path: "/padding", value: "" }],
+  };
+  const input = {
+    ...template,
+    change: [
+      {
+        ...template.change[0],
+        value: "x".repeat(65536 - Buffer.byteLength(JSON.stringify(template))),
+      },
+    ],
+  };
+  const text = JSON.stringify(input);
+  expect(Buffer.byteLength(text)).toBe(65536);
+  const accepted = await f.post(text, "full_body", "updateWhere");
+  expect(accepted.status).toBe(200);
+  expect(await body(accepted)).toMatchObject({
+    status: "completed",
+    results: [{ outcome: "matched", count: 0 }],
+  });
+  for (const [bodyText, target] of [
+    [text + " ", "updateWhere"],
+    [batch([{ operation: "updateWhere", ...input }]), "batch"],
+  ] as const) {
+    const refused = await f.post(bodyText, "oversize", target);
+    expect(refused.status).toBe(413);
+    expect(checkedProblem(await body(refused)).code).toBe("request-too-large");
+    expect(await f.receiptRows("oversize")).toEqual([]);
+  }
+});
