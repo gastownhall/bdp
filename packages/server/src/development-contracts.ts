@@ -13,6 +13,8 @@ import {
 import {
   ingestContractArtifacts,
   type ContractArtifactBundleInput,
+  type ContractArtifactEntry,
+  type ContractArtifactLimits,
 } from "./installed-contract-artifact.js";
 import { compilePrivateSchemaEvaluator, EVALUATOR_CEILINGS } from "./installed-schema-evaluator.js";
 import { SCHEMA_GRAPH_CEILINGS } from "./installed-schema-shape.js";
@@ -51,7 +53,15 @@ export function administrativeArray(value: unknown, maximum: number): readonly u
   });
 }
 
+/** Exact immutable installation capture; policy constants are witnesses, not overrides. */
+export interface DevelopmentContractCapture {
+  readonly artifacts: readonly ContractArtifactEntry[];
+  readonly artifactLimits: ContractArtifactLimits;
+  readonly graphLimits: typeof SCHEMA_GRAPH_CEILINGS;
+  readonly evaluatorLimits: typeof EVALUATOR_CEILINGS;
+}
 export interface DevelopmentContracts {
+  readonly capture: DevelopmentContractCapture;
   readonly identity: string;
   readonly descriptors: readonly TypeDescriptor[];
   readonly types: Readonly<Record<string, string>>;
@@ -125,6 +135,12 @@ export function compileDevelopmentContracts(
     );
   }
   const value: DevelopmentContracts = Object.freeze({
+    capture: Object.freeze({
+      artifacts: captured.artifacts,
+      artifactLimits: captured.receipt.limits,
+      graphLimits: SCHEMA_GRAPH_CEILINGS,
+      evaluatorLimits: EVALUATOR_CEILINGS,
+    }),
     identity: `development-schema5-${createHash("sha256")
       .update(
         stringifyJsonValue({

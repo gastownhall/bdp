@@ -6,6 +6,15 @@ import path from "node:path";
 import { Socket } from "node:net";
 import { TextDecoder } from "node:util";
 import { parseCanonicalScope, stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
+import {
+  administrativeArray,
+  administrativeData,
+  compileDevelopmentContracts,
+} from "./development-contracts.js";
+import {
+  CONTRACT_ARTIFACT_CEILINGS,
+  type ContractArtifactLimits,
+} from "./installed-contract-artifact.js";
 import type { HttpResponse } from "./index.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import { openTransactionStore, transactionReceiptMaximum } from "./transaction-store.js";
@@ -25,7 +34,13 @@ export interface TransactionRuntimeOptions {
   readonly directory: string;
   readonly create: boolean;
   readonly port: number;
-  readonly types: readonly TypeDescriptor[];
+  readonly types?: readonly TypeDescriptor[];
+  /** Plain child-process data. Compiled in this module instance, never transported branded. */
+  readonly artifacts?: {
+    readonly descriptors: readonly { readonly retrievalUri: string; readonly utf8: string }[];
+    readonly schemas: readonly { readonly retrievalUri: string; readonly utf8: string }[];
+    readonly limits: ContractArtifactLimits;
+  };
   readonly credentials: readonly {
     readonly token: string;
     readonly principal: string;
@@ -103,6 +118,38 @@ export async function startTransactionRuntime(
   let handler: ReturnType<typeof createTransactionHttpHandler> | undefined;
   const configuredScope =
     options.scope === undefined ? undefined : parseCanonicalScope(options.scope);
+  if (options.artifacts !== undefined && !configuredScope)
+    throw new TypeError("compiled transaction artifacts require explicit stable Scope");
+  const compile = () => {
+    const source = administrativeData(options.artifacts, ["descriptors", "schemas", "limits"]);
+    let totalBytes = 0;
+    const artifacts = (value: unknown) =>
+      administrativeArray(value, CONTRACT_ARTIFACT_CEILINGS.submittedArtifacts).map((item) => {
+        const entry = administrativeData(item, ["retrievalUri", "utf8"]);
+        if (
+          typeof entry.utf8 !== "string" ||
+          !entry.utf8.isWellFormed() ||
+          typeof entry.retrievalUri !== "string"
+        )
+          throw new TypeError("plain UTF8 transaction artifact required");
+        const bytes = Buffer.byteLength(entry.utf8);
+        totalBytes += bytes;
+        if (
+          bytes > CONTRACT_ARTIFACT_CEILINGS.artifactBytes ||
+          totalBytes > CONTRACT_ARTIFACT_CEILINGS.totalBytes
+        )
+          throw new TypeError("transaction artifact byte bound");
+        return { retrievalUri: entry.retrievalUri, utf8Bytes: Buffer.from(entry.utf8) };
+      });
+    return compileDevelopmentContracts({
+      descriptors: artifacts(source.descriptors),
+      schemas: artifacts(source.schemas),
+      limits: source.limits as ContractArtifactLimits,
+    });
+  };
+  const contracts = options.artifacts === undefined ? undefined : compile();
+  const types = options.types === undefined ? contracts?.descriptors : options.types;
+  if (!types) throw new TypeError("transaction Type inventory required");
   let listenUrl = "";
   let scope = "",
     closing = false;
@@ -230,7 +277,8 @@ export async function startTransactionRuntime(
       file: path.join(options.directory, "transaction.sqlite"),
       scope,
       create: options.create,
-      types: options.types,
+      types,
+      ...(contracts ? { contracts } : {}),
       receiptMaximumItems,
       ...(seams.maintenanceIntervalMs === undefined
         ? {}
