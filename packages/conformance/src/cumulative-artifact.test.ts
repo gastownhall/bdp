@@ -172,6 +172,7 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
     "read-update.alias.put-creates",
     "read-update.alias.put-repoints",
     "read-update.alias.no-version-minted",
+    "read-update.sequence.member-problem-shape",
   ]);
   expect(inventory.rows.map((row) => row.id)).toEqual(selected.required.map((row) => row.id));
   for (const row of inventory.rows) {
@@ -263,6 +264,39 @@ it("bounds only private cumulative manifests at 4 MiB and retains ordinary sourc
         }),
       ).toThrow("manifest source must not exceed 1048576 bytes");
   }
+  for (const [profile, history] of [
+    ["read", false],
+    ["read-update", true],
+    ["transactional", false],
+  ] as const) {
+    const otherSelection = loadProfileContractSelection(profile, history);
+    const otherConfiguration = bindServedProfileConfiguration({
+      scope: "https://example.invalid/",
+      profile,
+      history,
+      sourceCommit: "a".repeat(40),
+      installedPayloadDigest: "b".repeat(64),
+      installedContractsDigest: "c".repeat(64),
+      policyDigest: "d".repeat(64),
+      authenticationDigest: "e".repeat(64),
+      fixture: fixtureSource,
+    });
+    expect(() =>
+      planProfileExecution(otherSelection, otherConfiguration, {
+        configuration: otherConfiguration,
+        manifest: padded(1_048_577),
+      }),
+    ).toThrow("manifest source must not exceed 1048576 bytes");
+  }
+  const legacy = structuredClone(manifest);
+  legacy.manifestVersion = 1;
+  Reflect.deleteProperty(legacy.scenarios[0]!.requests[0]!, "raw");
+  expect(() =>
+    planProfileExecution(selection, configuration, {
+      configuration,
+      manifest: { bytes: Buffer.from(JSON.stringify(legacy).padEnd(1_048_577, " ")) },
+    }),
+  ).toThrow("manifest source must not exceed 1048576 bytes");
   const oversized = padded(4_194_305);
   expect(() =>
     createCumulativeReadUpdateArtifactBundle(selection, {

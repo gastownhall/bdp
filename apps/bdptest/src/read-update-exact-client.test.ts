@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+import { once } from "node:events";
 import { expect, it, vi } from "vitest";
 import { createInstalledExactClient } from "../test-support/read-update-exact-client.js";
 import type { ExactHttpModeOptions, ScenarioActionExecution } from "@bdp/conformance";
@@ -98,4 +100,73 @@ it("refuses missing revision captures before dialing or credential resolution", 
     }),
   ).rejects.toThrow("observed string");
   expect(resolveCredentials).not.toHaveBeenCalled();
+});
+
+it("serializes omitted versus supplied carrier keys without fabricating a header", async () => {
+  const keys: (string | string[] | undefined)[] = [];
+  const server = createServer((request, response) => {
+    keys.push(request.headers["idempotency-key"]);
+    request.resume();
+    response.setHeader("content-type", "application/json");
+    response.end("{}");
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") throw Error("listener missing");
+    const target = `${scope}operations/sequence`;
+    const mode: ExactHttpModeOptions = {
+      scope,
+      profile: "read-update",
+      routes: [{ method: "POST", url: target }],
+      maximumRequestHeaderBytes: 1024,
+      maximumRequestBodyBytes: 1024,
+      defaultCredentialRef: "anonymous",
+      credentialHandles: [{ id: "anonymous", headerNames: [] }],
+      resolveCredentials: () => ({}),
+    };
+    const execute = createInstalledExactClient(
+      mode,
+      { transport: "plain", host: "127.0.0.1", port: address.port },
+      () => {},
+    );
+    for (const idempotencyKey of [undefined, "supplied-key"])
+      await execute({
+        family: "client",
+        operation: "installed.exact-request",
+        scope,
+        bindings: { target },
+        input: {
+          method: "POST",
+          targetBinding: "target",
+          body: { operations: [] },
+          credentialRef: "anonymous",
+          ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+        },
+        signal: new AbortController().signal,
+      });
+    expect(keys).toEqual([undefined, "supplied-key"]);
+    await expect(
+      execute({
+        family: "client",
+        operation: "installed.exact-request",
+        scope,
+        bindings: { target },
+        input: {
+          method: "POST",
+          targetBinding: "target",
+          body: { operations: [] },
+          credentialRef: "anonymous",
+          idempotencyKey: "",
+        },
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow("observed string");
+    expect(keys).toHaveLength(2);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
 });
