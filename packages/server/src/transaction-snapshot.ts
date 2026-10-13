@@ -242,15 +242,23 @@ export function transactionSnapshotStorage(
         Number(bound.dispositionBytes ?? 0) <= limits.dispositionBytes,
       "issuance ledger bound",
     );
-    // SQL scans bounded compact history without decoding it into JS. A forged
-    // expired flag must not hide promised detail or bypass the live budget.
-    // Cold, detail-free expired commitments remain validated on direct lookup.
+    // Parse the expiry classification once per compact row, before detail or
+    // live queries rely on it. Malformed JSON is also a SQLite integrity error.
     integrity(
       !statement(
-        "SELECT id FROM snapshots WHERE json_type(disposition,'$.expired') IS NULL OR json_type(disposition,'$.expired') NOT IN ('true','false') OR (json_extract(disposition,'$.expired')=1 AND (EXISTS(SELECT 1 FROM snapshot_records WHERE snapshot=snapshots.id) OR EXISTS(SELECT 1 FROM snapshot_pages WHERE snapshot=snapshots.id))) LIMIT 1",
+        "SELECT id FROM snapshots WHERE ifnull(json_type(disposition,'$.expired'),'?') NOT IN ('true','false') LIMIT 1",
       ).get(),
-      "expiry classification or expired detail",
+      "expiry classification",
     );
+    // Drive the reverse integrity check from distinct retained-detail owners.
+    // Empty historical rows incur no detail probes; all detail for one handle
+    // shares a single parent lookup per table, using the snapshot-prefix index.
+    for (const sql of [
+      "SELECT snapshot FROM (SELECT DISTINCT snapshot FROM snapshot_records) AS detail WHERE ifnull((SELECT json_extract(disposition,'$.expired') FROM snapshots WHERE id=detail.snapshot),1)=1 LIMIT 1",
+      "SELECT snapshot FROM (SELECT DISTINCT snapshot FROM snapshot_pages) AS detail WHERE ifnull((SELECT json_extract(disposition,'$.expired') FROM snapshots WHERE id=detail.snapshot),1)=1 LIMIT 1",
+    ])
+      integrity(!statement(sql).get(), "orphaned or expired detail");
+    // Cold, detail-free expired commitments remain validated on direct lookup.
     return Number(bound.count);
   }
   function expire(now: number, context: TransactionReadContext) {
@@ -282,7 +290,7 @@ export function transactionSnapshotStorage(
     }
   }
 
-  function liveLedger(context: TransactionReadContext) {
+  function liveLedger(now: number, context: TransactionReadContext) {
     // Expiry has already run in this owner entry. Bound the returned live set
     // before materializing dispositions; expired identities stay lookup-only.
     const rows = statement(
@@ -291,7 +299,11 @@ export function transactionSnapshotStorage(
     integrity(rows.length <= limits.liveHandles, "live issuance ledger exceeds bound");
     return rows.map((row) => {
       integrity(typeof row.id === "string" && idPattern.test(row.id), "issued identity");
-      return { id: row.id, d: disposition(row.id, context)! };
+      const d = disposition(row.id, context)!;
+      // The owner must commit expire(now, context) before capture with the same
+      // instant. Never silently filter retained detail out of the live budget.
+      integrity(now <= d.expires, "capture requires completed expiry at its instant");
+      return { id: row.id, d };
     });
   }
   function record(id: string, kind: Kind): { body: string; value: ResourceRecord } {
@@ -587,7 +599,7 @@ export function transactionSnapshotStorage(
       // Refuse permanent exhaustion before parsing even the live subset.
       if (ledgerBounds() >= limits.issuedHandles)
         throw new TransactionSnapshotFailure("limit-exceeded");
-      const live = liveLedger(context);
+      const live = liveLedger(now, context);
       const totals = statement(
         "SELECT count(*) AS count,coalesce(sum(length(CAST(body AS BLOB))),0) AS bytes,coalesce(sum(length(CAST(id AS BLOB))),0) AS idBytes FROM resources",
       ).get()!;

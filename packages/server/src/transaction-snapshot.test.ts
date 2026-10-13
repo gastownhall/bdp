@@ -19,6 +19,7 @@ import {
   TRANSACTION_SNAPSHOT_LIMITS as limits,
   TransactionSnapshotFailure,
   transactionSnapshotUrl,
+  transactionSnapshotStorage,
   type TransactionSnapshotManifest,
   type TransactionSnapshotPage,
 } from "./transaction-snapshot.js";
@@ -612,7 +613,30 @@ it("permanent 65536 issued-identity bound refuses new issuance even after all de
     db.exec("COMMIT");
   });
   f.setTime(1300001);
-  problem(() => f.owner.captureSnapshot(), "limit-exceeded");
+  const prepared: string[] = [];
+  const originalPrepare = DatabaseSync.prototype.prepare;
+  const prepareSpy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql: string,
+  ) {
+    prepared.push(sql);
+    return originalPrepare.call(this, sql);
+  });
+  try {
+    problem(() => f.owner.captureSnapshot(), "limit-exceeded");
+    const expirySql = prepared.filter((sql) => !sql.includes(" FROM metadata "));
+    expect(expirySql.filter((sql, index) => expirySql.indexOf(sql) !== index)).toEqual([]);
+    // The loop really expired the entire fixture, including its page records;
+    // each newly used mutation statement was compiled exactly once.
+    for (const sql of [
+      "UPDATE snapshots SET disposition=? WHERE id=?",
+      "DELETE FROM snapshot_records WHERE snapshot=?",
+      "DELETE FROM snapshot_pages WHERE snapshot=?",
+    ])
+      expect(prepared.filter((query) => query === sql)).toHaveLength(1);
+  } finally {
+    prepareSpy.mockRestore();
+  }
   // Expiry work was paid once. Repeated permanent-cap refusal must not parse
   // the entire retained issuance history to discover that it is full.
   const parse = vi.spyOn(JSON, "parse");
@@ -1028,4 +1052,97 @@ it("validates a cold expired commitment on lookup without decoding all cold hist
   // Cold hash corruption is detected on lookup, not eagerly on unrelated capture.
   expect(f.owner.captureSnapshot().manifest.beads.items).toEqual([]);
   expect(() => f.owner.readSnapshot(handle(sample))).toThrow("disposition commitment");
+});
+
+it.each(["records", "pages"])(
+  "rejects orphaned %s before pending recovery without modifying the file",
+  (detail) => {
+    const f = fixture();
+    f.run([create("a")]);
+    const sample = f.owner.captureSnapshot().manifest;
+    expect(
+      f.owner.admit(
+        "p",
+        "orphan-pending",
+        prepareTransactionSetCore(scope, JSON.stringify({ operations: [create("b")] })),
+      ).kind,
+    ).toBe("owned");
+    f.owner.close();
+    const db = new DatabaseSync(f.options.file);
+    db.prepare("DELETE FROM snapshots WHERE id=?").run(handle(sample));
+    db.exec(detail === "records" ? "DELETE FROM snapshot_pages" : "DELETE FROM snapshot_records");
+    db.close();
+    const before = readFileSync(f.options.file);
+    expect(() => openTransactionStore({ ...f.options, create: false })).toThrow(
+      "orphaned or expired detail",
+    );
+    expect(readFileSync(f.options.file)).toEqual(before);
+    const inspect = new DatabaseSync(f.options.file);
+    try {
+      expect(
+        inspect.prepare("SELECT count(*) AS n FROM receipts WHERE owner IS NOT NULL").get()?.n,
+      ).toBe(1);
+      expect(inspect.prepare(`SELECT count(*) AS n FROM snapshot_${detail}`).get()?.n).toBe(
+        detail === "records" ? 1 : 2,
+      );
+    } finally {
+      inspect.close();
+    }
+  },
+);
+
+it("asserts the internal expiry-before-capture precondition instead of ignoring retained expired detail", () => {
+  const f = fixture();
+  const sample = f.owner.captureSnapshot().manifest;
+  const context = {
+    scopeEpoch: sample.scopeEpoch,
+    authorizationView: sample.authorizationView,
+    scopePosition: sample.scopePosition,
+  };
+  f.owner.close();
+  const db = new DatabaseSync(f.options.file);
+  try {
+    // Deliberately bypass the owner only to test its internal helper precondition.
+    // Public owner capture runs expiry first with the identical captured instant.
+    const support = transactionSnapshotStorage(db, scope, types);
+    db.exec("BEGIN");
+    expect(() => support.capture(1300001, context)).toThrow(
+      "capture requires completed expiry at its instant",
+    );
+    expect(db.prepare("SELECT count(*) AS n FROM snapshots").get()?.n).toBe(1);
+    expect(db.prepare("SELECT count(*) AS n FROM snapshot_pages").get()?.n).toBe(2);
+    db.exec("ROLLBACK");
+  } finally {
+    db.close();
+  }
+  f.reopen();
+  f.setTime(1300001);
+  expect(f.owner.captureSnapshot().manifest.beads.items).toEqual([]);
+  problem(() => f.owner.readSnapshot(handle(sample)), "cursor-expired");
+});
+
+it("continues to refuse impossible excess live handles as integrity corruption", () => {
+  const f = fixture();
+  const sample = f.owner.captureSnapshot().manifest;
+  f.offline((db) => {
+    const { binding: _binding, ...unsigned } = JSON.parse(
+      String(
+        db.prepare("SELECT disposition FROM snapshots WHERE id=?").get(handle(sample))?.disposition,
+      ),
+    );
+    const insert = db.prepare("INSERT INTO snapshots VALUES(?,?)");
+    for (let n = 0; n < limits.liveHandles; n++) {
+      const id = randomUUID();
+      insert.run(
+        id,
+        stringifyJsonValue({
+          ...unsigned,
+          binding: createHash("sha256")
+            .update(stringifyJsonValue([id, unsigned]))
+            .digest("hex"),
+        }),
+      );
+    }
+  });
+  expect(() => f.owner.captureSnapshot()).toThrow("live issuance ledger exceeds bound");
 });

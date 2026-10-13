@@ -480,6 +480,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     return enter(() => atomic(() => sweep(instant())));
   }
   let recoveredPending: number;
+  // Assigned in the synchronous provisioning transaction before any context use.
+  let epoch!: string;
   try {
     db.exec(
       "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; PRAGMA locking_mode=EXCLUSIVE; PRAGMA busy_timeout=0",
@@ -514,6 +516,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         )
           throw new Error("transaction contract capture mismatch");
       }
+      // Immutable for this exclusive owner; establish it before the first sweep.
+      epoch = metadata("epoch");
       const retracted = Number(
         db.prepare("DELETE FROM receipts WHERE owner IS NOT NULL").run().changes,
       );
@@ -526,7 +530,6 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     if (options.create) unlinkSync(options.file);
     throw error;
   }
-  const epoch = metadata("epoch");
   // Immutable installation facts are the same ones used by mutation evaluation.
   // No named policy registry exists in this fixed all-visible development owner.
   const readConfiguration = Object.freeze({
@@ -549,7 +552,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     if (!/^(0|[1-9][0-9]*)$/.test(position) || !Number.isSafeInteger(Number(position)))
       throw new Error("invalid transaction read position");
     return Object.freeze({
-      scopeEpoch: metadata("epoch"),
+      scopeEpoch: epoch,
       authorizationView: view,
       scopePosition: `pos-${position}`,
     });

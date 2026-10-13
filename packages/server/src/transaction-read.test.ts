@@ -584,8 +584,8 @@ it("checks visible point rows and their minimum in the same entry and leaves the
         .perform(resource("beads/a")),
     ).rejects.toMatchObject({ reason: "behind", context: { scopePosition: "pos-1" } });
     expect(resources).toBeGreaterThan(0);
-    // Each of the two owner entries reads both position and epoch metadata.
-    expect(observations).toBe(4);
+    // Each owner entry reads current position; epoch was captured at installation open.
+    expect(observations).toBe(2);
   } finally {
     spy.mockRestore();
   }
