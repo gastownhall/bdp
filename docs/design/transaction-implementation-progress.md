@@ -788,8 +788,9 @@ process-crash evidence, not power-loss durability.
 
 Set deletion accepts the bundle's revisionProvenance input for either collection.
 Syntax validation reuses the existing deleteLink root, which admits that same input;
-its synthetic Link subject never reaches identity or evaluation. Deleting Beads mints
-no version, so their supplied provenance is inert. Tests cross operation, collection,
+its synthetic Link subject never reaches identity or evaluation. Deletion mints no
+version for either supported collection (Beads and unowned Links), so supplied
+provenance is inert in both. Owned-Link transitions remain unsupported. Tests cross operation, collection,
 cardinality and provenance inputs against the canonical bundle, then execute all four
 operation/collection pairs against the real owner and inspect results and afterstate.
 
@@ -801,3 +802,38 @@ remains all-visible, schema-free and unowned, and owned-source fanout and nonwri
 match behavior remain outside this slice. Negative Selector wire admission remains
 closed. Operation-local failures require an operation index at the type boundary;
 only the currently implemented transaction-wide Event and match limits can omit it.
+
+### Set guard, receipt failure shape and materialization bounds
+
+Cardinality is checked before charging the matched-Resource budget. A failed guard
+retains its operation-local 409 with after-state-change retry, including when the
+same selection exceeds the private match cap. Passing the guard still subjects the
+request to that cap. Tests prove rollback, retained replay across reopen, the cap
+refusal when the guard permits the selection, and fresh-key success after shrinking
+the live collection. Compiler probes require type, status and typed retry on both
+failure branches; the local evaluator boundary refuses missing required receipt
+fields as an integrity failure rather than fabricating them or retaining an invalid
+receipt. Valid evaluator Problems keep their existing fields and values.
+
+The suite now observes the actual 4,096-match default without lowering it: 128 Beads
+matched by 32 no-op sets produce 4,128 flat result entries and no graph effects. A
+129th Bead causes atomic refusal; both dispositions replay after reopen. This is a
+count bound, not a receipt-byte, candidate-scan or authority-lock-duration bound.
+
+Materialization remains a delivery gap requiring a separate design. A disposable
+emitted-owner probe built one 262,144-byte Resource through real mutations, each
+request at most 60,138 bytes, by growing metadata across requests. Its 32 repeated
+no-op matches produced an 8,392,367-byte receipt and replayed after reopen. At 4,096
+matches, just those maximum-sized Resource postimages total 1,073,741,824 bytes,
+before result/envelope overhead. That figure is an arithmetic projection, not an
+attempt to allocate or persist a GiB receipt. It demonstrates that the current count
+and request bounds do not guarantee materializability: full receipt JSON is still
+built, stored and reparsed despite paged serving. No byte condition is relabeled as
+transaction.matchedResources or transaction.mutatedResources; those remain counts.
+The fixed cap stays at 4,096 pending a separate bounded delivery design.
+
+Deferred limitations: candidate enumeration still scans the entire collection and
+repeats local-endpoint visibility reads without a projection cache. The shared
+visibility predicate does not supply Read's checkedGraph body/index integrity
+validation for corrupted rows. This slice changes neither behavior and makes no
+whole-projection equivalence or installed profile qualification claim.

@@ -450,6 +450,30 @@ export interface TransactionStateChange {
     | ResourceRecord
     | { readonly id: string; readonly type: string; readonly revision: string };
 }
+// Restate required receipt fields: mapped Omit over RFC9457's string index
+// signature would erase their requirements. Preserve extension fields explicitly.
+interface BatchProblem {
+  readonly type: string;
+  readonly status: number;
+  readonly retry: ReadUpdateProblem["retry"];
+  readonly diagnostics?: ReadUpdateProblem["diagnostics"];
+  readonly diagnosticsTruncated?: boolean;
+  readonly [key: string]: unknown;
+}
+function receiptProblem(
+  problem: ReadUpdateProblem,
+): BatchProblem & { readonly code: ReadUpdateProblem["code"] } {
+  if (
+    typeof problem.type !== "string" ||
+    typeof problem.status !== "number" ||
+    !Number.isInteger(problem.status) ||
+    problem.status < 100 ||
+    problem.status > 599 ||
+    !["never", "after-state-change", "after-delay"].includes(problem.retry)
+  )
+    throw new Error("evaluator failure lacks required receipt Problem fields");
+  return { ...problem, type: problem.type, status: problem.status };
+}
 export type BatchEvaluation =
   | {
       readonly ok: true;
@@ -459,7 +483,7 @@ export type BatchEvaluation =
     }
   | {
       readonly ok: false;
-      readonly problem: Omit<ReadUpdateProblem, "code"> & {
+      readonly problem: BatchProblem & {
         readonly code: ReadUpdateProblem["code"] | "cardinality-violated";
         readonly operationIndex: number;
         readonly operationName?: string;
@@ -467,7 +491,7 @@ export type BatchEvaluation =
     }
   | {
       readonly ok: false;
-      readonly problem: ReadUpdateProblem & {
+      readonly problem: BatchProblem & {
         readonly code: "limit-exceeded";
         readonly limit: "transaction.inducedEvents" | "transaction.matchedResources";
         readonly operationIndex?: never;
@@ -568,7 +592,7 @@ export function evaluateTransaction(
       return {
         ok: false,
         problem: {
-          ...result.outcome,
+          ...receiptProblem(result.outcome),
           operationIndex,
           ...(op.name ? { operationName: op.name } : {}),
         },
@@ -680,11 +704,6 @@ export function evaluateTransaction(
         )
           .slice()
           .sort((a, b) => compareCanonicalIds(a.id, b.id));
-        // Count selections across operations, including repeat matches and
-        // semantic no-ops, before adding their result entries. Enumeration and
-        // selection above still scan the complete candidate collection.
-        matchedResources += selected.length;
-        if (matchedResources > matchMaximum) throw new MatchExpansionLimit();
         const cardinality = input.cardinality as { min?: number; max?: number } | undefined;
         if (
           (cardinality?.min !== undefined && selected.length < cardinality.min) ||
@@ -700,6 +719,11 @@ export function evaluateTransaction(
               operationIndex,
             },
           };
+        // Count selections across operations, including repeat matches and
+        // semantic no-ops, before adding their result entries. Enumeration and
+        // selection above still scan the complete candidate collection.
+        matchedResources += selected.length;
+        if (matchedResources > matchMaximum) throw new MatchExpansionLimit();
         results.push({ operationIndex, outcome: "matched", count: selected.length });
         for (const resource of selected) {
           const bead = input.collection === "beads";
@@ -773,7 +797,7 @@ export function evaluateTransaction(
           { scope: options.scope, policy: options.aliasPolicy, limits: options.limits },
         );
         if (result.effect === "failure")
-          return { ok: false, problem: { ...result.outcome, operationIndex } };
+          return { ok: false, problem: { ...receiptProblem(result.outcome), operationIndex } };
         results.push({ operationIndex, ...result.outcome });
         continue;
       }
