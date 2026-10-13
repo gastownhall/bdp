@@ -6778,7 +6778,7 @@
       "id": "read-update.idempotency.cross-carrier",
       "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "Row-local retained success/failure replay across singleton and sequence in both directions, changed-input conflict and independent live afterstate; existing local-bindings already observed one cross-carrier conflict. Partial: other operation kinds, expiry, in-flight and authorization variants remain unobserved. Deterministic fixture Problems are compared as whole objects, including the current sequence envelope, so added standard or extension members cannot pass as retained equality.",
+      "reason": "Row-local retained success/failure replay across singleton and sequence in both directions, changed-input conflict and independent live afterstate; existing local-bindings already observed one cross-carrier conflict. Partial: other operation kinds, expiry, in-flight and authorization variants remain unobserved. Deterministic fixture Problems are compared as whole objects, including the current sequence envelope, so added standard or extension members cannot pass as retained equality. The final singleton disposition equals its original complete captured body; a correct retained response plus a spurious extra allocation is not excluded by a collection-state oracle.",
       "bindings": [
         {
           "scenario": "read-update.idempotency.cross-carrier",
@@ -6869,6 +6869,7 @@
             "a-final-replay.retained-body",
             "a-final-replay.created-type",
             "a-final-replay.created-id",
+            "a-final-replay.disposition",
             "b-initial.status",
             "b-initial.written",
             "b-initial.schema",

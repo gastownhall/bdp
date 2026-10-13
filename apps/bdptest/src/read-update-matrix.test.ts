@@ -391,6 +391,9 @@ async function run(
           retryControl?.scenario === currentScenario &&
           retryControl.action === clientAction?.id
         ) {
+          // Positional selection must still identify the exact executed client input.
+          if (clientAction.family !== "client") throw Error("control requires client action");
+          expect(clientAction.input).toEqual(execution.input);
           // Corrupt assertion input only, after the real wire observation was recorded.
           const changed = structuredClone(actual) as Record<string, unknown>;
           let parent = changed;
@@ -1651,12 +1654,41 @@ const retryControls: (RetryControl & { label: string; failed: string })[] = [
     failed: "postimage",
   },
   {
-    label: "changed record is not a conflict",
+    label: "conflict body replaced while HTTP status remains 409",
     scenario: retryRows[1]!,
     action: "b-conflict",
-    path: ["status"],
-    value: 200,
-    failed: "status",
+    path: ["body"],
+    value: {
+      type: "https://github.com/gastownhall/bdp/problems/not-found",
+      code: "resource-not-found",
+      status: 404,
+      retry: "after-state-change",
+    },
+    failed: "complete-problem-body",
+  },
+  {
+    label: "cross-carrier name changed",
+    scenario: retryRows[1]!,
+    action: "a-replay",
+    path: ["body", "results", "0", "operationName"],
+    value: "wrong",
+    failed: "name-0",
+  },
+  {
+    label: "repeated replay changes retained result",
+    scenario: retryRows[0]!,
+    action: "reordered-again",
+    path: ["body", "results", "0", "resource"],
+    binding: "position-b-live",
+    failed: "same-results",
+  },
+  {
+    label: "fresh member GET loses committed value",
+    scenario: retryRows[0]!,
+    action: "d-after",
+    path: ["body", "properties", "n"],
+    value: 0,
+    failed: "postimage",
   },
   {
     label: "conflict overwrites retained image",

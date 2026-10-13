@@ -66818,6 +66818,13 @@
               "pointer": "/body/resource/id",
               "exists": true,
               "equals": "https://reference.invalid/acme/beads/retry-cross-a"
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-disposition"
             }
           ]
         },
