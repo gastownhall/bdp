@@ -442,8 +442,11 @@ async function run(
               retry: "never",
               diagnostics: [{ message: "counterfactual validation refusal" }],
             });
-          if (patchControl === "schema-document")
-            changed.body.diagnostics[0]!.document = "metadata";
+          if (patchControl === "schema-document") {
+            const diagnostic = changed.body.diagnostics[0];
+            if (!diagnostic) throw new Error("schema counterfactual requires a diagnostic");
+            diagnostic.document = "metadata";
+          }
           if (patchControl === "schema-type")
             changed.body.diagnostics[0]!.type = `${scope}types/schema-bead-child`;
           if (patchControl === "schema-keyword")

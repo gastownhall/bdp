@@ -55,6 +55,10 @@ it("pins the complete schema cohort closure, identical schema URIs and canonical
   expect(captured.configuration.contracts.descriptors.filter((d) => shippedIds.has(d.id))).toEqual(
     shippedCapture.configuration.contracts.descriptors,
   );
+  for (const id of shippedIds)
+    expect(captured.configuration.contracts.types[id]).toBe(
+      shippedCapture.configuration.contracts.types[id],
+    );
   expect(captured.configuration.contracts.descriptors).toHaveLength(17);
   expect(captured.schemas).toEqual(
     additions.schemas.map((schema) => ({ uri: schema.retrievalUri, utf8: schema.utf8 })),

@@ -969,7 +969,7 @@
       "id": "read-update.singleton.update-bead",
       "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "Actual properties and metadata updates, metadata non-object refusal with independent unchanged record, guarded semantic no-op, and a row-local child-declared effective parent-schema refusal are observed. Whole=false: remaining full cited patch-section numeric/RFC branches are not independently established by this row.",
+      "reason": "Actual properties and metadata updates, metadata non-object refusal with independent unchanged record, guarded semantic no-op, and a row-local child-declared effective parent-schema refusal are observed. Whole=false: remaining full cited patch-section numeric/RFC branches are not independently established by this row. Properties document omission is an installed choice, not a universal mandatory spelling.",
       "bindings": [
         {
           "scenario": "read-update.singleton.update-bead",
@@ -6828,7 +6828,7 @@
       "id": "read-update.validation.diagnostics",
       "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "Installed child-declared Bead and Link failures identify the exact failing effective Type, authored schema URI and keyword pointer, properties-relative instance location, canonical Problem tuple and observed discovery bounds. Partial: truncation, evaluation order, retained diagnostic compatibility, non-Type causes and semantic message meaning are not established.",
+      "reason": "Installed child-declared Bead and Link failures identify the exact failing effective Type, authored schema URI and keyword pointer, properties-relative instance location, canonical Problem tuple and observed discovery bounds. Partial: truncation, evaluation order, retained diagnostic compatibility, non-Type causes and semantic message meaning are not established. Properties document omission is an installed choice, not a universal mandatory spelling.",
       "bindings": [
         {
           "scenario": "read-update.validation.diagnostics",
