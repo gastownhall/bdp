@@ -206,8 +206,10 @@ export interface ProfileExecutionPlan {
 
 /**
  * Uses the real executable manifest parser; no second action/fixture language.
- * A future runner can execute ready-unexecuted IDs, then record real results
- * separately. Missing applicability is a review obligation, never a waiver.
+ * ready-unexecuted is structural readiness, conditional on the runner enforcing
+ * matching exact transport configuration before observing a non-Read target.
+ * It supplies no execution admission or observation. Missing applicability is a
+ * review obligation, never a waiver.
  */
 export function planProfileExecution(
   selection: ProfileContractSelection,
