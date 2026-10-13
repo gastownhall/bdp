@@ -242,7 +242,6 @@ export function createTransactionService(owner: Owner, options: TransactionServi
             result.kind === "page" &&
             (result.page.results.length < 1 ||
               result.page.results.length > maximum ||
-              !id.startsWith(`${result.page.receipt}/pages/`) ||
               (result.page.next !== null &&
                 (!result.page.next.startsWith(`${result.page.receipt}/pages/`) ||
                   result.page.results.length !== maximum)))
@@ -259,13 +258,18 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         | { readonly kind: "unauthenticated" }
         | { readonly kind: "authenticated"; readonly principal: string },
       id: string,
-      supplied: TransactionMinimum,
-    ): Promise<TransactionServiceReceiptResult> {
+      supplied: TransactionMinimum | "unsupported",
+    ): Promise<TransactionServiceReceiptResult | { readonly kind: "unsupported" }> {
       return run(async () => {
         if (access.kind === "unauthenticated")
           return Object.freeze({ kind: "refused", status: 401, code: "unauthenticated" });
-        const principal = access.principal,
-          minimum = snapshotTransactionMinimum(supplied);
+        const principal = access.principal;
+        if (supplied === "unsupported") {
+          const observed = owner.readReceipt(principal, id, supplied);
+          if ("kind" in observed) return observed;
+          return Object.freeze({ kind: "refused", status: 404, code: "resource-not-found" });
+        }
+        const minimum = snapshotTransactionMinimum(supplied);
         return waitForTransactionMinimum(
           () =>
             receipt(principal, id, minimum) ??

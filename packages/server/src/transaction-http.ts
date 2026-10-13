@@ -333,13 +333,13 @@ export function createTransactionHttpHandler(
           page.context,
         );
       }
-      const result = minimum
-        ? await service.receiptAtMinimum(access, url.href, minimum)
+      const result = hasMinimumControls(request)
+        ? await service.receiptAtMinimum(access, url.href, minimum ?? "unsupported")
         : service.receipt(access, url.href);
       if (result.kind === "refused") return transactionHttpProblem(result.code);
       // Missing barrier support cannot disclose a foreign receipt, nor permit a
       // conditional shortcut to serve an unchecked minimum checkpoint.
-      if (hasMinimumControls(request) && !minimum) return developmentGap("minimum-position");
+      if (result.kind === "unsupported") return developmentGap("minimum-position");
       return receiptResponse(result, false);
     }
     const minimum = hasMinimumControls(request)

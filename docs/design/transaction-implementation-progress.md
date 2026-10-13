@@ -685,15 +685,18 @@ One validated maximum configures store partitioning, the service page bound and
 Read pagination. It defaults to 32; paging tests use maxima 1, 2 and 5 with a valid
 default at or below the maximum. This changes only the new private fixture's page
 setting and makes no change to historical Read evidence. Prior private formats or
-changed installation bounds are refused by a read-only compatibility check before
-opening a writable owner or running recovery/maintenance; no migration or reseed.
+changed installation bounds are refused by the locked configuration check before
+BDP pending retraction, creator cleanup or retention maintenance; no migration or
+reseed. SQLite hot-journal recovery must run before that check can read configuration.
+Normal incompatible files are refused byte-identically; a hot-journal file may first
+be restored by SQLite to its committed state, even if its installation is then refused.
 Recorded missing, overlapping, truncated or wrong-parent chains are service faults,
 never permission to generate replacement handles or truncate results.
 
 Receipt-page reads use current principal/epoch nondisclosure first, then the
 supported minimum context and finite wait, then expiry and representation in the
 same owner entry. Unsupported minimum forms remain a private gap after disclosure
-and before expiry. Known expired pages return 410; unknown/foreign pages return
+and before read-triggered expiry for both roots and pages. Known expired pages return 410; unknown/foreign pages return
 uniform 404. Recorded page identities survive same-epoch process loss and changed
 listener ports with a stable configured Scope. Root/page GET and HEAD retain the
 current observation and normal conditional handling without validators.
@@ -709,3 +712,13 @@ its bounded loopback behavior is not a production concurrency or load qualificat
 This implements paging for existing explicit mutations, not the catalog's large-set
 expansion witness. Sets, installed-contract integration, variable-view/erasure
 projection, replication and truthful full Transactional discovery remain open.
+
+Recovery regressions kill a process inside maintenance and terminal execution,
+not merely after a response. Sixty committed three-result receipts and their page
+URLs survive hot-journal rollback; the terminal crash's pending admission is
+retracted without exposing its uncommitted effects. The terminal fixture reduces
+the real SQLite cache to force dirty-page spill; maintenance uses the ordinary
+cache. These are process-crash witnesses, not physical disk/power-loss testing.
+Concurrent page minimum waits also drain on close while an admitted commit can
+satisfy them. Unsupported root/page controls withhold serving context and do not
+trigger retention; independent maintenance can still expire or forget receipts.
