@@ -61213,6 +61213,103 @@
           ]
         },
         {
+          "id": "media-route-create-bead-corrected-bare",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "create-bead"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "media-route-create-bead-key"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"beads/am-route-create-alt\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"n\":2},\"metadata\":{\"tag\":\"admission\"}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "authored-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "written",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome-0",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 2
+              }
+            },
+            {
+              "id": "metadata-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "admission"
+              }
+            },
+            {
+              "id": "id-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/am-route-create-alt"
+            },
+            {
+              "id": "no-owned-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/ownedLinks",
+              "exists": false
+            }
+          ]
+        },
+        {
           "id": "media-route-create-bead-corrected-0-read",
           "family": "client",
           "operation": "installed.exact-request",
@@ -62164,6 +62261,103 @@
               {
                 "name": "content-type",
                 "value": "application/json; charset=iso-8859-1; arbitrary=ignored"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "media-route-update-bead-key"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"bead\":\"beads/am-update\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/n\",\"value\":3}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "authored-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "written",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome-0",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 3
+              }
+            },
+            {
+              "id": "metadata-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "admission"
+              }
+            },
+            {
+              "id": "id-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/am-update"
+            },
+            {
+              "id": "no-owned-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/ownedLinks",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "media-route-update-bead-corrected-bare",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "update-bead"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
               },
               {
                 "name": "idempotency-key",
@@ -63259,6 +63453,79 @@
           ]
         },
         {
+          "id": "media-route-delete-bead-corrected-bare",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "delete-bead"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "media-route-delete-bead-key"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"bead\":\"beads/am-alt-delete\"}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "authored-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "written",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome-0",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "deleted-id-0",
+              "kind": "json-pointer",
+              "pointer": "/deleted/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/am-alt-delete"
+            },
+            {
+              "id": "deleted-type-0",
+              "kind": "json-pointer",
+              "pointer": "/deleted/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            }
+          ]
+        },
+        {
           "id": "media-route-delete-bead-corrected-0-read",
           "family": "client",
           "operation": "installed.exact-request",
@@ -64139,6 +64406,111 @@
               {
                 "name": "content-type",
                 "value": "application/json; charset=iso-8859-1; arbitrary=ignored"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "media-route-create-link-key"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"id\":\"links/am-route-create-alt\",\"type\":\"https://reference.invalid/acme/types/relates\",\"source\":\"beads/am-source\",\"target\":\"beads/am-target\",\"properties\":{\"edge\":2},\"metadata\":{\"tag\":\"admission\"}}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "authored-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "written",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome-0",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/relates"
+            },
+            {
+              "id": "source-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/am-source"
+            },
+            {
+              "id": "target-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/am-target"
+            },
+            {
+              "id": "properties-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/properties",
+              "exists": true,
+              "equals": {
+                "edge": 2
+              }
+            },
+            {
+              "id": "metadata-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "admission"
+              }
+            },
+            {
+              "id": "id-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/am-route-create-alt"
+            }
+          ]
+        },
+        {
+          "id": "media-route-create-link-corrected-bare",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "create-link"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
               },
               {
                 "name": "idempotency-key",
@@ -65282,6 +65654,111 @@
           ]
         },
         {
+          "id": "media-route-update-link-corrected-bare",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "update-link"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "media-route-update-link-key"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"link\":\"links/am-update\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/edge\",\"value\":3}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "authored-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "written",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome-0",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/relates"
+            },
+            {
+              "id": "source-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/am-source"
+            },
+            {
+              "id": "target-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/am-target"
+            },
+            {
+              "id": "properties-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/properties",
+              "exists": true,
+              "equals": {
+                "edge": 3
+              }
+            },
+            {
+              "id": "metadata-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "admission"
+              }
+            },
+            {
+              "id": "id-0",
+              "kind": "json-pointer",
+              "pointer": "/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/am-update"
+            }
+          ]
+        },
+        {
           "id": "media-route-update-link-corrected-0-read",
           "family": "client",
           "operation": "installed.exact-request",
@@ -66241,6 +66718,79 @@
               {
                 "name": "content-type",
                 "value": "application/json; charset=iso-8859-1; arbitrary=ignored"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "media-route-delete-link-key"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"link\":\"links/am-alt-delete\"}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "authored-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "written",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/mutationResult"
+            },
+            {
+              "id": "outcome-0",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "deleted-id-0",
+              "kind": "json-pointer",
+              "pointer": "/deleted/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/am-alt-delete"
+            },
+            {
+              "id": "deleted-type-0",
+              "kind": "json-pointer",
+              "pointer": "/deleted/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/relates"
+            }
+          ]
+        },
+        {
+          "id": "media-route-delete-link-corrected-bare",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "delete-link"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
               },
               {
                 "name": "idempotency-key",
@@ -67358,6 +67908,76 @@
           ]
         },
         {
+          "id": "media-route-put-alias-corrected-bare",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "put-alias"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "media-route-put-alias-key"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"alias\":\"alias/am-locator-put\",\"target\":\"beads/am-update\"}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "authored-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "written",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/aliasResult"
+            },
+            {
+              "id": "outcome-0",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "alias-0",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "outcome": "updated",
+                "alias": "https://reference.invalid/acme/alias/am-locator-put",
+                "target": "https://reference.invalid/acme/beads/am-update"
+              }
+            }
+          ]
+        },
+        {
           "id": "media-route-put-alias-corrected-0-read",
           "family": "http",
           "method": "GET",
@@ -68405,6 +69025,75 @@
           ]
         },
         {
+          "id": "media-route-delete-alias-corrected-bare",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "delete-alias"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "media-route-delete-alias-key"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"alias\":\"alias/am-locator-alt-delete\"}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "authored-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "written",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/aliasResult"
+            },
+            {
+              "id": "outcome-0",
+              "kind": "json-pointer",
+              "pointer": "/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "alias-0",
+              "kind": "json-pointer",
+              "pointer": "",
+              "exists": true,
+              "equals": {
+                "outcome": "deleted",
+                "alias": "https://reference.invalid/acme/alias/am-locator-alt-delete"
+              }
+            }
+          ]
+        },
+        {
           "id": "media-route-delete-alias-corrected-0-read",
           "family": "http",
           "method": "GET",
@@ -69270,6 +69959,156 @@
               {
                 "name": "content-type",
                 "value": "application/json; charset=iso-8859-1; arbitrary=ignored"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"idempotencyKey\":\"media-route-sequence-0\",\"id\":\"beads/am-seq-0-corrected\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"n\":3},\"metadata\":{\"tag\":\"admission\"}},{\"operation\":\"createBead\",\"idempotencyKey\":\"media-route-sequence-1\",\"id\":\"beads/am-seq-1-corrected\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"n\":3},\"metadata\":{\"tag\":\"admission\"}}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "authored-headers",
+              "kind": "request-authored-headers"
+            },
+            {
+              "id": "authored-body",
+              "kind": "request-authored-body"
+            },
+            {
+              "id": "written",
+              "kind": "request-write-state",
+              "equals": "complete"
+            },
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/sequenceResponse"
+            },
+            {
+              "id": "indices",
+              "kind": "json-array-tuples",
+              "pointer": "/results",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                }
+              ],
+              "equals": [[0], [1]]
+            },
+            {
+              "id": "outcome-0",
+              "kind": "json-pointer",
+              "pointer": "/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/results/0/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties-0",
+              "kind": "json-pointer",
+              "pointer": "/results/0/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 3
+              }
+            },
+            {
+              "id": "metadata-0",
+              "kind": "json-pointer",
+              "pointer": "/results/0/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "admission"
+              }
+            },
+            {
+              "id": "id-0",
+              "kind": "json-pointer",
+              "pointer": "/results/0/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/am-seq-0-corrected"
+            },
+            {
+              "id": "no-owned-0",
+              "kind": "json-pointer",
+              "pointer": "/results/0/resource/ownedLinks",
+              "exists": false
+            },
+            {
+              "id": "outcome-1",
+              "kind": "json-pointer",
+              "pointer": "/results/1/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "type-1",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties-1",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 3
+              }
+            },
+            {
+              "id": "metadata-1",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "admission"
+              }
+            },
+            {
+              "id": "id-1",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/am-seq-1-corrected"
+            },
+            {
+              "id": "no-owned-1",
+              "kind": "json-pointer",
+              "pointer": "/results/1/resource/ownedLinks",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "media-route-sequence-corrected-bare",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "operations",
+            "path": "sequence"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
               }
             ],
             "body": {
