@@ -1,36 +1,28 @@
 /** Source-private loopback fixture. Never selected by installed config/profile
  * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
-import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { Socket } from "node:net";
 import { TextDecoder } from "node:util";
-import { parseCanonicalScope, stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
-import {
-  administrativeArray,
-  administrativeData,
-  compileDevelopmentContracts,
-} from "./development-contracts.js";
-import {
-  CONTRACT_ARTIFACT_CEILINGS,
-  type ContractArtifactLimits,
-} from "./installed-contract-artifact.js";
+import { stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
+import type { ContractArtifactLimits } from "./installed-contract-artifact.js";
+import { captureTransactionRuntimeConfiguration } from "./transaction-runtime-configuration.js";
 import type { HttpResponse } from "./index.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
-import { openTransactionStore, transactionReceiptMaximum } from "./transaction-store.js";
+import { openTransactionStore } from "./transaction-store.js";
 import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
 import { createTransactionService, type TransactionServiceOptions } from "./transaction-service.js";
 import {
   createTransactionHttpHandler,
   transactionHttpProblem,
   TRANSACTION_HTTP_TARGET_BYTES,
-  type TransactionHttpAuthorization,
   type TransactionReceivedBody,
 } from "./transaction-http.js";
 
 export interface TransactionRuntimeOptions {
   /** Stable configured identity; omission is a disposable same-port fixture only. */
   readonly scope?: string;
+  readonly authorityMode?: "listener" | "canonical";
   readonly directory: string;
   readonly create: boolean;
   readonly port: number;
@@ -91,65 +83,12 @@ export async function startTransactionRuntime(
   options: TransactionRuntimeOptions,
   seams: TransactionRuntimeTestSeams = {},
 ) {
-  if (!path.isAbsolute(options.directory) || typeof options.create !== "boolean")
-    throw new TypeError("explicit absolute store directory/provisioning required");
-  if (!Number.isSafeInteger(options.port) || options.port < 0 || options.port > 65535)
-    throw new TypeError("invalid private transaction port");
-  // One detached bound configures all three consumers before owner open/recovery.
-  const receiptMaximumItems = transactionReceiptMaximum(seams.receiptMaximumItems);
-  const defaultItems = Math.min(2, receiptMaximumItems);
-  const credentials = options.credentials.map(({ token, principal, canMutate }) => {
-    if (
-      !/^[A-Za-z0-9_-]{32,256}$/.test(token) ||
-      typeof principal !== "string" ||
-      !principal ||
-      !principal.isWellFormed() ||
-      typeof canMutate !== "boolean"
-    )
-      throw new TypeError("invalid private transaction credential");
-    return Object.freeze({ credential: Buffer.from(`Bearer ${token}`), principal, canMutate });
-  });
-  if (
-    !credentials.length ||
-    new Set(credentials.map(({ credential }) => credential.toString())).size !== credentials.length
-  )
-    throw new TypeError("unique private transaction credentials required");
+  const captured = captureTransactionRuntimeConfiguration(options, seams);
+  const { settings, configuredScope, contracts, types } = captured;
+  const capturedSeams = captured.seams;
   let service: ReturnType<typeof createTransactionService> | undefined;
   let handler: ReturnType<typeof createTransactionHttpHandler> | undefined;
-  const configuredScope =
-    options.scope === undefined ? undefined : parseCanonicalScope(options.scope);
-  if (options.artifacts !== undefined && !configuredScope)
-    throw new TypeError("compiled transaction artifacts require explicit stable Scope");
-  const compile = () => {
-    const source = administrativeData(options.artifacts, ["descriptors", "schemas", "limits"]);
-    let totalBytes = 0;
-    const artifacts = (value: unknown) =>
-      administrativeArray(value, CONTRACT_ARTIFACT_CEILINGS.submittedArtifacts).map((item) => {
-        const entry = administrativeData(item, ["retrievalUri", "utf8"]);
-        if (
-          typeof entry.utf8 !== "string" ||
-          !entry.utf8.isWellFormed() ||
-          typeof entry.retrievalUri !== "string"
-        )
-          throw new TypeError("plain UTF8 transaction artifact required");
-        const bytes = Buffer.byteLength(entry.utf8);
-        totalBytes += bytes;
-        if (
-          bytes > CONTRACT_ARTIFACT_CEILINGS.artifactBytes ||
-          totalBytes > CONTRACT_ARTIFACT_CEILINGS.totalBytes
-        )
-          throw new TypeError("transaction artifact byte bound");
-        return { retrievalUri: entry.retrievalUri, utf8Bytes: Buffer.from(entry.utf8) };
-      });
-    return compileDevelopmentContracts({
-      descriptors: artifacts(source.descriptors),
-      schemas: artifacts(source.schemas),
-      limits: source.limits as ContractArtifactLimits,
-    });
-  };
-  const contracts = options.artifacts === undefined ? undefined : compile();
-  const types = options.types === undefined ? contracts?.descriptors : options.types;
-  if (!types) throw new TypeError("transaction Type inventory required");
+  let configurationMetadata: ReturnType<typeof captured.metadata>;
   let listenUrl = "";
   let scope = "",
     closing = false;
@@ -169,7 +108,8 @@ export async function startTransactionRuntime(
         normalizationSafeRawRequestPath(raw) === undefined ||
         !raw.startsWith("/") ||
         raw.startsWith("//") ||
-        request.headers.host !== new URL(listenUrl).host
+        request.headers.host !==
+          new URL(captured.authorityMode === "canonical" ? scope : listenUrl).host
       ) {
         deliver(response, transactionHttpProblem("malformed-request"));
         return;
@@ -186,19 +126,7 @@ export async function startTransactionRuntime(
       for (let i = 0; i < request.rawHeaders.length; i += 2)
         headers.append(request.rawHeaders[i] ?? "", request.rawHeaders[i + 1] ?? "");
       const supplied = Buffer.from(headers.get("authorization") ?? "");
-      const credential = credentials.find(
-        (entry) =>
-          entry.credential.length === supplied.length &&
-          timingSafeEqual(entry.credential, supplied),
-      );
-      const authorization: TransactionHttpAuthorization =
-        credential === undefined
-          ? { kind: "unauthenticated" }
-          : {
-              kind: "authenticated",
-              principal: credential.principal,
-              canMutate: credential.canMutate,
-            };
+      const authorization = captured.authenticate(supplied);
       const input = new Request(url, { method: request.method ?? "GET", headers });
       const body = request.method === "POST" ? await receive(request) : { text: "" };
       if (closing || response.destroyed) {
@@ -234,7 +162,7 @@ export async function startTransactionRuntime(
       () => pending.delete(task),
     );
   }
-  const server = createServer({ maxHeaderSize: 16 * 1024 }, dispatch);
+  const server = createServer({ maxHeaderSize: settings.transport.maxHeaderSize }, dispatch);
   // Node emits CONNECT separately from ordinary requests. This service never
   // opens a tunnel: the same raw target/method gate determines its refusal.
   server.on("connect", (request, socket) => {
@@ -249,10 +177,19 @@ export async function startTransactionRuntime(
     response.once("error", () => socket.destroy());
     dispatch(request, response);
   });
-  server.requestTimeout = 10000;
-  server.headersTimeout = 10000;
-  server.timeout = 10000;
-  server.keepAliveTimeout = 1000;
+  server.requestTimeout = settings.transport.requestTimeout;
+  server.headersTimeout = settings.transport.headersTimeout;
+  server.timeout = settings.transport.timeout;
+  server.keepAliveTimeout = settings.transport.keepAliveTimeout;
+  for (const key of [
+    "maxHeaderSize",
+    "requestTimeout",
+    "headersTimeout",
+    "timeout",
+    "keepAliveTimeout",
+  ] as const)
+    if (Reflect.get(server, key) !== settings.transport[key])
+      throw new Error("runtime transport configuration mismatch");
   server.on("timeout", (socket) => socket.destroy());
   const closeListener = () =>
     new Promise<void>((resolve, reject) => {
@@ -263,7 +200,7 @@ export async function startTransactionRuntime(
   try {
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
-      server.listen(options.port, "127.0.0.1", () => {
+      server.listen(captured.port, settings.transport.host, () => {
         server.removeListener("error", reject);
         resolve();
       });
@@ -274,48 +211,24 @@ export async function startTransactionRuntime(
     listenUrl = `http://127.0.0.1:${address.port}/`;
     scope = configuredScope ?? new URL("acme/", listenUrl).href;
     owner = openTransactionStore({
-      file: path.join(options.directory, "transaction.sqlite"),
+      file: path.join(captured.directory, "transaction.sqlite"),
       scope,
-      create: options.create,
+      create: captured.create,
       types,
       ...(contracts ? { contracts } : {}),
-      receiptMaximumItems,
-      ...(seams.maintenanceIntervalMs === undefined
-        ? {}
-        : { maintenanceIntervalMs: seams.maintenanceIntervalMs }),
-      ...(seams.clock ? { clock: seams.clock } : {}),
+      receiptMaximumItems: settings.receiptMaximumItems,
+      maintenanceIntervalMs: settings.maintenanceIntervalMs,
+      ...(capturedSeams.clock ? { clock: capturedSeams.clock } : {}),
     });
-    const clock = seams.clock ?? Date.now;
     service = createTransactionService(owner, {
       ownerLifetime: "service",
-      ...(seams.scheduler ? { scheduler: seams.scheduler } : {}),
-      ...(seams.comparison ? { comparison: seams.comparison } : {}),
-      ...(seams.minimumReads ? { minimumReads: seams.minimumReads } : {}),
-      read: {
-        selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
-        advertisedLimits: {
-          page: { defaultItems, maximumItems: receiptMaximumItems },
-          selector: { bytes: 4096, depth: 32, nodes: 256 },
-          cursorTtlMilliseconds: 1000,
-        },
-        pagination: {
-          scope,
-          defaultPageItems: defaultItems,
-          maxPageItems: receiptMaximumItems,
-          cursorTtlMs: 1000,
-          retainedStateCapacity: 100,
-          maxRetainedCursorPositionsPerSnapshot: 20,
-          retainedSnapshotByteCapacity: 1048576,
-          retainedSnapshotNodeCapacity: 100000,
-          maxOpaqueTokenLength: 64,
-          tokenGenerationAttempts: 3,
-          idleCleanup: "on-demand",
-          clock,
-          generateOpaqueToken: () => randomBytes(24).toString("base64url"),
-        },
-      },
+      ...(capturedSeams.scheduler ? { scheduler: capturedSeams.scheduler } : {}),
+      comparison: { budgetMs: settings.comparisonBudgetMs, ...capturedSeams.comparison },
+      minimumReads: { budgetMs: settings.minimumReadBudgetMs, ...capturedSeams.minimumReads },
+      read: captured.readOptions(scope),
     });
-    handler = createTransactionHttpHandler(service, scope, seams.maximumOperations);
+    configurationMetadata = captured.metadata(owner.readConfiguration(), scope);
+    handler = createTransactionHttpHandler(service, scope, capturedSeams.maximumOperations);
   } catch (error) {
     const failures: unknown[] = [error];
     if (server.listening)
@@ -338,6 +251,7 @@ export async function startTransactionRuntime(
   return Object.freeze({
     scope,
     listenUrl,
+    configurationMetadata,
     /** Test-only inventory, not an HTTP Operation Directory. */ targets: handler.targets,
     close(): Promise<void> {
       if (!completion) {
