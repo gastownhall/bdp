@@ -1274,10 +1274,18 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
         const context = readContext(),
           head = Number(context.scopePosition.slice(4));
+        // This owner entry cannot advance while scanning. Refuse/wait before any
+        // group read rather than repeating projection work on every wait attempt.
+        if (minimum !== undefined) checkTransactionMinimum(minimum, context);
         const start = after === undefined ? undefined : parseTransactionEventCursor(after);
         if (start) checkTransactionEventCursor(start, context, source.url);
         let cursorMatched = start === undefined;
         const events: import("./transaction-batch.js").TransactionEvent[] = [];
+        // Keep brackets/envelope once and replace the literal null with each
+        // candidate continuation string. Each Event is serialized exactly once.
+        const envelopeBytes =
+          Buffer.byteLength(json({ source: source.url, events: [], next: null })) - 4;
+        let eventBytes = 0;
         let next: string | null = null;
         const rowAt = db.prepare(
           "SELECT position,length(CAST(body AS BLOB)) AS bytes FROM groups WHERE position>=? AND position<=? ORDER BY position LIMIT 1",
@@ -1317,29 +1325,26 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           }
           for (const event of projected) {
             if (start && p === start.position && event.ordinal <= start.ordinal) continue;
-            const candidate = [...events, event];
-            // Reserve the actual continuation URL even if this is currently last.
-            // No partial Event escapes, and next never names an unreturned Event.
-            const bytes = Buffer.byteLength(
-              json({
-                source: source.url,
-                events: candidate,
-                next: eventContinuation(source.url, event.id),
-              }),
-            );
-            if (candidate.length > receiptMaximumItems || bytes > TRANSACTION_EVENT_PAGE_BYTES) {
+            const candidateBytes =
+              eventBytes + (events.length === 0 ? 0 : 1) + Buffer.byteLength(json(event));
+            // Reserve the exact continuation even if this Event is currently last.
+            const bytes =
+              envelopeBytes +
+              candidateBytes +
+              Buffer.byteLength(json(eventContinuation(source.url, event.id)));
+            if (events.length + 1 > receiptMaximumItems || bytes > TRANSACTION_EVENT_PAGE_BYTES) {
               const last = events.at(-1);
               if (!last) throw new Error("finite Event page cannot hold first retained Event");
               next = eventContinuation(source.url, last.id);
               break;
             }
             events.push(event);
+            eventBytes = candidateBytes;
           }
           if (next !== null) break;
           at = p + 1;
         }
         if (!cursorMatched) throw new TransactionEventParameterError();
-        if (minimum !== undefined) checkTransactionMinimum(minimum, context);
         return Object.freeze({
           kind: "page" as const,
           context,

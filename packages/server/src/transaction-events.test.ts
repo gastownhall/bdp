@@ -12,6 +12,7 @@ import {
 } from "@bdp/protocol";
 import { openTransactionStore } from "./transaction-store.js";
 import { prepareTransaction } from "./transaction-batch.js";
+import * as batch from "./transaction-batch.js";
 import {
   TRANSACTION_EVENT_PAGE_BYTES,
   TRANSACTION_EVENT_GROUP_BYTES,
@@ -20,6 +21,7 @@ import {
   TransactionEventProjectionGap,
   renderTransactionEvent,
   transactionEventRequest,
+  type TransactionEventPage,
 } from "./transaction-events.js";
 import { TransactionMinimumFailure } from "./transaction-consistency.js";
 
@@ -115,7 +117,7 @@ const schema = JSON.parse(
   readFileSync(new URL("../../../schemas/bdp-v0.schema.json", import.meta.url), "utf8"),
 );
 ajv.addSchema(schema);
-const validPage = ajv.compile({ $ref: `${schema.$id}#/$defs/eventPage` });
+const validPage = ajv.compile<TransactionEventPage>({ $ref: `${schema.$id}#/$defs/eventPage` });
 function collect(owner: ReturnType<typeof openTransactionStore>, source: string) {
   const pages = [];
   let after: string | undefined;
@@ -404,11 +406,31 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
       body: JSON.stringify({ operations }),
     });
   try {
-    await post([bead("a"), bead("b"), link()], "seed");
+    const seedResponse = await post([bead("a"), bead("b"), link()], "seed");
+    const seedReceipt = await seedResponse.json();
+    if (
+      !seedReceipt ||
+      typeof seedReceipt !== "object" ||
+      !("id" in seedReceipt) ||
+      typeof seedReceipt.id !== "string"
+    )
+      throw new Error("expected seed receipt identity");
+    for (const route of [
+      "alias/missing?view=events",
+      `${seedReceipt.id}?view=events`,
+      "receipts/missing?view=events",
+    ]) {
+      const refused = await get(route);
+      expect.soft(refused.status, route).toBe(404);
+      expect.soft(await refused.json(), route).toMatchObject({ code: "resource-not-found" });
+    }
     const response = await get("events/"),
       body = await response.json();
     expect(response.status).toBe(200);
-    expect(validPage(body)).toBe(true);
+    if (!validPage(body)) throw new Error(JSON.stringify(validPage.errors));
+    const firstEvent = body.events[0],
+      secondEvent = body.events[1];
+    if (!firstEvent || !secondEvent) throw new Error("expected seeded Event facts");
     expect(response.headers.has("etag")).toBe(false);
     expect(response.headers.has("last-modified")).toBe(false);
     const epoch = response.headers.get("bdp-scope-epoch"),
@@ -450,15 +472,76 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
       expect(r.status).toBe(406);
       expect(await r.text()).toBe("");
     }
+    const correspondingGet = await get("beads/a?view=events");
+    const correspondingText = await correspondingGet.text();
     const head = await get("beads/a?view=events", {}, "HEAD");
     expect(head.status).toBe(200);
+    expect(head.headers.get("content-length")).toBe(String(Buffer.byteLength(correspondingText)));
+    expect(head.headers.get("content-type")).toBe(correspondingGet.headers.get("content-type"));
     expect(await head.text()).toBe("");
+    const neverMember = renderTransactionEvent(
+      { scopeEpoch: epoch, authorizationView: view },
+      `${scope}beads/a?view=events`,
+      "pos-1",
+      secondEvent,
+    );
+    for (const after of ["malformed", firstEvent.id, neverMember.id]) {
+      const route = `beads/a?view=events&after=${encodeURIComponent(after)}`;
+      const invalid = await get(route);
+      expect(invalid.status).toBe(400);
+      expect(await invalid.json()).toMatchObject({ code: "invalid-parameter" });
+      const invalidHead = await get(route, {}, "HEAD");
+      expect(invalidHead.status).toBe(400);
+      expect(await invalidHead.text()).toBe("");
+    }
+    // Existing canonical Resource-path validation refuses this alternate spelling.
+    const noncanonical = await get("beads/%61?view=events");
+    expect(noncanonical.status).toBe(400);
+    expect(await noncanonical.json()).toMatchObject({ code: "invalid-parameter" });
+    for (const route of ["alias/missing?view=events", `${seedReceipt.id}?view=events`]) {
+      for (const method of ["GET", "HEAD"]) {
+        const refused = await get(
+          route,
+          { ...headers, "bdp-minimum-scope-position": "pos-99" },
+          method,
+        );
+        expect(refused.status).toBe(404);
+        if (method === "HEAD") expect(await refused.text()).toBe("");
+      }
+    }
     expect((await get("events/", { origin: "https://other.invalid" })).status).toBe(403);
     expect((await get("events/", { authorization: "" })).status).toBe(401);
     expect((await get("events/", {}, "DELETE")).status).toBe(405);
     await post([remove, { operation: "deleteBead", bead: "beads/a" }], "delete");
     expect((await get("beads/a")).status).toBe(404);
     expect((await get("beads/a?view=events")).status).toBe(200);
+    expect(
+      (await post([bead("c"), bead("d"), link("metadata", "beads/c", "beads/d")], "metadata-seed"))
+        .status,
+    ).toBe(200);
+    expect(
+      (
+        await post(
+          [
+            {
+              operation: "updateLink",
+              link: "links/metadata",
+              metadataChange: [{ op: "add", path: "/note", value: "pending-ruling" }],
+            },
+          ],
+          "metadata-update",
+        )
+      ).status,
+    ).toBe(200);
+    for (const method of ["GET", "HEAD"]) {
+      const gap = await get("beads/c?view=events", {}, method);
+      expect(gap.status).toBe(500);
+      expect(gap.headers.get("x-bdp-development-limit")).toBe("incident-link-metadata");
+      expect(gap.headers.get("x-bdp-development")).toBe("non-attesting");
+      expect(await gap.text()).toBe("");
+    }
+    expect((await get("links/metadata?view=events")).status).toBe(200);
+    expect((await get("events/")).status).toBe(200);
   } finally {
     await runtime.close();
     rmSync(directory, { recursive: true, force: true });
@@ -496,4 +579,133 @@ it("checks the admitted group byte length before selecting its body and proves f
   expect(bodySelected).toBe(false);
   vi.restoreAllMocks();
   expect(collect(f.owner, `${scope}events/`).events).toHaveLength(1);
+});
+
+it("checks minimum position before any retained group scan or body materialization", () => {
+  const f = fixture();
+  f.run([bead("a")]);
+  const current = f.owner.readEvents(`${scope}events/`);
+  if (current.kind !== "page") throw new Error("expected page");
+  const prepare = DatabaseSync.prototype.prepare;
+  let groupReads = 0;
+  vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql,
+  ) {
+    if (/FROM groups/.test(sql)) groupReads++;
+    return prepare.call(this, sql);
+  });
+  expect(() =>
+    f.owner.readEvents(`${scope}events/`, undefined, {
+      scopeEpoch: current.context.scopeEpoch,
+      authorizationView: current.context.authorizationView,
+      minimumPosition: "pos-2",
+    }),
+  ).toThrow(expect.objectContaining({ reason: "behind" }));
+  expect(groupReads).toBe(0);
+});
+
+it("continues a Resource cursor across groups with zero contributions and observes the true end", () => {
+  const f = fixture();
+  f.run([bead("a"), bead("b")]);
+  const source = `${scope}beads/a?view=events`;
+  const first = collect(f.owner, source).events[0];
+  if (!first) throw new Error("expected a created fact");
+  for (let n = 1; n <= 12; n++) {
+    expect(
+      f.run([
+        {
+          operation: "updateBead",
+          bead: "beads/b",
+          propertiesChange: [{ op: "replace", path: "/n", value: n }],
+        },
+      ]).status,
+    ).toBe("completed");
+  }
+  expect(f.owner.readEvents(source, first.id)).toMatchObject({
+    kind: "page",
+    page: { source, events: [], next: null },
+    context: { scopePosition: "pos-13" },
+  });
+  f.run([
+    {
+      operation: "updateBead",
+      bead: "beads/a",
+      propertiesChange: [{ op: "replace", path: "/n", value: 1 }],
+    },
+  ]);
+  expect(f.owner.readEvents(source, first.id)).toMatchObject({
+    kind: "page",
+    page: {
+      events: [
+        expect.objectContaining({ subject: `${scope}beads/a`, type: "updated", ordinal: 0 }),
+      ],
+      next: null,
+    },
+    context: { scopePosition: "pos-14" },
+  });
+});
+
+it.each(["missing", "context", "ordinal"] as const)(
+  "refuses retained group %s corruption without changing the valid owner",
+  (fault) => {
+    const f = fixture();
+    f.run([bead("a")]);
+    const before = collect(f.owner, `${scope}events/`);
+    const prepare = DatabaseSync.prototype.prepare;
+    vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql,
+    ) {
+      const statement = prepare.call(this, sql);
+      if (fault === "missing" && sql.includes("length(CAST(body AS BLOB)) AS bytes"))
+        vi.spyOn(statement, "get").mockReturnValue(undefined);
+      if (fault !== "missing" && sql === "SELECT body FROM groups WHERE position=?") {
+        const get = statement.get.bind(statement);
+        vi.spyOn(statement, "get").mockImplementation((...args) => {
+          const row = get(...args);
+          const group = JSON.parse(String(row?.body));
+          if (fault === "context") group.scopeEpoch = "wrong";
+          else group.events[0].ordinal = 999;
+          return { body: JSON.stringify(group) };
+        });
+      }
+      return statement;
+    });
+    expect(() => f.owner.readEvents(`${scope}events/`)).toThrow(
+      fault === "missing"
+        ? "missing retained Event group"
+        : fault === "context"
+          ? "retained Event group context mismatch"
+          : "invalid retained Event framing",
+    );
+    vi.restoreAllMocks();
+    expect(collect(f.owner, `${scope}events/`)).toEqual(before);
+  },
+);
+
+it("accounts exact UTF8 and escaped Event bytes once rather than repeatedly serializing a growing page", () => {
+  const f = fixture(scope, false, 64);
+  for (let n = 0; n < 20; n++) {
+    expect(f.run([{ ...bead(`b${n}`), properties: { text: '\"\\\n🦄'.repeat(100) } }]).status).toBe(
+      "completed",
+    );
+  }
+  const serializer = vi.spyOn(batch, "transactionStorageText");
+  const result = f.owner.readEvents(`${scope}events/`);
+  if (result.kind !== "page") throw new Error("expected page");
+  expect(result.page.events).toHaveLength(20);
+  const fullPageSerializations = serializer.mock.calls.filter(
+    ([value]) => value && typeof value === "object" && "events" in value,
+  );
+  expect(fullPageSerializations).toHaveLength(1);
+  expect(fullPageSerializations[0]?.[0]).toMatchObject({ events: [], next: null });
+  const eventSerializations = serializer.mock.calls.filter(
+    ([value]) => value && typeof value === "object" && "ordinal" in value,
+  );
+  expect(eventSerializations).toHaveLength(20);
+  expect(Buffer.byteLength(stringifyJsonValue(result.page))).toBeLessThan(
+    TRANSACTION_EVENT_PAGE_BYTES,
+  );
+  expect(validPage(result.page)).toBe(true);
 });

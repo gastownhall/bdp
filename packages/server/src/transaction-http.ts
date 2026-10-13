@@ -315,7 +315,14 @@ export function createTransactionHttpHandler(
       });
     }
     if (authorization.kind === "unauthenticated") return transactionHttpProblem("unauthenticated");
-    const eventRequest = transactionEventRequest(url, scope);
+    // Alias query refusals and receipt identity checks own these routes, even
+    // when a query happens to spell view=events. Do not reclassify them as Events.
+    const alias = classifyAliasPath(url, scope);
+    if (alias !== undefined && typeof alias !== "string") return problem(alias);
+    const receiptRoute =
+      url.pathname.startsWith(`${scopeUrl.pathname}receipts/`) ||
+      url.pathname === `${scopeUrl.pathname}receipts`;
+    const eventRequest = receiptRoute ? undefined : transactionEventRequest(url, scope);
     if (eventRequest) {
       const minimum = hasMinimumControls(request)
         ? (transactionMinimumHeaders(request.headers) ?? "unsupported")
@@ -330,10 +337,7 @@ export function createTransactionHttpHandler(
       if (observed.kind === "unsupported") return developmentGap("minimum-position");
       return context(jsonResponse(observed.page), observed.context);
     }
-    if (
-      url.pathname.startsWith(`${scopeUrl.pathname}receipts/`) ||
-      url.pathname === `${scopeUrl.pathname}receipts`
-    ) {
+    if (receiptRoute) {
       const minimum = hasMinimumControls(request)
         ? transactionMinimumHeaders(request.headers)
         : undefined;
