@@ -552,3 +552,67 @@ it("binds credentials through the versioned credential domain without asserting 
   // claim; installed evidence must generate credentials with a CSPRNG.
   expect((await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(200);
 });
+
+it("hashes actual stream defaults and all four transport timers; timing seams remain unattestable", async () => {
+  const options = fixture(),
+    captured = captureTransactionRuntimeConfiguration(options);
+  expect(captured.settings.changefeedStream).toEqual({
+    pollMilliseconds: 100,
+    heartbeatMilliseconds: 5000,
+    maximumStreams: 1,
+  });
+  expect(captured.settings.transport).toMatchObject({
+    requestTimeout: 10000,
+    headersTimeout: 10000,
+    timeout: 10000,
+    keepAliveTimeout: 1000,
+  });
+  expect(Object.isFrozen(captured.settings.changefeedStream)).toBe(true);
+  expect(captured.settings.eventStream).toEqual({
+    maximumGroupsPerObservation: 1,
+    packetBytes: 4194304,
+  });
+  expect(Object.isFrozen(captured.settings.eventStream)).toBe(true);
+  const runtime = await startTransactionRuntime(options, { transport: { timeout: 100 } });
+  cleanup.push(() => runtime.close());
+  expect(runtime.configurationMetadata).toBeUndefined();
+  for (const transport of [
+    { timeout: 0 },
+    { timeout: undefined },
+    { headersTimeout: 20000 },
+    { unknown: 1 },
+  ])
+    expect(() =>
+      captureTransactionRuntimeConfiguration(options, { transport } as TransactionRuntimeTestSeams),
+    ).toThrow();
+  const getter = {
+    get timeout(): number {
+      throw Error("executed getter");
+    },
+  };
+  expect(() => captureTransactionRuntimeConfiguration(options, { transport: getter })).toThrow(
+    "own-data",
+  );
+});
+
+it("effective stream availability preserves finite-only idle seams at the strict boundary", () => {
+  const options = fixture();
+  for (const [timeout, available] of [
+    [100, false],
+    [5000, false],
+    [5001, true],
+  ] as const) {
+    const captured = captureTransactionRuntimeConfiguration(options, { transport: { timeout } });
+    expect(captured.liveStreamsAvailable).toBe(available);
+    expect(captured.settings.transport.timeout).toBe(timeout);
+    expect(captured.settings.changefeedStream).toEqual(
+      TRANSACTION_RUNTIME_DEFAULTS.changefeedStream,
+    );
+    expect(Object.isFrozen(captured.settings.changefeedStream)).toBe(true);
+    expect(captured.settings.eventStream).toEqual({
+      maximumGroupsPerObservation: 1,
+      packetBytes: 4194304,
+    });
+    expect(Object.isFrozen(captured.settings.eventStream)).toBe(true);
+  }
+});

@@ -25,9 +25,12 @@ import {
 import type {
   openTransactionStore,
   TransactionReadContext,
+  TransactionEventScan,
   TransactionReceipt,
   TransactionReceiptPage,
 } from "./transaction-store.js";
+
+export class TransactionStreamCapacityError extends Error {}
 
 type Owner = ReturnType<typeof openTransactionStore>;
 type ReceiptObservation = {
@@ -51,6 +54,7 @@ export interface TransactionServiceOptions {
   /** Existing finite comparison policy; never a fresh deadline on each retry. */
   readonly comparison?: Parameters<typeof submitTransaction>[2];
   readonly minimumReads?: TransactionMinimumWaitOptions;
+  readonly maximumStreams?: number;
 }
 
 export function createTransactionService(owner: Owner, options: TransactionServiceOptions) {
@@ -68,6 +72,10 @@ export function createTransactionService(owner: Owner, options: TransactionServi
   const minimumReads = Object.freeze({ ...options.minimumReads });
   const read = createTransactionReadPlane(owner, options.read);
   const active = new Set<Promise<unknown>>();
+  const maximumStreams = options.maximumStreams ?? 1;
+  if (!Number.isSafeInteger(maximumStreams) || maximumStreams < 1)
+    throw new TypeError("invalid private stream capacity");
+  const streams = new Map<AbortController, Promise<void>>();
   let accepting = true;
   let cleanupFailure: AggregateError | undefined;
   let closing: Promise<void> | undefined;
@@ -190,6 +198,30 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     }
   }
   return Object.freeze({
+    /** Separate cancellable lifetime, never an infinite finite-work drain. The
+     * callback starts only after capacity registration and abort wiring. */
+    stream(start: (signal: AbortSignal) => Promise<void>, supplied: AbortSignal): Promise<void> {
+      check();
+      if (supplied.aborted) return Promise.reject(supplied.reason);
+      if (streams.size >= maximumStreams)
+        throw new TransactionStreamCapacityError("private live stream capacity reached");
+      const controller = new AbortController();
+      const abort = () => controller.abort(supplied.reason);
+      supplied.addEventListener("abort", abort, { once: true });
+      const task = Promise.withResolvers<void>();
+      streams.set(controller, task.promise);
+      const finish = () => {
+        supplied.removeEventListener("abort", abort);
+        streams.delete(controller);
+      };
+      void task.promise.then(finish, finish);
+      try {
+        task.resolve(start(controller.signal));
+      } catch (error) {
+        task.reject(error);
+      }
+      return task.promise;
+    },
     closed: completion.promise,
     /** Actual fixed-owner Read configuration; no Transactional discovery claims. */
     readFor(principal: Parameters<typeof read.readFor>[0]) {
@@ -259,6 +291,31 @@ export function createTransactionService(owner: Owner, options: TransactionServi
           signal,
         ),
       );
+    },
+    beginEvents(
+      source: string,
+      after?: string,
+      supplied?: TransactionMinimum | "unsupported",
+      signal?: AbortSignal,
+      invalidReconnect = false,
+    ) {
+      const minimum =
+        supplied === undefined || supplied === "unsupported"
+          ? supplied
+          : snapshotTransactionMinimum(supplied);
+      return run(() =>
+        waitForTransactionMinimum(
+          () => owner.beginEventScan(source, after, minimum, invalidReconnect),
+          minimumReads,
+          signal,
+        ),
+      );
+    },
+    nextEvents(scan: TransactionEventScan, signal?: AbortSignal) {
+      return run(async () => {
+        signal?.throwIfAborted();
+        return owner.advanceEventScan(scan);
+      });
     },
     receiptPage(
       access:
@@ -396,12 +453,13 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     },
     /** Stop accepting work, drain admitted work even when the client dropped its
      * delivery, then close cursors and this service-owned database. No disconnect
-     * cancellation exists: only authority failures retract remaining claims. */
+     * cancellation of accepted writes exists: stream cancellation is separate. */
     close(): Promise<void> {
       if (closing) return closing;
       accepting = false;
       closing = (async () => {
-        await Promise.allSettled([...active]);
+        for (const controller of streams.keys()) controller.abort(new Error("service shutdown"));
+        await Promise.allSettled([...streams.values(), ...active]);
         const errors: unknown[] = [];
         try {
           await read.close();

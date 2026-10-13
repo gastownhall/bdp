@@ -16,6 +16,11 @@ import {
 import type { TransactionReadContext } from "./transaction-store.js";
 
 export const TRANSACTION_EVENT_PAGE_BYTES = 4 * 1024 * 1024;
+/** Actual private stream mechanics, not public paging limits. */
+export const TRANSACTION_EVENT_STREAM = Object.freeze({
+  maximumGroupsPerObservation: 1,
+  packetBytes: TRANSACTION_EVENT_PAGE_BYTES,
+});
 // Same closed-shape proof as the admitted tuple in the implementation progress
 // document. This bounds encoded group bytes, not parsed object/heap overhead.
 const R = TRANSACTION_RUNTIME_LIMITS.representationBytes,
@@ -36,7 +41,14 @@ export const TRANSACTION_EVENT_FIRST_PAGE_BYTES = 5 * R + N + A + 1024;
 if (TRANSACTION_EVENT_FIRST_PAGE_BYTES > TRANSACTION_EVENT_PAGE_BYTES)
   throw new Error("transaction tuple cannot support the finite Event page budget");
 export class TransactionEventProjectionGap extends Error {}
-export class TransactionEventParameterError extends Error {}
+export class TransactionEventParameterError extends Error {
+  constructor(
+    message?: string,
+    readonly context?: TransactionReadContext,
+  ) {
+    super(message);
+  }
+}
 export interface TransactionEventSource {
   readonly url: string;
   readonly subject?: string;
@@ -87,7 +99,10 @@ export function renderTransactionEvent(
     id: `ev_${hash("epoch", context.scopeEpoch)}_${hash("view", context.authorizationView)}_${hash("source", source)}_${checkpoint}_${event.ordinal}`,
   };
 }
-export function parseTransactionEventCursor(value: string): {
+export function parseTransactionEventCursor(
+  value: string,
+  context?: TransactionReadContext,
+): {
   position: number;
   ordinal: number;
   epoch: string;
@@ -95,11 +110,12 @@ export function parseTransactionEventCursor(value: string): {
   source: string;
 } {
   const match = value.length <= 256 ? cursor.exec(value) : null;
-  if (!match || !ordinal.test(match[5] ?? "")) throw new TransactionEventParameterError();
+  if (!match || !ordinal.test(match[5] ?? ""))
+    throw new TransactionEventParameterError(undefined, context);
   const p = Number(match[4]?.slice(4)),
     o = Number(match[5]);
   if (!Number.isSafeInteger(p) || p < 1 || !Number.isSafeInteger(o) || o < 0)
-    throw new TransactionEventParameterError();
+    throw new TransactionEventParameterError(undefined, context);
   return {
     position: p,
     ordinal: o,
@@ -119,7 +135,8 @@ export function checkTransactionEventCursor(
     throw new TransactionMinimumFailure("cursor-expired", context);
   if (value.view !== hash("view", context.authorizationView))
     throw new TransactionMinimumFailure("foreign-view", context);
-  if (value.source !== hash("source", source)) throw new TransactionEventParameterError();
+  if (value.source !== hash("source", source))
+    throw new TransactionEventParameterError(undefined, context);
 }
 
 /** Undefined means this is not an Event route; malformed Event requests throw. */

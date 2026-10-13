@@ -1244,3 +1244,207 @@ normalization cases pin exact serialized literals as well as the factor-seven bo
 These changes strengthen observations only; no store, runtime or Event implementation
 changed in this follow-up. The default E256 refusal is still not directly observed;
 actual refusal tests use the lowered evaluator cap described above.
+
+## Private changefeed SSE (G2a)
+
+The changefeed route now selects finite JSON or `text/event-stream` using the
+shared HTTP media parser. JSON remains the default and wins equal-quality ties.
+Routing, authentication and same-owner cursor/minimum observations precede
+negotiation refusal and conditional shortcuts. Scope and Resource **Event
+Sources** still refuse SSE-only negotiation with 406; this section supersedes
+only the earlier finite-changefeed SSE limitation.
+
+Every change-group frame uses the same `stringifyJsonValue` serialization as
+finite JSON, with its checkpoint in `id`, `event: change-group`, and a complete
+JSON group in `data`. A `1.0e2` request literal produces the same admitted numeric
+value 100 in both representations; lexical spelling is not retained. The existing
+finite envelope bound 186,334,744 plus 512 framing bytes remains below the pinned
+Node 24 string ceiling. This is arithmetic over the installed M32/E256 limits,
+not a large-allocation or RSS measurement and not a new post-commit refusal.
+
+The URL must still supply exactly `after` or `start=now`. Selected SSE with an
+explicit `after` uses a single `Last-Event-ID` as its effective checkpoint,
+including `genesis`; owner validation sees that effective checkpoint only.
+Finite JSON ignores the header, including malformed/repeated values. A
+header-only request remains 400. The `start=now` plus reconnect-header combination
+remains an explicit private gap, not an inferred new protocol rule. Initial
+`start=now` is captured once through any minimum wait.
+
+A source-private service registry owns cancellable stream lifetimes separately
+from finite accepted work. The private installed defaults are one live stream,
+100 ms polling and 5 s heartbeat comments. They join the runtime configuration hash.
+One complete frame is written at a time; `write(false)` stops further owner reads
+and comments until drain, close, abort or error. Accepting bytes into Node is not
+a durable replica acknowledgement. Client disconnect releases the stream slot;
+shutdown cancels streams, drains accepted finite work, then closes the owner.
+HEAD/304/412 perform the same initial decisions without registering a stream.
+Post-header failure closes the transport rather than appending another HTTP
+response or inventing an error Event.
+
+The existing Node disconnect bridge is shared privately with this runtime.
+Changes/Events minimum waits now receive actual disconnect cancellation. Point
+and receipt waiting behavior is unchanged by this slice. All four transport
+settings remain requestTimeout 10000, headersTimeout 10000, socket timeout 10000 and
+keepAliveTimeout 1000 ms. A closed, own-data **test-only** transport seam permits
+bounded lifecycle observations and suppresses configuration attestation; it is
+not an installed launch option.
+
+`transaction-sse.test.ts` covers actual replay/live/no-op/reconnect traffic,
+minimum anchoring, effective-cursor errors, conditional/HEAD/capacity behavior,
+a real raw response truncated before frame completion, finite minimum disconnect,
+and post-header owner failure. Its shared replica oracle stages owned-Link/source
+agreement and checkpoint publication atomically, including failed publication
+and duplicate replay. Synthetic sink tests distinguish stalled transport from
+SQLite work and verify one pending frame with no queued heartbeat/read-ahead.
+
+`transactional-sse-installed.test.ts` launches the actual selected installed
+module, validates fresh configuration binding, and uses a separate bounded raw
+socket recorder. Its 25 s observation/45 s cohort/10 s cleanup budgets are independent
+of the unchanged finite 5 s executor. It observes at least 15 seconds of continuous
+idle service, comments without IDs, then a later actual mutation. The report
+retains source/payload/configuration identity, exact response bytes/hash, complete
+frame boundaries, Node version and observed timing. Preliminary dirty-source
+runs and final clean tarball evidence remain distinct in the external report.
+This deliberately cut live observation is not labeled a completed finite reply.
+
+Event Source SSE, mutable-view/erasure fencing, set HTTP admission, remaining
+required consistency/discovery work and full profile qualification remain open.
+No public export, schema, catalog credit, profile advertisement or historical
+Read evidence label changes in G2a. `claimEligible` remains false.
+
+
+### G2a review closure
+
+The private pump rejects invalid Node timer values. Default heartbeat cadence must
+be strictly below the socket idle timeout; this is an ordering invariant, not a
+factor-of-two policy. Short transport seams used for finite deadline tests remain
+unattestable and refuse a selected live stream before headers or slot acquisition.
+Their finite and HEAD behavior is preserved, and installed timers remain unchanged.
+
+The runtime retains only its first unexpected post-header stream failure and
+includes that original cause in close-time error aggregation. Capture happens
+before destroying the response can turn the failure into disconnect cancellation.
+Ordinary disconnect, pre-aborted registration and service cancellation remain
+clean shutdown paths. No error Event or second HTTP status is introduced.
+
+The raw SSE recorder now belongs to server test support and is imported by the app
+through the existing source-only testing entry. Finite/SSE comparisons additionally
+check each data payload against raw finite response text, without JSON reserialization
+as the byte oracle. Numeric-like property names are included in the source witness.
+
+The deferred `start=now` plus `Last-Event-ID` gap also blocks automatic EventSource
+reconnect after that initial stream has delivered an Event. The private development
+refusal remains unchanged; this slice makes no browser interoperability claim or
+new protocol ruling for that combination.
+
+
+The final G2a cancellation guard also distinguishes a response already destroyed
+from a still-live response before the queued Node close notification aborts the
+stream signal. A deterministic real-response/microtask witness reproduced the
+false shutdown failure before the guard; genuine owner failures remain retained.
+Capture validates effective pump timer values before serving while preserving
+finite-only short transport seams and their live-stream refusal.
+
+The raw source serialization witness explicitly pins one group in each finite
+page before matching frame indices. Numeric-like key sensitivity belongs to that
+source witness; the installed witness checks raw byte containment with its simpler
+numeric property fixture. Its observer imports source-only server test support,
+while the target remains a separate process loading the exact installed payload.
+
+## Private Event Source SSE owner scan (G2b, owner checkpoint)
+
+The owner now offers source-private immutable scan continuations. Each observation
+projects at most one committed group and carries source/context plus the next
+exclusive ordinal in an owner-local WeakMap. Caught-up observations do not construct
+a group reader. No iterator, parsed group or SQLite transaction escapes, and no
+durable format, public cursor or Event membership rule changes.
+
+Finite reads retain their exact envelope/continuation byte reservation and
+lookahead. The bounded stream packet conservatively reuses that charge. Known-source
+parameter errors can carry the same owner entry's context; early query validation
+and unknown-source nondisclosure remain distinct. HTTP serving and the shared pump
+are subsequent G2b steps; this checkpoint does not enable Event Source SSE.
+
+## Private Event Source SSE serving (G2b)
+
+The subsequent serving slice connects Scope `events/` and retained Bead/Link
+`?view=events` Sources to the same cancellable pump and one-live-stream capacity
+as G2a. Finite JSON keeps its original collector, membership, byte reservation,
+lookahead and `next` behavior. Live delivery uses only the current opaque scan
+successor, adopting it after the packet's last drained frame. The HTTP result
+releases its initial packet after transferring it to the pump. The WeakMap retains
+no enumerable token inventory, parsed group, iterator or transaction.
+
+Each owner observation examines at most one group. A packet that fills in the
+middle of a group retains its exclusive last included ordinal; later facts in
+that group are not skipped. Sparse Sources traverse unrelated groups once per
+live scan. Caught-up idle polling prepares no group reader and performs no group
+body GET. Constant metadata/identity reads and preparations for a newly inspected
+group remain. Multiple packets may reparse the same large group; these are bounded
+packet/group limits, not universal latency or heap promises. Append-only history
+is assumed; already traversed rows are not periodically revalidated for arbitrary
+out-of-owner modifications.
+
+Heartbeat checks remain active during empty historical backlog as well as idle
+polling. Every frame and comment shares one write/drain barrier. A blocked write
+prevents another owner pull or queued heartbeat while leaving the SQLite owner
+available for finite mutations. Event frames use the existing lossless JSON
+serializer; the conservative frame bound is 4 MiB plus 512 bytes, below the pinned
+Node string ceiling. The actual group-step/packet settings enter the private
+runtime configuration digest; all four existing transport/stream timers are
+unchanged.
+
+SSE reconnect accepts one `Last-Event-ID` in place of `after`, including when the
+query omits `after`; JSON ignores that header. Existing query grammar is still
+validated. Known-source cursor errors and stream-capacity refusals preserve the
+original captured entry's context, including when another commit occurs before
+HTTP projection. Authentication, unknown Source and early query errors do not
+acquire such context. HEAD/304/412 validate the observation but allocate no stream
+slot. Deleted Resources remain retained Event Sources while canonical GET is404.
+
+Positive finite/SSE equivalence is restricted to gap-free histories. A metadata-only
+incident-Link update still refuses a Bead Source; Scope and Link projections remain
+available. A live encounter closes the socket without a second response or error
+Event and retains the first genuine cause for close-time reporting. Reconnect from
+the same last complete Event deterministically encounters the same unresolved
+group. This slice does not silently skip that history or settle its membership.
+
+The private installed witness records actual packed Scope/Bead/Link responses and
+raw finite-byte comparisons. A sparse Bead Source with unrelated historical groups
+stays live for at least15 seconds under default timers, emits comments without IDs,
+and then delivers a relevant mutation. Its recorder25s/cohort45s/cleanup10s bounds
+remain separate from finite5s requests. Dirty preliminary runs are distinct from
+final source-bound tarball evidence. The source tests additionally cover self-Link
+ordinals across count/byte boundaries, exact sparse body-read counts, backpressure,
+minimum cancellation, half-frame reconnect, captured error contexts and faults.
+
+No public export, profile advertisement, schema/catalog credit or sealed Read
+evidence changes. Fixed owner epoch/view cannot perform mutable grant transitions;
+foreign/stale cursor and corruption tests do not qualify such transitions. Erasure
+publication fences, set HTTP admission, remaining consistency/discovery obligations
+and complete Transactional qualification remain open. `claimEligible` remains false.
+
+### G2b review closure
+
+The captured one-group Event scan constant is now a structural owner invariant:
+a value other than one refuses module initialization, instead of hashing a bound
+the one-group algorithm does not implement. The sparse owner witness derives
+per-entry body-read and total observation counts from that shared constant.
+`eventStream` contains owner scan/packet bounds only; Event and changefeed pumps
+share `changefeedStream` cadence and live-slot capacity. A deterministic runtime
+interception verifies the Event adapter receives the captured cadence object,
+without treating elapsed timer observations as a settings-binding proof.
+
+The both-valid cursor GET witness uses a later committed marker Event to bound
+observation. A later header cursor suppresses the earlier query suffix; the mirror
+case delivers that suffix. This pins delivered frames in both precedence directions.
+
+Packet lifetime evidence is structural, not a GC or universal heap claim. The
+owner WeakMap value contains source/context/position/ordinal/head and no group
+body. The resolved initial HTTP result transfers its packet to the pump and the
+runtime clears `selected`; the thin adapter returns the pump Promise without
+retaining the input across an await. The pump clears its initial parameter and
+clears each delivered packet before the next heartbeat/poll/pull, retaining only
+its continuation and a prospective successor during advancement. Stream closures
+retain the service and signal, not a registry of prior packets. No WeakRef/forced-GC
+claim or engine-specific release deadline is inferred from those reference chains.
