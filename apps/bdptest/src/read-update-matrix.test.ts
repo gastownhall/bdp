@@ -794,7 +794,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.reportBinding.exactConfigurationDigest).toBe(
     "be0e83fb1663e2fd91b6c5b90b5b18e3ba0b65887b18479b880d9edec88290f9",
   );
-  expect(report.uncoveredIds).toHaveLength(102);
+  expect(report.uncoveredIds).toHaveLength(103);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
   expect(report.sessions).toHaveLength(report.plannedIds.length);
   expect(report.observations.length).toBeGreaterThan(30);

@@ -1303,8 +1303,8 @@
     {
       "id": "read-update.singleton.document-patch-atomicity",
       "status": "bounded-observation",
-      "wholeContract": true,
-      "reason": "Actual same-configuration HTTP mutations, complete normative body schemas, independent static semantic oracles and real GET afterstate. Negative controls must detect returned-body corruption; scoped to the cited row clauses.",
+      "wholeContract": false,
+      "reason": "Actual same-configuration HTTP mutations, complete normative body schemas, independent static semantic oracles and real GET afterstate. Negative controls must detect returned-body corruption; scoped to the cited row clauses. Whole=false: full cited property-change sections also require effective-Type validation, numeric admissibility and patch branches not independently observed by this row; other rows do not supply whole-contract credit.",
       "bindings": [
         {
           "scenario": "read-update.singleton.document-patch-atomicity",
