@@ -164,7 +164,7 @@ interface Row {
   dependency: string | null;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-snapshot-9";
+const format = "bdp-private-transaction-snapshot-10";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
 const identityPolicy = "transaction-revision-provenance-4";
@@ -206,6 +206,7 @@ interface ReceiptPagePlan {
  * Fixed all-visible private policy only; this is not an authentication boundary. */
 export function openTransactionStore(options: TransactionStoreOptions) {
   const scope = parseCanonicalScope(options.scope);
+  const view = "development-all-visible";
   if (Buffer.byteLength(json(`${scope}events/`)) > TRANSACTION_RUNTIME_LIMITS.scopeSourceBytes)
     throw new TypeError("transaction Scope exceeds private materialization bound");
   if (!path.isAbsolute(options.file))
@@ -243,6 +244,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     receiptMaximumItems,
     snapshotLimits: TRANSACTION_SNAPSHOT_LIMITS,
     snapshotTokenPolicy: TRANSACTION_SNAPSHOT_TOKEN_POLICY,
+    authorizationView: view,
     identityPolicy,
     contractIdentity: compiled?.identity ?? null,
     runtimeLimits: TRANSACTION_RUNTIME_LIMITS,
@@ -458,11 +460,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   }
   const snapshots = transactionSnapshotStorage(db, scope, descriptors);
   function sweep(now: number) {
-    snapshots.expire(now, {
-      scopeEpoch: metadata("epoch"),
-      authorizationView: "development-all-visible",
-      scopePosition: `pos-${metadata("position")}`,
-    });
+    snapshots.expire(now, readContext());
     const counts = { completedExpired: 0, failedForgotten: 0 };
     // This private composition has no population/workload qualification. Keep
     // only rows whose detail can expire in the scan; compact receipts stay bound.
@@ -527,8 +525,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     if (options.create) unlinkSync(options.file);
     throw error;
   }
-  const epoch = metadata("epoch"),
-    view = "development-all-visible";
+  const epoch = metadata("epoch");
   // Immutable installation facts are the same ones used by mutation evaluation.
   // No named policy registry exists in this fixed all-visible development owner.
   const readConfiguration = Object.freeze({
@@ -547,7 +544,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     if (!/^(0|[1-9][0-9]*)$/.test(position) || !Number.isSafeInteger(Number(position)))
       throw new Error("invalid transaction read position");
     return Object.freeze({
-      scopeEpoch: epoch,
+      scopeEpoch: metadata("epoch"),
       authorizationView: view,
       scopePosition: `pos-${position}`,
     });

@@ -1,7 +1,7 @@
 /** Source-private durable Snapshot owner support. No HTTP route or admission claim. */
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import type { DatabaseSync } from "node:sqlite";
+import type { DatabaseSync, StatementSync } from "node:sqlite";
 import {
   BDP_PROBLEM_FAMILY_PREFIX,
   compareCanonicalIds,
@@ -150,16 +150,27 @@ export function transactionSnapshotStorage(
   const scope = parseCanonicalScope(canonicalScope),
     limits = TRANSACTION_SNAPSHOT_LIMITS;
   const descriptors = new Map(types.map((type) => [type.id, type]));
+  // Lazy because this support is constructed before first provisioning creates
+  // its tables. Only this module's finite literal SQL set enters the cache.
+  const statements = new Map<string, StatementSync>();
+  function statement(sql: string): StatementSync {
+    let prepared = statements.get(sql);
+    if (!prepared) {
+      prepared = db.prepare(sql);
+      statements.set(sql, prepared);
+    }
+    return prepared;
+  }
   function disposition(id: string, context: TransactionReadContext): Disposition | undefined {
-    const row = db
-      .prepare("SELECT length(CAST(disposition AS BLOB)) AS bytes FROM snapshots WHERE id=?")
-      .get(id);
+    const row = statement(
+      "SELECT length(CAST(disposition AS BLOB)) AS bytes FROM snapshots WHERE id=?",
+    ).get(id);
     if (!row) return undefined;
     integrity(
       Number(row.bytes) + Buffer.byteLength(id) <= limits.dispositionBytes,
       "oversized disposition",
     );
-    const stored = db.prepare("SELECT disposition FROM snapshots WHERE id=?").get(id)?.disposition;
+    const stored = statement("SELECT disposition FROM snapshots WHERE id=?").get(id)?.disposition;
     integrity(typeof stored === "string", "missing disposition");
     const d = JSON.parse(stored) as Disposition;
     integrity(
@@ -222,28 +233,34 @@ export function transactionSnapshotStorage(
     return d;
   }
   function ledgerBounds() {
-    const bound = db
-      .prepare(
-        "SELECT count(*) AS count,max(length(CAST(id AS BLOB))) AS idBytes,max(length(CAST(disposition AS BLOB))) AS dispositionBytes FROM snapshots",
-      )
-      .get()!;
+    const bound = statement(
+      "SELECT count(*) AS count,max(length(CAST(id AS BLOB))) AS idBytes,max(length(CAST(disposition AS BLOB))) AS dispositionBytes FROM snapshots",
+    ).get()!;
     integrity(
       Number(bound.count) <= limits.issuedHandles &&
         Number(bound.idBytes ?? 0) <= 36 &&
         Number(bound.dispositionBytes ?? 0) <= limits.dispositionBytes,
       "issuance ledger bound",
     );
+    // SQL scans bounded compact history without decoding it into JS. A forged
+    // expired flag must not hide promised detail or bypass the live budget.
+    // Cold, detail-free expired commitments remain validated on direct lookup.
+    integrity(
+      !statement(
+        "SELECT id FROM snapshots WHERE json_type(disposition,'$.expired') IS NULL OR json_type(disposition,'$.expired') NOT IN ('true','false') OR (json_extract(disposition,'$.expired')=1 AND (EXISTS(SELECT 1 FROM snapshot_records WHERE snapshot=snapshots.id) OR EXISTS(SELECT 1 FROM snapshot_pages WHERE snapshot=snapshots.id))) LIMIT 1",
+      ).get(),
+      "expiry classification or expired detail",
+    );
+    return Number(bound.count);
   }
   function expire(now: number, context: TransactionReadContext) {
     ledgerBounds();
     // Validate before reclaiming a promised body; disposal is irreversible even
     // if the injected wall clock later moves backwards. The compact issued
     // identity stays for the entire epoch.
-    const candidates = db
-      .prepare(
-        "SELECT id FROM snapshots WHERE json_extract(disposition,'$.expired')=0 AND json_extract(disposition,'$.expires') < ? LIMIT ?",
-      )
-      .all(now, limits.issuedHandles + 1);
+    const candidates = statement(
+      "SELECT id FROM snapshots WHERE json_extract(disposition,'$.expired')=0 AND json_extract(disposition,'$.expires') < ? LIMIT ?",
+    ).all(now, limits.issuedHandles + 1);
     integrity(candidates.length <= limits.issuedHandles, "expiry ledger bound");
     for (const candidate of candidates) {
       integrity(
@@ -251,7 +268,7 @@ export function transactionSnapshotStorage(
         "expiry identity",
       );
       const d = disposition(candidate.id, context)!;
-      db.prepare("UPDATE snapshots SET disposition=? WHERE id=?").run(
+      statement("UPDATE snapshots SET disposition=? WHERE id=?").run(
         text(
           sealDisposition(
             candidate.id,
@@ -260,29 +277,32 @@ export function transactionSnapshotStorage(
         ),
         candidate.id,
       );
-      db.prepare("DELETE FROM snapshot_records WHERE snapshot=?").run(candidate.id);
-      db.prepare("DELETE FROM snapshot_pages WHERE snapshot=?").run(candidate.id);
+      statement("DELETE FROM snapshot_records WHERE snapshot=?").run(candidate.id);
+      statement("DELETE FROM snapshot_pages WHERE snapshot=?").run(candidate.id);
     }
   }
 
-  function ledger(context: TransactionReadContext) {
-    ledgerBounds();
-    const rows = db.prepare("SELECT id FROM snapshots LIMIT ?").all(limits.issuedHandles + 1);
-    integrity(rows.length <= limits.issuedHandles, "issuance ledger exceeds bound");
+  function liveLedger(context: TransactionReadContext) {
+    // Expiry has already run in this owner entry. Bound the returned live set
+    // before materializing dispositions; expired identities stay lookup-only.
+    const rows = statement(
+      "SELECT id FROM snapshots WHERE json_extract(disposition,'$.expired')=0 LIMIT ?",
+    ).all(limits.liveHandles + 1);
+    integrity(rows.length <= limits.liveHandles, "live issuance ledger exceeds bound");
     return rows.map((row) => {
       integrity(typeof row.id === "string" && idPattern.test(row.id), "issued identity");
       return { id: row.id, d: disposition(row.id, context)! };
     });
   }
   function record(id: string, kind: Kind): { body: string; value: ResourceRecord } {
-    const size = db
-      .prepare("SELECT length(CAST(body AS BLOB)) AS bytes FROM resources WHERE id=? AND kind=?")
-      .get(id, kind);
+    const size = statement(
+      "SELECT length(CAST(body AS BLOB)) AS bytes FROM resources WHERE id=? AND kind=?",
+    ).get(id, kind);
     integrity(
       size && Number(size.bytes) <= TRANSACTION_RUNTIME_LIMITS.representationBytes,
       "oversized or missing authority record",
     );
-    const row = db.prepare("SELECT * FROM resources WHERE id=? AND kind=?").get(id, kind)!;
+    const row = statement("SELECT * FROM resources WHERE id=? AND kind=?").get(id, kind)!;
     integrity(typeof row.body === "string", "authority record body");
     const value = readStoredResource(
       kind === "bead"
@@ -312,7 +332,13 @@ export function transactionSnapshotStorage(
     );
     return { body, value };
   }
-  function checkGraph(id: string, kind: Kind, value: ResourceRecord) {
+  function checkGraph(
+    id: string,
+    kind: Kind,
+    value: ResourceRecord,
+    records: ReadonlyMap<string, { body: string; value: ResourceRecord }>,
+    outgoing: ReadonlyMap<string, readonly LinkRecord[]>,
+  ) {
     const descriptor = descriptors.get(value.type);
     integrity(descriptor?.describes === kind, "unknown or wrong-kind Type");
     if (kind === "bead") {
@@ -321,10 +347,7 @@ export function transactionSnapshotStorage(
       const expected = new Map<string, string[]>();
       for (const name of Object.keys(descriptor.ownsOutgoing ?? {}))
         if (name !== "*") expected.set(name, []);
-      for (const row of db
-        .prepare("SELECT id FROM resources WHERE kind='link' AND source=?")
-        .all(id)) {
-        const link = record(String(row.id), "link").value as LinkRecord;
+      for (const link of descriptor.ownsOutgoing === undefined ? [] : (outgoing.get(id) ?? [])) {
         if (
           descriptor.ownsOutgoing &&
           (Object.hasOwn(descriptor.ownsOutgoing, link.type) ||
@@ -355,7 +378,7 @@ export function transactionSnapshotStorage(
           );
           for (const link of inline)
             integrity(
-              isDeepStrictEqual(link, record(link.id.slice(scope.length), "link").value) &&
+              isDeepStrictEqual(link, records.get(link.id.slice(scope.length))?.value) &&
                 referenceUri(link.source) === bead.id,
               "owned Link differs from first-class record",
             );
@@ -366,20 +389,18 @@ export function transactionSnapshotStorage(
       for (const endpoint of [link.source, link.target])
         if (validateServerEndpoint(endpoint, scope)) {
           integrity(
-            db
-              .prepare("SELECT id FROM resources WHERE id=? AND kind='bead'")
-              .get(referenceUri(endpoint).slice(scope.length)),
+            records
+              .get(referenceUri(endpoint).slice(scope.length))
+              ?.value.id.startsWith(`${scope}beads/`),
             "missing in-Scope endpoint",
           );
         }
     }
   }
   function plan(id: string, d: Disposition): PageRange[] {
-    const bound = db
-      .prepare(
-        "SELECT count(*) AS count,max(length(CAST(kind AS BLOB))) AS kindBytes,max(length(CAST(token AS BLOB))) AS tokenBytes,max(length(CAST(digest AS BLOB))) AS digestBytes FROM snapshot_pages WHERE snapshot=?",
-      )
-      .get(id)!;
+    const bound = statement(
+      "SELECT count(*) AS count,max(length(CAST(kind AS BLOB))) AS kindBytes,max(length(CAST(token AS BLOB))) AS tokenBytes,max(length(CAST(digest AS BLOB))) AS digestBytes FROM snapshot_pages WHERE snapshot=?",
+    ).get(id)!;
     integrity(
       Number(bound.count) <= limits.resources + 2 &&
         Number(bound.kindBytes ?? 0) <= 4 &&
@@ -387,11 +408,9 @@ export function transactionSnapshotStorage(
         Number(bound.digestBytes ?? 0) <= 64,
       "page plan size bound",
     );
-    const rows = db
-      .prepare(
-        "SELECT kind,ordinal,token,start,end,bytes,digest FROM snapshot_pages WHERE snapshot=? ORDER BY kind,ordinal LIMIT ?",
-      )
-      .all(id, limits.resources + 3) as unknown as PageRange[];
+    const rows = statement(
+      "SELECT kind,ordinal,token,start,end,bytes,digest FROM snapshot_pages WHERE snapshot=? ORDER BY kind,ordinal LIMIT ?",
+    ).all(id, limits.resources + 3) as unknown as PageRange[];
     integrity(
       rows.length <= limits.resources + 2 && hash(text(rows)) === d.plan,
       "page plan commitment",
@@ -430,11 +449,9 @@ export function transactionSnapshotStorage(
       rows.every((row) => row.kind === "bead" || row.kind === "link") && total === d.bytes,
       "plan record bytes",
     );
-    const actual = db
-      .prepare(
-        "SELECT kind,count(*) AS count,sum(length(CAST(body AS BLOB))) AS bytes FROM snapshot_records WHERE snapshot=? GROUP BY kind",
-      )
-      .all(id);
+    const actual = statement(
+      "SELECT kind,count(*) AS count,sum(length(CAST(body AS BLOB))) AS bytes FROM snapshot_records WHERE snapshot=? GROUP BY kind",
+    ).all(id);
     integrity(
       actual.every((row) => row.kind === "bead" || row.kind === "link"),
       "stored kind",
@@ -457,11 +474,9 @@ export function transactionSnapshotStorage(
     const range = token === undefined ? stream[0] : stream.find((row) => row.token === token);
     if (!range) throw new TransactionSnapshotFailure("resource-not-found");
     // Inspect sizes before retrieving any body, including corrupted retained rows.
-    const sizes = db
-      .prepare(
-        "SELECT ordinal,length(CAST(id AS BLOB)) AS idBytes,length(CAST(body AS BLOB)) AS bytes FROM snapshot_records WHERE snapshot=? AND kind=? AND ordinal>=? AND ordinal<? ORDER BY ordinal",
-      )
-      .all(id, kind, range.start, range.end);
+    const sizes = statement(
+      "SELECT ordinal,length(CAST(id AS BLOB)) AS idBytes,length(CAST(body AS BLOB)) AS bytes FROM snapshot_records WHERE snapshot=? AND kind=? AND ordinal>=? AND ordinal<? ORDER BY ordinal",
+    ).all(id, kind, range.start, range.end);
     integrity(
       sizes.length === range.end - range.start &&
         sizes.every(
@@ -473,9 +488,9 @@ export function transactionSnapshotStorage(
       "page row sizes",
     );
     const bodies = sizes.map((row) => {
-      const captured = db
-        .prepare("SELECT id,body FROM snapshot_records WHERE snapshot=? AND kind=? AND ordinal=?")
-        .get(id, kind, Number(row.ordinal));
+      const captured = statement(
+        "SELECT id,body FROM snapshot_records WHERE snapshot=? AND kind=? AND ordinal=?",
+      ).get(id, kind, Number(row.ordinal));
       const body = captured?.body;
       integrity(typeof captured?.id === "string", "captured identity");
       integrity(typeof body === "string", "missing captured body");
@@ -569,18 +584,14 @@ export function transactionSnapshotStorage(
       return page(id, ranges, kind, token);
     },
     capture(now: number, context: TransactionReadContext): TransactionSnapshotManifest {
-      const all = ledger(context),
-        live = all.filter((row) => !row.d.expired && now <= row.d.expires);
-      const totals = db
-        .prepare(
-          "SELECT count(*) AS count,coalesce(sum(length(CAST(body AS BLOB))),0) AS bytes,coalesce(sum(length(CAST(id AS BLOB))),0) AS idBytes FROM resources",
-        )
-        .get()!;
-      if (
-        all.length >= limits.issuedHandles ||
-        Number(totals.count) > limits.resources ||
-        Number(totals.bytes) > limits.recordBytes
-      )
+      // Refuse permanent exhaustion before parsing even the live subset.
+      if (ledgerBounds() >= limits.issuedHandles)
+        throw new TransactionSnapshotFailure("limit-exceeded");
+      const live = liveLedger(context);
+      const totals = statement(
+        "SELECT count(*) AS count,coalesce(sum(length(CAST(body AS BLOB))),0) AS bytes,coalesce(sum(length(CAST(id AS BLOB))),0) AS idBytes FROM resources",
+      ).get()!;
+      if (Number(totals.count) > limits.resources || Number(totals.bytes) > limits.recordBytes)
         throw new TransactionSnapshotFailure("limit-exceeded");
       if (
         live.length >= limits.liveHandles ||
@@ -593,26 +604,47 @@ export function transactionSnapshotStorage(
       }
       integrity(Number(totals.idBytes) <= limits.recordBytes, "authority identity bytes");
       // Count/byte checks precede bounded identity enumeration and every body load.
-      const ids = db.prepare("SELECT id,kind FROM resources LIMIT ?").all(limits.resources + 1);
+      const ids = statement("SELECT id,kind FROM resources LIMIT ?").all(limits.resources + 1);
       integrity(ids.length === Number(totals.count), "authority inventory changed inside owner");
       ids.sort((a, b) => compareCanonicalIds(String(a.id), String(b.id)));
       const id = randomUUID(),
         seed = randomBytes(32).toString("hex"),
         counts: [number, number] = [0, 0];
+      // One bounded decoded/serialized map and outgoing index per capture.
+      // This replaces repeated Link codecs and per-Bead full-table scans. The
+      // 32MiB encoded ceiling is not a promise about decoded-object heap size.
+      const records = new Map<string, { body: string; value: ResourceRecord }>();
+      const outgoing = new Map<string, LinkRecord[]>();
       let totalBytes = 0;
       for (const row of ids) {
         integrity(
           typeof row.id === "string" && (row.kind === "bead" || row.kind === "link"),
           "authority identity/kind",
         );
-        const { body, value } = record(row.id, row.kind);
-        checkGraph(row.id, row.kind, value);
-        totalBytes += bytes(body);
+        const captured = record(row.id, row.kind);
+        totalBytes += bytes(captured.body);
         if (totalBytes > limits.recordBytes) throw new TransactionSnapshotFailure("limit-exceeded");
-        const ordinal = counts[row.kind === "bead" ? 0 : 1]++;
-        db.prepare("INSERT INTO snapshot_records VALUES(?,?,?,?,?)").run(
+        records.set(row.id, captured);
+        if (row.kind === "link") {
+          const link = captured.value as LinkRecord;
+          const source = referenceUri(link.source);
+          if (validateServerEndpoint(link.source, scope)) {
+            const local = source.slice(scope.length);
+            const links = outgoing.get(local) ?? [];
+            links.push(link);
+            outgoing.set(local, links);
+          }
+        }
+      }
+      for (const row of ids) {
+        const localId = String(row.id),
+          kind = row.kind as Kind;
+        const { body, value } = records.get(localId)!;
+        checkGraph(localId, kind, value, records, outgoing);
+        const ordinal = counts[kind === "bead" ? 0 : 1]++;
+        statement("INSERT INTO snapshot_records VALUES(?,?,?,?,?)").run(
           id,
-          row.kind,
+          kind,
           ordinal,
           value.id,
           body,
@@ -640,11 +672,9 @@ export function transactionSnapshotStorage(
             end = start;
           const digest = createHash("sha256");
           while (end < counts[index]! && end - start < limits.snapshotPageItems) {
-            const row = db
-              .prepare(
-                "SELECT body FROM snapshot_records WHERE snapshot=? AND kind=? AND ordinal=?",
-              )
-              .get(id, kind, end)!;
+            const row = statement(
+              "SELECT body FROM snapshot_records WHERE snapshot=? AND kind=? AND ordinal=?",
+            ).get(id, kind, end)!;
             const body = String(row.body),
               length = bytes(body);
             if (framing + size + length + (end - start) > limits.pageBytes) break;
@@ -664,7 +694,7 @@ export function transactionSnapshotStorage(
             digest: digest.digest("hex"),
           };
           ranges.push(range);
-          db.prepare("INSERT INTO snapshot_pages VALUES(?,?,?,?,?,?,?,?)").run(
+          statement("INSERT INTO snapshot_pages VALUES(?,?,?,?,?,?,?,?)").run(
             id,
             kind,
             ordinal,
@@ -695,7 +725,7 @@ export function transactionSnapshotStorage(
         ],
       });
       integrity(bytes(text(d)) + bytes(id) <= limits.dispositionBytes, "disposition bound");
-      db.prepare("INSERT INTO snapshots VALUES(?,?)").run(id, text(d));
+      statement("INSERT INTO snapshots VALUES(?,?)").run(id, text(d));
       return manifest(id, now, context);
     },
   });
