@@ -732,15 +732,16 @@ Matched entries, no-op results, intermediate postimages, final group state,
 provenance and metadata retain their existing meanings. Receipt pages persist the
 complete flat set result, including the matched entry, without recomputing selection.
 
-The private authority enforces a total 4,096 induced-Event bound across ordinary
+The initial set slice enforced a total 4,096 induced-Event bound across ordinary
 members and set expansion, plus 4,096 matched Resources counted across set operations.
+Those historical capacities are superseded by the measured budget below.
 Repeat matches and semantic no-ops each count toward the latter, bounding expanded
 result entries even when they emit no Events. Exceeding either yields an atomic
 transaction-wide failed receipt with limit-exceeded and the corresponding
 transaction.inducedEvents or transaction.matchedResources limit, without an operation
 index. Evaluator-only test seams can lower but never raise these fixed private bounds;
-they introduce no public configuration, advertised maximum or installation identity
-change. Collection enumeration, visibility traversal and selection still examine and
+those initial seams added no public configuration or advertised maximum. The current
+installation identity also binds the actual tuple, as described below. Collection enumeration, visibility traversal and selection still examine and
 materialize the full candidate population before the matched-resource check. This is
 not a bound on whole-collection scan work, memory or receipt byte size.
 
@@ -866,12 +867,12 @@ replay. These checks narrow required fields; existing evaluator validation still
 owns code/status/retry combinations and optional diagnostic semantics. Valid
 Problems keep their existing fields and values.
 
-The suite now observes the actual 4,096-match default without lowering it: 128 Beads
+The earlier suite observed its then-current 4,096-match default without lowering it: 128 Beads
 matched by 32 no-op sets produce 4,128 flat result entries and no graph effects. A
 129th Bead causes atomic refusal; both dispositions replay after reopen. This is a
 count bound, not a receipt-byte, candidate-scan or authority-lock-duration bound.
 
-Materialization remains a delivery gap requiring a separate design. A disposable
+The original materialization gap led to the measured budget below. A disposable
 emitted-owner probe built one 262,144-byte Resource through real mutations, each
 request at most 60,138 bytes, by growing metadata across requests. Its 32 repeated
 no-op matches produced an 8,392,367-byte receipt and replayed after reopen. At 4,096
@@ -881,11 +882,11 @@ attempt to allocate or persist a GiB receipt. On the pinned Node 24.16.0 runtime
 V8's 536,870,888-code-unit string ceiling is lower than SQLite's 1,000,000,000-byte
 limit. For the measured ASCII payload family, 2,048 maximum-sized postimages alone
 already exceed V8's ceiling, before receipt overhead. This is a size projection,
-not an attempted allocation failure. The current count and request bounds do not
+not an attempted allocation failure. Those earlier count and request bounds did not
 guarantee materializability: full receipt JSON is still built, stored and reparsed
 despite paged serving. No byte condition is relabeled as
 transaction.matchedResources or transaction.mutatedResources; those remain counts.
-The fixed cap stays at 4,096 pending a separate bounded delivery design.
+That slice left the fixed cap at 4,096; the later measured budget replaces it.
 
 Deferred limitations: candidate enumeration still scans the entire collection and
 repeats local-endpoint visibility reads without a projection cache. The shared
@@ -895,7 +896,7 @@ whole-projection equivalence or installed profile qualification claim.
 
 The induced-Event lower-only evaluator seam rejects zero, negative, fractional,
 infinite and above-authority bounds in permanent tests. The owned-transition tests
-below additionally observe its actual 4,096 default with small Resource bodies;
+below originally observed its then-current 4,096 default with small Resource bodies;
 this count evidence does not qualify arbitrary materialization workloads.
 
 
@@ -956,11 +957,12 @@ an owned update induces two. The source Event carries its own revisions/provenan
 with a complete created Link, field-built update delta, or deleted identity nested
 under ownedLink. The update delta never carries full properties and contains a patch;
 the source fact never combines ownedLink with a direct properties/metadata patch.
-All facts charge the existing total Event cap. A real default-bound test deletes
+All facts charge the total Event cap. The original default-bound test deleted
 1,024 owned self-Links on separate sources: 4,096 ordered Events succeed; a selection
 of 1,025 fails atomically and retains that failure across restart. Resource bodies
 are small in this count test; it supplies no high-fanout or byte-size qualification.
-No count or materialization budget was changed.
+That owned-transition slice changed no count or materialization budget; current
+boundary tests use the measured limits described below.
 
 The same application path serves the private staged-set evaluator. Selected Links
 remain canonical-ID ordered, each effective member versions its source, and the
@@ -982,3 +984,55 @@ HTTP set admission, Snapshot/changefeed, schema hosting, public profile or evide
 claim follows. The actual service still has fixed all-visible policy and empty
 aggregate policy. Retained variable-grant projection, mutated-Resource accounting
 and receipt/group byte materialization remain separate work.
+
+### Measured private transaction materialization budget
+
+The private owner now uses one frozen, installation-bound tuple: 64 cumulative set
+matches, 256 induced Events, 32 explicit operations, 65536 request/property bytes,
+262144 complete Resource bytes, and 65536 encoded bytes for the Scope Event-source
+URI. No public profile or capacity advertisement changes. TX evaluator options
+require the properties and representation bounds; the actual owner passes that
+same tuple. Generic Read+Update evaluator optionality is unchanged.
+
+A missing/different persisted tuple refuses the existing installation before BDP
+maintenance, preserving SQLite hot-journal recovery ordering. Older 4096-count
+receipts and tests are historical evidence, not current-capacity claims or silently
+reinterpreted stores. Current tests exercise 64/65 matches and 256/257 Events,
+including no-ops, rollback, retained refusal, conflict, fresh-key success and reopen.
+
+For R=262144, Q=S=65536, normalized combined patch bound N=7Q, A=8192, H=1048576,
+K=M+32, the closed owned Event shapes give:
+
+- Group <= min(E*(2.5R+N+S)+K*A+H, K*(max(9R+4S,5R+2N+2S)+A)+H).
+- Receipt <= K*(2R+Q+A)+32*128+S+H.
+
+| Private matches / Events | Group byte bound | Receipt byte bound |
+| --- | ---: | ---: |
+| 256 / 256 (rejected after measurement) | 305397760 | 173346816 |
+| 128 / 256 (insufficient measured headroom) | 304349184 | 96800768 |
+| 64 / 256 (current) | 253493248 | 58527744 |
+
+The proof includes both copies of the **combined** property/metadata patch in owned
+updates, separate source/Link provenance, at most two Resource effects, and no
+preimage bodies. Exact Event-shape assertions preserve those premises. Scope and
+complete-Resource limits are actual owner checks, not assumptions about typical
+URLs or schemas. Alias/no-op results still consume result space without Events.
+
+Bounded emitted-owner stress used normal sub-limit requests, exact Resource limits,
+receipt/page reads, exact-key retries, point afterstate and durable reopen; it never
+called inspect(). A post-close read-only scalar query measured only the selected
+group's stored byte length. The predeclared abort bounds were 120 seconds and 1 GiB
+RSS per disposable child. At 256 matches the 67,124,671-byte no-op receipt completed,
+but replay exceeded the RSS ceiling and was killed: replay qualification was
+inconclusive. At 128 matches no-op work passed at 802800 KiB child high-water RSS;
+128 owned updates/256 Events passed at 975216 KiB, too close to the ceiling.
+
+At the current 64-match tuple, repeated no-ops produced a 16,782,715-byte receipt,
+with 480000 KiB high-water RSS through replay/pages/reopen. Dense transient numeric
+patches on 64 owned Links with full-size source Beads produced 128 Events and a
+45,059,033-byte group, with 557584 KiB high-water RSS. That case measures 128 Events;
+the distinct permanent boundary test exercises all 256 Events using 64 owned deletes.
+These finite workloads do not prove general heap safety. Candidate selection still
+materializes the complete collection before count checks; C*R scan memory, dense
+object overhead, unbounded trusted principal/other SQLite-row fields, accumulated
+history and multi-group reads remain separate limits of this result.
