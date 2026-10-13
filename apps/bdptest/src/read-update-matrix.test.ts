@@ -527,7 +527,20 @@ async function run(
         ) {
           if (clientAction.family !== "client") throw Error("control requires client action");
           expect(clientAction.input).toEqual(execution.input);
-          numericControlRecord = structuredClone((actual as { body: unknown }).body);
+          const record = structuredClone((actual as { body: unknown }).body);
+          if (numericControl === "metadata-refusal-success") {
+            // Repeated GET inputs cannot identify the preimage on their own.
+            // Check the actual clone before retaining it for the refusal control.
+            expect(record, "metadata control captured distinct preimage").toMatchObject({
+              id: `${scope}beads/num-subject`,
+              type: `${scope}types/task`,
+              properties: { one: 9007199254740994 },
+              revisionProvenance: {
+                actor: { id: "writer:num-distinct", basis: "writer-supplied" },
+              },
+            });
+          }
+          numericControlRecord = record;
         }
         if (
           retryControl?.scenario === currentScenario &&
@@ -4208,7 +4221,8 @@ it.each(["bead", "link"] as const)(
   },
 );
 
-// Accepted 06b0e04 source anchors; evidence-authoring fences, not receiver limits.
+// Accepted 06b0e04a921c8501e36a8a68480cee72dc4c54b3 source anchors.
+// Evidence-authoring fences, not receiver limits.
 const METADATA_CLOSURE_CONTINUATION_BYTES_BASE = 823730;
 const METADATA_CLOSURE_CONTINUATION_NODES_BASE = 21614;
 const METADATA_CLOSURE_COVERAGE_BYTES_BASE = 698614;
@@ -4440,10 +4454,11 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   const newKeys = actions
     .slice(73)
     .filter((a: { family: string }) => a.family === "http")
-    .map(
-      (a: { raw: { headerLines: { name: string; value: string }[] } }) =>
-        a.raw.headerLines.find((h) => h.name === "Idempotency-Key")!.value,
-    );
+    .map((a: { raw: { headerLines: { name: string; value: string }[] } }) => {
+      const header = a.raw.headerLines.find((h) => h.name === "Idempotency-Key");
+      if (!header) throw Error("metadata closure action is missing its key");
+      return header.value;
+    });
   expect(new Set(newKeys).size).toBe(4);
   expect(newKeys.every((key: string) => !oldKeys.includes(key))).toBe(true);
   expect(metadataClosureClientControls).toHaveLength(1);
