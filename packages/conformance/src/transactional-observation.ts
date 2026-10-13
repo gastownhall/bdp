@@ -289,11 +289,12 @@ export function createTransactionalObservations(
                 throw new TransactionalReceiptFailure(
                   "retained receipt page schema or identity mismatch",
                 );
-              if (page.next !== null)
-                throw new TransactionalHarnessError("receipt page exceeds single-page fixture");
               // A HEAD never initializes this baseline. An invalid first GET does not either.
-              if (entry.pageBody === undefined) entry.pageBody = body;
-              else if (!isDeepStrictEqual(body, entry.pageBody))
+              if (entry.pageBody === undefined) {
+                if (page.next !== null)
+                  throw new TransactionalHarnessError("receipt page exceeds single-page fixture");
+                entry.pageBody = body;
+              } else if (!isDeepStrictEqual(body, entry.pageBody))
                 throw new TransactionalReceiptFailure(
                   "retained receipt page differs from original wire facts",
                 );

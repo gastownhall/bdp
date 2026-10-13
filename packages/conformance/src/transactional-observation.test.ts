@@ -371,6 +371,8 @@ it.each([
     expect(resolved.target).toBe(pointer === "/id" ? id : pageUrl);
     expect(() => f.observations.resolve("implicit", pageUrl)).toThrow("not authorized");
   }
+  expect(() => f.observations.resolve("/id", pageUrl)).toThrow("not authorized");
+  expect(() => f.observations.resolve("/next", id)).toThrow("not authorized");
   const original = f.observations.resolve("/next", pageUrl).source;
   const read = () => f.observations.resolve("/next", pageUrl);
   expect(() => read().validate(pageHead(), "HEAD")).not.toThrow();
@@ -429,11 +431,18 @@ it("does not initialize a page baseline from invalid schema, nonterminal page or
   const read = f.observations.resolve("receipt", pageUrl);
   expect(() => read.validate(response({ ...pageBody, results: [] }), "GET")).toThrow("schema");
   expect(() => read.validate(response({ ...pageBody, next: `${id}/pages/p2` }), "GET")).toThrow(
+    TransactionalHarnessError,
+  );
+  expect(() => read.validate(response({ ...pageBody, next: `${id}/pages/p2` }), "GET")).toThrow(
     "single-page fixture",
   );
   expect(() => read.validate({ ...response(pageBody), bodyText: "{}" }, "GET")).toThrow(
     "wire body",
   );
+  expect(() => read.validate(response(pageBody), "GET")).not.toThrow();
+  const changed = () => read.validate(response({ ...pageBody, next: `${id}/pages/p2` }), "GET");
+  expect(changed).toThrow(TransactionalReceiptFailure);
+  expect(changed).toThrow("retained receipt page differs from original wire facts");
   expect(() => read.validate(response(pageBody), "GET")).not.toThrow();
 });
 it("requires the independently validated whole source body to agree with actual wire on each capture", () => {
