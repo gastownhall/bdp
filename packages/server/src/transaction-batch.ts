@@ -450,11 +450,37 @@ export interface TransactionStateChange {
     | ResourceRecord
     | { readonly id: string; readonly type: string; readonly revision: string };
 }
+// Source-private receipt subset; shared Read+Update Problems also describe
+// receiving/Read failures that are not terminal mutation receipt outcomes.
+const receiptProblemCodes = [
+  "forbidden",
+  "resource-not-found",
+  "limit-exceeded",
+  "binding-unavailable",
+  "validation-failed",
+  "type-not-installed",
+  "identity-taken",
+  "alias-path-taken",
+  "revision-mismatch",
+  "incident-links-exist",
+  "aggregate-constraint-violation",
+  "cardinality-violated",
+  "revision-allocation-unsafe",
+] as const;
+type ReceiptProblemCode = (typeof receiptProblemCodes)[number];
+const receiptProblemStatuses = [400, 403, 404, 409, 413, 422] as const;
+type ReceiptProblemStatus = (typeof receiptProblemStatuses)[number];
+function isReceiptCode(value: unknown): value is ReceiptProblemCode {
+  return receiptProblemCodes.some((code) => code === value);
+}
+function isReceiptStatus(value: unknown): value is ReceiptProblemStatus {
+  return receiptProblemStatuses.some((status) => status === value);
+}
 // Restate required receipt fields: mapped Omit over RFC9457's string index
 // signature would erase their requirements. Preserve extension fields explicitly.
 interface BatchProblem {
   readonly type: string;
-  readonly status: number;
+  readonly status: ReceiptProblemStatus;
   readonly retry: ReadUpdateProblem["retry"];
   readonly diagnostics?: ReadUpdateProblem["diagnostics"];
   readonly diagnosticsTruncated?: boolean;
@@ -462,17 +488,15 @@ interface BatchProblem {
 }
 function receiptProblem(
   problem: ReadUpdateProblem,
-): BatchProblem & { readonly code: ReadUpdateProblem["code"] } {
+): BatchProblem & { readonly code: ReceiptProblemCode } {
   if (
     typeof problem.type !== "string" ||
-    typeof problem.status !== "number" ||
-    !Number.isInteger(problem.status) ||
-    problem.status < 100 ||
-    problem.status > 599 ||
+    !isReceiptCode(problem.code) ||
+    !isReceiptStatus(problem.status) ||
     !["never", "after-state-change", "after-delay"].includes(problem.retry)
   )
     throw new Error("evaluator failure lacks required receipt Problem fields");
-  return { ...problem, type: problem.type, status: problem.status };
+  return { ...problem, type: problem.type, code: problem.code, status: problem.status };
 }
 export type BatchEvaluation =
   | {
@@ -484,7 +508,7 @@ export type BatchEvaluation =
   | {
       readonly ok: false;
       readonly problem: BatchProblem & {
-        readonly code: ReadUpdateProblem["code"] | "cardinality-violated";
+        readonly code: ReceiptProblemCode;
         readonly operationIndex: number;
         readonly operationName?: string;
       };
