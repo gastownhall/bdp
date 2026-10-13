@@ -1514,9 +1514,11 @@ remain unqualified. Historical larger-budget evidence above remains historical.
 
 ### S2a review closure: syntax before private depth and one singleton shape pass
 
-The earlier present-tense set-refusal statements in **Private direct receiving
-and admission composition**, the first private HTTP increment, and **Private
-valid-set core, with serving admission still closed** are superseded by S2a.
+The earlier set-refusal, singleton-count and remaining-work statements in
+**Executable boundary**, **Integration and remaining work**, **Private direct
+receiving and admission composition**, the first private HTTP increment, and
+**Private valid-set core, with serving admission still closed** are superseded
+by S2a.
 Valid supported sets now use the singleton and batch HTTP routes. Lists in those
 historical increments that identify all set operations as remaining work are
 historical; negative Selector policy, general scan-work bounds and complete
