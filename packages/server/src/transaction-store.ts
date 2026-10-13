@@ -187,11 +187,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   if (new Set(descriptors.map((d) => d.id)).size !== descriptors.length)
     throw new TypeError("duplicate Type");
   for (const d of descriptors) {
-    if (
-      (d.propertiesSchema !== undefined && !compiled) ||
-      (d.describes === "bead" && d.ownsOutgoing !== undefined)
-    )
-      throw new TypeError("transaction store requires compiled schemas and unowned Types");
+    if (d.propertiesSchema !== undefined && !compiled)
+      throw new TypeError("transaction store requires compiled schemas");
   }
   const installed = new Map(descriptors.map((d) => [d.id, json(d)]));
   if (

@@ -596,10 +596,20 @@ export function evaluateTransaction(
           )
         : undefined;
     const before = beforeRow ? readStoredResource(beforeRow, options.scope) : undefined;
+    // Capture each same-turn preimage before the evaluator writes either the
+    // direct Resource or its owning source. No recipe or allocator is duplicated.
+    const previous = new Map<string, ResourceRecord | undefined>();
     // Syntax and numeric admission preserve the operation/input pairing.
     const result = evaluateResourceMutation(
       {
         ...tx,
+        putResource(row) {
+          if (!previous.has(row.id)) {
+            const old = tx.resource(row.id);
+            previous.set(row.id, old ? readStoredResource(old, options.scope) : undefined);
+          }
+          tx.putResource(row);
+        },
         // A captured miss must not become a live target after admission. Other
         // lookups (e.g. creation uniqueness) still consult current authority state.
         alias(path) {
@@ -622,7 +632,6 @@ export function evaluateTransaction(
         },
       };
     const outcome = result.outcome;
-    if (outcome.sourceRevision !== undefined) throw new Error("unsupported owned-Link transition");
     results.push({ operationIndex, ...(op.name ? { operationName: op.name } : {}), ...outcome });
     const resource = outcome.resource;
     if (op.name && outcome.outcome === "created" && resource) bindings.set(op.name, resource.id);
@@ -630,20 +639,30 @@ export function evaluateTransaction(
     if (result.changed.length === 0 && result.deleted.length === 0) return;
     const subject = resource ?? before;
     if (!subject) throw new Error("successful transition lacks Resource state");
-    changes.set(
-      subject.id,
-      outcome.deleted
-        ? {
-            operation: "tombstone",
-            resourceKind: outcome.deleted.resourceKind,
-            resource: outcome.deleted.resource,
-          }
-        : {
-            operation: "upsert",
-            resourceKind: "source" in subject ? "link" : "bead",
-            resource: subject,
-          },
-    );
+    // Evaluator IDs are local lookup paths; group identity is always canonical.
+    // One owned operation changes at most the Link and its source Bead.
+    for (const id of result.changed) {
+      const row = tx.resource(id);
+      if (!row) throw new Error("changed Resource lacks staged postimage");
+      const record = readStoredResource(row, options.scope);
+      changes.set(record.id, {
+        operation: "upsert",
+        resourceKind: "source" in record ? "link" : "bead",
+        resource: record,
+      });
+    }
+    for (const id of result.deleted) {
+      if (
+        !before ||
+        !outcome.deleted ||
+        before.id !== `${options.scope}${id}` ||
+        outcome.deleted.resource.id !== before.id ||
+        outcome.deleted.resource.type !== before.type ||
+        outcome.deleted.resource.revision !== before.revision
+      )
+        throw new Error("deleted Resource lacks matching previous identity");
+      changes.set(before.id, { operation: "tombstone", ...outcome.deleted });
+    }
     if (outcome.outcome === "created") {
       scopeEvent(subject, "created", {
         revision: subject.revision,
@@ -677,6 +696,48 @@ export function evaluateTransaction(
           target: subject.target,
         });
       }
+    }
+    if (outcome.sourceRevision !== undefined) {
+      if (!("source" in subject) || !outcome.source?.startsWith(options.scope))
+        throw new Error("owned transition lacks canonical Link/source identity");
+      const localSource = outcome.source.slice(options.scope.length);
+      const oldSource = previous.get(localSource),
+        row = tx.resource(localSource);
+      const source = row ? readStoredResource(row, options.scope) : undefined;
+      if (
+        !oldSource ||
+        !source ||
+        "source" in source ||
+        "source" in oldSource ||
+        source.id !== outcome.source ||
+        source.revision !== outcome.sourceRevision
+      )
+        throw new Error("owned transition lacks matching source versions");
+      let link: unknown;
+      if (outcome.outcome === "created") link = subject;
+      else if (outcome.outcome === "deleted")
+        link = { id: subject.id, type: subject.type, revision: subject.revision };
+      else {
+        if (!before || (input.propertiesChange === undefined && input.metadataChange === undefined))
+          throw new Error("owned update lacks committed patch");
+        link = {
+          id: subject.id,
+          type: subject.type,
+          previousRevision: before.revision,
+          revision: subject.revision,
+          ...(input.propertiesChange !== undefined ? { change: input.propertiesChange } : {}),
+          ...(input.metadataChange !== undefined ? { metadataChange: input.metadataChange } : {}),
+          ...(subject.revisionProvenance ? { revisionProvenance: subject.revisionProvenance } : {}),
+        };
+      }
+      // Up to four facts: Link lifecycle, source/target incidence, owning Bead.
+      // The source Event is last and never carries a direct Resource patch.
+      scopeEvent(source, "updated", {
+        previousRevision: oldSource.revision,
+        revision: source.revision,
+        ownedLink: { operation: outcome.outcome, link },
+        ...(source.revisionProvenance ? { revisionProvenance: source.revisionProvenance } : {}),
+      });
     }
     return undefined;
   }

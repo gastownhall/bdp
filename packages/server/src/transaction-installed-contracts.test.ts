@@ -321,7 +321,7 @@ it("refuses changed artifact identity, artifact limits and schema-free fallback 
     expect(readFileSync(f.options.file)).toEqual(bytes);
   }
 });
-it("refuses forged, cross-module, mismatched, nonlocal and owned authorities before provisioning", async () => {
+it("refuses forged, cross-module, mismatched and nonlocal authorities before provisioning", async () => {
   const compiled = compileDevelopmentContracts(bundle()),
     file = path.join(directory(), "absent.sqlite");
   const options = { file, scope, create: true, types: compiled.descriptors, contracts: compiled };
@@ -340,6 +340,12 @@ it("refuses forged, cross-module, mismatched, nonlocal and owned authorities bef
   expect(() => openTransactionStore({ ...options, scope: "https://elsewhere.invalid/" })).toThrow(
     "Scope-local",
   );
+  const missing = bundle();
+  missing.schemas.pop();
+  expect(() => compileDevelopmentContracts(missing)).toThrow();
+  expect(existsSync(file)).toBe(false);
+});
+it("installs a complete compiled owning descriptor bundle in its own store", () => {
   const owned = compileDevelopmentContracts({
     descriptors: [
       artifact(base, {
@@ -361,13 +367,14 @@ it("refuses forged, cross-module, mismatched, nonlocal and owned authorities bef
     schemas: [],
     limits: CONTRACT_ARTIFACT_CEILINGS,
   });
-  expect(() =>
-    openTransactionStore({ ...options, contracts: owned, types: owned.descriptors }),
-  ).toThrow("unowned");
-  const missing = bundle();
-  missing.schemas.pop();
-  expect(() => compileDevelopmentContracts(missing)).toThrow();
-  expect(existsSync(file)).toBe(false);
+  const owner = openTransactionStore({
+    file: path.join(directory(), "owned.sqlite"),
+    scope,
+    create: true,
+    contracts: owned,
+    types: owned.descriptors,
+  });
+  owner.close();
 });
 it("compiles plain runtime artifacts in emitted module and serves same-owner Types, writes, sequence and restart", async () => {
   const options = {
