@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "shards": [
+    {
+      "id": "baseline",
+      "source": "matrices/read-update-v1.json"
+    },
+    {
+      "id": "reference-continuation",
+      "source": "matrices/read-update-reference-continuation-v1.json"
+    }
+  ]
+}

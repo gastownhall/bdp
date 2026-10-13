@@ -1,6 +1,6 @@
 import { execFileSync, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -17,6 +17,10 @@ import {
   bindServedProfileConfiguration,
   assertSameServedProfileConfiguration,
   planProfileExecution,
+  createReadUpdateArtifactSet,
+  assertReadUpdateArtifactSet,
+  copyReadUpdateArtifactSetSources,
+  type ReadUpdateArtifactSet,
 } from "@bdp/conformance/testing";
 import { expect, it } from "vitest";
 import { withSchemaCohort } from "../test-support/installed-schema-cohort.js";
@@ -27,6 +31,13 @@ import {
   exactNativeReadAdapter,
   seedInstalledReadFixture,
 } from "../test-support/installed-read-fixture.js";
+import {
+  artifactRoutes,
+  associateArtifactObservations,
+  createArtifactEvidenceWriter,
+  type ArtifactEvidenceWriter,
+  type ArtifactObservation,
+} from "../test-support/read-update-artifact-execution.js";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const helpers = (await import(
   new URL("../../../scripts/installed-reference-observation.mjs", import.meta.url).href
@@ -151,87 +162,57 @@ async function run(
   signal?: AbortSignal,
   patchControl?: PatchControl,
   retryControl?: RetryControl,
+  artifact?: {
+    set: ReadUpdateArtifactSet;
+    shardId: string;
+    expected?: Pick<ArtifactObservation, "configuration" | "baselineReceipt">;
+  },
+  lifecycle?: {
+    launched?(child: ChildProcess): void;
+    observed?(): void;
+    returned?(report: ArtifactObservation): void;
+    cleaned?(status: "complete" | "failed"): void;
+    // Source-test-only fault after the real target has drained; no fake child close.
+    afterClose?(): void;
+  },
 ) {
+  signal?.throwIfAborted();
+  if (artifact) assertReadUpdateArtifactSet(artifact.set);
+  const shard = artifact?.set.shards.find((s) => s.id === artifact.shardId);
+  if (artifact && !shard) throw Error("unknown artifact shard");
+  if (artifact && (manifestValue !== undefined || fixtureValue !== undefined))
+    throw Error("artifact source overrides are not permitted");
+  const capturedSources = artifact ? copyReadUpdateArtifactSetSources(artifact.set) : undefined;
   const selection = loadProfileContractSelection("read-update");
   const fixtureSource =
-    fixtureValue === undefined
+    capturedSources?.fixture ??
+    (fixtureValue === undefined
       ? source("packages/conformance/fixtures/read-update-reference-v1.json")
-      : { bytes: Buffer.from(JSON.stringify(fixtureValue)) };
+      : { bytes: Buffer.from(JSON.stringify(fixtureValue)) });
   const manifestSource =
-    manifestValue === undefined
+    (shard && capturedSources?.manifests[shard.source]) ??
+    (manifestValue === undefined
       ? source("packages/conformance/matrices/read-update-v1.json")
-      : { bytes: Buffer.from(JSON.stringify(manifestValue)) };
-  const bundle = createCumulativeReadUpdateArtifactBundle(selection, {
-    manifest: manifestSource,
-    fixture: fixtureSource,
-  });
+      : { bytes: Buffer.from(JSON.stringify(manifestValue)) });
+  const bundle =
+    shard?.bundle ??
+    createCumulativeReadUpdateArtifactBundle(selection, {
+      manifest: manifestSource,
+      fixture: fixtureSource,
+    });
   const coverage = JSON.parse(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.toString(),
   ) as { rows: { id: string; wholeContract: boolean }[] };
   const port = await helpers.availablePort();
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-cumulative-ru-"));
   const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port };
-  const knownReadBindings: Record<string, string> = {
-    ...Object.fromEntries(
-      Object.entries(bundle.fixture.bindings).map(([key, value]) => [
-        key,
-        new URL(value, scope).href,
-      ]),
-    ),
-    scope,
-    "service-desc": `${scope}bdp.json`,
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
-    types: `${scope}types/`,
-    operations: `${scope}operations/`,
-  };
-  const readRoutes = bundle.manifest.scenarios.flatMap((row) =>
-    (row.actions ?? []).flatMap((action) => {
-      if (action.family !== "http") return [];
-      const base = knownReadBindings[action.target.binding];
-      if (!base) throw Error("Read target binding is not in the fixed fixture");
-      const url = new URL(action.target.path ?? "", base);
-      for (const [key, input] of Object.entries(action.target.query ?? {})) {
-        for (const value of Array.isArray(input) ? input : [input]) {
-          if (typeof value !== "string") throw Error("Read fixture query requires literal strings");
-          url.searchParams.append(key, value);
-        }
-      }
-      return [{ method: action.method, url: url.href }];
-    }),
-  );
-  // Only fixed client GET targets actually referenced by an action join the
-  // allowlist. Captured Bead identities retain the existing per-request route gate.
-  const clientReadRoutes = bundle.manifest.scenarios.flatMap((row) =>
-    (row.actions ?? []).flatMap((action) => {
-      if (action.family !== "client" || action.operation !== "installed.exact-request") return [];
-      const input = action.input as { method?: string; targetBinding?: string };
-      if (input.method !== "GET" || typeof input.targetBinding !== "string") return [];
-      const url = knownReadBindings[input.targetBinding];
-      return url === undefined ? [] : [{ method: "GET" as const, url }];
-    }),
-  );
   const mode: ExactHttpModeOptions = {
     scope,
     profile: "read-update",
     // Harness capacity exceeds installed65536 only to observe its actual body-size refusal.
     maximumRequestBodyBytes: 131072,
     maximumRequestHeaderBytes: 16384,
-    routes: [
-      ...clientReadRoutes,
-      ...readRoutes,
-      ...[
-        "sequence",
-        "create-bead",
-        "update-bead",
-        "delete-bead",
-        "create-link",
-        "update-link",
-        "delete-link",
-        "put-alias",
-        "delete-alias",
-      ].map((suffix) => ({ method: "POST" as const, url: `${scope}operations/${suffix}` })),
-    ],
+    routes: artifactRoutes(bundle, scope),
     defaultCredentialRef: "operator",
     credentialHandles: [
       { id: "operator", headerNames: ["authorization"] },
@@ -275,14 +256,27 @@ async function run(
     scope,
   );
   const expectedCapture = configModule.captureInstalledReferenceConfiguration(bootstrapConfig);
-  let baseline: ReturnType<typeof bindReceipt>;
-  let baselineReceipt: Record<string, unknown>;
-  let executionPlan: ReturnType<typeof planProfileExecution>;
+  // All three are assigned by successful bootstrap; failures are rethrown after cleanup.
+  let baseline!: ReturnType<typeof bindReceipt>;
+  let baselineReceipt!: Record<string, unknown>;
+  let executionPlan!: ReturnType<typeof planProfileExecution>;
+  let bootstrapCleanupFailed = false;
   try {
+    signal?.throwIfAborted();
     const bootstrap = await helpers.launchInstalledReference(entry, bootstrapConfig);
+    let bootstrapError: unknown;
+    let bootstrapFailed = false;
     try {
+      lifecycle?.launched?.(bootstrap.child);
+      signal?.throwIfAborted();
       baselineReceipt = bootstrap.ready;
       baseline = bindReceipt(baselineReceipt);
+      if (artifact?.expected) {
+        assertSameServedProfileConfiguration(artifact.expected.configuration, baseline);
+        expect(baselineReceipt.configurationIdentity).toBe(
+          artifact.expected.baselineReceipt.configurationIdentity,
+        );
+      }
       expect(baselineReceipt.configurationIdentity).toBe(expectedCapture.identity);
       expect(baselineReceipt.artifactIdentity).toBe(expectedCapture.artifactIdentity);
       const expected = bindReceipt({
@@ -300,11 +294,32 @@ async function run(
         manifest: manifestSource,
       });
       expect(executionPlan.manifestDigest).toBe(bundle.digests.manifestDigest);
-    } finally {
-      await closeInstalledChild(bootstrap);
+    } catch (error) {
+      bootstrapFailed = true;
+      bootstrapError = error;
     }
+    try {
+      await closeInstalledChild(bootstrap);
+    } catch (cleanup) {
+      bootstrapCleanupFailed = true;
+      if (bootstrapFailed)
+        throw new AggregateError(
+          [bootstrapError, cleanup],
+          "bootstrap execution and cleanup failed",
+          { cause: bootstrapError },
+        );
+      throw cleanup;
+    }
+    if (bootstrapFailed) throw bootstrapError;
   } catch (error) {
-    rmSync(directory, { recursive: true, force: true });
+    try {
+      rmSync(directory, { recursive: true, force: true });
+      lifecycle?.cleaned?.(bootstrapCleanupFailed ? "failed" : "complete");
+    } catch (cleanup) {
+      throw new AggregateError([error, cleanup], "bootstrap failure and evidence cleanup failed", {
+        cause: error,
+      });
+    }
     throw error;
   }
   const sessions: Record<string, unknown>[] = [];
@@ -330,8 +345,11 @@ async function run(
         scope,
       );
       const captured = configModule.captureInstalledReferenceConfiguration(configuration);
+      signal.throwIfAborted();
       const child = await helpers.launchInstalledReference(entry, configuration);
       try {
+        lifecycle?.launched?.(child.child);
+        signal.throwIfAborted();
         assertSameServedProfileConfiguration(baseline, bindReceipt(child.ready));
         expect(child.ready.scope).toBe(scope);
         expect(child.ready.configurationIdentity).toBe(captured.identity);
@@ -361,13 +379,19 @@ async function run(
           },
         };
       } catch (error) {
-        await closeInstalledChild(child);
+        try {
+          await closeInstalledChild(child);
+        } catch (cleanup) {
+          throw new AggregateError([error, cleanup], "scenario execution and cleanup failed", {
+            cause: error,
+          });
+        }
         throw error;
       }
     },
     { exactMode, requestTimeoutMs: 5000 },
   );
-  try {
+  async function observe() {
     if (!target.exactConfiguration) throw Error("exact target configuration missing");
     const executeClient = createInstalledExactClient(exactMode, dialRoute, (observation) =>
       observations.push({ scenario: currentScenario, observation }),
@@ -385,6 +409,7 @@ async function run(
       exactExecution: { execute: target.execute, configuration: target.exactConfiguration },
       actionExecutor: async (execution) => {
         const actual = await executeClient(execution);
+        lifecycle?.observed?.();
         const clientAction = bundle.manifest.scenarios
           .find((row) => row.id === currentScenario)
           ?.actions?.filter((action) => action.family === "client")[retryClientIndex++];
@@ -469,7 +494,10 @@ async function run(
             status: number;
             body: {
               code?: string;
-              resource: { properties: Record<string, unknown>; metadata: Record<string, unknown> };
+              resource: {
+                properties: Record<string, unknown>;
+                metadata: Record<string, unknown>;
+              };
               properties: Record<string, unknown>;
               diagnostics: Record<string, unknown>[];
             };
@@ -765,8 +793,10 @@ async function run(
       schemaValidator: createJsonSchemaValidator(installedObservationSchema),
       declaredTargetLabel: "installed-cumulative-read-update-candidate",
     });
-    return {
+    const report = {
       claimEligible: false,
+      cleanupComplete: false,
+      exactConfiguration: target.exactConfiguration,
       counterfactualApplications,
       sourceCommit,
       configuration: baseline,
@@ -788,141 +818,401 @@ async function run(
       plannedIds: bundle.manifest.scenarios.map((row) => row.id),
       uncoveredIds: selection.required
         .map((row) => row.id)
-        .filter((id) => !coverage.rows.find((row) => row.id === id)?.wholeContract),
+        .filter(
+          (id) =>
+            !(artifact?.set.coverage ?? coverage).rows.find((row) => row.id === id)?.wholeContract,
+        ),
       sessions,
       observations,
       setupObservations,
       nativeReadObservations,
       result,
     };
-  } finally {
+    // The runner's genuine partial/failed result must survive post-return aborts,
+    // assertion failures and target cleanup failures.
+    lifecycle?.returned?.(report);
+    return report;
+  }
+  const execution = await observe().then(
+    (report) => ({ ok: true as const, report }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+  const cleanupErrors: unknown[] = [];
+  try {
     await target.close();
+    lifecycle?.afterClose?.();
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  try {
     rmSync(directory, { recursive: true, force: true });
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  const cleanupComplete =
+    cleanupErrors.length === 0 &&
+    (!execution.ok ||
+      execution.report.result.scenarios.every((row) => row.cleanupError === undefined));
+  if (execution.ok) execution.report.cleanupComplete = cleanupComplete;
+  try {
+    lifecycle?.cleaned?.(cleanupComplete ? "complete" : "failed");
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  if (
+    cleanupErrors.length ||
+    (!execution.ok && signal?.aborted && execution.error !== signal.reason)
+  ) {
+    const prior = signal?.aborted ? signal.reason : !execution.ok ? execution.error : undefined;
+    throw new AggregateError(
+      [
+        ...new Set([
+          ...(signal?.aborted ? [signal.reason] : []),
+          ...(!execution.ok ? [execution.error] : []),
+          ...cleanupErrors,
+        ]),
+      ],
+      "artifact execution or cleanup failed",
+      { cause: prior ?? cleanupErrors[0] },
+    );
+  }
+  if (!execution.ok) throw execution.error;
+  return execution.report;
+}
+
+function installedArtifactSet() {
+  const selection = loadProfileContractSelection("read-update");
+  const base = "packages/conformance/";
+  return createReadUpdateArtifactSet(selection, {
+    index: source(`${base}test-support/read-update-artifact-set-v1.json`),
+    fixture: source(`${base}fixtures/read-update-reference-v1.json`),
+    coverage: source(`${base}test-support/read-update-coverage-v1.json`),
+    manifests: {
+      "matrices/read-update-v1.json": source(`${base}matrices/read-update-v1.json`),
+      "matrices/read-update-reference-continuation-v1.json": source(
+        `${base}matrices/read-update-reference-continuation-v1.json`,
+      ),
+    },
+  });
+}
+async function runShard(
+  set: ReadUpdateArtifactSet,
+  index: number,
+  signal: AbortSignal,
+  lifecycle?: Parameters<typeof run>[12],
+  expected?: Pick<ArtifactObservation, "configuration" | "baselineReceipt">,
+  evidence?: ArtifactEvidenceWriter,
+) {
+  try {
+    evidence?.start(index);
+    signal.throwIfAborted();
+    const shard = set.shards[index]!;
+    const report = await run(
+      undefined,
+      index === 0 ? undefined : [...shard.scenarioIds],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      signal,
+      undefined,
+      undefined,
+      { set, shardId: shard.id, ...(expected ? { expected } : {}) },
+      {
+        ...lifecycle,
+        launched(child) {
+          evidence?.acquired(index);
+          lifecycle?.launched?.(child);
+        },
+        returned(report) {
+          evidence?.returned(index, report);
+          lifecycle?.returned?.(report);
+        },
+        cleaned(status) {
+          evidence?.cleaned(index, status);
+          lifecycle?.cleaned?.(status);
+        },
+      },
+    );
+    signal.throwIfAborted();
+    return report;
+  } catch (error) {
+    const original =
+      signal.aborted &&
+      error !== signal.reason &&
+      !(error instanceof Error && error.cause === signal.reason)
+        ? new AggregateError([signal.reason, error], "artifact abort and execution failed", {
+            cause: signal.reason,
+          })
+        : error;
+    try {
+      evidence?.failed(index, signal.aborted);
+    } catch (persistence) {
+      throw new AggregateError(
+        [original, persistence],
+        "artifact failure evidence could not be saved",
+        { cause: original },
+      );
+    }
+    throw original;
   }
 }
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate job starts 49 isolated authorities; Linux CI previously exceeded 30s.
+  // One aggregate budget for both shards and 50 isolated scenario authorities.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
+  const started = performance.now();
   const timer = setTimeout(() => controller.abort(Error("cumulative run budget exceeded")), 90000);
-  let report: Awaited<ReturnType<typeof run>>;
+  let evidence: ArtifactEvidenceWriter | undefined;
   try {
-    report = await run(
-      undefined,
-      undefined,
-      false,
-      false,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      controller.signal,
+    const set = installedArtifactSet();
+    const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim();
+    const filename = process.env.BDP_CUMULATIVE_REPORT_PATH;
+    evidence = createArtifactEvidenceWriter(set, sourceCommit, filename, [token, wrongToken]);
+    const reports: Awaited<ReturnType<typeof run>>[] = [];
+    const timing: {
+      id: string;
+      budgetRemainingMsAtStart: number;
+      elapsedMs: number;
+      remainingMs: number;
+      outcome: "running" | "pass" | "failed" | "aborted";
+    }[] = [];
+    for (let index = 0; index < set.shards.length; index++) {
+      const stage = {
+        id: set.shards[index]!.id,
+        budgetRemainingMsAtStart: Math.max(0, 90000 - (performance.now() - started)),
+        elapsedMs: performance.now() - started,
+        remainingMs: Math.max(0, 90000 - (performance.now() - started)),
+        outcome: "running" as "running" | "pass" | "failed" | "aborted",
+      };
+      timing.push(stage);
+      evidence.timed(index, stage);
+      const observed = await runShard(
+        set,
+        index,
+        controller.signal,
+        undefined,
+        reports[0],
+        evidence,
+      ).then(
+        (report) => ({ ok: true as const, report }),
+        (error: unknown) => ({ ok: false as const, error }),
+      );
+      stage.elapsedMs = performance.now() - started;
+      stage.remainingMs = Math.max(0, 90000 - stage.elapsedMs);
+      stage.outcome = controller.signal.aborted
+        ? "aborted"
+        : observed.ok &&
+            set.shards[index]!.scenarioIds.every(
+              (id) => observed.report.result.scenarios.find((r) => r.id === id)?.state === "pass",
+            )
+          ? "pass"
+          : "failed";
+      try {
+        evidence.timed(index, stage);
+      } catch (persistence) {
+        if (!observed.ok)
+          throw new AggregateError(
+            [observed.error, persistence],
+            "stage failure evidence could not be saved",
+            { cause: observed.error },
+          );
+        throw persistence;
+      }
+      if (!observed.ok) throw observed.error;
+      reports.push(observed.report);
+    }
+    controller.signal.throwIfAborted();
+    const progress = associateArtifactObservations(
+      set,
+      execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+      reports,
     );
+    const report = reports[0]!;
+    for (const row of report.result.scenarios)
+      expect(row, JSON.stringify(row)).toMatchObject({
+        state: !report.plannedIds.includes(row.id) ? "harness-error" : "pass",
+      });
+    const carrierId = "read-update.sequence.carrier-rejection";
+    const authored = JSON.parse(
+      source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+    ) as {
+      scenarios: {
+        id: string;
+        actions: {
+          id: string;
+          family: string;
+          raw?: { body?: { encoding: "utf8" | "base64"; value: string } };
+          input?: { body?: unknown };
+        }[];
+      }[];
+    };
+    const carrier = authored.scenarios.find((row) => row.id === carrierId)!;
+    const observed = report.result.scenarios.find((row) => row.id === carrierId)!;
+    for (const action of carrier.actions.filter(
+      (action) => action.family === "http" && action.raw?.body,
+    )) {
+      expect(
+        observed.exchanges.find((exchange) => exchange.request.id === action.id)?.request.exact
+          ?.bodyOctets,
+      ).toBe(Buffer.from(action.raw!.body!.value, action.raw!.body!.encoding).byteLength);
+    }
+    // The elevated harness budget is consumed only by the explicit body-size probe.
+    const bodyLimit = 65536;
+    for (const row of authored.scenarios)
+      for (const action of row.actions) {
+        if (action.raw?.body && !(row.id === carrierId && action.id === "body-size"))
+          expect(
+            Buffer.from(action.raw.body.value, action.raw.body.encoding).byteLength,
+            `${row.id}/${action.id}`,
+          ).toBeLessThanOrEqual(bodyLimit);
+        if (action.input?.body !== undefined)
+          expect(
+            Buffer.byteLength(JSON.stringify(action.input.body)),
+            `${row.id}/${action.id}`,
+          ).toBeLessThanOrEqual(bodyLimit);
+      }
+    // Actual serialized client bodies include values substituted from earlier captures.
+    for (const item of report.observations as {
+      observation: { observation: { bodyOctets: number } };
+    }[])
+      expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(bodyLimit);
+    const countBody = carrier.actions.find((action) => action.id === "count-33")!.raw!.body!.value;
+    const countMembers = JSON.parse(countBody).operations as { idempotencyKey: string }[];
+    expect(countMembers).toHaveLength(33);
+    expect(new Set(countMembers.map((member) => member.idempotencyKey)).size).toBe(33);
+    expect(Buffer.byteLength(countBody)).toBeLessThan(65536);
+    expect(
+      Buffer.byteLength(
+        carrier.actions.find((action) => action.id === "body-size")!.raw!.body!.value,
+      ),
+    ).toBeGreaterThan(65536);
+    // Supplementary actual observation bounds; the diagnostics row remains partial.
+    const diagnosticObservations = (
+      report.observations as {
+        scenario: string;
+        observation: {
+          request: { targetBinding: string };
+          body?: {
+            limits?: { validation: { diagnostics: number; diagnosticBytes: number } };
+            diagnostics?: unknown[];
+          };
+        };
+      }[]
+    ).filter((item) => item.scenario === "read-update.validation.diagnostics");
+    const observedLimits = diagnosticObservations.find(
+      (item) => item.observation.request.targetBinding === "service-desc",
+    )?.observation.body?.limits?.validation;
+    expect(observedLimits).toMatchObject({ diagnostics: 32, diagnosticBytes: 524288 });
+    const lists = diagnosticObservations.flatMap((item) =>
+      item.observation.body?.diagnostics ? [item.observation.body.diagnostics] : [],
+    );
+    expect(lists).toHaveLength(4);
+    for (const list of lists) {
+      expect(list.length).toBeGreaterThan(0);
+      expect(list.length).toBeLessThanOrEqual(observedLimits!.diagnostics);
+      expect(Buffer.byteLength(JSON.stringify(list))).toBeLessThanOrEqual(
+        observedLimits!.diagnosticBytes,
+      );
+    }
+    expect(report.result.claimEligible).toBe(false);
+    expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
+    // Pin the existing runner projection; credential identity is bound separately in configuration.
+    expect(report.reportBinding.exactConfigurationDigest).toBe(
+      "3224c31c83988dc0606cb76ee1f4ba8e6394159bdf7daaccc301461316cc2477",
+    );
+    expect(report.uncoveredIds).toHaveLength(99);
+    expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
+    expect(report.sessions).toHaveLength(report.plannedIds.length);
+    expect(report.observations.length).toBeGreaterThan(30);
+    expect(JSON.stringify(report)).not.toContain(token);
+    expect(JSON.stringify(report)).not.toContain(wrongToken);
+    for (const observed of reports) {
+      expect(observed.sessions).toHaveLength(observed.plannedIds.length);
+      expect(observed.cleanupComplete).toBe(true);
+      expect(JSON.stringify(observed)).not.toContain(token);
+      expect(JSON.stringify(observed)).not.toContain(wrongToken);
+      for (const item of observed.observations as {
+        observation: { observation: { bodyOctets: number } };
+      }[])
+        expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(65536);
+    }
+    expect(progress.authoredIds).toHaveLength(50);
+    expect(progress.reviewedWholeIds).toHaveLength(30);
+    expect(progress.omittedRequiredIds).toHaveLength(79);
+    expect(progress.shards[1]!.selectedIds).toEqual(["read-update.alias.unknown-subject"]);
+    // Independent inventory: C's fixed six client GETs, eleven raw GETs and
+    // the installed client's nine mandatory mutation carriers. No route helper.
+    expect(progress.shards[1]!.routes).toEqual([
+      { method: "GET", url: `${scope}operations/` },
+      { method: "GET", url: `${scope}beads/rc-source` },
+      { method: "GET", url: `${scope}beads/rc-target` },
+      { method: "GET", url: `${scope}links/rc-live` },
+      { method: "GET", url: `${scope}beads/rc-rc-sequence-wrong-tail` },
+      { method: "GET", url: `${scope}beads/rc-missing` },
+      { method: "GET", url: `${scope}` },
+      { method: "GET", url: `${scope}bdp.json` },
+      { method: "GET", url: `${scope}types/task` },
+      { method: "GET", url: `${scope}types/relates` },
+      { method: "GET", url: `${scope}alias/rc-locator-live` },
+      { method: "GET", url: `${scope}beads/?limit=100` },
+      { method: "GET", url: `${scope}links/?limit=100` },
+      { method: "GET", url: `${scope}alias/rc-locator-put-local` },
+      { method: "GET", url: `${scope}alias/rc-locator-put-absolute` },
+      { method: "GET", url: `${scope}alias/rc-locator-missing` },
+      { method: "GET", url: `${scope}alias/rc-locator-missing-absolute` },
+      { method: "POST", url: `${scope}operations/sequence` },
+      { method: "POST", url: `${scope}operations/create-bead` },
+      { method: "POST", url: `${scope}operations/update-bead` },
+      { method: "POST", url: `${scope}operations/delete-bead` },
+      { method: "POST", url: `${scope}operations/create-link` },
+      { method: "POST", url: `${scope}operations/update-link` },
+      { method: "POST", url: `${scope}operations/delete-link` },
+      { method: "POST", url: `${scope}operations/put-alias` },
+      { method: "POST", url: `${scope}operations/delete-alias` },
+    ]);
+    expect(progress.shards[1]!.routes).toHaveLength(26);
+    expect(progress.shards[1]!.routeDigest).toBe(
+      "59c70c9f22238cd7711a19034139c404136564ad50c58b7f3ef795a385cc990e",
+    );
+    expect(progress.observedStatePartitions.pass).toEqual(progress.authoredIds);
+    expect(progress.observedStatePartitions.fail).toEqual([]);
+    expect(progress.observedStatePartitions.notRun).toEqual([]);
+    expect(progress.observedStatePartitions.notImplemented).toEqual(progress.omittedRequiredIds);
+    expect(progress.observedStatePartitions.unobserved).toEqual([]);
+    expect(progress.uncoveredIds).toEqual(
+      set.coverage.rows.filter((r) => !r.wholeContract).map((r) => r.id),
+    );
+    expect(progress.uncoveredIds).toHaveLength(99);
+    expect(JSON.stringify(progress)).not.toContain(token);
+    expect(JSON.stringify(progress)).not.toContain(wrongToken);
+    controller.signal.throwIfAborted();
+    expect(performance.now() - started).toBeLessThan(90000);
+    evidence.succeeded({
+      ...progress,
+      sourceDirty: reports.some((r) => r.sourceDirty),
+      timing,
+      outcome: "observed",
+      ...(filename ? { childReports: set.shards.map((s) => `${filename}.${s.id}.json`) } : {}),
+    });
+  } catch (error) {
+    try {
+      evidence?.failedSet();
+    } catch (persistence) {
+      throw new AggregateError([error, persistence], "set failure evidence could not be saved", {
+        cause: error,
+      });
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
   }
-  controller.signal.throwIfAborted();
-  if (process.env.BDP_CUMULATIVE_REPORT_PATH)
-    writeFileSync(process.env.BDP_CUMULATIVE_REPORT_PATH, JSON.stringify(report, null, 2));
-  for (const row of report.result.scenarios)
-    expect(row, JSON.stringify(row)).toMatchObject({
-      state: !report.plannedIds.includes(row.id) ? "harness-error" : "pass",
-    });
-  const carrierId = "read-update.sequence.carrier-rejection";
-  const authored = JSON.parse(
-    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
-  ) as {
-    scenarios: {
-      id: string;
-      actions: {
-        id: string;
-        family: string;
-        raw?: { body?: { encoding: "utf8" | "base64"; value: string } };
-        input?: { body?: unknown };
-      }[];
-    }[];
-  };
-  const carrier = authored.scenarios.find((row) => row.id === carrierId)!;
-  const observed = report.result.scenarios.find((row) => row.id === carrierId)!;
-  for (const action of carrier.actions.filter(
-    (action) => action.family === "http" && action.raw?.body,
-  )) {
-    expect(
-      observed.exchanges.find((exchange) => exchange.request.id === action.id)?.request.exact
-        ?.bodyOctets,
-    ).toBe(Buffer.from(action.raw!.body!.value, action.raw!.body!.encoding).byteLength);
-  }
-  // The elevated harness budget is consumed only by the explicit body-size probe.
-  const bodyLimit = 65536;
-  for (const row of authored.scenarios)
-    for (const action of row.actions) {
-      if (action.raw?.body && !(row.id === carrierId && action.id === "body-size"))
-        expect(
-          Buffer.from(action.raw.body.value, action.raw.body.encoding).byteLength,
-          `${row.id}/${action.id}`,
-        ).toBeLessThanOrEqual(bodyLimit);
-      if (action.input?.body !== undefined)
-        expect(
-          Buffer.byteLength(JSON.stringify(action.input.body)),
-          `${row.id}/${action.id}`,
-        ).toBeLessThanOrEqual(bodyLimit);
-    }
-  // Actual serialized client bodies include values substituted from earlier captures.
-  for (const item of report.observations as {
-    observation: { observation: { bodyOctets: number } };
-  }[])
-    expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(bodyLimit);
-  const countBody = carrier.actions.find((action) => action.id === "count-33")!.raw!.body!.value;
-  const countMembers = JSON.parse(countBody).operations as { idempotencyKey: string }[];
-  expect(countMembers).toHaveLength(33);
-  expect(new Set(countMembers.map((member) => member.idempotencyKey)).size).toBe(33);
-  expect(Buffer.byteLength(countBody)).toBeLessThan(65536);
-  expect(
-    Buffer.byteLength(
-      carrier.actions.find((action) => action.id === "body-size")!.raw!.body!.value,
-    ),
-  ).toBeGreaterThan(65536);
-  // Supplementary actual observation bounds; the diagnostics row remains partial.
-  const diagnosticObservations = (
-    report.observations as {
-      scenario: string;
-      observation: {
-        request: { targetBinding: string };
-        body?: {
-          limits?: { validation: { diagnostics: number; diagnosticBytes: number } };
-          diagnostics?: unknown[];
-        };
-      };
-    }[]
-  ).filter((item) => item.scenario === "read-update.validation.diagnostics");
-  const observedLimits = diagnosticObservations.find(
-    (item) => item.observation.request.targetBinding === "service-desc",
-  )?.observation.body?.limits?.validation;
-  expect(observedLimits).toMatchObject({ diagnostics: 32, diagnosticBytes: 524288 });
-  const lists = diagnosticObservations.flatMap((item) =>
-    item.observation.body?.diagnostics ? [item.observation.body.diagnostics] : [],
-  );
-  expect(lists).toHaveLength(4);
-  for (const list of lists) {
-    expect(list.length).toBeGreaterThan(0);
-    expect(list.length).toBeLessThanOrEqual(observedLimits!.diagnostics);
-    expect(Buffer.byteLength(JSON.stringify(list))).toBeLessThanOrEqual(
-      observedLimits!.diagnosticBytes,
-    );
-  }
-  expect(report.result.claimEligible).toBe(false);
-  expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
-  // Pin the existing runner projection; credential identity is bound separately in configuration.
-  expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "3224c31c83988dc0606cb76ee1f4ba8e6394159bdf7daaccc301461316cc2477",
-  );
-  expect(report.uncoveredIds).toHaveLength(99);
-  expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
-  expect(report.sessions).toHaveLength(report.plannedIds.length);
-  expect(report.observations.length).toBeGreaterThan(30);
-  expect(JSON.stringify(report)).not.toContain(token);
-  expect(JSON.stringify(report)).not.toContain(wrongToken);
 }, 120000);
 
 it("fails actual response comparisons for mutated captures and postimages", async () => {
@@ -1379,28 +1669,30 @@ it("detects a mismatched advertised request body bound in the actual carrier dis
   ).toEqual(["target-body-limit"]);
 }, 30000);
 
-it("stops the aggregate runner on cancellation without awarding a scenario pass", async () => {
-  const id = "read-update.singleton.create-bead";
-  const report = await run(
-    undefined,
-    [id],
-    false,
-    false,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    AbortSignal.abort(Error("test aggregate cancellation")),
-  );
-  expect(report.sessions).toHaveLength(0);
-  expect(report.observations).toHaveLength(0);
-  expect(report.result.scenarios).toHaveLength(1);
-  expect(report.result.scenarios[0]).toMatchObject({
-    state: "harness-error",
-    category: "not-run",
-    reason: "matrix stopped before this scenario could run",
-  });
-  expect(report.result.claimEligible).toBe(false);
+it("refuses an already cancelled aggregate before launching any installed child", async () => {
+  const children: ChildProcess[] = [];
+  await expect(
+    run(
+      undefined,
+      ["read-update.singleton.create-bead"],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      AbortSignal.abort(Error("test aggregate cancellation")),
+      undefined,
+      undefined,
+      undefined,
+      {
+        launched(child) {
+          children.push(child);
+        },
+      },
+    ),
+  ).rejects.toThrow("test aggregate cancellation");
+  expect(children).toEqual([]);
 }, 30000);
 
 it.each([
@@ -2507,6 +2799,485 @@ it.each(["identities", "stale-record"] as const)(
     const exchange = observed?.exchanges.find((a) => a.request.id === action.id);
     expect(exchange?.response?.status).toBe(200);
     expect(exchange?.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
+  },
+  30000,
+);
+
+const continuationId = "read-update.alias.unknown-subject";
+const continuationSource =
+  "packages/conformance/matrices/read-update-reference-continuation-v1.json";
+it.each([
+  { action: "rc-delete-replay", path: ["status"], value: 200, failed: "status" },
+  {
+    action: "rc-sequence-wrong-0-read",
+    path: ["body", "properties", "n"],
+    value: 999,
+    failed: "postimage",
+  },
+])(
+  "detects restored C post-wire corruption $action",
+  async (control) => {
+    const manifest = JSON.parse(source(continuationSource).bytes.toString());
+    const report = await run(
+      manifest,
+      [continuationId],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { ...control, scenario: continuationId },
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    const observed = report.result.scenarios[0]!;
+    expect(observed.state).toBe("fail");
+    expect(
+      observed.actions
+        ?.find((a) => a.action.id === control.action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toEqual([control.failed]);
+  },
+  30000,
+);
+it("detects restored C retained-delete live-alias Location corruption", async () => {
+  const manifest = JSON.parse(source(continuationSource).bytes.toString());
+  const action = manifest.scenarios[0].actions.find(
+    (a: { id: string }) => a.id === "rc-delete-replay-alias",
+  );
+  action.assertions.find((a: { id: string }) => a.id === "location").equals =
+    `${scope}beads/rc-source`;
+  const report = await run(manifest, [continuationId]);
+  expect(report.result.scenarios[0]!.state).toBe("fail");
+  expect(
+    report.result.scenarios[0]!.exchanges.find((e) => e.request.id === action.id)
+      ?.assertions.filter((a) => !a.passed)
+      .map((a) => a.id),
+  ).toEqual(["location"]);
+}, 30000);
+it("binds restored C independent oracle corruption and fails its actual comparison", async () => {
+  const manifest = JSON.parse(source(continuationSource).bytes.toString());
+  const fixture = JSON.parse(
+    source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
+  );
+  const action = manifest.scenarios[0].actions.find((a: { id: string }) => a.id === "rc-put-local");
+  const pointer = action.assertions.find(
+    (a: { id: string }) => a.id === "complete-problem",
+  ).fixturePointer;
+  const key = pointer.split("/").at(-1);
+  fixture.oracles.referenceEvidence[key].code = "incorrect-independent-oracle";
+  const report = await run(manifest, [continuationId], false, false, fixture);
+  expect(report.reportBinding.artifacts.fixtureDigest).not.toBe(
+    installedArtifactSet().digests.fixtureDigest,
+  );
+  expect(report.result.scenarios[0]!.state).toBe("fail");
+  expect(
+    report.result.scenarios[0]!.actions?.find((a) => a.action.id === action.id)
+      ?.assertions.filter((a) => !a.passed)
+      .map((a) => a.id),
+  ).toEqual(["complete-problem"]);
+}, 30000);
+function smallExecutionSet() {
+  const set = installedArtifactSet();
+  const captured = copyReadUpdateArtifactSetSources(set);
+  const name = set.shards[0]!.source;
+  const manifest = JSON.parse(Buffer.from(captured.manifests[name]!.bytes).toString());
+  manifest.scenarios = manifest.scenarios.filter(
+    (r: { id: string }) => r.id === "read-update.singleton.create-bead",
+  );
+  const ids = new Set([manifest.scenarios[0].id, continuationId]);
+  const coverage = JSON.parse(Buffer.from(captured.coverage.bytes).toString());
+  coverage.rows = coverage.rows.map((row: { id: string }) =>
+    ids.has(row.id)
+      ? { ...row, wholeContract: false }
+      : { ...row, status: "omitted", wholeContract: false, bindings: [] },
+  );
+  return createReadUpdateArtifactSet(loadProfileContractSelection("read-update"), {
+    ...captured,
+    coverage: { bytes: Buffer.from(JSON.stringify(coverage)) },
+    manifests: { ...captured.manifests, [name]: { bytes: Buffer.from(JSON.stringify(manifest)) } },
+  });
+}
+it.each(["before-continuation", "after-continuation-launch", "during-continuation"] as const)(
+  "drains actual segmented children on abort %s",
+  async (when) => {
+    const set = smallExecutionSet();
+    const controller = new AbortController();
+    const children: ChildProcess[] = [];
+    const lifecycle = {
+      launched(child: ChildProcess) {
+        children.push(child);
+      },
+    };
+    const first = await runShard(set, 0, controller.signal, lifecycle);
+    expect(
+      first.result.scenarios.find((r) => r.id === "read-update.singleton.create-bead")?.state,
+    ).toBe("pass");
+    const firstCount = children.length;
+    if (when === "before-continuation") controller.abort(Error("bounded test abort"));
+    let observations = 0;
+    await expect(
+      runShard(
+        set,
+        1,
+        controller.signal,
+        {
+          launched(child) {
+            lifecycle.launched(child);
+            if (when === "after-continuation-launch") controller.abort(Error("bounded test abort"));
+          },
+          observed() {
+            observations++;
+            controller.abort(Error("bounded test abort"));
+          },
+        },
+        first,
+      ),
+    ).rejects.toThrow("bounded test abort");
+    expect(observations).toBe(when === "during-continuation" ? 1 : 0);
+    expect(children.length).toBe(
+      firstCount +
+        (when === "before-continuation" ? 0 : when === "after-continuation-launch" ? 1 : 2),
+    );
+    for (const child of children)
+      expect(child.exitCode === 0 || child.signalCode === "SIGTERM").toBe(true);
+  },
+  30000,
+);
+it("keeps dependent-only selection as an unexecuted runner prerequisite failure", async () => {
+  const id = "read.discovery.canonical-navigation";
+  const report = await run(undefined, [id]);
+  expect(report.result.scenarios[0]).toMatchObject({
+    state: "harness-error",
+    category: "not-run",
+    prerequisiteFailure: { reason: "prerequisite was not selected or did not run" },
+  });
+  expect(report.sessions).toEqual([]);
+  expect(report.result.scenarios[0]!.exchanges).toEqual([]);
+}, 30000);
+it("blocks a same-shard dependent after an actually failed prerequisite", async () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const id = "read.discovery.scope-service-desc";
+  const prerequisite = manifest.scenarios.find((r: { id: string }) => r.id === id);
+  const status = prerequisite.actions[0].assertions.find(
+    (a: { kind: string }) => a.kind === "status",
+  );
+  delete status.oneOf;
+  status.equals = 599;
+  const report = await run(manifest, [id, "read.discovery.canonical-navigation"]);
+  expect(report.result.scenarios[0]!.state).toBe("fail");
+  expect(report.result.scenarios[1]).toMatchObject({ state: "harness-error", category: "not-run" });
+  expect(report.sessions).toHaveLength(1);
+}, 30000);
+
+it("checks the actual second bootstrap configuration before starting its scenario", async () => {
+  const set = smallExecutionSet();
+  const controller = new AbortController();
+  const first = await runShard(set, 0, controller.signal);
+  const children: ChildProcess[] = [];
+  const mismatched = {
+    configuration: first.configuration,
+    baselineReceipt: { ...first.baselineReceipt, configurationIdentity: "0".repeat(64) },
+  };
+  await expect(
+    runShard(
+      set,
+      1,
+      controller.signal,
+      {
+        launched(child) {
+          children.push(child);
+        },
+      },
+      mismatched,
+    ),
+  ).rejects.toThrow();
+  expect(children).toHaveLength(1);
+  expect(children[0]!.exitCode === 0 || children[0]!.signalCode === "SIGTERM").toBe(true);
+}, 30000);
+
+it.each([
+  "during-continuation",
+  "before-continuation",
+  "during-baseline",
+  "startup-failure",
+  "cleanup-failure",
+] as const)(
+  "retains actual artifact attempt evidence on %s",
+  async (when) => {
+    const directory = mkdtempSync(path.join(tmpdir(), "artifact-failure-evidence-"));
+    const filename = path.join(directory, "summary.json");
+    const children: ChildProcess[] = [];
+    try {
+      const set = smallExecutionSet();
+      const controller = new AbortController();
+      const original = Error("bounded original abort");
+      const cleanup = Error("bounded cleanup failure");
+      const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: root,
+        encoding: "utf8",
+      }).trim();
+      const writer = createArtifactEvidenceWriter(set, sourceCommit, filename, [token, wrongToken]);
+      let actual: ArtifactObservation | undefined;
+      const lifecycle = {
+        launched(child: ChildProcess) {
+          children.push(child);
+          if (when === "startup-failure") throw original;
+        },
+        returned(report: ArtifactObservation) {
+          expect(report.cleanupComplete).toBe(false);
+          actual = report;
+        },
+      };
+      let first: Awaited<ReturnType<typeof run>> | undefined;
+      let caught: unknown;
+      try {
+        first = await runShard(
+          set,
+          0,
+          controller.signal,
+          {
+            ...lifecycle,
+            ...(when === "during-baseline"
+              ? {
+                  observed() {
+                    controller.abort(original);
+                  },
+                }
+              : {}),
+          },
+          undefined,
+          writer,
+        );
+        expect(
+          first.result.scenarios.find((r) => r.id === "read-update.singleton.create-bead")!.state,
+        ).toBe("pass");
+        if (when === "before-continuation") controller.abort(original);
+        await runShard(
+          set,
+          1,
+          controller.signal,
+          {
+            ...lifecycle,
+            observed() {
+              controller.abort(original);
+            },
+            ...(when === "cleanup-failure"
+              ? {
+                  afterClose() {
+                    throw cleanup;
+                  },
+                }
+              : {}),
+          },
+          first,
+          writer,
+        );
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeDefined();
+      if (when === "cleanup-failure") {
+        expect(caught).toBeInstanceOf(AggregateError);
+        expect((caught as AggregateError).cause).toBe(original);
+        expect((caught as AggregateError).errors).toEqual([original, cleanup]);
+      } else expect(caught).toBe(original);
+      expect(existsSync(filename)).toBe(false);
+      const attempt = JSON.parse(readFileSync(filename + ".attempt.json", "utf8"));
+      expect(attempt).toMatchObject({ claimEligible: false, outcome: "failed" });
+      if (when === "startup-failure") {
+        expect(attempt.shards).toMatchObject([
+          { status: "failed", evidence: "absent", cleanup: "complete" },
+          { status: "unobserved", evidence: "absent", cleanup: "not-started" },
+        ]);
+        expect(existsSync(`${filename}.${set.shards[0]!.id}.json`)).toBe(false);
+        expect(existsSync(`${filename}.${set.shards[1]!.id}.json`)).toBe(false);
+        expect(children).toHaveLength(1);
+        expect(children[0]!.exitCode === 0 || children[0]!.signalCode === "SIGTERM").toBe(true);
+        return;
+      }
+      const baseline = JSON.parse(readFileSync(`${filename}.${set.shards[0]!.id}.json`, "utf8"));
+      expect(baseline.result).toEqual(first?.result ?? actual!.result);
+      expect(baseline.cleanupComplete).toBe(true);
+      if (when === "during-baseline") {
+        expect(attempt.shards[1]).toMatchObject({
+          status: "unobserved",
+          evidence: "absent",
+          cleanup: "not-started",
+        });
+        expect(existsSync(`${filename}.${set.shards[1]!.id}.json`)).toBe(false);
+      } else if (when === "before-continuation") {
+        expect(attempt.shards[1]).toMatchObject({
+          status: "aborted",
+          evidence: "absent",
+          cleanup: "not-started",
+        });
+        expect(existsSync(`${filename}.${set.shards[1]!.id}.json`)).toBe(false);
+      } else {
+        const partial = JSON.parse(readFileSync(`${filename}.${set.shards[1]!.id}.json`, "utf8"));
+        expect(partial.result).toEqual(actual!.result);
+        const mapped = attempt.requiredObservations.find(
+          (r: { id: string }) => r.id === continuationId,
+        );
+        expect(mapped.observation).toMatchObject({
+          shardId: set.shards[1]!.id,
+          rowIndex: 0,
+          state: partial.result.scenarios[0].state,
+        });
+        expect(partial.result.scenarios[0].state).not.toBe("pass");
+        expect(partial.result.scenarios[0].actions.length).toBeGreaterThan(0);
+        expect(partial.cleanupStatus).toBe(when === "cleanup-failure" ? "failed" : "complete");
+        expect(attempt.shards[1]).toMatchObject({ status: "aborted", evidence: "retained" });
+      }
+      for (const child of children)
+        expect(child.exitCode === 0 || child.signalCode === "SIGTERM").toBe(true);
+      expect(children.length).toBeGreaterThan(0);
+      expect(JSON.stringify(attempt)).not.toContain(token);
+      expect(JSON.stringify(baseline)).not.toContain(token);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+  30000,
+);
+it("retains actual returned continuation assertion failure without a successful summary", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "artifact-assertion-evidence-"));
+  const filename = path.join(directory, "summary.json");
+  const children: ChildProcess[] = [];
+  try {
+    const original = smallExecutionSet();
+    const sources = copyReadUpdateArtifactSetSources(original);
+    const name = original.shards[1]!.source;
+    const manifest = JSON.parse(Buffer.from(sources.manifests[name]!.bytes).toString());
+    const action = manifest.scenarios[0].actions.find((a: { assertions: { kind: string }[] }) =>
+      a.assertions.some((r) => r.kind === "status"),
+    );
+    const status = action.assertions.find((r: { kind: string }) => r.kind === "status");
+    delete status.oneOf;
+    status.equals = 599;
+    const set = createReadUpdateArtifactSet(loadProfileContractSelection("read-update"), {
+      ...sources,
+      manifests: { ...sources.manifests, [name]: { bytes: Buffer.from(JSON.stringify(manifest)) } },
+    });
+    const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim();
+    const writer = createArtifactEvidenceWriter(set, sourceCommit, filename, [token, wrongToken]);
+    const controller = new AbortController();
+    const lifecycle = {
+      launched(child: ChildProcess) {
+        children.push(child);
+      },
+    };
+    const first = await runShard(set, 0, controller.signal, lifecycle, undefined, writer);
+    const second = await runShard(set, 1, controller.signal, lifecycle, first, writer);
+    expect(second.result.scenarios[0]!.state).toBe("fail");
+    expect(() => associateArtifactObservations(set, sourceCommit, [first, second])).toThrow(
+      "owned outcome",
+    );
+    writer.failedSet();
+    for (const [index, report] of [first, second].entries()) {
+      const retained = JSON.parse(
+        readFileSync(`${filename}.${set.shards[index]!.id}.json`, "utf8"),
+      );
+      expect(retained.result).toEqual(report.result);
+      expect(retained.cleanupComplete).toBe(true);
+    }
+    expect(JSON.parse(readFileSync(filename + ".attempt.json", "utf8"))).toMatchObject({
+      claimEligible: false,
+      outcome: "failed",
+      failureStage: "assertion",
+    });
+    expect(existsSync(filename)).toBe(false);
+    for (const child of children)
+      expect(child.exitCode === 0 || child.signalCode === "SIGTERM").toBe(true);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}, 30000);
+
+it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+  "preserves actual abort and IO causes when returned-evidence persistence is denied",
+  async () => {
+    const { chmodSync } = await import("node:fs");
+    const directory = mkdtempSync(path.join(tmpdir(), "native-abort-io-"));
+    const filename = path.join(directory, "summary.json");
+    const children: ChildProcess[] = [];
+    const set = smallExecutionSet();
+    const controller = new AbortController();
+    const original = Error("native original cancellation");
+    const writer = createArtifactEvidenceWriter(
+      set,
+      execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+      filename,
+      [token, wrongToken],
+    );
+    let caught: unknown;
+    try {
+      const first = await runShard(
+        set,
+        0,
+        controller.signal,
+        {
+          launched(child) {
+            children.push(child);
+          },
+        },
+        undefined,
+        writer,
+      );
+      const before = readFileSync(`${filename}.${set.shards[0]!.id}.json`, "utf8");
+      try {
+        await runShard(
+          set,
+          1,
+          controller.signal,
+          {
+            launched(child) {
+              children.push(child);
+            },
+            observed() {
+              controller.abort(original);
+              chmodSync(directory, 0o500);
+            },
+          },
+          first,
+          writer,
+        );
+      } catch (error) {
+        caught = error;
+      } finally {
+        chmodSync(directory, 0o700);
+      }
+      const causes: unknown[] = [];
+      const visit = (error: unknown) => {
+        if (causes.includes(error)) return;
+        causes.push(error);
+        if (error instanceof Error && error.cause !== undefined) visit(error.cause);
+        if (error instanceof AggregateError) error.errors.forEach(visit);
+      };
+      visit(caught);
+      expect(readFileSync(`${filename}.${set.shards[0]!.id}.json`, "utf8")).toBe(before);
+      expect(existsSync(filename)).toBe(false);
+      expect(
+        children.every((child) => child.exitCode === 0 || child.signalCode === "SIGTERM"),
+      ).toBe(true);
+      expect(
+        causes.some(
+          (error) => error instanceof Error && "code" in error && error.code === "EACCES",
+        ),
+      ).toBe(true);
+      expect(causes).toContain(original);
+    } finally {
+      chmodSync(directory, 0o700);
+      rmSync(directory, { recursive: true, force: true });
+    }
   },
   30000,
 );

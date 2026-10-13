@@ -1,3 +1,4 @@
+import { createReadUpdateArtifactSet } from "../test-support/read-update-artifact-set.js";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
@@ -102,11 +103,19 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
   const { canonicalJson } = await import("./canonical-json.js");
   const selected = loadProfileContractSelection("read-update");
   const read = (name: string) => readFileSync(new URL(`../${name}`, import.meta.url));
-  const manifestSource = { bytes: read("matrices/read-update-v1.json") };
-  const bundle = createCumulativeReadUpdateArtifactBundle(selected, {
-    manifest: manifestSource,
+  const set = createReadUpdateArtifactSet(selected, {
+    index: { bytes: read("test-support/read-update-artifact-set-v1.json") },
+    coverage: { bytes: read("test-support/read-update-coverage-v1.json") },
     fixture: { bytes: read("fixtures/read-update-reference-v1.json") },
+    manifests: {
+      "matrices/read-update-v1.json": { bytes: read("matrices/read-update-v1.json") },
+      "matrices/read-update-reference-continuation-v1.json": {
+        bytes: read("matrices/read-update-reference-continuation-v1.json"),
+      },
+    },
   });
+  const bundle = set.shards[0]!.bundle;
+  const plans = set.shards.flatMap((s) => s.bundle.manifest.scenarios);
   expect(bundle.digests.catalogDigest).toBe(
     createHash("sha256").update(canonicalJson(selected.catalogDigests)).digest("hex"),
   );
@@ -114,7 +123,7 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
   expect(bundle.manifest.scenarios.map((row) => row.id)).toEqual(
     catalogOrder.filter((id) => bundle.manifest.scenarios.some((row) => row.id === id)),
   );
-  for (const scenario of bundle.manifest.scenarios) {
+  for (const scenario of plans) {
     for (const action of scenario.actions ?? []) {
       if (action.family !== "http") continue;
       if (action.prerequisiteScenario)
@@ -178,7 +187,7 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
   ]);
   expect(inventory.rows.map((row) => row.id)).toEqual(selected.required.map((row) => row.id));
   for (const row of inventory.rows) {
-    const planned = bundle.manifest.scenarios.find((scenario) => scenario.id === row.id);
+    const planned = plans.find((scenario) => scenario.id === row.id);
     expect(row.status).toBe(planned ? "bounded-observation" : "omitted");
     if (!planned) {
       expect(row.wholeContract).toBe(false);
@@ -187,7 +196,7 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
     }
     expect(row.bindings[0]?.scenario).toBe(row.id);
     expect(row.bindings[0]?.assertions).toEqual(
-      (planned.actions ?? []).flatMap((action) =>
+      (planned.actions ?? planned.requests).flatMap((action) =>
         action.assertions.map((assertion) => `${action.id}.${assertion.id}`),
       ),
     );
