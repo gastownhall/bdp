@@ -757,3 +757,20 @@ cache. These are process-crash witnesses, not physical disk/power-loss testing.
 Concurrent page minimum waits also drain on close while an admitted commit can
 satisfy them. Unsupported root/page controls withhold serving context and do not
 trigger retention; independent maintenance can still expire or forget receipts.
+
+
+### Nonexistent receipt page retention and recovery follow-up
+
+A missing page plan checks parent disclosure and completed status without applying
+retention. Nonexistent pages of failed receipts return 404 for owner/foreign
+principals, with or without unsupported or behind minimum controls, and leave the
+receipt row unchanged. Actual independently scheduled maintenance may still forget
+an eligible failed receipt. Page namespace validation checks the parsed parent
+before the plan lookup. Service prefix checks remain defense in depth; the store
+constructs those prefixes, while the bounds checks independently validate results.
+
+The actual hot-journal terminal-crash regression now attempts an incompatible page
+bound at an expiry-eligible clock before reopening correctly. SQLite recovery may
+restore committed pages, but installation refusal precedes BDP pending cleanup and
+retention: the later valid open recovers the original pending row and all 60 receipt
+chains remain available. This is process-crash evidence, not power-loss durability.

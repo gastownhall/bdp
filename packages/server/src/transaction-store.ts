@@ -1451,17 +1451,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       return enter(() =>
         atomic(() => {
           const marker = id.lastIndexOf("/pages/");
-          if (marker < 0 || !id.startsWith(`${scope}receipts/`))
-            return { kind: "missing" as const };
+          if (marker < 0) return { kind: "missing" as const };
           const parentId = id.slice(0, marker),
             token = id.slice(marker + 7);
+          if (!parentId.startsWith(`${scope}receipts/`)) return { kind: "missing" as const };
           const saved = db
             .prepare("SELECT * FROM receipt_pages WHERE receipt=? AND principal=?")
             .get(parentId, principal);
           if (!saved) {
             // A visible completed parent must have its durable plan, even after expiry.
-            const parent = retainedReceipt(principal, parentId);
-            if (parent?.status === "completed") throw new Error("receipt page plan missing");
+            // Nonexistent pages must not trigger retention on failed parents.
+            const parent = disclosedReceipt(principal, parentId);
+            if (parent && parseReceipt(parent.receipt).status === "completed")
+              throw new Error("receipt page plan missing");
             return { kind: "missing" as const };
           }
           const stored = row(principal, String(saved.key));

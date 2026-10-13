@@ -66,6 +66,18 @@ it.each(["before-maintenance-commit", "after-terminal"] as const)(
     expect(readFileSync(`${file}-journal`).subarray(0, 8)).toEqual(
       Buffer.from("d9d505f920a163d7", "hex"),
     );
+    if (stage === "after-terminal") {
+      // SQLite must recover the hot journal before configuration can be read;
+      // incompatible installation refusal must still precede BDP cleanup.
+      expect(() =>
+        openTransactionStore({
+          ...options,
+          create: false,
+          receiptMaximumItems: 3,
+          clock: () => 86401001,
+        }),
+      ).toThrow("installation mismatch");
+    }
     const owner = openTransactionStore({ ...options, create: false, clock: () => 1000 });
     try {
       expect(owner.recoveredPending).toBe(stage === "after-terminal" ? 1 : 0);

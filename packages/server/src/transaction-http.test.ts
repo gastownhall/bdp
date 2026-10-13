@@ -1345,3 +1345,32 @@ it("refuses unsupported root controls after nondisclosure but before read-trigge
   // Inspect after closing, without reopening (startup maintenance may legitimately expire them).
   expect(await f.retainedReceipts()).toEqual([failed, completed]);
 });
+
+it("keeps failed parent rows unchanged for nonexistent page reads with any controls", async () => {
+  const f = await fixture({ maintenanceIntervalMs: 60000 });
+  const created = await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]));
+  const failed = await body(created);
+  f.setTime(86401001);
+  for (const method of ["GET", "HEAD"]) {
+    for (const credential of [token, otherToken]) {
+      for (const controls of [
+        {},
+        { "bdp-minimum-scope-position": "unknown" },
+        minimumHeaders(created, "pos-99"),
+        { ...minimumHeaders(created), "bdp-authorization-view": "foreign" },
+      ]) {
+        const response = await f.get(`${id(failed)}/pages/never-issued`, {
+          method,
+          headers: { ...controls, authorization: `Bearer ${credential}` },
+        });
+        expect(response.status).toBe(404);
+        for (const header of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+          expect(response.headers.has(header)).toBe(false);
+        if (method === "GET")
+          expect(checkedProblem(await body(response)).code).toBe("resource-not-found");
+        else expect(await response.text()).toBe("");
+      }
+    }
+  }
+  expect(await f.retainedReceipts()).toEqual([failed]);
+});
