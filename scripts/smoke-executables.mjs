@@ -132,6 +132,23 @@ async function installPackedWorkspace() {
     // Intentional package-surface tripwire: adding or removing a shipped server
     // module is a deliberate reviewed change, not an incidental build artifact.
     const expectedServerOutput = new Set([
+      "installed-payload.d.ts",
+      "installed-payload.d.ts.map",
+      "installed-payload.js",
+      "installed-payload.js.map",
+      "transaction-installed-configuration.d.ts",
+      "transaction-installed-configuration.d.ts.map",
+      "transaction-installed-configuration.js",
+      "transaction-installed-configuration.js.map",
+      "transaction-installed.d.ts",
+      "transaction-installed.d.ts.map",
+      "transaction-installed.js",
+      "transaction-installed.js.map",
+      "transaction-installed-process.d.ts",
+      "transaction-installed-process.d.ts.map",
+      "transaction-installed-process.js",
+      "transaction-installed-process.js.map",
+
       "alias-evaluator.d.ts",
       "alias-evaluator.d.ts.map",
       "alias-evaluator.js",
@@ -458,8 +475,18 @@ async function installPackedWorkspace() {
     }
 
     for (const specifier of [
+      "@bdp/conformance/transactional-observation",
+      "@bdp/conformance/dist/transactional-observation.js",
       "@bdp/server/development-composition",
       "@bdp/server/dist/development-composition.js",
+      "@bdp/server/installed-payload",
+      "@bdp/server/dist/installed-payload.js",
+      "@bdp/server/transaction-installed-configuration",
+      "@bdp/server/dist/transaction-installed-configuration.js",
+      "@bdp/server/transaction-installed",
+      "@bdp/server/dist/transaction-installed.js",
+      "@bdp/server/transaction-installed-process",
+      "@bdp/server/dist/transaction-installed-process.js",
       "@bdp/server/transaction-runtime-configuration",
       "@bdp/server/dist/transaction-runtime-configuration.js",
       "@bdp/server/transaction-snapshot",
@@ -489,6 +516,13 @@ async function installPackedWorkspace() {
         if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
       }
     }
+
+    const conformanceOutput = await readdir(
+      path.join(installRoot, "node_modules", "@bdp", "conformance", "dist"),
+    );
+    for (const suffix of [".js", ".js.map", ".d.ts", ".d.ts.map"])
+      if (!conformanceOutput.includes(`transactional-observation${suffix}`))
+        throw new Error("packed private receipt recorder output missing");
 
     const capabilityUrl = pathToFileURL(
       path.join(

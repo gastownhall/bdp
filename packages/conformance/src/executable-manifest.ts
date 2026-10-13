@@ -421,6 +421,9 @@ const SECRET_HEADER_PATTERN =
 const HTTP_FIELD_VALUE_PATTERN = /^[\t\x20-\x7e\x80-\xff]*$/;
 const MAXIMUM_RAW_REQUEST_TARGET_BYTES = 8_192;
 const STABLE_RESPONSE_METADATA_HEADERS = new Set([
+  "bdp-scope-epoch",
+  "bdp-authorization-view",
+  "bdp-scope-position",
   "cache-control",
   "content-language",
   "content-length",

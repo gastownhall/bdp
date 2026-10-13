@@ -1949,3 +1949,9 @@ export function createCurrentReadWireValidator(schemaValidator: SchemaValidator)
     }
   };
 }
+
+export type {
+  TransactionalRunContext,
+  TransactionalSessionBinding,
+  TransactionalSession,
+} from "../src/transactional-observation.js";

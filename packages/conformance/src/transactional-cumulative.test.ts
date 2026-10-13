@@ -1,3 +1,4 @@
+import { createTransactionalObservations } from "./transactional-observation.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
@@ -90,13 +91,13 @@ it("binds the canonical cumulative TX selection and exact source digests without
   );
   const coverage = JSON.parse(read("coverage").toString());
   expect(coverage.claimEligible).toBe(false);
-  expect(coverage.status).toBe("authored-unexecuted");
+  expect(coverage.status).toBe("bounded-observation");
   expect(coverage.rows.map((r: { id: string }) => r.id)).toEqual(
     actual.manifest.scenarios.map((row) => row.id),
   );
   for (const row of coverage.rows) {
     expect(row.wholeContract).toBe(false);
-    expect(row.reason).toContain("No target observed");
+    expect(row.reason).toContain("Whole contract remains unqualified");
     const plan = actual.manifest.scenarios.find((r) => r.id === row.id);
     expect(Array.isArray(plan?.actions)).toBe(true);
     expect(row.bindings).toStrictEqual([
@@ -285,19 +286,19 @@ it("private runner refuses lookalikes, RU bundles, wrong profiles and absent exa
   await expect(runCumulativeTransactionalMatrix(options("read-update"))).rejects.toThrow(
     "matching private runner",
   );
-  // H1b must retire this marker and the transport refusals below together when
-  // http-executor.ts admits Transactional configurations.
+  // Structural private transport availability stays separate from partial
+  // observed coverage; malformed configuration still refuses before setup.
   const bound = configuration();
   const plan = planProfileExecution(selected, bound, {
     configuration: bound,
     manifest: inputs().manifest,
   });
   const coverage = JSON.parse(read("coverage").toString());
-  expect(plan.transportAdmission).toBe("pending-h1b");
+  expect(plan.transportAdmission).toBe("private-exact-available");
   expect(coverage.transportAdmission).toBe(plan.transportAdmission);
   const input = options();
   await expect(runCumulativeTransactionalMatrix(input)).rejects.toThrow(
-    "transport admission pending",
+    "private session transport required",
   );
   await expect(
     runCumulativeTransactionalMatrix({ ...input, scope: "not-a-scope" }),
@@ -310,14 +311,13 @@ it("private runner refuses lookalikes, RU bundles, wrong profiles and absent exa
       scope: fixture.scope,
       profile: "transactional",
       routes: [{ method: "POST", url: fixture.bindings.batch }],
-      maximumRequestHeaderBytes: 16384,
+      maximumRequestHeaderBytes: 0,
       maximumRequestBodyBytes: 65536,
       defaultCredentialRef: "operator",
       credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
     },
   };
-  // This hostile cast is only a refusal probe: H1a cannot manufacture an exact
-  // TX mode by changing its type. Real transport admission belongs to H1b.
+  // Malformed trusted configuration cannot reach preparation or dialing.
   await expect(
     runCumulativeTransactionalMatrix({
       ...input,
@@ -326,27 +326,27 @@ it("private runner refuses lookalikes, RU bundles, wrong profiles and absent exa
   ).rejects.toThrow("Exact HTTP execution binding is invalid");
   const mode = {
     ...invalidExact.configuration,
+    maximumRequestHeaderBytes: 16384,
     profile: "read-update" as const,
     routes: [{ method: "POST" as const, url: fixture.bindings.batch }],
     resolveCredentials: () => ({}),
   };
   expect(snapshotExactHttpMode(mode).profile).toBe("read-update");
-  expect(() =>
-    snapshotExactHttpMode({ ...mode, profile: "transactional" } as unknown as Parameters<
-      typeof snapshotExactHttpMode
-    >[0]),
-  ).toThrow("exact HTTP request configuration is invalid");
+  expect(snapshotExactHttpMode({ ...mode, profile: "transactional" }).profile).toBe(
+    "transactional",
+  );
   expect(input.harness.prepare).not.toHaveBeenCalled();
   expect(input.execute).not.toHaveBeenCalled();
 });
 
-it("keeps private cumulative factories, TX runner and brand predicate out of public exports", async () => {
+it("keeps private cumulative factories, TX runner, receipt recorder and brand predicate out of public exports", async () => {
   const root = await import("./index.js");
   for (const symbol of [
     createCumulativeTransactionalArtifactBundle,
     createCumulativeReadUpdateArtifactBundle,
     runCumulativeTransactionalMatrix,
     isCumulativeTransactionalArtifactBundle,
+    createTransactionalObservations,
   ])
     expect(Object.values(root)).not.toContain(symbol);
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -358,4 +358,131 @@ it("keeps private cumulative factories, TX runner and brand predicate out of pub
     "./fixtures/read-bdpbd-v1.json",
     "./matrices/read-v1.json",
   ]);
+});
+
+it("refuses reserved receipt actions in an ordinary RU run before setup or a programmable callback", async () => {
+  const manifest = {
+    ...ruManifest,
+    scenarios: [
+      {
+        ...ruManifest.scenarios[0],
+        actions: [
+          {
+            id: "receipt",
+            family: "client",
+            operation: "transactional.receipt-read",
+            input: { binding: "subject", method: "GET" },
+            captures: [],
+            assertions: [
+              { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const input = options("read-update");
+  const actionExecutor = vi.fn(async () => ({ status: 200 }));
+  const configuration = {
+    scope: fixture.scope,
+    profile: "read-update" as const,
+    routes: [{ method: "POST" as const, url: fixture.bindings.batch }],
+    maximumRequestHeaderBytes: 16384,
+    maximumRequestBodyBytes: 65536,
+    defaultCredentialRef: "operator",
+    credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
+  };
+  await expect(
+    runConformanceMatrix({
+      ...input,
+      artifactBundle: createCumulativeReadUpdateArtifactBundle(
+        loadProfileContractSelection("read-update"),
+        { ...inputs(), manifest: source(manifest) },
+      ),
+      exactExecution: { configuration, execute: vi.fn() },
+      actionExecutor,
+    }),
+  ).rejects.toThrow("reserved Transactional");
+  expect(input.harness.prepare).not.toHaveBeenCalled();
+  expect(actionExecutor).not.toHaveBeenCalled();
+});
+
+it("uses preparation rather than HTTP timeout for private reopen lifecycle", async () => {
+  const row = {
+    ...manifest.scenarios[0],
+    actions: [
+      {
+        id: "reopen",
+        family: "client",
+        operation: "transactional.reopen",
+        input: {},
+        captures: [],
+        assertions: [
+          {
+            id: "reopened",
+            kind: "json-pointer",
+            pointer: "/reopened",
+            exists: true,
+            equals: true,
+          },
+        ],
+      },
+    ],
+  };
+  const artifactBundle = createCumulativeTransactionalArtifactBundle(selected, {
+    fixture: inputs().fixture,
+    manifest: source({ ...manifest, scenarios: [row] }),
+  });
+  const base = options();
+  let generation = 1;
+  const context: import("./transactional-observation.js").TransactionalRunContext = {
+    current: (scenario) => ({
+      binding: {
+        scenario,
+        generation,
+        listenUrl: "http://127.0.0.1:12345/",
+        runtimeConfigurationIdentity: "a".repeat(64),
+        configurationDigest: "b".repeat(64),
+        responseLimits: { headerBytes: 65536, bodyBytes: 1048576, wireBytes: 2097152 },
+      },
+      signal: new AbortController().signal,
+      dialRoute: { transport: "plain", host: "127.0.0.1", port: 12345 },
+      resolveCredentials: () => ({}),
+      register: (p) => p,
+    }),
+    reopen: async (_scenario, signal) => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      signal.throwIfAborted();
+      generation++;
+    },
+  };
+  const result = await runCumulativeTransactionalMatrix(
+    {
+      ...base,
+      artifactBundle,
+      requestTimeoutMs: 5,
+      prepareTimeoutMs: 500,
+      harness: {
+        prepare: async () => ({ capabilities: fixture.capabilities, bindings: fixture.bindings }),
+        cleanup: async () => {},
+      },
+      exactExecution: {
+        execute: async () => {
+          throw new Error("must not dial");
+        },
+        configuration: {
+          scope: fixture.scope,
+          profile: "transactional",
+          routes: [{ method: "POST", url: fixture.bindings.batch }],
+          maximumRequestHeaderBytes: 16384,
+          maximumRequestBodyBytes: 65536,
+          defaultCredentialRef: "operator",
+          credentialHandles: [{ id: "operator", headerNames: [] }],
+        },
+      },
+    },
+    context,
+  );
+  expect(result.scenarios.find((s) => s.id === row.id)).toMatchObject({ state: "pass" });
+  expect(generation).toBe(2);
 });

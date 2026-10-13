@@ -802,7 +802,13 @@ describe("executable scenario manifest", () => {
       id: "head-metadata",
       kind: "response-metadata-equals",
       request: "scope",
-      headers: ["content-length", "content-type"],
+      headers: [
+        "content-length",
+        "content-type",
+        "bdp-scope-epoch",
+        "bdp-authorization-view",
+        "bdp-scope-position",
+      ],
     };
     const source = {
       ...base,
@@ -872,6 +878,30 @@ describe("executable scenario manifest", () => {
         "$.scenarios[0].requests[1].assertions[0].headers",
       ],
     );
+    for (const headers of [
+      ["bdp-scope-position", "bdp-scope-position"],
+      ["bdp-unknown"],
+      ["authorization"],
+    ]) {
+      expectIssues(
+        {
+          ...source,
+          scenarios: [
+            {
+              ...scenario,
+              requests: [
+                get,
+                {
+                  ...source.scenarios[0]?.requests?.[1],
+                  assertions: [{ ...comparison, headers }],
+                },
+              ],
+            },
+          ],
+        },
+        ["$.scenarios[0].requests[1].assertions[0].headers"],
+      );
+    }
   });
 
   it("rejects malformed JSON pointers and contradictory assertions", () => {

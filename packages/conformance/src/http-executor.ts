@@ -54,7 +54,7 @@ export interface ExactRequestObservation {
 /** Trusted harness configuration, not portable scenario data or target-supplied authority. */
 export interface ExactHttpModeOptions {
   readonly scope: string;
-  readonly profile: "read" | "read-update";
+  readonly profile: "read" | "read-update" | "transactional";
   readonly routes: readonly { readonly method: HttpMethod; readonly url: string }[];
   readonly maximumRequestHeaderBytes: number;
   readonly maximumRequestBodyBytes: number;
@@ -440,7 +440,12 @@ export function snapshotExactHttpMode(value: ExactHttpModeOptions): ExactHttpMod
     "resolveCredentials",
   ]);
   const { scope, routes } = snapshotExactRoutes(fields.scope, fields.routes);
-  if (fields.profile !== "read" && fields.profile !== "read-update") return configuration();
+  if (
+    fields.profile !== "read" &&
+    fields.profile !== "read-update" &&
+    fields.profile !== "transactional"
+  )
+    return configuration();
   if (
     typeof fields.maximumRequestHeaderBytes !== "number" ||
     typeof fields.maximumRequestBodyBytes !== "number"
