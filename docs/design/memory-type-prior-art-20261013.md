@@ -12,7 +12,9 @@ keeps application categories, evidence, confidence, and validity in structured
 metadata (R3); it does not mandate a universal taxonomy of knowledge. The
 proposal's task-to-policy example requires a relationship that helps someone
 find relevant information without turning that relationship into a work blocker
-(S5, S8, R17). These are requirements; the patterns below are inspiration for
+(S5, S8, R17). Chris uses Task in the proposal; our product model retains **Issue** as the Bead
+Type and **Dependency** as the existing Link contract. These are requirements;
+the patterns below are inspiration for
 satisfying them.
 
 “Metadata” here follows Chris's proposal. It must not quietly become
@@ -61,8 +63,8 @@ separately defines other relationships with operational effects.
 [Primary source: Record relationships and work orders](https://www.ibm.com/docs/en/masv-and-l/maximo-manage/cd?topic=overview-record-relationships-work-orders).
 
 **Useful pattern for our design:** distinguish “how we normally do this” from
-“the job we need to do” and “what we did.” These map naturally to Memory, Task,
-and the proposed Activity bead. A work order may cite an exact procedure revision
+“the job we need to do” and “what we did.” Our candidate mapping uses Memory, the existing Issue Type,
+and the Activity Type already proposed in Provenance V2. A work order may cite an exact procedure revision
 and also maintain a discovery relationship to the procedure's current identity.
 This is our BDP mapping, not a claim that Maximo implements BDP revision pins.
 
@@ -133,7 +135,7 @@ This is a design recommendation, not a selection of new mandatory types.
 
 | User question | Candidate record or relationship | Meaning to preserve |
 | --- | --- | --- |
-| What do we need to do? | Task | The job and its workflow |
+| What do we need to do? | Issue | The existing work record and its workflow |
 | What should the next person know? | Memory | Readable, reusable knowledge with independent identity |
 | What happened? | Activity | A report about work, with its own creation/correction history |
 | Where should I look? | Informational Link, starting with `related` | A navigable connection; no implied evidence, approval, or blocking |
@@ -186,3 +188,11 @@ The small starting model is a useful basis for exercising Chris's scenarios;
 it does not by itself supply the required history, lifecycle or command behavior.
 The hard work is selecting a few clear meanings and preserving them through
 editing, history, and display—not finding a more elaborate taxonomy.
+
+## Discussion correction
+
+The parent design note now leaves Type-versus-kind and properties-versus-metadata
+choices open. “Template” above means an optional writing aid, not a chosen product
+mechanism or a substitute for a Type/kind contract. Existing Issue and Dependency
+semantics are the baseline; Activity is already proposed in beads#7510. These
+research recommendations must not be read as selected catalog or taxonomy rules.

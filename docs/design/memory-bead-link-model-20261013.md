@@ -11,18 +11,17 @@ to find the decision behind a supplier choice, see its evidence, and learn why
 that choice changed. Both need the same basics: identifiable knowledge, useful
 relationships, exact references when history matters, and understandable updates.
 
-Recommend **one base Memory Type**, alongside Task and the proposed Activity Type,
-with a small optional vocabulary of Link Types. Start procedure, observation,
-decision, policy and lesson as authoring templates over Memory. Promote one to a
-separate Type only when it needs a distinct validated data contract or behavior.
-No user should have to learn a knowledge ontology before saving a useful note.
+The baseline is **Issue (Bead Type)** and **Dependency (Link Type)**, carrying
+forward the existing product's semantics and vocabulary. **Activity** is the
+Type proposed in [Provenance V2, beads#7510](https://github.com/gastownhall/beads/issues/7510),
+not a new alternative coined by this exercise. Memory is the knowledge contract
+we are working through against Chris's proposal.
 
-This is intentional Type design: Memory promises knowledge without task workflow;
-Task promises work to do; Activity records work reportedly performed. A classification
-like “decision” alone does not yet justify a fourth lifecycle or required schema.
-The templates and link vocabulary are useful shared conventions, not mandatory BDP
-core Types. Chris explicitly asks for this distinction in R3/R17/R30 and his
-[October 3 follow-up](https://github.com/gastownhall/beads/issues/5877#issuecomment-5963448303).
+Whether decision, procedure, observation, policy and lesson should be Types,
+subordinate discriminator values, or merely writing conventions is **open**.
+The earlier template-first recommendation was premature. We also have not selected
+a general properties-versus-metadata policy. The distinctions below are discussion
+criteria, not established system principles.
 
 ## Evidence and boundaries
 
@@ -59,19 +58,38 @@ Fresh source heads, verified October 13:
 Causality IDs, run/session fields, cascading/transitive causality and Type
 installation/version plumbing remain outside this exercise.
 
-## Bead contracts
+## Existing contracts and proposed additions
 
-| Bead Type | Plain meaning | Content and rules | Example |
+| Domain concept | Graph category | Baseline to preserve | Design boundary |
 | --- | --- | --- | --- |
-| Task (existing work model) | Work someone needs to do | Its existing workflow contract; Memory Links cannot change readiness | Inspect pump 7; choose next quarter's supplier |
-| Memory (proposed target) | Knowledge worth keeping | Title and verbatim Markdown body; versioned; no ready/blocked/assigned/closed lifecycle | Recurring seal-wear observation; purchasing decision |
-| Activity (Provenance V2 proposal) | Work reportedly performed | Subject, kind, producer, optional participant/time/artifacts; ordinary versioned Bead | Inspection performed; supplier review meeting recorded |
+| Issue | Bead Type | Existing Issue fields, `issue_type` classifications and product behavior | Do not rename it Task or turn bug/task/epic into new nominal Types by implication |
+| Dependency | Link Type | Existing dependency classifications (`dep_type` in this discussion), direction, validation and effects | Dependency does not mean every relationship blocks; preserve each existing kind's semantics |
+| Activity | Bead Type proposed in Provenance V2 | Independently recorded activity, subject/kind/producer/participant/time/artifacts, with its own revision provenance | Reuse #7510; do not invent a competing activity contract here |
+| Memory | Bead Type under design | Chris's durable knowledge contract without Issue workflow | Categories and application fields remain decisions, not a settled catalog |
 
-A job, the reusable guidance for doing it, and a report that it happened are
-three different things. Do not turn a procedure into a Task so it can be marked
-complete, or create an Activity merely because someone edited a Memory; ordinary
-revision provenance already records the edit. A completed inspection's reusable
-finding can become a Memory, with its sources explicitly recorded.
+Issue and Dependency are names of the established domain contracts. Their final
+published descriptor/schema artifacts should document those contracts, not
+reinterpret them. `issue_type` remains a subordinate Issue classification.
+Dependency's existing discriminator is exposed with different spellings on
+particular surfaces (the native Go record uses JSON `type`); this note does not
+rename any wire field to `dep_type`.
+
+Source check: [native Issue/Dependency definitions](https://github.com/donnabox/beads/blob/9dc2b074f08afc31a3825f65c69f420b9feb8325/internal/types/types.go)
+and [preview descriptors](https://github.com/donnabox/beads/blob/9dc2b074f08afc31a3825f65c69f420b9feb8325/internal/storage/graphstore/schema.go),
+the verified head of merged [fork PR91](https://github.com/donnabox/beads/pull/91).
+Issue classification remains a property. That preview maps several native
+Dependency kinds to distinct experimental Link Type IDs, with empty properties
+and source ownership; its descriptors explicitly disclaim a complete production
+contract. This is an in-flight representation to reconcile, not evidence that
+all kinds must become Types or permission to collapse those descriptors now.
+The current `feat/bead-graph` head is not a reliable substitute for that PR's
+verified source; read the cited artifact when comparing this mapping.
+
+A job, reusable guidance and a report of work performed remain useful distinctions,
+but our names are Issue, Memory and the existing Activity proposal. Neither the
+presence of an Issue kind named `decision` nor a Memory author's description of
+a decision establishes that they are interchangeable contracts. Do not migrate
+existing decision Issues into Memory automatically.
 
 Memory's proposed placement:
 
@@ -91,28 +109,78 @@ size/authoring cases rather than inventing an arbitrary universal number here.
 The declaration does not itself provide Memory restore, retained pin admission,
 or deletion cascade behavior.
 
-## Templates before more Bead Types
+## What “template” meant, and what it does not decide
 
-Templates help people author useful bodies; they do not extract facts from prose
-or turn headings into independently authoritative properties.
+I meant an **optional writing aid**: headings, prompts or initial values used
+when authoring a record. For example, a decision note might start with “What we
+chose”, “Why”, and “Alternatives”. That is all. No stored template identity,
+new installation mechanism, schema inference from headings, automatic Type
+selection or future dependency on a template is proposed.
 
-| Template | Questions the body answers |
+| Writing aid | Questions it helps answer |
 | --- | --- |
-| Observation | What did we see? Where and under what conditions? What remains uncertain? |
-| Procedure | What is this for? When does it apply? What are the steps and checks? |
-| Decision | What did we choose? Why? Which alternatives mattered? |
-| Policy | What rule is being recorded? To whom and when does it apply? Where is its authority documented? |
-| Lesson | What happened? What should someone remember next time? |
+| Observation | What did we see, under what conditions, and what is uncertain? |
+| Procedure | When does this apply, and what are the steps and checks? |
+| Decision | What did we choose, why, and which alternatives mattered? |
+| Policy | What rule is recorded, where does it apply, and where is its authority documented? |
+| Lesson | What happened, and what should someone remember next time? |
 
-A document may serve more than one use. A decision explaining a choice can later
-be consulted as guidance without changing its nominal Type. Do not make “fact”
-a privileged Type that asserts truth. A mistaken observation remains an observation.
+A writing aid is independent of Type versus kind: it can help author an Issue,
+a Memory with a decision discriminator, or a separate Decision Type if we choose
+one. It cannot substitute for that choice. We have not selected a template feature.
 
-A future Procedure Type could earn its place with independently addressable
-steps and step-result validation; a Decision Type could require structured
-options and a selected option. Those would be optional domain contracts, possibly
-conforming to Memory once that relationship is specified. We do not require them
-to satisfy Chris's baseline, or silently move his application fields into core.
+## Two independent design questions
+
+### Type or subordinate discriminator?
+
+Both can carry real semantics and validation. A Type can use a discriminated
+schema to require different fields for different kinds. Different behavior is
+therefore not sufficient reason, by itself, to coin another Type: existing
+Issue and Dependency classifications are important counterexamples.
+
+| Consideration | Favors a discriminator within one Type | Favors a separately named Type |
+| --- | --- | --- |
+| Common contract | Variants share the enclosing resource contract and can be handled together | Consumers need to name and depend on the distinct contract directly |
+| Evolution | Variants are maintained as one coherent contract | Separate ownership/version evolution and compatibility commitments are useful |
+| Link constraints and discovery | Consumers can inspect/filter the kind field | A relationship or generic consumer needs Type-level selection/conformance |
+| Per-kind fields/behavior | One schema and domain implementation can express the variants clearly | Combining contracts creates misleading promises or burdens unrelated consumers |
+
+These are tradeoffs, not an automatic decision algorithm. A new Type also costs
+an identity, definition, compatibility obligations and installation coordination.
+A new kind costs branch handling and kind-evolution rules; it is not free merely
+because the Type ID remains the same. Nominal affiliation and mutable kind are
+also different commitments under our proposed Type model. Choose deliberately.
+Preserve Issue/Dependency behavior while working out the new-system principle.
+
+### Type properties or common metadata?
+
+A proposed starting test is **who promises the field's meaning**:
+
+- Type properties are part of that Type's shared data contract. Required and
+  optional fields both belong here when consumers of the Type may rely on their
+  defined meaning. Optional does not imply metadata. An optional decision rationale
+  could be a schema property if the selected Type contract defines it.
+- Common metadata carries annotations outside that Type contract. An importing
+  application's external ID or a team's display hint are examples. Metadata may
+  still be structured, important, versioned and validated by its owning application;
+  it is not a synonym for temporary, unimportant or unvalidated information.
+- Actor/time/sources already have their shared revisionProvenance contract; this
+  is not a reason to move them into either bucket again.
+
+Current BDP propertiesSchema covers properties, not common metadata. If multiple
+consumers rely on a metadata convention, we must name its owner/contract and
+validation path; silently treating it as universally enforced is unsafe. We may
+instead promote it into a Type contract, but that is a design and migration choice.
+Avoid two independently editable copies of the same fact.
+
+Chris's R3 currently places application classification, applicability and similar
+fields in metadata. That is a requirement to account for in this exercise, not
+proof that metadata is the right destination for every future domain Type. If a
+specialized Type moves one into its schema, explicitly reconcile the proposal.
+
+Next useful comparison: write the same small decision record as (a) Memory plus
+kind and (b) a distinct Decision Type, then ask what a reader, Link validator and
+writer can rely on. Do the comparison before choosing either representation.
 
 ## A small applicability convention
 
@@ -145,9 +213,12 @@ need an explicit additional mechanism or product validation. Do not advertise
 schema enforcement that the Type descriptor cannot express. For now, keep prose
 conditions readable and preserve unknown metadata without claiming interpretation.
 
-## Candidate Link Types
+## Candidate relationship meanings — representation not selected
 
-These are optional shared vocabulary, not additional mandatory core Types.
+These are candidate shared meanings. Separate Link Types versus Dependency or
+other Link-kind values is deliberately not selected. Existing Dependency names
+including related and supersedes must be reconciled before reusing their names;
+the sketches below do not redefine those existing kinds.
 Names below are readable handles; published definitions need stable global IDs.
 None grants permission, loads a body, changes task readiness, or proves truth.
 For Memory-constrained endpoints, accept the agreed Memory contract rather than
@@ -157,7 +228,7 @@ exact conformance/version matching remains Type design work.
 | Candidate | Direction and endpoint meaning | Useful question | Reference policy |
 | --- | --- | --- | --- |
 | related | Any Bead to another Bead/resource; at least one Memory for this use | What else might help? | Floating or pinned, with no stronger implied meaning |
-| guidance | Task → Memory | What knowledge should someone consult for this work? | Floating for intended current guidance; pin when selecting a particular edition; does not prove use |
+| guidance | Issue → Memory | What knowledge should someone consult for this work? | Floating for intended current guidance; pin when selecting a particular edition; does not prove use |
 | applies-to | Memory → asset/product/site Bead or external resource | What is this note about or applicable to? | Identity reference usually appropriate; exact pin only when a particular recorded state matters; body/metadata still explains conditions |
 | supports | Memory → Memory | What recorded material offers support for this conclusion? | Prefer exact target revision for a substantive claim; unpinned means a declared relationship to the evolving record, not proof for every future revision |
 | challenges | Memory → Memory | What should make us reconsider this conclusion? | Same exact-target guidance; a challenge does not mark the target false or invalidate it automatically |
@@ -201,12 +272,12 @@ No new causality propagation is implied.
 
 ### Technician: a recurring pump fault
 
-1. A Task asks for inspection of pump 7. A guidance Link points to the current
+1. A Issue asks for inspection of pump 7. A guidance Link points to the current
    procedure Memory. An applies-to Link associates that procedure with pump 7.
    The technician sees a short result and deliberately opens the procedure.
-2. The technician records the observed fault in an Observation-template Memory,
+2. The technician records the observed fault in a Memory recording the observation,
    citing the exact procedure revision and an inspection report where those were
-   inputs. An Activity reports the inspection; its subject is the Task, not a
+   inputs. An Activity reports the inspection; its subject is the Issue, not a
    pretend completion state on the procedure.
 3. A different technician finds that the procedure does not apply to a newer
    housing. A new observation challenges the particular procedure revision and
@@ -219,7 +290,7 @@ No new causality propagation is implied.
 
 ### Office team: choosing a supplier
 
-1. A Task asks the team to choose a supplier. A Decision-template Memory records
+1. A Issue asks the team to choose a supplier. A Memory recording the decision records
    the choice, alternatives and reasons. Its saved sources pin the assessment
    and policy revisions actually cited by the writer.
 2. An assessment Memory supports the decision revision. A later finding can
@@ -278,7 +349,7 @@ Key seams to resolve explicitly:
 1. Save a short useful note without choosing a category or key; it is usable.
 2. Save an explicitly titled empty-body Memory; recall finds it, rather than
    confusing empty content with no record.
-3. Attach guidance to a Task; readiness does not change and no body auto-loads.
+3. Attach guidance to a Issue; readiness does not change and no body auto-loads.
 4. Explain applicability to one machine edition or business region; absence of
    that condition is not treated as proof of applicability everywhere.
 5. Cite Memory M at r2; after M becomes r3, the citation still yields r2 or an
@@ -301,9 +372,7 @@ Key seams to resolve explicitly:
 
 ## Suggested next discussion
 
-Start with the Memory contract and one paired example, then test the relationship
-vocabulary against it. First decision: **do we agree that procedure/decision/
-observation begin as Memory templates, and only become separate Bead Types when
-we can name the extra contract they require?** Then select relation names and
-pinning promises. Type packaging/version selection can follow once these meanings
-are useful and stable enough to encode.
+First write down Issue and Dependency's existing contracts without changing them,
+then compare Type-versus-kind alternatives on one Memory example. Keep Activity
+anchored to #7510. Separately choose the property/metadata boundary for that
+example. Writing aids can follow; they do not resolve either modeling question.

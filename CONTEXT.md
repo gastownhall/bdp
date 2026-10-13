@@ -46,6 +46,19 @@ An explicit change of an instance's governing Type definition, represented in a
 new resource version when its exact affiliation changes.
 _Avoid_: automatic upgrade on property edit
 
+## Existing Beads domain vocabulary
+
+**Issue**:
+The established Beads work record, carried into the graph as a Bead Type.
+Its classifications, such as task and bug, retain their existing meanings.
+_Avoid_: renaming the enclosing Type Task
+
+**Dependency**:
+The established relationship in the Issue domain, carried into the graph as a
+Link Type. Its classification determines the relationship's existing meaning;
+not every Dependency is blocking.
+_Avoid_: treating Dependency as a synonym for blocking
+
 ## Proposed provenance vocabulary
 
 These terms belong to the [provenance proposal](docs/design/provenance-on-resource-versions-proposal.md),
