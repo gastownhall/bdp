@@ -1,19 +1,19 @@
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { expect, expectTypeOf, it } from "vitest";
-import type { createReadPagination } from "../dist/index.js";
+import type { createReadPagination } from "./index.js";
 
 type PublicPagination = ReturnType<typeof createReadPagination>;
 type PublicInput = Parameters<PublicPagination["firstPage"]>[0];
 
-it("keeps the emitted public pagination declarations free of source-context capability", () => {
+it("keeps the public pagination types free of source-context capability", () => {
   expectTypeOf<keyof PublicPagination>().toEqualTypeOf<
     "limits" | "validateLimit" | "firstPage" | "continuePage" | "cleanupExpired" | "close"
   >();
   expectTypeOf<"sourceContext" extends keyof PublicInput ? true : false>().toEqualTypeOf<false>();
   expectTypeOf<Parameters<PublicPagination["firstPage"]>["length"]>().toEqualTypeOf<1>();
   expectTypeOf<
-    "createContextualReadPagination" extends keyof typeof import("../dist/index.js") ? true : false
+    "createContextualReadPagination" extends keyof typeof import("./index.js") ? true : false
   >().toEqualTypeOf<false>();
 });
 
