@@ -1,4 +1,4 @@
-# Memory Types — two complete candidate designs
+# Memory Types — two candidates using flat Type identities
 
 Draft for discussion, October 13, 2026. **Neither approach is selected.** MUST,
 SHOULD and MAY below describe the respective candidate, not adopted BDP law.
@@ -9,7 +9,7 @@ notes are background, not a third candidate.
 Inputs: [Chris’s Memory proposal, revision 4](https://github.com/gastownhall/beads/issues/5877),
 including R1–R31/R27a and its [relationship/applicability follow-up](https://github.com/gastownhall/beads/issues/5877#issuecomment-5963448303);
 [Provenance V2](https://github.com/gastownhall/beads/issues/7510);
-and [BDP main checked at 90d3fd3](https://github.com/gastownhall/bdp/blob/90d3fd3385e5b0422c2c406e3c0dc38918873e04/docs/specs/bdp.md).
+and [BDP main checked at 77b683b](https://github.com/gastownhall/bdp/blob/77b683b264f6e5c02904c869843f70b429b147b5/docs/specs/bdp.md).
 The issue bodies were reread October 13. [Prior-art research](../../docs/design/memory-type-prior-art-20261013.md)
 supplies examples, not additional requirements.
 
@@ -26,9 +26,37 @@ it as `https://example.org/memory-types/`, which is not a proposed registry host
 pins its immutable definition revision under the Type-lifecycle proposal. Type
 packaging, version-label encoding and installation plumbing are external. Resource
 references are URI or `{uri, revision}`; an omitted resource pin is floating.
-“Memory-family” below means the approach’s declared Memory Type plus Types
-conforming to its exact admitted definition, not a string-prefix test or an
-implicit nominal-Type match.
+
+**Working premise for this experiment:** Bead Types and Link Types are flat.
+There is no stipulated conformance, ancestry, inherited constraint or implicit
+membership. An endpoint accepts a Bead when its nominal Type ID matches **any**
+ID in that endpoint's explicit allowed list. Source and target checks must both
+pass. `ANY` in the tables means any local Bead, not an empty allowed list;
+an empty allowed list accepts no local Bead. These are design notations, not
+new wire members or CLI syntax. Existing `conformsTo` arrays keep their current
+AND meaning until an explicit protocol amendment; they must never be silently
+reinterpreted as OR.
+
+Lists in this experiment name stable Type identities across their definition
+versions. Stored instance affiliations still pin exact definitions. Matching a
+nominal ID does not prove compatibility between its versions. Exact-version or
+major-family restrictions remain a separate decision; no SemVer or schema-based
+matching is inferred. Type IDs are compared after canonical identity resolution,
+not by display name, URL prefix, shared fields or a publisher's membership claim.
+
+**Difference from current BDP:** current BDP supports declared conformance and
+AND endpoint lists, not the flat/OR model tested here. Both candidates therefore
+need an explicit shared Type/endpoint amendment. No new implementation is claimed.
+For properties, both keep the current open-root rule: unknown top-level properties
+are preserved, while declared nested detail objects can be closed. The earlier
+draft's closed top-level schemas were a mistake; ordinary JSON Schema validation
+alone did not establish that they were admissible BDP Type schemas.
+
+**Simplification to test:** `related` now requires a local Memory source and
+allows any target. This replaces the earlier “at least one end is Memory” rule
+in both candidates. It is a reviewable proposal, not an operator ruling or a
+change to existing Dependency. Independent endpoint OR lists cannot express
+“either end, but at least one” or correlated source/target pairs.
 
 **Comparison control:** both approaches provide the same six knowledge forms,
 six informational relationship meanings, fields, authoring checks, examples and
@@ -69,11 +97,13 @@ A deployment needing stronger extension-kind guarantees requires an additional
 registered per-kind validator; that mechanism is not present in today’s BDP
 Type descriptor and is a concrete extra cost of this variant.
 
-Independently registered user Bead/Link Types remain possible. A conforming custom
-Memory must preserve the fields, versioning and ownership rules below; user-defined informational Link Types
-are first-class and must not be forced into this discriminator Type. They count
-under Memory’s wildcard ownership. This preserves R17’s open Type vocabulary even
-though this candidate’s six supplied relationships share one Type.
+Independently registered user Bead/Link Types remain possible. A custom Bead Type
+is a different nominal identity: installation alone does not include it in Memory
+queries or add it to restrictive endpoint lists. ANY targets already accept it. A publisher can introduce a URI kind on
+K/memory to retain that nominal membership, with the weaker validation described
+above. User-defined informational Link Types remain first-class and count under
+Memory's wildcard ownership; they need not be kinds of this relationship Type.
+This preserves R17's open Type vocabulary without inventing implicit membership.
 
 ### A.2 Bead fields and validation
 
@@ -194,7 +224,7 @@ references, endpoint checks and shared operations require the rules in this sect
     },
     "details": {"type": "object"}
   },
-  "additionalProperties": false,
+  "additionalProperties": true,
   "allOf": [
     {
       "if": {"properties": {"kind": {"const": "note"}}},
@@ -301,12 +331,12 @@ This Memory vocabulary MUST use the identities declared in this approach.
 
 | Meaning | Source → target | Meaning and pin rule |
 | --- | --- | --- |
-| related | Any Bead → any resource, with at least one observed local Memory-family endpoint | Navigation only; either endpoint may be pinned; no claim of use or support |
-| guidance | Issue → Memory-family | Intended guidance for the Issue; target may float or pin; does not claim it was read |
-| applies-to | Memory-family → any Bead or external resource | The Memory declares relevance/applicability to the target; target may float or pin; conditions remain explicit |
-| supports | Memory-family → Memory-family | Source offers support for the target’s content; target pin required |
-| challenges | Memory-family → Memory-family | Source offers a reason to reconsider the target’s content; target pin required |
-| supersedes | Memory-family → Memory-family | Source is offered as replacement for the target’s content; target pin required; no automatic retirement or retargeting |
+| related | Local K/memory → any Bead or external resource | Navigation only; either endpoint may be pinned; no claim of use or support |
+| guidance | Issue → K/memory | Intended guidance for the Issue; target may float or pin; does not claim it was read |
+| applies-to | K/memory → any Bead or external resource | The Memory declares relevance/applicability to the target; target may float or pin; conditions remain explicit |
+| supports | K/memory → K/memory | Source offers support for the target’s content; target pin required |
+| challenges | K/memory → K/memory | Source offers a reason to reconsider the target’s content; target pin required |
+| supersedes | K/memory → K/memory | Source is offered as replacement for the target’s content; target pin required; no automatic retirement or retargeting |
 
 A Link’s `source` and `target` are ordinary BDP reference members, not copies in
 properties. At least one endpoint MUST be an in-Scope Bead. Known local endpoint
@@ -322,8 +352,11 @@ Memory/Issue role is a declared expectation, not a verified kind. Reads separate
 that expectation from observed availability/kind. An unavailable remote target
 is not reported as known deleted. A relationship may therefore be recorded with
 an unverified remote role; the service must never report local-style validation
-of that role. Related requires an actual local Memory endpoint so an arbitrary
-pair of external claims cannot qualify.
+of that role. Related requires a local source whose nominal Type is listed;
+its source rejects external references. Other rows admit bead-shaped external
+references where a Bead role is required, and any external URI for unrestricted
+targets. These policies constrain reference shape, not remotely verified Type.
+At least one endpoint must still be local for every row.
 
 The pin requirement for supports/challenges/supersedes is an explicit new design
 choice shared by both approaches. It prevents an assertion about one conclusion
@@ -343,7 +376,8 @@ Link properties include an optional nonblank `note`, explaining this relationshi
 and an optional `extensions` JSON object. Application-specific relationship
 annotations go in common Link metadata. A note on the Link describes the
 relationship; it is not a second authoritative decision rationale. Unknown
-defined property names are rejected. None of these Links changes Issue readiness,
+top-level properties are preserved without acquiring defined semantics. None of
+these Links changes Issue readiness,
 executes a procedure, follows References recursively or grants access.
 Any Link with a Memory endpoint, including a user-defined Link Type, MUST be
 non-workflow: blocking and other Issue-workflow relationships are rejected.
@@ -383,22 +417,38 @@ defaults to related; update omission preserves it. Its properties schema is:
     "note": {"type": "string", "pattern": "\\S"},
     "extensions": {"type": "object"}
   },
-  "additionalProperties": false
+  "additionalProperties": true
 }
 ```
 
 A known relationship kind MUST pass the corresponding endpoint row above.
 For an extension kind, apply only the related row’s structural endpoint bounds
-(at least one local Memory, no self-link, at least one local Bead), without
+(local K/memory source, unrestricted target, no self-link), without
 asserting related semantics. No unknown kind may acquire workflow effects.
 
-The K/memory-relationship descriptor can express only the broad endpoint envelope.
-Its schema can check properties.kind but cannot read endpoint Types. The authority
-therefore needs a Memory relationship validator that dispatches on kind; accepting
-Issue → Issue with kind=supports because the broad descriptor accepts it is a
-conformance failure. Merely installing today’s descriptor cannot enforce this
-candidate. Missing that validator must make the capability unsupported, not a
-silently weaker implementation.
+The exact per-kind allowed nominal IDs are below. `Issue` abbreviates the
+externally defined Issue Type ID; `Memory` means K/memory only.
+
+| Relationship kind | Allowed source Types (OR) | Allowed target Types (OR) |
+| --- | --- | --- |
+| related | [Memory] | ANY |
+| guidance | [Issue] | [Memory] |
+| applies-to | [Memory] | ANY |
+| supports | [Memory] | [Memory] |
+| challenges | [Memory] | [Memory] |
+| supersedes | [Memory] | [Memory] |
+
+All six kinds share K/memory-relationship. Its single Type-level envelope is
+source [Issue, Memory], target ANY. Even the proposed OR capability cannot make
+that envelope enforce the per-kind rows: a properties schema can check kind but
+cannot inspect endpoint Beads. Issue → Issue with kind=supports passes the envelope
+and MUST fail the intended rule. External-source policy likewise varies by kind.
+This candidate requires an additional kind-aware validation mechanism, or splitting
+the Link Type. Neither is quietly supplied by flat Types plus OR. A server lacking
+that mechanism cannot advertise full validation of these relationship kinds.
+
+No existing descriptor field is renamed or reinterpreted by this table. The OR
+envelope itself also requires the shared amendment described in the preamble.
 
 ### A.5 Updates, reclassification and querying
 
@@ -409,7 +459,7 @@ combined mutation succeeds atomically or not at all. Old exact revisions still
 have their old kind/details. This records a change of classification, not an
 inference that the old observation was always a decision.
 
-This edition’s Links constrain Memory-family membership, not individual Memory
+This edition’s Links accept the nominal K/memory identity, not individual Memory
 kinds, so that reclassification does not invalidate them. An application that
 later requires “target must be decision” needs an additional predicate contract
 and incident-Link revalidation policy; it cannot claim today’s Type-only endpoint
@@ -423,15 +473,20 @@ record while changing what it says. This is intentionally permitted in A and is
 a behavior a reviewer must accept or reject. Changing guidance to supports for an
 Issue source fails its endpoint check; it must not leave half an update.
 
-To query decisions: select Memory-family and properties.kind=decision. To query
+To query decisions: select K/memory and properties.kind=decision. To query
 support Links: select K/memory-relationship and properties.kind=supports, plus any
 independently registered Link Types whose own contracts the consumer selects.
 Never treat all instances of the relationship Type as support. Indexes may help,
 but do not change authorization or bounded-result completeness. A properties-only
-filter without the Type/family qualification may match unrelated JSON records.
+filter without the nominal Type qualification may match unrelated JSON records.
 
-A generic Memory query includes all supplied forms through one nominal Type;
-custom conforming Types still require an explicit family/conformance query.
+A generic Memory query selects K/memory and includes all its kinds, including URI
+extension kinds. A separately named custom Type is excluded even if it has the
+same properties. Including it requires changing the query's explicit ID list.
+Endpoints restricted to K/memory still exclude it until their lists are revised;
+ANY targets already allow it.
+Installing a Type changes neither list. A kind filter requires a supported
+property selector; a client must not filter one page and claim complete results.
 Old clients must preserve unfamiliar URI kinds and details rather than coerce
 those records to note. An editor unable to preserve the current form fails safely
 instead of erasing fields on save.
@@ -536,8 +591,10 @@ an explicit complete human rendering of body plus structured details, or must
 choose to keep substantive knowledge in Markdown and use structure only for
 annotations. This is a product decision to test, not hidden by either schema.
 
-The schema shapes intentionally reject undeclared defined fields and have an
-open extensions object. Adding a newly constrained field, changing dollars to
+The top-level schemas remain open, and the defined nested details shapes reject
+undeclared members. The extensions object is an optional application convention,
+not the only legal home for additional properties. Adding a newly constrained
+field, changing dollars to
 cents, or changing what a relationship asserts is not automatically a compatible
 revision. Both structural and semantic compatibility promises from Type design
 still apply. This experiment does not settle publication/version tooling.
@@ -547,7 +604,7 @@ still apply. This experiment does not settle publication/version tooling.
 These are full illustrative authoring payloads after defaults except that common
 identity/revision/provenance fields are omitted. Type revision tokens illustrate
 exact affiliation; they are not SemVer encodings. The actual saved records also
-carry inherited provenance and owned-state representation.
+carry the common provenance and owned-state representation.
 
 ```json
 {
@@ -607,7 +664,7 @@ Issue does not become blocked merely because a challenge exists.
 | Issue → Memory with kind=supports | Reject despite the broad descriptor; needs kind-aware endpoint validator |
 | Support target pin omitted | Reject; related is available for a weaker association |
 | New useful field only for decisions | Change the enclosing Memory definition or use its extension area; all kind branches share that Type’s evolution |
-| One publisher wants strict warranty-record kind validation | Requires an extension validator or a separate conforming Type; the simple two-Type catalog no longer tells the full story |
+| One publisher wants strict warranty-record kind validation | Requires an extension validator or a separate flat Type plus explicit query/Link list changes |
 | Existing Dependency related/supersedes | Leave untouched; no automatic conversion or inferred equivalence |
 | Deleted/pruned target | Apply A.6; unsupported shared lifecycle is a gate, not a schema success |
 
@@ -624,8 +681,8 @@ another validator were introduced; it is not an equivalent simplification.
 | --- | --- |
 | R1–R4 | Canonical knowledge record, title/body and deliberate authoring; optional extended forms; R3 structured-field departure explicit |
 | R5, R13–R16 | Shared History required; restore, erasure, retention and deletion semantics require end-to-end service support |
-| R6–R10 | Family discovery, bounded summaries, exact full reads and structured Links; no automatic context assembly |
-| R11–R12 | Version every durable/owned-state change; inherit V2 attribution and separate editable Inception |
+| R6–R10 | Explicit Type-list discovery, bounded summaries, exact full reads and structured Links; no automatic context assembly |
+| R11–R12 | Version every durable/owned-state change; Use V2 attribution and separate editable Inception |
 | R17–R23 | Open informational vocabulary, wildcard ownership, local/remote checks; stable-ID re-pinning and surviving pinned Links require BDP amendments |
 | R24–R26/R31 | One canonical model behind old commands; safe migration and explicit compatibility/output cutover remain Beads work |
 | R27/R27a | Atomic connected publication and declared exposure per surface; cannot be supplied by registering Types |
@@ -633,8 +690,9 @@ another validator were introduced; it is not an equivalent simplification.
 
 **Ready for review:** candidate definitions, field rules, endpoint rules, examples
 and failure cases in this section. **Not selected or implemented by this work:**
-Type identifiers/definitions in a production catalog, exact conformance-version
-matching, property-versus-metadata policy, authoring/output migration, alias
+Type identifiers/definitions in a production catalog, flat Type/OR amendments,
+version-sensitive matching, property-versus-metadata policy, authoring/output
+migration, alias
 placement, profile/capability admission, lifecycle amendments and packaging.
 No schema fragment in this document is a new canonical BDP wire schema. Before
 adoption, encode the selected definitions, shared-operation requirements and
@@ -644,14 +702,14 @@ errors in the canonical specification and conformance suite together.
 
 ### B.1 Catalog and identification
 
-| Type identity | Resource category | Definition / conformance |
+| Type identity | Resource category | Meaning |
 | --- | --- | --- |
-| K/memory | Bead | Concrete unclassified Memory, and base contract for every form below |
-| K/observation | Bead | Observation, conforms to the exact admitted K/memory definition |
-| K/decision | Bead | Decision, conforms to the exact admitted K/memory definition |
-| K/procedure | Bead | Procedure, conforms to the exact admitted K/memory definition |
-| K/policy | Bead | Policy, conforms to the exact admitted K/memory definition |
-| K/lesson | Bead | Lesson, conforms to the exact admitted K/memory definition |
+| K/memory | Bead | Unclassified note; one concrete Type, not a base Type |
+| K/observation | Bead | Observation |
+| K/decision | Bead | Decision |
+| K/procedure | Bead | Procedure |
+| K/policy | Bead | Policy |
+| K/lesson | Bead | Lesson |
 | K/memory-related | Link | related meaning from B.4 |
 | K/memory-guidance | Link | guidance meaning from B.4 |
 | K/memory-applies-to | Link | applies-to meaning from B.4 |
@@ -659,26 +717,30 @@ errors in the canonical specification and conformance suite together.
 | K/memory-challenges | Link | challenges meaning from B.4 |
 | K/memory-supersedes | Link | supersedes meaning from B.4 |
 
-No properties.kind or metadata kind duplicates the declared Type. An unclassified
-create selects K/memory; explicit specialized authoring selects its Type and
-required fields. The service MUST NOT infer that choice from prose, Issue kind
-or linked records. Each supplied definition has its own exact revision. A
-Decision definition may evolve independently of Procedure, subject to their own
-compatibility promises and the fixed base conformance dependency.
+These are twelve independent Type identities with no parents. Calling the first
+six “Memory Types” is shorthand in this document for that explicit list. It is
+not a runtime Type, membership registry, prefix rule or conformance declaration.
+In particular, a Decision is never nominally K/memory.
 
-User-defined Memory Types may conform to the base. User-defined informational
-Link Types remain first-class and count under wildcard ownership. A reader can
-interpret common Memory fields when it has a trusted/usable conformance path;
-an unfamiliar nominal Type is not automatically a Memory by name or URI prefix.
-If conformance evidence is unavailable, return an unknown classification or the
-ordinary capability/validation failure, never omit records while claiming a
-complete Memory-family result. Offline reading need not fetch a remote schema.
+No properties.kind or metadata kind duplicates the declared Type. Unclassified
+creation selects K/memory; specialized authoring explicitly selects its Type.
+Prose, Issue kind and linked records never infer the selection. Every supplied
+Type has its own exact definition revision and its own specified fields and
+ownership rule. A common schema fragment may be reused as a fixed authoring
+artifact, but that creates no Type relationship or inherited membership.
 
-There are six supplied Bead Types and six supplied Link Types. There is no extra
-abstract Link base solely for this catalog; clients that want a combined Link
-view must deliberately select the six identities or a separately agreed family.
+A third party may install K/inspection-finding or another globally identified
+Type. It participates in none of these lists automatically. Query owners decide
+whether to add it to their queries; Link-definition publishers decide whether to
+add it to endpoint lists. Those are independent changes. Shared fields, a familiar
+name and a publisher's “this is a Memory” claim do not authorize either change.
+User-defined informational Link Types still count under each supplied Bead Type's
+wildcard ownership, because wildcard ownership deliberately covers all Link IDs.
 
 ### B.2 Bead fields and validation
+
+Each of the six supplied Bead definitions independently includes the fields and
+behavior specified here, including the ownership and lifecycle requirements below.
 
 All fields in this table are under `properties`. Common Resource identity,
 revision, metadata, owned Links and revisionProvenance are outside properties.
@@ -721,7 +783,7 @@ update mechanism. Metadata is a separate versioned object, never a hidden body.
 
 | Knowledge form | details fields | Semantic promise |
 | --- | --- | --- |
-| note | Optional object of opaque extensions; no specialized guarantees | Unclassified durable knowledge; not a truth certification |
+| note | Empty object when supplied | Unclassified durable knowledge; not a truth certification |
 | observation | statement required, nonblank; observedAt optional RFC 3339 instant | Someone records an observation; observation time is caller supplied and distinct from commit time |
 | decision | choice required, nonblank; alternatives optional ordered array of nonblank strings | A recorded choice; body explains reasons/tradeoffs; no automatic approval or Issue closure |
 | procedure | steps required, ordered nonempty array of nonblank strings | Reusable instructions; body provides context; no step execution/status engine |
@@ -741,12 +803,12 @@ A plain generic Memory never requires any of the specialized details. These
 stronger forms are an opt-in test of meaningful schemas, not an extra requirement
 on every R4 remember operation.
 
-### B.3 Properties schemas and conformance
+### B.3 Independent properties schemas
 
-There is no kind field. B uses the same common fields and details shapes as A,
-but the declared Type selects the applicable shape. To make this section usable
-independently, the shapes are repeated below. The base Memory conformance schema
-must remain open to additional properties so specialized Types can satisfy it:
+There is no kind field. Each nominal Type specifies its complete properties
+schema independently. The repeated fields and rules below are deliberate reuse
+in the written specification, not inheritance. The first schema is for the
+concrete, unclassified K/memory Type only:
 
 ```json
 {
@@ -789,24 +851,18 @@ must remain open to additional properties so specialized Types can satisfy it:
       "additionalProperties": false
     },
     "extensions": {"type": "object"},
-    "details": {"type": "object"}
+    "details": {"type": "object", "additionalProperties": false}
   },
   "additionalProperties": true
 }
 ```
 
-K/memory uses this open schema directly, including for nominally unclassified
-records. Extra fields and nonempty details are preserved as opaque application
-data; they do not make the record a Decision or validate a choice. Its authoring
-default omits details. This is a deliberate difference from A’s closed note shape:
-the same base must accept the specialized records that conform to it.
-
-The supplied specialized schemas close their complete effective property set to
-the common fields plus details; they require details and the corresponding shape
-below. Do not close a parent schema in a way that prevents its children from
-adding fields. If a closed unclassified Note is required, B needs a separate Note
-Type conforming to the open Memory base, adding a seventh Bead Type. This draft
-instead keeps the unclassified base open and makes that cost explicit.
+Every full properties schema keeps its top-level object open, following the
+current BDP rule. Unknown top-level fields are preserved as opaque application
+data. K/memory may omit details or carry an empty details object; the nested object
+is closed. Specialized Types require their independently defined details below.
+There is no base-Type composition problem and no need for a seventh Note Type.
+This experiment leaves the general open-root policy unchanged.
 
 **K/observation: details schema**
 
@@ -939,22 +995,21 @@ external schema fetch, is:
       "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": true
 }
 ```
 
 The other supplied specialized schemas use exactly that common property set,
 replace only the details schema with their definition above, and require the
 same title/body/details fields. This is an exact schema-generation rule, not
-permission for each implementation to choose its own fields. Concrete base
-K/memory uses the open base schema above, with optional object-valued details. Format
-assertions and time-ordering admission rules in B.2 remain mandatory.
+permission for each implementation to choose its own fields. K/memory uses its
+own schema above, with optional empty-object details. Format assertions and
+time-ordering admission rules in B.2 remain mandatory.
 
-A custom conforming Type must meet the inherited Memory rules, including no
-workflow lifecycle and wildcard ownership, but may define its own additional
-properties. Exact definition binding, conformance closure and aggregate-bound
-composition must be specified by the shared Type system. Until then, these are
-reviewable required relationships rather than falsely deployable descriptors.
+A custom Type has its own definition. It does not inherit these fields, wildcard
+ownership or no-workflow rules by resembling a supplied Type. Before adding it
+to a query or Link list, that consumer's author must decide whether its documented
+behavior is suitable. No implicit Type-system assertion substitutes for that review.
 
 ### B.4 Informational relationships
 
@@ -965,12 +1020,12 @@ This Memory vocabulary MUST use the identities declared in this approach.
 
 | Meaning | Source → target | Meaning and pin rule |
 | --- | --- | --- |
-| related | Any Bead → any resource, with at least one observed local Memory-family endpoint | Navigation only; either endpoint may be pinned; no claim of use or support |
-| guidance | Issue → Memory-family | Intended guidance for the Issue; target may float or pin; does not claim it was read |
-| applies-to | Memory-family → any Bead or external resource | The Memory declares relevance/applicability to the target; target may float or pin; conditions remain explicit |
-| supports | Memory-family → Memory-family | Source offers support for the target’s content; target pin required |
-| challenges | Memory-family → Memory-family | Source offers a reason to reconsider the target’s content; target pin required |
-| supersedes | Memory-family → Memory-family | Source is offered as replacement for the target’s content; target pin required; no automatic retirement or retargeting |
+| related | Local listed Memory Type → any Bead or external resource | Navigation only; either endpoint may be pinned; no claim of use or support |
+| guidance | Issue → a listed Memory Type | Intended guidance for the Issue; target may float or pin; does not claim it was read |
+| applies-to | a listed Memory Type → any Bead or external resource | The Memory declares relevance/applicability to the target; target may float or pin; conditions remain explicit |
+| supports | a listed Memory Type → a listed Memory Type | Source offers support for the target’s content; target pin required |
+| challenges | a listed Memory Type → a listed Memory Type | Source offers a reason to reconsider the target’s content; target pin required |
+| supersedes | a listed Memory Type → a listed Memory Type | Source is offered as replacement for the target’s content; target pin required; no automatic retirement or retargeting |
 
 A Link’s `source` and `target` are ordinary BDP reference members, not copies in
 properties. At least one endpoint MUST be an in-Scope Bead. Known local endpoint
@@ -986,8 +1041,11 @@ Memory/Issue role is a declared expectation, not a verified kind. Reads separate
 that expectation from observed availability/kind. An unavailable remote target
 is not reported as known deleted. A relationship may therefore be recorded with
 an unverified remote role; the service must never report local-style validation
-of that role. Related requires an actual local Memory endpoint so an arbitrary
-pair of external claims cannot qualify.
+of that role. Related requires a local source whose nominal Type is listed;
+its source rejects external references. Other rows admit bead-shaped external
+references where a Bead role is required, and any external URI for unrestricted
+targets. These policies constrain reference shape, not remotely verified Type.
+At least one endpoint must still be local for every row.
 
 The pin requirement for supports/challenges/supersedes is an explicit new design
 choice shared by both approaches. It prevents an assertion about one conclusion
@@ -1007,7 +1065,8 @@ Link properties include an optional nonblank `note`, explaining this relationshi
 and an optional `extensions` JSON object. Application-specific relationship
 annotations go in common Link metadata. A note on the Link describes the
 relationship; it is not a second authoritative decision rationale. Unknown
-defined property names are rejected. None of these Links changes Issue readiness,
+top-level properties are preserved without acquiring defined semantics. None of
+these Links changes Issue readiness,
 executes a procedure, follows References recursively or grants access.
 Any Link with a Memory endpoint, including a user-defined Link Type, MUST be
 non-workflow: blocking and other Issue-workflow relationships are rejected.
@@ -1036,22 +1095,43 @@ Each relationship Type uses the same properties schema:
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {"note": {"type": "string", "pattern": "\\S"}, "extensions": {"type": "object"}},
-  "additionalProperties": false
+  "additionalProperties": true
 }
 ```
 
-There is no relation-kind property. Each Type descriptor supplies its own source
-and target constraints: Memory conformance where B.4 says Memory-family, Issue
-where it says Issue, unrestricted target where it says any resource. No new
-Issue/Dependency Type is defined here. Related’s “at least one Memory” disjunction
-still needs a semantic admission check beyond independent endpoint constraints.
-Required target pins, self-link rejection, exact-history admission and local/
-remote distinctions likewise remain semantic checks; separate Types do not make
-all rules expressible in JSON Schema or today’s descriptor.
+There is no relation-kind property. Each Link Type supplies its own complete
+endpoint lists. Here the short names stand for the six exact nominal IDs in B.1;
+Issue remains its separately defined Type ID. The lists are intentionally repeated
+so their maintenance cost is visible. No `Memory` group is resolved at runtime.
 
-The narrower descriptors eliminate A’s kind-dependent Issue-versus-Memory
-endpoint dispatch for guidance/supports/challenges/supersedes. They do not supply
-historical resolution, retention, authenticity or the semantics of prose.
+| Link Type | Allowed source Types (OR) | Allowed target Types (OR) |
+| --- | --- | --- |
+| MemoryRelated | [Memory, Observation, Decision, Procedure, Policy, Lesson] | ANY |
+| MemoryGuidance | [Issue] | [Memory, Observation, Decision, Procedure, Policy, Lesson] |
+| MemoryAppliesTo | [Memory, Observation, Decision, Procedure, Policy, Lesson] | ANY |
+| MemorySupports | [Memory, Observation, Decision, Procedure, Policy, Lesson] | [Memory, Observation, Decision, Procedure, Policy, Lesson] |
+| MemoryChallenges | [Memory, Observation, Decision, Procedure, Policy, Lesson] | [Memory, Observation, Decision, Procedure, Policy, Lesson] |
+| MemorySupersedes | [Memory, Observation, Decision, Procedure, Policy, Lesson] | [Memory, Observation, Decision, Procedure, Policy, Lesson] |
+
+For a local endpoint, validation compares its nominal Type ID to its allowed
+list. Thus Observation → Decision support succeeds; Issue → Decision support
+fails. Requiring nominal Memory alone would reject Observation and Decision.
+Identical properties do not affect either result. No ancestor lookup is needed.
+For pinned endpoints, this candidate uses the referenced retained state; that is
+part of the shared historical-validation amendment, not provided by Type lists.
+
+Related's source-only rule makes its Type eligibility expressible using independent
+endpoint constraints. Its external-source policy is none; the other external
+policies are stated above. Allowing either orientation with at least one Memory
+would require a different rule. Likewise source [Observation, Procedure] and
+target [Decision, Issue] admit all four combinations; they cannot mean only
+Observation → Decision and Procedure → Issue.
+
+Explicit OR lists eliminate A's kind-dependent endpoint dispatch for the six
+supplied meanings, once the flat/OR amendment exists. Required target pins,
+self-link rejection, exact-history checks and non-workflow participation remain
+separate requirements. Neither the current descriptor nor merely adding OR makes
+all these rules enforceable. Runtime support must be specified and qualified.
 
 ### B.5 Updates, reclassification and querying
 
@@ -1078,20 +1158,52 @@ both/neither state. This file does not assume such an operation exists. History
 must expose the real sequence if the operations are separate. Same-identity
 endpoint re-pinning remains the independent shared R23 issue in B.6.
 
-To query decisions, select K/decision (or explicitly select its conforming
-extensions). To query support, select K/memory-supports. A nominal K/memory filter
-alone finds unclassified Memory, not all specialized Types. The user-facing
-Memory collection MUST explicitly include conforming Types using a declared
-family/conformance capability. If the server cannot provide complete authorized
-bounded results for that query, it cannot advertise a complete Memory collection;
-client-side filtering of one nominal-Type page is insufficient.
+To query decisions, select exactly K/decision. To query support Links, select
+exactly K/memory-supports. To query the six supplied knowledge forms, explicitly
+select this OR list:
 
-A generic Memory renderer can render common fields but must expose additional
-structured details on a full read. It cannot promise a useful complete human
-rendering of an unknown specialized Type without a generic structured fallback.
-A writer unable to preserve that Type’s properties fails before save. Import and
-installation must include or resolve the required Type definitions without
-substituting a similarly named local Type.
+```text
+K/memory OR K/observation OR K/decision OR K/procedure OR K/policy OR K/lesson
+```
+
+A nominal K/memory query returns only unclassified notes. The query owner stores
+and versions its chosen list as application/query configuration; it is not a new
+BDP Type or globally extensible group. Existing lists do not change when another
+Type is installed. A caller can ask for a different explicit list.
+
+An implementation can use indexed Type-ID set matching. It needs no per-bead
+ancestor traversal or Type-closure table. Complete paging still requires one
+well-defined result order and continuation over the whole selected set. Current
+single-Type URL filtering must not be silently interpreted as a multi-Type API.
+A supported general selector or an explicit query-surface amendment must carry
+OR selection. Multiple independent first pages concatenated client-side are not
+a complete ordered page; a client merge needs all streams and valid continuation.
+No latency or throughput claim is made without implementation measurements.
+
+A renderer knows the six supplied forms by explicit Type-ID dispatch and displays
+their body and structured details. An unfamiliar Type uses a generic structured
+fallback or an explicitly installed renderer; it is not silently treated as Memory.
+Writers preserve unknown properties or refuse an unsafe edit. Import retains exact
+identities and definitions; it never substitutes a similar local Type.
+
+**Extension exercise: InspectionFinding.** Initially, a newly installed independent
+Type is excluded from the six-Type query and the explicit six-ID endpoint lists.
+It is already allowed as a Related or AppliesTo target because those use ANY. Adding
+it to the query exposes it there but still does not permit it in Supports. To
+permit that Link, publish a revised Supports definition with the ID added to the
+chosen endpoint list, install it, and explicitly use that definition for a new
+Link or explicitly adopt it on an existing Link. Omitted affiliation on update
+preserves an existing Link's old definition and its old lists. Installing the new
+definition alone changes neither old Links nor existing query configuration.
+
+Adding the ID to every occurrence in this catalog changes six Link definitions
+and the all-knowledge query: Related source, Guidance target, AppliesTo source,
+and both ends of Supports, Challenges and Supersedes. That is **nine endpoint
+list occurrences across six definitions**. Each publisher can instead choose a
+smaller integration. There is no automatic synchronization among these choices.
+Broadening endpoint eligibility is not automatically a same-major compatible
+change: old consumers may rely on the old allowed set. Publication must follow
+the separately agreed structural and semantic compatibility policy.
 
 ### B.6 Shared-operation obligations and Beads behavior
 
@@ -1193,8 +1305,9 @@ an explicit complete human rendering of body plus structured details, or must
 choose to keep substantive knowledge in Markdown and use structure only for
 annotations. This is a product decision to test, not hidden by either schema.
 
-The specialized schema shapes reject undeclared fields and have an open
-extensions object; the base Memory schema remains open for conformance. Adding a newly constrained field, changing dollars to
+Every full schema keeps its top-level properties open. The specified nested
+details shapes reject unknown members, and extensions is an optional convention.
+Adding a newly constrained field, changing dollars to
 cents, or changing what a relationship asserts is not automatically a compatible
 revision. Both structural and semantic compatibility promises from Type design
 still apply. This experiment does not settle publication/version tooling.
@@ -1253,22 +1366,28 @@ Activity reports and exact recorded procedure inputs are unchanged from A.
 | Procedure with empty steps | Reject before mutation, as in A |
 | observedAt omitted | Unknown, never commit time, as in A |
 | applicability from >= until | Reject, as in A |
-| Generic Memory with extra properties or nonempty details | Accept as opaque data; the open base gives no specialized guarantees |
-| Unknown specialized Type without definition/conformance evidence | Cannot claim validated Memory membership; preserve opaque records only under the applicable generic read contract |
+| Generic Memory with extra top-level properties | Accept and preserve as opaque data, as in A |
+| Generic Memory with nonempty details | Reject; the nested note details shape is empty, as in A |
+| New InspectionFinding installed with identical Observation properties | Exclude from six-ID query/endpoint lists; allow at ANY targets; shape establishes no membership |
 | Observation → Decision, same ID | Reject; requires another identity under the stable nominal affiliation model |
 | MemorySupport → MemoryChallenge, same Link ID | Reject; replacement uses another Link identity and explicit mutation sequence |
 | Issue → MemorySupport | Reject through narrower endpoint constraints; no kind branch needed |
 | Support target pin omitted | Reject; separate Type still needs this semantic check |
-| New useful field only for Decisions | Evolve Decision’s definition; Procedure’s nominal definition need not change, but compatibility and base conformance still apply |
-| Custom WarrantyMemory Type | Use ordinary Type definition and Memory conformance; it adds definition/dependency/validation obligations |
-| Query nominal K/memory for all knowledge | Incomplete by construction; family query must include specialized/conforming Types |
+| New useful field only for Decisions | Evolve Decision’s definition; Procedure’s nominal definition need not change, but structural/semantic compatibility still applies |
+| Custom WarrantyMemory Type | Define independently; query owners and Link publishers explicitly choose whether to add its ID |
+| Query nominal K/memory for all knowledge | Returns only notes; use the explicit six-ID OR list |
+| Query list updated, Supports list unchanged | Finding becomes discoverable but remains an invalid Supports endpoint |
+| New Supports definition installed, existing Link untouched | Old Link retains its pinned definition and old endpoint lists |
+| Related from Issue to Decision | Reject source; use a Related from Decision to Issue or Guidance when that meaning is intended |
+| Empty allowed endpoint list | Accept no local Bead; ANY must be explicit |
 | Existing Dependency related/supersedes | Leave untouched, as in A |
 | Deleted/pruned target | Apply B.6; specialized Types do not solve the shared lifecycle gap |
 
 B’s concrete advantages are directly selectable contracts, narrower endpoint
 constraints and independently versioned supplied form/relation definitions.
-Its concrete liabilities are twelve supplied definitions and their dependencies,
-family discovery, unknown-Type handling, identity changes on reclassification,
+Its concrete liabilities are twelve supplied definitions, repeated query/endpoint
+lists, deliberate extension integration, unknown-Type handling, identity changes
+on reclassification,
 and multi-operation replacement when a Link changes semantic role. Moving all
 specialized fields into metadata would retain the Type identities but remove
 most of their validation benefit unless another validator is supplied.
@@ -1279,8 +1398,8 @@ most of their validation benefit unless another validator is supplied.
 | --- | --- |
 | R1–R4 | Canonical knowledge record, title/body and deliberate authoring; optional extended forms; R3 structured-field departure explicit |
 | R5, R13–R16 | Shared History required; restore, erasure, retention and deletion semantics require end-to-end service support |
-| R6–R10 | Family discovery, bounded summaries, exact full reads and structured Links; no automatic context assembly |
-| R11–R12 | Version every durable/owned-state change; inherit V2 attribution and separate editable Inception |
+| R6–R10 | Explicit Type-list discovery, bounded summaries, exact full reads and structured Links; no automatic context assembly |
+| R11–R12 | Version every durable/owned-state change; Use V2 attribution and separate editable Inception |
 | R17–R23 | Open informational vocabulary, wildcard ownership, local/remote checks; stable-ID re-pinning and surviving pinned Links require BDP amendments |
 | R24–R26/R31 | One canonical model behind old commands; safe migration and explicit compatibility/output cutover remain Beads work |
 | R27/R27a | Atomic connected publication and declared exposure per surface; cannot be supplied by registering Types |
@@ -1288,8 +1407,9 @@ most of their validation benefit unless another validator is supplied.
 
 **Ready for review:** candidate definitions, field rules, endpoint rules, examples
 and failure cases in this section. **Not selected or implemented by this work:**
-Type identifiers/definitions in a production catalog, exact conformance-version
-matching, property-versus-metadata policy, authoring/output migration, alias
+Type identifiers/definitions in a production catalog, flat Type/OR amendments,
+version-sensitive matching, property-versus-metadata policy, authoring/output
+migration, alias
 placement, profile/capability admission, lifecycle amendments and packaging.
 No schema fragment in this document is a new canonical BDP wire schema. Before
 adoption, encode the selected definitions, shared-operation requirements and
@@ -1305,10 +1425,12 @@ two written contracts and decide which consequences are desirable.
 | A hurried worker saves a note, later structures it as a procedure | Same identity; kind/details update | New identity for Procedure; old references remain on note | Is gradual same-record specialization required? |
 | An analyst changes an observation into a decision | Same identity, preserved historical kinds | New decision cites old observation | Is this recategorization or creation of another record? |
 | An evaluation changes from support to challenge | Same Link ID can change kind | New Link ID; remove old explicitly | Should semantic role be stable under Link identity? |
-| A Decision-specific endpoint is required later | Property predicate/admission extension | Type/conformance constraint | Do actual consumers need this selectivity? |
-| A plain note contains an unexpected field | Closed note schema rejects it | Open Memory base preserves it without interpretation | Is a seventh, closed Note Type worthwhile? |
-| A consumer asks for all knowledge | One supplied nominal Type, plus custom conforming Types | Explicit family query for all supplied forms | Who implements complete family discovery? |
-| A third party introduces a strict new knowledge form | Extra kind validator or custom Type | Another conforming Type | Does A merely recreate Type plumbing inside kind? |
+| A Decision-specific endpoint is required later | Property predicate/admission extension | A one-ID endpoint list | Do actual consumers need this selectivity? |
+| A plain note contains an unexpected top-level field | Preserve without defined meaning | Same | Both retain the current open-root rule |
+| A consumer asks for all six supplied forms | One nominal Type query | Explicit six-ID OR query | Is list maintenance acceptable? |
+| A third party introduces a strict new knowledge form | Extra kind validator or independent Type with list changes | Independent Type with list changes | Who opts into the new form? |
+| Every supplied relationship should accept InspectionFinding | Separate-Type integration needs explicit changes; a URI kind on Memory qualifies nominally but has weaker validation | Nine list occurrences in six Link definitions, plus query configuration | Is explicit integration worth the stable boundary? |
+| Related should work in either direction with one Memory end | Extra cross-endpoint validation | Same | Keep the proposed local-Memory-source simplification or add a richer rule? |
 | R3 keeps application structure exclusively in metadata | Lose core validation of those fields unless added elsewhere | Same loss despite distinct Type IDs | Are stronger application schemas worth an explicit R3 refinement? |
 | A procedure acquires one extra optional field | Compatibility analysis still required | Same, within Procedure’s definition | Optional does not automatically mean compatible |
 | A Link targets a deleted Memory revision | Shared BDP lifecycle amendment needed | Same amendment needed | Keep Type design separate from lifecycle claims |
