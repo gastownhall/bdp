@@ -892,6 +892,19 @@ it.each(["updateWhere", "deleteWhere"] as const)(
 );
 
 it.each([0, -1, 1.5, 4097, Number.POSITIVE_INFINITY])(
+  "refuses an invalid or raised induced Event bound %s",
+  (maximumInducedEvents) => {
+    const f = fixture();
+    const original = batch.evaluateTransaction;
+    vi.spyOn(batch, "evaluateTransaction").mockImplementation((normalized, tx, options, ...rest) =>
+      original(normalized, tx, { ...options, maximumInducedEvents }, ...rest),
+    );
+    expect(() => f.run([update()])).toThrow("invalid evaluator Event bound");
+    expect(f.owner.inspect()).toMatchObject({ resources: [], groups: [], identities: [] });
+  },
+);
+
+it.each([0, -1, 1.5, 4097, Number.POSITIVE_INFINITY])(
   "refuses an invalid or raised matched Resource bound %s",
   (maximumMatchedResources) => {
     const f = fixture();
@@ -904,41 +917,52 @@ it.each([0, -1, 1.5, 4097, Number.POSITIVE_INFINITY])(
   },
 );
 
-it.each(["type", "status", "retry"] as const)(
-  "does not retain a malformed private evaluator failure missing %s",
-  (field) => {
-    const f = fixture();
-    const original = evaluator.evaluateResourceMutation;
-    vi.spyOn(evaluator, "evaluateResourceMutation").mockImplementation((...args) => {
-      const result = original(...args);
-      if (result.effect !== "failure") throw new Error("expected genuine missing Resource failure");
-      return { ...result, outcome: { ...result.outcome, [field]: undefined } } as typeof result;
-    });
-    const operations = [
-      {
-        operation: "updateBead",
-        bead: "beads/missing",
-        propertiesChange: [{ op: "add", path: "/n", value: 0 }],
-      },
-    ];
-    expect(() => f.run(operations)).toThrow(
-      "evaluator failure lacks required receipt Problem fields",
-    );
-    expect(f.owner.inspect()).toMatchObject({ resources: [], groups: [], identities: [] });
-    vi.restoreAllMocks();
-    f.reopen();
-    expect(f.run(operations)).toMatchObject({
-      status: "failed",
-      problem: {
-        type: "https://github.com/gastownhall/bdp/problems/not-found",
-        status: 404,
-        code: "resource-not-found",
-        retry: "after-state-change",
-        operationIndex: 0,
-      },
-    });
-  },
-);
+it.each([
+  ["type", undefined],
+  ["status", undefined],
+  ["retry", undefined],
+  ["code", undefined],
+  ["code", "rate-limited"],
+  ["code", "not-a-code"],
+  ["status", 500],
+  ["status", 200],
+  ["status", 413.5],
+  ["status", "404"],
+] as const)("does not retain a malformed private evaluator failure %s=%s", (field, value) => {
+  const f = fixture();
+  const original = evaluator.evaluateResourceMutation;
+  vi.spyOn(evaluator, "evaluateResourceMutation").mockImplementation((...args) => {
+    const result = original(...args);
+    if (result.effect !== "failure") throw new Error("expected genuine missing Resource failure");
+    return { ...result, outcome: { ...result.outcome, [field]: value } } as typeof result;
+  });
+  const operations = [
+    {
+      operation: "updateBead",
+      bead: "beads/missing",
+      propertiesChange: [{ op: "add", path: "/n", value: 0 }],
+    },
+  ];
+  expect(() => f.run(operations)).toThrow(
+    "evaluator failure lacks required receipt Problem fields",
+  );
+  expect(f.owner.inspect()).toMatchObject({ resources: [], groups: [], identities: [] });
+  vi.restoreAllMocks();
+  // No reopen: a clean integrity abort must release this exact key live.
+  const valid = f.run(operations);
+  expect(valid).toMatchObject({
+    status: "failed",
+    problem: {
+      type: "https://github.com/gastownhall/bdp/problems/not-found",
+      status: 404,
+      code: "resource-not-found",
+      retry: "after-state-change",
+      operationIndex: 0,
+    },
+  });
+  f.reopen();
+  expect(f.admit(operations)).toMatchObject({ kind: "existing", receipt: valid });
+});
 
 it("requires operation indices except for enumerated whole-transaction limits at the type boundary", () => {
   type Failure = Extract<batch.BatchEvaluation, { ok: false }>["problem"];
@@ -970,5 +994,19 @@ it("requires operation indices except for enumerated whole-transaction limits at
   >().toEqualTypeOf<false>();
   expectTypeOf<MissingIndex extends Failure ? true : false>().toEqualTypeOf<false>();
   expectTypeOf<SelectorLimit extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<Omit<WholeLimit, "type"> extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<Omit<WholeLimit, "status"> extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<Omit<WholeLimit, "retry"> extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<Omit<WholeLimit, "code"> extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<Omit<Valid, "code"> extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<
+    Omit<Valid, "code"> & { code: "rate-limited" } extends Failure ? true : false
+  >().toEqualTypeOf<false>();
+  expectTypeOf<
+    Omit<Valid, "status"> & { status: 500 } extends Failure ? true : false
+  >().toEqualTypeOf<false>();
+  expectTypeOf<
+    Omit<WholeLimit, "status"> & { status: 200 } extends Failure ? true : false
+  >().toEqualTypeOf<false>();
   expectTypeOf<WholeLimit extends Failure ? true : false>().toEqualTypeOf<true>();
 });
