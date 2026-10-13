@@ -486,8 +486,10 @@ export async function startDevelopmentReferenceRuntime(
   });
   if (transport !== undefined)
     server.on("connect", (_request, socket) => {
+      socket.on("error", () => undefined);
       socket.end(
         "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, HEAD\r\nContent-Length: 0\r\nX-Bdp-Development: non-attesting\r\nConnection: close\r\n\r\n",
+        () => socket.destroy(),
       );
     });
   server.requestTimeout = 10_000;

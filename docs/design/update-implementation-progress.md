@@ -586,7 +586,8 @@ not establish that ordinary Node close produces that state. The actual owner
 close, released store lock and preserved terminal result remain observed.
 
 
-The explicit candidate response paths carrying the marker are JSON/Problem
+Across the ordinary and installed configurations of the shared receiver,
+the explicit response paths carrying the marker are JSON/Problem
 responses, shared empty responses, ordinary Read responses, captured schemas,
 composed Read responses (including installed alias redirects), the ordinary
 development alias redirect, and the installed raw CONNECT refusal. Direct
@@ -596,3 +597,7 @@ in both emitted and packed runs. These statements cover responses written by
 the candidate receiver; Node-generated transport errors are outside this list.
 Readiness additionally requires the actual prefixed artifact digest shape
 `development-schema5-<64 lowercase hex digits>`.
+
+Detached CONNECT sockets observe write errors and are destroyed after the refusal
+finishes. Bounded reset-peer probes check continued service in emitted and packed
+runs; they do not claim every possible kernel write-error timing was injected.

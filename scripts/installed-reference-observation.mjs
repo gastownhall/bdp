@@ -317,10 +317,27 @@ export async function observeInstalledReference(entry, directory) {
       });
     });
     assert.match(connect, /^HTTP\/1\.1 405 Method Not Allowed\r\n/);
-    assert.match(connect, /\r\nAllow: GET, HEAD\r\n/i);
-    assert.match(connect, /\r\nX-Bdp-Development: non-attesting\r\n/i);
+    assert.ok(connect.includes("\r\nAllow: GET, HEAD\r\n"));
+    assert.ok(connect.includes("\r\nX-Bdp-Development: non-attesting\r\n"));
     assert.match(connect, /\r\nContent-Length: 0\r\n/i);
     assert.equal(connect.indexOf("\r\n\r\n"), connect.length - 4);
+    // A detached CONNECT peer may reset before the refusal finishes writing.
+    // The receiver must remain usable and release those detached sockets.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await new Promise((resolve, reject) => {
+        const socket = createConnection(config.listener.port, config.listener.host);
+        socket.setTimeout(5000, () => socket.destroy(Error("CONNECT reset deadline")));
+        socket.once("error", reject);
+        socket.once("close", resolve);
+        socket.once("connect", () =>
+          socket.write(
+            "CONNECT example.invalid:443 HTTP/1.1\r\nHost: example.invalid:443\r\n\r\n",
+            () => socket.resetAndDestroy(),
+          ),
+        );
+      });
+    }
+    assert.equal((await wire(`${scope}bdp.json`)).status, 200);
     const malformed = await wire("/acme/beads/%2e%2e/a");
     assert.equal(malformed.status, 400);
     assert.equal(
