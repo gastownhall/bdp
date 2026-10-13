@@ -2962,7 +2962,8 @@ describe("private atomic receipt observation", () => {
           scopePosition: "pos-1",
         },
       });
-      expect(observed).toEqual([true, true]);
+      // Receipt, current position, and current epoch all come from this entry.
+      expect(observed).toEqual([true, true, true]);
     } finally {
       spy.mockRestore();
     }

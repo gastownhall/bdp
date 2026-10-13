@@ -403,6 +403,7 @@ it("refuses prior format before maintenance and preserves actual file bytes; cha
   config.format = "bdp-private-transaction-contracts-8";
   delete config.snapshotLimits;
   delete config.snapshotTokenPolicy;
+  delete config.authorizationView;
   db.prepare("UPDATE metadata SET value=? WHERE name='configuration'").run(
     stringifyJsonValue(config),
   );
@@ -612,6 +613,15 @@ it("permanent 65536 issued-identity bound refuses new issuance even after all de
   });
   f.setTime(1300001);
   problem(() => f.owner.captureSnapshot(), "limit-exceeded");
+  // Expiry work was paid once. Repeated permanent-cap refusal must not parse
+  // the entire retained issuance history to discover that it is full.
+  const parse = vi.spyOn(JSON, "parse");
+  try {
+    problem(() => f.owner.captureSnapshot(), "limit-exceeded");
+    expect(parse).not.toHaveBeenCalled();
+  } finally {
+    parse.mockRestore();
+  }
   f.offline((db) => {
     expect(db.prepare("SELECT count(*) AS n FROM snapshots").get()?.n).toBe(65536);
   });
@@ -777,3 +787,245 @@ it.each([9, 99])(
   },
   15000,
 );
+
+it("shares one validated authority-record pass across owned topology and reuses hot SQL", () => {
+  const f = fixture();
+  f.run([create("a"), create("b"), edge("e")]);
+  const parsed = new Map<string, number>();
+  const parse = JSON.parse;
+  const parseSpy = vi.spyOn(JSON, "parse").mockImplementation((input, reviver) => {
+    const value = parse(input, reviver);
+    if (value && typeof value === "object" && "revision" in value && typeof value.id === "string")
+      parsed.set(value.id, (parsed.get(value.id) ?? 0) + 1);
+    return value;
+  });
+  const sql: string[] = [];
+  const prepare = DatabaseSync.prototype.prepare;
+  const sqlSpy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    query: string,
+  ) {
+    sql.push(query);
+    return prepare.call(this, query);
+  });
+  try {
+    const manifest = f.owner.captureSnapshot().manifest;
+    const first = manifest.beads.items[0];
+    expect(first && "ownedLinks" in first && first.ownedLinks?.[linkType]).toEqual(
+      manifest.links.items,
+    );
+    // One authority decode plus the mandatory retained first-page readback.
+    // Topology verification must not decode the same Link a third/fourth time.
+    expect(parsed).toEqual(
+      new Map([
+        [`${scope}beads/a`, 2],
+        [`${scope}beads/b`, 2],
+        [`${scope}links/e`, 2],
+      ]),
+    );
+    // The surrounding owner metadata helper is outside the Snapshot cache.
+    const snapshotSql = sql.filter((query) => !query.includes(" FROM metadata "));
+    expect(snapshotSql.filter((query, index) => snapshotSql.indexOf(query) !== index)).toEqual([]);
+    expect(sql.some((query) => query.includes("kind='link' AND source=?"))).toBe(false);
+  } finally {
+    sqlSpy.mockRestore();
+    parseSpy.mockRestore();
+  }
+});
+
+it("orders canonical percent-encoded BMP and supplementary identities with matching owned streams", () => {
+  const f = fixture();
+  const spellings = ["\u{1F600}", "\uFFFD", "\u{10000}"].map(encodeURIComponent);
+  // Canonical HTTP IDs are ASCII URL spellings, not raw UTF-16 identifiers.
+  // In particular U+FFFD's %EF sorts before U+10000's %F0 here, unlike decoded JS text.
+  const expected = ["%EF%BF%BD", "%F0%90%80%80", "%F0%9F%98%80"];
+  f.run(spellings.map((name) => create(name)));
+  f.run(spellings.map((name) => edge(name, spellings[0], spellings[1])));
+  const manifest = f.owner.captureSnapshot().manifest;
+  expect(manifest.beads.items.map((row) => row.id)).toEqual(
+    expected.map((id) => `${scope}beads/${id}`),
+  );
+  expect(manifest.links.items.map((row) => row.id)).toEqual(
+    expected.map((id) => `${scope}links/${id}`),
+  );
+  const owner = manifest.beads.items.find((row) => row.id === `${scope}beads/${spellings[0]}`);
+  expect(owner && "ownedLinks" in owner && owner.ownedLinks?.[linkType]).toEqual(
+    manifest.links.items,
+  );
+  expect(manifestSchema(manifest), JSON.stringify(manifestSchema.errors)).toBe(true);
+  f.reopen();
+  expect(f.owner.readSnapshot(handle(manifest)).manifest).toEqual(manifest);
+});
+
+it.each(["different-view", "prior-format-9"])(
+  "persists the actual view and refuses %s before retracting a pending claim",
+  (fault) => {
+    const f = fixture();
+    const admission = f.owner.admit(
+      "p",
+      "pending-view",
+      prepareTransactionSetCore(scope, JSON.stringify({ operations: [create("a")] })),
+    );
+    expect(admission.kind).toBe("owned");
+    f.owner.close();
+    const db = new DatabaseSync(f.options.file);
+    const original = String(
+      db.prepare("SELECT value FROM metadata WHERE name='configuration'").get()?.value,
+    );
+    const config = JSON.parse(original);
+    expect(config.authorizationView).toBe("development-all-visible");
+    const incompatible: Record<string, unknown> = {
+      ...config,
+      authorizationView: "different-view",
+    };
+    if (fault === "prior-format-9") {
+      incompatible.format = "bdp-private-transaction-snapshot-9";
+      delete incompatible.authorizationView;
+    }
+    db.prepare("UPDATE metadata SET value=? WHERE name='configuration'").run(
+      JSON.stringify(incompatible),
+    );
+    db.close();
+    const before = readFileSync(f.options.file);
+    expect(() => openTransactionStore({ ...f.options, create: false })).toThrow(
+      "installation mismatch",
+    );
+    expect(readFileSync(f.options.file)).toEqual(before);
+    const restore = new DatabaseSync(f.options.file);
+    expect(
+      restore.prepare("SELECT count(*) AS n FROM receipts WHERE owner IS NOT NULL").get()?.n,
+    ).toBe(1);
+    restore.prepare("UPDATE metadata SET value=? WHERE name='configuration'").run(original);
+    restore.close();
+    f.reopen();
+    expect(f.owner.recoveredPending).toBe(1);
+  },
+);
+
+it("startup sweep validates the same canonical position as reads and rolls back pending recovery on refusal", () => {
+  const f = fixture();
+  expect(
+    f.owner.admit(
+      "p",
+      "pending-position",
+      prepareTransactionSetCore(scope, JSON.stringify({ operations: [create("a")] })),
+    ).kind,
+  ).toBe("owned");
+  f.owner.close();
+  const db = new DatabaseSync(f.options.file);
+  db.prepare("UPDATE metadata SET value='01' WHERE name='position'").run();
+  db.close();
+  const before = readFileSync(f.options.file);
+  expect(() => openTransactionStore({ ...f.options, create: false })).toThrow(
+    "invalid transaction read position",
+  );
+  expect(readFileSync(f.options.file)).toEqual(before);
+  const restore = new DatabaseSync(f.options.file);
+  expect(
+    restore.prepare("SELECT count(*) AS n FROM receipts WHERE owner IS NOT NULL").get()?.n,
+  ).toBe(1);
+  restore.prepare("UPDATE metadata SET value='0' WHERE name='position'").run();
+  restore.close();
+  f.reopen();
+  expect(f.owner.recoveredPending).toBe(1);
+});
+
+it("decodes only the bounded live subset when compact expired history grows", () => {
+  const f = fixture();
+  const sample = f.owner.captureSnapshot().manifest;
+  f.offline((db) => {
+    const { binding: _binding, ...original } = JSON.parse(
+      String(
+        db.prepare("SELECT disposition FROM snapshots WHERE id=?").get(handle(sample))?.disposition,
+      ),
+    );
+    const unsigned = { ...original, expired: true };
+    db.exec("BEGIN");
+    const insert = db.prepare("INSERT INTO snapshots VALUES(?,?)");
+    for (let n = 0; n < 1000; n++) {
+      const id = randomUUID();
+      insert.run(
+        id,
+        stringifyJsonValue({
+          ...unsigned,
+          binding: createHash("sha256")
+            .update(stringifyJsonValue([id, unsigned]))
+            .digest("hex"),
+        }),
+      );
+    }
+    db.exec("COMMIT");
+  });
+  const parse = vi.spyOn(JSON, "parse");
+  try {
+    f.owner.captureSnapshot();
+    // One live retained disposition and the newly retained manifest. None of
+    // the thousand detail-free expired rows is decoded into a JS object.
+    expect(parse).toHaveBeenCalledTimes(2);
+  } finally {
+    parse.mockRestore();
+  }
+});
+
+it.each(["forged-expired", "missing-expired", "nonboolean-expired", "malformed-json"])(
+  "refuses %s classification before pending recovery and preserves the file",
+  (fault) => {
+    const f = fixture();
+    f.run([create("a")]);
+    const sample = f.owner.captureSnapshot().manifest;
+    expect(
+      f.owner.admit(
+        "p",
+        "pending-corruption",
+        prepareTransactionSetCore(scope, JSON.stringify({ operations: [create("b")] })),
+      ).kind,
+    ).toBe("owned");
+    f.owner.close();
+    const db = new DatabaseSync(f.options.file);
+    const original = String(
+      db.prepare("SELECT disposition FROM snapshots WHERE id=?").get(handle(sample))?.disposition,
+    );
+    const d = JSON.parse(original);
+    if (fault === "forged-expired") d.expired = true;
+    if (fault === "missing-expired") delete d.expired;
+    if (fault === "nonboolean-expired") d.expired = 0;
+    db.prepare("UPDATE snapshots SET disposition=? WHERE id=?").run(
+      fault === "malformed-json" ? "{" : stringifyJsonValue(d),
+      handle(sample),
+    );
+    db.close();
+    const before = readFileSync(f.options.file);
+    expect(() => openTransactionStore({ ...f.options, create: false })).toThrow();
+    expect(readFileSync(f.options.file)).toEqual(before);
+    const restore = new DatabaseSync(f.options.file);
+    expect(
+      restore.prepare("SELECT count(*) AS n FROM receipts WHERE owner IS NOT NULL").get()?.n,
+    ).toBe(1);
+    restore.prepare("UPDATE snapshots SET disposition=? WHERE id=?").run(original, handle(sample));
+    restore.close();
+    f.reopen();
+    expect(f.owner.recoveredPending).toBe(1);
+    expect(f.owner.readSnapshot(handle(sample)).manifest).toEqual(sample);
+  },
+);
+
+it("validates a cold expired commitment on lookup without decoding all cold history during capture", () => {
+  const f = fixture();
+  const sample = f.owner.captureSnapshot().manifest;
+  f.setTime(1300001);
+  problem(() => f.owner.readSnapshot(handle(sample)), "cursor-expired");
+  f.offline((db) => {
+    const d = JSON.parse(
+      String(
+        db.prepare("SELECT disposition FROM snapshots WHERE id=?").get(handle(sample))?.disposition,
+      ),
+    );
+    db.prepare("UPDATE snapshots SET disposition=? WHERE id=?").run(
+      stringifyJsonValue({ ...d, binding: "0".repeat(64) }),
+      handle(sample),
+    );
+  });
+  // Cold hash corruption is detected on lookup, not eagerly on unrelated capture.
+  expect(f.owner.captureSnapshot().manifest.beads.items).toEqual([]);
+  expect(() => f.owner.readSnapshot(handle(sample))).toThrow("disposition commitment");
+});
