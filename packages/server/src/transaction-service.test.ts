@@ -858,3 +858,29 @@ it("drains concurrent receipt-page waits on close while admitted commits can sat
     await Promise.allSettled(pages);
   }
 });
+
+it("cancels finite Event waits through the facet and drains uncancelled waits before owner close", async () => {
+  const f = fixture();
+  const service = f.open({ minimumReads: { budgetMs: 30 } });
+  const first = await service.events(`${scope}events/`);
+  if (first.kind !== "page") throw new Error("expected finite page");
+  const minimum = {
+    scopeEpoch: first.context.scopeEpoch,
+    authorizationView: first.context.authorizationView,
+    minimumPosition: "pos-1",
+  };
+  const controller = new AbortController();
+  const cancelled = service.events(`${scope}events/`, undefined, minimum, controller.signal);
+  const cancellation = expect(cancelled).rejects.toMatchObject({
+    name: "ScopeServerOperationAbortedError",
+  });
+  controller.abort();
+  await cancellation;
+  const pending = service.events(`${scope}events/`, undefined, minimum);
+  const timedOut = expect(pending).rejects.toMatchObject({ reason: "catch-up-timeout" });
+  const closing = service.close();
+  expect(() => service.events(`${scope}events/`)).toThrow("closing or closed");
+  await timedOut;
+  await closing;
+  expect(() => f.owner.readEvents(`${scope}events/`)).toThrow();
+});

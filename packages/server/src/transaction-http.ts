@@ -1,3 +1,8 @@
+import {
+  transactionEventRequest,
+  TransactionEventParameterError,
+  TransactionEventProjectionGap,
+} from "./transaction-events.js";
 import { transactionMinimumHeaders, TransactionMinimumFailure } from "./transaction-consistency.js";
 /** Source-private partial Transactional HTTP projection. No discovery/profile
  * advertisement: required sets, replication and consistency barriers are absent. */
@@ -310,6 +315,21 @@ export function createTransactionHttpHandler(
       });
     }
     if (authorization.kind === "unauthenticated") return transactionHttpProblem("unauthenticated");
+    const eventRequest = transactionEventRequest(url, scope);
+    if (eventRequest) {
+      const minimum = hasMinimumControls(request)
+        ? (transactionMinimumHeaders(request.headers) ?? "unsupported")
+        : undefined;
+      const observed = await service.events(
+        eventRequest.source.url,
+        eventRequest.after,
+        minimum,
+        request.signal,
+      );
+      if (observed.kind === "missing") return transactionHttpProblem("resource-not-found");
+      if (observed.kind === "unsupported") return developmentGap("minimum-position");
+      return context(jsonResponse(observed.page), observed.context);
+    }
     if (
       url.pathname.startsWith(`${scopeUrl.pathname}receipts/`) ||
       url.pathname === `${scopeUrl.pathname}receipts`
@@ -393,7 +413,11 @@ export function createTransactionHttpHandler(
             ),
             error.context,
           );
-        } else if (error instanceof TransactionMinimumVisibilityGap)
+        } else if (error instanceof TransactionEventParameterError)
+          response = transactionHttpProblem("invalid-parameter");
+        else if (error instanceof TransactionEventProjectionGap)
+          response = developmentGap(error.message);
+        else if (error instanceof TransactionMinimumVisibilityGap)
           response = developmentGap("minimum-position-visibility");
         else response = empty(500);
       }

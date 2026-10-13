@@ -1,4 +1,16 @@
 import {
+  TRANSACTION_EVENT_PAGE_BYTES,
+  TRANSACTION_EVENT_GROUP_BYTES,
+  TransactionEventParameterError,
+  transactionEventRequest,
+  parseTransactionEventCursor,
+  checkTransactionEventCursor,
+  projectTransactionEventGroup,
+  eventContinuation,
+  freezeEventPage,
+  type TransactionEventPage,
+} from "./transaction-events.js";
+import {
   checkTransactionMinimum,
   snapshotTransactionMinimum,
   type TransactionMinimum,
@@ -177,6 +189,8 @@ interface ReceiptPagePlan {
  * Fixed all-visible private policy only; this is not an authentication boundary. */
 export function openTransactionStore(options: TransactionStoreOptions) {
   const scope = parseCanonicalScope(options.scope);
+  if (Buffer.byteLength(json(`${scope}events/`)) > TRANSACTION_RUNTIME_LIMITS.scopeSourceBytes)
+    throw new TypeError("transaction Scope exceeds private materialization bound");
   if (!path.isAbsolute(options.file))
     throw new TypeError("absolute transaction store file required");
   const compiled = options.contracts;
@@ -1021,12 +1035,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                   maximumEndpointMultiplicity: [],
                   observeCommitTime: instant,
                   recordChangeContext: false,
-                  limits: {
-                    propertiesBytes: TRANSACTION_RUNTIME_LIMITS.propertiesBytes,
-                    representationBytes: 262144,
-                    diagnosticCount: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
-                    diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
-                  },
+                  limits: TRANSACTION_RUNTIME_LIMITS,
                 },
                 core.transaction,
                 position,
@@ -1228,6 +1237,116 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     scopeEpoch: epoch,
     recoveredPending,
     withRead,
+    /** Fixed-view finite Event observation. Group rows are consumed one at a time;
+     * no reader/SQLite iterator or mutable capability escapes this owner entry. */
+    readEvents(
+      sourceUrl: string,
+      after?: string,
+      supplied?: TransactionMinimum | "unsupported",
+    ):
+      | {
+          readonly kind: "page";
+          readonly page: TransactionEventPage;
+          readonly context: TransactionReadContext;
+        }
+      | { readonly kind: "missing" }
+      | { readonly kind: "unsupported" } {
+      if (typeof sourceUrl !== "string" || (after !== undefined && typeof after !== "string"))
+        throw new TypeError("Event source and cursor must be strings");
+      const request = transactionEventRequest(new URL(sourceUrl), scope);
+      if (!request || request.after !== undefined || request.source.url !== sourceUrl)
+        throw new TransactionEventParameterError();
+      const source = request.source;
+      const minimum =
+        supplied === undefined || supplied === "unsupported"
+          ? supplied
+          : snapshotTransactionMinimum(supplied);
+      return enter(() => {
+        // Reference convention: unknown sources are nondisclosing before minimum
+        // checks. A retained identity remains a source after Resource deletion.
+        if (
+          source.subject &&
+          !db
+            .prepare("SELECT id FROM identities WHERE id=?")
+            .get(source.subject.slice(scope.length))
+        )
+          return Object.freeze({ kind: "missing" as const });
+        if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
+        const context = readContext(),
+          head = Number(context.scopePosition.slice(4));
+        const start = after === undefined ? undefined : parseTransactionEventCursor(after);
+        if (start) checkTransactionEventCursor(start, context, source.url);
+        let cursorMatched = start === undefined;
+        const events: import("./transaction-batch.js").TransactionEvent[] = [];
+        let next: string | null = null;
+        const rowAt = db.prepare(
+          "SELECT position,length(CAST(body AS BLOB)) AS bytes FROM groups WHERE position>=? AND position<=? ORDER BY position LIMIT 1",
+        );
+        const bodyAt = db.prepare("SELECT body FROM groups WHERE position=?");
+        let at = start?.position ?? 1;
+        for (;;) {
+          const row = rowAt.get(at, head);
+          if (!row) {
+            if (cursorMatched && at <= head) throw new Error("missing retained Event group");
+            break;
+          }
+          const p = Number(row.position),
+            bytes = Number(row.bytes);
+          if (!Number.isSafeInteger(p) || p < at) throw new Error("invalid Event group position");
+          if (cursorMatched && p !== at) throw new Error("missing retained Event group");
+          // The locked configuration admitted the exact tuple used by this bound.
+          // Inspect SQLite's encoded length before copying or parsing the body.
+          if (!Number.isSafeInteger(bytes) || bytes < 2 || bytes > TRANSACTION_EVENT_GROUP_BYTES)
+            throw new Error("retained Event group exceeds admitted byte bound");
+          const body = bodyAt.get(p)?.body;
+          if (typeof body !== "string") throw new Error("invalid retained Event group body");
+          const projected = projectTransactionEventGroup(
+            JSON.parse(body),
+            context,
+            source,
+            scope,
+            p,
+          );
+          if (!cursorMatched) {
+            if (
+              p !== start?.position ||
+              !projected.some((event) => event.ordinal === start.ordinal && event.id === after)
+            )
+              throw new TransactionEventParameterError();
+            cursorMatched = true;
+          }
+          for (const event of projected) {
+            if (start && p === start.position && event.ordinal <= start.ordinal) continue;
+            const candidate = [...events, event];
+            // Reserve the actual continuation URL even if this is currently last.
+            // No partial Event escapes, and next never names an unreturned Event.
+            const bytes = Buffer.byteLength(
+              json({
+                source: source.url,
+                events: candidate,
+                next: eventContinuation(source.url, event.id),
+              }),
+            );
+            if (candidate.length > receiptMaximumItems || bytes > TRANSACTION_EVENT_PAGE_BYTES) {
+              const last = events.at(-1);
+              if (!last) throw new Error("finite Event page cannot hold first retained Event");
+              next = eventContinuation(source.url, last.id);
+              break;
+            }
+            events.push(event);
+          }
+          if (next !== null) break;
+          at = p + 1;
+        }
+        if (!cursorMatched) throw new TransactionEventParameterError();
+        if (minimum !== undefined) checkTransactionMinimum(minimum, context);
+        return Object.freeze({
+          kind: "page" as const,
+          context,
+          page: freezeEventPage({ source: source.url, events, next }),
+        });
+      });
+    },
     readConfiguration: () => enter(() => readConfiguration),
     comparisonEpoch: () => (closed ? undefined : enter(() => metadata("epoch"))),
     maintain,
