@@ -893,19 +893,24 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
   expect(later.captures).toEqual([]); // HTTP capture is URL-only; no unimplemented array capture.
   const final = row.actions.at(-1);
   expect(final.id).toBe("p-final");
-  const tuple = final.assertions.find((a: { id: string }) => a.id === "exact-later-items");
-  expect(tuple).toMatchObject({ kind: "json-array-tuples", pointer: "/items", ordered: true });
-  expect(tuple.projections).toEqual(
-    ["/id", "/type", "/properties", "/metadata"].map((pointer) => ({ pointer })),
-  );
-  expect(tuple.equals).toEqual(
-    Array.from({ length: 32 }, (_, index) => [
-      `https://reference.invalid/acme/beads/p${String(index).padStart(2, "0")}`,
-      "https://reference.invalid/acme/types/task",
-      { title: index === 31 ? "later" : "changed" },
-      { tag: "pagination" },
-    ]),
-  );
+  for (const [action, assertionId] of [
+    [later, "ordered-state"],
+    [final, "exact-later-items"],
+  ] as const) {
+    const tuple = action.assertions.find((a: { id: string }) => a.id === assertionId);
+    expect(tuple).toMatchObject({ kind: "json-array-tuples", pointer: "/items", ordered: true });
+    expect(tuple.projections).toEqual(
+      ["/id", "/type", "/properties", "/metadata"].map((pointer) => ({ pointer })),
+    );
+    expect(tuple.equals).toEqual(
+      Array.from({ length: 32 }, (_, index) => [
+        `https://reference.invalid/acme/beads/p${String(index).padStart(2, "0")}`,
+        "https://reference.invalid/acme/types/task",
+        { title: index === 31 ? "later" : "changed" },
+        { tag: "pagination" },
+      ]),
+    );
+  }
   // Semantic final state is literal; opaque current envelopes are not captured.
   // Exact recorded root/page whole-body retention remains a separate client oracle.
   expect(
