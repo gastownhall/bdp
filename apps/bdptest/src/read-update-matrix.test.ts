@@ -914,7 +914,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "fdcbe130767421273c839d15cd8db5fef4b8047e7aabe192a54c1d4110aca6be",
+    "a8d5687519da4040d2f23989f86f9bc804d30ac6c91a85074397eaf7c92de712",
   );
   expect(report.uncoveredIds).toHaveLength(103);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
@@ -1231,7 +1231,7 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "fdcbe130767421273c839d15cd8db5fef4b8047e7aabe192a54c1d4110aca6be",
+    "a8d5687519da4040d2f23989f86f9bc804d30ac6c91a85074397eaf7c92de712",
   );
 }, 30000);
 
@@ -1798,8 +1798,8 @@ it("pins admission action, request-byte and live-identity budgets without hidden
     source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
   );
   const ledgers = [
-    { id: admissionRows[0], actions: 244, raw: 151, client: 93, peak: { beads: 37, links: 4 } },
-    { id: admissionRows[1], actions: 116, raw: 73, client: 43, peak: { beads: 11, links: 4 } },
+    { id: admissionRows[0], actions: 284, raw: 196, client: 88, peak: { beads: 36, links: 3 } },
+    { id: admissionRows[1], actions: 174, raw: 140, client: 34, peak: { beads: 11, links: 4 } },
   ];
   const kinds: Record<string, string> = {
     "create-bead": "createBead",
@@ -1829,6 +1829,11 @@ it("pins admission action, request-byte and live-identity budgets without hidden
       if (action.method === "GET" && ["beads", "links"].includes(action.target?.binding)) {
         const collection = action.target.binding;
         expect(action.target.query).toEqual({ limit: "100" });
+        expect(action.assertions.find((a: { id: string }) => a.id === "schema")).toEqual({
+          id: "schema",
+          kind: "json-schema",
+          schema: `#/$defs/current${collection === "beads" ? "Bead" : "Link"}Collection`,
+        });
         expect(action.assertions.find((a: { id: string }) => a.id === "complete")).toMatchObject({
           pointer: "/next",
           equals: null,
@@ -1863,6 +1868,10 @@ it("pins admission action, request-byte and live-identity budgets without hidden
 it.each([
   [0, "key-repeat-distinct", "single-key", 200, "status"],
   [0, "key-long", "length-256", 200, "status"],
+  [0, "key-route-delete-link-repeated", "single-key", 200, "status"],
+  [0, "key-route-update-bead-malformed", "valid-key", 200, "status"],
+  [1, "media-route-sequence-wrong-parameters", "json-media", 200, "status"],
+  [1, "media-route-create-link-corrected", "wrong-media", 415, "status"],
   [1, "media-parameter-charset", "wrong-media", 415, "status"],
 ] as const)(
   "detects admission raw input boundary %s/%s/%s",
@@ -1874,6 +1883,13 @@ it.each([
     const row = manifest.scenarios.find((row: { id: string }) => row.id === id);
     const action = row.actions.find((a: { id: string }) => a.id === actionId);
     if (control === "single-key") action.raw.headerLines.pop();
+    else if (control === "valid-key")
+      action.raw.headerLines.find(
+        (line: { name: string }) => line.name === "idempotency-key",
+      ).value = "valid-control";
+    else if (control === "json-media")
+      action.raw.headerLines.find((line: { name: string }) => line.name === "content-type").value =
+        "application/json; charset=iso-8859-1; arbitrary=ignored";
     else if (control === "length-256")
       action.raw.headerLines.find(
         (line: { name: string }) => line.name === "idempotency-key",
@@ -2004,3 +2020,91 @@ it.each(["alias-location", "stale-collection-record"] as const)(
   },
   30000,
 );
+
+it("pins admission carrier completion, same-body key corrections and same-key media corrections", () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const keyRow = manifest.scenarios.find((row: { id: string }) => row.id === admissionRows[0]);
+  const mediaRow = manifest.scenarios.find((row: { id: string }) => row.id === admissionRows[1]);
+  const routes = [
+    "create-bead",
+    "update-bead",
+    "delete-bead",
+    "create-link",
+    "update-link",
+    "delete-link",
+    "put-alias",
+    "delete-alias",
+  ];
+  for (const route of routes) {
+    const missing = keyRow.actions.find((a: { id: string }) => a.id === `key-route-${route}`);
+    const good = keyRow.actions.find(
+      (a: { id: string }) => a.id === `key-route-${route}-corrected`,
+    );
+    expect(good.input.body).toEqual(JSON.parse(missing.raw.body.value));
+    expect(good.input.targetBinding).toBe(route);
+    if (route !== "create-bead") {
+      for (const suffix of ["malformed", "repeated"]) {
+        const bad = keyRow.actions.find(
+          (a: { id: string }) => a.id === `key-route-${route}-${suffix}`,
+        );
+        expect(bad.target).toEqual(missing.target);
+        expect(bad.raw.body).toEqual(missing.raw.body);
+        const keys = bad.raw.headerLines.filter(
+          (h: { name: string }) => h.name.toLowerCase() === "idempotency-key",
+        );
+        if (suffix === "malformed")
+          expect(keys.map((h: { value: string }) => h.value)).toEqual(["bad.key"]);
+        else
+          expect(keys.map((h: { value: string }) => h.value)).toEqual([
+            good.input.idempotencyKey,
+            good.input.idempotencyKey,
+          ]);
+        for (const collection of ["beads", "links"])
+          expect(
+            keyRow.actions.some((a: { id: string }) => a.id === `${bad.id}-after-${collection}`),
+          ).toBe(true);
+      }
+    }
+  }
+  for (const route of [...routes, "sequence"]) {
+    const prefix = `media-route-${route}`;
+    const missing = mediaRow.actions.find((a: { id: string }) => a.id === prefix);
+    const good = mediaRow.actions.find((a: { id: string }) => a.id === `${prefix}-corrected`);
+    expect(good.target).toEqual(missing.target);
+    expect(good.raw.body).not.toEqual(missing.raw.body);
+    expect(
+      good.raw.headerLines.find((h: { name: string }) => h.name === "content-type").value,
+    ).toBe("application/json; charset=iso-8859-1; arbitrary=ignored");
+    for (const [suffix, media] of [
+      ["wrong", "text/plain"],
+      ["wrong-parameters", "text/plain; charset=utf-8; arbitrary=ignored"],
+    ]) {
+      const bad = mediaRow.actions.find((a: { id: string }) => a.id === `${prefix}-${suffix}`);
+      expect(bad.target).toEqual(missing.target);
+      expect(bad.raw.body).toEqual(missing.raw.body);
+      expect(
+        bad.raw.headerLines.find((h: { name: string }) => h.name === "content-type").value,
+      ).toBe(media);
+      for (const collection of ["beads", "links"])
+        expect(
+          mediaRow.actions.some((a: { id: string }) => a.id === `${bad.id}-after-${collection}`),
+        ).toBe(true);
+    }
+    if (route === "sequence") {
+      expect(
+        JSON.parse(good.raw.body.value).operations.map(
+          (m: { idempotencyKey: string }) => m.idempotencyKey,
+        ),
+      ).toEqual(
+        JSON.parse(missing.raw.body.value).operations.map(
+          (m: { idempotencyKey: string }) => m.idempotencyKey,
+        ),
+      );
+    } else
+      expect(
+        good.raw.headerLines.find((h: { name: string }) => h.name === "idempotency-key"),
+      ).toEqual(missing.raw.headerLines[0]);
+  }
+});
