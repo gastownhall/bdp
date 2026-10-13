@@ -322,6 +322,59 @@ async function installPackedWorkspace() {
       (await realpath(path.join(installedServerRoot, "dist", "development.js")))
     )
       throw new Error("packed development facade does not resolve to its explicit entry");
+    // The public root must preserve its original pagination surface even though
+    // the same private engine also supports Transactional source context.
+    const publicServer = await import(pathToFileURL(consumer.resolve("@bdp/server")).href);
+    if ("createContextualReadPagination" in publicServer)
+      throw new Error("packed root exposes private contextual pagination factory");
+    const pagination = publicServer.createReadPagination({
+      scope: "https://example.test/s/",
+      defaultPageItems: 1,
+      maxPageItems: 2,
+      cursorTtlMs: 1000,
+      retainedStateCapacity: 10,
+      maxRetainedCursorPositionsPerSnapshot: 5,
+      retainedSnapshotByteCapacity: 5,
+      retainedSnapshotNodeCapacity: 3,
+      maxOpaqueTokenLength: 40,
+      tokenGenerationAttempts: 2,
+      idleCleanup: "on-demand",
+      clock: () => 0,
+      generateOpaqueToken: () => "cursor",
+    });
+    try {
+      if (
+        Object.keys(pagination).sort().join(",") !==
+        "cleanupExpired,close,continuePage,firstPage,limits,validateLimit"
+      )
+        throw new Error("packed public pagination API changed");
+      const input = {
+        items: [1, 2],
+        authorizationView: "v",
+        scopeEpoch: "e",
+        projection: "p",
+        continuationUrl: "https://example.test/s/beads/",
+      };
+      Object.defineProperty(input, "sourceContext", {
+        enumerable: true,
+        get() {
+          throw new Error("public context getter executed");
+        },
+      });
+      const extra = new Proxy(
+        {},
+        {
+          ownKeys() {
+            throw new Error("public extra argument inspected");
+          },
+        },
+      );
+      const page = Reflect.apply(pagination.firstPage, pagination, [input, extra]);
+      if (page.items.length !== 1 || page.items[0] !== 1 || typeof page.next !== "string")
+        throw new Error("packed public pagination result changed");
+    } finally {
+      pagination.close();
+    }
     for (const module of installedServerOutput.filter(
       (name) =>
         (name.startsWith("installed-schema-") || name.startsWith("transaction-")) &&
@@ -338,6 +391,8 @@ async function installPackedWorkspace() {
     for (const specifier of [
       "@bdp/server/read-http-routing",
       "@bdp/server/dist/read-http-routing.js",
+      "@bdp/server/read-pagination",
+      "@bdp/server/dist/read-pagination.js",
       "@bdp/server/development-runtime",
       "@bdp/server/dist/development-runtime.js",
       "@bdp/server/development-authority",

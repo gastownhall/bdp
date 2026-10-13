@@ -33,8 +33,8 @@ import {
 import {
   type ReadPaginationOptions,
   type ReadSourceContext,
-  type ReadPagination,
-  createReadPagination,
+  type ContextualReadPagination,
+  createContextualReadPagination,
   ReadPaginationError,
 } from "./read-pagination.js";
 import {
@@ -249,7 +249,7 @@ interface Prepared {
   readonly conformance: TypeConformanceIndex;
   readonly selector: ReadSelectorLimits;
   readonly limits: ServerAdvertisedReadLimits;
-  readonly pagination: ReadPagination<PageItem>;
+  readonly pagination: ContextualReadPagination<PageItem>;
 }
 interface ReadContext {
   readonly observation: ReadObservation;
@@ -384,7 +384,7 @@ function prepare(options: AuthorityReadOptions): Prepared {
   paginationOptions.clock = paginationOptions.clock.bind(suppliedPagination);
   paginationOptions.generateOpaqueToken =
     paginationOptions.generateOpaqueToken.bind(suppliedPagination);
-  const pagination = createReadPagination<PageItem>(paginationOptions);
+  const pagination = createContextualReadPagination<PageItem>(paginationOptions);
   try {
     if (!Array.isArray(installedTypes) || isProxy(installedTypes))
       throw new AuthorityReadError("configuration", "installed Type inventory required");
@@ -870,17 +870,17 @@ function finish(prepared: Prepared, intent: ReadIntent, result: Materialized): C
           )
         : result.items;
     const navigation = continuationUrlFor(intent, prepared.scope);
-    return prepared.pagination.firstPage({
-      items: inCanonicalUriOrder(items),
-      ...(intent.limit === undefined ? {} : { limit: intent.limit }),
-      authorizationView: result.observation.authorizationView,
-      scopeEpoch: result.observation.scopeEpoch,
-      projection: navigation,
-      continuationUrl: navigation,
-      ...(result.observation.sourceContext === undefined
-        ? {}
-        : { sourceContext: result.observation.sourceContext }),
-    });
+    return prepared.pagination.firstPageWithContext(
+      {
+        items: inCanonicalUriOrder(items),
+        ...(intent.limit === undefined ? {} : { limit: intent.limit }),
+        authorizationView: result.observation.authorizationView,
+        scopeEpoch: result.observation.scopeEpoch,
+        projection: navigation,
+        continuationUrl: navigation,
+      },
+      result.observation.sourceContext,
+    );
   }, result.observation);
   return isRefusal(body)
     ? body

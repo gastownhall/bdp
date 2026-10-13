@@ -1042,7 +1042,7 @@ function controlledClosures(
   },
 ) {
   const actualPlane = planeModule.createAuthorityReadPlane,
-    actualPagination = paginationModule.createReadPagination;
+    actualPagination = paginationModule.createContextualReadPagination;
   const calls = { owner: 0, read: 0, disposed: 0, released: [] as unknown[] };
   if (mode.ownerCompletion) {
     const close = f.store.close.bind(f.store);
@@ -1051,7 +1051,7 @@ function controlledClosures(
       throw mode.ownerCompletion;
     });
   }
-  vi.spyOn(paginationModule, "createReadPagination").mockImplementation((options) => {
+  vi.spyOn(paginationModule, "createContextualReadPagination").mockImplementation((options) => {
     const engine = actualPagination(options);
     return {
       ...engine,

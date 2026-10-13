@@ -1,6 +1,10 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { createReadPagination, ReadPaginationError } from "./read-pagination.js";
+import {
+  createReadPagination,
+  createContextualReadPagination,
+  ReadPaginationError,
+} from "./read-pagination.js";
 
 function harness<Item = unknown>(
   overrides: Partial<Parameters<typeof createReadPagination>[0]> = {},
@@ -8,7 +12,7 @@ function harness<Item = unknown>(
   let sequence = 0;
   let now = 1_000;
   const retainedStateCapacity = overrides.retainedStateCapacity ?? 20;
-  const pagination = createReadPagination<Item>({
+  const pagination = createContextualReadPagination<Item>({
     scope: "https://beads.example/acme/",
     defaultPageItems: 2,
     maxPageItems: 3,
@@ -709,7 +713,7 @@ describe("source-private pagination context", () => {
   it("keeps immutable context paired with actual pages without adding wire fields", () => {
     const { pagination, advance } = harness();
     const sourceContext = { source: "one" };
-    const first = pagination.firstPage({ ...firstInput([1, 2, 3], 1), sourceContext });
+    const first = pagination.firstPageWithContext(firstInput([1, 2, 3], 1), sourceContext);
     sourceContext.source = "changed";
     const second = pagination.continuePage({ ...identity, token: tokenFrom(first.next) });
     expect(pagination.sourceContext(first)).toEqual({ source: "one" });
@@ -739,14 +743,17 @@ describe("source-private pagination context", () => {
           : { retainedSnapshotNodeCapacity: 6 };
       const { pagination, advance } = harness(overrides);
       const input = { ...firstInput([1, 2], 1), sourceContext: { x: "1234567" } };
-      const first = pagination.firstPage(input);
-      expectPaginationError(() => pagination.firstPage(input), "capacity-exceeded");
+      const first = pagination.firstPageWithContext(input, input.sourceContext);
+      expectPaginationError(
+        () => pagination.firstPageWithContext(input, input.sourceContext),
+        "capacity-exceeded",
+      );
       expect(pagination.continuePage({ ...identity, token: tokenFrom(first.next) }).items).toEqual([
         2,
       ]);
       advance(1000);
       pagination.cleanupExpired();
-      expect(pagination.firstPage(input).items).toEqual([1]);
+      expect(pagination.firstPageWithContext(input, input.sourceContext).items).toEqual([1]);
       pagination.close();
     },
   );
@@ -754,10 +761,7 @@ describe("source-private pagination context", () => {
     const { pagination } = harness();
     const plain = pagination.firstPage(firstInput([1]));
     expect(pagination.sourceContext(plain)).toBeUndefined();
-    const contextual = pagination.firstPage({
-      ...firstInput([2]),
-      sourceContext: { source: "two" },
-    });
+    const contextual = pagination.firstPageWithContext(firstInput([2]), { source: "two" });
     expect(pagination.sourceContext(contextual)).toEqual({ source: "two" });
     expect(contextual).toEqual({ items: [2], next: null });
     pagination.close();
