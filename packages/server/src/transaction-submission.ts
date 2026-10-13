@@ -11,6 +11,7 @@ import {
   snapshotTransactionReceivingControls,
   type openTransactionStore,
   type TransactionReceipt,
+  type TransactionReadContext,
   type TransactionReceivingControls,
 } from "./transaction-store.js";
 
@@ -29,7 +30,11 @@ export interface TransactionSubmission {
   readonly receiving: TransactionReceivingControls;
 }
 export type TransactionSubmissionResult =
-  | { readonly kind: "receipt"; readonly receipt: TransactionReceipt }
+  | {
+      readonly kind: "receipt";
+      readonly receipt: TransactionReceipt;
+      readonly context?: TransactionReadContext;
+    }
   | { readonly kind: "not-acceptable" }
   | { readonly kind: "development-limit"; readonly message: string }
   | {
@@ -55,6 +60,7 @@ export async function submitTransaction(
   store: ReturnType<typeof openTransactionStore>,
   submission: TransactionSubmission,
   comparison: Omit<NonNullable<Parameters<typeof compareAndAdmitTransaction>[4]>, "receiving"> = {},
+  observed = false,
 ): Promise<TransactionSubmissionResult> {
   const receiving = snapshotTransactionReceivingControls(submission.receiving);
   const { body, key } = submission;
@@ -90,10 +96,23 @@ export async function submitTransaction(
     !authorization.principal.isWellFormed()
   )
     throw new TypeError("invalid trusted principal");
-  const result = await compareAndAdmitTransaction(store, authorization.principal, key, prepared, {
-    ...comparison,
-    receiving,
-  });
+  const comparisonStore = observed
+    ? {
+        scopeEpoch: store.scopeEpoch,
+        comparisonEpoch: store.comparisonEpoch,
+        admit: store.admitObserved,
+      }
+    : store;
+  const result = await compareAndAdmitTransaction(
+    comparisonStore,
+    authorization.principal,
+    key,
+    prepared,
+    {
+      ...comparison,
+      receiving,
+    },
+  );
   switch (result.kind) {
     case "conflict":
       return { kind: "refused", status: 409, code: "idempotency-conflict" };
@@ -114,8 +133,20 @@ export async function submitTransaction(
         retry: "after-delay",
       };
     case "existing":
-      return { kind: "receipt", receipt: result.receipt };
+      if (observed && !result.context)
+        throw new Error("existing receipt lost same-entry context", {
+          cause: { id: result.receipt.id, key },
+        });
+      return observed
+        ? {
+            kind: "receipt",
+            receipt: result.receipt,
+            ...(result.context ? { context: result.context } : {}),
+          }
+        : { kind: "receipt", receipt: result.receipt };
     case "owned":
-      return { kind: "receipt", receipt: store.execute(result.claim) };
+      return observed
+        ? { kind: "receipt", ...store.executeObserved(result.claim) }
+        : { kind: "receipt", receipt: store.execute(result.claim) };
   }
 }

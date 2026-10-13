@@ -9,6 +9,7 @@ import type { EvaluatorStoredResource } from "./resource-evaluator.js";
 import {
   TransactionDevelopmentLimitError,
   TRANSACTION_RUNTIME_LIMITS,
+  TRANSACTION_MAXIMUM_OPERATIONS,
   assertPreparedTransaction,
   assertPreparedTransactionSequence,
   normalizeTransaction,
@@ -45,12 +46,20 @@ interface ReceiptCore {
   readonly transaction: string;
 }
 export type TransactionReceipt = ReceiptCore & Readonly<Record<string, unknown>>;
+export interface TransactionReceiptObservation {
+  readonly receipt: TransactionReceipt;
+  readonly context: TransactionReadContext;
+}
 export interface TransactionClaim {
   readonly receipt: TransactionReceipt;
 }
 export type TransactionAdmission =
   | { readonly kind: "owned"; readonly claim: TransactionClaim }
-  | { readonly kind: "existing"; readonly receipt: TransactionReceipt }
+  | {
+      readonly kind: "existing";
+      readonly receipt: TransactionReceipt;
+      readonly context?: TransactionReadContext;
+    }
   | { readonly kind: "conflict" }
   | { readonly kind: "comparison-pending" };
 /** Values supplied by the private receiving boundary, never callbacks in SQLite. */
@@ -71,7 +80,7 @@ export function snapshotTransactionReceivingControls(
     typeof acceptsJson !== "boolean" ||
     !Number.isSafeInteger(maximumOperations) ||
     maximumOperations < 1 ||
-    maximumOperations > 32
+    maximumOperations > TRANSACTION_MAXIMUM_OPERATIONS
   )
     throw new TypeError("valid private receiving controls required");
   return Object.freeze({ acceptsJson, maximumOperations });
@@ -435,6 +444,37 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       scopePosition: `pos-${position}`,
     });
   }
+  // Fixed all-visible projection and current position are captured before this
+  // authoritative transaction releases. No second clock/retention observation.
+  function observeReceipt(receipt: TransactionReceipt): TransactionReceiptObservation {
+    const context = readContext();
+    if (receipt.scopeEpoch !== context.scopeEpoch)
+      throw new Error("receipt epoch differs from serving owner", {
+        cause: { id: receipt.id, key: receipt.idempotencyKey },
+      });
+    for (const field of ["requiredPosition", "effectPosition"] as const) {
+      const value = receipt[field];
+      if (value === undefined && (field === "effectPosition" || receipt.status === "pending"))
+        continue;
+      if (
+        typeof value !== "string" ||
+        !/^pos-(0|[1-9][0-9]*)$/.test(value) ||
+        !Number.isSafeInteger(Number(value.slice(4))) ||
+        Number(value.slice(4)) > Number(context.scopePosition.slice(4))
+      )
+        throw new Error("receipt position exceeds serving owner", {
+          cause: { id: receipt.id, key: receipt.idempotencyKey, field },
+        });
+    }
+    const freeze = (value: unknown): void => {
+      if (value !== null && typeof value === "object") {
+        for (const child of Object.values(value)) freeze(child);
+        Object.freeze(value);
+      }
+    };
+    freeze(receipt);
+    return Object.freeze({ receipt, context });
+  }
   // Called only inside the guarded owner's transaction. The fixed all-visible
   // policy projects retained facts, including postimages since updated/deleted.
   function retainedReceipt(principal: string, id: string): TransactionReceipt | undefined {
@@ -443,6 +483,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       .all(principal) as unknown as Row[]) {
       const value = parseReceipt(stored.receipt);
       if (value.id !== id) continue;
+      if (value.scopeEpoch !== epoch) return undefined;
       const remaining = expireRow(stored, instant()).row;
       return remaining ? parseReceipt(remaining.receipt) : undefined;
     }
@@ -672,7 +713,12 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     claims.set(claim, { principal, key, owner, normalized });
     return { kind: "owned", claim };
   }
-  function executeClaim(claim: TransactionClaim): TransactionReceipt {
+  function executeClaim(claim: TransactionClaim): TransactionReceipt;
+  function executeClaim(claim: TransactionClaim, observed: true): TransactionReceiptObservation;
+  function executeClaim(
+    claim: TransactionClaim,
+    observed = false,
+  ): TransactionReceipt | TransactionReceiptObservation {
     return enter(() => {
       const owned = claims.get(claim);
       if (!owned) throw new Error("foreign transaction claim");
@@ -851,7 +897,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
               creatorFact(owned.creator.operation, receipt),
             );
           options.fault?.("after-terminal");
-          return receipt;
+          return observed ? observeReceipt(receipt) : receipt;
         });
       } catch (error) {
         // A live internal/transient abort retracts only this execution's pending
@@ -926,10 +972,18 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     principal: string,
     key: string,
     batch: PreparedTransaction,
+    controls: TransactionReceivingControls | undefined,
+    observed: true,
+  ): TransactionReceivingAdmission;
+  function admit(
+    principal: string,
+    key: string,
+    batch: PreparedTransaction,
     controls?: TransactionReceivingControls,
+    observed = false,
   ): TransactionReceivingAdmission {
     const receiving = snapshotTransactionReceivingControls(
-      controls ?? { acceptsJson: true, maximumOperations: 32 },
+      controls ?? { acceptsJson: true, maximumOperations: TRANSACTION_MAXIMUM_OPERATIONS },
     );
     return enter(() => {
       assertPreparedTransaction(batch, scope);
@@ -938,9 +992,11 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         const result = admitKey(principal, key, batch, false, undefined, undefined, receiving);
         if (result.kind === "operation-limit" && controls === undefined)
           throw new TransactionDevelopmentLimitError("development transaction operation limit");
-        return result.kind === "existing" && !receiving.acceptsJson
-          ? { kind: "not-acceptable" as const }
-          : result;
+        if (result.kind === "existing") {
+          if (!receiving.acceptsJson) return { kind: "not-acceptable" as const };
+          if (observed) return { kind: "existing" as const, ...observeReceipt(result.receipt) };
+        }
+        return result;
       });
       if (admission.kind === "owned") {
         try {
@@ -975,6 +1031,14 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     comparisonEpoch: () => (closed ? undefined : enter(() => metadata("epoch"))),
     maintain,
     admit,
+    admitObserved(
+      principal: string,
+      key: string,
+      batch: PreparedTransaction,
+      controls?: TransactionReceivingControls,
+    ) {
+      return admit(principal, key, batch, controls, true);
+    },
     admitSequence(
       principal: string,
       sequence: PreparedTransactionSequence,
@@ -1173,6 +1237,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     },
     cancelSequence,
     execute: executeClaim,
+    executeObserved: (claim: TransactionClaim) => executeClaim(claim, true),
     retract(claim: TransactionClaim): boolean {
       return enter(() => {
         const owned = claims.get(claim);
@@ -1206,16 +1271,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       return enter(() =>
         atomic(() => {
           const receipt = retainedReceipt(principal, id);
-          // Detached JSON values cannot retain a live capability. Freeze nested
-          // postimages as well as the top-level receipt delivered by this reader.
-          const freeze = (value: unknown): void => {
-            if (value !== null && typeof value === "object") {
-              for (const child of Object.values(value)) freeze(child);
-              Object.freeze(value);
-            }
-          };
-          freeze(receipt);
-          return Object.freeze({ receipt, context: readContext() });
+          return receipt === undefined
+            ? Object.freeze({ receipt, context: readContext() })
+            : observeReceipt(receipt);
         }),
       );
     },

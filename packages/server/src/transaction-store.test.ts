@@ -2988,3 +2988,70 @@ describe("private atomic receipt observation", () => {
     expect(() => f.store.readReceipt("principal", receipt.id)).toThrow("closed");
   });
 });
+
+it("guards receipt serving positions and prior-epoch nondisclosure using persisted facts", () => {
+  const f = fixture({ clock: () => 1000 });
+  const receipt = f.store.executeObserved(admit(f.store));
+  expect(receipt.context.scopePosition).toBe("pos-1");
+  expect(Object.isFrozen(receipt.receipt.results)).toBe(true);
+  f.store.close();
+  const raw = new DatabaseSync(f.options.file);
+  raw
+    .prepare("UPDATE receipts SET receipt=? WHERE principal=? AND key=?")
+    .run(
+      JSON.stringify({ ...receipt.receipt, requiredPosition: "pos-2" }),
+      "principal",
+      receipt.receipt.idempotencyKey,
+    );
+  raw.close();
+  const reopened = openTransactionStore({ ...f.options, create: false });
+  try {
+    expect(() => reopened.readReceipt("principal", receipt.receipt.id)).toThrow("position exceeds");
+  } finally {
+    reopened.close();
+  }
+  const edit = new DatabaseSync(f.options.file);
+  edit
+    .prepare("UPDATE receipts SET receipt=? WHERE principal=? AND key=?")
+    .run(
+      JSON.stringify({ ...receipt.receipt, scopeEpoch: "another-epoch" }),
+      "principal",
+      receipt.receipt.idempotencyKey,
+    );
+  edit.close();
+  const prior = openTransactionStore({ ...f.options, create: false });
+  try {
+    expect(prior.readReceipt("principal", receipt.receipt.id).receipt).toBeUndefined();
+  } finally {
+    prior.close();
+  }
+});
+
+it("captures exact replay and execute observations inside their owner transactions", () => {
+  const f = fixture({ clock: () => 1000 });
+  const claim = admit(f.store);
+  const prepare = DatabaseSync.prototype.prepare;
+  let observations = 0;
+  const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql: string,
+  ) {
+    if (sql === "SELECT value FROM metadata WHERE name=?") {
+      expect(this.isTransaction).toBe(true);
+      observations++;
+    }
+    return prepare.call(this, sql);
+  });
+  try {
+    const executed = f.store.executeObserved(claim);
+    const replay = f.store.admitObserved(
+      "principal",
+      claim.receipt.idempotencyKey,
+      prepareTransaction(scope, JSON.stringify(batch)),
+    );
+    expect(replay).toEqual({ kind: "existing", ...executed });
+    expect(observations).toBeGreaterThanOrEqual(3);
+  } finally {
+    spy.mockRestore();
+  }
+});

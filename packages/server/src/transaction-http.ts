@@ -19,6 +19,7 @@ import {
   prepareTransactionSequence,
   TransactionDevelopmentLimitError,
   TRANSACTION_RUNTIME_LIMITS,
+  TRANSACTION_MAXIMUM_OPERATIONS,
 } from "./transaction-batch.js";
 import type { createTransactionService } from "./transaction-service.js";
 import { transactionReadContexts } from "./transaction-read.js";
@@ -89,11 +90,15 @@ function syntax(error: unknown): boolean {
 export function createTransactionHttpHandler(
   service: Service,
   canonicalScope: string,
-  maximumOperations = 32,
+  maximumOperations = TRANSACTION_MAXIMUM_OPERATIONS,
 ) {
   const scope = parseCanonicalScope(canonicalScope),
     scopeUrl = new URL(scope);
-  if (!Number.isSafeInteger(maximumOperations) || maximumOperations < 1 || maximumOperations > 32)
+  if (
+    !Number.isSafeInteger(maximumOperations) ||
+    maximumOperations < 1 ||
+    maximumOperations > TRANSACTION_MAXIMUM_OPERATIONS
+  )
     throw new TypeError("invalid private transaction receiving limit");
   const targets = Object.freeze(
     Object.fromEntries(
@@ -208,7 +213,7 @@ export function createTransactionHttpHandler(
         if (authorization.kind === "unauthenticated")
           return transactionHttpProblem("unauthenticated");
         if (!authorization.canMutate) return transactionHttpProblem("forbidden");
-        if (carrier.operations.length > 32)
+        if (carrier.operations.length > TRANSACTION_MAXIMUM_OPERATIONS)
           return problem({ ...readProblem("limit-exceeded"), limit: "sequence.operations" });
         let prepared: ReturnType<typeof prepareTransactionSequence>;
         try {

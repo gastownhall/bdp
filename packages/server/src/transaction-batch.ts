@@ -1,3 +1,4 @@
+export const TRANSACTION_MAXIMUM_OPERATIONS = 32;
 /** Private first Transactional slice. No transport or profile admission. */
 import { snapshotReadUpdateRuntimeLimits } from "./read-update-runtime-limits.js";
 import { memberNumericDiagnosticBudget } from "./member-numeric-diagnostics.js";
@@ -147,7 +148,8 @@ export function prepareTransactionSequence(
   if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     throw new RangeError("development sequence byte limit");
   const carrier = prepareReadUpdateSequence(scope, text);
-  if (carrier.operations.length > 32) throw new RangeError("development sequence member limit");
+  if (carrier.operations.length > TRANSACTION_MAXIMUM_OPERATIONS)
+    throw new RangeError("development sequence member limit");
   losslessText(object(decodeJsonDocument(text)));
   const labels = new Map<string, number>();
   const members = carrier.operations.map((op, index) => {
@@ -250,7 +252,7 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
     data.scope !== scope ||
     !Array.isArray(data.operations) ||
     data.operations.length < 1 ||
-    data.operations.length > 32
+    data.operations.length > TRANSACTION_MAXIMUM_OPERATIONS
   )
     throw new TypeError("invalid transaction alias witness envelope");
   return data.operations.map((value) => {

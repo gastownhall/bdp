@@ -633,3 +633,53 @@ describe("private same-owner Transactional service", () => {
     expect(f.owner.inspect().groups).toHaveLength(1);
   });
 });
+
+describe("same-entry direct receipt delivery", () => {
+  it.each([false, true])(
+    "does not re-expire a first terminal delivery after a clock jump (failed=%s)",
+    async (failed) => {
+      let time = 1000;
+      const f = fixture({
+        clock: () => time,
+        fault(point) {
+          if (point === "after-terminal") time = 86401001;
+        },
+      });
+      const service = f.open();
+      const result = await service.submit(
+        batch(failed ? [{ operation: "deleteBead", bead: "beads/missing" }] : [create()]),
+      );
+      expect(result.kind).toBe("receipt");
+      if (result.kind !== "receipt") throw new Error("missing receipt");
+      expect(result.receipt.status).toBe(failed ? "failed" : "completed");
+      expect(result.receipt.detail).toBe("available");
+      expect(result.context.scopePosition).toBe(failed ? "pos-0" : "pos-1");
+      expect(Object.isFrozen(result.receipt)).toBe(true);
+      if (failed) expect(result.receipt.problem).toBeDefined();
+      else expect(Object.isFrozen(result.receipt.results)).toBe(true);
+      const later = service.receipt({ kind: "authenticated", principal: "p" }, result.receipt.id);
+      if (failed) expect(later).toMatchObject({ kind: "refused", status: 404 });
+      else expect(later).toMatchObject({ kind: "receipt", receipt: { detail: "expired" } });
+    },
+  );
+
+  it("fresh and retained replay deliveries never use receipt-ID scans", async () => {
+    const f = fixture(),
+      service = f.open();
+    const original = DatabaseSync.prototype.prepare;
+    const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (sql === "SELECT * FROM receipts WHERE principal=?")
+        throw new Error("forbidden delivery scan");
+      return original.call(this, sql);
+    });
+    const first = await service.submit(batch());
+    const replay = await service.submit(batch());
+    expect(first).toEqual(replay);
+    expect(first).toMatchObject({ kind: "receipt", context: { scopePosition: "pos-1" } });
+    expect(f.owner.inspect().groups).toHaveLength(1);
+    spy.mockRestore();
+  });
+});

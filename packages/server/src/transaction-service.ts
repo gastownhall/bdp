@@ -3,7 +3,10 @@
  * this service after successful construction; callers must stop using the owner.
  * Only the existing fixed all-visible, schema-free/unowned configuration applies. */
 import { createNodeLifecycleScheduler, type LifecycleScheduler } from "./sequence-executor.js";
-import type { PreparedTransactionSequence } from "./transaction-batch.js";
+import {
+  TRANSACTION_MAXIMUM_OPERATIONS,
+  type PreparedTransactionSequence,
+} from "./transaction-batch.js";
 import {
   createTransactionSequenceStepper,
   type TransactionSequenceResponse,
@@ -36,7 +39,8 @@ export type TransactionServiceReceiptResult =
 export interface TransactionServiceOptions {
   readonly ownerLifetime: "service";
   readonly read: TransactionReadOptions;
-  /** Private test seam over the existing scheduler contract, not runtime config. */
+  /** Private scheduler must eventually deliver every uncancelled turn. No
+   * delivery timeout is invented here; nondelivery also prevents drain. */
   readonly scheduler?: Pick<LifecycleScheduler, "turn">;
   /** Existing finite comparison policy; never a fresh deadline on each retry. */
   readonly comparison?: Parameters<typeof submitTransaction>[2];
@@ -48,7 +52,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
   // This owner only implements <=32 single-Resource operations, each yielding
   // one entry (alias singleton: one). Until durable receipt pages are added, the
   // advertised per-page bound must fit every result, including retained replay.
-  if (options.read.advertisedLimits.page.maximumItems < 32)
+  if (options.read.advertisedLimits.page.maximumItems < TRANSACTION_MAXIMUM_OPERATIONS)
     throw new TypeError("inline transaction receipts require page.maximumItems >= 32");
   const scheduler = options.scheduler ?? createNodeLifecycleScheduler();
   const turn = scheduler.turn.bind(scheduler);
@@ -116,11 +120,29 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       }
     });
   }
+  function checked(observed: {
+    readonly receipt: TransactionReceipt;
+    readonly context: TransactionReadContext;
+  }): ReceiptObservation {
+    const results = observed.receipt.results;
+    if (
+      observed.receipt.status === "completed" &&
+      observed.receipt.detail === "available" &&
+      (!Array.isArray(results) ||
+        results.length > TRANSACTION_MAXIMUM_OPERATIONS ||
+        results.length > options.read.advertisedLimits.page.maximumItems ||
+        observed.receipt.next !== null)
+    )
+      throw new Error("transaction receipt exceeds supported inline result bound", {
+        cause: { id: observed.receipt.id, key: observed.receipt.idempotencyKey },
+      });
+    return Object.freeze({ kind: "receipt", ...observed });
+  }
   function receipt(principal: string, id: string): ReceiptObservation | undefined {
     const observed = owner.readReceipt(principal, id);
     return observed.receipt === undefined
       ? undefined
-      : Object.freeze({ kind: "receipt", ...observed, receipt: observed.receipt });
+      : checked({ ...observed, receipt: observed.receipt });
   }
   async function executeSequence(
     principal: string,
@@ -164,14 +186,19 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     submit(request: TransactionSubmission): Promise<TransactionServiceSubmissionResult> {
       return run(async () => {
         const authorization = Object.freeze({ ...request.authorization });
-        const result = await submitTransaction(owner, { ...request, authorization }, comparison);
+        const result = await submitTransaction(
+          owner,
+          { ...request, authorization },
+          comparison,
+          true,
+        );
         if (result.kind !== "receipt") return result;
         if (authorization.kind !== "authorized") throw new Error("unauthorized receipt delivery");
-        // Re-project the current retained receipt and context together. Never pair
-        // the earlier execution/replay object with a later diagnostic position.
-        const observed = receipt(authorization.principal, result.receipt.id);
-        if (!observed) throw new Error("admitted receipt unavailable at delivery");
-        return observed;
+        if (!result.context)
+          throw new Error("admitted receipt lost same-entry observation", {
+            cause: { id: result.receipt.id, key: result.receipt.idempotencyKey },
+          });
+        return checked({ receipt: result.receipt, context: result.context });
       });
     },
     /** Trusted prepared carrier + authenticated principal. Raw sequence receiving

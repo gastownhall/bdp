@@ -8,7 +8,7 @@ import { stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
 import type { HttpResponse } from "./index.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import { openTransactionStore } from "./transaction-store.js";
-import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
+import { TRANSACTION_RUNTIME_LIMITS, TRANSACTION_MAXIMUM_OPERATIONS } from "./transaction-batch.js";
 import { createTransactionService, type TransactionServiceOptions } from "./transaction-service.js";
 import {
   createTransactionHttpHandler,
@@ -201,14 +201,14 @@ export async function startTransactionRuntime(
       read: {
         selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
         advertisedLimits: {
-          page: { defaultItems: 2, maximumItems: 32 },
+          page: { defaultItems: 2, maximumItems: TRANSACTION_MAXIMUM_OPERATIONS },
           selector: { bytes: 4096, depth: 32, nodes: 256 },
           cursorTtlMilliseconds: 1000,
         },
         pagination: {
           scope,
           defaultPageItems: 2,
-          maxPageItems: 32,
+          maxPageItems: TRANSACTION_MAXIMUM_OPERATIONS,
           cursorTtlMs: 1000,
           retainedStateCapacity: 100,
           maxRetainedCursorPositionsPerSnapshot: 20,
