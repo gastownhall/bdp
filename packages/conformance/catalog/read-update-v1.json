@@ -12,7 +12,8 @@
           "anchor": "#readupdate-discovery",
           "selectedText": "Read+Update adds required `operations` and `aliases` navigation members to Read discovery and advertises `profile: \"read-update\"`. It inherits the optional History capability. Its discovery schema is the closed `readUpdateDiscovery` definition: `bdpVersion`, `profile`, `scope`, `beads`, `links`, `types`, `operations`, and `aliases` are required; `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` are optional under their inherited contracts. These are the only admitted members."
         }
-      ]
+      ],
+      "retires": ["read.discovery.document"]
     },
     {
       "id": "read-update.discovery.aliases",
@@ -326,11 +327,6 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-revisions-and-guards",
           "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision."
-        },
-        {
-          "source": "docs/specs/bdp.md",
-          "anchor": "#readupdate-consistency",
-          "selectedText": "Read+Update has no durable Mutation Receipts and no BDP Events."
         },
         {
           "source": "docs/specs/bdp.md",
