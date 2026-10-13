@@ -8,10 +8,33 @@ import {
   stringifyJsonValue,
   type Reference,
 } from "@bdp/protocol";
-import type { TransactionEvent, TransactionStateChange } from "./transaction-batch.js";
+import {
+  TRANSACTION_RUNTIME_LIMITS,
+  type TransactionEvent,
+  type TransactionStateChange,
+} from "./transaction-batch.js";
 import type { TransactionReadContext } from "./transaction-store.js";
 
 export const TRANSACTION_EVENT_PAGE_BYTES = 4 * 1024 * 1024;
+// Same closed-shape proof as the admitted tuple in the implementation progress
+// document. This bounds encoded group bytes, not parsed object/heap overhead.
+const R = TRANSACTION_RUNTIME_LIMITS.representationBytes,
+  Q = TRANSACTION_RUNTIME_LIMITS.requestBodyBytes,
+  S = TRANSACTION_RUNTIME_LIMITS.scopeSourceBytes,
+  N = 7 * Q,
+  A = 8192,
+  H = 1048576,
+  K = TRANSACTION_RUNTIME_LIMITS.matchedResources + TRANSACTION_RUNTIME_LIMITS.maximumOperations;
+export const TRANSACTION_EVENT_GROUP_BYTES = Math.min(
+  TRANSACTION_RUNTIME_LIMITS.inducedEvents * (2.5 * R + N + S) + K * A + H,
+  K * (Math.max(9 * R + 4 * S, 5 * R + 2 * N + 2 * S) + A) + H,
+);
+// Largest owned update <= 2R+N+source+A. A Resource source is at most R
+// plus its view suffix; the page repeats it in source and next. Reserve 1024
+// extra bytes for suffixes, cursor and envelope. Scope source is smaller.
+export const TRANSACTION_EVENT_FIRST_PAGE_BYTES = 5 * R + N + A + 1024;
+if (TRANSACTION_EVENT_FIRST_PAGE_BYTES > TRANSACTION_EVENT_PAGE_BYTES)
+  throw new Error("transaction tuple cannot support the finite Event page budget");
 export class TransactionEventProjectionGap extends Error {}
 export class TransactionEventParameterError extends Error {}
 export interface TransactionEventSource {

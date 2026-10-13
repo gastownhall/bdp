@@ -1,7 +1,8 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { DatabaseSync } from "node:sqlite";
+import { afterEach, expect, it, vi } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   isJsonSchemaUri,
@@ -13,6 +14,8 @@ import { openTransactionStore } from "./transaction-store.js";
 import { prepareTransaction } from "./transaction-batch.js";
 import {
   TRANSACTION_EVENT_PAGE_BYTES,
+  TRANSACTION_EVENT_GROUP_BYTES,
+  TRANSACTION_EVENT_FIRST_PAGE_BYTES,
   TransactionEventParameterError,
   TransactionEventProjectionGap,
   renderTransactionEvent,
@@ -22,6 +25,7 @@ import { TransactionMinimumFailure } from "./transaction-consistency.js";
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const fn of cleanups.splice(0).reverse()) fn();
 });
 const scope = "https://example.test/events/";
@@ -459,4 +463,37 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
     await runtime.close();
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+it("checks the admitted group byte length before selecting its body and proves first-page feasibility", () => {
+  expect(TRANSACTION_EVENT_GROUP_BYTES).toBe(253493248);
+  expect(TRANSACTION_EVENT_FIRST_PAGE_BYTES).toBe(1778688);
+  expect(TRANSACTION_EVENT_FIRST_PAGE_BYTES).toBeLessThan(TRANSACTION_EVENT_PAGE_BYTES);
+  const f = fixture();
+  f.run([bead("a")]);
+  const prepare = DatabaseSync.prototype.prepare;
+  let bodySelected = false;
+  vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql,
+  ) {
+    const statement = prepare.call(this, sql);
+    if (sql.includes("length(CAST(body AS BLOB)) AS bytes"))
+      vi.spyOn(statement, "get").mockReturnValue({
+        position: 1,
+        bytes: TRANSACTION_EVENT_GROUP_BYTES + 1,
+      });
+    if (sql === "SELECT body FROM groups WHERE position=?")
+      vi.spyOn(statement, "get").mockImplementation(() => {
+        bodySelected = true;
+        throw new Error("body copied before length refusal");
+      });
+    return statement;
+  });
+  expect(() => f.owner.readEvents(`${scope}events/`)).toThrow(
+    "retained Event group exceeds admitted byte bound",
+  );
+  expect(bodySelected).toBe(false);
+  vi.restoreAllMocks();
+  expect(collect(f.owner, `${scope}events/`).events).toHaveLength(1);
 });

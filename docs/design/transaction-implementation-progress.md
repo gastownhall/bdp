@@ -1006,6 +1006,14 @@ pending the specification disposition; Scope and Link views support that fact.
 
 Finite pages may split groups. They preserve ordinals, bound the complete encoded
 page to 4 MiB, and return an exclusive continuation after the last returned Event.
+The admitted materialization tuple below bounds one encoded group to 253493248
+bytes. SQLite's `length(CAST(body AS BLOB))` is checked before selecting and parsing
+that row's body. This is a byte bound, not a general heap-safety claim. With the
+same R/Q bounds, one largest owned update plus Resource-source URL substitution,
+page envelope and continuation is bounded by `5R + 7Q + 8192 + 1024 = 1778688`
+bytes, below 4 MiB. No valid admitted first Event needs a new response-size refusal.
+A page scan remains synchronous and may visit many retained groups; neither total
+history length nor interruption inside a synchronous scan is newly bounded.
 Cursor context tags are not authentication or proof of prior issuance: a matching
 context must also identify a retained Event in that Source. Malformed and
 never-member cursors return `invalid-parameter` as a local reference convention.

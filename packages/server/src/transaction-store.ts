@@ -1,5 +1,6 @@
 import {
   TRANSACTION_EVENT_PAGE_BYTES,
+  TRANSACTION_EVENT_GROUP_BYTES,
   TransactionEventParameterError,
   transactionEventRequest,
   parseTransactionEventCursor,
@@ -1279,16 +1280,28 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         const events: import("./transaction-batch.js").TransactionEvent[] = [];
         let next: string | null = null;
         const rowAt = db.prepare(
-          "SELECT position,body FROM groups WHERE position>=? AND position<=? ORDER BY position LIMIT 1",
+          "SELECT position,length(CAST(body AS BLOB)) AS bytes FROM groups WHERE position>=? AND position<=? ORDER BY position LIMIT 1",
         );
+        const bodyAt = db.prepare("SELECT body FROM groups WHERE position=?");
         let at = start?.position ?? 1;
         for (;;) {
           const row = rowAt.get(at, head);
-          if (!row) break;
-          const p = Number(row.position);
+          if (!row) {
+            if (cursorMatched && at <= head) throw new Error("missing retained Event group");
+            break;
+          }
+          const p = Number(row.position),
+            bytes = Number(row.bytes);
           if (!Number.isSafeInteger(p) || p < at) throw new Error("invalid Event group position");
+          if (cursorMatched && p !== at) throw new Error("missing retained Event group");
+          // The locked configuration admitted the exact tuple used by this bound.
+          // Inspect SQLite's encoded length before copying or parsing the body.
+          if (!Number.isSafeInteger(bytes) || bytes < 2 || bytes > TRANSACTION_EVENT_GROUP_BYTES)
+            throw new Error("retained Event group exceeds admitted byte bound");
+          const body = bodyAt.get(p)?.body;
+          if (typeof body !== "string") throw new Error("invalid retained Event group body");
           const projected = projectTransactionEventGroup(
-            JSON.parse(String(row.body)),
+            JSON.parse(body),
             context,
             source,
             scope,
