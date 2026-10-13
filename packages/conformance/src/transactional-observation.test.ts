@@ -207,15 +207,24 @@ it("refuses a session whose recorded response bounds differ from the supported t
 it("distinguishes evidence self-disagreement from invalid target receipt facts", () => {
   const f = fixture();
   expect(() => f.register({ ...response(), headers: {} })).toThrow(TransactionalHarnessError);
+  expect(() => f.register({ ...response(), headers: {} })).toThrow("receipt wire headers mismatch");
   expect(() =>
     f.register(response({ ...body, unexpected: true }), { ...body, unexpected: true }),
   ).toThrow(TransactionalReceiptFailure);
+  expect(() =>
+    f.register(response({ ...body, unexpected: true }), { ...body, unexpected: true }),
+  ).toThrow("source receipt schema invalid");
   f.register();
   expect(() =>
     f.observations
       .resolve("receipt", id)
       .validate(response({ ...body, requiredPosition: "pos-9" }), "GET"),
   ).toThrow(TransactionalReceiptFailure);
+  expect(() =>
+    f.observations
+      .resolve("receipt", id)
+      .validate(response({ ...body, requiredPosition: "pos-9" }), "GET"),
+  ).toThrow("retained receipt differs from original wire facts");
 });
 it("does not regrant receipt authority from a retained receipt GET", () => {
   const f = fixture();
@@ -244,4 +253,28 @@ it("classifies a real schema-valid but foreign receipt identity as target failur
   const f = fixture(),
     foreign = { ...body, id: "https://other.invalid/receipts/r1" };
   expect(() => f.register(response(foreign), foreign)).toThrow(TransactionalReceiptFailure);
+  expect(() => f.register(response(foreign), foreign)).toThrow("source receipt identity invalid");
 });
+
+it.each([201, 202, "missing", "oversize"])(
+  "refuses unavailable source wire %s before comparing evidence",
+  (kind) => {
+    const f = fixture(),
+      original = response();
+    const { wireResponseBytes: _wire, ...withoutWire } = original;
+    const changed =
+      typeof kind === "number"
+        ? {
+            ...original,
+            status: kind,
+            wireResponseBytes: Buffer.from(
+              `HTTP/1.1 ${kind} ${kind === 201 ? "Created" : "Accepted"}\r\n\r\n`,
+            ),
+          }
+        : kind === "missing"
+          ? withoutWire
+          : { ...original, wireResponseBytes: Buffer.alloc(2097153) };
+    expect(() => f.register(changed)).toThrow(TransactionalHarnessError);
+    expect(() => f.register(changed)).toThrow("source receipt wire unavailable");
+  },
+);

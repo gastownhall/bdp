@@ -473,4 +473,16 @@ describe("configured exact HTTP sessions", () => {
       ).toThrow("cleanupTimeoutMs");
     },
   );
+  it.each([0, -1, NaN, Infinity, 2147483648])(
+    "refuses request bound %s before start even with valid cleanup",
+    (requestTimeoutMs) => {
+      const start = vi.fn(async () => {
+        throw new Error("must not start");
+      });
+      expect(() =>
+        createRawHttpScenarioTarget(start, { requestTimeoutMs, cleanupTimeoutMs: 10000 }),
+      ).toThrow("requestTimeoutMs must be a positive timer bound");
+      expect(start).not.toHaveBeenCalled();
+    },
+  );
 });

@@ -162,6 +162,12 @@ export function createTransactionalObservations(
       }
       if (response.url !== request.url)
         throw new TransactionalHarnessError("source receipt route mismatch");
+      if (
+        response.status !== 200 ||
+        !response.wireResponseBytes ||
+        response.wireResponseBytes.length > 2097152
+      )
+        throw new TransactionalHarnessError("source receipt wire unavailable");
       validateReceiptWire(response, "GET");
       if (!validator) throw new TransactionalHarnessError("source receipt validator unavailable");
       if (validator.validate("#/$defs/mutationReceipt", value).length)
@@ -177,12 +183,6 @@ export function createTransactionalObservations(
       } catch {
         throw new TransactionalReceiptFailure("source receipt identity invalid");
       }
-      if (
-        response.status !== 200 ||
-        !response.wireResponseBytes ||
-        response.wireResponseBytes.length > 2097152
-      )
-        throw new TransactionalHarnessError("source receipt wire unavailable");
       if (ledger.has(binding) || ledger.size >= maximum)
         throw new TransactionalHarnessError("receipt authority binding limit or reuse");
       ledger.set(binding, {

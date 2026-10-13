@@ -79,6 +79,17 @@ function artifacts() {
 const sourceCommit =
   process.env.BDP_TRANSACTIONAL_SOURCE_COMMIT ??
   execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+function errorCauses(error: unknown): Set<unknown> {
+  const seen = new Set<unknown>();
+  const visit = (value: unknown) => {
+    if (seen.has(value)) return;
+    seen.add(value);
+    if (value instanceof AggregateError) for (const cause of value.errors) visit(cause);
+    if (value instanceof Error && value.cause !== undefined) visit(value.cause);
+  };
+  visit(error);
+  return seen;
+}
 async function observe(control?: {
   readonly budgetMs?: number;
   readonly invalidReceiptCredentials?: boolean;
@@ -605,7 +616,12 @@ it("aborts the actual cohort budget after real wire and drains all installed chi
     published = true;
     return value;
   });
-  await expect(run).rejects.toThrow("installed cohort deadline");
+  const failure = await run.catch((error: unknown) => error);
+  expect(
+    [...errorCauses(failure)].some(
+      (cause) => cause instanceof Error && cause.message === "installed cohort deadline",
+    ),
+  ).toBe(true);
   expect(seen).toBe(true);
   expect(published).toBe(false);
   expect(performance.now() - started).toBeLessThan(15000);
@@ -702,14 +718,7 @@ it("retains original cohort abort alongside an actual failed child cleanup", asy
     },
   }).catch((error: unknown) => error);
   expect(observed).toBeInstanceOf(AggregateError);
-  const seen = new Set<unknown>();
-  const visit = (value: unknown) => {
-    if (seen.has(value)) return;
-    seen.add(value);
-    if (value instanceof AggregateError) for (const cause of value.errors) visit(cause);
-    if (value instanceof Error && value.cause !== undefined) visit(value.cause);
-  };
-  visit(observed);
+  const seen = errorCauses(observed);
   expect(seen.has(original)).toBe(true);
   expect(
     [...seen].some(

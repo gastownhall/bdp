@@ -948,14 +948,16 @@ async function runScenarioAction(
         (response) => {
           validate(response, input.method as "GET" | "HEAD");
           const body = response.bodyText ? JSON.parse(response.bodyText) : null;
-          if (
-            input.method === "GET" &&
-            (!schemaValidator ||
+          if (input.method === "GET") {
+            if (!schemaValidator)
+              throw new TransactionalHarnessError("receipt validator unavailable");
+            if (
               schemaValidator.validate("#/$defs/mutationReceipt", body).length ||
               body.id !== source.receipt ||
-              (body.status === "completed" && body.next !== null))
-          )
-            throw new TransactionalReceiptFailure("retained receipt schema or identity mismatch");
+              (body.status === "completed" && body.next !== null)
+            )
+              throw new TransactionalReceiptFailure("retained receipt schema or identity mismatch");
+          }
           projection = {
             status: response.status,
             headers: normalizeHeaders(response.headers),

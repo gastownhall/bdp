@@ -61,6 +61,13 @@ export function createRawHttpScenarioTarget(
       ? {}
       : { exactMode: snapshotExactHttpMode(options.exactMode) }),
   });
+  if (
+    snapshot.requestTimeoutMs !== undefined &&
+    (!Number.isSafeInteger(snapshot.requestTimeoutMs) ||
+      snapshot.requestTimeoutMs <= 0 ||
+      snapshot.requestTimeoutMs > 2_147_483_647)
+  )
+    throw new RangeError("requestTimeoutMs must be a positive timer bound");
   const cleanupTimeoutMs = snapshot.cleanupTimeoutMs ?? snapshot.requestTimeoutMs ?? 30_000;
   if (
     !Number.isSafeInteger(cleanupTimeoutMs) ||
