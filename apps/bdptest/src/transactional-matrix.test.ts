@@ -92,7 +92,12 @@ function errorCauses(error: unknown): Set<unknown> {
 }
 async function observe(control?: {
   readonly budgetMs?: number;
-  readonly invalidReceiptCredentials?: boolean;
+  readonly invalidReceiptCredentials?: boolean | "set-update" | "set-delete";
+  /** Negative-only removal of one already declared canonical set route. */
+  readonly omitRoute?: {
+    readonly method: "POST";
+    readonly url: `${typeof scope}operations/${"update-where" | "delete-where"}`;
+  };
   readonly signal?: AbortSignal;
   readonly children?: ChildProcess[];
   /** Negative-test gate after actual ordinary wire, never a response replacement. */
@@ -135,6 +140,7 @@ async function observe(control?: {
   };
   let target: ReturnType<typeof createTransactionalExecutionBinding> | undefined;
   const sessions: Record<string, unknown>[] = [];
+  const deniedReceiptUrls = new Set<string>();
   const timer = setTimeout(
     () => controller.abort(new Error("installed cohort deadline")),
     budgetMs,
@@ -171,11 +177,36 @@ async function observe(control?: {
         }
         return [{ method: a.method, url: url.href }];
       });
+    const uniqueRoutes = routes.filter(
+      (r, i) => routes.findIndex((o) => o.url === r.url && o.method === r.method) === i,
+    );
+    // Independently authored route inventory, not a second derivation from the manifest.
+    expect(uniqueRoutes).toEqual([
+      { method: "GET", url: `${scope}beads/a` },
+      { method: "POST", url: `${scope}operations/batch` },
+      { method: "GET", url: `${scope}links/l` },
+      { method: "GET", url: `${scope}beads/?limit=32` },
+      { method: "GET", url: `${scope}events/` },
+      { method: "GET", url: `${scope}beads/new` },
+      { method: "GET", url: `${scope}beads/b` },
+      { method: "POST", url: `${scope}operations/update-where` },
+      { method: "POST", url: `${scope}operations/delete-where` },
+    ]);
+    const omitted = control?.omitRoute;
+    if (omitted) {
+      expect([`${scope}operations/update-where`, `${scope}operations/delete-where`]).toContain(
+        omitted.url,
+      );
+      expect(omitted.method).toBe("POST");
+      expect(
+        uniqueRoutes.filter((r) => r.url === omitted.url && r.method === omitted.method),
+      ).toHaveLength(1);
+    }
     const exactMode: ExactHttpModeOptions = {
       scope,
       profile: "transactional",
-      routes: routes.filter(
-        (r, i) => routes.findIndex((o) => o.url === r.url && o.method === r.method) === i,
+      routes: uniqueRoutes.filter(
+        (r) => !omitted || r.url !== omitted.url || r.method !== omitted.method,
       ),
       maximumRequestHeaderBytes: 16384,
       maximumRequestBodyBytes: 65536,
@@ -189,7 +220,7 @@ async function observe(control?: {
         credentialRef === "anonymous"
           ? {}
           : {
-              authorization: `Bearer ${control?.invalidReceiptCredentials && url.startsWith(`${scope}receipts/`) ? "deliberately-unknown" : credentialRef === "operator" ? operator : reader}`,
+              authorization: `Bearer ${(control?.invalidReceiptCredentials === true && url.startsWith(`${scope}receipts/`)) || deniedReceiptUrls.has(url) ? "deliberately-unknown" : credentialRef === "operator" ? operator : reader}`,
             },
     };
     target = createTransactionalExecutionBinding({
@@ -226,6 +257,24 @@ async function observe(control?: {
         exactExecution: {
           execute: async (request) => {
             const response = await target!.target.execute(request);
+            if (
+              typeof control?.invalidReceiptCredentials === "string" &&
+              response.status === 200 &&
+              [
+                baseline.operationTargets.updateWhere,
+                baseline.operationTargets.deleteWhere,
+              ].includes(response.url)
+            ) {
+              const receipt = JSON.parse(response.bodyText) as {
+                id?: unknown;
+                idempotencyKey?: unknown;
+              };
+              if (
+                receipt.idempotencyKey === control.invalidReceiptCredentials &&
+                typeof receipt.id === "string"
+              )
+                deniedReceiptUrls.add(receipt.id);
+            }
             await control?.afterExchange?.(response, signal);
             signal.throwIfAborted();
             return response;
@@ -276,16 +325,25 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes four partial Transactional contracts through packed-capable actual installed HTTP", async () => {
-  const observed = await observe();
+it("observes six partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+  const started = performance.now(),
+    children: ChildProcess[] = [];
+  const observed = await observe({ children });
   const implemented = new Set(bundle.manifest.scenarios.map((s) => s.id));
   expect(loadProfileContractSelection("transactional").required).toHaveLength(250);
   expect(observed.result.scenarios).toHaveLength(255); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(4);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(6);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(5);
+  expect(observed.sessions).toHaveLength(9);
+  expect(children).toHaveLength(10); // Nine scenario/reopen sessions plus separate bootstrap.
+  expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
+    true,
+  );
+  expect(observed.result.declarations).toMatchObject({
+    exactConfigurationDigest: "d5a731626ec5d3f6d2fd84ede17d8c2c74239cba1231813faa5218b7bbbc3d51",
+  });
   const dynamic = observed.result.scenarios
     .flatMap((s) => s.exchanges)
     .filter((e) => e.dynamicExactConfiguration);
@@ -298,11 +356,38 @@ it("observes four partial Transactional contracts through packed-capable actual 
   ).toBe(true);
   expect(dynamic.every((e) => e.request.exact?.bodyDigest === undefined)).toBe(true);
   const reopened = dynamic.filter((e) => e.request.id.startsWith("reopened-"));
-  expect(reopened).toHaveLength(2);
-  for (const exchange of reopened)
+  expect(reopened.map((e) => e.request.id).sort()).toEqual([
+    "reopened-completed",
+    "reopened-failed",
+    "reopened-set-cardinality-failed",
+    "reopened-set-delete-completed",
+    "reopened-set-update-completed",
+  ]);
+  for (const exchange of reopened) {
     expect(exchange.servedSession?.generation).toBeGreaterThan(
       exchange.sourceReceiptObservation!.session.generation,
     );
+    expect(exchange.servedSession?.runtimeConfigurationIdentity).toBe(
+      exchange.sourceReceiptObservation!.session.runtimeConfigurationIdentity,
+    );
+    expect(exchange.servedSession?.configurationDigest).toBe(
+      exchange.sourceReceiptObservation!.session.configurationDigest,
+    );
+  }
+  console.log(
+    JSON.stringify({
+      kind: "installed-tx-six-partial-summary",
+      sourceCommit,
+      elapsedMs: performance.now() - started,
+      actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
+      sessions: observed.sessions.length,
+      childLaunches: children.length,
+      closedChildren: children.filter((c) => c.exitCode !== null || c.signalCode !== null).length,
+      artifacts: bundle.digests,
+      baseline: observed.baseline,
+      claimEligible: false,
+    }),
+  );
   if (process.env.BDP_TRANSACTIONAL_OBSERVATION_OUTPUT)
     writeFileSync(
       process.env.BDP_TRANSACTIONAL_OBSERVATION_OUTPUT,
@@ -731,3 +816,121 @@ it("retains original cohort abort alongside an actual failed child cleanup", asy
     true,
   );
 }, 20000);
+
+it.each(["matched", "order", "index", "poststate"] as const)(
+  "rejects the schema-valid wrong set %s expectation against actual installed results",
+  async (kind) => {
+    const assertion =
+      kind === "matched"
+        ? "matched"
+        : kind === "order"
+          ? "a-id"
+          : kind === "index"
+            ? "b-index"
+            : "properties";
+    const actionId = kind === "poststate" ? "target-a-updated" : "set-update";
+    const observed = await observe({
+      manifest(value) {
+        const row = value.scenarios.find((s) => s.id === "transactional.set.singleton-targets")!;
+        const action = row.actions.find((a) => a.id === actionId)!;
+        const assertions = action.assertions as { id: string; equals?: unknown }[];
+        assertions.find((a) => a.id === assertion)!.equals =
+          kind === "matched"
+            ? { operationIndex: 0, outcome: "matched", count: 3 }
+            : kind === "order"
+              ? `${scope}beads/b`
+              : kind === "index"
+                ? 1
+                : { title: "never-observed" };
+      },
+    });
+    const row = observed.result.scenarios.find(
+      (s) => s.id === "transactional.set.singleton-targets",
+    )!;
+    expect(row.state).toBe("fail");
+    const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
+    expect(exchange.request.exact?.writeState).toBe("complete");
+    expect(exchange.response?.status).toBe(200);
+    expect(exchange.assertions.find((a) => a.id === assertion)?.passed).toBe(false);
+  },
+  120000,
+);
+
+it("allows a valid cross-wired set receipt binding but rejects its wrong result oracle", async () => {
+  const observed = await observe({
+    manifest(value) {
+      const row = value.scenarios.find((s) => s.id === "transactional.set.singleton-targets")!;
+      const action = row.actions.find((a) => a.id === "set-delete-facts")!;
+      action.input = { binding: "set-update-receipt", method: "GET" };
+      action.assertions = [
+        {
+          id: "expected-delete-count",
+          kind: "json-pointer",
+          pointer: "/body/results/0/count",
+          exists: true,
+          equals: 1,
+        },
+      ];
+    },
+  });
+  const row = observed.result.scenarios.find(
+    (s) => s.id === "transactional.set.singleton-targets",
+  )!;
+  expect(row.state).toBe("fail");
+  const exchange = row.exchanges.find((e) => e.request.id === "set-delete-facts")!;
+  expect(exchange.sourceReceiptObservation?.action).toBe("set-update");
+  expect(exchange.request.exact?.writeState).toBe("complete");
+  expect(exchange.response?.status).toBe(200);
+  expect(
+    row.actions
+      ?.find((a) => a.action.id === "set-delete-facts")
+      ?.assertions?.find((a) => a.id === "expected-delete-count")?.passed,
+  ).toBe(false);
+}, 120000);
+
+it.each(["update-where", "delete-where"] as const)(
+  "refuses an omitted %s route at exact plan preflight before scenario startup or any wire",
+  async (suffix) => {
+    const children: ChildProcess[] = [];
+    let exchanges = 0;
+    await expect(
+      observe({
+        omitRoute: { method: "POST", url: `${scope}operations/${suffix}` },
+        children,
+        afterExchange: async () => {
+          exchanges++;
+        },
+      }),
+    ).rejects.toThrow(
+      "Selected exact HTTP requests do not match the configured execution boundary",
+    );
+    expect(exchanges).toBe(0);
+    // Only the attestation bootstrap launched, already closed before preflight.
+    // No scenario session or POST source exists from which to grant authority.
+    expect(children).toHaveLength(1);
+    expect(children.every((c) => c.exitCode !== null || c.signalCode !== null)).toBe(true);
+  },
+  120000,
+);
+
+it.each(["set-update", "set-delete"] as const)(
+  "records the %s source and exact failed dynamic request when its receipt credentials are denied",
+  async (action) => {
+    const observed = await observe({ invalidReceiptCredentials: action });
+    const row = observed.result.scenarios.find(
+      (s) => s.id === "transactional.set.singleton-targets",
+    )!;
+    expect(row.state).toBe("fail");
+    const exchange = row.exchanges.find((e) => e.sourceReceiptObservation?.action === action)!;
+    expect(exchange.sourceReceiptObservation?.credentialRef).toBe("operator");
+    expect(exchange.sourceReceiptObservation?.responseDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(exchange.dynamicExactConfiguration?.routes).toEqual([
+      { method: "GET", url: exchange.sourceReceiptObservation!.receipt },
+    ]);
+    expect(exchange.servedSession).toBeDefined();
+    expect(exchange.request.exact?.writeState).toBe("complete");
+    expect(exchange.response?.status).toBe(401);
+    expect(exchange.assertions.find((a) => a.id === "actual-status")?.passed).toBe(false);
+  },
+  120000,
+);

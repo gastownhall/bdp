@@ -152,6 +152,8 @@ export function createTransactionalObservations(
           "delete-link",
           "put-alias",
           "delete-alias",
+          "update-where",
+          "delete-where",
           "batch",
         ].includes(operation ?? "");
       if (pointer !== "/id" || !mutationSource) {
