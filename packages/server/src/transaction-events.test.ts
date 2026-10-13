@@ -406,7 +406,10 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
       body: JSON.stringify({ operations }),
     });
   try {
-    const seedResponse = await post([bead("a"), bead("b"), link()], "seed");
+    const seedResponse = await post(
+      [{ ...bead("a"), properties: { n: 0, text: '"\\\n🦄' } }, bead("b"), link()],
+      "seed",
+    );
     const seedReceipt = await seedResponse.json();
     if (
       !seedReceipt ||
@@ -477,6 +480,7 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
     const head = await get("beads/a?view=events", {}, "HEAD");
     expect(head.status).toBe(200);
     expect(head.headers.get("content-length")).toBe(String(Buffer.byteLength(correspondingText)));
+    expect(head.headers.get("content-length")).not.toBe(String(correspondingText.length));
     expect(head.headers.get("content-type")).toBe(correspondingGet.headers.get("content-type"));
     expect(await head.text()).toBe("");
     const neverMember = renderTransactionEvent(
@@ -498,15 +502,24 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
     const noncanonical = await get("beads/%61?view=events");
     expect(noncanonical.status).toBe(400);
     expect(await noncanonical.json()).toMatchObject({ code: "invalid-parameter" });
-    for (const route of ["alias/missing?view=events", `${seedReceipt.id}?view=events`]) {
+    for (const route of [
+      "alias/missing?view=events",
+      "alias/%61?q=1",
+      "alias/%61",
+      "receipts?view=events",
+      `${seedReceipt.id}?view=events`,
+      `${seedReceipt.id}/pages/missing?view=events`,
+    ]) {
       for (const method of ["GET", "HEAD"]) {
-        const refused = await get(
-          route,
-          { ...headers, "bdp-minimum-scope-position": "pos-99" },
-          method,
-        );
-        expect(refused.status).toBe(404);
-        if (method === "HEAD") expect(await refused.text()).toBe("");
+        for (const minimum of ["pos-99", "opaque-unknown"]) {
+          const refused = await get(
+            route,
+            { ...headers, "bdp-minimum-scope-position": minimum },
+            method,
+          );
+          expect(refused.status).toBe(404);
+          if (method === "HEAD") expect(await refused.text()).toBe("");
+        }
       }
     }
     expect((await get("events/", { origin: "https://other.invalid" })).status).toBe(403);
@@ -649,7 +662,7 @@ it("continues a Resource cursor across groups with zero contributions and observ
   });
 });
 
-it.each(["missing", "context", "ordinal"] as const)(
+it.each(["missing", "body-type", "context", "ordinal"] as const)(
   "refuses retained group %s corruption without changing the valid owner",
   (fault) => {
     const f = fixture();
@@ -667,6 +680,7 @@ it.each(["missing", "context", "ordinal"] as const)(
         const get = statement.get.bind(statement);
         vi.spyOn(statement, "get").mockImplementation((...args) => {
           const row = get(...args);
+          if (fault === "body-type") return { body: null };
           const group = JSON.parse(String(row?.body));
           if (fault === "context") group.scopeEpoch = "wrong";
           else group.events[0].ordinal = 999;
@@ -678,14 +692,39 @@ it.each(["missing", "context", "ordinal"] as const)(
     expect(() => f.owner.readEvents(`${scope}events/`)).toThrow(
       fault === "missing"
         ? "missing retained Event group"
-        : fault === "context"
-          ? "retained Event group context mismatch"
-          : "invalid retained Event framing",
+        : fault === "body-type"
+          ? "invalid retained Event group body"
+          : fault === "context"
+            ? "retained Event group context mismatch"
+            : "invalid retained Event framing",
     );
     vi.restoreAllMocks();
     expect(collect(f.owner, `${scope}events/`)).toEqual(before);
   },
 );
+
+it("refuses a retained positional hole after a matched cursor rather than skipping the group", () => {
+  const f = fixture();
+  for (const id of ["a", "b", "c"]) expect(f.run([bead(id)]).status).toBe("completed");
+  const source = `${scope}events/`;
+  const before = collect(f.owner, source);
+  const cursor = before.events[0]?.id;
+  if (!cursor) throw new Error("expected retained cursor");
+  f.owner.close();
+  const db = new DatabaseSync(f.options.file);
+  const removed = db.prepare("SELECT body FROM groups WHERE position=2").get()?.body;
+  if (typeof removed !== "string") throw new Error("expected middle group");
+  db.prepare("DELETE FROM groups WHERE position=2").run();
+  db.close();
+  f.reopen();
+  expect(() => f.owner.readEvents(source, cursor)).toThrow("missing retained Event group");
+  f.owner.close();
+  const repair = new DatabaseSync(f.options.file);
+  repair.prepare("INSERT INTO groups(position,body) VALUES(2,?)").run(removed);
+  repair.close();
+  f.reopen();
+  expect(collect(f.owner, source)).toEqual(before);
+});
 
 it("accounts exact UTF8 and escaped Event bytes once rather than repeatedly serializing a growing page", () => {
   const f = fixture(scope, false, 64);
