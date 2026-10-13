@@ -843,3 +843,70 @@ it.each([
   } else await response.until(() => eventFrames(response).length === 1);
   await response.close();
 });
+
+it.each(["header-later", "header-earlier"] as const)(
+  "GET delivers the header-selected suffix when both cursors are valid: %s",
+  async (direction) => {
+    const f = await runtimeFixture();
+    for (const id of ["a", "b", "c"]) await f.run([create(id)]);
+    const finite = await f.finite("events/"),
+      first = finite.events[0]!.id,
+      last = finite.events.at(-1)!.id;
+    const later = direction === "header-later";
+    const live = f.stream(`events/?after=${later ? first : last}`, [
+      ["Last-Event-ID", later ? last : first],
+    ]);
+    await live.ready;
+    expect(live.status).toBe(200);
+    // A subsequent real marker bounds the observation. This does not infer an
+    // empty suffix from a sleep or from headers arriving before the pump runs.
+    await f.run([create("marker")]);
+    await live.until(() =>
+      eventFrames(live).some((frame) => decoded(frame).subject === `${scope}beads/marker`),
+    );
+    const delivered = eventFrames(live).map(decoded);
+    expect(delivered.map((event) => event.subject)).toEqual(
+      (later ? [] : [`${scope}beads/b`, `${scope}beads/c`]).concat(`${scope}beads/marker`),
+    );
+    expect(delivered.slice(0, -1).map((event) => event.id)).toEqual(
+      later ? [] : finite.events.slice(1).map((event) => event.id),
+    );
+    expect(delivered).toHaveLength(later ? 1 : 3);
+    await live.close();
+  },
+);
+
+it("Event delivery receives the shared captured cadence object, separate from owner scan bounds", async () => {
+  const configuration = await import(
+    new URL("../dist/transaction-runtime-configuration.js", import.meta.url).href
+  );
+  const pumping = await import(new URL("../dist/transaction-sse.js", import.meta.url).href);
+  const capture = configuration.captureTransactionRuntimeConfiguration;
+  const shared = Object.freeze({
+    pollMilliseconds: 17,
+    heartbeatMilliseconds: 31,
+    maximumStreams: 1,
+  });
+  vi.spyOn(configuration, "captureTransactionRuntimeConfiguration").mockImplementation(
+    (...args: unknown[]) => {
+      const captured = capture(...args);
+      return {
+        ...captured,
+        settings: Object.freeze({ ...captured.settings, changefeedStream: shared }),
+      };
+    },
+  );
+  const actual = pumping.pumpTransactionEvents;
+  let received: unknown;
+  vi.spyOn(pumping, "pumpTransactionEvents").mockImplementation((...args: unknown[]) => {
+    received = args[4];
+    return actual(...args);
+  });
+  const f = await runtimeFixture();
+  await f.run([create("a")]);
+  const live = f.stream("events/");
+  await live.until(() => eventFrames(live).length === 1);
+  expect(received).toBe(shared);
+  expect(received).toEqual({ pollMilliseconds: 17, heartbeatMilliseconds: 31, maximumStreams: 1 });
+  await live.close();
+});

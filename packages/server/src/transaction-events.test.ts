@@ -15,6 +15,7 @@ import { prepareTransaction } from "./transaction-batch.js";
 import * as batch from "./transaction-batch.js";
 import {
   TRANSACTION_EVENT_PAGE_BYTES,
+  TRANSACTION_EVENT_STREAM,
   TRANSACTION_EVENT_GROUP_BYTES,
   TRANSACTION_EVENT_FIRST_PAGE_BYTES,
   TransactionEventParameterError,
@@ -822,16 +823,20 @@ it("idle scan advances do not construct group readers or reread unrelated histor
     }
     return statement;
   });
+  const step = TRANSACTION_EVENT_STREAM.maximumGroupsPerObservation;
+  let observations = 1;
   let current = packet(f.owner.beginEventScan(source, first.id));
-  expect(bodyGets).toBe(1); // Actual initial cursor membership in its group.
+  expect(bodyGets).toBe(step); // Actual initial cursor membership in its group.
   while (!current.caughtUp) {
     const before = [bodyGets, groupPrepares];
     current = f.owner.advanceEventScan(current.scan);
-    expect(bodyGets - before[0]!).toBe(1);
+    observations++;
+    expect(bodyGets - before[0]!).toBe(Math.min(step, 13 - before[0]!));
     expect(groupPrepares - before[1]!).toBe(2);
     expect(current.events).toEqual([]);
   }
   expect(bodyGets).toBe(13);
+  expect(observations).toBe(Math.ceil(13 / step));
   const counts = [bodyGets, groupPrepares];
   for (let n = 0; n < 5; n++) current = f.owner.advanceEventScan(current.scan);
   expect([bodyGets, groupPrepares]).toEqual(counts);
@@ -961,4 +966,27 @@ it("scan refuses a regressed captured head and a sticky fenced owner", () => {
   expect(() => f.run([bead("b")])).toThrow();
   expect(() => f.owner.advanceEventScan(scan)).toThrow("owner fenced");
   vi.restoreAllMocks();
+});
+
+it("refuses configuration whose group step differs from the structural owner implementation", async () => {
+  vi.resetModules();
+  vi.doMock("./transaction-events.js", async () => {
+    const actual =
+      await vi.importActual<typeof import("./transaction-events.js")>("./transaction-events.js");
+    return {
+      ...actual,
+      TRANSACTION_EVENT_STREAM: Object.freeze({
+        ...actual.TRANSACTION_EVENT_STREAM,
+        maximumGroupsPerObservation: 2,
+      }),
+    };
+  });
+  try {
+    await expect(import("./transaction-store.js")).rejects.toThrow(
+      "owner scan implements exactly one group per entry",
+    );
+  } finally {
+    vi.doUnmock("./transaction-events.js");
+    vi.resetModules();
+  }
 });

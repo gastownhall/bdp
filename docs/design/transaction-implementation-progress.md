@@ -1423,3 +1423,28 @@ evidence changes. Fixed owner epoch/view cannot perform mutable grant transition
 foreign/stale cursor and corruption tests do not qualify such transitions. Erasure
 publication fences, set HTTP admission, remaining consistency/discovery obligations
 and complete Transactional qualification remain open. `claimEligible` remains false.
+
+### G2b review closure
+
+The captured one-group Event scan constant is now a structural owner invariant:
+a value other than one refuses module initialization, instead of hashing a bound
+the one-group algorithm does not implement. The sparse owner witness derives
+per-entry body-read and total observation counts from that shared constant.
+`eventStream` contains owner scan/packet bounds only; Event and changefeed pumps
+share `changefeedStream` cadence and live-slot capacity. A deterministic runtime
+interception verifies the Event adapter receives the captured cadence object,
+without treating elapsed timer observations as a settings-binding proof.
+
+The both-valid cursor GET witness uses a later committed marker Event to bound
+observation. A later header cursor suppresses the earlier query suffix; the mirror
+case delivers that suffix. This pins delivered frames in both precedence directions.
+
+Packet lifetime evidence is structural, not a GC or universal heap claim. The
+owner WeakMap value contains source/context/position/ordinal/head and no group
+body. The resolved initial HTTP result transfers its packet to the pump and the
+runtime clears `selected`; the thin adapter returns the pump Promise without
+retaining the input across an await. The pump clears its initial parameter and
+clears each delivered packet before the next heartbeat/poll/pull, retaining only
+its continuation and a prospective successor during advancement. Stream closures
+retain the service and signal, not a registry of prior packets. No WeakRef/forced-GC
+claim or engine-specific release deadline is inferred from those reference chains.

@@ -111,6 +111,8 @@ export const TRANSACTION_RUNTIME_DEFAULTS = freeze({
   comparisonBudgetMs: 1000,
   minimumReadBudgetMs: 1000,
   changefeedStream: TRANSACTION_SSE_DEFAULTS,
+  // Owner scan/packet bounds only. Event and changefeed delivery share the
+  // cadence and live-slot capacity captured in changefeedStream above.
   eventStream: TRANSACTION_EVENT_STREAM,
   transport: {
     host: "127.0.0.1",

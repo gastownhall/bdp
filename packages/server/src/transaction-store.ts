@@ -68,6 +68,11 @@ import {
   type ReferenceBindings,
 } from "./transaction-dependencies.js";
 
+// eventPacket structurally reads one group; changing the captured bound must
+// fail closed until that algorithm and its count evidence are deliberately revised.
+if (TRANSACTION_EVENT_STREAM.maximumGroupsPerObservation !== 1)
+  throw new Error("owner scan implements exactly one group per entry");
+
 /** Actual fixed-view owner observation; not a receipt effect checkpoint. */
 export type TransactionReadContext = {
   readonly scopeEpoch: string;
