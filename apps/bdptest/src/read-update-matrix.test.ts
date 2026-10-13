@@ -177,6 +177,7 @@ async function run(
     afterClose?(): void;
   },
   numericControl?: "digest" | "changed-number" | "refusal-success",
+  admissionControl?: (typeof numericAdmissionRawControls)[number],
 ) {
   signal?.throwIfAborted();
   if (artifact) assertReadUpdateArtifactSet(artifact.set);
@@ -403,7 +404,27 @@ async function run(
       currentScenario === "read-update.numeric-model.same-value-no-op" &&
       key ===
         (numericControl === "refusal-success" ? "num-subject-inadmissible" : "num-subject-decimal");
+    const admissionHit =
+      admissionControl &&
+      currentScenario === admissionControl.scenario &&
+      key === admissionControl.action;
+    if (admissionHit) {
+      expect(request.method).toBe("POST");
+      expect(request.url).toBe(`${scope}operations/${admissionControl.operation}`);
+    }
     let sent = request;
+    if (admissionHit && admissionControl.mode === "request-number") {
+      if (!request.raw?.bodyBytes) throw Error("numeric admission control requires authored bytes");
+      const original = Buffer.from(request.raw.bodyBytes).toString("utf8");
+      expect(original.match(/9007199254740993/g)).toHaveLength(1);
+      sent = {
+        ...request,
+        raw: {
+          ...request.raw,
+          bodyBytes: Buffer.from(original.replace("9007199254740993", "9007199254740992")),
+        },
+      };
+    }
     if (hit && numericControl === "changed-number") {
       if (!request.raw?.bodyBytes) throw Error("numeric control requires authored bytes");
       const original = Buffer.from(request.raw.bodyBytes).toString("utf8");
@@ -414,6 +435,33 @@ async function run(
       };
     }
     const actual = await target.execute(sent);
+    if (admissionHit) {
+      counterfactualApplications++;
+      if (admissionControl.mode === "request-number") return actual;
+      expect(actual.status).toBe(422);
+      const changed = JSON.parse(actual.bodyText!) as { diagnostics: Record<string, unknown>[] };
+      expect(changed.diagnostics.length).toBeGreaterThan(0);
+      switch (admissionControl.mode) {
+        case "pointer":
+          changed.diagnostics[0]!.instanceLocation = "/wrong";
+          break;
+        case "document-prefix":
+          changed.diagnostics[0]!.instanceLocation = "/properties/shallow";
+          break;
+        case "patch-location":
+          changed.diagnostics[0]!.instanceLocation = "/propertiesChange/0/value";
+          break;
+        case "metadata-label":
+          delete changed.diagnostics[0]!.document;
+          break;
+        case "deep-missing":
+          expect(changed.diagnostics).toHaveLength(2);
+          changed.diagnostics.pop();
+          break;
+      }
+      const bodyText = JSON.stringify(changed);
+      return { ...actual, bodyText, bodyOctets: Buffer.byteLength(bodyText) };
+    }
     if (!hit) return actual;
     counterfactualApplications++;
     if (numericControl === "digest") {
@@ -1014,7 +1062,7 @@ async function runShard(
 }
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate budget for both shards and 52 isolated scenario authorities.
+  // One aggregate budget for both shards and 54 isolated scenario authorities.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
   const started = performance.now();
@@ -1196,10 +1244,16 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       }[])
         expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(65536);
     }
-    expect(progress.authoredIds).toHaveLength(52);
+    expect(progress.authoredIds).toHaveLength(54);
     expect(progress.reviewedWholeIds).toHaveLength(30);
-    expect(progress.omittedRequiredIds).toHaveLength(77);
-    expect(progress.shards[1]!.selectedIds).toEqual([attributionId, continuationId, numericId]);
+    expect(progress.omittedRequiredIds).toHaveLength(75);
+    expect(progress.shards[1]!.selectedIds).toEqual([
+      attributionId,
+      continuationId,
+      numericId,
+      numericRoundTripId,
+      numericNestedId,
+    ]);
     // Independently enumerated fixed client GETs, raw discovery/alias GETs,
     // numeric raw mutations and the nine mandatory carriers. No route helper.
     expect(progress.shards[1]!.routes).toEqual([
@@ -1217,6 +1271,20 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       { method: "GET", url: `${scope}beads/num-subject` },
       { method: "GET", url: `${scope}beads/num-target` },
       { method: "GET", url: `${scope}links/num-link` },
+      { method: "GET", url: `${scope}beads/nr-source` },
+      { method: "GET", url: `${scope}beads/nr-target` },
+      { method: "GET", url: `${scope}beads/nr-bead-integer` },
+      { method: "GET", url: `${scope}beads/nr-bead-precision` },
+      { method: "GET", url: `${scope}beads/nr-bead-overflow` },
+      { method: "GET", url: `${scope}links/nr-link-integer` },
+      { method: "GET", url: `${scope}links/nr-link-precision` },
+      { method: "GET", url: `${scope}links/nr-link-overflow` },
+      { method: "GET", url: `${scope}beads/nn-source` },
+      { method: "GET", url: `${scope}beads/nn-target` },
+      { method: "GET", url: `${scope}beads/nn-bead-properties` },
+      { method: "GET", url: `${scope}beads/nn-bead-metadata` },
+      { method: "GET", url: `${scope}links/nn-link-properties` },
+      { method: "GET", url: `${scope}links/nn-link-metadata` },
       { method: "GET", url: `${scope}` },
       { method: "GET", url: `${scope}bdp.json` },
       { method: "GET", url: `${scope}types/task` },
@@ -1231,17 +1299,17 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       { method: "GET", url: `${scope}alias/rc-locator-missing-absolute` },
       { method: "POST", url: `${scope}operations/update-bead` },
       { method: "POST", url: `${scope}operations/update-link` },
-      { method: "POST", url: `${scope}operations/sequence` },
       { method: "POST", url: `${scope}operations/create-bead` },
-      { method: "POST", url: `${scope}operations/delete-bead` },
       { method: "POST", url: `${scope}operations/create-link` },
+      { method: "POST", url: `${scope}operations/sequence` },
+      { method: "POST", url: `${scope}operations/delete-bead` },
       { method: "POST", url: `${scope}operations/delete-link` },
       { method: "POST", url: `${scope}operations/put-alias` },
       { method: "POST", url: `${scope}operations/delete-alias` },
     ]);
-    expect(progress.shards[1]!.routes).toHaveLength(35);
+    expect(progress.shards[1]!.routes).toHaveLength(49);
     expect(progress.shards[1]!.routeDigest).toBe(
-      "6713ab2c41b09869b664f372de1ef1390c00cfd24b154ea717f7ee6d62c35059",
+      "24b63b02859bd1caa9bd477a8121a43e3255b4e3942773e29f514677b4f0cbab",
     );
     expect(progress.observedStatePartitions.pass).toEqual(progress.authoredIds);
     expect(progress.observedStatePartitions.fail).toEqual([]);
@@ -3575,19 +3643,6 @@ it.each(attributionNumericRawControls)(
 it("pins attribution/numeric source budgets, raw literals and prior scenario bytes", () => {
   const bytes = source(continuationSource).bytes;
   const manifest = JSON.parse(bytes.toString());
-  const fixtureBytes = source("packages/conformance/fixtures/read-update-reference-v1.json").bytes;
-  const coverageBytes = source(
-    "packages/conformance/test-support/read-update-coverage-v1.json",
-  ).bytes;
-  const nodes = (value: unknown): number =>
-    1 +
-    (value !== null && typeof value === "object"
-      ? Object.values(value).reduce<number>((sum, entry) => sum + nodes(entry), 0)
-      : 0);
-  expect(bytes.length - 114182).toBeLessThanOrEqual(650 * 1024);
-  expect(nodes(manifest) - 3158).toBeLessThanOrEqual(24000);
-  expect(fixtureBytes.length - 28753).toBeLessThanOrEqual(32768);
-  expect(coverageBytes.length - 590847).toBeLessThanOrEqual(65536);
   expect(
     createHash("sha256")
       .update(source("packages/conformance/matrices/read-update-v1.json").bytes)
@@ -3603,7 +3658,13 @@ it("pins attribution/numeric source budgets, raw literals and prior scenario byt
     "39eb2fe22d25eada2c43490f37b6cb5d66950bd90042af1ae954036426e07f2a",
   );
   const set = installedArtifactSet();
-  expect(set.shards[1]!.scenarioIds).toEqual([attributionId, continuationId, numericId]);
+  expect(set.shards[1]!.scenarioIds).toEqual([
+    attributionId,
+    continuationId,
+    numericId,
+    numericRoundTripId,
+    numericNestedId,
+  ]);
   const attribution = set.shards[1]!.bundle.manifest.scenarios.find((r) => r.id === attributionId)!;
   for (const [readId, guardId] of [
     ["att-subject-after-noop", "att-subject-retained-guard"],
@@ -3704,4 +3765,331 @@ it("pins attribution/numeric source budgets, raw literals and prior scenario byt
   expect(
     attributionNumericControls.length + attributionNumericRawControls.length,
   ).toBeLessThanOrEqual(16);
+});
+
+const numericRoundTripId = "read-update.numeric-model.round-trip-admission";
+const numericNestedId = "read-update.numeric-model.nested-refusal";
+const numericAdmissionRawControls = [
+  {
+    number: 1,
+    mode: "request-number",
+    scenario: numericRoundTripId,
+    action: "nr-bead-integer-create-refused",
+    operation: "create-bead",
+    failed: ["status", "authored-body", "body-schema", "complete-problem"],
+  },
+  {
+    number: 2,
+    mode: "pointer",
+    scenario: numericRoundTripId,
+    action: "nr-bead-integer-create-refused",
+    operation: "create-bead",
+    failed: ["complete-problem"],
+  },
+  {
+    number: 5,
+    mode: "document-prefix",
+    scenario: numericNestedId,
+    action: "nn-bead-properties-create-refused",
+    operation: "create-bead",
+    failed: ["complete-problem"],
+  },
+  {
+    number: 6,
+    mode: "patch-location",
+    scenario: numericNestedId,
+    action: "nn-bead-properties-patch-refused",
+    operation: "update-bead",
+    failed: ["complete-problem"],
+  },
+  {
+    number: 7,
+    mode: "metadata-label",
+    scenario: numericNestedId,
+    action: "nn-bead-metadata-create-refused",
+    operation: "create-bead",
+    failed: ["complete-problem"],
+  },
+  {
+    number: 8,
+    mode: "deep-missing",
+    scenario: numericNestedId,
+    action: "nn-bead-properties-create-refused",
+    operation: "create-bead",
+    failed: ["complete-problem"],
+  },
+] as const;
+const numericAdmissionClientControls: (RetryControl & { number: number; failed: string[] })[] = [
+  {
+    number: 3,
+    scenario: numericRoundTripId,
+    action: "nr-bead-integer-updated-read",
+    path: ["body", "properties", "value"],
+    value: 2,
+    failed: ["properties"],
+  },
+  {
+    number: 4,
+    scenario: numericRoundTripId,
+    action: "nr-bead-integer-patch-refused-read",
+    path: ["body", "metadata", "phase"],
+    value: "updated",
+    failed: ["postimage"],
+  },
+  {
+    number: 9,
+    scenario: numericNestedId,
+    action: "nn-bead-metadata-patch-refused-read",
+    path: ["body", "metadata", "outer", "0", "a/b~c"],
+    value: 1,
+    failed: ["postimage"],
+  },
+];
+it.each([numericRoundTripId, numericNestedId])(
+  "observes installed numeric admission row %s",
+  async (id) => {
+    const manifest = JSON.parse(source(continuationSource).bytes.toString());
+    const report = await run(manifest, [id]);
+    const row = report.result.scenarios[0]!;
+    expect(row, JSON.stringify(row)).toMatchObject({ state: "pass" });
+    expect(report.result.claimEligible).toBe(false);
+    expect(report.cleanupComplete).toBe(true);
+    expect(row.exchanges).toHaveLength(id === numericRoundTripId ? 29 : 21);
+    expect(row.actions).toHaveLength(id === numericRoundTripId ? 43 : 31);
+    const raw = row.exchanges.filter((e) => e.request.method === "POST");
+    expect(raw).toHaveLength(id === numericRoundTripId ? 24 : 16);
+    for (const exchange of raw) {
+      expect(exchange.request.exact).toMatchObject({
+        source: "raw-http1-serializer",
+        writeState: "complete",
+        bodyPresent: true,
+      });
+      expect(exchange.request.exact).not.toHaveProperty("bodyDigest");
+      expect(exchange.request.exact!.bodyOctets).toBeLessThan(4096);
+    }
+    const filename = process.env.BDP_NUMERIC_ADMISSION_REPORT_PATH;
+    if (filename) {
+      const safe = JSON.stringify(report, null, 2);
+      expect(safe).not.toContain(token);
+      expect(safe).not.toContain(wrongToken);
+      writeFileSync(
+        `${filename}.${id === numericRoundTripId ? "round-trip" : "nested"}.json`,
+        safe,
+      );
+    }
+  },
+  30000,
+);
+it.each(numericAdmissionRawControls)(
+  "detects numeric admission raw control $number $mode",
+  async (control) => {
+    const report = await run(
+      JSON.parse(source(continuationSource).bytes.toString()),
+      [control.scenario],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    expect(report.cleanupComplete).toBe(true);
+    const row = report.result.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    expect(
+      row.exchanges
+        .find((e) => e.request.id === control.action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toEqual(control.failed);
+  },
+  30000,
+);
+it.each(numericAdmissionClientControls)(
+  "detects numeric admission client control $number",
+  async (control) => {
+    const report = await run(
+      JSON.parse(source(continuationSource).bytes.toString()),
+      [control.scenario],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    expect(report.cleanupComplete).toBe(true);
+    const row = report.result.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    expect(
+      row.actions
+        ?.find((a) => a.action.id === control.action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toEqual(control.failed);
+  },
+  30000,
+);
+
+it("pins numeric admission source growth, old blocks and independent row ledgers", () => {
+  const bytes = source(continuationSource).bytes;
+  const manifest = JSON.parse(bytes.toString());
+  const fixtureBytes = source("packages/conformance/fixtures/read-update-reference-v1.json").bytes;
+  const coverageBytes = source(
+    "packages/conformance/test-support/read-update-coverage-v1.json",
+  ).bytes;
+  const nodes = (value: unknown): number =>
+    1 +
+    (value !== null && typeof value === "object"
+      ? Object.values(value).reduce<number>((sum, entry) => sum + nodes(entry), 0)
+      : 0);
+  // Reviewed 9c source anchors: per-slice growth, never runtime/parser capacities.
+  const NUMERIC_ADMISSION_CONTINUATION_BYTES_BASE = 535052;
+  const NUMERIC_ADMISSION_CONTINUATION_NODES_BASE = 14286;
+  const NUMERIC_ADMISSION_COVERAGE_BYTES_BASE = 648157;
+  const NUMERIC_ADMISSION_FIXTURE_BYTES_BASE = 29055;
+  expect(bytes.length - NUMERIC_ADMISSION_CONTINUATION_BYTES_BASE).toBeLessThanOrEqual(450 * 1024);
+  expect(nodes(manifest) - NUMERIC_ADMISSION_CONTINUATION_NODES_BASE).toBeLessThanOrEqual(12000);
+  expect(nodes(manifest)).toBeLessThanOrEqual(27158);
+  expect(coverageBytes.length - NUMERIC_ADMISSION_COVERAGE_BYTES_BASE).toBeLessThanOrEqual(
+    65 * 1024,
+  );
+  expect(fixtureBytes.length - NUMERIC_ADMISSION_FIXTURE_BYTES_BASE).toBeLessThanOrEqual(8192);
+  const text = bytes.toString();
+  for (const [id, digest] of [
+    [attributionId, "1b81ae03b7aea896732e001291bb2ef92edd6bf5586c13a7e91afaf563f3e769"],
+    [continuationId, "39eb2fe22d25eada2c43490f37b6cb5d66950bd90042af1ae954036426e07f2a"],
+    [numericId, "368c2d3d2aead864bfe925f8777b55ce9b09a107c81429820ac390d6d0a8550d"],
+  ]) {
+    const start = text.lastIndexOf("    {", text.indexOf(`      "id": "${id}"`));
+    const end = text.indexOf("\n    },\n    {", start) + "\n    }".length;
+    expect(createHash("sha256").update(text.slice(start, end)).digest("hex")).toBe(digest);
+  }
+  const set = installedArtifactSet();
+  const keys: string[] = [];
+  let actions = 0;
+  let assertions = 0;
+  for (const [id, count, resourceIds] of [
+    [
+      numericRoundTripId,
+      72,
+      [
+        "beads/nr-source",
+        "beads/nr-target",
+        "beads/nr-bead-integer",
+        "beads/nr-bead-precision",
+        "beads/nr-bead-overflow",
+        "links/nr-link-integer",
+        "links/nr-link-precision",
+        "links/nr-link-overflow",
+      ],
+    ],
+    [
+      numericNestedId,
+      52,
+      [
+        "beads/nn-source",
+        "beads/nn-target",
+        "beads/nn-bead-properties",
+        "beads/nn-bead-metadata",
+        "links/nn-link-properties",
+        "links/nn-link-metadata",
+      ],
+    ],
+  ] as const) {
+    const row = set.shards[1]!.bundle.manifest.scenarios.find((r) => r.id === id)!;
+    expect(row.actions).toHaveLength(count);
+    actions += row.actions!.length;
+    const created = new Set<string>();
+    for (const action of row.actions!) {
+      assertions += action.assertions.length;
+      if (action.family === "http" && action.method === "POST") {
+        const raw = action.raw!;
+        expect(raw.body!.encoding).toBe("utf8");
+        expect(Buffer.byteLength(raw.body!.value)).toBeLessThan(4096);
+        keys.push(raw.headerLines.find((h) => h.name.toLowerCase() === "idempotency-key")!.value);
+        expect(action.assertions.filter((a) => a.kind === "request-authored-body")).toHaveLength(1);
+        expect(action.assertions).toContainEqual({
+          id: "complete-write",
+          kind: "request-write-state",
+          equals: "complete",
+        });
+        // Parse only to inspect fixed IDs; numeric wire and expected postimages are separately authored.
+        if (action.target.path!.startsWith("create-")) created.add(JSON.parse(raw.body!.value).id);
+        if (action.id.endsWith("-refused")) {
+          const corrected = row.actions!.find(
+            (a) => a.id === action.id.replace(/-refused$/, "-corrected"),
+          )!;
+          if (corrected.family !== "http") throw Error("correction requires raw HTTP");
+          expect(corrected.target).toEqual(action.target);
+          const stripNumbers = (body: string) =>
+            body.replace(/(?<=:)-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g, "NUMBER");
+          expect(stripNumbers(corrected.raw!.body!.value)).toBe(stripNumbers(raw.body!.value));
+        }
+      } else if (action.family === "client") {
+        const input = action.input as {
+          method: string;
+          idempotencyKey?: string;
+          body?: { id: string };
+        };
+        if (input.method === "POST") {
+          created.add(input.body!.id);
+          keys.push(input.idempotencyKey!);
+        }
+      }
+    }
+    expect([...created]).toEqual(resourceIds);
+    const coverage = set.coverage.rows.find((r) => r.id === id)!;
+    expect(coverage.wholeContract).toBe(false);
+    expect(coverage.bindings).toEqual([
+      {
+        scenario: id,
+        assertions: row.actions!.flatMap((a) => a.assertions.map((q) => `${a.id}.${q.id}`)),
+      },
+    ]);
+  }
+  const roundTrip = set.shards[1]!.bundle.manifest.scenarios.find(
+    (r) => r.id === numericRoundTripId,
+  )!;
+  for (const kind of ["bead", "link"]) {
+    for (const [name, bad, created, updated] of [
+      ["integer", "9007199254740993", "9007199254740992", "9007199254740994"],
+      ["precision", "0.12345678901234567891", "0.125", "0.25"],
+      ["overflow", "1e309", "1e300", "1e299"],
+    ]) {
+      const body = (suffix: string) => {
+        const action = roundTrip.actions!.find((a) => a.id === `nr-${kind}-${name}-${suffix}`)!;
+        if (action.family !== "http") throw Error("numeric case requires raw HTTP");
+        return action.raw!.body!.value;
+      };
+      for (const operation of ["create", "patch"])
+        expect(body(`${operation}-refused`)).toContain(`"value":${bad}`);
+      expect(body("create-corrected")).toContain(`"value":${created}`);
+      expect(body("patch-corrected")).toContain(`"value":${updated}`);
+      expect(created).not.toBe(updated);
+      expect(body("create-corrected")).toContain('"one":1.0');
+      expect(body("create-corrected")).toContain('"zero":-0.0');
+      expect(body("create-corrected")).toContain('"expanded":1' + "0".repeat(300));
+    }
+  }
+  expect(actions).toBeLessThanOrEqual(124);
+  expect(assertions).toBeLessThanOrEqual(1300);
+  expect(new Set(keys).size).toBe(keys.length);
+  expect(numericAdmissionRawControls).toHaveLength(6);
+  expect(numericAdmissionClientControls).toHaveLength(3);
+  expect(
+    numericAdmissionRawControls.length + numericAdmissionClientControls.length,
+  ).toBeLessThanOrEqual(9);
 });
