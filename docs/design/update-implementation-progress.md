@@ -415,3 +415,67 @@ These are bounded source-only observations, not installed profile qualification.
 The later served profile still needs an installed mutable payload, applicable
 cumulative Read receiving/CORS behavior and profile-specific executable evidence.
 No conformance row, profile guard or existing evidence artifact is relabeled.
+
+## Installed mutable candidate factory (P1a)
+
+The server package now contains a private installed reference factory and an IPC
+qualification process entry. They are neither package exports nor executable
+bins or ordinary `bdptest` switches. The packed-package smoke starts the actual
+installed entry outside the workspace. It supplies configuration through an
+inherited IPC channel, never argv, and observes the same factory intended for
+later evidence-gated startup. IPC possession is process control, not admission.
+Readiness explicitly reports `claimEligible: false`.
+
+The closed configuration captures a canonical Scope, separate loopback listener,
+explicit create/reopen choice and store directory, trusted credential/principal
+mapping, administrative policy snapshots, fixed aggregate policy and exact
+Type/schema artifact bytes. Empty descriptor input selects the full current
+reference Type family instantiated at Scope-local identities. All conformance,
+endpoint and ownership references are remapped together; these identities do
+not claim to host the original work.example URLs. Actual Type reads use the
+installed registry. Optional local schema routes serve exact captured bytes
+from a closed manifest, with no network fetch or arbitrary routing callback.
+
+The factory reports three distinct identities: the captured contract artifact
+identity, the configuration identity including principal/policy/credential
+mapping and actual fixed limits, and a hash of the actual installed server and
+protocol JavaScript payload. Store invariants bind Scope, contracts and aggregate
+configuration; changing live credential/policy configuration on a later reopen
+changes qualification identity without changing the contract installation.
+Listener port and provisioning choice are separate from persistent Scope
+identity. Factory hashes are observation metadata, not signed or independently
+verified conformance evidence. The eventual evidence artifact still needs its
+own target/configuration/source binding and verification.
+
+The installed transport normalizes raw targets before classifying every route,
+including singleton and sequence targets. Valid absolute-form requests retain
+only their validated path/query; configured Scope remains the identity authority.
+Host and forwarding headers cannot rebind it. Disabled CORS processes Origin
+normally without grant headers and retains endpoint-specific OPTIONS refusal.
+Ordinary development transport restrictions remain unchanged. Both transports
+share the actual receiver, mutable owner, Read projection and HTTP semantics.
+
+Startup and shutdown now close the durable owner even when listener cleanup
+fails; startup preserves the original and cleanup failures together. The private
+entry accepts one startup, handles SIGTERM/parent disconnect, drains accepted
+work through the existing owner and closes unadmitted partial bodies. No clock,
+scheduler, synthetic outcome, fault, database mutation or policy-replacement
+control is exposed through IPC.
+
+Packed and emitted process observations cover all nine targets, actual afterstate,
+Type closure navigation, stable Scope across different listener ports, exact-key
+reopen, negotiation/conditional/HEAD/method behavior, disabled CORS, raw targets,
+pre-admission rejection and corrected-key reuse. Additional tests cover exact
+schema bytes and real validation, detached captured credentials/policy, second
+owner/installation mismatch, one-start/bind failure, partial-body disconnect and
+an injected listener-cleanup failure followed by a successful real-store reopen.
+
+P1a does not activate public Write profiles or refresh/relabel existing Read
+evidence. The packed smoke still proves ordinary Read startup and write-profile
+refusal. No deterministic installed between-member interruption or power-loss
+durability claim follows from this slice; existing separate owner/process tests
+retain their original scope. Full cumulative executable requirements, broader
+schema applicability, independent profile-specific evidence and its public
+admission gate remain prerequisites for activation. The listener is an explicit
+loopback candidate; deployment TLS and optional CORS-enabled/History behavior
+are not newly provided here.

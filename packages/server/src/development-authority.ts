@@ -43,7 +43,13 @@ export const DEVELOPMENT_LIMITS = Object.freeze({
   diagnosticBytes: 512 * 1024,
   diagnosticCount: 32,
 });
-const day = 86_400_000;
+export const DEVELOPMENT_READ_LIMITS = Object.freeze({
+  page: Object.freeze({ defaultItems: 20, maximumItems: 100 }),
+  selector: Object.freeze({ bytes: 4096, depth: 32, nodes: 256 }),
+  cursorTtlMilliseconds: 60_000,
+});
+export const DEVELOPMENT_RETENTION_MS = 86_400_000;
+const day = DEVELOPMENT_RETENTION_MS;
 const installation = "bdptest-development-2-revision-provenance";
 const principal = Object.freeze({ id: "bdptest-development-operator" });
 const policy = Object.freeze({
@@ -232,11 +238,7 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
       },
     });
     const epoch = randomBytes(24).toString("base64url");
-    const readLimits = {
-      page: { defaultItems: 20, maximumItems: 100 },
-      selector: { bytes: 4096, depth: 32, nodes: 256 },
-      cursorTtlMilliseconds: 60_000,
-    };
+    const readLimits = DEVELOPMENT_READ_LIMITS;
     const lifecycle = await createReadSequenceLifecycle({
       owner,
       read: {

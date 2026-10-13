@@ -9,6 +9,7 @@ import {
   stringifyJsonValue,
   readProblem,
   parseReadUpdateProblem,
+  decodeJsonDocument,
   parseCanonicalScope,
   parseReadUpdateOperationDirectory,
   type ReadUpdateOperationDirectory,
@@ -52,6 +53,12 @@ export interface DevelopmentHttpComposition {
     >,
     directory: ReadUpdateOperationDirectory,
   ): HttpHandler;
+}
+/** Private installed-candidate transport; never accepted by the development facade. */
+export interface InstalledReferenceTransport {
+  readonly scope: string;
+  readonly host: string;
+  readonly schemas: readonly { readonly uri: string; readonly utf8: string }[];
 }
 export interface DevelopmentDeployment {
   readonly configuration: DevelopmentAuthorityConfiguration;
@@ -156,6 +163,7 @@ export async function startDevelopmentReferenceRuntime(
   clock?: () => number,
   composition?: DevelopmentHttpComposition,
   deployment?: DevelopmentDeployment,
+  installedTransport?: InstalledReferenceTransport,
 ) {
   if (!path.isAbsolute(options.directory) || typeof options.create !== "boolean")
     throw new TypeError("explicit absolute store directory and provisioning choice required");
@@ -171,6 +179,37 @@ export async function startDevelopmentReferenceRuntime(
       typeof composition.createReadRoute !== "function")
   )
     throw new TypeError("invalid private HTTP composition");
+  const transport =
+    installedTransport === undefined
+      ? undefined
+      : administrativeData(installedTransport, ["scope", "host", "schemas"]);
+  if (
+    transport !== undefined &&
+    (typeof transport.scope !== "string" ||
+      parseCanonicalScope(transport.scope) !== transport.scope ||
+      typeof transport.host !== "string" ||
+      !["127.0.0.1", "::1"].includes(transport.host) ||
+      composition === undefined ||
+      deployment === undefined)
+  )
+    throw new TypeError("invalid private installed transport");
+  const schemaArtifacts =
+    transport === undefined
+      ? []
+      : administrativeArray(transport.schemas, 4096).map((value) => {
+          const entry = administrativeData(value, ["uri", "utf8"]);
+          if (
+            typeof entry.uri !== "string" ||
+            !entry.uri.startsWith(`${transport.scope}schemas/`) ||
+            typeof entry.utf8 !== "string"
+          )
+            throw new TypeError("invalid hosted schema");
+          return Object.freeze({
+            uri: entry.uri,
+            utf8: entry.utf8,
+            value: decodeJsonDocument(entry.utf8),
+          });
+        });
   const scopePath = composition?.scopePath ?? "/";
   const createReadRoute = composition?.createReadRoute;
   if (
@@ -180,6 +219,8 @@ export async function startDevelopmentReferenceRuntime(
     (composition !== undefined && typeof composition.createReadRoute !== "function")
   )
     throw new TypeError("invalid private HTTP composition");
+  if (transport !== undefined && new URL(transport.scope as string).pathname !== scopePath)
+    throw new TypeError("configured Scope path differs from route composition");
   const directory = parseReadUpdateOperationDirectory({
     ...Object.fromEntries(
       Object.entries(operations).map(([target, operation]) => [operation, target]),
@@ -234,25 +275,64 @@ export async function startDevelopmentReferenceRuntime(
       const principal = Object.freeze({ id: authenticated.principal });
       const principalAuthority = authority.forPrincipal(principal);
       const composedRead = composedReads.get(principal.id);
-      if (header(request, "host") !== new URL(scope).host)
-        throw new ReceivingError("malformed-request");
-      if (header(request, "origin") !== undefined) throw new ReceivingError("forbidden");
-      const rawUrl = request.url ?? "";
+      const host = header(request, "host");
       if (
-        !rawUrl.startsWith("/") ||
-        rawUrl.startsWith("//") ||
-        normalizationSafeRawRequestPath(rawUrl) === undefined
+        host === undefined ||
+        normalizationSafeRawRequestPath(`http://${host}/`) === undefined ||
+        (transport === undefined && host !== new URL(scope).host)
       )
         throw new ReceivingError("malformed-request");
-      const url = new URL(rawUrl, scope);
-      if (url.origin !== new URL(scope).origin) throw new ReceivingError("malformed-request");
+      const origin = header(request, "origin");
+      if (transport === undefined && origin !== undefined) throw new ReceivingError("forbidden");
+      const rawUrl = request.url ?? "";
+      const pathAndQuery = normalizationSafeRawRequestPath(rawUrl);
+      if (
+        pathAndQuery === undefined ||
+        (transport === undefined && (!rawUrl.startsWith("/") || rawUrl.startsWith("//")))
+      )
+        throw new ReceivingError("malformed-request");
+      // Only configured Scope determines identity, including absolute-form requests.
+      const url = new URL(pathAndQuery, new URL(scope).origin);
+      const schema = schemaArtifacts.find((entry) => entry.uri === url.href);
+      if (schema !== undefined) {
+        const gate = await principalAuthority.discover();
+        if (gate.kind === "problem") {
+          json(response, gate.problem.status ?? 500, gate.problem, true);
+          return;
+        }
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          empty(response, 405, "GET, HEAD");
+          return;
+        }
+        const headers = new Headers();
+        for (let i = 0; i < request.rawHeaders.length; i += 2)
+          headers.append(request.rawHeaders[i] ?? "", request.rawHeaders[i + 1] ?? "");
+        const selected = applyReadHttpSemantics(
+          new Request(url, { method: request.method, headers }),
+          {
+            status: 200,
+            headers: new Headers({
+              "content-type": "application/json",
+              "cache-control": "private, no-store",
+            }),
+            body: schema.value,
+          },
+        );
+        if (selected.status === 200)
+          selected.headers.set("content-length", String(Buffer.byteLength(schema.utf8)));
+        response.writeHead(selected.status, Object.fromEntries(selected.headers));
+        response.end(
+          selected.status === 200 && request.method !== "HEAD" ? schema.utf8 : undefined,
+        );
+        return;
+      }
       const targetRoot = composition === undefined ? "/development/" : `${scopePath}operations/`;
-      const name = rawUrl.startsWith(targetRoot) ? rawUrl.slice(targetRoot.length) : "";
+      const name = pathAndQuery.startsWith(targetRoot) ? pathAndQuery.slice(targetRoot.length) : "";
       const operation = Object.hasOwn(operations, name) ? operations[name] : undefined;
       const mutationTarget = operation !== undefined || name === "sequence";
       if (
-        rawUrl.startsWith(targetRoot) &&
-        (composition === undefined || rawUrl !== targetRoot) &&
+        pathAndQuery.startsWith(targetRoot) &&
+        (composition === undefined || pathAndQuery !== targetRoot) &&
         !mutationTarget
       )
         throw new ReceivingError("resource-not-found");
@@ -365,6 +445,12 @@ export async function startDevelopmentReferenceRuntime(
     pending.add(task);
     void task.finally(() => pending.delete(task));
   });
+  if (transport !== undefined)
+    server.on("connect", (_request, socket) => {
+      socket.end(
+        "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, HEAD\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      );
+    });
   server.requestTimeout = 10_000;
   server.headersTimeout = 10_000;
   server.timeout = 10_000;
@@ -378,14 +464,17 @@ export async function startDevelopmentReferenceRuntime(
   try {
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
-      server.listen(options.port, "127.0.0.1", () => {
+      server.listen(options.port, (transport?.host as string | undefined) ?? "127.0.0.1", () => {
         server.removeListener("error", reject);
         resolve();
       });
     });
     const address = server.address();
     if (address === null || typeof address === "string") throw new Error("no development address");
-    scope = `http://127.0.0.1:${address.port}${scopePath}`;
+    scope =
+      transport === undefined
+        ? `http://127.0.0.1:${address.port}${scopePath}`
+        : (transport.scope as string);
     authority = await openDevelopmentAuthority({
       scope,
       directory: options.directory,
@@ -418,8 +507,17 @@ export async function startDevelopmentReferenceRuntime(
       }
     }
   } catch (error) {
-    if (server.listening) await closeListener();
-    await authority?.close();
+    const cleanup = await Promise.allSettled([
+      ...(server.listening ? [closeListener()] : []),
+      ...(authority === undefined ? [] : [authority.close()]),
+    ]);
+    const failures = cleanup.flatMap((result) =>
+      result.status === "rejected" ? [result.reason] : [],
+    );
+    if (failures.length)
+      throw new AggregateError([error, ...failures], "installed startup cleanup failed", {
+        cause: error,
+      });
     throw error;
   }
   let completion: Promise<void> | undefined;
@@ -429,9 +527,14 @@ export async function startDevelopmentReferenceRuntime(
       if (!completion) {
         closing = true;
         completion = (async () => {
-          await closeListener();
+          const listener = await Promise.allSettled([closeListener()]);
           await Promise.allSettled([...pending]);
-          await authority?.close();
+          const owner = await Promise.allSettled([authority?.close()]);
+          const failures = [...listener, ...owner].flatMap((result) =>
+            result.status === "rejected" ? [result.reason] : [],
+          );
+          if (failures.length)
+            throw new AggregateError(failures, "installed shutdown cleanup failed");
         })();
       }
       return completion;
