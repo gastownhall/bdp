@@ -73,8 +73,8 @@ function context(response: HttpResponse, observation: TransactionReadContext): H
   response.headers.set("bdp-scope-position", observation.scopePosition);
   return response;
 }
-function unavailable(feature: string): HttpResponse {
-  const response = transactionHttpProblem("temporarily-unavailable");
+function developmentGap(feature: string): HttpResponse {
+  const response = empty(500);
   response.headers.set("x-bdp-development-limit", feature);
   return response;
 }
@@ -128,7 +128,7 @@ export function createTransactionHttpHandler(
     scope,
     probe: async () => ({ serviceDescription: new URL("bdp.json", scope).href }),
     problem,
-    discover: async () => unavailable("transactional-discovery"),
+    discover: async () => developmentGap("transactional-discovery"),
     async alias(suffix, request) {
       if (isReadProblem(suffix)) return problem(suffix);
       const result = await service.readFor({ kind: "anonymous" }).resolveAlias(request.url);
@@ -153,7 +153,7 @@ export function createTransactionHttpHandler(
         result.kind === "problem"
           ? problem(result.problem)
           : result.kind === "discovery"
-            ? unavailable("transactional-discovery")
+            ? developmentGap("transactional-discovery")
             : scopeDataResponse(
                 parsed,
                 result.body,
@@ -173,7 +173,10 @@ export function createTransactionHttpHandler(
   ): Promise<HttpResponse> {
     const url = new URL(request.url),
       operation = names.get(url.href);
-    if (Buffer.byteLength(url.pathname + url.search) > TRANSACTION_HTTP_TARGET_BYTES)
+    if (
+      request.method === "POST" &&
+      Buffer.byteLength(url.pathname + url.search) > TRANSACTION_HTTP_TARGET_BYTES
+    )
       return transactionHttpProblem("request-too-large");
     if (url.origin !== scopeUrl.origin || !url.pathname.startsWith(scopeUrl.pathname))
       return transactionHttpProblem("resource-not-found");
@@ -225,7 +228,7 @@ export function createTransactionHttpHandler(
               error.message ===
                 "development sequence Resource aliases require turn-time resolution")
           )
-            return unavailable("sequence-resource-alias");
+            return developmentGap("sequence-resource-alias");
           throw error;
         }
         if (!acceptsJson(request.headers.get("accept"))) return empty(406);
@@ -251,7 +254,7 @@ export function createTransactionHttpHandler(
       if (result.kind === "receipt") return receiptResponse(result, true);
       if (result.kind === "not-acceptable") return empty(406);
       if (result.kind === "development-limit")
-        return unavailable("unsupported-transaction-composition");
+        return developmentGap("unsupported-transaction-composition");
       if (result.code === "idempotency-conflict")
         return problem(
           parseReadUpdateProblem({
@@ -279,10 +282,10 @@ export function createTransactionHttpHandler(
       if (result.kind === "refused") return transactionHttpProblem(result.code);
       // Missing barrier support cannot disclose a foreign receipt, nor permit a
       // conditional shortcut to serve an unchecked minimum checkpoint.
-      if (hasMinimumControls(request)) return unavailable("minimum-position");
+      if (hasMinimumControls(request)) return developmentGap("minimum-position");
       return receiptResponse(result, false);
     }
-    if (hasMinimumControls(request)) return unavailable("minimum-position");
+    if (hasMinimumControls(request)) return developmentGap("minimum-position");
     // No fabricated discovery or incomplete Operation Directory is exposed. The
     // source fixture gives tests actual canonical targets out of band.
     if (
@@ -290,7 +293,7 @@ export function createTransactionHttpHandler(
       url.href === new URL("bdp.json", scope).href ||
       url.href === new URL("operations/", scope).href
     )
-      return unavailable("transactional-discovery");
+      return developmentGap("transactional-discovery");
     return readRoute(request);
   }
   return Object.freeze({

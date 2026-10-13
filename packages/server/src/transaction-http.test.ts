@@ -1,9 +1,10 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { request as httpRequest } from "node:http";
 import { setImmediate } from "node:timers/promises";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseTypeDescriptor } from "@bdp/protocol";
 import type { TransactionRuntimeTestSeams } from "./transaction-runtime.js";
 const { startTransactionRuntime } = (await import(
@@ -27,6 +28,7 @@ const types = [
 ].map((value) => parseTypeDescriptor(value));
 const cleanup: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
+  vi.restoreAllMocks();
   for (const fn of cleanup.splice(0).reverse()) await fn();
 });
 function record(value: unknown): Record<string, unknown> {
@@ -122,10 +124,10 @@ describe("source-private actual Transactional HTTP", () => {
     expect(Object.keys(f.runtime.targets)).toHaveLength(10);
     for (const relative of ["", "bdp.json", "operations/"]) {
       const result = await f.get(new URL(relative, f.runtime.scope).href);
-      expect(result.status).toBe(503);
+      expect(result.status).toBe(500);
       expect(result.headers.get("x-bdp-development-limit")).toBe("transactional-discovery");
       expect(result.headers.has("link")).toBe(false);
-      expect(await body(result)).not.toHaveProperty("profile");
+      expect(await result.text()).toBe("");
     }
     expect((await f.get(`${f.runtime.scope}operations/update-where`)).status).toBe(404);
     const result = await f.post();
@@ -253,7 +255,7 @@ describe("source-private actual Transactional HTTP", () => {
     for (const [authorization, status] of [
       ["", 401],
       [`Bearer ${otherToken}`, 404],
-      [`Bearer ${token}`, 503],
+      [`Bearer ${token}`, 500],
     ] as const) {
       const response = await f.get(id(receipt), { headers: { ...controls, authorization } });
       expect(response.status).toBe(status);
@@ -285,7 +287,7 @@ describe("source-private actual Transactional HTTP", () => {
       String(page.next),
     ]) {
       const response = await f.get(url, { headers });
-      expect(response.status).toBe(503);
+      expect(response.status).toBe(500);
       expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
     }
     expect((await f.get(String(page.next), { headers: { "if-none-match": "*" } })).status).toBe(
@@ -381,7 +383,7 @@ describe("source-private actual Transactional HTTP", () => {
       { operation: "deleteBead", bead: "alias/latest", idempotencyKey: "delete" },
     ]);
     const response = await f.post(aliases, null, "sequence");
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(500);
     expect(response.headers.get("x-bdp-development-limit")).toBe("sequence-resource-alias");
     expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
     const set = await f.post(
@@ -395,9 +397,18 @@ describe("source-private actual Transactional HTTP", () => {
       ]),
       "set",
     );
-    expect(set.status).toBe(503);
+    expect(set.status).toBe(500);
     expect(set.headers.get("x-bdp-development-limit")).toBe("unsupported-transaction-composition");
     expect((await f.post(batch([create()]), "set")).status).toBe(200);
+    expect(await set.text()).toBe("");
+    expect((await f.post(batch([create("b")]), "a")).status).toBe(200);
+    let nested: unknown = "leaf";
+    for (let depth = 0; depth < 40; depth++) nested = { nested };
+    const depth = await f.post(batch([{ ...create("c"), properties: { nested } }]), "deep");
+    expect(depth.status).toBe(500);
+    expect(await depth.text()).toBe("");
+    expect((await f.get(`${f.runtime.scope}beads/c`)).status).toBe(404);
+    expect((await f.post(batch([create("c")]), "deep")).status).toBe(200);
   });
   it("preserves retained receipt identities across actual listener close/reopen and detail expiry", async () => {
     const f = await fixture(),
@@ -562,4 +573,115 @@ describe("source-private actual Transactional HTTP", () => {
     }
     expect((await f.post(batch(), "dupe")).status).toBe(200);
   });
+});
+
+it("keeps a configured canonical identity across different loopback listener ports", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-tx-canonical-"));
+  cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
+  const options = {
+    directory,
+    scope: "https://canonical.test/acme/",
+    port: 0,
+    create: true,
+    types,
+    credentials: [{ token, principal: "p", canMutate: true }],
+  };
+  let runtime = await startTransactionRuntime(options);
+  cleanup.push(() => runtime.close());
+  const send = (target: string, init: RequestInit = {}) =>
+    fetch(new URL(new URL(target).pathname, runtime.listenUrl), {
+      ...init,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        ...Object.fromEntries(new Headers(init.headers)),
+      },
+    });
+  const mutation = () =>
+    send(runtime.targets.batch, {
+      method: "POST",
+      headers: { "idempotency-key": "canonical" },
+      body: batch(),
+    });
+  const first = await body(await mutation());
+  expect(id(first)).toMatch(/^https:\/\/canonical\.test\/acme\/receipts\//);
+  await runtime.close();
+  runtime = await startTransactionRuntime({ ...options, create: false });
+  expect(await body(await mutation())).toEqual(first);
+  expect(await body(await send(id(first)))).toEqual(first);
+  expect((await send(`${options.scope}beads/a`)).status).toBe(200);
+});
+
+it("maps a finite unresolved comparison to temporary refusal without disclosing or executing it", async () => {
+  const callbacks: (() => void)[] = [];
+  let tick = 0;
+  const f = await fixture({
+    scheduler: {
+      turn(callback) {
+        callbacks.push(callback);
+        return () => {};
+      },
+    },
+    comparison: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+  });
+  const sequence = f.post(
+    batch([
+      { ...create(), name: "a", idempotencyKey: "creator" },
+      {
+        operation: "createLink",
+        type: link,
+        source: "@a",
+        target: "@a",
+        idempotencyKey: "dependent",
+      },
+    ]),
+    null,
+    "sequence",
+  );
+  for (let attempt = 0; callbacks.length === 0 && attempt < 100; attempt++) await setImmediate();
+  expect(callbacks).toHaveLength(1);
+  const retry = await f.post(
+    batch([{ operation: "createLink", type: link, source: "beads/a", target: "beads/a" }]),
+    "dependent",
+  );
+  expect(retry.status).toBe(503);
+  expect(retry.headers.get("retry-after")).toBe("1");
+  expect(retry.headers.has("location")).toBe(false);
+  expect(await body(retry)).toMatchObject({ code: "temporarily-unavailable" });
+  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  callbacks.shift()?.();
+  await setImmediate();
+  callbacks.shift()?.();
+  expect((await sequence).status).toBe(200);
+  const replay = await f.post(
+    batch([{ operation: "createLink", type: link, source: "beads/a", target: "beads/a" }]),
+    "dependent",
+  );
+  expect(replay.status).toBe(200);
+  expect(replay.headers.get("bdp-scope-position")).toBe("pos-2");
+});
+
+it("keeps a live listener from serving through an owner fenced by injected commit uncertainty", async () => {
+  const f = await fixture();
+  const exec = DatabaseSync.prototype.exec;
+  let inject = true;
+  const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+    this: DatabaseSync,
+    sql: string,
+  ) {
+    exec.call(this, sql);
+    if (sql === "COMMIT" && inject) {
+      inject = false;
+      throw new Error("injected post-commit uncertainty");
+    }
+  });
+  const failed = await f.post();
+  expect(failed.status).toBe(500);
+  expect(await failed.text()).toBe("");
+  spy.mockRestore();
+  const fenced = await f.get(`${f.runtime.scope}beads/`);
+  expect(fenced.status).toBe(500);
+  expect(await fenced.text()).toBe("");
+  await f.reopen();
+  expect((await f.post()).status).toBe(200);
 });

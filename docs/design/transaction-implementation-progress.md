@@ -537,3 +537,58 @@ receiving order, minimum-position barriers/conditional fields, required Snapshot
 and changefeed paths, receipt pages/erasure, installed contracts and public evidence
 remain subsequent slices. No public API, storage format or normative change is
 part of this service layer.
+
+### Private actual HTTP service and atomic receipt delivery
+
+A source-private loopback runtime now composes one Transactional owner, Read
+plane and service. It serves the ten implemented operation targets, canonical
+Resource/collection/alias reads, and receipt GET/HEAD. Its credentials supply
+principal and mutation permission independently of carried actor attribution.
+A configured canonical Scope can stay fixed across listener addresses; receipt
+identities and navigation are never rewritten. Omitting this private fixture
+setting retains the disposable same-port behavior only.
+
+Direct admission retains the established bounds/syntax/auth/key/limits/Accept
+order. Exact pending retries return 202 with the receipt's own Location;
+original accepted submissions execute to terminal before returning. POST
+conditions do not suppress execution or its receipt. Sequence uses one runner,
+independent member commits and canonical dependencies; current response context
+is observed after that runner completes. Closing the listener prevents new work
+and drains admitted work even after delivery disconnect, before closing the
+service-owned database. A supplied test scheduler must eventually deliver each
+uncancelled turn; no new protocol timeout is implied.
+
+Executed and replayed direct receipts are projected with current context inside
+their original authoritative execution/admission entry. Delivery does not make a
+second retention-clock observation or scan receipts by ID. Receipt GET continues
+to apply retention in its own entry; its current ID lookup is still a linear
+principal-scoped scan. Serving asserts current position covers required/effect
+positions. Prior-epoch stored receipts are hidden; the test injects stored facts,
+not a production epoch-rotation capability. Fixed all-visible projection does
+not implement variable grants or erasure.
+
+The unchanged 32-operation development bound is shared by preparation, owner,
+service and HTTP. Available completed receipts must fit the configured inline
+page bound and have next:null. No set expansion or durable receipt paging was
+added. The minimum configured receipt page bound is an interim implementation
+limit, not a protocol-wide minimum.
+
+This increment does not advertise Transactional discovery or a profile. Valid
+unsupported set/depth/Resource-alias-sequence requests fail before key capture or
+effects with a bodyless internal 500, labeled as a development gap. Minimum
+context controls likewise cannot yield success or a conditional shortcut; their
+bodyless internal failure is explicitly **not** a normative catch-up outcome.
+Full minimum-position/epoch/view/expiry ordering remains required next work.
+Discovery, Directory, snapshot/changes/events, set operations, installed
+contracts, Resource-alias sequence timing, variable authorization/erasure,
+receipt pagination and complete executable qualification remain open. Public
+exports, installed profile admission, schemas and pinned Read evidence are
+unchanged.
+
+Verification includes real loopback precedence and receipt conditions, finite
+comparison 503, no key capture for unsupported valid requests, listener
+close/reopen, a child-process SIGKILL/restart after a completed response, client
+disconnect with admitted work, and an injected post-commit failure followed by
+sticky refusal/reopen. These are bounded executable witnesses, not disk or
+power-loss qualification. External exact-command results accompany the frozen
+candidate.

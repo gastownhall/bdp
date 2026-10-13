@@ -4,7 +4,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { TextDecoder } from "node:util";
-import { stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
+import { parseCanonicalScope, stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
 import type { HttpResponse } from "./index.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import { openTransactionStore } from "./transaction-store.js";
@@ -19,6 +19,8 @@ import {
 } from "./transaction-http.js";
 
 export interface TransactionRuntimeOptions {
+  /** Stable configured identity; omission is a disposable same-port fixture only. */
+  readonly scope?: string;
   readonly directory: string;
   readonly create: boolean;
   readonly port: number;
@@ -33,6 +35,7 @@ export interface TransactionRuntimeTestSeams {
   readonly scheduler?: TransactionServiceOptions["scheduler"];
   readonly clock?: () => number;
   readonly maximumOperations?: number;
+  readonly comparison?: TransactionServiceOptions["comparison"];
 }
 async function receive(request: IncomingMessage): Promise<TransactionReceivedBody> {
   const length = request.headers["content-length"];
@@ -89,6 +92,9 @@ export async function startTransactionRuntime(
     throw new TypeError("unique private transaction credentials required");
   let service: ReturnType<typeof createTransactionService> | undefined;
   let handler: ReturnType<typeof createTransactionHttpHandler> | undefined;
+  const configuredScope =
+    options.scope === undefined ? undefined : parseCanonicalScope(options.scope);
+  let listenUrl = "";
   let scope = "",
     closing = false;
   const pending = new Set<Promise<void>>();
@@ -99,7 +105,7 @@ export async function startTransactionRuntime(
         return;
       }
       const raw = request.url ?? "";
-      if (Buffer.byteLength(raw) > TRANSACTION_HTTP_TARGET_BYTES) {
+      if (request.method === "POST" && Buffer.byteLength(raw) > TRANSACTION_HTTP_TARGET_BYTES) {
         deliver(response, transactionHttpProblem("request-too-large"));
         return;
       }
@@ -107,7 +113,7 @@ export async function startTransactionRuntime(
         normalizationSafeRawRequestPath(raw) === undefined ||
         !raw.startsWith("/") ||
         raw.startsWith("//") ||
-        request.headers.host !== new URL(scope).host
+        request.headers.host !== new URL(listenUrl).host
       ) {
         deliver(response, transactionHttpProblem("malformed-request"));
         return;
@@ -186,7 +192,8 @@ export async function startTransactionRuntime(
     const address = server.address();
     if (!address || typeof address === "string")
       throw new Error("missing private transaction address");
-    scope = `http://127.0.0.1:${address.port}/acme/`;
+    listenUrl = `http://127.0.0.1:${address.port}/`;
+    scope = configuredScope ?? new URL("acme/", listenUrl).href;
     owner = openTransactionStore({
       file: path.join(options.directory, "transaction.sqlite"),
       scope,
@@ -198,6 +205,7 @@ export async function startTransactionRuntime(
     service = createTransactionService(owner, {
       ownerLifetime: "service",
       ...(seams.scheduler ? { scheduler: seams.scheduler } : {}),
+      ...(seams.comparison ? { comparison: seams.comparison } : {}),
       read: {
         selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
         advertisedLimits: {
@@ -244,6 +252,7 @@ export async function startTransactionRuntime(
   let completion: Promise<void> | undefined;
   return Object.freeze({
     scope,
+    listenUrl,
     /** Test-only inventory, not an HTTP Operation Directory. */ targets: handler.targets,
     close(): Promise<void> {
       if (!completion) {
