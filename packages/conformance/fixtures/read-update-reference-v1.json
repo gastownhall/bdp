@@ -196,7 +196,36 @@
     "admission.beads.am-plain-corrected": "beads/am-plain-corrected",
     "admission.beads.am-problem-corrected": "beads/am-problem-corrected",
     "admission.beads.am-charset": "beads/am-charset",
-    "admission.beads.am-irrelevant": "beads/am-irrelevant"
+    "admission.beads.am-irrelevant": "beads/am-irrelevant",
+    "reference.beads.ra-source": "beads/ra-source",
+    "reference.beads.ra-target": "beads/ra-target",
+    "reference.beads.ra-update": "beads/ra-update",
+    "reference.beads.ra-delete": "beads/ra-delete",
+    "reference.links.ra-update": "links/ra-update",
+    "reference.links.ra-delete": "links/ra-delete",
+    "reference.alias.ra-locator-put": "alias/ra-locator-put",
+    "reference.alias.ra-locator-delete": "alias/ra-locator-delete",
+    "reference.links.ra-create-link-source": "links/ra-create-link-source",
+    "reference.links.ra-create-link-source-pin": "links/ra-create-link-source-pin",
+    "reference.links.ra-create-link-target": "links/ra-create-link-target",
+    "reference.links.ra-create-link-target-pin": "links/ra-create-link-target-pin",
+    "reference.alias.ra-locator-new": "alias/ra-locator-new",
+    "reference.beads.ra-created-id": "beads/ra-created-id",
+    "reference.links.ra-created-id": "links/ra-created-id",
+    "reference.beads.ra-metadata": "beads/ra-metadata",
+    "reference.beads.rb-source": "beads/rb-source",
+    "reference.beads.rb-target": "beads/rb-target",
+    "reference.links.rb-live": "links/rb-live",
+    "reference.alias.rb-locator-live": "alias/rb-locator-live",
+    "reference.alias.rb-locator-alias-local": "alias/rb-locator-alias-local",
+    "reference.alias.rb-locator-alias-absolute": "alias/rb-locator-alias-absolute",
+    "reference.alias.rb-locator-link-local": "alias/rb-locator-link-local",
+    "reference.alias.rb-locator-link-absolute": "alias/rb-locator-link-absolute",
+    "reference.alias.rb-locator-external": "alias/rb-locator-external",
+    "reference.beads.rb-rb-sequence-alias-tail": "beads/rb-rb-sequence-alias-tail",
+    "reference.alias.rb-locator-sequence": "alias/rb-locator-sequence",
+    "reference.beads.rb-rb-sequence-endpoint-tail": "beads/rb-rb-sequence-endpoint-tail",
+    "reference.links.rb-endpoint-source": "links/rb-endpoint-source"
   },
   "oracles": {
     "collections": {
@@ -321,6 +350,229 @@
           "tag": "a"
         }
       }
+    },
+    "referenceEvidence": {
+      "value-0": {
+        "n": 1
+      },
+      "value-1": {
+        "tag": "admission"
+      },
+      "value-2": {
+        "edge": 1
+      },
+      "value-3": {
+        "tag": "reference"
+      },
+      "value-4": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-put",
+        "target": "https://reference.invalid/acme/beads/ra-source"
+      },
+      "value-5": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-delete",
+        "target": "https://reference.invalid/acme/beads/ra-source"
+      },
+      "identities-0": [
+        ["https://reference.invalid/acme/beads/ra-delete"],
+        ["https://reference.invalid/acme/beads/ra-source"],
+        ["https://reference.invalid/acme/beads/ra-target"],
+        ["https://reference.invalid/acme/beads/ra-update"]
+      ],
+      "identities-1": [
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-6": {
+        "type": "https://github.com/gastownhall/bdp/problems/request",
+        "code": "malformed-request",
+        "status": 400,
+        "retry": "never"
+      },
+      "value-7": {
+        "n": 2
+      },
+      "value-8": {
+        "type": "https://github.com/gastownhall/bdp/problems/not-found",
+        "code": "resource-not-found",
+        "status": 404,
+        "retry": "after-state-change"
+      },
+      "identities-2": [
+        ["https://reference.invalid/acme/beads/ra-source"],
+        ["https://reference.invalid/acme/beads/ra-target"],
+        ["https://reference.invalid/acme/beads/ra-update"]
+      ],
+      "identities-3": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-9": {
+        "uri": "https://reference.invalid/acme/beads/ra-source",
+        "revision": "fixture-pin"
+      },
+      "identities-4": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "identities-5": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-create-link-target"],
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-10": {
+        "uri": "https://reference.invalid/acme/beads/ra-target",
+        "revision": "fixture-pin"
+      },
+      "identities-6": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-create-link-target"],
+        ["https://reference.invalid/acme/links/ra-create-link-target-pin"],
+        ["https://reference.invalid/acme/links/ra-delete"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-11": {
+        "edge": 2
+      },
+      "identities-7": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-create-link-target"],
+        ["https://reference.invalid/acme/links/ra-create-link-target-pin"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-12": {
+        "outcome": "updated",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-put",
+        "target": "https://reference.invalid/acme/beads/ra-target"
+      },
+      "value-13": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-new",
+        "target": "https://reference.invalid/acme/beads/ra-target"
+      },
+      "value-14": {
+        "outcome": "deleted",
+        "alias": "https://reference.invalid/acme/alias/ra-locator-delete"
+      },
+      "identities-8": [
+        ["https://reference.invalid/acme/beads/ra-created-id"],
+        ["https://reference.invalid/acme/beads/ra-source"],
+        ["https://reference.invalid/acme/beads/ra-target"],
+        ["https://reference.invalid/acme/beads/ra-update"]
+      ],
+      "value-15": {
+        "tag": "@made"
+      },
+      "identities-9": [
+        ["https://reference.invalid/acme/beads/ra-created-id"],
+        ["https://reference.invalid/acme/beads/ra-metadata"],
+        ["https://reference.invalid/acme/beads/ra-source"],
+        ["https://reference.invalid/acme/beads/ra-target"],
+        ["https://reference.invalid/acme/beads/ra-update"]
+      ],
+      "identities-10": [
+        ["https://reference.invalid/acme/links/ra-create-link-source"],
+        ["https://reference.invalid/acme/links/ra-create-link-source-pin"],
+        ["https://reference.invalid/acme/links/ra-create-link-target"],
+        ["https://reference.invalid/acme/links/ra-create-link-target-pin"],
+        ["https://reference.invalid/acme/links/ra-created-id"],
+        ["https://reference.invalid/acme/links/ra-update"]
+      ],
+      "value-16": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rb-locator-live",
+        "target": "https://reference.invalid/acme/beads/rb-source"
+      },
+      "identities-11": [
+        ["https://reference.invalid/acme/beads/rb-source"],
+        ["https://reference.invalid/acme/beads/rb-target"]
+      ],
+      "identities-12": [["https://reference.invalid/acme/links/rb-live"]],
+      "value-17": {
+        "type": "https://github.com/gastownhall/bdp/problems/validation",
+        "code": "validation-failed",
+        "status": 422,
+        "retry": "never",
+        "diagnostics": [
+          {
+            "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+          }
+        ]
+      },
+      "value-18": {
+        "type": "https://github.com/gastownhall/bdp/problems/validation",
+        "code": "validation-failed",
+        "status": 422,
+        "retry": "never",
+        "diagnostics": [
+          {
+            "message": "Link endpoint is not a Bead reference"
+          }
+        ]
+      },
+      "value-19": {
+        "type": "https://github.com/gastownhall/bdp/problems/validation",
+        "code": "validation-failed",
+        "status": 422,
+        "retry": "never",
+        "diagnostics": [
+          {
+            "message": "an alias put's target must be a canonical in-Scope Bead reference; an alias, a Link, or an external URI is not admitted"
+          }
+        ],
+        "operationIndex": 0
+      },
+      "identities-13": [
+        ["https://reference.invalid/acme/beads/rb-rb-sequence-alias-tail"],
+        ["https://reference.invalid/acme/beads/rb-source"],
+        ["https://reference.invalid/acme/beads/rb-target"]
+      ],
+      "value-20": {
+        "type": "https://github.com/gastownhall/bdp/problems/validation",
+        "code": "validation-failed",
+        "status": 422,
+        "retry": "never",
+        "diagnostics": [
+          {
+            "message": "Link endpoint is not a Bead reference"
+          }
+        ],
+        "operationIndex": 0
+      },
+      "identities-14": [
+        ["https://reference.invalid/acme/beads/rb-rb-sequence-alias-tail"],
+        ["https://reference.invalid/acme/beads/rb-rb-sequence-endpoint-tail"],
+        ["https://reference.invalid/acme/beads/rb-source"],
+        ["https://reference.invalid/acme/beads/rb-target"]
+      ],
+      "value-21": {
+        "outcome": "updated",
+        "alias": "https://reference.invalid/acme/alias/rb-locator-live",
+        "target": "https://reference.invalid/acme/beads/rb-target"
+      },
+      "value-22": {
+        "type": "https://github.com/gastownhall/bdp/problems/conflict",
+        "code": "idempotency-conflict",
+        "status": 409,
+        "retry": "never"
+      },
+      "value-23": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rb-locator-alias-local",
+        "target": "https://reference.invalid/acme/beads/rb-target"
+      },
+      "identities-15": [
+        ["https://reference.invalid/acme/links/rb-endpoint-source"],
+        ["https://reference.invalid/acme/links/rb-live"]
+      ]
     }
   },
   "readSeed": {
