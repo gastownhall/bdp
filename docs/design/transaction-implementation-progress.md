@@ -426,3 +426,64 @@ Resource, receipt, fingerprint, Event or key is rewritten or silently reseeded.
 Disposable compatibility tests retain pending claims, creator facts and outcomes
 byte-identically on refusal. Historical Read evidence remains attached to its
 original observed head until a fresh frozen-head qualification is performed.
+
+## Private same-owner Read composition
+
+The Transactional owner now supplies an expiring synchronous Resource/configuration
+reader to the existing AuthorityReadPlane. The shared Read contract contains only
+resource, resources, incidentLinks, alias and policy; it does not require or fabricate
+Read+Update key outcomes. The owner's actual immutable installation supplies the
+Type inventory and fixed all-visible, schema-free/unowned configuration. Named
+policy lookups are absent in this private installation.
+
+The private transaction-read module composes canonical Resource/properties reads,
+revisions, collections/selectors, incident Links, Types, alias resolution and retained
+pagination with the same owner that commits mutations. Reader methods expire after
+callback completion or failure, reject asynchronous callbacks, and cannot reenter
+writes or close. Frozen row snapshots carry no live SQLite capability. Fenced owners
+refuse reads with their failure cause retained. The caller owns the store lifetime;
+closing the Read plane releases its cursors without closing the write owner.
+
+Tests exercise actual commits and failed-batch rollback, alias repoint/deletion and
+dangling targets, reopen recovery, pagination across later commits, callback lifetime,
+reentrant reads during tentative effects, and injected before/after-COMMIT failures.
+Those injections are not disk/power-loss qualification. Existing private format,
+public exports, profile advertisements and the pinned Read evidence remain unchanged.
+
+This is not yet a Transactional serving surface. Same-entry source-position
+propagation, continuation source context, current serving fields, minimum-position
+barriers, receipt reads and replication Snapshot/changefeed support remain outside
+this slice. Existing collection pagination is not a replication bootstrap. No HTTP
+listener or Transactional profile claim is introduced.
+
+## Private Transactional Read source context
+
+The same-owner Read entry now captures an immutable epoch/view/position record
+alongside the rows. The epoch comes from persisted owner metadata; the view is the
+owner's existing fixed all-visible projection, also used by its receipts/groups.
+The position comes from the committed metadata head, including `pos-0` for an empty
+Scope. Admission, no-op, alias-only and failed batches do not invent a new position.
+No receipt effect position or later diagnostic inspection supplies read context.
+
+The shared Read plane treats this as optional, source-private string data. Basic
+Read and Read+Update gain no required Scope-history field or wire member. On a
+collection continuation, the observation distinguishes current `sourceContext`
+from the retained page's original `snapshotSourceContext`. The latter stays paired
+with its original selected rows and revisions while current context is captured at
+each serving entry. A WeakMap pairs actual immutable page objects with their original
+context; it neither retains page keys indefinitely nor points back to snapshots.
+It is not a traversal capability. Cursor expiry and projection checks remain in
+ordinary pagination, and context storage consumes the same retained byte/node budget.
+
+The private Transactional composition validates exact epoch/view/position records
+before delivering observed results, including alias and observed-problem responses.
+Tests distinguish synchronous capture from later Promise delivery, a newer position
+with an unchanged Resource revision, repeated continuation serving context, current
+context on expired-cursor refusal, and immutable callback capture. Existing
+provenance, metadata, diagnostic-budget and storage-format changes on main are
+preserved through ordinary merge ancestry.
+
+This supplies internal observations, not HTTP consistency qualification. Selecting
+and enforcing response fields/minimum barriers, conditional/HEAD ordering, receipt
+serving context, replication Snapshots and changefeeds remain separate work. No
+public profile advertisement or historical evidence relabeling is implied.

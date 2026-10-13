@@ -22,6 +22,10 @@ export interface ReadPaginationOptions {
   readonly generateOpaqueToken: () => string;
 }
 
+/** Source-private immutable observation data, never part of a wire page. Basic
+ * Read pagination does not assign these fields any profile-specific meaning. */
+export type ReadSourceContext = Readonly<Record<string, string>>;
+
 export interface ReadPage<Item> {
   readonly items: readonly Item[];
   readonly next: string | null;
@@ -37,6 +41,7 @@ export interface ReadFirstPageInput<Item> {
   readonly projection: string;
   /** Absolute in-Scope URL retaining all parameters required by this projection. */
   readonly continuationUrl: string;
+  readonly sourceContext?: ReadSourceContext;
 }
 
 export interface ReadContinuationInput {
@@ -100,6 +105,7 @@ interface Snapshot<Item> {
   readonly cursors: Map<number, string>;
   /** Stable replay returns the exact same immutable page object. */
   readonly pages: Map<number, ReadPage<Item>>;
+  readonly sourceContext?: ReadSourceContext;
 }
 
 export interface ReadPagination<Item> {
@@ -111,6 +117,9 @@ export interface ReadPagination<Item> {
   validateLimit(limit: number | undefined): number;
   firstPage(input: ReadFirstPageInput<Item>): ReadPage<Item>;
   continuePage(input: ReadContinuationInput): ReadPage<Item>;
+  /** Metadata paired with this authority's immutable page. This is not an
+   * authorization/expiry check; only firstPage/continuePage admit traversal. */
+  sourceContext(page: ReadPage<Item>): ReadSourceContext | undefined;
   cleanupExpired(): ReadPaginationCleanup;
   close(): ReadPaginationCleanup;
 }
@@ -145,6 +154,9 @@ export function createReadPagination<Item = unknown>(
 ): ReadPagination<Item> {
   const prepared = prepareOptions(options);
   const snapshots = new Set<Snapshot<Item>>();
+  // Values do not point back to snapshots/pages. Externally retained pages may
+  // outlive cursor expiry; their context is collectible with the page itself.
+  const pageContexts = new WeakMap<ReadPage<Item>, ReadSourceContext | undefined>();
   const cursorIndex = new Map<string, CursorBinding<Item>>();
   let retainedSnapshotBytes = 0;
   let retainedSnapshotNodes = 0;
@@ -286,6 +298,7 @@ export function createReadPagination<Item = unknown>(
         : null;
     const page: ReadPage<Item> = Object.freeze({ items, next });
     snapshot.pages.set(offset, page);
+    pageContexts.set(page, snapshot.sourceContext);
     return page;
   };
 
@@ -295,6 +308,11 @@ export function createReadPagination<Item = unknown>(
       maxPageItems: prepared.maxPageItems,
       cursorTtlMs: prepared.cursorTtlMs,
     }),
+
+    sourceContext(page) {
+      if (!pageContexts.has(page)) throw localError("invalid-input", "foreign pagination page");
+      return pageContexts.get(page);
+    },
 
     validateLimit(limit: number | undefined): number {
       requireOpen();
@@ -327,11 +345,35 @@ export function createReadPagination<Item = unknown>(
       const nodeCapacity = willRetain
         ? prepared.retainedSnapshotNodeCapacity - retainedSnapshotNodes
         : prepared.retainedSnapshotNodeCapacity;
-      const copied = snapshotItems(input.items, byteCapacity, nodeCapacity);
+      const contextCopy =
+        input.sourceContext === undefined
+          ? undefined
+          : snapshotJson(input.sourceContext, byteCapacity, nodeCapacity);
+      let sourceContext: ReadSourceContext | undefined;
+      if (contextCopy !== undefined) {
+        const value = contextCopy.value;
+        if (
+          value === null ||
+          typeof value !== "object" ||
+          Array.isArray(value) ||
+          Object.values(value).some((entry) => typeof entry !== "string")
+        )
+          throw localError("invalid-snapshot", "source context must be a string record");
+        sourceContext = value as ReadSourceContext;
+      }
+      const copied = snapshotItems(
+        input.items,
+        byteCapacity - (contextCopy?.retainedBytes ?? 0),
+        nodeCapacity - (contextCopy?.retainedNodes ?? 0),
+      );
+      const retainedBytes = copied.retainedBytes + (contextCopy?.retainedBytes ?? 0);
+      const retainedNodes = copied.retainedNodes + (contextCopy?.retainedNodes ?? 0);
       const { items } = copied;
 
       if (items.length <= limit) {
-        return Object.freeze({ items: Object.freeze(items.slice()), next: null });
+        const page = Object.freeze({ items: Object.freeze(items.slice()), next: null });
+        pageContexts.set(page, sourceContext);
+        return page;
       }
 
       // Reserve every future cursor/page position atomically, but mint tokens lazily. This makes
@@ -357,8 +399,9 @@ export function createReadPagination<Item = unknown>(
         projection,
         continuationUrl: continuation,
         expiresAt,
-        retainedBytes: copied.retainedBytes,
-        retainedNodes: copied.retainedNodes,
+        retainedBytes,
+        retainedNodes,
+        ...(sourceContext === undefined ? {} : { sourceContext }),
         reservedCursorPositions,
         cursors: new Map(),
         pages: new Map(),
@@ -367,8 +410,8 @@ export function createReadPagination<Item = unknown>(
       // Register the snapshot first so the capacity count accounts for it. Roll back if first-
       // cursor construction fails; no partially continuable snapshot escapes.
       snapshots.add(snapshot);
-      retainedSnapshotBytes += copied.retainedBytes;
-      retainedSnapshotNodes += copied.retainedNodes;
+      retainedSnapshotBytes += retainedBytes;
+      retainedSnapshotNodes += retainedNodes;
       retainedCursorPositions += reservedCursorPositions;
       try {
         const page = pageAt(snapshot, 0);
