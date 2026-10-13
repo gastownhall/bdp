@@ -176,6 +176,7 @@ it("raw replay equals finite groups, live commits follow once, no-op emits no fr
   expect(groups(stream)).toEqual(
     [...first.groups, ...second.groups].map((g) => transactionChangeFrame(g).slice(0, -2)),
   );
+  expect([first.groups, second.groups].map((g) => g.length)).toEqual([1, 1]);
   for (const [index, rawFinite] of [firstBytes, secondBytes].entries())
     expect(rawFinite).toContain(groups(stream)[index]!.split("\ndata: ")[1]!);
   expect(groups(stream)[0]).toContain('"n":100');
@@ -761,4 +762,36 @@ it("pre-abort between selection and stream registration never writes a finite500
   expect(stream.wireBytes.length).toBe(0);
   // Fixture cleanup awaits close: ordinary cancellation must not become a
   // retained unexpected fault or shutdown AggregateError.
+});
+
+it("destroyed transport before close notification is cancellation, not a retained stream fault", async () => {
+  const pumpModule = (await import(
+    new URL("../dist/transaction-sse.js", import.meta.url).href
+  )) as typeof import("./transaction-sse.js");
+  const actualPump = pumpModule.pumpTransactionChanges;
+  let witnessedWindow = false;
+  vi.spyOn(pumpModule, "pumpTransactionChanges").mockImplementation(
+    async (...args: Parameters<typeof pumpTransactionChanges>) => {
+      const [sink, initial, , signal] = args;
+      const response = sink as import("node:http").ServerResponse;
+      expect(initial.groups).toHaveLength(1);
+      expect(response.headersSent).toBe(true);
+      response.destroy();
+      expect(response.destroyed).toBe(true);
+      expect(signal.aborted).toBe(false);
+      // Node's close event is queued after this microtask continuation. The
+      // real pump now observes destroyed=true before the disconnect signal.
+      await Promise.resolve();
+      expect(signal.aborted).toBe(false);
+      witnessedWindow = true;
+      return actualPump(...args);
+    },
+  );
+  const f = await fixture();
+  await f.create("before-close");
+  const stream = f.stream();
+  await stream.closed;
+  expect(witnessedWindow).toBe(true);
+  expect(stream.body).not.toContain("event: error");
+  await expect(f.runtime.close()).resolves.toBeUndefined();
 });

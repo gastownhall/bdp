@@ -299,6 +299,7 @@ export function captureTransactionRuntimeConfiguration(
     TRANSACTION_RUNTIME_DEFAULTS.changefeedStream,
     TRANSACTION_RUNTIME_DEFAULTS.transport.timeout,
   );
+  validateTransactionStreamTimers(settings.changefeedStream);
   const liveStreamsAvailable =
     settings.changefeedStream.heartbeatMilliseconds < settings.transport.timeout;
   const clock = seams.clock ?? Date.now;
