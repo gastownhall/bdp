@@ -10,6 +10,8 @@ import type {
 import type { SchemaValidator } from "./schema-validator.js";
 
 export class TransactionalHarnessError extends Error {}
+/** Safe target-observation reason, independent of runner implementation. */
+export class TransactionalReceiptFailure extends Error {}
 
 export interface TransactionalSessionBinding {
   readonly scenario: string;
@@ -79,10 +81,7 @@ export function createTransactionalObservations(
   scope: string,
   maximum: number,
 ) {
-  const ledger = new Map<
-    string,
-    { reference: ReceiptObservationReference; body: unknown; wire: Buffer }
-  >();
+  const ledger = new Map<string, { reference: ReceiptObservationReference; body: unknown }>();
   let accepted: TransactionalSessionBinding | undefined;
   const session = () => {
     let current: TransactionalSession;
@@ -155,37 +154,37 @@ export function createTransactionalObservations(
           "delete-alias",
           "batch",
         ].includes(operation ?? "");
-      const retainedSource =
-        request.method === "GET"
-          ? [...ledger.values()].find((entry) => entry.reference.receipt === request.url)
-          : undefined;
-      if (pointer !== "/id" || (!mutationSource && !retainedSource)) {
-        // Ordinary captures keep their normal meaning, including rebinding. They
-        // revoke any older authority attached to this binding rather than inherit it.
+      if (pointer !== "/id" || !mutationSource) {
+        // Ordinary captures keep their normal meaning. Reusing a binding revokes
+        // its prior authority; only canonical mutation responses can grant it.
         ledger.delete(binding);
         return;
       }
       if (response.url !== request.url)
         throw new TransactionalHarnessError("source receipt route mismatch");
-      if (retainedSource && !isDeepStrictEqual(value, retainedSource.body))
-        throw new Error("retained source receipt differs from original wire facts");
-      if (!validator || validator.validate("#/$defs/mutationReceipt", value).length)
-        throw new Error("source receipt schema invalid");
-      const body = value as Record<string, unknown>;
-      if (body.status !== "completed" && body.status !== "failed")
-        throw new TransactionalHarnessError("source receipt disposition unavailable");
-      if ((body.status === "completed" && body.next !== null) || body.detail !== "available")
-        throw new TransactionalHarnessError("source receipt exceeds inline fixture");
-      const receipt = receiptUrl(body.id, scope);
       if (
         response.status !== 200 ||
         !response.wireResponseBytes ||
         response.wireResponseBytes.length > 2097152
       )
         throw new TransactionalHarnessError("source receipt wire unavailable");
+      validateReceiptWire(response, "GET");
+      if (!validator) throw new TransactionalHarnessError("source receipt validator unavailable");
+      if (validator.validate("#/$defs/mutationReceipt", value).length)
+        throw new TransactionalReceiptFailure("source receipt schema invalid");
+      const body = value as Record<string, unknown>;
+      if (body.status !== "completed" && body.status !== "failed")
+        throw new TransactionalHarnessError("source receipt disposition unavailable");
+      if ((body.status === "completed" && body.next !== null) || body.detail !== "available")
+        throw new TransactionalHarnessError("source receipt exceeds inline fixture");
+      let receipt: string;
+      try {
+        receipt = receiptUrl(body.id, scope);
+      } catch {
+        throw new TransactionalReceiptFailure("source receipt identity invalid");
+      }
       if (ledger.has(binding) || ledger.size >= maximum)
         throw new TransactionalHarnessError("receipt authority binding limit or reuse");
-      validateReceiptWire(response, "GET");
       ledger.set(binding, {
         reference: Object.freeze({
           action,
@@ -196,7 +195,6 @@ export function createTransactionalObservations(
           session: Object.freeze({ ...served }),
         }),
         body: JSON.parse(response.bodyText),
-        wire: Buffer.from(response.wireResponseBytes),
       });
     },
     resolve(binding: unknown, value: unknown) {
@@ -204,8 +202,8 @@ export function createTransactionalObservations(
       const source = entry?.reference;
       if (!source || source.receipt !== value || receiptUrl(value, scope) !== source.receipt)
         throw new TransactionalHarnessError("receipt not authorized by original wire observation");
-      // The retained wire is a private defensive copy. Its digest records the
-      // original observation; no mutable persisted digest or tamper hook exists.
+      // The digest records original wire provenance. Later serving headers may
+      // change, so agreement compares retained JSON facts rather than wire bytes.
       const active = session();
       if (
         active.binding.runtimeConfigurationIdentity !==
@@ -218,8 +216,18 @@ export function createTransactionalObservations(
         active,
         validate(response: HttpExchangeResponse, method: "GET" | "HEAD") {
           validateReceiptWire(response, method);
-          if (method === "GET" && !isDeepStrictEqual(JSON.parse(response.bodyText), entry?.body))
-            throw new Error("retained receipt differs from original wire facts");
+          if (method === "GET") {
+            let body: unknown;
+            try {
+              body = JSON.parse(response.bodyText);
+            } catch {
+              throw new TransactionalReceiptFailure("retained receipt JSON invalid");
+            }
+            if (!isDeepStrictEqual(body, entry?.body))
+              throw new TransactionalReceiptFailure(
+                "retained receipt differs from original wire facts",
+              );
+          }
         },
       };
     },
@@ -231,26 +239,29 @@ export function createTransactionalObservations(
 export function validateReceiptWire(response: HttpExchangeResponse, method: "GET" | "HEAD") {
   const bytes = response.wireResponseBytes;
   if (!(bytes instanceof Uint8Array) || bytes.byteLength > 2097152)
-    throw new Error("receipt wire evidence unavailable");
+    throw new TransactionalHarnessError("receipt wire evidence unavailable");
   const wire = Buffer.from(bytes),
     delimiter = wire.indexOf("\r\n\r\n");
-  if (delimiter < 0 || delimiter > 65536) throw new Error("receipt wire header bound");
+  if (delimiter < 0 || delimiter > 65536)
+    throw new TransactionalHarnessError("receipt wire header bound");
   const lines = wire.subarray(0, delimiter).toString("latin1").split("\r\n");
   if (lines.shift() !== `HTTP/1.1 ${response.status} OK`)
-    throw new Error("receipt wire status mismatch");
+    throw new TransactionalHarnessError("receipt wire status mismatch");
   const actual: Record<string, string> = {};
   for (const line of lines) {
     const colon = line.indexOf(":");
-    if (colon < 1) throw new Error("receipt wire header mismatch");
+    if (colon < 1) throw new TransactionalHarnessError("receipt wire header mismatch");
     const name = line.slice(0, colon).toLowerCase(),
       value = line.slice(colon + 1).trim();
-    if (Object.hasOwn(actual, name)) throw new Error("duplicate receipt header");
+    if (Object.hasOwn(actual, name))
+      throw new TransactionalHarnessError("duplicate receipt header");
     actual[name] = value;
   }
   const expected = Object.fromEntries(
     Object.entries(response.headers).map(([k, v]) => [k.toLowerCase(), v]),
   );
-  if (!isDeepStrictEqual(actual, expected)) throw new Error("receipt wire headers mismatch");
+  if (!isDeepStrictEqual(actual, expected))
+    throw new TransactionalHarnessError("receipt wire headers mismatch");
   const body = wire.subarray(delimiter + 4);
   if (
     body.length > 1048576 ||
@@ -259,5 +270,5 @@ export function validateReceiptWire(response: HttpExchangeResponse, method: "GET
     (method === "HEAD" && body.length !== 0) ||
     (method === "GET" && Number(actual["content-length"]) !== body.length)
   )
-    throw new Error("receipt wire body mismatch");
+    throw new TransactionalHarnessError("receipt wire body mismatch");
 }
