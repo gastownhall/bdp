@@ -1448,3 +1448,101 @@ clears each delivered packet before the next heartbeat/poll/pull, retaining only
 its continuation and a prospective successor during advancement. Stream closures
 retain the service and signal, not a registry of prior packets. No WeakRef/forced-GC
 claim or engine-specific release deadline is inferred from those reference chains.
+
+## S2a: private valid set singleton and batch HTTP
+
+The normal private batch and singleton preparation now share the existing valid
+set evaluator. Both `update-where` and `delete-where` are actual canonical POST
+targets; the private installed target binding requires exactly twelve targets.
+Read+Update and sequence grammar are unchanged. Public discovery, profile
+admission, conformance receipt authority and catalog credit remain closed.
+
+Unsupported Selector grammar/features or private Selector complexity remain
+explicit development gaps pending the existing Q1/Q2 rulings. Complete known
+carrier shapes, labels and key grammar are checked before principal authorization;
+principal refusal now precedes the private gap. This deliberately corrects the
+previous pre-auth development-limit response. A later malformed member still
+wins over an earlier unsupported Selector. No unsupported request acquires a key
+or partial graph effects. The shared depth bound uses equivalent singleton and
+one-operation batch wrappers. The64KiB receiving cap measures the actual
+submitted singleton body, not its internal batch wrapper; the exact-boundary test
+fails before that correction and passes afterward.
+
+Cardinality syntax and numeric execution admission are separate. Negative or
+fractional cardinality and empty cardinality objects are pre-key malformed input.
+A schema-valid integer such as9007199254740993 fails the existing number admission
+with a retained422 validation-failed problem inside receipt200.1e30 is admissible
+under shortest-decimal round-trip equality; a minimum that large fails cardinality
+on a small graph, while a maximum that large does not. Cardinality is still checked
+before cumulative matched-resource capacity.
+
+Locatable set numeric and cardinality failures now carry `problem.pointer` into
+the original submitted singleton or batch. Cross-carrier retry preserves that
+original receipt rather than rewriting its location. Property Change failures map
+to the unique original change path when the existing diagnostic identifies it;
+repeated paths and afterstate validation identify the original `/change` array.
+A final Resource diagnostic's instanceLocation is not repurposed as a request
+pointer. Shared evaluator behavior is unchanged. Ordinary non-set Resource-operation
+receipts still omit `problem.pointer` for some locatable failures, including a
+missing Property Change path or an inadmissible property number. Their shared
+RU/evaluator-to-receipt mapping needs separate scope; the conditional pointer
+obligation is not fully qualified by this set-only repair.
+
+Selectors compare stored values exactly: a bare endpoint URI comparison does not
+match a Pinned Reference object. The actual HTTP cascade regression first selects
+one bare Link, misses its pinned peer, then fails the guarded Bead deletion and
+rolls back the entire transaction. No implicit pin stripping or Read endpoint
+filter is added to sets.
+
+The installed raw witness uses captured compiled contracts, canonical Host with
+physical port0, generated credentials and real receipt/Event continuation URLs.
+Its32 unowned Link deletions yield33 receipt entries over pages32+1,96 Scope Events
+over pages32+32+32, and one whole change group. It also checks owned source revisions,
+no-op stability, compiled afterstate rollback, retained success/failure after reopen
+and changed-population retry. Independent corrupted expectations must fail; this
+is bounded private observation, not an ordinary-runner qualification claim.
+
+The existing32 matched-resource cap does not bound enumeration: each operation
+still materializes staged candidates and applies visibility/selection. Later sets
+must observe earlier writes; this forbids one frozen transaction-wide candidate
+snapshot but does not make physical full scans a universal protocol requirement.
+No owner enumeration, Selector implementation, storage format or public limit was
+changed in this slice. General scan-work bounds, negative Selector admission,
+metadata-only Event projection gaps and remaining discovery/consistency obligations
+remain unqualified. Historical larger-budget evidence above remains historical.
+
+
+### S2a review closure: syntax before private depth and one singleton shape pass
+
+The earlier set-refusal, singleton-count and remaining-work statements in
+**Executable boundary**, **Integration and remaining work**, **Private direct
+receiving and admission composition**, the first private HTTP increment, and
+**Private valid-set core, with serving admission still closed** are superseded
+by S2a.
+Valid supported sets now use the singleton and batch HTTP routes. Lists in those
+historical increments that identify all set operations as remaining work are
+historical; negative Selector policy, general scan-work bounds and complete
+qualification remain open. Those historical refusal tests and evidence are retained.
+The earlier depth/unsupported-input ordering is also superseded: complete known
+carrier syntax and key checks precede authorization, and authorization precedes
+an otherwise valid private depth or Selector gap.
+
+Synthetic Resource and set syntax parsing now uses one iterative lossless
+serializer that preserves numeric lexemes and object key order. It scans the
+already byte-bounded received input without applying the execution depth refusal
+inside a synthetic parser. All known closed shapes, references, labels and Property
+Change syntax are validated before the unchanged depth-32 execution check. The
+explicit depth traversal then checks the original batch root, or an equivalent
+singleton wrapper. This permits a determinate malformed request to return 400
+rather than being hidden by the private depth gap. It does not evaluate Selectors
+or graph candidates before that check, introduce a new work limit, or resolve
+negative Selector admission policy.
+
+Set singletons now reject a raw `operation` field before adding the route's
+operation, then use the one mixed-carrier shape validation. That same pass rejects
+all other disallowed raw fields, including name and idempotencyKey; no second full
+set/RU syntax parse is needed. The actual singleton body still owns the 64KiB
+receiving limit, and one-operation batch/singleton depth boundaries are unchanged.
+Actual HTTP regressions cover malformed-plus-deep Resource and set inputs, forbidden
+sequence set members with no earlier member/key effects, raw route-discriminator
+protection, both depth boundaries and the exact body-byte boundary.

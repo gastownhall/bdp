@@ -66,6 +66,8 @@ function ready(listenUrl: string) {
       deleteLink: "delete-link",
       putAlias: "put-alias",
       deleteAlias: "delete-alias",
+      updateWhere: "update-where",
+      deleteWhere: "delete-where",
       batch: "batch",
       sequence: "sequence",
     }).map(([k, v]) => [k, `${scope}operations/${v}`]),

@@ -135,10 +135,13 @@ describe("private direct Transactional receiving order", () => {
     expect(claim.receipt.status).toBe("pending");
     f.store.retract(claim);
   });
-  it("keeps unsupported sets and excessive private depth distinct from protocol malformed", async () => {
+  it("keeps unsupported Selectors and excessive private depth distinct from protocol malformed", async () => {
     const f = fixture();
     expect(
-      await submitTransaction(f.store, submission([{ operation: "updateWhere" }])),
+      await submitTransaction(
+        f.store,
+        submission([{ operation: "deleteWhere", collection: "beads", selector: "$..*" }]),
+      ),
     ).toMatchObject({ kind: "development-limit" });
     let deep: unknown = 1;
     for (let i = 0; i < 40; i++) deep = { deep };
@@ -534,3 +537,346 @@ describe("private direct Transactional receiving order", () => {
     expect(broken.store.inspect().resources).toEqual([]);
   });
 });
+
+describe("valid private set admission", () => {
+  const set = { operation: "deleteWhere", collection: "beads", selector: "$[?@.id]" };
+  it.each(["batch", "singleton"] as const)(
+    "checks complete shape/key and principal before %s Selector gap",
+    async (carrier) => {
+      const f = fixture();
+      const request = (key: string): TransactionSubmission => ({
+        ...submission([], key),
+        carrier:
+          carrier === "batch" ? { kind: "batch" } : { kind: "singleton", operation: "deleteWhere" },
+        body: JSON.stringify(
+          carrier === "batch"
+            ? { operations: [{ ...set, selector: "$..*" }, create()] }
+            : { collection: "beads", selector: "$..*" },
+        ),
+      });
+      for (const [authorization, code] of [
+        [{ kind: "unauthenticated" }, "unauthenticated"],
+        [{ kind: "forbidden" }, "forbidden"],
+      ] as const) {
+        const before = f.store.inspect();
+        const key = `${carrier}_${code}`;
+        expect(await submitTransaction(f.store, { ...request(key), authorization })).toMatchObject({
+          kind: "refused",
+          code,
+        });
+        expect(
+          await submitTransaction(f.store, { ...request("bad key"), authorization }),
+        ).toMatchObject({ kind: "refused", code: "malformed-request" });
+        expect(f.store.inspect()).toEqual(before);
+        expect(await submitTransaction(f.store, submission([create(key)], key))).toMatchObject({
+          kind: "receipt",
+          receipt: { status: "completed" },
+        });
+      }
+      expect(await submitTransaction(f.store, request("supported_auth"))).toMatchObject({
+        kind: "development-limit",
+      });
+      expect(
+        await submitTransaction(f.store, submission([create("after_gap")], "supported_auth")),
+      ).toMatchObject({ kind: "receipt", receipt: { status: "completed" } });
+      expect(
+        await submitTransaction(f.store, {
+          ...submission([
+            { ...set, selector: "$..*" },
+            { ...set, cardinality: {} },
+          ]),
+          authorization: { kind: "unauthenticated" },
+        }),
+      ).toMatchObject({ code: "malformed-request" });
+    },
+  );
+  it("separates cardinality syntax, numeric admission and guarded failure, preserving original pointers on replay/reopen", async () => {
+    const f = fixture();
+    for (const cardinality of [{}, { min: -1 }, { min: 1.5 }]) {
+      expect(
+        await submitTransaction(f.store, submission([{ ...set, cardinality }], "shape")),
+      ).toMatchObject({ kind: "refused", status: 400 });
+      expect(f.store.inspect()).toMatchObject({ resources: [], groups: [] });
+    }
+    expect(await submitTransaction(f.store, submission([create()], "shape"))).toMatchObject({
+      receipt: { status: "completed" },
+    });
+    for (const [literal, code, status] of [
+      ["9007199254740993", "validation-failed", 422],
+      ["1e30", "cardinality-violated", 409],
+    ] as const) {
+      for (const singletonFirst of [true, false]) {
+        const key = `${code}_${singletonFirst}`;
+        const input = `{ "collection":"beads", "selector":"$[?@.id]", "cardinality":{"min":${literal}} }`;
+        const singleton: TransactionSubmission = {
+          ...submission([], key),
+          carrier: { kind: "singleton", operation: "deleteWhere" },
+          body: input,
+        };
+        const wrapped: TransactionSubmission = {
+          ...submission([], key),
+          body: `{"operations":[{"operation":"deleteWhere",${input.slice(input.indexOf('"collection"'))}]}`,
+        };
+        const first = await submitTransaction(f.store, singletonFirst ? singleton : wrapped);
+        expect(first).toMatchObject({
+          kind: "receipt",
+          receipt: {
+            status: "failed",
+            problem: {
+              code,
+              status,
+              operationIndex: 0,
+              pointer: `${singletonFirst ? "" : "/operations/0"}/cardinality/min`,
+            },
+          },
+        });
+        f.reopen();
+        expect(await submitTransaction(f.store, singletonFirst ? wrapped : singleton)).toEqual(
+          first,
+        );
+      }
+    }
+    expect(
+      await submitTransaction(
+        f.store,
+        submission([{ ...set, cardinality: { min: 5, max: 2 } }], "inverted"),
+      ),
+    ).toMatchObject({
+      receipt: {
+        problem: { code: "cardinality-violated", pointer: "/operations/0/cardinality/min" },
+      },
+    });
+    const largeMax = {
+      ...submission([], "large_max"),
+      body: '{"operations":[{"operation":"deleteWhere","collection":"beads","selector":"$[?@.id]","cardinality":{"max":1e30}}]}',
+    };
+    const completed = await submitTransaction(f.store, largeMax);
+    expect(completed).toMatchObject({ receipt: { status: "completed" } });
+    expect(
+      await submitTransaction(f.store, {
+        ...largeMax,
+        body: largeMax.body.replace("1e30", "1e+30"),
+      }),
+    ).toEqual(completed);
+  });
+  it("maps known numeric failure at the original outer index and rolls back staged work", async () => {
+    const f = fixture();
+    const request = submission([create("a"), create("b"), { ...set, cardinality: { min: 0 } }]);
+    const result = await submitTransaction(f.store, {
+      ...request,
+      body: request.body.replace('"min":0', '"min":9007199254740993'),
+    });
+    expect(result).toMatchObject({
+      receipt: {
+        status: "failed",
+        problem: {
+          operationIndex: 2,
+          pointer: "/operations/2/cardinality/min",
+          diagnostics: [{ message: "unsupported number at request location /cardinality/min" }],
+        },
+      },
+    });
+    expect(f.store.inspect()).toMatchObject({ resources: [], groups: [] });
+  });
+  it("uses the same depth boundary for singleton and wrapped set content", async () => {
+    const f = fixture();
+    for (const [depth, kind] of [
+      [27, "receipt"],
+      [28, "development-limit"],
+    ] as const) {
+      let value: unknown = 0;
+      for (let i = 0; i < depth; i++) value = { nested: value };
+      const input = {
+        collection: "beads",
+        selector: "$[?@.id]",
+        change: [{ op: "add", path: "/deep", value }],
+      };
+      for (const singleton of [true, false]) {
+        const request: TransactionSubmission = {
+          ...submission([], `depth_${depth}_${singleton}`),
+          carrier: singleton ? { kind: "singleton", operation: "updateWhere" } : { kind: "batch" },
+          body: JSON.stringify(
+            singleton ? input : { operations: [{ operation: "updateWhere", ...input }] },
+          ),
+        };
+        expect(await submitTransaction(f.store, request)).toMatchObject({ kind });
+      }
+    }
+  });
+});
+
+it.each([true, false])(
+  "keeps Property Change locations in the original carrier (singleton=%s)",
+  async (singleton) => {
+    const f = fixture();
+    await submitTransaction(f.store, submission([{ ...create(), properties: { n: 0 } }], "seed"));
+    for (const repeated of [false, true]) {
+      const change = repeated
+        ? [
+            { op: "remove", path: "/n" },
+            { op: "remove", path: "/n" },
+          ]
+        : [{ op: "remove", path: "/missing" }];
+      const input = { collection: "beads", selector: "$[?@.id]", change };
+      const request: TransactionSubmission = {
+        ...submission([], `patch_${repeated}`),
+        carrier: singleton ? { kind: "singleton", operation: "updateWhere" } : { kind: "batch" },
+        body: JSON.stringify(
+          singleton ? input : { operations: [{ operation: "updateWhere", ...input }] },
+        ),
+      };
+      const before = f.store.inspect();
+      const result = await submitTransaction(f.store, request);
+      expect(result).toMatchObject({
+        receipt: {
+          status: "failed",
+          problem: {
+            code: "validation-failed",
+            pointer: `${singleton ? "" : "/operations/0"}/change${repeated ? "" : "/0/path"}`,
+            diagnostics: [{ instanceLocation: repeated ? "/n" : "/missing" }],
+          },
+        },
+      });
+      expect(f.store.inspect().resources).toEqual(before.resources);
+      expect(f.store.inspect().groups).toEqual(before.groups);
+    }
+  },
+);
+
+it("counts every outer set before negotiation while retained sets bypass fresh operation capacity", async () => {
+  const f = fixture();
+  const operations = [
+    { operation: "deleteWhere", collection: "beads", selector: "$[?@.id]" },
+    { operation: "deleteWhere", collection: "links", selector: "$[?@.id]" },
+  ];
+  const request = submission(operations);
+  expect(
+    await submitTransaction(f.store, {
+      ...request,
+      receiving: { acceptsJson: false, maximumOperations: 1 },
+    }),
+  ).toMatchObject({ kind: "refused", code: "limit-exceeded", limit: "transaction.operations" });
+  expect(
+    await submitTransaction(f.store, {
+      ...request,
+      receiving: { acceptsJson: false, maximumOperations: 2 },
+    }),
+  ).toEqual({ kind: "not-acceptable" });
+  const claim = own(f.store, request);
+  expect(
+    await submitTransaction(f.store, {
+      ...request,
+      receiving: { acceptsJson: true, maximumOperations: 1 },
+    }),
+  ).toMatchObject({ kind: "receipt", receipt: claim.receipt });
+  const receipt = f.store.execute(claim);
+  expect(receipt).toMatchObject({
+    status: "completed",
+    results: [
+      { outcome: "matched", count: 0 },
+      { outcome: "matched", count: 0 },
+    ],
+  });
+  expect(
+    await submitTransaction(f.store, {
+      ...request,
+      receiving: { acceptsJson: true, maximumOperations: 1 },
+    }),
+  ).toEqual({ kind: "receipt", receipt });
+  expect(f.store.inspect().groups).toEqual([]);
+});
+
+it("charges actual singleton bytes rather than its synthetic batch wrapper", async () => {
+  const f = fixture();
+  const template = {
+    collection: "beads",
+    selector: "$[?@.id]",
+    change: [{ op: "add", path: "/padding", value: "" }],
+  };
+  const overhead = Buffer.byteLength(JSON.stringify(template));
+  const input = {
+    ...template,
+    change: [{ ...template.change[0], value: "x".repeat(65536 - overhead) }],
+  };
+  const text = JSON.stringify(input);
+  expect(Buffer.byteLength(text)).toBe(65536);
+  expect(
+    await submitTransaction(f.store, {
+      ...submission(),
+      carrier: { kind: "singleton", operation: "updateWhere" },
+      body: text,
+    }),
+  ).toMatchObject({
+    kind: "receipt",
+    receipt: { status: "completed", results: [{ outcome: "matched", count: 0 }] },
+  });
+  expect(
+    await submitTransaction(
+      f.store,
+      submission([{ operation: "updateWhere", ...input }], "real_batch"),
+    ),
+  ).toMatchObject({ kind: "refused", status: 413, code: "request-too-large" });
+});
+
+it.each(["batch", "singleton"] as const)(
+  "finishes %s synthetic syntax before depth, including deeply nested received input",
+  async (kind) => {
+    const f = fixture();
+    const nested = `${"[".repeat(20000)}1e+30${"]".repeat(20000)}`;
+    const input = `{"collection":"beads","selector":"$[?@.id]","change":[{"op":"add","path":"/deep","value":${nested}}]}`;
+    const wrap = (text: string) =>
+      kind === "singleton" ? text : `{"operations":[{"operation":"updateWhere",${text.slice(1)}]}`;
+    const request: TransactionSubmission = {
+      ...submission([], "deep_key"),
+      carrier: kind === "singleton" ? { kind, operation: "updateWhere" } : { kind },
+      body: wrap(input),
+    };
+    const before = f.store.inspect();
+    expect(Buffer.byteLength(request.body)).toBeLessThan(65536);
+    expect(await submitTransaction(f.store, request)).toMatchObject({ kind: "development-limit" });
+    expect(await submitTransaction(f.store, { ...request, key: "bad key" })).toMatchObject({
+      kind: "refused",
+      status: 400,
+    });
+    for (const authorization of [{ kind: "unauthenticated" }, { kind: "forbidden" }] as const) {
+      expect(await submitTransaction(f.store, { ...request, authorization })).toMatchObject({
+        kind: "refused",
+        status: authorization.kind === "unauthenticated" ? 401 : 403,
+      });
+    }
+    const malformed = input.replace('"path":"/deep"', '"path":false');
+    expect(await submitTransaction(f.store, { ...request, body: wrap(malformed) })).toMatchObject({
+      kind: "refused",
+      status: 400,
+    });
+    expect(f.store.inspect()).toEqual(before);
+    expect(await submitTransaction(f.store, submission([create()], "deep_key"))).toMatchObject({
+      kind: "receipt",
+    });
+  },
+);
+
+it.each(["operation", "name", "idempotencyKey", "extra"])(
+  "keeps raw singleton %s fields closed without letting a body discriminator replace the route",
+  async (field) => {
+    const f = fixture();
+    for (const operation of ["updateWhere", "deleteWhere"] as const) {
+      const before = f.store.inspect();
+      expect(
+        await submitTransaction(f.store, {
+          ...submission([], "closed"),
+          carrier: { kind: "singleton", operation },
+          body: JSON.stringify({
+            collection: "beads",
+            selector: "$[?@.id]",
+            ...(operation === "updateWhere"
+              ? { change: [{ op: "add", path: "/n", value: 1 }] }
+              : {}),
+            [field]: "deleteWhere",
+          }),
+        }),
+      ).toMatchObject({ kind: "refused", status: 400 });
+      expect(f.store.inspect()).toEqual(before);
+    }
+  },
+);
