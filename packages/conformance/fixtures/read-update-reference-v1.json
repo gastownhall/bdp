@@ -16,7 +16,12 @@
     "w1.external-pin": "links/w1-external-pin",
     "w1.missing-link": "links/w1-missing",
     "w1.alias": "alias/w1-locator",
-    "w1.unknown-alias": "alias/w1-unknown"
+    "w1.unknown-alias": "alias/w1-unknown",
+    "w1b.owner": "beads/w1b-owner",
+    "w1b.target": "beads/w1b-target",
+    "w1b.unowned-source": "beads/w1b-unowned-source",
+    "w1b.link": "links/w1b-owned",
+    "w1b.unowned-link": "links/w1b-unowned"
   },
   "oracles": {
     "collections": {
