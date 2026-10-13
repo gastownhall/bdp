@@ -78,7 +78,10 @@ type W1bCounterfactual =
   | "noop-source-revision"
   | "link-metadata"
   | "unowned-source-pair"
-  | "target-postimage";
+  | "target-postimage"
+  | "stale-link"
+  | "owned-plane"
+  | "unowned-source-only";
 async function run(
   manifestValue?: unknown,
   selectedIds?: string[],
@@ -409,6 +412,8 @@ async function run(
           method: string;
         };
         const w1bKey: Partial<Record<W1bCounterfactual, string>> = {
+          "stale-link": "stale-link-properties",
+          "unowned-source-only": "unowned-create",
           "source-revision": "owned-create",
           "link-noop-provenance": "owned-noop",
           "noop-source-revision": "owned-noop",
@@ -416,6 +421,7 @@ async function run(
           "unowned-source-pair": "unowned-create",
         };
         const w1bRead: Partial<Record<W1bCounterfactual, string>> = {
+          "owned-plane": "owner-deleted-id",
           "owner-inline-link": "owner-metadata-id",
           "owner-noop-provenance": "owner-noop-id",
           "target-postimage": "target-id",
@@ -435,6 +441,14 @@ async function run(
             w1bCounterfactual === "noop-source-revision"
           )
             body.sourceRevision = "wrong-source-revision";
+          if (w1bCounterfactual === "stale-link") body.code = "alias-path-taken";
+          if (w1bCounterfactual === "unowned-source-only")
+            body.source = `${scope}beads/w1b-unowned-source`;
+          if (w1bCounterfactual === "owned-plane") {
+            (body.ownedLinks as Record<string, unknown[]>)[`${scope}types/relates`]?.push(
+              structuredClone(execution.bindings["link-metadata"]),
+            );
+          }
           if (w1bCounterfactual === "link-metadata")
             (body.resource as { metadata: Record<string, unknown> }).metadata.tag =
               "not-the-stored-metadata";
@@ -706,6 +720,24 @@ it.each([
 );
 
 it.each([
+  [
+    "stale-link",
+    "read-update.singleton.owned-link-source-revision",
+    "stale-link-properties",
+    ["revision-mismatch"],
+  ],
+  [
+    "owned-plane",
+    "read-update.singleton.owned-link-source-revision",
+    "owner-after-deleted",
+    ["empty-owned-plane"],
+  ],
+  [
+    "unowned-source-only",
+    "read-update.singleton.owned-link-source-revision",
+    "unowned-create",
+    ["body-schema", "no-source"],
+  ],
   [
     "source-revision",
     "read-update.singleton.owned-link-source-revision",

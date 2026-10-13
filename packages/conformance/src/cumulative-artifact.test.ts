@@ -218,3 +218,73 @@ it("mirrors private cumulative carrier admission in the planner without qualific
     expect(plan.claimEligible).toBe(false);
   }
 });
+
+it("bounds only private cumulative manifests at 4 MiB and retains ordinary source budgets", async () => {
+  const { bindServedProfileConfiguration, planProfileExecution } = await import(
+    "../test-support/profile-contract-plan.js"
+  );
+  const selection = loadProfileContractSelection("read-update");
+  const fixtureSource = source(fixture);
+  const configuration = bindServedProfileConfiguration({
+    scope: "https://example.invalid/",
+    profile: "read-update",
+    history: false,
+    sourceCommit: "a".repeat(40),
+    installedPayloadDigest: "b".repeat(64),
+    installedContractsDigest: "c".repeat(64),
+    policyDigest: "d".repeat(64),
+    authenticationDigest: "e".repeat(64),
+    fixture: fixtureSource,
+  });
+  const padded = (size: number) => ({
+    bytes: Buffer.from(JSON.stringify(manifest).padEnd(size, " ")),
+  });
+  for (const size of [1_048_577, 4_194_304]) {
+    const manifestSource = padded(size);
+    expect(
+      createCumulativeReadUpdateArtifactBundle(selection, {
+        manifest: manifestSource,
+        fixture: fixtureSource,
+      }).manifest.catalogId,
+    ).toBe("read-update-v1");
+    expect(
+      planProfileExecution(selection, configuration, { configuration, manifest: manifestSource })
+        .manifestDigest,
+    ).toBeDefined();
+    for (const factory of [
+      createConformanceArtifactBundle,
+      createDevelopmentReadUpdateArtifactBundle,
+    ])
+      expect(() =>
+        factory({
+          catalog: source(selection.catalog),
+          manifest: manifestSource,
+          fixture: fixtureSource,
+        }),
+      ).toThrow("manifest source must not exceed 1048576 bytes");
+  }
+  const oversized = padded(4_194_305);
+  expect(() =>
+    createCumulativeReadUpdateArtifactBundle(selection, {
+      manifest: oversized,
+      fixture: fixtureSource,
+    }),
+  ).toThrow("manifest source must not exceed 4194304 bytes");
+  expect(() =>
+    planProfileExecution(selection, configuration, { configuration, manifest: oversized }),
+  ).toThrow("manifest source must not exceed 4194304 bytes");
+  expect(() =>
+    createCumulativeReadUpdateArtifactBundle(selection, {
+      manifest: source(manifest),
+      fixture: { bytes: Buffer.from(JSON.stringify(fixture).padEnd(1_048_577, " ")) },
+    }),
+  ).toThrow("fixture source must not exceed 1048576 bytes");
+  const ordinary = {
+    bytes: Buffer.from(
+      JSON.stringify({ ...manifest, catalogId: "read-v1" }).padEnd(1_048_577, " "),
+    ),
+  };
+  expect(() =>
+    planProfileExecution(selection, configuration, { configuration, manifest: ordinary }),
+  ).toThrow("manifest source must not exceed 1048576 bytes");
+});

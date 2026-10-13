@@ -7,6 +7,7 @@ import {
   type ConformanceArtifactSource,
   type ConformanceFixture,
   copySourceBytes,
+  CUMULATIVE_MANIFEST_MAX_BYTES,
   parseBoundedJson,
   parseFixtureJson,
   validateFixtureOraclePointers,
@@ -98,11 +99,11 @@ function primitiveString(value: unknown, field: string): string {
   return value;
 }
 
-function snapshotSource(input: unknown, kind: "fixture" | "manifest") {
+function snapshotSource(input: unknown, kind: "fixture" | "manifest", maximumBytes?: number) {
   const source = ownData(input, ["bytes", "label"], ["bytes"]);
   const label =
     source.label === undefined ? undefined : primitiveString(source.label, "source label");
-  const bytes = copySourceBytes({ bytes: source.bytes as Uint8Array }, kind);
+  const bytes = copySourceBytes({ bytes: source.bytes as Uint8Array }, kind, maximumBytes);
   return { bytes, label };
 }
 
@@ -231,7 +232,13 @@ export function planProfileExecution(
       bound,
       captured.configuration as ServedProfileConfiguration,
     );
-    source = snapshotSource(captured.manifest, "manifest");
+    source = snapshotSource(
+      captured.manifest,
+      "manifest",
+      selection.profile === "read-update" && !selection.history
+        ? CUMULATIVE_MANIFEST_MAX_BYTES
+        : undefined,
+    );
   }
   const manifest =
     source === undefined
@@ -240,6 +247,8 @@ export function planProfileExecution(
           parseBoundedJson(source.bytes, "manifest", source.label),
           source.label,
         );
+  if (manifest && source && manifest.catalogId !== "read-update-v1")
+    copySourceBytes({ bytes: source.bytes }, "manifest"); // Other carriers retain the ordinary source budget.
   if (manifest) validateFixtureOraclePointers(manifest, fixture);
   // The current ordinary artifact factory accepts read-v1. The runner permits
   // v1 non-Read lacks the exact execution binding and remains unsupported.
