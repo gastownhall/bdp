@@ -40,6 +40,8 @@ export interface TransactionRuntimeTestSeams {
   readonly comparison?: TransactionServiceOptions["comparison"];
   readonly minimumReads?: TransactionServiceOptions["minimumReads"];
   readonly receiptMaximumItems?: number;
+  /** Store timer isolation for clock-advancing HTTP tests; default unchanged. */
+  readonly maintenanceIntervalMs?: number;
 }
 async function receive(request: IncomingMessage): Promise<TransactionReceivedBody> {
   const length = request.headers["content-length"];
@@ -230,6 +232,9 @@ export async function startTransactionRuntime(
       create: options.create,
       types: options.types,
       receiptMaximumItems,
+      ...(seams.maintenanceIntervalMs === undefined
+        ? {}
+        : { maintenanceIntervalMs: seams.maintenanceIntervalMs }),
       ...(seams.clock ? { clock: seams.clock } : {}),
     });
     const clock = seams.clock ?? Date.now;

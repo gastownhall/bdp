@@ -153,6 +153,12 @@ describe("private same-owner Transactional service", () => {
         },
       }),
     ).toThrow("receipt page maximum");
+    expect(() =>
+      createTransactionService(f.owner, {
+        ownerLifetime: "service",
+        read: { ...f.read, pagination: { ...f.read.pagination, maxPageItems: 31 } },
+      }),
+    ).toThrow("receipt page maximum");
     // Failed construction does not take ownership.
     expect(f.owner.inspect().resources).toEqual([]);
   });
@@ -791,4 +797,64 @@ describe("private minimum-read owner/lifecycle", () => {
     await closing;
     expect(() => facet.perform(point)).toThrow("closed");
   });
+});
+
+it("drains concurrent receipt-page waits on close while admitted commits can satisfy them", async () => {
+  const f = fixture({ receiptMaximumItems: 2 });
+  const parked = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>();
+  let waits = 0,
+    tick = 0;
+  const service = f.open({
+    read: {
+      ...f.read,
+      advertisedLimits: { ...f.read.advertisedLimits, page: { defaultItems: 2, maximumItems: 2 } },
+      pagination: { ...f.read.pagination, maxPageItems: 2 },
+    },
+    minimumReads: {
+      budgetMs: 100,
+      now: () => tick++,
+      wait: async () => {
+        if (++waits === 2) parked.resolve();
+        await release.promise;
+      },
+    },
+  });
+  const first = requireReceipt(
+    await service.submit(batch([create("a"), create("b"), create("c")])),
+  );
+  if (typeof first.receipt.next !== "string") throw new Error("page required");
+  const minimum = {
+    scopeEpoch: first.context.scopeEpoch,
+    authorizationView: first.context.authorizationView,
+    minimumPosition: "pos-2",
+  };
+  const pages = [
+    service.receiptPage({ kind: "authenticated", principal: "p" }, first.receipt.next, minimum),
+    service.receiptPage({ kind: "authenticated", principal: "p" }, first.receipt.next, minimum),
+  ];
+  try {
+    await parked.promise;
+    await service.submit(batch([create("later")], "later"));
+    let closed = false;
+    const closing = service.close().then(() => {
+      closed = true;
+    });
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    release.resolve();
+    for (const page of await Promise.all(pages))
+      expect(page).toMatchObject({
+        kind: "page",
+        context: { scopePosition: "pos-2" },
+        page: { receipt: first.receipt.id, results: [{ resource: { id: `${scope}beads/c` } }] },
+      });
+    await closing;
+    expect(() =>
+      service.receiptPage({ kind: "authenticated", principal: "p" }, String(first.receipt.next)),
+    ).toThrow("closed");
+  } finally {
+    release.resolve();
+    await Promise.allSettled(pages);
+  }
 });

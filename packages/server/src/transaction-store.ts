@@ -133,7 +133,7 @@ interface Row {
   dependency: string | null;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-receipt-pages-6";
+const format = "bdp-private-transaction-set-core-7";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
 const identityPolicy = "transaction-revision-provenance-4";
@@ -212,23 +212,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   if (options.create) closeSync(openSync(options.file, "wx", 0o600));
   else if (!existsSync(options.file))
     throw new Error("transaction store missing; explicit provisioning required");
-  if (!options.create) {
-    // Refuse incompatible installations using a read-only connection, before a
-    // writable owner can run SQLite recovery, pragmas or receipt maintenance.
-    const preflight = new DatabaseSync(options.file, { readOnly: true });
-    try {
-      const prior = String(
-        preflight.prepare("SELECT value FROM metadata WHERE name='configuration'").get()?.value,
-      );
-      if (JSON.parse(prior).identityPolicy !== identityPolicy)
-        throw new Error(
-          "transaction identity policy mismatch; explicit new-store provisioning required",
-        );
-      if (prior !== configuration) throw new Error("transaction installation mismatch");
-    } finally {
-      preflight.close();
-    }
-  }
+  // SQLite must be allowed to recover a hot rollback journal before reading
+  // configuration. The locked installation check below still precedes every
+  // BDP pending retraction, creator cleanup and retention sweep.
   const db = new DatabaseSync(options.file);
   let closed = false,
     busy = false;
@@ -608,22 +594,56 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   }
   // Called only inside the guarded owner's transaction. The fixed all-visible
   // policy projects retained facts, including postimages since updated/deleted.
-  function retainedReceipt(
-    principal: string,
-    id: string,
-    beforeRetention?: () => void,
-  ): TransactionReceipt | undefined {
+  function disclosedReceipt(principal: string, id: string): Row | undefined {
     for (const stored of db
       .prepare("SELECT * FROM receipts WHERE principal=?")
       .all(principal) as unknown as Row[]) {
       const value = parseReceipt(stored.receipt);
-      if (value.id !== id) continue;
-      if (value.scopeEpoch !== epoch) return undefined;
-      beforeRetention?.();
-      const remaining = expireRow(stored, instant()).row;
-      return remaining ? parseReceipt(remaining.receipt) : undefined;
+      if (value.id === id) return value.scopeEpoch === epoch ? stored : undefined;
     }
     return undefined;
+  }
+  function retainedReceipt(principal: string, id: string): TransactionReceipt | undefined {
+    const stored = disclosedReceipt(principal, id);
+    const remaining = stored && expireRow(stored, instant()).row;
+    return remaining ? parseReceipt(remaining.receipt) : undefined;
+  }
+  type ReceiptRead = {
+    readonly receipt: TransactionReceipt | undefined;
+    readonly context: TransactionReadContext;
+  };
+  function readReceipt(principal: string, id: string, minimum?: TransactionMinimum): ReceiptRead;
+  function readReceipt(
+    principal: string,
+    id: string,
+    minimum: "unsupported",
+  ): ReceiptRead | { readonly kind: "unsupported" };
+  function readReceipt(
+    principal: string,
+    id: string,
+    minimum?: TransactionMinimum | "unsupported",
+  ): ReceiptRead | { readonly kind: "unsupported" } {
+    if (typeof principal !== "string" || !principal || !principal.isWellFormed())
+      throw new TypeError("invalid trusted principal");
+    if (typeof id !== "string") throw new TypeError("receipt URL required");
+    const condition =
+      minimum === undefined || minimum === "unsupported"
+        ? minimum
+        : snapshotTransactionMinimum(minimum);
+    return enter(() =>
+      atomic(() => {
+        const stored = disclosedReceipt(principal, id);
+        if (stored && condition === "unsupported")
+          return Object.freeze({ kind: "unsupported" as const });
+        const context = readContext();
+        if (!stored) return Object.freeze({ receipt: undefined, context });
+        if (condition !== undefined && condition !== "unsupported")
+          checkTransactionMinimum(condition, context);
+        const remaining = expireRow(stored, instant()).row;
+        if (!remaining) return Object.freeze({ receipt: undefined, context });
+        return observeReceipt(parseReceipt(remaining.receipt), context);
+      }),
+    );
   }
   function withRead<T>(
     callback: (reader: AuthorityReadReader, context: TransactionReadContext) => T,
@@ -880,6 +900,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             return fn();
           }
           const tx: TransactionMutationContext = {
+            resources: (kind) =>
+              scoped(() =>
+                Object.freeze(
+                  db
+                    .prepare("SELECT id FROM resources WHERE kind=?")
+                    .all(kind)
+                    .map((row) => Object.freeze(requiredResource(String(row.id)))),
+                ),
+              ),
             resource: (id) => scoped(() => resource(id)),
             incidentLinks: (id) =>
               scoped(() =>
@@ -1422,7 +1451,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       return enter(() =>
         atomic(() => {
           const marker = id.lastIndexOf("/pages/");
-          if (marker < 0) return { kind: "missing" as const };
+          if (marker < 0 || !id.startsWith(`${scope}receipts/`))
+            return { kind: "missing" as const };
           const parentId = id.slice(0, marker),
             token = id.slice(marker + 7);
           const saved = db
@@ -1441,7 +1471,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           if (original.scopeEpoch !== epoch) return { kind: "missing" as const };
           const plan = pagePlan(original),
             index = plan.pages.findIndex((page) => page.token === token);
-          if (index < 0 || id !== pageUrl(parentId, token)) return { kind: "missing" as const };
+          if (index < 0) return { kind: "missing" as const };
           if (condition === "unsupported") return { kind: "unsupported" as const };
           const context = readContext();
           // Identity/nondisclosure precedes minimum; expiry is checked only afterwards.
@@ -1457,7 +1487,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             boundary.start,
             boundary.end,
           );
-          // The immutable full facts are frozen by this entry's projection.
+          // Freeze the selected page entries before they escape the owner entry.
           const freeze = (value: unknown): void => {
             if (value && typeof value === "object") {
               Object.values(value).forEach(freeze);
@@ -1475,32 +1505,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         }),
       );
     },
-    readReceipt(
-      principal: string,
-      id: string,
-      minimum?: TransactionMinimum,
-    ): {
-      readonly receipt: TransactionReceipt | undefined;
-      readonly context: TransactionReadContext;
-    } {
-      if (typeof principal !== "string" || !principal || !principal.isWellFormed())
-        throw new TypeError("invalid trusted principal");
-      if (typeof id !== "string") throw new TypeError("receipt URL required");
-      const condition = minimum === undefined ? undefined : snapshotTransactionMinimum(minimum);
-      return enter(() =>
-        atomic(() => {
-          const context = readContext();
-          const receipt = retainedReceipt(principal, id, () => {
-            if (condition !== undefined) checkTransactionMinimum(condition, context);
-          });
-          // No minimum-context diagnosis is disclosed for a hidden receipt.
-          if (receipt === undefined) return Object.freeze({ receipt, context });
-          // Project only after this disclosed row satisfies its minimum.
-          const observed = observeReceipt(receipt, context);
-          return observed;
-        }),
-      );
-    },
+    readReceipt,
     /** Private diagnostic of authority locator state, not a replica projection. */
     aliasTarget(path: string): string | undefined {
       return enter(() => {

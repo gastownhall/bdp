@@ -685,15 +685,18 @@ One validated maximum configures store partitioning, the service page bound and
 Read pagination. It defaults to 32; paging tests use maxima 1, 2 and 5 with a valid
 default at or below the maximum. This changes only the new private fixture's page
 setting and makes no change to historical Read evidence. Prior private formats or
-changed installation bounds are refused by a read-only compatibility check before
-opening a writable owner or running recovery/maintenance; no migration or reseed.
+changed installation bounds are refused by the locked configuration check before
+BDP pending retraction, creator cleanup or retention maintenance; no migration or
+reseed. SQLite hot-journal recovery must run before that check can read configuration.
+Normal incompatible files are refused byte-identically; a hot-journal file may first
+be restored by SQLite to its committed state, even if its installation is then refused.
 Recorded missing, overlapping, truncated or wrong-parent chains are service faults,
 never permission to generate replacement handles or truncate results.
 
 Receipt-page reads use current principal/epoch nondisclosure first, then the
 supported minimum context and finite wait, then expiry and representation in the
 same owner entry. Unsupported minimum forms remain a private gap after disclosure
-and before expiry. Known expired pages return 410; unknown/foreign pages return
+and before read-triggered expiry for both roots and pages. Known expired pages return 410; unknown/foreign pages return
 uniform 404. Recorded page identities survive same-epoch process loss and changed
 listener ports with a stable configured Scope. Root/page GET and HEAD retain the
 current observation and normal conditional handling without validators.
@@ -709,3 +712,48 @@ its bounded loopback behavior is not a production concurrency or load qualificat
 This implements paging for existing explicit mutations, not the catalog's large-set
 expansion witness. Sets, installed-contract integration, variable-view/erasure
 projection, replication and truthful full Transactional discovery remain open.
+
+
+### Private valid-set core, with serving admission still closed
+
+A source-private preparation seam now admits valid bounded updateWhere/deleteWhere
+records to the existing Transactional owner for core testing. The normal batch,
+singleton and HTTP preparation paths still refuse sets. Selector grammar/complexity
+error timing remains an explicit development gap, pending normative review; this
+core is not a second wire parser or a completed set-serving claim.
+
+The staged collection facade reads the active owner's transaction, expires at the
+end of that turn and freezes returned stored rows. Selection uses canonical records
+and the existing Selector evaluator at the operation turn. The selected set is
+fixed before expansion, sorted in canonical ID order, and applies the same Resource
+mutation/fact path used by ordinary members. Cardinality failure and late Resource
+failure roll back the complete transaction while retaining its failed receipt.
+Matched entries, no-op results, intermediate postimages, final group state,
+provenance and metadata retain their existing meanings. Receipt pages persist the
+complete flat set result, including the matched entry, without recomputing selection.
+
+The private authority now enforces a total 4,096 induced-Event bound across ordinary
+members and set expansion. Exceeding it yields an atomic transaction-wide failed
+receipt with limit-exceeded; an evaluator-only test seam can lower but never raise
+that bound. It is not a new public configuration or protocol maximum. Selection and
+complete result materialization remain linear in collection/population size.
+
+Private format set-core-7 protects the expanded durable witness vocabulary; the
+identity codec is unchanged. No migration or reseed is provided. Core tests cover
+same-version recovery/replay and an external probe uses the actual prior paging
+writer to establish byte-identical incompatible-format refusal. Paging crash-recovery
+repairs are integrated: SQLite may recover a hot journal before the locked
+configuration check, which still precedes BDP cleanup and retention.
+
+The supported installation remains all-visible, schema-free and unowned. Installed
+contract/policy composition, owned-source fanout, full set HTTP admission, remaining
+consistency routes, replication and truthful Transactional discovery remain open.
+Recovery regressions kill a process inside maintenance and terminal execution,
+not merely after a response. Sixty committed three-result receipts and their page
+URLs survive hot-journal rollback; the terminal crash's pending admission is
+retracted without exposing its uncommitted effects. The terminal fixture reduces
+the real SQLite cache to force dirty-page spill; maintenance uses the ordinary
+cache. These are process-crash witnesses, not physical disk/power-loss testing.
+Concurrent page minimum waits also drain on close while an admitted commit can
+satisfy them. Unsupported root/page controls withhold serving context and do not
+trigger retention; independent maintenance can still expire or forget receipts.
