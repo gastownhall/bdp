@@ -2,7 +2,7 @@
 import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createServer, request as httpRequest } from "node:http";
 import { once } from "node:events";
 import { expect, it } from "vitest";
@@ -18,6 +18,7 @@ import {
   loadProfileContractSelection,
 } from "@bdp/conformance/testing";
 import { seedInstalledReadFixture } from "../test-support/installed-read-fixture.js";
+import { withSchemaCohort } from "../test-support/installed-schema-cohort.js";
 import { installedObservationSchema } from "../test-support/installed-body-schema.js";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const entry =
@@ -27,9 +28,17 @@ const helpers = (await import(
   new URL("../../../scripts/installed-reference-observation.mjs", import.meta.url).href
 )) as {
   availablePort(): Promise<number>;
-  referenceConfiguration(directory: string, port: number, token: string, scope: string): unknown;
+  referenceConfiguration(
+    directory: string,
+    port: number,
+    token: string,
+    scope: string,
+  ): Record<string, unknown>;
   launchInstalledReference(entry: string, config: unknown): Promise<{ close(): Promise<unknown> }>;
 };
+const configModule = (await import(
+  pathToFileURL(path.join(path.dirname(entry), "installed-reference-configuration.js")).href
+)) as { referenceTypeArtifacts(scope: string): import("@bdp/protocol").TypeDescriptor[] };
 const source = (relative: string) => ({ bytes: readFileSync(path.join(root, relative)) });
 const bundle = createCumulativeReadUpdateArtifactBundle(
   loadProfileContractSelection("read-update"),
@@ -137,7 +146,10 @@ it.each(cases)(
       request.pipe(upstream);
     });
     try {
-      const config = helpers.referenceConfiguration(dir, port, token, scope);
+      const config = withSchemaCohort(
+        helpers.referenceConfiguration(dir, port, token, scope),
+        configModule.referenceTypeArtifacts(scope),
+      );
       child = await helpers.launchInstalledReference(entry, config);
       proxy.listen(0, "127.0.0.1");
       await once(proxy, "listening");

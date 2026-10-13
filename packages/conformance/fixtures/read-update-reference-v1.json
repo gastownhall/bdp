@@ -1,6 +1,6 @@
 {
   "fixtureVersion": 1,
-  "id": "reference-read-update-v1",
+  "id": "reference-read-update-schema-v1",
   "seed": 0,
   "capabilities": ["installed-read-update-http"],
   "bindings": {
@@ -194,6 +194,10 @@
         ["types/feature", "Feature", "bead"],
         ["types/relates", "Relates", "link"],
         ["types/relationship", "Relationship", "link"],
+        ["types/schema-bead-base", "Schema bead base", "bead"],
+        ["types/schema-bead-child", "Schema bead child", "bead"],
+        ["types/schema-link-base", "Schema link base", "link"],
+        ["types/schema-link-child", "Schema link child", "link"],
         ["types/task", "Task", "bead"],
         ["types/tracked-item", "Tracked Item", "bead"],
         ["types/work-item", "Work Item", "bead"]
@@ -211,6 +215,10 @@
         ["types/feature"],
         ["types/relates"],
         ["types/relationship"],
+        ["types/schema-bead-base"],
+        ["types/schema-bead-child"],
+        ["types/schema-link-base"],
+        ["types/schema-link-child"],
         ["types/task"],
         ["types/tracked-item"],
         ["types/work-item"]
