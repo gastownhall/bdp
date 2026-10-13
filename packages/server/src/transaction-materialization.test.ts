@@ -280,9 +280,14 @@ it("enforces the actual representation tuple on both direct records and owned so
   }
 });
 
-it.each(["1e20", "-9e20", "9e9", "-0.0000010000000000000002"])(
+it.each([
+  ["1e20", "100000000000000000000"],
+  ["-9e20", "-900000000000000000000"],
+  ["9e9", "9000000000"],
+  ["-0.0000010000000000000002", "-0.0000010000000000000002"],
+])(
   "bounds admitted numeric patch normalization for extremal token %s",
-  (token) => {
+  (token, expectedLiteral) => {
     // Both patches share one carrier Q budget. The stored Event must contain
     // normalized semantic values, not the shorter lexical number spelling.
     const raw = `[{"op":"add","path":"/temporary","value":[${Array(32).fill(token).join(",")}]},{"op":"remove","path":"/temporary"}]`;
@@ -299,7 +304,7 @@ it.each(["1e20", "-9e20", "9e9", "-0.0000010000000000000002"])(
     expect(Buffer.byteLength(normalized)).toBeLessThanOrEqual(7 * Buffer.byteLength(raw));
     const literal = stringifyJsonValue(admittedValue(token));
     expect(Buffer.byteLength(literal)).toBeLessThanOrEqual(7 * Buffer.byteLength(token));
-    if (token === "1e20") expect(literal).toBe("100000000000000000000");
+    expect(literal).toBe(expectedLiteral);
     const f = fixture();
     const create = batch.prepareTransaction(
       scope,

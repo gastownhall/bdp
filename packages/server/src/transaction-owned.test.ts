@@ -206,12 +206,10 @@ it("projects owned lifecycle, property and metadata deltas with exact source ver
       source: current.id,
       sourceRevision: current.revision,
     });
-    for (const change of f.group().changes)
-      expect(change).toEqual({
-        operation: "upsert",
-        resourceKind: "source" in change.resource ? "link" : "bead",
-        resource: change.resource,
-      });
+    expect(f.group().changes).toEqual([
+      { operation: "upsert", resourceKind: "link", resource: linked },
+      { operation: "upsert", resourceKind: "bead", resource: current },
+    ]);
     const events = f.group().events;
     expect(events).toHaveLength(2);
     expect(events[0]).toMatchObject({ subject: linked.id, type: "updated" });
