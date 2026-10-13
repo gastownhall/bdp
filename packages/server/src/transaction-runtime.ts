@@ -35,6 +35,7 @@ export interface TransactionRuntimeOptions {
 export interface TransactionRuntimeTestSeams {
   readonly scheduler?: TransactionServiceOptions["scheduler"];
   readonly clock?: () => number;
+  /** Direct transaction.operations only; sequence.operations retains its own32 bound. */
   readonly maximumOperations?: number;
   readonly comparison?: TransactionServiceOptions["comparison"];
 }

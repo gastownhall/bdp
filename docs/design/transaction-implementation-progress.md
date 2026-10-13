@@ -592,3 +592,29 @@ disconnect with admitted work, and an injected post-commit failure followed by
 sticky refusal/reopen. These are bounded executable witnesses, not disk or
 power-loss qualification. External exact-command results accompany the frozen
 candidate.
+
+#### HTTP review follow-up boundaries
+
+Unsupported minimum-context fields on commands also fail before any key binding
+or effect; no command barrier semantics are inferred. Operation routing accepts
+exact canonical target URLs. Unimplemented set/unknown targets, encoded alternate
+spellings and query-bearing command URLs are not registered targets and return
+404, rather than advertising a Read method table. Sequence depth failures use the
+same development-composition marker as batch depth failures; the alias marker is
+reserved for the actual Resource-alias sequence restriction.
+
+The private receiving maximumOperations setting controls transaction.operations
+only; sequence.operations retains its separate 32-member bound. Tests exercise
+both limits together. This is explicit private configuration, not new discovery.
+
+Runtime close aborts in-flight socket delivery, including connected clients, and
+then drains accepted durable work. Clients recover outcomes by key replay after
+reopen; “drain” does not promise completion of response delivery. Sequence response
+context still comes from the post-runner owner observation. A fault in that entry
+can lose delivery after member commits; replay recovers the original member
+outcomes. Moving that observation into the final turn remains separate work.
+
+HTTP internal faults are deliberately bodyless and disclose no causes or stored
+identifiers. The owner/service preserve causes, but this private HTTP fixture has
+not yet added a bounded internal diagnostic channel for those caught exceptions.
+That diagnosability gap remains open; it is not a claim that causes reach clients.

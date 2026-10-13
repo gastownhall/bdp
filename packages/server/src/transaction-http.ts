@@ -173,6 +173,13 @@ export function createTransactionHttpHandler(
     if (url.origin !== scopeUrl.origin || !url.pathname.startsWith(scopeUrl.pathname))
       return transactionHttpProblem("resource-not-found");
     if (names.has(url.href)) return method === "POST" ? undefined : empty(405, "POST");
+    // Operation targets use exact canonical URLs. A missing target, alternate
+    // encoded spelling, or query-bearing command URL is not a Read resource.
+    if (
+      url.pathname.startsWith(`${scopeUrl.pathname}operations/`) &&
+      url.href !== new URL("operations/", scope).href
+    )
+      return transactionHttpProblem("resource-not-found");
     return method === "GET" || method === "HEAD" ? undefined : empty(405, "GET, HEAD");
   }
   async function route(
@@ -211,6 +218,10 @@ export function createTransactionHttpHandler(
           }),
         );
       if ("failure" in received) return transactionHttpProblem(received.failure);
+      // Unsupported controls cannot be silently ignored while admitting a key
+      // or executing effects. This is an internal development gap, not a new
+      // command-precondition or catch-up protocol rule.
+      if (hasMinimumControls(request)) return developmentGap("minimum-position");
       if (operation === "sequence") {
         if (request.headers.has("idempotency-key"))
           return transactionHttpProblem("malformed-request");
@@ -230,11 +241,11 @@ export function createTransactionHttpHandler(
         try {
           prepared = prepareTransactionSequence(scope, received.text);
         } catch (error) {
+          if (error instanceof TransactionDevelopmentLimitError)
+            return developmentGap("unsupported-transaction-composition");
           if (
-            error instanceof TransactionDevelopmentLimitError ||
-            (error instanceof TypeError &&
-              error.message ===
-                "development sequence Resource aliases require turn-time resolution")
+            error instanceof TypeError &&
+            error.message === "development sequence Resource aliases require turn-time resolution"
           )
             return developmentGap("sequence-resource-alias");
           throw error;

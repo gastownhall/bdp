@@ -762,3 +762,83 @@ it("routes unsupported raw methods by target before Fetch construction or receip
   }
   expect(await body(await f.post())).toEqual(receipt);
 });
+
+it("refuses command minimum controls before every carrier can capture keys or effects", async () => {
+  const f = await fixture();
+  for (const [index, field] of [
+    "bdp-minimum-scope-position",
+    "bdp-scope-epoch",
+    "bdp-authorization-view",
+  ].entries()) {
+    for (const carrier of ["batch", "createBead", "sequence"] as const) {
+      const key = `${carrier}_${index}`,
+        name = key;
+      const operation = create(name);
+      const text =
+        carrier === "createBead"
+          ? JSON.stringify(operation)
+          : batch([{ ...operation, ...(carrier === "sequence" ? { idempotencyKey: key } : {}) }]);
+      const response = await f.post(text, carrier === "sequence" ? null : key, carrier, {
+        [field]: "pos-999",
+      });
+      expect(response.status).toBe(500);
+      expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+      expect(response.headers.has("location")).toBe(false);
+      expect(await response.text()).toBe("");
+      expect((await f.get(`${f.runtime.scope}beads/${name}`)).status).toBe(404);
+      const replacement = await f.post(batch([create(`${name}_replacement`)]), key);
+      expect(replacement.status).toBe(200);
+    }
+  }
+});
+
+it("does not invent a Read method table for unrouted or noncanonical operation URLs", async () => {
+  const f = await fixture();
+  for (const target of ["update-where", "delete-where", "unknown", "%62atch", "batch?x=1"]) {
+    for (const method of ["GET", "POST", "DELETE"]) {
+      const response = await f.get(`${f.runtime.scope}operations/${target}`, {
+        method,
+        ...(method === "POST"
+          ? {
+              body: batch(),
+              headers: { "content-type": "application/json", "idempotency-key": "unrouted" },
+            }
+          : {}),
+      });
+      expect(response.status).toBe(404);
+      expect(response.headers.has("allow")).toBe(false);
+      expect(await body(response)).toMatchObject({ code: "resource-not-found" });
+    }
+  }
+  expect((await f.post(batch(), "unrouted")).status).toBe(200);
+});
+
+it("labels sequence depth gaps honestly and keeps sequence capacity distinct from direct transaction capacity", async () => {
+  const f = await fixture({ maximumOperations: 1 });
+  let nested: unknown = "leaf";
+  for (let depth = 0; depth < 40; depth++) nested = { nested };
+  const refused = await f.post(
+    batch([{ ...create(), properties: { nested }, idempotencyKey: "deep_sequence" }]),
+    null,
+    "sequence",
+  );
+  expect(refused.status).toBe(500);
+  expect(refused.headers.get("x-bdp-development-limit")).toBe(
+    "unsupported-transaction-composition",
+  );
+  expect(await refused.text()).toBe("");
+  expect((await f.get(`${f.runtime.scope}beads/a`)).status).toBe(404);
+  const sequence = await f.post(
+    batch([
+      { ...create("a"), idempotencyKey: "deep_sequence" },
+      { ...create("b"), idempotencyKey: "second" },
+    ]),
+    null,
+    "sequence",
+  );
+  expect(sequence.status).toBe(200);
+  expect(sequence.headers.get("bdp-scope-position")).toBe("pos-2");
+  const direct = await f.post(batch([create("c"), create("d")]), "direct");
+  expect(direct.status).toBe(413);
+  expect(await body(direct)).toMatchObject({ limit: "transaction.operations" });
+});
