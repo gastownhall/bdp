@@ -601,3 +601,38 @@ Readiness additionally requires the actual prefixed artifact digest shape
 Detached CONNECT sockets observe write errors and are destroyed after the refusal
 finishes. Bounded reset-peer probes check continued service in emitted and packed
 runs; they do not claim every possible kernel write-error timing was injected.
+
+### Exact installation artifact retention
+
+The development authority now supplies its bounded serialized compiled capture and
+complete frozen canonical Type inventory to recovery-store startup. Capture lives in
+one immutable metadata row, separately from compact installation/lineage identity;
+member policy writes cannot reach it. It contains original descriptor/schema bytes
+and artifact, graph and evaluator limit witnesses, never access/authentication state.
+The existing compiler identity, registry and schema-hosting path are unchanged.
+Retaining the shared capture also retains an additional in-memory base64 copy; this
+slice does not remove the existing hosting copy or optimize installation memory.
+
+Recovery format4 intentionally refuses format3 stores, including stores behind the
+public nonattesting development facade. No migration or reseed is performed. Direct
+store callers default to explicit uncaptured metadata (`null`) and no inventory
+expectation; captured stores cannot reopen through that default. Both configured and
+built-in authorities always opt into the complete inventory gate. Literal built-in
+Types carry no whole exact-artifact conformance claim.
+
+Within locked open, stored capture UTF8 byte length is checked before materializing
+text, then exact capture and inventory equality are checked before claimed-key
+recovery or maintenance. Capture JSON is not parsed by storage. Writable SQLite hot-
+journal recovery remains allowed first. Refused ordinary files remain byte-identical;
+a recovered journal can restore physical bytes before refusing BDP startup. Refused
+opens leave claimed keys present; subsequent valid open counts their removal in
+runtime.recoveredClaims. Later Resource-Type and runtime-limit compatibility scans
+remain post-open checks; this is not a universal startup-refusal ordering repair.
+
+Full capture stays for installation lifetime, including deletion and receipt expiry.
+Administrative input remains required on reopen; saved bytes can reconstruct the
+same compiler offline. Compiler-limit changes deliberately refuse existing stores.
+Existing policy/authentication changes remain allowed and hosted schema bytes are
+unchanged. Tests cover built-in and compiled corruption, original-byte retention,
+offline reconstruction, replay/lifetime, and actual hot-journal refusal/recovery.
+No public profile activation or new Type lifecycle follows from these observations.

@@ -42,10 +42,12 @@ The earlier 187.06-second cohort observed source
 preceded the output-envelope nonemptiness constraint and do not certify it.
 
 The common `revisionProvenance` envelope replaces the separate public
-attribution and change-context fields. Private recovery-store format 3 refuses
+attribution and change-context fields. Private recovery-store format 4 refuses
 older formats before claim cleanup or other recovery writes. The refusal
 preserves existing bytes and cannot silently reseed an existing database;
-there is no automatic migration. Preserve old stores for any separately
+there is no automatic migration. Format 4 adds exact installed-artifact capture
+and checks capture/inventory before claim cleanup; this also rejects existing
+nonattesting development-facade stores. Preserve old stores for any separately
 planned migration. Content-derived adapter revisions use the new projected
 record bytes and are not relabeled as earlier revisions.
 
@@ -358,7 +360,7 @@ this change.
 The authority must also qualify worst-case patch work under its actual finite
 request and Resource bounds. An early patch-limit shortcut cannot bypass earlier
 postimage validation or authorization; no new limit or refusal order is selected.
-Storage format 3 uses an application-registered JSON syntax function for writes
+Storage format 4 uses an application-registered JSON syntax function for writes
 and integrity checks, preserves deep JSON bytes, and refuses prior formats
 before recovery writes. Generic logical SQLite restore is not a supported import.
 The client now supports fresh Read+Update discovery, all eight singleton operations,

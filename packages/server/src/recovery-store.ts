@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { closeSync, existsSync, mkdirSync, openSync, statfsSync, unlinkSync } from "node:fs";
 import path from "node:path";
+import { isProxy } from "node:util/types";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { parseCanonicalScope } from "@bdp/protocol";
 
@@ -120,6 +121,10 @@ export interface RecoveryStoreOptions {
   /** Explicit new logical-Scope provisioning only, never restore/reseed at an old Scope URL. */
   readonly create?: StoreSeed;
   readonly minimumRetentionMs?: number;
+  /** Opaque bounded text prepared by the installation authority; omitted means uncaptured. */
+  readonly contractCapture?: string;
+  /** Optional complete canonical inventory gate, used by every development authority. */
+  readonly expectedTypes?: Readonly<Record<string, string>>;
 }
 /** Exact storage text; the startup caller owns manifest/schema interpretation. */
 export interface InstalledTypeRow {
@@ -185,10 +190,9 @@ export interface RecoveryStore {
   close(): void;
 }
 
-// Format 3 stores the canonical revisionProvenance envelope and its identity
-// inputs. Refuse prior formats before recovery; never rewrite retained outcomes
-// or silently reseed an existing store under the new representation.
-const formatVersion = "3";
+// Format 4 adds immutable installation capture metadata. Refuse prior formats
+// before BDP recovery; never migrate or reseed existing development stores.
+const formatVersion = "4";
 const dayMs = 86_400_000;
 const schema = `
  CREATE TABLE metadata(name TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
@@ -268,7 +272,7 @@ export function isKnownNetworkFilesystem(platform: NodeJS.Platform, type: number
  * the returned handle is ready only after a real exclusive startup write commits.
  * Restore without complete recovery continuity must use a different canonical Scope.
  * The caller must arrange a supported local filesystem; known network types refuse.
- * Format 3 is application-owned: writes and SQLite integrity checks require the
+ * Format 4 is application-owned: writes and SQLite integrity checks require the
  * exact bdp_json_syntax_v2 function registered below. A stock SQLite connection
  * can inspect rows but cannot run those checks or replay a logical SQL dump.
  * Any logical restore must preserve the complete recovery/identity state and
@@ -281,6 +285,46 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       "unsupported-runtime",
       "durable reference storage requires Node v24.16.0",
     );
+  if (isProxy(options))
+    throw new RecoveryStoreError("invalid-input", "plain recovery options required");
+  const option = (name: "contractCapture" | "expectedTypes"): unknown => {
+    const field = Object.getOwnPropertyDescriptor(options, name);
+    if ((field && !Object.hasOwn(field, "value")) || (!field && name in options))
+      throw new RecoveryStoreError("invalid-input", "installation expectation must be own data");
+    return field?.value;
+  };
+  const suppliedCapture = option("contractCapture");
+  const contractCapture = suppliedCapture === undefined ? "null" : suppliedCapture;
+  if (typeof contractCapture !== "string")
+    throw new RecoveryStoreError("invalid-input", "installation capture text required");
+  requireText(contractCapture, "installation capture");
+  const captureBytes = Buffer.byteLength(contractCapture);
+  const suppliedTypes = option("expectedTypes");
+  let expectedTypes: Readonly<Record<string, string>> | undefined;
+  if (suppliedTypes !== undefined) {
+    if (
+      !suppliedTypes ||
+      typeof suppliedTypes !== "object" ||
+      isProxy(suppliedTypes) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(suppliedTypes))
+    )
+      throw new RecoveryStoreError("invalid-input", "plain expected Type inventory required");
+    const snapshot: Record<string, string> = Object.create(null);
+    for (const key of Reflect.ownKeys(suppliedTypes)) {
+      const field = Object.getOwnPropertyDescriptor(suppliedTypes, key);
+      if (
+        typeof key !== "string" ||
+        !field ||
+        !Object.hasOwn(field, "value") ||
+        typeof field.value !== "string"
+      )
+        throw new RecoveryStoreError("invalid-input", "expected Type inventory must be text data");
+      requireText(key, "expected Type id");
+      requireText(field.value, "expected Type body");
+      snapshot[key] = field.value;
+    }
+    expectedTypes = Object.freeze(snapshot);
+  }
   let scope: string;
   try {
     scope = parseCanonicalScope(options.scope);
@@ -545,6 +589,7 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
       db.exec(schema);
       for (const [name, value] of Object.entries({
         format: formatVersion,
+        contractCapture,
         scope,
         installation: options.installationId,
         lineage: options.lineageId,
@@ -593,6 +638,22 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
         "store-mismatch",
         "store format/Scope/installation/lineage mismatch",
       );
+    // Compare opaque capture bytes before materialization; never parse saved capture.
+    // The authority bounded the expected text before entering this owner.
+    const storedCaptureBytes = get(
+      "SELECT length(CAST(value AS BLOB)) AS bytes FROM metadata WHERE name='contractCapture'",
+    )?.bytes;
+    if (storedCaptureBytes !== captureBytes || meta("contractCapture") !== contractCapture)
+      throw new RecoveryStoreError("store-mismatch", "installation capture mismatch");
+    if (expectedTypes !== undefined) {
+      const ids = Object.keys(expectedTypes);
+      if (get("SELECT count(*) AS count FROM installed_types")?.count !== ids.length)
+        throw new RecoveryStoreError("store-mismatch", "installed Type inventory mismatch");
+      for (const id of ids) {
+        if (get("SELECT body FROM installed_types WHERE id=?", id)?.body !== expectedTypes[id])
+          throw new RecoveryStoreError("store-mismatch", "installed Type inventory mismatch");
+      }
+    }
     if (
       !/^\d+$/.test(meta("nextRevision")) ||
       !/^\d+$/.test(meta("nextIdentity")) ||
