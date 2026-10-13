@@ -185,6 +185,8 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
     "read-update.alias.non-canonical-target",
     "read-update.alias.no-version-minted",
     "read-update.sequence.member-problem-shape",
+    "read-update.numeric-model.same-value-no-op",
+    "read-update.numeric-model.nested-refusal",
   ]);
   expect(inventory.rows.map((row) => row.id)).toEqual(selected.required.map((row) => row.id));
   for (const row of inventory.rows) {

@@ -177,7 +177,9 @@ async function run(
     afterClose?(): void;
   },
   numericControl?: "digest" | "changed-number" | "refusal-success" | "metadata-refusal-success",
-  admissionControl?: (typeof numericAdmissionRawControls)[number],
+  admissionControl?:
+    | (typeof numericAdmissionRawControls)[number]
+    | (typeof numericRClosureRawControls)[number],
 ) {
   signal?.throwIfAborted();
   if (artifact) assertReadUpdateArtifactSet(artifact.set);
@@ -464,6 +466,10 @@ async function run(
           break;
         case "metadata-label":
           delete changed.diagnostics[0]!.document;
+          break;
+        case "schema-location":
+          changed.diagnostics[0]!.schemaLocation =
+            `${scope}schemas/schema-bead-child#/properties/n/minimum`;
           break;
         case "deep-missing":
           expect(changed.diagnostics).toHaveLength(2);
@@ -1256,7 +1262,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(report.reportBinding.exactConfigurationDigest).toBe(
       "3224c31c83988dc0606cb76ee1f4ba8e6394159bdf7daaccc301461316cc2477",
     );
-    expect(report.uncoveredIds).toHaveLength(98);
+    expect(report.uncoveredIds).toHaveLength(96);
     expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
     expect(report.sessions).toHaveLength(report.plannedIds.length);
     expect(report.observations.length).toBeGreaterThan(30);
@@ -1273,7 +1279,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
         expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(65536);
     }
     expect(progress.authoredIds).toHaveLength(54);
-    expect(progress.reviewedWholeIds).toHaveLength(31);
+    expect(progress.reviewedWholeIds).toHaveLength(33);
     expect(progress.omittedRequiredIds).toHaveLength(75);
     expect(progress.shards[1]!.selectedIds).toEqual([
       attributionId,
@@ -1329,15 +1335,17 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       { method: "POST", url: `${scope}operations/update-link` },
       { method: "POST", url: `${scope}operations/create-bead` },
       { method: "POST", url: `${scope}operations/create-link` },
+      { method: "GET", url: `${scope}beads/nr-schema` },
+      { method: "GET", url: `${scope}links/nr-schema` },
       { method: "POST", url: `${scope}operations/sequence` },
       { method: "POST", url: `${scope}operations/delete-bead` },
       { method: "POST", url: `${scope}operations/delete-link` },
       { method: "POST", url: `${scope}operations/put-alias` },
       { method: "POST", url: `${scope}operations/delete-alias` },
     ]);
-    expect(progress.shards[1]!.routes).toHaveLength(49);
+    expect(progress.shards[1]!.routes).toHaveLength(51);
     expect(progress.shards[1]!.routeDigest).toBe(
-      "24b63b02859bd1caa9bd477a8121a43e3255b4e3942773e29f514677b4f0cbab",
+      "9a625cd0cd901ebf18619256a40df5a6751e329238e2efd7b8d75ebbeaedd421",
     );
     expect(progress.observedStatePartitions.pass).toEqual(progress.authoredIds);
     expect(progress.observedStatePartitions.fail).toEqual([]);
@@ -1347,7 +1355,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(progress.uncoveredIds).toEqual(
       set.coverage.rows.filter((r) => !r.wholeContract).map((r) => r.id),
     );
-    expect(progress.uncoveredIds).toHaveLength(98);
+    expect(progress.uncoveredIds).toHaveLength(96);
     expect(JSON.stringify(progress)).not.toContain(token);
     expect(JSON.stringify(progress)).not.toContain(wrongToken);
     controller.signal.throwIfAborted();
@@ -2007,7 +2015,7 @@ it("observes retained retry dispositions across actual installed carriers and cu
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(98);
+  expect(report.uncoveredIds).toHaveLength(96);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -2240,7 +2248,7 @@ it("observes key and media admission against installed HTTP with paired aftersta
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(98);
+  expect(report.uncoveredIds).toHaveLength(96);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -2670,7 +2678,7 @@ it("observes reference syntax and retained category failures against installed H
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(98);
+  expect(report.uncoveredIds).toHaveLength(96);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -3769,7 +3777,7 @@ it("pins attribution/numeric action ledgers, raw literals and prior scenario byt
     }
     expect(created).toEqual(ids);
     const coverage = set.coverage.rows.find((r) => r.id === id)!;
-    expect(coverage.wholeContract).toBe(id === attributionId);
+    expect(coverage.wholeContract).toBe(true);
     expect(coverage.bindings).toEqual([
       {
         scenario: id,
@@ -3883,10 +3891,10 @@ it.each([numericRoundTripId, numericNestedId])(
     expect(row, JSON.stringify(row)).toMatchObject({ state: "pass" });
     expect(report.result.claimEligible).toBe(false);
     expect(report.cleanupComplete).toBe(true);
-    expect(row.exchanges).toHaveLength(id === numericRoundTripId ? 29 : 21);
-    expect(row.actions).toHaveLength(id === numericRoundTripId ? 43 : 31);
+    expect(row.exchanges).toHaveLength(id === numericRoundTripId ? 41 : 21);
+    expect(row.actions).toHaveLength(id === numericRoundTripId ? 47 : 31);
     const raw = row.exchanges.filter((e) => e.request.method === "POST");
-    expect(raw).toHaveLength(id === numericRoundTripId ? 24 : 16);
+    expect(raw).toHaveLength(id === numericRoundTripId ? 32 : 16);
     for (const exchange of raw) {
       expect(exchange.request.exact).toMatchObject({
         source: "raw-http1-serializer",
@@ -4007,10 +4015,6 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
       "39eb2fe22d25eada2c43490f37b6cb5d66950bd90042af1ae954036426e07f2a",
     ],
     [
-      "read-update.numeric-model.round-trip-admission",
-      "942b71435685816f83ea128ae5ffdd07dd3e3d235346f5600b17d15d750a7bc4",
-    ],
-    [
       "read-update.numeric-model.nested-refusal",
       "068f02059e00c89130eb6be9683768e4828812e22371645d58540942f60f1d56",
     ],
@@ -4024,7 +4028,7 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   for (const [id, count, resourceIds] of [
     [
       numericRoundTripId,
-      72,
+      88,
       [
         "beads/nr-source",
         "beads/nr-target",
@@ -4034,6 +4038,8 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
         "links/nr-link-integer",
         "links/nr-link-precision",
         "links/nr-link-overflow",
+        "beads/nr-schema",
+        "links/nr-schema",
       ],
     ],
     [
@@ -4068,7 +4074,7 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
         });
         // Parse only to inspect fixed IDs; numeric wire and expected postimages are separately authored.
         if (action.target.path!.startsWith("create-")) created.add(JSON.parse(raw.body!.value).id);
-        if (action.id.endsWith("-refused")) {
+        if (id === numericNestedId && action.id.endsWith("-refused")) {
           const corrected = row.actions!.find(
             (a) => a.id === action.id.replace(/-refused$/, "-corrected"),
           )!;
@@ -4092,7 +4098,7 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
     }
     expect([...created]).toEqual(resourceIds);
     const coverage = set.coverage.rows.find((r) => r.id === id)!;
-    expect(coverage.wholeContract).toBe(false);
+    expect(coverage.wholeContract).toBe(id === numericNestedId);
     expect(coverage.bindings).toEqual([
       {
         scenario: id,
@@ -4108,16 +4114,23 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
       ["integer", "9007199254740993", "9007199254740992", "9007199254740994"],
       ["precision", "0.12345678901234567891", "0.125", "0.25"],
       ["overflow", "1e309", "1e300", "1e299"],
-    ]) {
+    ] as const) {
       const body = (suffix: string) => {
         const action = roundTrip.actions!.find((a) => a.id === `nr-${kind}-${name}-${suffix}`)!;
         if (action.family !== "http") throw Error("numeric case requires raw HTTP");
         return action.raw!.body!.value;
       };
-      for (const operation of ["create", "patch"])
-        expect(body(`${operation}-refused`)).toContain(`"value":${bad}`);
-      expect(body("create-corrected")).toContain(`"value":${created}`);
-      expect(body("patch-corrected")).toContain(`"value":${updated}`);
+      if (name === "precision") {
+        assertRPrecisionStructure(body("create-refused"), bad, false);
+        assertRPrecisionStructure(body("patch-refused"), bad, true);
+        assertRPrecisionStructure(body("create-corrected"), created, false);
+        assertRPrecisionStructure(body("patch-corrected"), updated, true);
+      } else {
+        for (const operation of ["create", "patch"])
+          expect(body(`${operation}-refused`)).toContain(`"value":${bad}`);
+        expect(body("create-corrected")).toContain(`"value":${created}`);
+        expect(body("patch-corrected")).toContain(`"value":${updated}`);
+      }
       expect(created).not.toBe(updated);
       expect(body("create-corrected")).toContain('"one":1.0');
       expect(body("create-corrected")).toContain('"zero":-0.0');
@@ -4127,7 +4140,8 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
   }
   for (const kind of ["bead", "link"] as const)
     assertNestedNumericLexemes(nestedNumericLexemes(kind));
-  expect(actions).toBeLessThanOrEqual(124);
+  assertRRefusalPairs(roundTrip.actions!);
+  expect(actions).toBeLessThanOrEqual(140);
   expect(assertions).toBeLessThanOrEqual(1300);
   expect(new Set(keys).size).toBe(keys.length);
   expect(numericAdmissionRawControls).toHaveLength(6);
@@ -4482,4 +4496,374 @@ it("pins metadata closure growth, old B actions and final N preservation", () =>
   expect(() =>
     expect(finalDigest(changed), "final N raw preservation").toBe(finalExpected),
   ).toThrow("final N raw preservation");
+});
+
+// Root-accepted R extension: independent response corruption after a real refusal.
+const numericRClosureRawControls = [
+  {
+    number: 1,
+    mode: "pointer",
+    scenario: numericRoundTripId,
+    action: "nr-bead-precision-create-refused",
+    operation: "create-bead",
+    failed: ["complete-problem"],
+  },
+  {
+    number: 2,
+    mode: "metadata-label",
+    scenario: numericRoundTripId,
+    action: "nr-bead-integer-meta-create-refused",
+    operation: "create-bead",
+    failed: ["complete-problem"],
+  },
+  {
+    number: 3,
+    mode: "schema-location",
+    scenario: numericRoundTripId,
+    action: "nr-bead-schema-create-refused",
+    operation: "create-bead",
+    failed: ["complete-problem"],
+  },
+] as const;
+it.each(numericRClosureRawControls)(
+  "detects R closure raw control $number $mode",
+  async (control) => {
+    const report = await run(
+      JSON.parse(source(continuationSource).bytes.toString()),
+      [control.scenario],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    expect(report.cleanupComplete).toBe(true);
+    const row = report.result.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    expect(
+      row.exchanges
+        .find((e) => e.request.id === control.action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toEqual(control.failed);
+    expect(
+      row.exchanges
+        .filter((e) => e.request.id !== control.action)
+        .every((e) => e.assertions.every((q) => q.passed)),
+    ).toBe(true);
+    expect(row.actions?.every((a) => a.assertions.every((q) => q.passed))).toBe(true);
+  },
+  30000,
+);
+
+type NumericRAction = NonNullable<
+  ReturnType<
+    typeof installedArtifactSet
+  >["shards"][number]["bundle"]["manifest"]["scenarios"][number]["actions"]
+>[number];
+
+function rRefusalPairs() {
+  const pairs: { refused: string; corrected: string; bad: string; good: string }[] = [];
+  for (const kind of ["bead", "link"]) {
+    for (const [name, bad, created, updated] of [
+      ["integer", "9007199254740993", "9007199254740992", "9007199254740994"],
+      ["precision", "0.12345678901234567891", "0.125", "0.25"],
+      ["overflow", "1e309", "1e300", "1e299"],
+    ] as const) {
+      for (const operation of ["create", "patch"]) {
+        const prefix = `nr-${kind}-${name}-${operation}`;
+        const member = name === "precision" ? '"a/b~c":' : '"value":';
+        pairs.push({
+          refused: `${prefix}-refused`,
+          corrected: `${prefix}-corrected`,
+          bad: `${member}${bad}`,
+          good: `${member}${operation === "create" ? created : updated}`,
+        });
+      }
+    }
+    pairs.push(
+      {
+        refused: `nr-${kind}-integer-meta-create-refused`,
+        corrected: `nr-${kind}-integer-create-corrected`,
+        bad: '"number":1e-400',
+        good: '"number":0',
+      },
+      {
+        refused: `nr-${kind}-integer-meta-patch-refused`,
+        corrected: `nr-${kind}-integer-patch-corrected`,
+        bad: '"path":"/number","value":0.12345678901234567891',
+        good: '"path":"/number","value":0.25',
+      },
+      {
+        refused: `nr-${kind}-schema-create-refused`,
+        corrected: `nr-${kind}-schema-create-corrected`,
+        bad: '"n":-1',
+        good: '"n":0',
+      },
+    );
+  }
+  return pairs;
+}
+
+function assertRRefusalPairs(actions: readonly NumericRAction[]) {
+  const pairs = rRefusalPairs();
+  const refused = actions.filter(
+    (a) => a.family === "http" && a.method === "POST" && a.id.endsWith("-refused"),
+  );
+  expect(pairs).toHaveLength(18);
+  expect(new Set(pairs.map((p) => p.refused)).size).toBe(18);
+  expect(pairs.map((p) => p.refused).sort()).toEqual(refused.map((a) => a.id).sort());
+  const body = (id: string) => {
+    const found = actions.filter((a) => a.id === id);
+    expect(found, "unique refusal/comparator").toHaveLength(1);
+    const action = found[0]!;
+    if (action.family !== "http" || action.method !== "POST" || !action.raw?.body)
+      throw Error("raw comparator POST required");
+    expect(action.raw.body.encoding).toBe("utf8");
+    return action;
+  };
+  const stripNumbers = (value: string) =>
+    value.replace(/(?<=:)-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g, "NUMBER");
+  for (const pair of pairs) {
+    const refusal = body(pair.refused);
+    const corrected = body(pair.corrected);
+    expect(refusal.target).toEqual(corrected.target);
+    const headers = (action: typeof refusal) =>
+      action.raw!.headerLines.filter((h) => h.name.toLowerCase() !== "idempotency-key");
+    expect(headers(refusal)).toEqual(headers(corrected));
+    for (const action of [refusal, corrected]) {
+      expect(
+        action.raw!.headerLines.filter((h) => h.name.toLowerCase() === "idempotency-key"),
+      ).toEqual([{ name: "Idempotency-Key", value: action.id }]);
+    }
+    const before = refusal.raw!.body!.value;
+    const after = corrected.raw!.body!.value;
+    expect(stripNumbers(before), "numbers-stripped companion equality").toBe(stripNumbers(after));
+    expect(before.split(pair.bad), "one contextual refused leaf").toHaveLength(2);
+    expect(after.split(pair.good), "one contextual corrected leaf").toHaveLength(2);
+    expect(before.replace(pair.bad, pair.good), "only declared numeric leaf differs").toBe(after);
+    expect(actions.indexOf(refusal)).toBeLessThan(actions.indexOf(corrected));
+  }
+}
+
+function assertRPrecisionStructure(body: string, literal: string, patch: boolean) {
+  const tree = `{"items":[{"a/b~c":${literal}}]}`;
+  expect(body, "nested precision structure").toContain(
+    patch ? `"path":"/value","value":${tree}` : `"properties":{"value":${tree}`,
+  );
+}
+
+it("rejects incomplete R comparator maps, other-document differences and flattened precision", () => {
+  const actions = installedArtifactSet().shards[1]!.bundle.manifest.scenarios.find(
+    (r) => r.id === numericRoundTripId,
+  )!.actions!;
+  assertRRefusalPairs(actions);
+  const clone = () => structuredClone(actions);
+  const mutation = clone();
+  const changed = mutation.find((a) => a.id === "nr-bead-integer-create-refused")!;
+  if (changed.family !== "http" || !changed.raw?.body) throw Error("raw fixture required");
+  const at = mutation.indexOf(changed);
+  const corrupted = [
+    ...mutation.slice(0, at),
+    {
+      ...changed,
+      raw: {
+        ...changed.raw!,
+        body: {
+          ...changed.raw!.body!,
+          value: changed.raw!.body!.value.replace('"number":0', '"number":1'),
+        },
+      },
+    },
+    ...mutation.slice(at + 1),
+  ];
+  expect(() => assertRRefusalPairs(corrupted)).toThrow("only declared numeric leaf differs");
+  expect(() =>
+    assertRRefusalPairs(actions.filter((a) => a.id !== "nr-bead-integer-meta-create-refused")),
+  ).toThrow();
+  const duplicate = [
+    ...clone(),
+    structuredClone(actions.find((a) => a.id === "nr-bead-schema-create-refused")!),
+  ];
+  expect(() => assertRRefusalPairs(duplicate)).toThrow();
+  for (const kind of ["bead", "link"]) {
+    const action = actions.find((a) => a.id === `nr-${kind}-precision-create-refused`)!;
+    if (action.family !== "http") throw Error("raw fixture required");
+    assertRPrecisionStructure(action.raw!.body!.value, "0.12345678901234567891", false);
+    expect(() =>
+      assertRPrecisionStructure(
+        action.raw!.body!.value.replace(
+          '{"items":[{"a/b~c":0.12345678901234567891}]}',
+          "0.12345678901234567891",
+        ),
+        "0.12345678901234567891",
+        false,
+      ),
+    ).toThrow("nested precision structure");
+  }
+});
+
+// Accepted b604320267dd0adcf1ec91854550fb402a1155e7 anchors, including all earlier fences.
+it("pins bounded R closure source, changed-action ledger and unchanged companions", () => {
+  const text = source(continuationSource).bytes.toString();
+  const manifest = JSON.parse(text);
+  const countNodes = (v: unknown): number =>
+    1 +
+    (v !== null && typeof v === "object"
+      ? Object.values(v).reduce<number>((n, child) => n + countNodes(child), 0)
+      : 0);
+  expect(Buffer.byteLength(text) - 844551).toBeLessThanOrEqual(57344);
+  expect(countNodes(manifest) - 22146).toBeLessThanOrEqual(1400);
+  const coverage = source("packages/conformance/test-support/read-update-coverage-v1.json").bytes;
+  expect(coverage.length - 703415).toBeLessThanOrEqual(7168);
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === numericRoundTripId) as {
+    actions: readonly NumericRAction[];
+  };
+  const changedIds = [
+    "nr-bead-integer-create-refused",
+    "nr-bead-integer-create-corrected",
+    "nr-bead-integer-created-read",
+    "nr-bead-integer-patch-refused",
+    "nr-bead-integer-patch-corrected",
+    "nr-bead-integer-updated-read",
+    "nr-bead-precision-create-refused",
+    "nr-bead-precision-create-corrected",
+    "nr-bead-precision-created-read",
+    "nr-bead-precision-patch-refused",
+    "nr-bead-precision-patch-corrected",
+    "nr-bead-precision-updated-read",
+    "nr-link-integer-create-refused",
+    "nr-link-integer-create-corrected",
+    "nr-link-integer-created-read",
+    "nr-link-integer-patch-refused",
+    "nr-link-integer-patch-corrected",
+    "nr-link-integer-updated-read",
+    "nr-link-precision-create-refused",
+    "nr-link-precision-create-corrected",
+    "nr-link-precision-created-read",
+    "nr-link-precision-patch-refused",
+    "nr-link-precision-patch-corrected",
+    "nr-link-precision-updated-read",
+  ];
+  const addedIds = [
+    "nr-bead-integer-meta-create-refused",
+    "nr-bead-integer-meta-absent",
+    "nr-bead-integer-meta-patch-refused",
+    "nr-bead-integer-meta-unchanged",
+    "nr-link-integer-meta-create-refused",
+    "nr-link-integer-meta-absent",
+    "nr-link-integer-meta-patch-refused",
+    "nr-link-integer-meta-unchanged",
+    "nr-bead-schema-create-refused",
+    "nr-bead-schema-absent",
+    "nr-bead-schema-create-corrected",
+    "nr-bead-schema-read",
+    "nr-link-schema-create-refused",
+    "nr-link-schema-absent",
+    "nr-link-schema-create-corrected",
+    "nr-link-schema-read",
+  ];
+  expect(addedIds).toHaveLength(16);
+  expect(row.actions!.filter((a) => addedIds.includes(a.id)).map((a) => a.id)).toEqual(addedIds);
+  const unchanged = row.actions!.filter(
+    (a) => !changedIds.includes(a.id) && !addedIds.includes(a.id),
+  );
+  expect(unchanged.map((a) => a.id)).toEqual([
+    "scope",
+    "discovery",
+    "directory",
+    "directory-captures",
+    "task",
+    "relates",
+    "nr-create-source",
+    "nr-source-initial",
+    "nr-create-target",
+    "nr-target-initial",
+    "nr-bead-integer-absent",
+    "nr-bead-integer-patch-refused-read",
+    "nr-bead-precision-absent",
+    "nr-bead-precision-patch-refused-read",
+    "nr-bead-overflow-create-refused",
+    "nr-bead-overflow-absent",
+    "nr-bead-overflow-create-corrected",
+    "nr-bead-overflow-created-read",
+    "nr-bead-overflow-patch-refused",
+    "nr-bead-overflow-patch-refused-read",
+    "nr-bead-overflow-patch-corrected",
+    "nr-bead-overflow-updated-read",
+    "nr-link-integer-absent",
+    "nr-link-integer-create-endpoints-source",
+    "nr-link-integer-create-endpoints-target",
+    "nr-link-integer-patch-refused-read",
+    "nr-link-integer-patch-endpoints-source",
+    "nr-link-integer-patch-endpoints-target",
+    "nr-link-precision-absent",
+    "nr-link-precision-create-endpoints-source",
+    "nr-link-precision-create-endpoints-target",
+    "nr-link-precision-patch-refused-read",
+    "nr-link-precision-patch-endpoints-source",
+    "nr-link-precision-patch-endpoints-target",
+    "nr-link-overflow-create-refused",
+    "nr-link-overflow-absent",
+    "nr-link-overflow-create-endpoints-source",
+    "nr-link-overflow-create-endpoints-target",
+    "nr-link-overflow-create-corrected",
+    "nr-link-overflow-created-read",
+    "nr-link-overflow-patch-refused",
+    "nr-link-overflow-patch-refused-read",
+    "nr-link-overflow-patch-endpoints-source",
+    "nr-link-overflow-patch-endpoints-target",
+    "nr-link-overflow-patch-corrected",
+    "nr-link-overflow-updated-read",
+    "nr-final-source",
+    "nr-final-target",
+  ]);
+  expect(createHash("sha256").update(JSON.stringify(unchanged)).digest("hex")).toBe(
+    "3378857a12c4632d66354e62f044dc5db27708133d5d1fdb3f522a0323d1b5e5",
+  );
+  expect(row.actions!.filter((a) => changedIds.includes(a.id)).map((a) => a.id)).toEqual(
+    changedIds,
+  );
+  const additional = row
+    .actions!.filter((a) => addedIds.includes(a.id))
+    .flatMap((a) => a.assertions.map((q) => a.id + "." + q.id));
+  expect(additional).toHaveLength(98);
+  expect(
+    additional.reduce(
+      (n, binding) => n + Buffer.byteLength("            " + JSON.stringify(binding) + ",\n"),
+      0,
+    ),
+  ).toBe(5460);
+  expect(coverage.length - 703415 - 5460).toBeLessThanOrEqual(1708);
+  expect(row.actions!.reduce((n, a) => n + a.assertions.length, 0)).toBe(619);
+  expect(numericRClosureRawControls).toHaveLength(3);
+  expect(
+    numericRClosureRawControls.length +
+      numericAdmissionRawControls.length +
+      numericAdmissionClientControls.length,
+  ).toBe(12);
+  const keys = (action: NumericRAction) =>
+    action.family === "http"
+      ? (action.raw?.headerLines
+          .filter((h) => h.name.toLowerCase() === "idempotency-key")
+          .map((h) => h.value) ?? [])
+      : action.family === "client" &&
+          typeof action.input === "object" &&
+          action.input !== null &&
+          "idempotencyKey" in action.input
+        ? [action.input.idempotencyKey]
+        : [];
+  const otherKeys = installedArtifactSet()
+    .shards[1]!.bundle.manifest.scenarios.filter((r) => r.id !== numericRoundTripId)
+    .flatMap((r) => r.actions!.flatMap(keys));
+  for (const key of row.actions!.flatMap(keys)) expect(otherKeys).not.toContain(key);
 });
