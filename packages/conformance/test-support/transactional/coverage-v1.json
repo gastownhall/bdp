@@ -1,0 +1,69 @@
+{
+  "coverageVersion": 1,
+  "claimEligible": false,
+  "status": "authored-unexecuted",
+  "transportAdmission": "pending-h1b",
+  "rows": [
+    {
+      "id": "transactional.batch.atomic-commit",
+      "wholeContract": false,
+      "reason": "H1a carrier fixture only. No target observed. H1b must add the full planned raw-wire, schema, retained-result, independent afterstate and negative-control observations before execution or credit.",
+      "bindings": [
+        {
+          "scenario": "transactional.batch.atomic-commit",
+          "assertions": ["commit:http-status", "commit:disposition"]
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.rollback",
+      "wholeContract": false,
+      "reason": "H1a carrier fixture only. No target observed. H1b must add the full planned raw-wire, schema, retained-result, independent afterstate and negative-control observations before execution or credit.",
+      "bindings": [
+        {
+          "scenario": "transactional.batch.rollback",
+          "assertions": [
+            "seed:http-status",
+            "seed:disposition",
+            "rollback:http-status",
+            "rollback:disposition"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.readable",
+      "wholeContract": false,
+      "reason": "H1a carrier fixture only. No target observed. H1b must add the full planned raw-wire, schema, retained-result, independent afterstate and negative-control observations before execution or credit.",
+      "bindings": [
+        {
+          "scenario": "transactional.receipt.readable",
+          "assertions": [
+            "completed:http-status",
+            "completed:disposition",
+            "retained:http-status",
+            "retained:disposition"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.failed-retained",
+      "wholeContract": false,
+      "reason": "H1a carrier fixture only. No target observed. H1b must add the full planned raw-wire, schema, retained-result, independent afterstate and negative-control observations before execution or credit.",
+      "bindings": [
+        {
+          "scenario": "transactional.idempotency.failed-retained",
+          "assertions": [
+            "missing:http-status",
+            "missing:disposition",
+            "create:http-status",
+            "create:disposition",
+            "retry:http-status",
+            "retry:disposition"
+          ]
+        }
+      ]
+    }
+  ]
+}

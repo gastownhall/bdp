@@ -7,6 +7,7 @@ import {
 } from "./conditional-header.js";
 import {
   assertFactoryCreatedArtifactBundle,
+  isCumulativeTransactionalArtifactBundle,
   type ConformanceArtifactBundle,
   type ConformanceFixture,
 } from "./artifact-bundle.js";
@@ -314,8 +315,28 @@ export class ScenarioUnsupportedProfileError extends Error {
 export async function runConformanceMatrix(
   options: ScenarioRunOptions,
 ): Promise<ConformanceRunResult> {
+  return runMatrix(options, false);
+}
+
+/** Source-private carrier only. The unchanged exact transport still refuses TX
+ * until its separately reviewed admission exists; no synthetic fallback. */
+export async function runCumulativeTransactionalMatrix(
+  options: ScenarioRunOptions,
+): Promise<ConformanceRunResult> {
+  return runMatrix(options, true);
+}
+
+async function runMatrix(
+  options: ScenarioRunOptions,
+  transactional: boolean,
+): Promise<ConformanceRunResult> {
   const runOptions = snapshotRunOptions(options);
-  validateRunOptions(runOptions);
+  const branded = isCumulativeTransactionalArtifactBundle(runOptions.artifactBundle);
+  if (transactional ? !branded || runOptions.profile !== "transactional" : branded)
+    throw new ConformanceRunnerError(
+      "private Transactional bundle requires its matching private runner and profile",
+    );
+  validateRunOptions(runOptions, transactional);
   const { catalog, manifest } = runOptions.artifactBundle;
   const metadata = selectApplicableScenariosForProfile(catalog, runOptions.profile);
   const allCatalogIds = new Set(catalog.scenarios.map(({ id }) => id));
@@ -2523,7 +2544,7 @@ function linkHeader(value: string | undefined, rel: string, base: string): strin
   return undefined;
 }
 
-function validateRunOptions(options: ScenarioRunOptions): void {
+function validateRunOptions(options: ScenarioRunOptions, transactional: boolean): void {
   try {
     assertFactoryCreatedArtifactBundle(options.artifactBundle);
   } catch (error) {
@@ -2590,13 +2611,15 @@ function validateRunOptions(options: ScenarioRunOptions): void {
   if (
     options.artifactBundle.manifest.manifestVersion === 2 &&
     options.profile !== "read" &&
-    (options.profile !== "read-update" ||
+    ((transactional ? options.profile !== "transactional" : options.profile !== "read-update") ||
       options.exactExecution === undefined ||
       options.exactExecution.configuration.profile !== options.profile ||
       options.exactExecution.configuration.scope !== options.scope)
   )
     throw new ConformanceRunnerError(
-      "Version 2 non-Read execution requires matching Read+Update configuration",
+      transactional
+        ? "Private Transactional execution requires matching exact configuration (transport admission pending)"
+        : "Version 2 non-Read execution requires matching Read+Update configuration",
     );
   if (
     options.exactExecution?.approvedSyntheticManifestDigest !== undefined &&

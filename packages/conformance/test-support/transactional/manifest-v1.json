@@ -1,0 +1,384 @@
+{
+  "manifestVersion": 2,
+  "catalogId": "transactional-v1",
+  "scenarios": [
+    {
+      "id": "transactional.batch.atomic-commit",
+      "requiredProfile": "transactional",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "commit",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "commit"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"id\":\"beads/a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"a\"},\"name\":\"a\"},{\"operation\":\"updateBead\",\"bead\":\"@a\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"updated\"}]},{\"operation\":\"createBead\",\"id\":\"beads/b\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"b\"}},{\"operation\":\"createLink\",\"id\":\"links/l\",\"type\":\"https://reference.invalid/acme/types/relationship\",\"source\":\"@a\",\"target\":\"beads/b\",\"properties\":{}}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "completed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "transactional.batch.rollback",
+      "requiredProfile": "transactional",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "seed",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "seed"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"id\":\"beads/a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"a\"}}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "completed"
+            }
+          ]
+        },
+        {
+          "id": "rollback",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "rollback"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"id\":\"beads/new\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"new\"}},{\"operation\":\"updateBead\",\"bead\":\"beads/a\",\"expectedRevision\":\"not-current\",\"propertiesChange\":[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"uncommitted\"}]}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "failed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "transactional.receipt.readable",
+      "requiredProfile": "transactional",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http", "transactional-receipt-observation"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "completed",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "completed"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"id\":\"beads/a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"a\"}}]}"
+            }
+          },
+          "captures": [
+            {
+              "binding": "receipt",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "completed"
+            }
+          ]
+        },
+        {
+          "id": "retained",
+          "family": "client",
+          "operation": "transactional.receipt-read",
+          "input": {
+            "binding": "receipt",
+            "method": "GET"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": "completed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "transactional.idempotency.failed-retained",
+      "requiredProfile": "transactional",
+      "setup": {
+        "fixture": "reference-transactional-v1",
+        "requires": ["installed-transactional-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "missing",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "retained"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"deleteBead\",\"bead\":\"beads/a\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "failed"
+            }
+          ]
+        },
+        {
+          "id": "create",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "create"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"createBead\",\"id\":\"beads/a\",\"type\":\"https://reference.invalid/acme/types/task\",\"properties\":{\"title\":\"a\"}}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "completed"
+            }
+          ]
+        },
+        {
+          "id": "retry",
+          "family": "http",
+          "method": "POST",
+          "target": {
+            "binding": "batch"
+          },
+          "credentialRef": "operator",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "idempotency-key",
+                "value": "retained"
+              }
+            ],
+            "body": {
+              "encoding": "utf8",
+              "value": "{\"operations\":[{\"operation\":\"deleteBead\",\"bead\":\"beads/a\"}]}"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "http-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": "failed"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+export { runCumulativeTransactionalMatrix } from "../src/runner.js";
+export { createCumulativeTransactionalArtifactBundle } from "../src/artifact-bundle.js";
 export {
   bindServedProfileConfiguration,
   assertSameServedProfileConfiguration,
