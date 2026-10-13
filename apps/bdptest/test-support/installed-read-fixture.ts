@@ -1,4 +1,5 @@
 /** Private harness composition: real HTTP setup and already-resolved Read headers. */
+import { isDeepStrictEqual } from "node:util";
 import type { ConformanceFixture, RawHttpExchangeExecutor } from "@bdp/conformance";
 
 const fields = new Set([
@@ -38,7 +39,6 @@ export function exactNativeReadAdapter(
       method: request.method,
       url: request.url,
       signal: request.signal,
-      credentialRef: "operator",
       raw: { headerLines: lines },
       ...(request.rawRequestTarget === undefined
         ? {}
@@ -122,8 +122,8 @@ export async function seedInstalledReadFixture(
         value.resource?.type !== body.type ||
         (kind === "link" &&
           (value.resource?.source !== body.source || value.resource?.target !== body.target)) ||
-        JSON.stringify(value.resource?.properties) !== JSON.stringify(input.properties) ||
-        JSON.stringify(value.resource?.metadata) !== JSON.stringify(input.metadata)
+        !isDeepStrictEqual(value.resource?.properties, input.properties) ||
+        !isDeepStrictEqual(value.resource?.metadata, input.metadata)
       )
         throw Error("actual Read seed creation failed or disagreed with fixture");
     }
