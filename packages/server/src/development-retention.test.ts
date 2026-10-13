@@ -185,7 +185,17 @@ it.each([false, true])(
       const corrupt = readFileSync(filename);
       await expect(
         openDevelopmentAuthority({ ...options, create: false, clock: () => 86401000 }),
-      ).rejects.toThrow(/capture mismatch|inventory mismatch/);
+      ).rejects.toThrow(
+        expect.objectContaining({
+          reason: corruption === "missing-capture" ? "integrity" : "store-mismatch",
+          message:
+            corruption === "missing-capture"
+              ? "missing store metadata: contractCapture"
+              : ["missing-type", "extra-type", "changed-type"].includes(corruption)
+                ? "installed Type inventory mismatch"
+                : "installation capture mismatch",
+        }),
+      );
       expect(readFileSync(filename)).toEqual(corrupt);
       expect(
         raw(

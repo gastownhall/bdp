@@ -182,6 +182,9 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
   };
   // Capture is immutable compiler evidence, not access/authentication policy.
   // Account for independent URI escaping and base64 artifact bytes plus entry overhead.
+  // Twin ceiling: transaction-store.ts captureMaximumBytes. Keep these factors aligned;
+  // consolidation is tracked in update-implementation-progress.md. This caller bounds
+  // serialization; recovery-store.ts compares stored UTF8 length to this exact text.
   const contractCapture = configured ? stringifyJsonValue(configured.contracts.capture) : "null";
   const maximumCaptureBytes =
     8 * CONTRACT_ARTIFACT_CEILINGS.totalBytes +
