@@ -193,7 +193,12 @@ export async function startTransactionRuntime(
             );
           } catch (error) {
             // Capture before destroy() turns a genuine fault into a disconnect.
-            if (response.headersSent && !streamSignal.aborted && !firstStreamFault)
+            if (
+              response.headersSent &&
+              !streamSignal.aborted &&
+              !response.destroyed &&
+              !firstStreamFault
+            )
               firstStreamFault = { cause: error };
             throw error;
           } finally {

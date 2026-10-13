@@ -589,3 +589,20 @@ it("hashes actual stream defaults and all four transport timers; timing seams re
     "own-data",
   );
 });
+
+it("effective stream availability preserves finite-only idle seams at the strict boundary", () => {
+  const options = fixture();
+  for (const [timeout, available] of [
+    [100, false],
+    [5000, false],
+    [5001, true],
+  ] as const) {
+    const captured = captureTransactionRuntimeConfiguration(options, { transport: { timeout } });
+    expect(captured.liveStreamsAvailable).toBe(available);
+    expect(captured.settings.transport.timeout).toBe(timeout);
+    expect(captured.settings.changefeedStream).toEqual(
+      TRANSACTION_RUNTIME_DEFAULTS.changefeedStream,
+    );
+    expect(Object.isFrozen(captured.settings.changefeedStream)).toBe(true);
+  }
+});

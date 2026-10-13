@@ -1336,3 +1336,17 @@ The deferred `start=now` plus `Last-Event-ID` gap also blocks automatic EventSou
 reconnect after that initial stream has delivered an Event. The private development
 refusal remains unchanged; this slice makes no browser interoperability claim or
 new protocol ruling for that combination.
+
+
+The final G2a cancellation guard also distinguishes a response already destroyed
+from a still-live response before the queued Node close notification aborts the
+stream signal. A deterministic real-response/microtask witness reproduced the
+false shutdown failure before the guard; genuine owner failures remain retained.
+Capture validates effective pump timer values before serving while preserving
+finite-only short transport seams and their live-stream refusal.
+
+The raw source serialization witness explicitly pins one group in each finite
+page before matching frame indices. Numeric-like key sensitivity belongs to that
+source witness; the installed witness checks raw byte containment with its simpler
+numeric property fixture. Its observer imports source-only server test support,
+while the target remains a separate process loading the exact installed payload.
