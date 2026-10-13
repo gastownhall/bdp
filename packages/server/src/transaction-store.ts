@@ -1,3 +1,8 @@
+import {
+  checkTransactionMinimum,
+  snapshotTransactionMinimum,
+  type TransactionMinimum,
+} from "./transaction-consistency.js";
 /** Independent private Transactional owner. Never open this format as a RU store. */
 import { randomUUID } from "node:crypto";
 import { closeSync, existsSync, openSync, unlinkSync } from "node:fs";
@@ -446,8 +451,10 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   }
   // Fixed all-visible projection and current position are captured before this
   // authoritative transaction releases. No second clock/retention observation.
-  function observeReceipt(receipt: TransactionReceipt): TransactionReceiptObservation {
-    const context = readContext();
+  function observeReceipt(
+    receipt: TransactionReceipt,
+    context = readContext(),
+  ): TransactionReceiptObservation {
     if (receipt.scopeEpoch !== context.scopeEpoch)
       throw new Error("receipt epoch differs from serving owner", {
         cause: { id: receipt.id, key: receipt.idempotencyKey },
@@ -1261,6 +1268,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     readReceipt(
       principal: string,
       id: string,
+      minimum?: TransactionMinimum,
     ): {
       readonly receipt: TransactionReceipt | undefined;
       readonly context: TransactionReadContext;
@@ -1268,12 +1276,17 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       if (typeof principal !== "string" || !principal || !principal.isWellFormed())
         throw new TypeError("invalid trusted principal");
       if (typeof id !== "string") throw new TypeError("receipt URL required");
+      const condition = minimum === undefined ? undefined : snapshotTransactionMinimum(minimum);
       return enter(() =>
         atomic(() => {
           const receipt = retainedReceipt(principal, id);
-          return receipt === undefined
-            ? Object.freeze({ receipt, context: readContext() })
-            : observeReceipt(receipt);
+          const context = readContext();
+          // No minimum-context diagnosis is disclosed for a hidden receipt.
+          if (receipt === undefined) return Object.freeze({ receipt, context });
+          // Preserve owner integrity diagnostics before deciding to wait.
+          const observed = observeReceipt(receipt, context);
+          if (condition !== undefined) checkTransactionMinimum(condition, context);
+          return observed;
         }),
       );
     },

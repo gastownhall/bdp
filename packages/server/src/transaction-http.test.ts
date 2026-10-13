@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { connect } from "node:net";
@@ -6,11 +6,29 @@ import { DatabaseSync } from "node:sqlite";
 import { request as httpRequest } from "node:http";
 import { setImmediate } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseTypeDescriptor } from "@bdp/protocol";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import { isJsonSchemaDateTime, isJsonSchemaUri, parseTypeDescriptor } from "@bdp/protocol";
 import type { TransactionRuntimeTestSeams } from "./transaction-runtime.js";
 const { startTransactionRuntime } = (await import(
   new URL("../dist/transaction-runtime.js", import.meta.url).href
 )) as typeof import("./transaction-runtime.js");
+const ajv = new Ajv2020({ allErrors: true, strict: true });
+ajv.addFormat("uri", { type: "string", validate: isJsonSchemaUri });
+ajv.addFormat("date-time", { type: "string", validate: isJsonSchemaDateTime });
+const schema = JSON.parse(
+  readFileSync(new URL("../../../schemas/bdp-v0.schema.json", import.meta.url), "utf8"),
+);
+ajv.addSchema(schema);
+const validateTransactionalProblem = ajv.compile({
+  $ref: `${schema.$id}#/$defs/transactionalProblem`,
+});
+function checkedProblem(value: Record<string, unknown>) {
+  expect(
+    validateTransactionalProblem(value),
+    JSON.stringify(validateTransactionalProblem.errors),
+  ).toBe(true);
+  return value;
+}
 const token = "a".repeat(32),
   otherToken = "b".repeat(32),
   readToken = "c".repeat(32);
@@ -72,6 +90,20 @@ async function fixture(seams: TransactionRuntimeTestSeams = {}) {
   return {
     get runtime() {
       return runtime;
+    },
+    async receiptRows(key: string) {
+      const port = Number(new URL(runtime.scope).port);
+      await runtime.close();
+      const db = new DatabaseSync(path.join(directory, "transaction.sqlite"), { readOnly: true });
+      try {
+        return db.prepare("SELECT principal,key FROM receipts WHERE key=?").all(key);
+      } finally {
+        db.close();
+        runtime = await startTransactionRuntime(
+          { ...options, port, create: false },
+          { clock: () => time, ...seams },
+        );
+      }
     },
     setTime(value: number) {
       time = value;
@@ -256,16 +288,16 @@ describe("source-private actual Transactional HTTP", () => {
     for (const [authorization, status] of [
       ["", 401],
       [`Bearer ${otherToken}`, 404],
-      [`Bearer ${token}`, 500],
+      [`Bearer ${token}`, 410],
     ] as const) {
       const response = await f.get(id(receipt), { headers: { ...controls, authorization } });
       expect(response.status).toBe(status);
-      expect(response.headers.has("bdp-scope-position")).toBe(false);
+      expect(response.headers.has("bdp-scope-position")).toBe(status === 410);
     }
     const missing = await f.get(`${f.runtime.scope}receipts/unknown`, { headers: controls });
     expect(missing.status).toBe(404);
     const own = await f.get(id(receipt), { headers: controls });
-    expect(own.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+    expect(await body(own)).toMatchObject({ code: "cursor-expired" });
     expect(
       (
         await f.get(id(receipt), {
@@ -407,6 +439,9 @@ describe("source-private actual Transactional HTTP", () => {
     for (let depth = 0; depth < 40; depth++) nested = { nested };
     const depth = await f.post(batch([{ ...create("c"), properties: { nested } }]), "deep");
     expect(depth.status).toBe(500);
+    expect(depth.headers.get("x-bdp-development-limit")).toBe(
+      "unsupported-transaction-composition",
+    );
     expect(await depth.text()).toBe("");
     expect((await f.get(`${f.runtime.scope}beads/c`)).status).toBe(404);
     expect((await f.post(batch([create("c")]), "deep")).status).toBe(200);
@@ -841,4 +876,230 @@ it("labels sequence depth gaps honestly and keeps sequence capacity distinct fro
   const direct = await f.post(batch([create("c"), create("d")]), "direct");
   expect(direct.status).toBe(413);
   expect(await body(direct)).toMatchObject({ limit: "transaction.operations" });
+});
+
+function minimumHeaders(
+  response: Response,
+  position = response.headers.get("bdp-scope-position") ?? "pos-0",
+) {
+  return {
+    "bdp-scope-epoch": response.headers.get("bdp-scope-epoch") ?? "missing",
+    "bdp-authorization-view": response.headers.get("bdp-authorization-view") ?? "missing",
+    "bdp-minimum-scope-position": position,
+  };
+}
+
+it("honors complete minimum tuples on point/properties/receipt GET and HEAD before conditions", async () => {
+  const f = await fixture();
+  const created = await f.post(),
+    receipt = await body(created);
+  await f.post(
+    batch([
+      create("b"),
+      { operation: "createLink", id: "links/l", type: link, source: "beads/a", target: "beads/b" },
+    ]),
+    "second",
+  );
+  const headers = minimumHeaders(created);
+  for (const target of [
+    `${f.runtime.scope}beads/a`,
+    `${f.runtime.scope}beads/a?view=properties`,
+    `${f.runtime.scope}links/l`,
+    `${f.runtime.scope}links/l?view=properties`,
+    id(receipt),
+  ]) {
+    for (const method of ["GET", "HEAD"]) {
+      for (const [condition, status] of [
+        [{}, 200],
+        [{ "if-none-match": "*" }, 304],
+        [{ "if-match": '"wrong"' }, 412],
+      ] as const) {
+        const result = await f.get(target, { method, headers: { ...headers, ...condition } });
+        expect(result.status).toBe(status);
+        expect(result.headers.get("bdp-scope-position")).toBe("pos-2");
+        expect(result.headers.get("bdp-scope-epoch")).toBe(headers["bdp-scope-epoch"]);
+        if (status !== 200 || method === "HEAD") expect(await result.text()).toBe("");
+      }
+    }
+  }
+  expect(await body(await f.get(id(receipt), { headers }))).toEqual(receipt);
+});
+
+it("waits outside the owner until a real concurrent HTTP commit satisfies a point minimum", async () => {
+  let fixtureValue: Awaited<ReturnType<typeof fixture>> | undefined,
+    waits = 0;
+  const f = await fixture({
+    minimumReads: {
+      budgetMs: 1000,
+      wait: async () => {
+        waits++;
+        if (!fixtureValue) throw new Error("fixture missing");
+        expect(
+          (await fixtureValue.post(batch([create(`b_${waits}`)]), `advance_${waits}`)).status,
+        ).toBe(200);
+      },
+    },
+  });
+  fixtureValue = f;
+  const created = await f.post(),
+    receipt = await body(created);
+  const result = await f.get(`${f.runtime.scope}beads/a`, {
+    headers: minimumHeaders(created, "pos-2"),
+  });
+  expect(result.status).toBe(200);
+  expect(result.headers.get("bdp-scope-position")).toBe("pos-2");
+  expect(waits).toBe(1);
+  expect(await body(result)).toMatchObject({
+    id: `${f.runtime.scope}beads/a`,
+    properties: { title: "a" },
+  });
+  const receiptRead = await f.get(id(receipt), { headers: minimumHeaders(created, "pos-3") });
+  expect(receiptRead.status).toBe(200);
+  expect(receiptRead.headers.get("bdp-scope-position")).toBe("pos-3");
+  expect(await body(receiptRead)).toEqual(receipt);
+  expect(waits).toBe(2);
+});
+
+it("uses actual epoch/view decisions and an exhausted wait before conditional or timeout responses", async () => {
+  let tick = 0;
+  const f = await fixture({
+    minimumReads: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+  });
+  const created = await f.post(),
+    receipt = await body(created),
+    headers = minimumHeaders(created, "pos-99");
+  for (const target of [`${f.runtime.scope}beads/a`, id(receipt)]) {
+    const timeout = await f.get(target, { headers: { ...headers, "if-none-match": "*" } });
+    expect(timeout.status).toBe(503);
+    expect(timeout.headers.get("retry-after")).toBe("1");
+    expect(timeout.headers.get("bdp-scope-position")).toBe("pos-1");
+    expect(checkedProblem(await body(timeout))).toMatchObject({
+      code: "catch-up-timeout",
+      status: 503,
+      retry: "after-delay",
+    });
+    for (const [field, code, status] of [
+      ["bdp-scope-epoch", "cursor-expired", 410],
+      ["bdp-authorization-view", "foreign-view", 409],
+    ] as const) {
+      const refused = await f.get(target, {
+        headers: { ...headers, [field]: "foreign", "if-none-match": "*" },
+      });
+      expect(refused.status).toBe(status);
+      expect(checkedProblem(await body(refused))).toMatchObject({ code });
+      expect(refused.headers.get("bdp-scope-position")).toBe("pos-1");
+    }
+  }
+  const hidden = await f.get(id(receipt), {
+    headers: { ...headers, authorization: `Bearer ${otherToken}`, "bdp-scope-epoch": "foreign" },
+  });
+  expect(hidden.status).toBe(404);
+  expect(hidden.headers.has("bdp-scope-position")).toBe(false);
+  for (const suffix of [
+    "beads/",
+    "alias/missing",
+    "",
+    "bdp.json",
+    "operations/",
+    "beads/a?unknown=1",
+    "beads/?cursor=missing",
+  ]) {
+    const target = `${f.runtime.scope}${suffix}`;
+    const unsupported = await f.get(target, { headers });
+    expect(unsupported.status).toBe(500);
+    expect(unsupported.headers.get("x-bdp-development-limit")).toBe("minimum-position-route");
+  }
+  expect(
+    (
+      await f.get(`${f.runtime.scope}beads/a`, {
+        headers: { ...headers, "bdp-minimum-scope-position": "opaque-unknown" },
+      })
+    ).status,
+  ).toBe(500);
+});
+
+it("preserves authentication before command-control gaps without reserving keys", async () => {
+  const f = await fixture();
+  for (const carrier of ["batch", "createBead", "sequence"] as const) {
+    for (const [authorization, status] of [
+      ["", 401],
+      [`Bearer ${readToken}`, 403],
+    ] as const) {
+      const key = `${carrier}_${status}`;
+      const operation = create(key);
+      const text =
+        carrier === "createBead"
+          ? JSON.stringify(operation)
+          : batch([{ ...operation, ...(carrier === "sequence" ? { idempotencyKey: key } : {}) }]);
+      const response = await f.post(text, carrier === "sequence" ? null : key, carrier, {
+        authorization,
+        "bdp-minimum-scope-position": "pos-999",
+      });
+      expect(response.status).toBe(status);
+      expect(response.headers.has("www-authenticate")).toBe(status === 401);
+      expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+      expect((await f.get(`${f.runtime.scope}beads/${key}`)).status).toBe(404);
+      expect(await f.receiptRows(key)).toEqual([]);
+      expect((await f.post(batch([create(`${key}_replacement`)]), key)).status).toBe(200);
+    }
+  }
+});
+
+it("does not invent absent Resource versus minimum ordering", async () => {
+  const f = await fixture();
+  const created = await f.post();
+  for (const suffix of [
+    "beads/missing",
+    "links/missing",
+    "beads/missing?view=properties",
+    "links/missing?view=properties",
+  ]) {
+    for (const method of ["GET", "HEAD"]) {
+      for (const extra of [
+        {},
+        { "bdp-scope-epoch": "foreign" },
+        { "bdp-minimum-scope-position": "pos-99" },
+      ]) {
+        const response = await f.get(`${f.runtime.scope}${suffix}`, {
+          method,
+          headers: { ...minimumHeaders(created), ...extra },
+        });
+        expect(response.status).toBe(500);
+        expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position-visibility");
+        expect(response.headers.has("bdp-scope-position")).toBe(false);
+        expect(await response.text()).toBe("");
+      }
+    }
+  }
+});
+
+it("uses the final actual attempt context for GET and HEAD timeouts after real progress", async () => {
+  let tick = 0,
+    writes = 0;
+  let f: Awaited<ReturnType<typeof fixture>>;
+  f = await fixture({
+    minimumReads: {
+      budgetMs: 2,
+      now: () => tick++,
+      wait: async () => {
+        writes++;
+        expect(
+          (await f.post(batch([create(`progress_${writes}`)]), `progress_${writes}`)).status,
+        ).toBe(200);
+      },
+    },
+  });
+  const created = await f.post(),
+    receipt = await body(created);
+  for (const target of [`${f.runtime.scope}beads/a`, id(receipt)]) {
+    for (const method of ["GET", "HEAD"]) {
+      const response = await f.get(target, { method, headers: minimumHeaders(created, "pos-99") });
+      expect(response.status).toBe(503);
+      expect(response.headers.get("bdp-scope-position")).toBe(`pos-${writes + 1}`);
+      expect(response.headers.get("retry-after")).toBe("1");
+      if (method === "HEAD") expect(await response.text()).toBe("");
+      else expect(checkedProblem(await body(response)).code).toBe("catch-up-timeout");
+    }
+  }
+  expect(writes).toBe(4);
 });

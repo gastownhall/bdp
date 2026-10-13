@@ -618,3 +618,55 @@ HTTP internal faults are deliberately bodyless and disclose no causes or stored
 identifiers. The owner/service preserve causes, but this private HTTP fixture has
 not yet added a bounded internal diagnostic channel for those caught exceptions.
 That diagnosability gap remains open; it is not a claim that causes reach clients.
+
+### Canonical point and receipt minimum-read subset
+
+The private HTTP fixture now honors complete canonical epoch/view/minimum tuples
+on existing visible Bead and Link records, their properties views, and receipt instances.
+It validates immutable per-request controls before waiting. The shared Read plane
+has a source-private fixed condition hook after captured authorization and point
+materialization, still inside the same owner entry and before delivery; ordinary
+Read/Read+Update calls use no such condition. The
+Transactional hook checks the actual same-entry source context. It does not read
+a diagnostic position before or after the representation, retain a mutable global
+condition, or create another Read plane per request.
+
+Receipt attempts retain principal/epoch nondisclosure before minimum decisions,
+recheck actual retention each turn and capture body/current context together.
+Current owner integrity guards remain ahead of a wait decision. A foreign epoch
+returns cursor-expired; a foreign view returns foreign-view. An actual behind
+observation retries outside the owner until the original finite monotonic deadline
+or an actual concurrent commit satisfies it. Exhaustion returns catch-up-timeout
+with Retry-After. No SQLite entry remains open while awaiting. GET/HEAD and
+conditional decisions then use the resulting representation and current context.
+The existing exclusive synchronous owner entry provides point-read consistency;
+this does not add a separate SQLite BEGIN around every ordinary Read.
+
+The default private wait budget is finite; injected scheduling/clock seams are
+for tests, not new public configuration or advertised limits. Service close drains
+accepted finite waits and abort signals cancel point-read delivery. Unsupported
+command controls still fail before mutation admission, after the existing
+authentication/authorization refusal. Receipt waits are tracked and drained on
+close; point delivery can also use an AbortSignal. HTTP disconnect does not
+cancel a receipt wait, whose finite budget bounds shutdown delay.
+
+This remains a named subset, not complete minimum-position qualification.
+Absent/hidden Resource ordering relative to a minimum has no established ruling;
+such point requests return the explicit private visibility gap without adopting
+either 404-first or barrier-first semantics. This fixed all-visible owner does
+not qualify changing visibility policies. Collection continuations and other nonpoint routes retain the development gap
+when controls are supplied. Partial/malformed tuples, bare epoch/view fields and
+unknown opaque position spellings also retain that gap; no normative error rule
+is invented for them. In particular, whether a minimum constrains an old retained
+query page's anchor or its current serving observation remains unresolved. Normal
+continuations without controls retain their existing stable data/lifetime behavior.
+No public profile/discovery, schema, durable format, Type or evidence change was
+made. Snapshot/replay and the other previously named required gaps remain open.
+
+The configured fixture has no eligible replica routing and waits locally, one
+permitted strategy. CORS is disabled by the inherited Origin refusal. Actual
+409/410/503 wire bodies are schema-checked and carry the final attempt's captured
+context; receipt 401/404 nondisclosure responses carry none. HTTP method handling
+uses target shape without checking non-operation existence. The origin-form
+CONNECT probes exercise method dispatch; actual authority-form CONNECT is rejected
+by raw-target validation with 400, and neither path establishes a tunnel.
