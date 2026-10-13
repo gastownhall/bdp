@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { connect } from "node:net";
 import { DatabaseSync } from "node:sqlite";
 import { request as httpRequest } from "node:http";
 import { setImmediate } from "node:timers/promises";
@@ -684,4 +685,80 @@ it("keeps a live listener from serving through an owner fenced by injected commi
   expect(await fenced.text()).toBe("");
   await f.reopen();
   expect((await f.post()).status).toBe(200);
+});
+
+function rawMethod(
+  target: string,
+  method: string,
+  authenticated: boolean,
+): Promise<{ status: number; headers: Headers; body: string }> {
+  const url = new URL(target);
+  return new Promise((resolve, reject) => {
+    const socket = connect({ host: url.hostname, port: Number(url.port) });
+    const chunks: Buffer[] = [];
+    socket.setTimeout(2000, () => socket.destroy(new Error("raw method response timeout")));
+    socket.on("error", reject);
+    socket.on("data", (chunk) => chunks.push(chunk));
+    socket.on("end", () => {
+      const text = Buffer.concat(chunks).toString();
+      const split = text.indexOf("\r\n\r\n");
+      if (split < 0) {
+        reject(new Error(`missing raw HTTP response: ${text}`));
+        return;
+      }
+      const lines = text.slice(0, split).split("\r\n");
+      const status = Number(lines.shift()?.split(" ")[1]);
+      const headers = new Headers();
+      for (const line of lines) {
+        const colon = line.indexOf(":");
+        headers.append(line.slice(0, colon), line.slice(colon + 1).trim());
+      }
+      resolve({ status, headers, body: text.slice(split + 4) });
+    });
+    socket.on("connect", () =>
+      socket.write(
+        `${method} ${url.pathname} HTTP/1.1\r\nHost: ${url.host}\r\nConnection: close\r\nContent-Length: 0\r\n${authenticated ? `Authorization: Bearer ${token}\r\n` : ""}\r\n`,
+      ),
+    );
+  });
+}
+
+it("routes unsupported raw methods by target before Fetch construction or receipt authentication", async () => {
+  const f = await fixture();
+  const receipt = await body(await f.post());
+  for (const authenticated of [false, true]) {
+    for (const method of ["PUT", "DELETE", "OPTIONS", "TRACE", "CONNECT"]) {
+      for (const [target, allow] of [
+        [f.runtime.targets.batch, "POST"],
+        [f.runtime.targets.sequence, "POST"],
+        [id(receipt), "GET, HEAD"],
+        [`${f.runtime.scope}receipts/unknown`, "GET, HEAD"],
+        [`${f.runtime.scope}receipts`, "GET, HEAD"],
+        [`${f.runtime.scope}operations/`, "GET, HEAD"],
+      ] as const) {
+        const result = await rawMethod(target, method, authenticated);
+        expect(result.status, `${method} ${target} authenticated=${authenticated}`).toBe(405);
+        expect(result.headers.get("allow")).toBe(allow);
+        expect(result.headers.has("www-authenticate")).toBe(false);
+        expect(result.headers.has("bdp-scope-position")).toBe(false);
+        expect(result.body).toBe("");
+      }
+    }
+    for (const target of [id(receipt), `${f.runtime.scope}receipts/unknown`]) {
+      const result = await rawMethod(target, "POST", authenticated);
+      expect(result.status).toBe(405);
+      expect(result.headers.get("allow")).toBe("GET, HEAD");
+      expect(result.body).toBe("");
+    }
+  }
+  for (const method of ["GET", "HEAD"]) {
+    for (const target of [id(receipt), `${f.runtime.scope}receipts/unknown`]) {
+      const result = await rawMethod(target, method, false);
+      expect(result.status).toBe(401);
+      expect(result.headers.has("allow")).toBe(false);
+      expect(result.headers.has("bdp-scope-position")).toBe(false);
+      if (method === "HEAD") expect(result.body).toBe("");
+    }
+  }
+  expect(await body(await f.post())).toEqual(receipt);
 });

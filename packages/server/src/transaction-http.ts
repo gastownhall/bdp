@@ -166,6 +166,15 @@ export function createTransactionHttpHandler(
         : response;
     },
   });
+  // Target shape, never receipt existence or authorization, determines Allow.
+  // The raw listener also uses this before constructing a Fetch Request, whose
+  // method vocabulary excludes TRACE/TRACK/CONNECT.
+  function methodResponse(url: URL, method: string): HttpResponse | undefined {
+    if (url.origin !== scopeUrl.origin || !url.pathname.startsWith(scopeUrl.pathname))
+      return transactionHttpProblem("resource-not-found");
+    if (names.has(url.href)) return method === "POST" ? undefined : empty(405, "POST");
+    return method === "GET" || method === "HEAD" ? undefined : empty(405, "GET, HEAD");
+  }
   async function route(
     request: Request,
     authorization: TransactionHttpAuthorization,
@@ -178,10 +187,9 @@ export function createTransactionHttpHandler(
       Buffer.byteLength(url.pathname + url.search) > TRANSACTION_HTTP_TARGET_BYTES
     )
       return transactionHttpProblem("request-too-large");
-    if (url.origin !== scopeUrl.origin || !url.pathname.startsWith(scopeUrl.pathname))
-      return transactionHttpProblem("resource-not-found");
+    const methodFailure = methodResponse(url, request.method);
+    if (methodFailure) return methodFailure;
     if (operation !== undefined) {
-      if (request.method !== "POST") return empty(405, "POST");
       if ("failure" in received && received.failure === "request-too-large")
         return transactionHttpProblem(received.failure);
       if (
@@ -270,7 +278,6 @@ export function createTransactionHttpHandler(
       });
     }
     if (authorization.kind === "unauthenticated") return transactionHttpProblem("unauthenticated");
-    if (request.method !== "GET" && request.method !== "HEAD") return empty(405, "GET, HEAD");
     if (
       url.pathname.startsWith(`${scopeUrl.pathname}receipts/`) ||
       url.pathname === `${scopeUrl.pathname}receipts`
@@ -298,6 +305,7 @@ export function createTransactionHttpHandler(
   }
   return Object.freeze({
     targets,
+    methodResponse,
     async handle(
       request: Request,
       authorization: TransactionHttpAuthorization,

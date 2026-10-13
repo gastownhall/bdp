@@ -1,8 +1,9 @@
 /** Source-private loopback fixture. Never selected by installed config/profile
  * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
+import { Socket } from "node:net";
 import { TextDecoder } from "node:util";
 import { parseCanonicalScope, stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
 import type { HttpResponse } from "./index.js";
@@ -118,6 +119,14 @@ export async function startTransactionRuntime(
         deliver(response, transactionHttpProblem("malformed-request"));
         return;
       }
+      const url = new URL(raw, scope);
+      const methodFailure = handler.methodResponse(url, request.method ?? "GET");
+      if (methodFailure) {
+        // Refused bodies are not consumed and cannot keep this connection alive.
+        methodFailure.headers.set("connection", "close");
+        deliver(response, methodFailure);
+        return;
+      }
       const headers = new Headers();
       for (let i = 0; i < request.rawHeaders.length; i += 2)
         headers.append(request.rawHeaders[i] ?? "", request.rawHeaders[i + 1] ?? "");
@@ -135,7 +144,7 @@ export async function startTransactionRuntime(
               principal: credential.principal,
               canMutate: credential.canMutate,
             };
-      const input = new Request(new URL(raw, scope), { method: request.method ?? "GET", headers });
+      const input = new Request(url, { method: request.method ?? "GET", headers });
       const body = request.method === "POST" ? await receive(request) : { text: "" };
       if (closing || response.destroyed) {
         deliver(response, transactionHttpProblem("temporarily-unavailable"));
@@ -162,13 +171,28 @@ export async function startTransactionRuntime(
       }
     }
   };
-  const server = createServer({ maxHeaderSize: 16 * 1024 }, (request, response) => {
+  function dispatch(request: IncomingMessage, response: ServerResponse): void {
     const task = handle(request, response);
     pending.add(task);
     void task.then(
       () => pending.delete(task),
       () => pending.delete(task),
     );
+  }
+  const server = createServer({ maxHeaderSize: 16 * 1024 }, dispatch);
+  // Node emits CONNECT separately from ordinary requests. This service never
+  // opens a tunnel: the same raw target/method gate determines its refusal.
+  server.on("connect", (request, socket) => {
+    if (!(socket instanceof Socket)) {
+      socket.destroy();
+      return;
+    }
+    const response = new ServerResponse(request);
+    response.assignSocket(socket);
+    response.setHeader("connection", "close");
+    response.once("finish", () => socket.end());
+    response.once("error", () => socket.destroy());
+    dispatch(request, response);
   });
   server.requestTimeout = 10000;
   server.headersTimeout = 10000;
