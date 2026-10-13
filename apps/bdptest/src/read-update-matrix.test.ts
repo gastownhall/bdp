@@ -45,8 +45,8 @@ async function closeInstalledChild(
   child: Awaited<ReturnType<typeof helpers.launchInstalledReference>>,
 ) {
   await child.close();
-  // The helper resolves on the actual exit event; keep cancellation cleanup observable.
-  expect(child.child.exitCode !== null || child.child.signalCode !== null).toBe(true);
+  // A settled exit alone is insufficient: the helper also observes forced SIGKILL exits.
+  expect(child.child.exitCode === 0 || child.child.signalCode === "SIGTERM").toBe(true);
 }
 const token = "cumulative_fixture_operator_0123456789";
 const wrongToken = "cumulative_unknown_operator_0123456789";
@@ -107,6 +107,8 @@ type W2Counterfactual =
   | "link-name"
   | "alias-index";
 type PatchControl =
+  | "link-order"
+  | "link-clear"
   | "link-result"
   | "link-get"
   | "refusal-get"
@@ -367,6 +369,12 @@ async function run(
           currentScenario === "read-update.singleton.document-patch-validation";
         const patchHit =
           (patchMerge &&
+            patchControl === "link-order" &&
+            w1Input.idempotencyKey === "link-merge-replace") ||
+          (patchMerge &&
+            patchControl === "link-clear" &&
+            w1Input.idempotencyKey === "link-clear-properties") ||
+          (patchMerge &&
             patchControl === "link-result" &&
             w1Input.idempotencyKey === "link-merge-replace") ||
           (patchMerge &&
@@ -393,6 +401,8 @@ async function run(
             };
           };
           counterfactualApplications++;
+          if (patchControl === "link-order") changed.body.resource.properties.ordered = "first";
+          if (patchControl === "link-clear") changed.body.resource.properties.resurrected = true;
           if (patchControl === "link-result") changed.body.resource.properties.keep = "corrupt";
           if (patchControl === "link-get") changed.body.properties.keep = "corrupt";
           if (patchControl === "refusal-get") changed.body.properties.n = 9;
@@ -717,6 +727,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   } finally {
     clearTimeout(timer);
   }
+  controller.signal.throwIfAborted();
   if (process.env.BDP_CUMULATIVE_REPORT_PATH)
     writeFileSync(process.env.BDP_CUMULATIVE_REPORT_PATH, JSON.stringify(report, null, 2));
   for (const row of report.result.scenarios)
@@ -783,7 +794,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.reportBinding.exactConfigurationDigest).toBe(
     "be0e83fb1663e2fd91b6c5b90b5b18e3ba0b65887b18479b880d9edec88290f9",
   );
-  expect(report.uncoveredIds).toHaveLength(101);
+  expect(report.uncoveredIds).toHaveLength(102);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
   expect(report.sessions).toHaveLength(report.plannedIds.length);
   expect(report.observations.length).toBeGreaterThan(30);
@@ -1261,11 +1272,17 @@ it("stops the aggregate runner on cancellation without awarding a scenario pass"
   expect(report.sessions).toHaveLength(0);
   expect(report.observations).toHaveLength(0);
   expect(report.result.scenarios).toHaveLength(1);
-  expect(report.result.scenarios[0]?.state).not.toBe("pass");
+  expect(report.result.scenarios[0]).toMatchObject({
+    state: "harness-error",
+    category: "not-run",
+    reason: "matrix stopped before this scenario could run",
+  });
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
 it.each([
+  ["link-order", "merge-replace", "link-merge-replace", ["properties"]],
+  ["link-clear", "merge-replace", "link-clear-properties", ["properties"]],
   ["link-result", "merge-replace", "link-merge-replace", ["properties"]],
   ["link-get", "merge-replace", "link-read-patched", ["postimage"]],
   ["refusal-get", "validation", "after-bead-metadata-array", ["unchanged"]],
@@ -1310,3 +1327,18 @@ it.each([
   },
   30000,
 );
+
+it.each([
+  { exitCode: null, signalCode: null },
+  { exitCode: null, signalCode: "SIGKILL" },
+  { exitCode: 1, signalCode: null },
+] as const)("rejects settled but unsuccessful installed child exit %j", async (exit) => {
+  // Assertion sensitivity only; actual installed children are closed by each HTTP run.
+  await expect(
+    closeInstalledChild({
+      child: exit as ChildProcess,
+      ready: {},
+      close: async () => undefined,
+    }),
+  ).rejects.toThrow();
+});

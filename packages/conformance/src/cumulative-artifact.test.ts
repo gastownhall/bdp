@@ -159,7 +159,6 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
     "read.http.method-405",
     "read.http.cache-cors",
     "read-update.singleton.create-bead",
-    "read-update.singleton.document-patch-merge-replace",
     "read-update.singleton.document-patch-atomicity",
     "read-update.singleton.delete-bead",
     "read-update.singleton.update-link",
