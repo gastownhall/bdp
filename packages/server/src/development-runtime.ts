@@ -113,6 +113,7 @@ function empty(response: ServerResponse, status: number, allow?: string): void {
   response.writeHead(status, {
     "cache-control": "private, no-store",
     "content-length": "0",
+    "x-bdp-development": "non-attesting",
     ...(allow === undefined ? {} : { allow }),
   });
   response.end();
