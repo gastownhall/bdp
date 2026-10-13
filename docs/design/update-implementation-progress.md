@@ -509,3 +509,23 @@ Hidden/read-only policies accept the protocol's actual canonical local IDs,
 including nested and encoded IDs, and use private Sets for membership checks.
 Read remains an explicit bounded deny-list fixture rather than a general
 whole-Scope deny-read policy. No broader IAM capability is claimed.
+
+### Whole-startup readiness and fixed owner-limit identity
+
+The listener now refuses all requests until every configured principal's Read
+view and discovery routes have initialized. A deterministic second-principal
+barrier observes real GET and mutation refusals, then tests both successful
+startup and later startup failure. In both cases the Resource remains absent and
+the original mutation key can be used after readiness or durable reopen.
+
+The private installed process module is inert when imported, including by a
+process with inherited IPC. Only direct execution installs the IPC lifecycle;
+direct execution without IPC refuses with the fixed redacted diagnostic.
+
+One frozen private tuple supplies the actual owner, member, receiver and
+pagination limits and the installed configuration identity. This includes patch
+and representation bounds, retention and maintenance, pagination capacity and
+token limits. Existing values and advertised limits are unchanged; there are no
+new configuration overrides. Hash-sensitivity tests vary captured limit groups
+in the test import only. This changes qualification configuration identities,
+not persisted installation identities, and does not relabel historical evidence.

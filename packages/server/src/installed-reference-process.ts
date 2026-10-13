@@ -2,6 +2,8 @@
  * No clock/store/outcome control. Configuration arrives only through inherited IPC.
  */
 import process from "node:process";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { administrativeData } from "./development-contracts.js";
 import { startInstalledReferenceCandidate } from "./installed-reference.js";
 
@@ -58,9 +60,19 @@ async function main() {
     if (process.connected) process.disconnect();
   }
 }
-void main().catch(() => {
-  // Never echo credentials, input configuration or callback exceptions.
-  process.stderr.write("installed reference qualification failed\n");
-  process.exitCode = 2;
-  if (process.connected) process.disconnect();
-});
+function isEntrypoint(): boolean {
+  const entry = process.argv[1];
+  if (entry === undefined) return false;
+  try {
+    return realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+if (isEntrypoint())
+  void main().catch(() => {
+    // Never echo credentials, input configuration or callback exceptions.
+    process.stderr.write("installed reference qualification failed\n");
+    process.exitCode = 2;
+    if (process.connected) process.disconnect();
+  });

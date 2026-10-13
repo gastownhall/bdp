@@ -16,11 +16,7 @@ import {
   createDevelopmentAccessPolicy,
   type DevelopmentAccess,
 } from "./development-contracts.js";
-import {
-  DEVELOPMENT_LIMITS,
-  DEVELOPMENT_READ_LIMITS,
-  DEVELOPMENT_RETENTION_MS,
-} from "./development-authority.js";
+import { DEVELOPMENT_OWNER_LIMITS } from "./development-authority.js";
 
 /** Reference identities are instantiated locally; the work.example identities
  * are not hosted or claimed. Remap every Type-reference position together. */
@@ -161,9 +157,7 @@ export function captureInstalledReferenceConfiguration(input: unknown) {
     contracts: contracts.identity,
     policy: access.policy.identity(),
     aggregate,
-    limits: DEVELOPMENT_LIMITS,
-    readLimits: DEVELOPMENT_READ_LIMITS,
-    retentionMinimumMs: DEVELOPMENT_RETENTION_MS,
+    ownerLimits: DEVELOPMENT_OWNER_LIMITS,
     credentials: credentials.map((c) => ({ principal: c.principal, tokenDigest: digest(c.token) })),
     cors: "disabled",
     history: false,

@@ -36,20 +36,45 @@ import { requestFromUrl, classifyAliasPath } from "./read-request.js";
 
 export const DEVELOPMENT_BEAD_TYPE = "https://bdp.example/development/bead";
 export const DEVELOPMENT_LINK_TYPE = "https://bdp.example/development/link";
-export const DEVELOPMENT_LIMITS = Object.freeze({
-  sequenceOperations: 32,
-  requestBodyBytes: 64 * 1024,
-  propertiesBytes: 64 * 1024,
-  diagnosticBytes: 512 * 1024,
-  diagnosticCount: 32,
+/** One immutable tuple consumed by owner, receiver and installed identity. */
+export const DEVELOPMENT_OWNER_LIMITS = Object.freeze({
+  update: Object.freeze({
+    sequenceOperations: 32,
+    requestBodyBytes: 64 * 1024,
+    propertiesBytes: 64 * 1024,
+    diagnosticBytes: 512 * 1024,
+    diagnosticCount: 32,
+  }),
+  read: Object.freeze({
+    page: Object.freeze({ defaultItems: 20, maximumItems: 100 }),
+    selector: Object.freeze({ bytes: 4096, depth: 32, nodes: 256 }),
+    cursorTtlMilliseconds: 60_000,
+  }),
+  member: Object.freeze({
+    patchOperations: 128,
+    patchPathBytes: 4096,
+    patchPathDepth: 32,
+    representationBytes: 256 * 1024,
+  }),
+  lifecycle: Object.freeze({
+    retentionMs: 86_400_000,
+    minimumRetentionMs: 86_400_000,
+    maintenanceIntervalMs: 60_000,
+  }),
+  pagination: Object.freeze({
+    retainedStateCapacity: 100,
+    maxRetainedCursorPositionsPerSnapshot: 20,
+    retainedSnapshotByteCapacity: 4 * 1024 * 1024,
+    retainedSnapshotNodeCapacity: 100_000,
+    maxOpaqueTokenLength: 64,
+    tokenGenerationAttempts: 3,
+    idleCleanup: "on-demand" as const,
+  }),
+  opaqueTokenBytes: 24,
 });
-export const DEVELOPMENT_READ_LIMITS = Object.freeze({
-  page: Object.freeze({ defaultItems: 20, maximumItems: 100 }),
-  selector: Object.freeze({ bytes: 4096, depth: 32, nodes: 256 }),
-  cursorTtlMilliseconds: 60_000,
-});
-export const DEVELOPMENT_RETENTION_MS = 86_400_000;
-const day = DEVELOPMENT_RETENTION_MS;
+export const DEVELOPMENT_LIMITS = DEVELOPMENT_OWNER_LIMITS.update;
+export const DEVELOPMENT_READ_LIMITS = DEVELOPMENT_OWNER_LIMITS.read;
+export const DEVELOPMENT_RETENTION_MS = DEVELOPMENT_OWNER_LIMITS.lifecycle.minimumRetentionMs;
 const installation = "bdptest-development-2-revision-provenance";
 const principal = Object.freeze({ id: "bdptest-development-operator" });
 const policy = Object.freeze({
@@ -157,7 +182,7 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
     directory: options.directory,
     installationId: installationIdentity,
     lineageId: installationIdentity,
-    minimumRetentionMs: day,
+    minimumRetentionMs: DEVELOPMENT_OWNER_LIMITS.lifecycle.minimumRetentionMs,
     ...(options.create ? { create: { types: installedTypes } } : {}),
   });
   let owner: SequenceLifecycle | undefined;
@@ -183,15 +208,12 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
       store,
       ...(options.scheduler === undefined ? {} : { scheduler: options.scheduler }),
       maximumSequenceOperations: DEVELOPMENT_LIMITS.sequenceOperations,
-      maintenanceIntervalMs: 60_000,
+      maintenanceIntervalMs: DEVELOPMENT_OWNER_LIMITS.lifecycle.maintenanceIntervalMs,
       member: {
         scope,
         limits: {
           ...bounds,
-          patchOperations: 128,
-          patchPathBytes: 4096,
-          patchPathDepth: 32,
-          representationBytes: 256 * 1024,
+          ...DEVELOPMENT_OWNER_LIMITS.member,
         },
         numericBudget: {
           diagnostics: DEVELOPMENT_LIMITS.diagnosticCount,
@@ -203,8 +225,8 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
                 : "unsupported number",
           }),
         },
-        retentionMs: day,
-        minimumRetentionMs: day,
+        retentionMs: DEVELOPMENT_OWNER_LIMITS.lifecycle.retentionMs,
+        minimumRetentionMs: DEVELOPMENT_OWNER_LIMITS.lifecycle.minimumRetentionMs,
         clock,
         contracts: configured?.contracts.registry ?? {
           get(id, bytes) {
@@ -222,7 +244,7 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
         },
       },
     });
-    const epoch = randomBytes(24).toString("base64url");
+    const epoch = randomBytes(DEVELOPMENT_OWNER_LIMITS.opaqueTokenBytes).toString("base64url");
     const readLimits = DEVELOPMENT_READ_LIMITS;
     const lifecycle = await createReadSequenceLifecycle({
       owner,
@@ -234,18 +256,13 @@ export async function openDevelopmentAuthority(options: DevelopmentAuthorityOpti
         advertisedLimits: readLimits,
         pagination: {
           scope,
-          defaultPageItems: 20,
-          maxPageItems: 100,
-          cursorTtlMs: 60_000,
-          retainedStateCapacity: 100,
-          maxRetainedCursorPositionsPerSnapshot: 20,
-          retainedSnapshotByteCapacity: 4 * 1024 * 1024,
-          retainedSnapshotNodeCapacity: 100_000,
-          maxOpaqueTokenLength: 64,
-          tokenGenerationAttempts: 3,
-          idleCleanup: "on-demand",
+          defaultPageItems: readLimits.page.defaultItems,
+          maxPageItems: readLimits.page.maximumItems,
+          cursorTtlMs: readLimits.cursorTtlMilliseconds,
+          ...DEVELOPMENT_OWNER_LIMITS.pagination,
           clock: Date.now,
-          generateOpaqueToken: () => randomBytes(24).toString("base64url"),
+          generateOpaqueToken: () =>
+            randomBytes(DEVELOPMENT_OWNER_LIMITS.opaqueTokenBytes).toString("base64url"),
         },
         captureReadAuthorization(_reader, readPrincipal) {
           if (readPrincipal.kind !== "authenticated")

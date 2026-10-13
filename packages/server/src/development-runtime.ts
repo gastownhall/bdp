@@ -295,11 +295,12 @@ export async function startDevelopmentReferenceRuntime(
   const composedReads = new Map<string, HttpHandler>();
   let authority: Awaited<ReturnType<typeof openDevelopmentAuthority>> | undefined;
   let closing = false;
+  let serving = false;
   const pending = new Set<Promise<void>>();
   let scope = "";
   const handle = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     try {
-      if (closing || !authority) throw new ReceivingError("temporarily-unavailable");
+      if (!serving || closing || !authority) throw new ReceivingError("temporarily-unavailable");
       const authorization = Buffer.from(header(request, "authorization") ?? "");
       const authenticated = credentials.find(
         ({ credential }) =>
@@ -540,6 +541,7 @@ export async function startDevelopmentReferenceRuntime(
         composedReads.set(principal, route);
       }
     }
+    serving = true;
   } catch (error) {
     const cleanup = await Promise.allSettled([
       ...(server.listening ? [closeListener()] : []),
@@ -560,6 +562,7 @@ export async function startDevelopmentReferenceRuntime(
     close(): Promise<void> {
       if (!completion) {
         closing = true;
+        serving = false;
         completion = (async () => {
           const listener = await Promise.allSettled([closeListener()]);
           await Promise.allSettled([...pending]);
