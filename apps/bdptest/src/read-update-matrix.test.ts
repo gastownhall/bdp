@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, type ChildProcess } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -39,8 +39,15 @@ const helpers = (await import(
   launchInstalledReference(
     entry: string,
     configuration: unknown,
-  ): Promise<{ ready: Record<string, unknown>; close(): Promise<unknown> }>;
+  ): Promise<{ child: ChildProcess; ready: Record<string, unknown>; close(): Promise<unknown> }>;
 };
+async function closeInstalledChild(
+  child: Awaited<ReturnType<typeof helpers.launchInstalledReference>>,
+) {
+  await child.close();
+  // The helper resolves on the actual exit event; keep cancellation cleanup observable.
+  expect(child.child.exitCode !== null || child.child.signalCode !== null).toBe(true);
+}
 const token = "cumulative_fixture_operator_0123456789";
 const wrongToken = "cumulative_unknown_operator_0123456789";
 const scope = "https://reference.invalid/acme/";
@@ -108,6 +115,7 @@ async function run(
   w1Counterfactual?: W1Counterfactual,
   w1bCounterfactual?: W1bCounterfactual,
   w2Counterfactual?: W2Counterfactual,
+  signal?: AbortSignal,
 ) {
   const selection = loadProfileContractSelection("read-update");
   const fixtureSource =
@@ -258,7 +266,7 @@ async function run(
       });
       expect(executionPlan.manifestDigest).toBe(bundle.digests.manifestDigest);
     } finally {
-      await bootstrap.close();
+      await closeInstalledChild(bootstrap);
     }
   } catch (error) {
     rmSync(directory, { recursive: true, force: true });
@@ -310,11 +318,11 @@ async function run(
           bindings: fixture.bindings,
           dialRoute,
           close: async () => {
-            await child.close();
+            await closeInstalledChild(child);
           },
         };
       } catch (error) {
-        await child.close();
+        await closeInstalledChild(child);
         throw error;
       }
     },
@@ -326,6 +334,7 @@ async function run(
       observations.push({ scenario: currentScenario, observation }),
     );
     const result = await runConformanceMatrix({
+      ...(signal === undefined ? {} : { signal }),
       scope,
       profile: "read-update",
       seed: 0,
@@ -623,7 +632,26 @@ async function run(
 }
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  const report = await run();
+  // One aggregate job starts 40 isolated authorities; Linux CI exceeded 30s.
+  // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(Error("cumulative run budget exceeded")), 90000);
+  let report: Awaited<ReturnType<typeof run>>;
+  try {
+    report = await run(
+      undefined,
+      undefined,
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      controller.signal,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
   if (process.env.BDP_CUMULATIVE_REPORT_PATH)
     writeFileSync(process.env.BDP_CUMULATIVE_REPORT_PATH, JSON.stringify(report, null, 2));
   for (const row of report.result.scenarios)
@@ -696,7 +724,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.observations.length).toBeGreaterThan(30);
   expect(JSON.stringify(report)).not.toContain(token);
   expect(JSON.stringify(report)).not.toContain(wrongToken);
-}, 30000);
+}, 120000);
 
 it("fails actual response comparisons for mutated captures and postimages", async () => {
   const original = JSON.parse(
@@ -1150,4 +1178,24 @@ it("detects a mismatched advertised request body bound in the actual carrier dis
       ?.assertions.filter((assertion) => !assertion.passed)
       .map((assertion) => assertion.id),
   ).toEqual(["target-body-limit"]);
+}, 30000);
+
+it("stops the aggregate runner on cancellation without awarding a scenario pass", async () => {
+  const id = "read-update.singleton.create-bead";
+  const report = await run(
+    undefined,
+    [id],
+    false,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    AbortSignal.abort(Error("test aggregate cancellation")),
+  );
+  expect(report.sessions).toHaveLength(0);
+  expect(report.observations).toHaveLength(0);
+  expect(report.result.scenarios).toHaveLength(1);
+  expect(report.result.scenarios[0]?.state).not.toBe("pass");
+  expect(report.result.claimEligible).toBe(false);
 }, 30000);
