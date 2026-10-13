@@ -11,7 +11,7 @@ import {
   validateCatalogCitations,
 } from "./index.js";
 
-/** Companion source metadata stays intact; only its Read rows enter the successor Read manifest. */
+/** Companion metadata stays intact; executable bindings have explicit artifact ownership. */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const readText = (relativePath: string): string =>
   readFileSync(path.resolve(root, relativePath), "utf8");
@@ -62,11 +62,15 @@ describe("draft numeric-model catalog", () => {
     }
   });
 
-  it("binds only the Read companion rows in the separate Read manifest", () => {
+  it("binds numeric rows only in their explicitly approved profile artifacts", () => {
     const manifests = readdirSync(path.resolve(root, MATRICES_DIRECTORY)).filter((entry) =>
       entry.endsWith(".json"),
     );
     expect(manifests.length).toBeGreaterThan(0);
+    const approvedBindings: Record<string, readonly string[]> = {
+      "read-v1.json": ["read.numeric-model.declared-token-model"],
+      "read-update-reference-continuation-v1.json": ["read-update.numeric-model.same-value-no-op"],
+    };
     for (const entry of manifests) {
       const manifest = loadExecutableScenarioManifestJson(
         readText(path.join(MATRICES_DIRECTORY, entry)),
@@ -76,7 +80,7 @@ describe("draft numeric-model catalog", () => {
       const bound = new Set(manifest.scenarios.map(({ id }) => id));
       for (const row of catalog.scenarios)
         expect(bound.has(row.id), `${entry} binds ${row.id}`).toBe(
-          entry === "read-v1.json" && row.requiredProfile === "read",
+          approvedBindings[entry]?.includes(row.id) ?? false,
         );
     }
   });
