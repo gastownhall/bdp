@@ -471,7 +471,7 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
       if (status !== 200) expect(await r.text()).toBe("");
     }
     for (const method of ["GET", "HEAD"]) {
-      const r = await get("events/", { accept: "text/event-stream" }, method);
+      const r = await get("events/", { accept: "text/plain" }, method);
       expect(r.status).toBe(406);
       expect(await r.text()).toBe("");
     }
@@ -931,4 +931,34 @@ it("byte-bound scan packets preserve the exact finite reservation and within-gro
   expect(all).toHaveLength(32);
   expect(new Set(all.map((e) => e.id)).size).toBe(32);
   expect(all.map((e) => e.ordinal)).toEqual(Array.from({ length: 32 }, (_, n) => n));
+});
+
+it("scan refuses a regressed captured head and a sticky fenced owner", () => {
+  const f = fixture();
+  f.run([bead("a")]);
+  const scan = packet(f.owner.beginEventScan(`${scope}events/`)).scan;
+  const prepare = DatabaseSync.prototype.prepare;
+  vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql,
+  ) {
+    const statement = prepare.call(this, sql);
+    if (sql === "SELECT value FROM metadata WHERE name=?") {
+      const get = statement.get.bind(statement);
+      vi.spyOn(statement, "get").mockImplementation((...args) =>
+        (args[0] as unknown) === "position" ? { value: "0" } : get(...args),
+      );
+    }
+    return statement;
+  });
+  expect(() => f.owner.advanceEventScan(scan)).toThrow("head regressed");
+  vi.restoreAllMocks();
+  const exec = DatabaseSync.prototype.exec;
+  vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql) {
+    if (sql === "COMMIT") throw new Error("injected uncertain commit");
+    return exec.call(this, sql);
+  });
+  expect(() => f.run([bead("b")])).toThrow();
+  expect(() => f.owner.advanceEventScan(scan)).toThrow("owner fenced");
+  vi.restoreAllMocks();
 });

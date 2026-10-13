@@ -1,7 +1,7 @@
 /** Source-private loopback fixture. Never selected by installed config/profile
  * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
 import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
-import { pumpTransactionChanges } from "./transaction-sse.js";
+import { pumpTransactionChanges, pumpTransactionEvents } from "./transaction-sse.js";
 import { ScopeServerOperationAbortedError } from "./read-request.js";
 import { createServer, type IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
@@ -12,7 +12,7 @@ import type { ContractArtifactLimits } from "./installed-contract-artifact.js";
 import { captureTransactionRuntimeConfiguration } from "./transaction-runtime-configuration.js";
 import type { HttpResponse } from "./index.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
-import { openTransactionStore } from "./transaction-store.js";
+import { openTransactionStore, type TransactionReadContext } from "./transaction-store.js";
 import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
 import {
   createTransactionService,
@@ -24,6 +24,7 @@ import {
   transactionHttpProblem,
   TRANSACTION_HTTP_TARGET_BYTES,
   type TransactionReceivedBody,
+  type TransactionHttpResult,
 } from "./transaction-http.js";
 
 export interface TransactionRuntimeOptions {
@@ -109,6 +110,7 @@ export async function startTransactionRuntime(
   let firstStreamFault: { readonly cause: unknown } | undefined;
   const handle = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     let signal: AbortSignal | undefined;
+    let streamContext: TransactionReadContext | undefined;
     try {
       if (closing || !handler) {
         deliver(response, transactionHttpProblem("temporarily-unavailable"));
@@ -160,7 +162,12 @@ export async function startTransactionRuntime(
         return;
       }
       if ("failure" in body) response.setHeader("connection", "close");
-      const selected = await handler.handle(input, authorization, body, lastEventIds);
+      let selected: TransactionHttpResult | undefined = await handler.handle(
+        input,
+        authorization,
+        body,
+        lastEventIds,
+      );
       if (selected.kind === "finite") deliver(response, selected);
       else {
         if (!captured.liveStreamsAvailable) {
@@ -174,23 +181,43 @@ export async function startTransactionRuntime(
           return;
         }
         const activeService = service!;
+        streamContext = selected.context;
         await activeService.stream(async (streamSignal) => {
           try {
             streamSignal.throwIfAborted();
+            if (!selected || selected.kind === "finite")
+              throw new Error("missing stream selection");
             response.writeHead(selected.status, Object.fromEntries(selected.headers));
             response.flushHeaders();
-            await pumpTransactionChanges(
-              response,
-              selected.page,
-              async (after, nextSignal) => {
-                const observed = await activeService.changes({ after }, undefined, nextSignal);
-                if (observed.kind !== "page")
-                  throw new Error("changefeed stream lost serving entry");
-                return observed.page;
-              },
-              streamSignal,
-              settings.changefeedStream,
-            );
+            const pumping =
+              selected.kind === "changefeed-stream"
+                ? pumpTransactionChanges(
+                    response,
+                    selected.page,
+                    async (after, nextSignal) => {
+                      const observed = await activeService.changes(
+                        { after },
+                        undefined,
+                        nextSignal,
+                      );
+                      if (observed.kind !== "page")
+                        throw new Error("changefeed stream lost serving entry");
+                      return observed.page;
+                    },
+                    streamSignal,
+                    settings.changefeedStream,
+                  )
+                : pumpTransactionEvents(
+                    response,
+                    selected.packet,
+                    (scan, nextSignal) => activeService.nextEvents(scan, nextSignal),
+                    streamSignal,
+                    settings.changefeedStream,
+                  );
+            // Transfer the initial packet into the pump; do not retain the HTTP
+            // result/group body for the lifetime of the live stream.
+            selected = undefined;
+            await pumping;
           } catch (error) {
             // Capture before destroy() turns a genuine fault into a disconnect.
             if (
@@ -214,7 +241,7 @@ export async function startTransactionRuntime(
       ) {
         response.destroy();
       } else if (error instanceof TransactionStreamCapacityError) {
-        deliver(response, transactionHttpProblem("temporarily-unavailable"));
+        deliver(response, transactionHttpProblem("temporarily-unavailable", streamContext));
       } else if (!response.destroyed) {
         response.writeHead(500, {
           "content-length": "0",

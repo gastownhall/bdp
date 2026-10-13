@@ -1,4 +1,5 @@
 /** Private captured runtime inputs. No installed launcher or profile admission. */
+import { TRANSACTION_EVENT_STREAM } from "./transaction-events.js";
 import { TRANSACTION_SSE_DEFAULTS, validateTransactionStreamTimers } from "./transaction-sse.js";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
@@ -110,6 +111,7 @@ export const TRANSACTION_RUNTIME_DEFAULTS = freeze({
   comparisonBudgetMs: 1000,
   minimumReadBudgetMs: 1000,
   changefeedStream: TRANSACTION_SSE_DEFAULTS,
+  eventStream: TRANSACTION_EVENT_STREAM,
   transport: {
     host: "127.0.0.1",
     targetBytes: TRANSACTION_HTTP_TARGET_BYTES,
