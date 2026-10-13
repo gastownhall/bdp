@@ -775,11 +775,14 @@ an eligible failed receipt. Page namespace validation checks the parsed parent
 before the plan lookup. Service prefix checks remain defense in depth; the store
 constructs those prefixes, while the bounds checks independently validate results.
 
-The actual hot-journal terminal-crash regression now attempts an incompatible page
-bound at an expiry-eligible clock before reopening correctly. SQLite recovery may
-restore committed pages, but installation refusal precedes BDP pending cleanup and
-retention: the later valid open recovers the original pending row and all 60 receipt
-chains remain available. This is process-crash evidence, not power-loss durability.
+The actual hot-journal terminal-crash regression copies the database and hot journal
+before attempting an incompatible page bound at an expiry-eligible clock on the copy.
+The refused open must consume the copy's journal through SQLite recovery, while the
+original journal remains hot for an independent valid-open witness. Both branches
+then reopen compatibly: each recovers the pending row and all 60 receipt chains remain
+available. The copied branch proves installation refusal precedes BDP pending cleanup
+and retention; the original branch directly proves valid-open crash recovery. This is
+process-crash evidence, not power-loss durability.
 
 ### Bounded set-core review repairs
 
