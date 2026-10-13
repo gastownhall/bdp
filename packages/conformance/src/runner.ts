@@ -1,6 +1,7 @@
 import {
   createTransactionalObservations,
   TRANSACTIONAL_EXCHANGE_FIELDS,
+  TransactionalHarnessError,
   type TransactionalRunContext,
   type TransactionalExchangeFields,
 } from "./transactional-observation.js";
@@ -711,6 +712,8 @@ async function runScenario(
         exchanges,
         "out-of-scope-target",
       );
+    else if (error instanceof TransactionalHarnessError)
+      runResult = result(metadata, scenario, "harness-error", error.message, exchanges);
     else if (error instanceof ExactHarnessError)
       runResult = result(
         metadata,
@@ -864,15 +867,17 @@ async function runScenarioAction(
     return;
   }
   if (action.family === "client" && action.operation.startsWith("transactional.")) {
-    if (!transactional) throw new ConformanceRunnerError("private Transactional session required");
+    if (!transactional)
+      throw new TransactionalHarnessError("private Transactional session required");
     const privateExecute: ScenarioActionExecutor = async (execution) => {
       if (action.operation === "transactional.reopen") {
-        if (Object.keys(execution.input as object).length) throw new Error("reopen takes no input");
+        if (Object.keys(execution.input as object).length)
+          throw new TransactionalHarnessError("reopen takes no input");
         await transactional.reopen(execution.signal);
         return { reopened: true };
       }
       if (action.operation !== "transactional.receipt-read")
-        throw new Error("unsupported private transaction action");
+        throw new TransactionalHarnessError("unsupported private transaction action");
       const input = execution.input as Record<string, unknown>;
       if (
         !input ||
@@ -881,13 +886,13 @@ async function runScenarioAction(
         typeof input.binding !== "string" ||
         !["GET", "HEAD"].includes(String(input.method))
       )
-        throw new Error("invalid private receipt input");
+        throw new TransactionalHarnessError("invalid private receipt input");
       const { source, active, validate } = transactional.resolve(
         input.binding,
         bindings.get(input.binding),
       );
       const original = options.exactExecution;
-      if (!original) throw new Error("exact transport required");
+      if (!original) throw new TransactionalHarnessError("exact transport required");
       const mode = snapshotExactHttpMode({
         ...original.configuration,
         routes: [{ method: input.method as "GET" | "HEAD", url: source.receipt }],
@@ -896,9 +901,9 @@ async function runScenarioAction(
       const { resolveCredentials: _resolver, ...configuration } = mode;
       const raw = createRawHttpExchangeExecutor(active.dialRoute, {
         exactMode: mode,
-        maximumHeaderBytes: 65536,
-        maximumBodyBytes: 1048576,
-        requestTimeoutMs: 5000,
+        maximumHeaderBytes: active.binding.responseLimits.headerBytes,
+        maximumBodyBytes: active.binding.responseLimits.bodyBytes,
+        requestTimeoutMs: Math.min(timeoutMs, 5000),
       });
       const exactExecution: ExactScenarioExecution = {
         configuration,
@@ -908,7 +913,7 @@ async function runScenarioAction(
           ),
       };
       let projection: JsonValue | undefined;
-      const offset = exchanges.length;
+
       await runRequest(
         {
           id: action.id,
@@ -955,16 +960,14 @@ async function runScenarioAction(
             bodyOctets: response.bodyOctets ?? 0,
           };
         },
+        {
+          dynamicExactConfiguration: configuration,
+          dynamicExactConfigurationDigest: exactConfigurationDigest(exactExecution),
+          sourceReceiptObservation: source,
+          servedSession: active.binding,
+        },
       );
-      const exchange = exchanges[offset];
-      if (!exchange || !projection) throw new Error("missing actual receipt observation");
-      exchanges[offset] = {
-        ...exchange,
-        dynamicExactConfiguration: configuration,
-        dynamicExactConfigurationDigest: exactConfigurationDigest(exactExecution),
-        sourceReceiptObservation: source,
-        servedSession: active.binding,
-      };
+      if (!projection) throw new TransactionalHarnessError("missing actual receipt observation");
       return projection;
     };
     await runProgrammaticAction(
@@ -977,7 +980,7 @@ async function runScenarioAction(
       scope,
       runProfile,
       signal,
-      timeoutMs,
+      action.operation === "transactional.reopen" ? (options.prepareTimeoutMs ?? 30000) : timeoutMs,
       settlement,
     );
     return;
@@ -1066,7 +1069,7 @@ async function runProgrammaticAction(
       ? new ScenarioActionExecutionFailure("action execution was aborted", { cause: error })
       : deadline.signal.aborted
         ? new ScenarioDeadlineError("action execution timed out", { cause: error })
-        : error instanceof ScenarioDeadlineError
+        : error instanceof ScenarioDeadlineError || error instanceof TransactionalHarnessError
           ? error
           : new ScenarioActionExecutionFailure("action execution failed", { cause: error });
     actions[actions.length - 1] = {
@@ -1134,6 +1137,7 @@ async function runRequest(
   options: ScenarioRunOptions,
   transactional?: ReturnType<typeof createTransactionalObservations>,
   observe?: (response: HttpExchangeResponse) => void,
+  dynamic?: TransactionalExchangeFields,
 ): Promise<void> {
   const url = resolveTarget(request, bindings, scope);
   const served = transactional?.session().binding;
@@ -1152,6 +1156,8 @@ async function runRequest(
     });
   }
   const observed: ObservedExchange = {
+    ...dynamic,
+    ...(served ? { servedSession: served } : {}),
     request: {
       id: request.id,
       method: request.method,
@@ -1451,13 +1457,7 @@ async function runRequest(
         .join("; "),
     );
   for (const capture of request.captures) {
-    if (
-      transactional &&
-      served &&
-      capture.from.kind === "json-pointer" &&
-      options.exactExecution &&
-      exactObservation
-    ) {
+    if (transactional && served && options.exactExecution && exactObservation) {
       if (
         !exactHeadersMatch(
           request,
@@ -1475,8 +1475,9 @@ async function runRequest(
         throw new ExactHarnessError("exact-observation");
       transactional.register(
         capture.binding,
-        capture.from.pointer,
+        capture.from.kind === "json-pointer" ? capture.from.pointer : "",
         request.id,
+        { method: request.method, url },
         response,
         bodyObservation.kind === "json" ? bodyObservation.value : undefined,
         options.exactExecution.configuration,

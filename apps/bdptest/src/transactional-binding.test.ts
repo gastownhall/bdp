@@ -95,60 +95,66 @@ const mode: ExactHttpModeOptions = {
   credentialHandles: [{ id: "operator", headerNames: [] }],
   resolveCredentials: () => ({}),
 };
-it("aborts and drains a real registered dynamic socket before session close", async () => {
-  let received!: () => void;
-  const requestSeen = new Promise<void>((r) => {
-    received = r;
-  });
-  const server = await listener((socket) => socket.once("data", received));
-  let settled = false,
-    closed = false;
-  const baseline = installedTransactionBinding(ready(server.url), "f".repeat(40), fixtureSource);
-  const bound = createTransactionalExecutionBinding({
-    baseline,
-    sourceCommit: "f".repeat(40),
-    fixtureSource,
-    exactMode: mode,
-    launch: async () => ({
-      ready: ready(server.url),
-      close: async () => {
-        expect(settled).toBe(true);
-        closed = true;
-      },
-    }),
-  });
-  try {
-    expect(() => bound.context.current(scenario.id)).toThrow();
-    await bound.target.harness.prepare(
-      scenario,
-      scope,
-      0,
-      bundle.fixture,
-      new AbortController().signal,
-    );
-    const session = bound.context.current(scenario.id),
-      raw = createRawHttpExchangeExecutor(session.dialRoute, {
-        exactMode: { ...mode, routes: [{ method: "GET", url: receipt }] },
-        requestTimeoutMs: 5000,
-      });
-    const operation = session.register(
-      raw({ method: "GET", url: receipt, raw: { headerLines: [] }, signal: session.signal }).catch(
-        (error) => {
+it.each(["close", "cohort"])(
+  "aborts and drains a real registered dynamic socket via %s",
+  async (cause) => {
+    const parent = new AbortController();
+    let received!: () => void;
+    const requestSeen = new Promise<void>((r) => {
+      received = r;
+    });
+    const server = await listener((socket) => socket.once("data", received));
+    let settled = false,
+      closed = false;
+    const baseline = installedTransactionBinding(ready(server.url), "f".repeat(40), fixtureSource);
+    const bound = createTransactionalExecutionBinding({
+      baseline,
+      sourceCommit: "f".repeat(40),
+      fixtureSource,
+      exactMode: mode,
+      launch: async () => ({
+        ready: ready(server.url),
+        close: async () => {
+          expect(settled).toBe(true);
+          closed = true;
+        },
+      }),
+    });
+    try {
+      expect(() => bound.context.current(scenario.id)).toThrow();
+      await bound.target.harness.prepare(scenario, scope, 0, bundle.fixture, parent.signal);
+      const session = bound.context.current(scenario.id),
+        raw = createRawHttpExchangeExecutor(session.dialRoute, {
+          exactMode: { ...mode, routes: [{ method: "GET", url: receipt }] },
+          requestTimeoutMs: 5000,
+        });
+      const operation = session.register(
+        raw({
+          method: "GET",
+          url: receipt,
+          raw: { headerLines: [] },
+          signal: session.signal,
+        }).catch((error) => {
           settled = true;
           return error;
-        },
-      ),
-    );
-    await requestSeen;
-    await bound.target.close();
-    expect(await operation).toHaveProperty("category", "abort");
-    expect(closed).toBe(true);
-    expect(() => bound.context.current(scenario.id)).toThrow();
-  } finally {
-    await bound.target.close();
-    await server.close();
-  }
-});
+        }),
+      );
+      await requestSeen;
+      if (cause === "cohort") {
+        parent.abort();
+        expect(await operation).toHaveProperty("category", "abort");
+        expect(closed).toBe(false);
+      }
+      await bound.target.close();
+      expect(await operation).toHaveProperty("category", "abort");
+      expect(closed).toBe(true);
+      expect(() => bound.context.current(scenario.id)).toThrow();
+    } finally {
+      await bound.target.close();
+      await server.close();
+    }
+  },
+);
 it("rebinds ordinary raw requests to the new validated physical session while base mode stays fixed", async () => {
   const first = await listener((socket) =>
     socket.once("data", () =>

@@ -144,7 +144,7 @@ export function createTransactionalExecutionBinding(options: {
           binding,
           controller,
           pending,
-          signal: controller.signal,
+          signal: AbortSignal.any([controller.signal, signal]),
           dialRoute: Object.freeze({
             transport: "plain" as const,
             host: address.hostname,

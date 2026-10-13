@@ -5949,3 +5949,45 @@ it("excludes all private Transactional metadata from the legacy exchange type", 
   const closed: [NonNullable<Legacy[keyof Fields]>] extends [never] ? true : false = true;
   expect(closed).toBe(true);
 });
+
+it.each(["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])(
+  "requires explicit %s presence even when metadata equality sees two absent values",
+  async (name) => {
+    const base = { family: "http", target: { binding: "scope" }, headers: {}, captures: [] };
+    const options = actionInputs([
+      {
+        ...base,
+        id: "prior",
+        method: "GET",
+        assertions: [{ id: "status", kind: "status", equals: 200 }],
+      },
+      {
+        ...base,
+        id: "events",
+        method: "GET",
+        assertions: [
+          { id: "same", kind: "response-metadata-equals", request: "prior", headers: [name] },
+          { id: "present", kind: "header", name, absent: false },
+        ],
+      },
+    ]);
+    const observed = await runConformanceMatrix({
+      ...options,
+      scope: "https://scope.example/",
+      profile: "read",
+      seed: 0,
+      harness: harness(),
+      execute: async (request) => ({
+        url: request.url,
+        status: 200,
+        headers: {},
+        bodyText: "",
+        bodyOctets: 0,
+      }),
+    });
+    const row = observed.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    expect(row.exchanges[1]?.assertions.find((a) => a.id === "same")?.passed).toBe(true);
+    expect(row.exchanges[1]?.assertions.find((a) => a.id === "present")?.passed).toBe(false);
+  },
+);

@@ -24,6 +24,9 @@
             "commit:request-headers",
             "commit:request-body",
             "commit:receipt-schema",
+            "commit:present-bdp-scope-epoch",
+            "commit:present-bdp-authorization-view",
+            "commit:present-bdp-scope-position",
             "committed-facts:status",
             "committed-facts:body-present",
             "committed-facts:epoch",
@@ -55,7 +58,10 @@
             "events:serving-context",
             "events:created-revision",
             "events:previous-revision",
-            "events:updated-revision"
+            "events:updated-revision",
+            "events:present-bdp-scope-epoch",
+            "events:present-bdp-authorization-view",
+            "events:present-bdp-scope-position"
           ]
         }
       ]
@@ -73,6 +79,9 @@
             "seed:request-headers",
             "seed:request-body",
             "seed:receipt-schema",
+            "seed:present-bdp-scope-epoch",
+            "seed:present-bdp-authorization-view",
+            "seed:present-bdp-scope-position",
             "seed-facts:status",
             "seed-facts:body-present",
             "seed-facts:epoch",
@@ -86,6 +95,9 @@
             "events-before:request-body",
             "events-before:source-subject-ordinal",
             "events-before:serving-context",
+            "events-before:present-bdp-scope-epoch",
+            "events-before:present-bdp-authorization-view",
+            "events-before:present-bdp-scope-position",
             "rollback:http-status",
             "rollback:disposition",
             "rollback:failure-index",
@@ -108,6 +120,9 @@
             "events-after:request-body",
             "events-after:source-subject-ordinal",
             "events-after:serving-context",
+            "events-after:present-bdp-scope-epoch",
+            "events-after:present-bdp-authorization-view",
+            "events-after:present-bdp-scope-position",
             "fresh:http-status",
             "fresh:disposition",
             "fresh:request-headers",
@@ -222,6 +237,9 @@
             "fresh:request-headers",
             "fresh:request-body",
             "fresh:receipt-schema",
+            "fresh:present-bdp-scope-epoch",
+            "fresh:present-bdp-authorization-view",
+            "fresh:present-bdp-scope-position",
             "conflict:http-status",
             "conflict:request-headers",
             "conflict:request-body",
@@ -243,7 +261,10 @@
             "events:request-headers",
             "events:request-body",
             "events:source-subject-ordinal",
-            "events:serving-context"
+            "events:serving-context",
+            "events:present-bdp-scope-epoch",
+            "events:present-bdp-authorization-view",
+            "events:present-bdp-scope-position"
           ]
         }
       ]

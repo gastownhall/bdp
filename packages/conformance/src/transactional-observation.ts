@@ -9,6 +9,8 @@ import type {
 } from "./http-executor.js";
 import type { SchemaValidator } from "./schema-validator.js";
 
+export class TransactionalHarnessError extends Error {}
+
 export interface TransactionalSessionBinding {
   readonly scenario: string;
   readonly generation: number;
@@ -51,8 +53,13 @@ export const TRANSACTIONAL_EXCHANGE_FIELDS = [
 ] as const;
 export function receiptUrl(value: unknown, scope: string): string {
   if (typeof value !== "string" || value.length > 8192)
-    throw new Error("unobserved receipt target");
-  const url = new URL(value);
+    throw new TransactionalHarnessError("unobserved receipt target");
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch (cause) {
+    throw new TransactionalHarnessError("unobserved receipt target", { cause });
+  }
   const prefix = `${scope}receipts/`;
   if (
     url.href !== value ||
@@ -63,7 +70,7 @@ export function receiptUrl(value: unknown, scope: string): string {
     url.username ||
     url.password
   )
-    throw new Error("unobserved receipt target");
+    throw new TransactionalHarnessError("unobserved receipt target");
   return value;
 }
 export function createTransactionalObservations(
@@ -78,11 +85,23 @@ export function createTransactionalObservations(
   >();
   let accepted: TransactionalSessionBinding | undefined;
   const session = () => {
-    const current = context.current(scenario);
+    let current: TransactionalSession;
+    try {
+      current = context.current(scenario);
+    } catch (cause) {
+      throw new TransactionalHarnessError("transaction session unavailable", { cause });
+    }
+    const limits = current.binding.responseLimits;
+    if (
+      limits?.headerBytes !== 65536 ||
+      limits.bodyBytes !== 1048576 ||
+      limits.wireBytes !== 2097152
+    )
+      throw new TransactionalHarnessError("transaction session response limits mismatch");
     if (current.signal.aborted || current.binding.scenario !== scenario)
-      throw new Error("transaction session unavailable");
+      throw new TransactionalHarnessError("transaction session unavailable");
     if (accepted && !isDeepStrictEqual(current.binding, accepted))
-      throw new Error("unvalidated physical session transition");
+      throw new TransactionalHarnessError("unvalidated physical session transition");
     accepted ??= Object.freeze({ ...current.binding });
     return current;
   };
@@ -90,8 +109,13 @@ export function createTransactionalObservations(
     session,
     async reopen(signal: AbortSignal) {
       const previous = session().binding;
-      await context.reopen(scenario, signal);
-      const current = context.current(scenario);
+      let current: TransactionalSession;
+      try {
+        await context.reopen(scenario, signal);
+        current = context.current(scenario);
+      } catch (cause) {
+        throw new TransactionalHarnessError("transaction session reopen failed", { cause });
+      }
       if (
         current.signal.aborted ||
         current.binding.scenario !== scenario ||
@@ -99,7 +123,7 @@ export function createTransactionalObservations(
         current.binding.runtimeConfigurationIdentity !== previous.runtimeConfigurationIdentity ||
         current.binding.configurationDigest !== previous.configurationDigest
       )
-        throw new Error("invalid reopened session");
+        throw new TransactionalHarnessError("invalid reopened session");
       accepted = Object.freeze({ ...current.binding });
       session();
     },
@@ -107,6 +131,7 @@ export function createTransactionalObservations(
       binding: string,
       pointer: string,
       action: string,
+      request: { readonly method: string; readonly url: string },
       response: HttpExchangeResponse,
       value: unknown,
       config: ExactHttpConfiguration,
@@ -114,23 +139,52 @@ export function createTransactionalObservations(
       validator: SchemaValidator | undefined,
       served: TransactionalSessionBinding,
     ) {
-      if (pointer !== "/id") return;
+      const operation = request.url.startsWith(`${scope}operations/`)
+        ? request.url.slice(`${scope}operations/`.length)
+        : undefined;
+      const mutationSource =
+        request.method === "POST" &&
+        [
+          "create-bead",
+          "update-bead",
+          "delete-bead",
+          "create-link",
+          "update-link",
+          "delete-link",
+          "put-alias",
+          "delete-alias",
+          "batch",
+        ].includes(operation ?? "");
+      const retainedSource =
+        request.method === "GET"
+          ? [...ledger.values()].find((entry) => entry.reference.receipt === request.url)
+          : undefined;
+      if (pointer !== "/id" || (!mutationSource && !retainedSource)) {
+        // Ordinary captures keep their normal meaning, including rebinding. They
+        // revoke any older authority attached to this binding rather than inherit it.
+        ledger.delete(binding);
+        return;
+      }
+      if (response.url !== request.url)
+        throw new TransactionalHarnessError("source receipt route mismatch");
+      if (retainedSource && !isDeepStrictEqual(value, retainedSource.body))
+        throw new Error("retained source receipt differs from original wire facts");
       if (!validator || validator.validate("#/$defs/mutationReceipt", value).length)
         throw new Error("source receipt schema invalid");
       const body = value as Record<string, unknown>;
       if (body.status !== "completed" && body.status !== "failed")
-        throw new Error("source receipt disposition unavailable");
+        throw new TransactionalHarnessError("source receipt disposition unavailable");
       if ((body.status === "completed" && body.next !== null) || body.detail !== "available")
-        throw new Error("source receipt exceeds inline fixture");
+        throw new TransactionalHarnessError("source receipt exceeds inline fixture");
       const receipt = receiptUrl(body.id, scope);
       if (
         response.status !== 200 ||
         !response.wireResponseBytes ||
         response.wireResponseBytes.length > 2097152
       )
-        throw new Error("source receipt wire unavailable");
+        throw new TransactionalHarnessError("source receipt wire unavailable");
       if (ledger.has(binding) || ledger.size >= maximum)
-        throw new Error("receipt authority binding limit or reuse");
+        throw new TransactionalHarnessError("receipt authority binding limit or reuse");
       validateReceiptWire(response, "GET");
       ledger.set(binding, {
         reference: Object.freeze({
@@ -149,16 +203,16 @@ export function createTransactionalObservations(
       const entry = typeof binding === "string" ? ledger.get(binding) : undefined;
       const source = entry?.reference;
       if (!source || source.receipt !== value || receiptUrl(value, scope) !== source.receipt)
-        throw new Error("receipt not authorized by original wire observation");
-      if (createHash("sha256").update(entry!.wire).digest("hex") !== source.responseDigest)
-        throw new Error("source receipt observation changed");
+        throw new TransactionalHarnessError("receipt not authorized by original wire observation");
+      // The retained wire is a private defensive copy. Its digest records the
+      // original observation; no mutable persisted digest or tamper hook exists.
       const active = session();
       if (
         active.binding.runtimeConfigurationIdentity !==
           source.session.runtimeConfigurationIdentity ||
         active.binding.configurationDigest !== source.session.configurationDigest
       )
-        throw new Error("receipt session logical identity changed");
+        throw new TransactionalHarnessError("receipt session logical identity changed");
       return {
         source,
         active,

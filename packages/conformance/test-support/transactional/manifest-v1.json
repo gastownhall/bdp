@@ -130,6 +130,24 @@
               "id": "receipt-schema",
               "kind": "json-schema",
               "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
             }
           ]
         },
@@ -470,6 +488,24 @@
               "pointer": "/events/1/data/revision",
               "exists": true,
               "equalsBinding": "updated-revision"
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
             }
           ]
         }
@@ -547,6 +583,24 @@
               "id": "receipt-schema",
               "kind": "json-schema",
               "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
             }
           ]
         },
@@ -682,6 +736,24 @@
               "kind": "response-metadata-equals",
               "request": "seed",
               "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
             }
           ]
         },
@@ -895,6 +967,24 @@
               "kind": "response-metadata-equals",
               "request": "seed",
               "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
             }
           ]
         },
@@ -1837,6 +1927,24 @@
               "id": "receipt-schema",
               "kind": "json-schema",
               "schema": "#/$defs/mutationReceipt"
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
             }
           ]
         },
@@ -2058,6 +2166,24 @@
               "kind": "response-metadata-equals",
               "request": "fresh",
               "headers": ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]
+            },
+            {
+              "id": "present-bdp-scope-epoch",
+              "kind": "header",
+              "name": "bdp-scope-epoch",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-authorization-view",
+              "kind": "header",
+              "name": "bdp-authorization-view",
+              "absent": false
+            },
+            {
+              "id": "present-bdp-scope-position",
+              "kind": "header",
+              "name": "bdp-scope-position",
+              "absent": false
             }
           ]
         }

@@ -73,11 +73,17 @@ function fixture() {
     defaultCredentialRef: "operator",
     credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
   };
-  const register = (r = response(), value: unknown = body, pointer = "/id") =>
+  const register = (
+    r = response(),
+    value: unknown = body,
+    pointer = "/id",
+    request = { method: "POST", url: scope + "operations/batch" },
+  ) =>
     observations.register(
       "receipt",
       pointer,
       "post",
+      request,
       r,
       value,
       config,
@@ -166,4 +172,32 @@ it("validates bodyless HEAD wire independently from retained representation leng
   );
   expect(() => validateReceiptWire(r, "HEAD")).not.toThrow();
   expect(() => validateReceiptWire(response(), "HEAD")).toThrow();
+});
+
+it("does not grant or retain receipt authority from ordinary capture routes", () => {
+  const f = fixture();
+  f.register();
+  const ordinary = { ...response(), url: scope + "beads/a" };
+  f.register(ordinary, body, "/id", { method: "GET", url: ordinary.url });
+  expect(() => f.observations.resolve("receipt", id)).toThrow("not authorized");
+  // Even receipt-looking JSON and an original receipt ID on this Resource route
+  // do not turn a new ordinary binding back into receipt-follow authority.
+  f.register(ordinary, body, "/id", { method: "GET", url: ordinary.url });
+  expect(() => f.observations.resolve("receipt", id)).toThrow("not authorized");
+});
+it("rejects a claimed receipt whose actual response route differs", () => {
+  const f = fixture();
+  expect(() => f.register({ ...response(), url: scope + "beads/a" })).toThrow("route mismatch");
+});
+
+it("refuses a session whose recorded response bounds differ from the supported transport", () => {
+  const f = fixture();
+  f.change({
+    responseLimits: {
+      headerBytes: 1,
+      bodyBytes: 1048576,
+      wireBytes: 2097152,
+    } as unknown as TransactionalSessionBinding["responseLimits"],
+  });
+  expect(() => f.observations.session()).toThrow("response limits mismatch");
 });

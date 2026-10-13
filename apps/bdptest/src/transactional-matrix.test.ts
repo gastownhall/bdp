@@ -9,6 +9,7 @@ import {
   createJsonSchemaValidator,
   createRawHttpExchangeExecutor,
   type ExactHttpModeOptions,
+  type HttpExchangeResponse,
 } from "@bdp/conformance";
 import {
   createCumulativeTransactionalArtifactBundle,
@@ -28,6 +29,7 @@ const { launchInstalledTransaction } = (await import(
   launchInstalledTransaction(
     entry: string,
     configuration: unknown,
+    signal?: AbortSignal,
   ): Promise<{ child: ChildProcess; ready: Record<string, unknown>; close(): Promise<void> }>;
 };
 const scope = "https://reference.invalid/acme/";
@@ -78,11 +80,25 @@ const sourceCommit =
   process.env.BDP_TRANSACTIONAL_SOURCE_COMMIT ??
   execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 async function observe(control?: {
+  readonly budgetMs?: number;
+  readonly invalidReceiptCredentials?: boolean;
+  readonly signal?: AbortSignal;
+  readonly children?: ChildProcess[];
+  /** Negative-test gate after actual ordinary wire, never a response replacement. */
+  readonly afterExchange?: (response: HttpExchangeResponse, signal: AbortSignal) => Promise<void>;
   readonly ready?: (ready: Record<string, unknown>) => Record<string, unknown>;
   readonly manifest?: (value: {
     scenarios: { id: string; actions: Record<string, unknown>[] }[];
   }) => void;
 }) {
+  const budgetMs = control?.budgetMs ?? 90000;
+  if (!Number.isSafeInteger(budgetMs) || budgetMs < 1 || budgetMs > 90000)
+    throw new Error("invalid cohort budget");
+  const controller = new AbortController();
+  const signal = control?.signal
+    ? AbortSignal.any([control.signal, controller.signal])
+    : controller.signal;
+  signal.throwIfAborted();
   const changed = JSON.parse(manifestSource.bytes.toString()) as {
     scenarios: { id: string; actions: Record<string, unknown>[] }[];
   };
@@ -108,8 +124,21 @@ async function observe(control?: {
   };
   let target: ReturnType<typeof createTransactionalExecutionBinding> | undefined;
   const sessions: Record<string, unknown>[] = [];
+  const timer = setTimeout(
+    () => controller.abort(new Error("installed cohort deadline")),
+    budgetMs,
+  );
+  let observed:
+    | {
+        result: Awaited<ReturnType<typeof runCumulativeTransactionalMatrix>>;
+        sessions: Record<string, unknown>[];
+        baseline: ReturnType<typeof installedTransactionBinding>;
+      }
+    | undefined;
+  let failure: unknown;
   try {
-    const bootstrap = await launchInstalledTransaction(entry, configuration);
+    const bootstrap = await launchInstalledTransaction(entry, configuration, signal);
+    control?.children?.push(bootstrap.child);
     let baseline: ReturnType<typeof installedTransactionBinding>;
     try {
       baseline = installedTransactionBinding(bootstrap.ready, sourceCommit, fixtureSource);
@@ -144,10 +173,12 @@ async function observe(control?: {
         { id: "reader", headerNames: ["authorization"] },
         { id: "anonymous", headerNames: [] },
       ],
-      resolveCredentials: ({ credentialRef }) =>
+      resolveCredentials: ({ credentialRef, url }) =>
         credentialRef === "anonymous"
           ? {}
-          : { authorization: `Bearer ${credentialRef === "operator" ? operator : reader}` },
+          : {
+              authorization: `Bearer ${control?.invalidReceiptCredentials && url.startsWith(`${scope}receipts/`) ? "deliberately-unknown" : credentialRef === "operator" ? operator : reader}`,
+            },
     };
     target = createTransactionalExecutionBinding({
       baseline,
@@ -156,11 +187,16 @@ async function observe(control?: {
       exactMode,
       launch: async (scenario, reopen, signal) => {
         if (signal.aborted) throw new Error("launch aborted");
-        const child = await launchInstalledTransaction(entry, {
-          ...configuration,
-          directory: path.join(directory, scenario),
-          create: !reopen,
-        });
+        const child = await launchInstalledTransaction(
+          entry,
+          {
+            ...configuration,
+            directory: path.join(directory, scenario),
+            create: !reopen,
+          },
+          signal,
+        );
+        control?.children?.push(child.child);
         sessions.push({ ...child.ready, scenario, reopen });
         return control?.ready ? { ...child, ready: control.ready(child.ready) } : child;
       },
@@ -168,6 +204,7 @@ async function observe(control?: {
     const result = await runCumulativeTransactionalMatrix(
       {
         scope,
+        signal,
         profile: "transactional",
         seed: 0,
         artifactBundle: runBundle,
@@ -175,7 +212,12 @@ async function observe(control?: {
           throw new Error("generic HTTP executor forbidden");
         },
         exactExecution: {
-          execute: target.target.execute,
+          execute: async (request) => {
+            const response = await target!.target.execute(request);
+            await control?.afterExchange?.(response, signal);
+            signal.throwIfAborted();
+            return response;
+          },
           configuration: target.target.exactConfiguration!,
         },
         harness: target.target.harness,
@@ -187,11 +229,26 @@ async function observe(control?: {
       },
       target.context,
     );
-    return { result, sessions, baseline };
+    observed = { result, sessions, baseline };
+  } catch (error) {
+    failure = error;
   } finally {
-    await target?.target.close();
-    rmSync(directory, { recursive: true, force: true });
+    try {
+      await target?.target.close();
+    } catch (cleanup) {
+      failure =
+        failure === undefined
+          ? cleanup
+          : new AggregateError([failure, cleanup], "installed cohort cleanup failed");
+    } finally {
+      clearTimeout(timer);
+      rmSync(directory, { recursive: true, force: true });
+    }
   }
+  if (failure !== undefined) throw failure;
+  signal.throwIfAborted();
+  if (!observed) throw new Error("missing installed observation");
+  return observed;
 }
 it("observes four partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const observed = await observe();
@@ -239,7 +296,12 @@ it.each([
     const observed = await observe({
       ready: (ready) => ({
         ...ready,
-        [field]: field === "authorityMode" ? "listener" : "f".repeat(64),
+        [field]:
+          field === "authorityMode"
+            ? "listener"
+            : field === "artifactIdentity"
+              ? `development-schema5-${"f".repeat(64)}`
+              : "f".repeat(64),
       }),
     });
     const attempted = observed.result.scenarios.filter((s) => s.category !== "not-implemented");
@@ -287,7 +349,15 @@ it.each(["binding", "method", "credential", "body-assertion"])(
     const first = observed.result.scenarios.find(
       (s) => s.id === "transactional.batch.atomic-commit",
     )!;
-    expect(first.state).not.toBe("pass");
+    if (kind === "body-assertion") expect(first.state).toBe("fail");
+    else {
+      const reason =
+        kind === "binding"
+          ? "receipt not authorized by original wire observation"
+          : "invalid private receipt input";
+      expect(first).toMatchObject({ state: "harness-error", reason });
+      expect(first.actions?.at(-1)?.executionError?.message).toBe(reason);
+    }
     expect(first.exchanges.filter((e) => e.dynamicExactConfiguration)).toHaveLength(
       kind === "body-assertion" ? 1 : 0,
     );
@@ -447,4 +517,158 @@ it("drains on inherited IPC disconnect and releases the installed owner for reop
     await child.close();
     rmSync(directory, { recursive: true, force: true });
   }
+}, 30000);
+
+it("retains ordinary Resource /id capture without granting receipt authority", async () => {
+  const observed = await observe({
+    manifest(value) {
+      const row = value.scenarios.find((s) => s.id === "transactional.batch.atomic-commit")!;
+      row.actions.find((a) => a.id === "a-point")!.captures = [
+        { binding: "ordinary-resource-id", from: { kind: "json-pointer", pointer: "/id" } },
+      ];
+    },
+  });
+  expect(
+    observed.result.scenarios.find((s) => s.id === "transactional.batch.atomic-commit"),
+  ).toMatchObject({ state: "pass" });
+}, 30000);
+
+it.each(["ordinary-resource-id"])(
+  "does not follow an ordinary Resource /id through binding %s",
+  async (binding) => {
+    const observed = await observe({
+      manifest(value) {
+        const row = value.scenarios.find((s) => s.id === "transactional.batch.atomic-commit")!;
+        row.actions.find((a) => a.id === "a-point")!.captures = [
+          { binding, from: { kind: "json-pointer", pointer: "/id" } },
+        ];
+        row.actions.push({
+          id: "ordinary-id-as-receipt",
+          family: "client",
+          operation: "transactional.receipt-read",
+          input: { binding, method: "GET" },
+          captures: [],
+          assertions: [
+            { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
+          ],
+        });
+      },
+    });
+    const row = observed.result.scenarios.find(
+      (s) => s.id === "transactional.batch.atomic-commit",
+    )!;
+    expect(row).toMatchObject({
+      state: "harness-error",
+      reason: "receipt not authorized by original wire observation",
+    });
+    expect(
+      row.exchanges.some((e) => e.request.id === "a-point" && e.response?.status === 200),
+    ).toBe(true);
+    expect(row.exchanges.some((e) => e.request.id === "ordinary-id-as-receipt")).toBe(false);
+  },
+  30000,
+);
+
+it("aborts the actual cohort budget after real wire and drains all installed children", async () => {
+  const children: ChildProcess[] = [];
+  let seen = false,
+    published = false;
+  const started = performance.now();
+  const run = observe({
+    budgetMs: 2000,
+    children,
+    afterExchange: async (response, signal) => {
+      expect(response.wireResponseBytes?.length).toBeGreaterThan(0);
+      seen = true;
+      await new Promise<void>((_resolve, reject) => {
+        const abort = () => reject(signal.reason);
+        signal.addEventListener("abort", abort, { once: true });
+        if (signal.aborted) abort();
+      });
+    },
+  }).then((value) => {
+    published = true;
+    return value;
+  });
+  await expect(run).rejects.toThrow("installed cohort deadline");
+  expect(seen).toBe(true);
+  expect(published).toBe(false);
+  expect(performance.now() - started).toBeLessThan(15000);
+  expect(children.length).toBeGreaterThanOrEqual(2);
+  expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
+    true,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  expect(published).toBe(false);
+}, 20000);
+
+it("refuses a pre-aborted cohort before starting an installed child", async () => {
+  const children: ChildProcess[] = [];
+  await expect(
+    observe({ signal: AbortSignal.abort(new Error("pre-aborted cohort")), children }),
+  ).rejects.toThrow("pre-aborted cohort");
+  expect(children).toHaveLength(0);
+});
+
+it("cancels installed startup through its signal and never publishes a late ready", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-tx-startup-abort-"));
+  const configuration = {
+    scope,
+    directory,
+    create: true,
+    credentials: [
+      { token: randomBytes(32).toString("base64url"), principal: "p", canMutate: true },
+    ],
+    artifacts: artifacts(),
+  };
+  try {
+    const first = await launchInstalledTransaction(entry, configuration);
+    await first.close();
+    const controller = new AbortController();
+    const pending = launchInstalledTransaction(
+      entry,
+      { ...configuration, create: false },
+      controller.signal,
+    );
+    controller.abort(new Error("startup cancelled"));
+    await expect(pending).rejects.toThrow("startup cancelled");
+    const reopened = await launchInstalledTransaction(entry, { ...configuration, create: false });
+    await reopened.close();
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}, 30000);
+
+it("rejects captured receipt binding reuse before installed preparation", async () => {
+  const children: ChildProcess[] = [];
+  await expect(
+    observe({
+      children,
+      manifest(value) {
+        const row = value.scenarios.find((s) => s.id === "transactional.batch.atomic-commit")!;
+        row.actions.find((a) => a.id === "a-point")!.captures = [
+          { binding: "commit-receipt", from: { kind: "json-pointer", pointer: "/id" } },
+        ];
+      },
+    }),
+  ).rejects.toThrow("scenario manifest: validation failed");
+  expect(children).toHaveLength(0);
+});
+
+it("records dynamic source/session configuration even when actual receipt HTTP returns401", async () => {
+  const observed = await observe({ invalidReceiptCredentials: true });
+  const row = observed.result.scenarios.find((s) => s.id === "transactional.batch.atomic-commit")!;
+  expect(row.state).toBe("fail");
+  const exchange = row.exchanges.find(
+    (e) => e.response?.status === 401 && e.request.url.includes("/receipts/"),
+  )!;
+  expect(exchange).toBeDefined();
+  expect(exchange.dynamicExactConfiguration?.routes).toEqual([
+    { method: "GET", url: exchange.sourceReceiptObservation!.receipt },
+  ]);
+  expect(exchange.dynamicExactConfigurationDigest).toMatch(/^[a-f0-9]{64}$/);
+  expect(exchange.servedSession).toBeDefined();
+  expect(exchange.sourceReceiptObservation).toBeDefined();
+  expect(exchange.request.exact?.writeState).toBe("complete");
+  expect(exchange.assertions.find((a) => a.id === "actual-status")?.passed).toBe(false);
 }, 30000);

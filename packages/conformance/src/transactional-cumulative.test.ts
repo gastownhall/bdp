@@ -406,3 +406,83 @@ it("refuses reserved receipt actions in an ordinary RU run before setup or a pro
   expect(input.harness.prepare).not.toHaveBeenCalled();
   expect(actionExecutor).not.toHaveBeenCalled();
 });
+
+it("uses preparation rather than HTTP timeout for private reopen lifecycle", async () => {
+  const row = {
+    ...manifest.scenarios[0],
+    actions: [
+      {
+        id: "reopen",
+        family: "client",
+        operation: "transactional.reopen",
+        input: {},
+        captures: [],
+        assertions: [
+          {
+            id: "reopened",
+            kind: "json-pointer",
+            pointer: "/reopened",
+            exists: true,
+            equals: true,
+          },
+        ],
+      },
+    ],
+  };
+  const artifactBundle = createCumulativeTransactionalArtifactBundle(selected, {
+    fixture: inputs().fixture,
+    manifest: source({ ...manifest, scenarios: [row] }),
+  });
+  const base = options();
+  let generation = 1;
+  const context: import("./transactional-observation.js").TransactionalRunContext = {
+    current: (scenario) => ({
+      binding: {
+        scenario,
+        generation,
+        listenUrl: "http://127.0.0.1:12345/",
+        runtimeConfigurationIdentity: "a".repeat(64),
+        configurationDigest: "b".repeat(64),
+        responseLimits: { headerBytes: 65536, bodyBytes: 1048576, wireBytes: 2097152 },
+      },
+      signal: new AbortController().signal,
+      dialRoute: { transport: "plain", host: "127.0.0.1", port: 12345 },
+      resolveCredentials: () => ({}),
+      register: (p) => p,
+    }),
+    reopen: async (_scenario, signal) => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      signal.throwIfAborted();
+      generation++;
+    },
+  };
+  const result = await runCumulativeTransactionalMatrix(
+    {
+      ...base,
+      artifactBundle,
+      requestTimeoutMs: 5,
+      prepareTimeoutMs: 500,
+      harness: {
+        prepare: async () => ({ capabilities: fixture.capabilities, bindings: fixture.bindings }),
+        cleanup: async () => {},
+      },
+      exactExecution: {
+        execute: async () => {
+          throw new Error("must not dial");
+        },
+        configuration: {
+          scope: fixture.scope,
+          profile: "transactional",
+          routes: [{ method: "POST", url: fixture.bindings.batch }],
+          maximumRequestHeaderBytes: 16384,
+          maximumRequestBodyBytes: 65536,
+          defaultCredentialRef: "operator",
+          credentialHandles: [{ id: "operator", headerNames: [] }],
+        },
+      },
+    },
+    context,
+  );
+  expect(result.scenarios.find((s) => s.id === row.id)).toMatchObject({ state: "pass" });
+  expect(generation).toBe(2);
+});
