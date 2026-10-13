@@ -6,6 +6,7 @@ import {
   createDevelopmentReadUpdateArtifactBundle,
   createCumulativeReadUpdateArtifactBundle,
   createCumulativeTransactionalArtifactBundle,
+  isCumulativeTransactionalArtifactBundle,
 } from "./artifact-bundle.js";
 import { canonicalJson } from "./canonical-json.js";
 import { snapshotExactHttpMode } from "./http-executor.js";
@@ -177,7 +178,6 @@ it("copies source bytes before binding and exposes all missing obligations witho
   });
   expect(plan.claimEligible).toBe(false);
   expect(plan.carrierBlocker).toBeUndefined();
-  expect(plan.transportAdmission).toBe("pending");
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
@@ -285,6 +285,16 @@ it("private runner refuses lookalikes, RU bundles, wrong profiles and absent exa
   await expect(runCumulativeTransactionalMatrix(options("read-update"))).rejects.toThrow(
     "matching private runner",
   );
+  // H1b must retire this marker and the transport refusals below together when
+  // http-executor.ts admits Transactional configurations.
+  const bound = configuration();
+  const plan = planProfileExecution(selected, bound, {
+    configuration: bound,
+    manifest: inputs().manifest,
+  });
+  const coverage = JSON.parse(read("coverage").toString());
+  expect(plan.transportAdmission).toBe("pending-h1b");
+  expect(coverage.transportAdmission).toBe(plan.transportAdmission);
   const input = options();
   await expect(runCumulativeTransactionalMatrix(input)).rejects.toThrow(
     "transport admission pending",
@@ -330,14 +340,15 @@ it("private runner refuses lookalikes, RU bundles, wrong profiles and absent exa
   expect(input.execute).not.toHaveBeenCalled();
 });
 
-it("leaves all private symbols and TX artifacts out of public package admission", async () => {
+it("keeps private cumulative factories, TX runner and brand predicate out of public exports", async () => {
   const root = await import("./index.js");
   for (const symbol of [
-    "createCumulativeTransactionalArtifactBundle",
-    "runCumulativeTransactionalMatrix",
-    "isCumulativeTransactionalArtifactBundle",
+    createCumulativeTransactionalArtifactBundle,
+    createCumulativeReadUpdateArtifactBundle,
+    runCumulativeTransactionalMatrix,
+    isCumulativeTransactionalArtifactBundle,
   ])
-    expect(Object.keys(root)).not.toContain(symbol);
+    expect(Object.values(root)).not.toContain(symbol);
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   expect(pkg.files).not.toContain("test-support");
   expect(Object.keys(pkg.exports)).toEqual([

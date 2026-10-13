@@ -1220,7 +1220,7 @@ high-water metric is higher and was not the gate's enforcement input.
 These runs used emitted production bytes from source `d907a1e1576c5795c17edb5f15528f47edfd7d6b`
 with the three reported test/prose working changes, and emitted tree digest
 `73b5a9866729b2254c23d47995ab50c7cb301a27dde923d35c6d31d36236ce1a`.
-[Exact scripts, outputs and provenance](https://github.com/donnabox/beads/tree/codex/vickie-bdp-client-design/docs/architecture/bdp-client-v2/transaction-materialization-closure)
+[Exact scripts, outputs and provenance](https://github.com/donnabox/beads/tree/3d393dbf772dfd8b759bfaa455e04be950c1f976/docs/architecture/bdp-client-v2/transaction-materialization-closure)
 retain the source status rather than claiming a pristine committed source run.
 
 Fresh repeats on the same actual emitted tuple completed the 32-match set-only
