@@ -785,32 +785,26 @@ it("checks cardinality before charging the matched Resource budget", () => {
   expect(f.admit(guarded, "guarded")).toMatchObject({ kind: "existing", receipt: failed });
 });
 
-it("accepts 64 real no-op matches at the private default and durably refuses overflow", () => {
+it("accepts 32 real no-op matches at the private default and durably refuses overflow", () => {
   const f = fixture();
-  for (let group = 0; group < 1; group++)
-    expect(
-      f.run(
-        Array.from({ length: 2 }, (_, i) => create(`n${group * 32 + i}`)),
-        `seed-${group}`,
-      ).status,
-    ).toBe("completed");
+  expect(f.run([create("n0")], "seed").status).toBe("completed");
   const operations = Array.from({ length: 32 }, () => update(undefined, 0));
   const before = f.owner.inspect();
   const accepted = f.run(operations, "boundary");
   expect(accepted.status).toBe("completed");
   expect(accepted.effectPosition).toBeUndefined();
-  expect(body(accepted).results).toHaveLength(64 + 32);
+  expect(body(accepted).results).toHaveLength(32 + 32);
   expect(body(accepted).results.filter((r) => r.outcome === "matched")).toEqual(
     Array.from({ length: 32 }, (_, operationIndex) => ({
       operationIndex,
       outcome: "matched",
-      count: 2,
+      count: 1,
     })),
   );
   expect(f.owner.inspect()).toEqual(before);
   f.run([create("extra")], "extra");
   const expanded = f.owner.inspect();
-  // 31*2 + 3 = 65 cumulative matches, with exactly32 carrier operations.
+  // 31*1 + 2 = 33 cumulative matches, with exactly32 carrier operations.
   const overflow = [
     ...Array.from({ length: 31 }, () =>
       update('$[?@.id != "https://example.test/set/beads/extra"]', 0),
@@ -916,7 +910,7 @@ it.each([0, -1, 1.5, 257, Number.POSITIVE_INFINITY])(
   },
 );
 
-it.each([0, -1, 1.5, 65, Number.POSITIVE_INFINITY])(
+it.each([0, -1, 1.5, 33, Number.POSITIVE_INFINITY])(
   "refuses an invalid or raised matched Resource bound %s",
   (maximumMatchedResources) => {
     const f = fixture();

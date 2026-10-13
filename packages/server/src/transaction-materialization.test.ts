@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, expect, it, vi } from "vitest";
+import { admitJsonNumbers, decodeJsonDocument, stringifyJsonValue } from "@bdp/protocol";
 import * as batch from "./transaction-batch.js";
 import { openTransactionStore } from "./transaction-store.js";
 
@@ -48,7 +49,7 @@ it("passes the same frozen, configuration-bound tuple to every transaction evalu
   );
   expect(configuration.runtimeLimits).toEqual(batch.TRANSACTION_RUNTIME_LIMITS);
   expect(configuration.runtimeLimits).toMatchObject({
-    matchedResources: 64,
+    matchedResources: 32,
     inducedEvents: 256,
     maximumOperations: 32,
     representationBytes: 262144,
@@ -58,39 +59,47 @@ it("passes the same frozen, configuration-bound tuple to every transaction evalu
   });
 });
 
-for (const field of ["propertiesBytes", "representationBytes"] as const) {
-  it.each([undefined, 0, -1, 1.5, Number.POSITIVE_INFINITY, 262145])(
-    `refuses missing/invalid/raised TX ${field} bound %s before effects`,
-    (value) => {
-      const f = fixture();
-      const evaluate = batch.evaluateTransaction;
-      vi.spyOn(batch, "evaluateTransaction").mockImplementation(
-        (normalized, tx, options, ...rest) =>
-          evaluate(
-            normalized,
-            tx,
-            {
-              ...options,
-              limits: { ...options.limits, [field]: value },
-            } as batch.TransactionEvaluationOptions,
-            ...rest,
-          ),
-      );
-      const admitted = f.owner.admit("p", "key", f.prepared);
-      if (admitted.kind !== "owned") throw new Error("expected admission");
-      expect(() => f.owner.execute(admitted.claim)).toThrow(
-        `invalid transaction evaluator ${field} bound`,
-      );
-      vi.restoreAllMocks();
-      // Integrity refusal releases the claim; it is not an invented retained count error.
-      const retry = f.owner.admit("p", "key", f.prepared);
-      if (retry.kind !== "owned") throw new Error("expected fresh retry");
-      expect(f.owner.execute(retry.claim).status).toBe("completed");
-    },
-  );
+for (const field of [
+  "propertiesBytes",
+  "representationBytes",
+  "diagnosticBytes",
+  "diagnosticCount",
+] as const) {
+  it.each([
+    undefined,
+    0,
+    -1,
+    1.5,
+    Number.POSITIVE_INFINITY,
+    batch.TRANSACTION_RUNTIME_LIMITS[field] + 1,
+  ])(`refuses missing/invalid/raised TX ${field} bound %s before effects`, (value) => {
+    const f = fixture();
+    const evaluate = batch.evaluateTransaction;
+    vi.spyOn(batch, "evaluateTransaction").mockImplementation((normalized, tx, options, ...rest) =>
+      evaluate(
+        normalized,
+        tx,
+        {
+          ...options,
+          limits: { ...options.limits, [field]: value },
+        } as batch.TransactionEvaluationOptions,
+        ...rest,
+      ),
+    );
+    const admitted = f.owner.admit("p", "key", f.prepared);
+    if (admitted.kind !== "owned") throw new Error("expected admission");
+    expect(() => f.owner.execute(admitted.claim)).toThrow(
+      `invalid transaction evaluator ${field} bound`,
+    );
+    vi.restoreAllMocks();
+    // Integrity refusal releases the claim; it is not an invented retained count error.
+    const retry = f.owner.admit("p", "key", f.prepared);
+    if (retry.kind !== "owned") throw new Error("expected fresh retry");
+    expect(f.owner.execute(retry.claim).status).toBe("completed");
+  });
 }
 
-it("requires both complete-Resource and properties bounds in the TX options type", () => {
+it("requires all four proof-relevant evaluator bounds in the TX options type", () => {
   type Limits = batch.TransactionEvaluationOptions["limits"];
   // @ts-expect-error complete-Resource cap is required, unlike generic RU options
   const missingRepresentation: Limits = { propertiesBytes: 65536 };
@@ -98,6 +107,9 @@ it("requires both complete-Resource and properties bounds in the TX options type
   const missingProperties: Limits = { representationBytes: 262144 };
   void missingRepresentation;
   void missingProperties;
+  // @ts-expect-error failed-receipt byte/count ceilings are required too
+  const missingDiagnostics: Limits = { propertiesBytes: 65536, representationBytes: 262144 };
+  void missingDiagnostics;
 });
 
 it.each(["legacy", "changed"])("refuses %s tuple before pending recovery or expiry", (variant) => {
@@ -267,3 +279,47 @@ it("enforces the actual representation tuple on both direct records and owned so
     });
   }
 });
+
+it.each(["1e20", "-9e20", "9e9", "-0.0000010000000000000002"])(
+  "bounds admitted numeric patch normalization for extremal token %s",
+  (token) => {
+    // Both patches share one carrier Q budget. The stored Event must contain
+    // normalized semantic values, not the shorter lexical number spelling.
+    const raw = `[{"op":"add","path":"/temporary","value":[${Array(32).fill(token).join(",")}]},{"op":"remove","path":"/temporary"}]`;
+    const admittedValue = (text: string) => {
+      const result = admitJsonNumbers(decodeJsonDocument(text), {
+        diagnostics: 16,
+        diagnosticBytes: 524288,
+        diagnostic: () => ({ message: "unsupported number" }),
+      });
+      if (!result.ok) throw Error("numeric admission failed");
+      return result.value;
+    };
+    const normalized = stringifyJsonValue(admittedValue(raw));
+    expect(Buffer.byteLength(normalized)).toBeLessThanOrEqual(7 * Buffer.byteLength(raw));
+    const literal = stringifyJsonValue(admittedValue(token));
+    expect(Buffer.byteLength(literal)).toBeLessThanOrEqual(7 * Buffer.byteLength(token));
+    if (token === "1e20") expect(literal).toBe("100000000000000000000");
+    const f = fixture();
+    const create = batch.prepareTransaction(
+      scope,
+      JSON.stringify({
+        operations: [{ operation: "createBead", id: "beads/a", type, properties: { n: 0 } }],
+      }),
+    );
+    const seed = f.owner.admit("p", "seed", create);
+    if (seed.kind !== "owned") throw Error("seed admission");
+    f.owner.execute(seed.claim);
+    const prepared = batch.prepareTransaction(
+      scope,
+      `{"operations":[{"operation":"updateBead","bead":"beads/a","propertiesChange":${raw.slice(0, -1)},{"op":"replace","path":"/n","value":1}]}]}`,
+    );
+    const admitted = f.owner.admit("p", "numeric", prepared);
+    if (admitted.kind !== "owned") throw Error("numeric admission");
+    expect(f.owner.execute(admitted.claim).status).toBe("completed");
+    const group = f.owner.inspect().groups.at(-1) as { events: { data: { change: unknown } }[] };
+    const change = group.events[0]?.data.change as unknown[];
+    expect(change.slice(0, 2)).toEqual(admittedValue(raw));
+    expect(stringifyJsonValue(change.slice(0, 2))).toBe(normalized);
+  },
+);

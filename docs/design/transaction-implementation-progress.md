@@ -1002,8 +1002,9 @@ receipt entries pin every member's sourceRevision, including the unchanged no-op
 and the Event chain pins the corresponding intermediate source versions.
 
 These tests add evidence without changing evaluator, writer, budgets or serving.
-The earlier 4,096-Event boundary is preserved as historical evidence, not relabeled
-for a later materialization configuration. Reducing repeated Resource parsing in
+The earlier 4,096-Event observation is retained as a dated historical record;
+the subsequent boundary test used the measured 256-Event tuple. It is not evidence
+that the current source still exercises the historical 4,096 limit. Reducing repeated Resource parsing in
 the owned writer is deferred while separate materialization measurements proceed.
 
 ## Private finite Event serving
@@ -1053,7 +1054,7 @@ serving, and does not advertise a public Transactional profile.
 
 ### Measured private transaction materialization budget
 
-The private owner now uses one frozen, installation-bound tuple: 64 cumulative set
+This initial measurement used one frozen, installation-bound tuple: 64 cumulative set
 matches, 256 induced Events, 32 explicit operations, 65536 request/property bytes,
 262144 complete Resource bytes, and 65536 encoded bytes for the Scope Event-source
 URI. No public profile or capacity advertisement changes. TX evaluator options
@@ -1063,7 +1064,7 @@ same tuple. Generic Read+Update evaluator optionality is unchanged.
 A missing/different persisted tuple refuses the existing installation before BDP
 maintenance, preserving SQLite hot-journal recovery ordering. Older 4096-count
 receipts and tests are historical evidence, not current-capacity claims or silently
-reinterpreted stores. Current tests exercise 64/65 matches and 256/257 Events,
+reinterpreted stores. At that checkpoint tests exercised 64/65 matches and 256/257 Events,
 including no-ops, rollback, retained refusal, conflict, fresh-key success and reopen.
 
 For R=262144, Q=S=65536, normalized combined patch bound N=7Q, A=8192, H=1048576,
@@ -1076,11 +1077,15 @@ K=M+32, the closed owned Event shapes give:
 | --- | ---: | ---: |
 | 256 / 256 (rejected after measurement) | 305397760 | 173346816 |
 | 128 / 256 (insufficient measured headroom) | 304349184 | 96800768 |
-| 64 / 256 (current) | 253493248 | 58527744 |
+| 64 / 256 (superseded after stronger stress) | 253493248 | 58527744 |
 
 The proof includes both copies of the **combined** property/metadata patch in owned
 updates, separate source/Link provenance, at most two Resource effects, and no
-preimage bodies. Exact Event-shape assertions preserve those premises. Scope and
+preimage bodies. Exact Event, result and upsert-wrapper assertions preserve those premises.
+The receipt's separate S term pays its first Scope-bearing URI; H explicitly also
+pays the second Scope occurrence in `next`, fixed receipt/page suffixes and the
+bounded failed-receipt envelope (diagnostics <=524288, name <=Q). Those allowances
+must be rechecked together if the fields or ceilings change. Scope and
 complete-Resource limits are actual owner checks, not assumptions about typical
 URLs or schemas. Alias/no-op results still consume result space without Events.
 
@@ -1093,7 +1098,7 @@ but replay exceeded the RSS ceiling and was killed: replay qualification was
 inconclusive. At 128 matches no-op work passed at 802800 KiB child high-water RSS;
 128 owned updates/256 Events passed at 975216 KiB, too close to the ceiling.
 
-At the current 64-match tuple, repeated no-ops produced a 16,782,715-byte receipt,
+At that 64-match tuple, repeated no-ops produced a 16,782,715-byte receipt,
 with 480000 KiB high-water RSS through replay/pages/reopen. Dense transient numeric
 patches on 64 owned Links with full-size source Beads produced 128 Events and a
 45,059,033-byte group, with 557584 KiB high-water RSS. That case measures 128 Events;
@@ -1102,3 +1107,48 @@ These finite workloads do not prove general heap safety. Candidate selection sti
 materializes the complete collection before count checks; C*R scan memory, dense
 object overhead, unbounded trusted principal/other SQLite-row fields, accumulated
 history and multi-group reads remain separate limits of this result.
+
+
+### Stronger owned materialization measurement and 32-match tuple
+
+The current private tuple lowers cumulative set matches to **32**, retaining 256
+Events, 32 explicit operations and the existing byte/diagnostic ceilings. Its
+installation identity changes; existing 64-match private stores must be explicitly
+reprovisioned and are not silently reopened or relabeled. There is no new public
+capacity or profile claim. With K=64 the same formulas give a 169,345,024-byte group
+bound and 39,391,232-byte receipt bound. These are serialized bounds, not heap bounds.
+
+The stronger emitted-owner measurement grows each owned Link first, then fills its
+source's residual metadata. Sources are exactly 262,144 bytes; Links are
+261,849–261,850 bytes. Only the exact empty source metadata wrapper is reserved
+before growing the Link. Both cannot independently reach R because the source embeds
+the complete Link. The entire 65,536-byte request is a batch envelope plus patch
+(no outside padding): 13,061 numeric values normalize to a combined 287,461-byte
+patch. The transient array is removed before final properties validation.
+
+At 64 matches an initial variant reserving 1 KiB of source metadata produced a 70,350,401-byte group and a 16,705,001-byte receipt.
+Execution, replay and the first finite Link Event page completed, but verification
+after reopen exceeded the 1 GiB supervisor gate (1,072,128 KiB sampled) and was
+killed after 8.349s. Its final verification is **inconclusive**. The last child
+self-reported high-water was 958,528 KiB before termination; it is not the peak.
+The earlier smaller-Link/50KB-patch run did not establish headroom for this
+achievable workload.
+
+The actual 32-match tuple completed the tighter case in 4.161s: 35,207,784-byte
+group, 8,385,225-byte receipt, 562,976 KiB child self-reported maxRSS and 540,304 KiB
+supervisor sampled peak. It verified exact-key replay, receipt pages, finite Link
+Event payloads and all corresponding observations after reopen. Repeated no-ops
+also completed through replay/pages/reopen. All runs used disposable stores and
+the same predeclared 120s/1 GiB gate; no inspect() was used. Scalar group-byte
+measurement happened after owner close. The successful workload is not a universal
+worst-case heap guarantee: collection scans, accumulated history and other graph
+shapes remain unqualified.
+
+All four evaluator bound fields now reject missing/invalid/raised values before
+effects. TX tests pin closed create/update/delete results and upsert wrappers,
+and permanently exercise extremal admitted numeric normalization through stored
+Events. Current default match tests observe 32/33. The 32-owned-delete test observes
+128/129 Events using a deliberately lowered evaluator Event cap; 256 remains the
+owner cap, but the earlier 256/257 and 4,096 observations are historical, not
+relabelled as current default-boundary tests. E>=4M is a usability relationship,
+not a premise needed for the serialized bound.

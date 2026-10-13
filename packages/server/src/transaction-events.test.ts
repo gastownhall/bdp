@@ -466,7 +466,7 @@ it("serves finite Event HTTP with current context, conditionals, HEAD and bounde
 });
 
 it("checks the admitted group byte length before selecting its body and proves first-page feasibility", () => {
-  expect(TRANSACTION_EVENT_GROUP_BYTES).toBe(253493248);
+  expect(TRANSACTION_EVENT_GROUP_BYTES).toBe(169345024);
   expect(TRANSACTION_EVENT_FIRST_PAGE_BYTES).toBe(1778688);
   expect(TRANSACTION_EVENT_FIRST_PAGE_BYTES).toBeLessThan(TRANSACTION_EVENT_PAGE_BYTES);
   const f = fixture();
