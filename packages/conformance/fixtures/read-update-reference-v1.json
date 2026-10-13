@@ -125,7 +125,14 @@
     "w2.beads.w2-bad-pointer-tail": "beads/w2-bad-pointer-tail",
     "w2.beads.w2-bad-pointer-corrected-1": "beads/w2-bad-pointer-corrected-1",
     "w2.links.w2-shape": "links/w2-shape",
-    "w2.alias.shape": "alias/w2-shape"
+    "w2.alias.shape": "alias/w2-shape",
+    "retry.retry-cross-a": "beads/retry-cross-a",
+    "retry.retry-cross-b": "beads/retry-cross-b",
+    "retry.retry-cross-f": "beads/retry-cross-f",
+    "retry.retry-cross-g": "beads/retry-cross-g",
+    "retry.retry-position-f": "beads/retry-position-f",
+    "retry.retry-position-b": "beads/retry-position-b",
+    "retry.retry-position-d": "beads/retry-position-d"
   },
   "oracles": {
     "collections": {
