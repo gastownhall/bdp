@@ -1,0 +1,3754 @@
+{
+  "manifestVersion": 2,
+  "catalogId": "read-update-v1",
+  "scenarios": [
+    {
+      "id": "read-update.discovery.document",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "create-z",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              },
+              "id": "beads/z"
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "create-z",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "z-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "z-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "z-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "z-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "create-a",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              },
+              "id": "beads/a"
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "create-a",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "a-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "a-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "a-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "a-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "canonical-inventory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "beads"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "equals": [["beads/a"], ["beads/z"]]
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read-update.singleton.create-bead",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "create",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              },
+              "id": "beads/a"
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "create",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "a-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "a-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "a-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "a-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "read",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-record"
+            }
+          ]
+        },
+        {
+          "id": "allocate",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              }
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "allocate",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "allocated-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "allocated-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "allocated-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "allocated-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "read-allocated",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "allocated-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "allocated-record"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read-update.singleton.update-bead",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "create",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              },
+              "id": "beads/a"
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "create",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "a-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "a-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "a-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "a-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 2
+                }
+              ]
+            },
+            "bodyBindings": {
+              "bead": "a-id",
+              "expectedRevision": "a-rev"
+            },
+            "idempotencyKey": "update",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "b-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "b-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "updated",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "value",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/n",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "guard-wire",
+              "kind": "json-pointer",
+              "pointer": "/request/body/expectedRevision",
+              "exists": true,
+              "equalsBinding": "a-rev"
+            }
+          ]
+        },
+        {
+          "id": "read-update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "b-record"
+            }
+          ]
+        },
+        {
+          "id": "noop",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 2
+                }
+              ]
+            },
+            "bodyBindings": {
+              "bead": "a-id",
+              "expectedRevision": "b-rev"
+            },
+            "idempotencyKey": "noop",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "noop-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "noop-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "updated",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "value",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/n",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "guard-wire",
+              "kind": "json-pointer",
+              "pointer": "/request/body/expectedRevision",
+              "exists": true,
+              "equalsBinding": "b-rev"
+            },
+            {
+              "id": "retained-postimage",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "b-record"
+            }
+          ]
+        },
+        {
+          "id": "read-noop",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "retained",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "b-record"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read-update.singleton.delete-bead",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "create",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              },
+              "id": "beads/a"
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "create",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "a-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "a-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "a-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "a-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "link",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "id": "links/l"
+            },
+            "bodyBindings": {
+              "type": "relates-type",
+              "source": "a-id",
+              "target": "a-id"
+            },
+            "idempotencyKey": "link",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "link-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        },
+        {
+          "id": "blocked-delete",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "delete-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {},
+            "bodyBindings": {
+              "bead": "a-id"
+            },
+            "idempotencyKey": "blocked-delete",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "incident-links-exist"
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        },
+        {
+          "id": "unchanged",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-record"
+            }
+          ]
+        },
+        {
+          "id": "delete-link",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "delete-link",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {},
+            "bodyBindings": {
+              "link": "link-id"
+            },
+            "idempotencyKey": "delete-link",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        },
+        {
+          "id": "delete",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "delete-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {},
+            "bodyBindings": {
+              "bead": "a-id"
+            },
+            "idempotencyKey": "delete",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "deleted",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "deleted"
+            },
+            {
+              "id": "resource-absent",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/id",
+              "exists": true,
+              "equalsBinding": "a-id"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/type",
+              "exists": true,
+              "equalsBinding": "task-type"
+            },
+            {
+              "id": "revision",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "a-rev"
+            },
+            {
+              "id": "kind",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resourceKind",
+              "exists": true,
+              "equals": "bead"
+            }
+          ]
+        },
+        {
+          "id": "gone-ordinary",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        },
+        {
+          "id": "gone-properties",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        },
+        {
+          "id": "gone-links",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator",
+            "query": {
+              "view": "links"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read-update.singleton.expected-revision",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "create",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              },
+              "id": "beads/a"
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "create",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "a-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "a-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "a-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "a-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "update",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 2
+                }
+              ]
+            },
+            "bodyBindings": {
+              "bead": "a-id",
+              "expectedRevision": "a-rev"
+            },
+            "idempotencyKey": "update",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "b-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "b-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "updated",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "value",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/n",
+              "exists": true,
+              "equals": 2
+            },
+            {
+              "id": "guard-wire",
+              "kind": "json-pointer",
+              "pointer": "/request/body/expectedRevision",
+              "exists": true,
+              "equalsBinding": "a-rev"
+            }
+          ]
+        },
+        {
+          "id": "stale",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 9
+                }
+              ]
+            },
+            "bodyBindings": {
+              "bead": "a-id",
+              "expectedRevision": "a-rev"
+            },
+            "idempotencyKey": "stale",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        },
+        {
+          "id": "after-stale",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "b-record"
+            }
+          ]
+        },
+        {
+          "id": "stale-delete",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "delete-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {},
+            "bodyBindings": {
+              "bead": "a-id",
+              "expectedRevision": "a-rev"
+            },
+            "idempotencyKey": "stale-delete",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "revision-mismatch"
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        },
+        {
+          "id": "after-stale-delete",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "b-record"
+            }
+          ]
+        },
+        {
+          "id": "unguarded",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "/n",
+                  "value": 3
+                }
+              ]
+            },
+            "bodyBindings": {
+              "bead": "a-id"
+            },
+            "idempotencyKey": "unguarded",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "c-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "c-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "updated",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "value",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties/n",
+              "exists": true,
+              "equals": 3
+            }
+          ]
+        },
+        {
+          "id": "matching-delete",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "delete-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {},
+            "bodyBindings": {
+              "bead": "a-id",
+              "expectedRevision": "c-rev"
+            },
+            "idempotencyKey": "matching-delete",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "revision",
+              "kind": "json-pointer",
+              "pointer": "/body/deleted/resource/revision",
+              "exists": true,
+              "equalsBinding": "c-rev"
+            }
+          ]
+        },
+        {
+          "id": "deleted-read",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read-update.singleton.idempotent-retry",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "allocate",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              }
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "allocate",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "allocated-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "allocated-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "allocated-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "allocated-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "retry",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              }
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "allocate",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "retry-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "retry-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "retry-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "retry-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "same-result",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "allocated-result"
+            }
+          ]
+        },
+        {
+          "id": "allocated-after-retry",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "allocated-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "allocated-record"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read-update.singleton.idempotency-conflict",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "create",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              },
+              "id": "beads/a"
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "create",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "a-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "a-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "a-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "a-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            }
+          ]
+        },
+        {
+          "id": "conflicting",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 9
+              },
+              "metadata": {
+                "tag": "initial"
+              },
+              "id": "beads/a"
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "create",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            }
+          ]
+        },
+        {
+          "id": "after-conflict",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-record"
+            }
+          ]
+        },
+        {
+          "id": "retry-original",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "initial"
+              },
+              "id": "beads/a"
+            },
+            "bodyBindings": {
+              "type": "task-type"
+            },
+            "idempotencyKey": "create",
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "retry-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/id"
+              }
+            },
+            {
+              "binding": "retry-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource/revision"
+              }
+            },
+            {
+              "binding": "retry-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "retry-result",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "created",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "retained-original",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-result"
+            }
+          ]
+        },
+        {
+          "id": "after-original-retry",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-record"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    }
+  ]
+}

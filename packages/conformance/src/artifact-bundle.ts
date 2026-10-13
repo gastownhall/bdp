@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import { canonicalJson } from "./canonical-json.js";
+import {
+  assertCanonicalProfileContractSelection,
+  type ProfileContractSelection,
+} from "./profile-contract-selection.js";
 
 import { parseScenarioCatalog, type ScenarioCatalog } from "./catalog.js";
 import {
@@ -52,6 +57,7 @@ export interface ConformanceFixture {
 }
 
 export interface ConformanceArtifactDigests {
+  /** Ordinary bundles hash catalog bytes; private cumulative bundles hash the canonical exact-file digest map. */
   readonly catalogDigest: string;
   readonly manifestDigest: string;
   readonly fixtureDigest: string;
@@ -92,9 +98,32 @@ export function createDevelopmentReadUpdateArtifactBundle(
   return createBoundArtifactBundle(sources, true);
 }
 
+/** Source-private partial cumulative RU execution. Never public admission. */
+export function createCumulativeReadUpdateArtifactBundle(
+  selection: ProfileContractSelection,
+  sources: Pick<ConformanceArtifactBundleSources, "manifest" | "fixture">,
+): ConformanceArtifactBundle {
+  assertCanonicalProfileContractSelection(selection);
+  if (selection.profile !== "read-update" || selection.history)
+    throw new ConformanceArtifactBundleError(
+      "cumulative candidate requires baseline Read+Update selection",
+    );
+  const bundle = createBoundArtifactBundle(
+    {
+      catalog: { bytes: Buffer.from(JSON.stringify(selection.catalog)) },
+      manifest: sources.manifest,
+      fixture: sources.fixture,
+    },
+    false,
+    selection,
+  );
+  return bundle;
+}
+
 function createBoundArtifactBundle(
   sources: ConformanceArtifactBundleSources,
   development: boolean,
+  cumulative?: ProfileContractSelection,
 ): ConformanceArtifactBundle {
   const catalogBytes = copySourceBytes(sources.catalog, "catalog");
   const manifestBytes = copySourceBytes(sources.manifest, "manifest");
@@ -112,9 +141,11 @@ function createBoundArtifactBundle(
     sources.fixture.label,
   );
 
-  const expectedCatalogId = development
-    ? "development-read-update-v1"
-    : `read-v${catalog.catalogVersion}`;
+  const expectedCatalogId = cumulative
+    ? "read-update-v1"
+    : development
+      ? "development-read-update-v1"
+      : `read-v${catalog.catalogVersion}`;
   if (
     development &&
     (catalog.scenarios.length === 0 ||
@@ -145,6 +176,16 @@ function createBoundArtifactBundle(
       "manifest catalogId does not match the bound catalog source",
     );
   }
+  if (cumulative) {
+    if (manifest.manifestVersion !== 2)
+      throw new ConformanceArtifactBundleError("cumulative Read+Update requires version 2");
+    const required = new Map(cumulative.required.map((row) => [row.id, row]));
+    for (const row of manifest.scenarios)
+      if (required.get(row.id)?.requiredProfile !== row.requiredProfile)
+        throw new ConformanceArtifactBundleError(
+          `manifest row is not a cumulative requirement: ${row.id}`,
+        );
+  }
   for (const scenario of manifest.scenarios) {
     if (scenario.setup.fixture !== fixture.id) {
       throw new ConformanceArtifactBundleError(
@@ -159,7 +200,10 @@ function createBoundArtifactBundle(
     manifest,
     fixture,
     digests: {
-      catalogDigest: sha256(catalogBytes),
+      catalogDigest:
+        cumulative === undefined
+          ? sha256(catalogBytes)
+          : sha256(Buffer.from(canonicalJson(cumulative.catalogDigests))),
       manifestDigest: sha256(manifestBytes),
       fixtureDigest: sha256(fixtureBytes),
     },

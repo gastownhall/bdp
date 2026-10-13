@@ -1,0 +1,343 @@
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  createRawHttpScenarioTarget,
+  createJsonSchemaValidator,
+  runConformanceMatrix,
+  type ExactHttpModeOptions,
+} from "@bdp/conformance";
+import {
+  createCumulativeReadUpdateArtifactBundle,
+  loadProfileContractSelection,
+  bindServedProfileConfiguration,
+  assertSameServedProfileConfiguration,
+  planProfileExecution,
+} from "@bdp/conformance/testing";
+import { expect, it } from "vitest";
+import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import { installedContractsDigest } from "../test-support/installed-contract-identity.js";
+import { createInstalledExactClient } from "../test-support/read-update-exact-client.js";
+const root = fileURLToPath(new URL("../../../", import.meta.url));
+const helpers = (await import(
+  new URL("../../../scripts/installed-reference-observation.mjs", import.meta.url).href
+)) as {
+  availablePort(): Promise<number>;
+  referenceConfiguration(
+    directory: string,
+    port: number,
+    token: string,
+    scope: string,
+  ): Record<string, unknown>;
+  launchInstalledReference(
+    entry: string,
+    configuration: unknown,
+  ): Promise<{ ready: Record<string, unknown>; close(): Promise<unknown> }>;
+};
+const token = "cumulative_fixture_operator_0123456789";
+const wrongToken = "cumulative_unknown_operator_0123456789";
+const scope = "https://reference.invalid/acme/";
+const source = (relative: string) => ({ bytes: readFileSync(path.join(root, relative)) });
+const defaultEntry = path.join(root, "packages/server/dist/installed-reference-process.js");
+const entry = process.env.BDP_CUMULATIVE_INSTALLED_ENTRY ?? defaultEntry;
+const configModule = (await import(
+  pathToFileURL(path.join(path.dirname(entry), "installed-reference-configuration.js")).href
+)) as {
+  captureInstalledReferenceConfiguration(input: unknown): {
+    identity: string;
+    artifactIdentity: string;
+    policyIdentity: string;
+    authenticationIdentity: string;
+    profile: "read-update";
+    history: false;
+  };
+};
+async function run(
+  manifestValue?: unknown,
+  selectedIds?: string[],
+  mismatchedPolicy = false,
+  corruptNoopResponse = false,
+) {
+  const selection = loadProfileContractSelection("read-update");
+  const fixtureSource = source("packages/conformance/fixtures/read-update-reference-v1.json");
+  const manifestSource =
+    manifestValue === undefined
+      ? source("packages/conformance/matrices/read-update-v1.json")
+      : { bytes: Buffer.from(JSON.stringify(manifestValue)) };
+  const bundle = createCumulativeReadUpdateArtifactBundle(selection, {
+    manifest: manifestSource,
+    fixture: fixtureSource,
+  });
+  const coverage = JSON.parse(
+    source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.toString(),
+  ) as { rows: { id: string; wholeContract: boolean }[] };
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-cumulative-ru-"));
+  const port = await helpers.availablePort();
+  const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port };
+  const mode: ExactHttpModeOptions = {
+    scope,
+    profile: "read-update",
+    maximumRequestBodyBytes: 65536,
+    maximumRequestHeaderBytes: 16384,
+    routes: [
+      ...["", "bdp.json", "operations/", "types/task", "types/relates", "beads/"].map((suffix) => ({
+        method: "GET" as const,
+        url: scope + suffix,
+      })),
+      ...["create-bead", "update-bead", "delete-bead", "create-link", "delete-link"].map(
+        (suffix) => ({ method: "POST" as const, url: `${scope}operations/${suffix}` }),
+      ),
+    ],
+    defaultCredentialRef: "operator",
+    credentialHandles: [
+      { id: "operator", headerNames: ["authorization"] },
+      { id: "anonymous", headerNames: [] },
+      { id: "unknown", headerNames: ["authorization"] },
+    ],
+    resolveCredentials: ({ credentialRef }) =>
+      credentialRef === "anonymous"
+        ? {}
+        : { authorization: `Bearer ${credentialRef === "operator" ? token : wrongToken}` },
+  };
+  const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim();
+  function bindReceipt(ready: Record<string, unknown>) {
+    if (ready.profile !== "read-update" || ready.history !== false || ready.scope !== scope)
+      throw Error("installed receipt profile, History or Scope mismatch");
+    return bindServedProfileConfiguration({
+      scope,
+      profile: ready.profile,
+      history: ready.history,
+      sourceCommit,
+      installedPayloadDigest: ready.payloadIdentity as string,
+      installedContractsDigest: installedContractsDigest(ready.artifactIdentity),
+      policyDigest: ready.policyIdentity as string,
+      authenticationDigest: ready.authenticationIdentity as string,
+      fixture: fixtureSource,
+    });
+  }
+  const bootstrapConfig = helpers.referenceConfiguration(
+    path.join(directory, "bootstrap"),
+    port,
+    token,
+    scope,
+  );
+  const expectedCapture = configModule.captureInstalledReferenceConfiguration(bootstrapConfig);
+  let baseline: ReturnType<typeof bindReceipt>;
+  let baselineReceipt: Record<string, unknown>;
+  try {
+    const bootstrap = await helpers.launchInstalledReference(entry, bootstrapConfig);
+    try {
+      baselineReceipt = bootstrap.ready;
+      baseline = bindReceipt(baselineReceipt);
+      expect(baselineReceipt.configurationIdentity).toBe(expectedCapture.identity);
+      expect(baselineReceipt.artifactIdentity).toBe(expectedCapture.artifactIdentity);
+      const expected = bindReceipt({
+        ...baselineReceipt,
+        profile: expectedCapture.profile,
+        history: expectedCapture.history,
+        artifactIdentity: expectedCapture.artifactIdentity,
+        policyIdentity: mismatchedPolicy ? "0".repeat(64) : expectedCapture.policyIdentity,
+        authenticationIdentity: expectedCapture.authenticationIdentity,
+      });
+      assertSameServedProfileConfiguration(expected, baseline);
+      expect(baseline.fixtureDigest).toBe(bundle.digests.fixtureDigest);
+      planProfileExecution(selection, baseline, {
+        configuration: baseline,
+        manifest: manifestSource,
+      });
+    } finally {
+      await bootstrap.close();
+    }
+  } catch (error) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
+  }
+  const sessions: Record<string, unknown>[] = [];
+  const observations: unknown[] = [];
+  let currentScenario = "";
+  const target = createRawHttpScenarioTarget(
+    async (scenario, _scope, _seed, fixture) => {
+      currentScenario = scenario.id;
+      const configuration = helpers.referenceConfiguration(
+        path.join(directory, scenario.id),
+        port,
+        token,
+        scope,
+      );
+      const captured = configModule.captureInstalledReferenceConfiguration(configuration);
+      const child = await helpers.launchInstalledReference(entry, configuration);
+      try {
+        assertSameServedProfileConfiguration(baseline, bindReceipt(child.ready));
+        expect(child.ready.scope).toBe(scope);
+        expect(child.ready.configurationIdentity).toBe(captured.identity);
+        expect(child.ready.artifactIdentity).toBe(captured.artifactIdentity);
+        if (sessions[0]) {
+          expect(child.ready.configurationIdentity).toBe(sessions[0].configurationIdentity);
+          expect(child.ready.payloadIdentity).toBe(sessions[0].payloadIdentity);
+        }
+        sessions.push({ scenario: scenario.id, ...child.ready });
+        return {
+          capabilities: fixture.capabilities,
+          bindings: fixture.bindings,
+          dialRoute,
+          close: async () => {
+            await child.close();
+          },
+        };
+      } catch (error) {
+        await child.close();
+        throw error;
+      }
+    },
+    { exactMode: mode, requestTimeoutMs: 5000 },
+  );
+  try {
+    if (!target.exactConfiguration) throw Error("exact target configuration missing");
+    const executeClient = createInstalledExactClient(mode, dialRoute, (observation) =>
+      observations.push({ scenario: currentScenario, observation }),
+    );
+    const result = await runConformanceMatrix({
+      scope,
+      profile: "read-update",
+      seed: 0,
+      artifactBundle: bundle,
+      ...(selectedIds === undefined ? {} : { scenarioSelection: selectedIds }),
+      execute: target.execute,
+      exactExecution: { execute: target.execute, configuration: target.exactConfiguration },
+      actionExecutor: async (execution) => {
+        const actual = await executeClient(execution);
+        if (
+          corruptNoopResponse &&
+          (execution.input as { idempotencyKey?: string }).idempotencyKey === "noop"
+        ) {
+          // Counterfactual only: corrupt the returned value after real HTTP and
+          // observation capture. The store and subsequent GET remain untouched.
+          const corrupted = structuredClone(actual) as {
+            body: { resource: { revision: string } };
+          };
+          corrupted.body.resource.revision = "incorrect-noop-response-revision";
+          return corrupted;
+        }
+        return actual;
+      },
+      harness: target.harness,
+      schemaValidator: createJsonSchemaValidator(schema),
+      declaredTargetLabel: "installed-cumulative-read-update-candidate",
+    });
+    return {
+      claimEligible: false,
+      sourceCommit,
+      configuration: baseline,
+      baselineReceipt,
+      reportBinding: {
+        artifacts: result.artifacts,
+        exactConfigurationDigest:
+          "exactConfigurationDigest" in result.declarations
+            ? result.declarations.exactConfigurationDigest
+            : undefined,
+      },
+      sourceDirty:
+        execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim()
+          .length > 0,
+      targetEntry: entry,
+      catalogSources: selection.catalogDigests,
+      requiredIds: selection.required.map((row) => row.id),
+      plannedIds: bundle.manifest.scenarios.map((row) => row.id),
+      uncoveredIds: selection.required
+        .map((row) => row.id)
+        .filter((id) => !coverage.rows.find((row) => row.id === id)?.wholeContract),
+      sessions,
+      observations,
+      result,
+    };
+  } finally {
+    await target.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
+  const report = await run();
+  for (const row of report.result.scenarios)
+    expect(row, JSON.stringify(row)).toMatchObject({
+      state: !report.plannedIds.includes(row.id) ? "harness-error" : "pass",
+    });
+  expect(report.result.claimEligible).toBe(false);
+  expect(report.uncoveredIds).toHaveLength(125);
+  expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
+  expect(report.sessions).toHaveLength(report.plannedIds.length);
+  expect(report.observations.length).toBeGreaterThan(30);
+  expect(JSON.stringify(report)).not.toContain(token);
+  expect(JSON.stringify(report)).not.toContain(wrongToken);
+  if (process.env.BDP_CUMULATIVE_REPORT_PATH)
+    writeFileSync(process.env.BDP_CUMULATIVE_REPORT_PATH, JSON.stringify(report, null, 2));
+}, 30000);
+
+it("fails actual response comparisons for mutated captures and postimages", async () => {
+  const original = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  for (const control of ["old-revision", "wrong-postimage"] as const) {
+    const manifest = structuredClone(original);
+    const scenario = manifest.scenarios.find(
+      (row: { id: string }) => row.id === "read-update.singleton.update-bead",
+    );
+    const action = scenario.actions.find(
+      (row: { id: string }) => row.id === (control === "old-revision" ? "noop" : "read-update"),
+    );
+    if (control === "old-revision") action.input.bodyBindings.expectedRevision = "a-rev";
+    else
+      action.assertions.find((row: { id: string }) => row.id === "postimage").equalsBinding =
+        "a-record";
+    const report = await run(manifest, [scenario.id]);
+    expect(report.result.scenarios[0]?.state).toBe("fail");
+    expect(report.observations.length).toBeGreaterThan(2);
+  }
+}, 30000);
+
+it.each(["anonymous", "unknown"])(
+  "rejects %s credentials and proves the refused create did not execute",
+  async (credentialRef) => {
+    const manifest = JSON.parse(
+      source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+    );
+    const scenario = manifest.scenarios.find(
+      (row: { id: string }) => row.id === "read-update.singleton.create-bead",
+    );
+    const create = scenario.actions.find((row: { id: string }) => row.id === "create");
+    const refused = structuredClone(create);
+    refused.id = "refused";
+    refused.input.credentialRef = credentialRef;
+    refused.captures = [];
+    refused.assertions = [
+      { id: "unauthorized", kind: "json-pointer", pointer: "/status", exists: true, equals: 401 },
+    ];
+    scenario.actions.splice(scenario.actions.indexOf(create), 0, refused);
+    // The identical authorized create subsequently succeeds, then real GETs
+    // verify its result. A wrongly executed denied create would be identity-taken.
+    const report = await run(manifest, [scenario.id]);
+    expect(report.result.scenarios[0], JSON.stringify(report.result.scenarios[0])).toMatchObject({
+      state: "pass",
+    });
+  },
+  30000,
+);
+
+it("rejects mismatched observed configuration identity before any matrix request", async () => {
+  await expect(run(undefined, undefined, true)).rejects.toThrow("configuration");
+});
+
+it("rejects response-only no-op revision corruption after actual HTTP", async () => {
+  const report = await run(undefined, ["read-update.singleton.update-bead"], false, true);
+  expect(report.result.scenarios[0]?.state).toBe("fail");
+  const noop = report.result.scenarios[0]?.actions?.find((row) => row.action.id === "noop");
+  expect(noop?.assertions.filter((row) => !row.passed).map((row) => row.id)).toEqual([
+    "retained-postimage",
+  ]);
+  expect(JSON.stringify(report.observations)).not.toContain("incorrect-noop-response-revision");
+}, 30000);

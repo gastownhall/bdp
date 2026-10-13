@@ -1,3 +1,6 @@
+export { bindServedProfileConfiguration, assertSameServedProfileConfiguration, planProfileExecution } from "./profile-contract-plan.js";
+export { createCumulativeReadUpdateArtifactBundle } from "../src/artifact-bundle.js";
+export { loadProfileContractSelection } from "../src/profile-contract-selection.js";
 export { createDevelopmentReadUpdateArtifactBundle } from "../src/artifact-bundle.js";
 import { isDeepStrictEqual } from "node:util";
 import { createHash } from "node:crypto";
