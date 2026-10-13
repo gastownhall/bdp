@@ -123,7 +123,9 @@
     "w2.beads.w2-body-size-tail": "beads/w2-body-size-tail",
     "w2.beads.w2-bad-pointer-pre": "beads/w2-bad-pointer-pre",
     "w2.beads.w2-bad-pointer-tail": "beads/w2-bad-pointer-tail",
-    "w2.beads.w2-bad-pointer-corrected-1": "beads/w2-bad-pointer-corrected-1"
+    "w2.beads.w2-bad-pointer-corrected-1": "beads/w2-bad-pointer-corrected-1",
+    "w2.links.w2-shape": "links/w2-shape",
+    "w2.alias.shape": "alias/w2-shape"
   },
   "oracles": {
     "collections": {

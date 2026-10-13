@@ -3910,7 +3910,7 @@
       "id": "read-update.sequence.order-and-partial-commit",
       "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "Actual successful prefix, member failure and independent tail with independent GETs; final ordering does not establish never-parallel execution or externally visible intermediate commits. Incomplete.",
+      "reason": "Actual successful prefix, member failure and independent tail with independent GETs; final ordering does not establish never-parallel execution or externally visible intermediate commits. Incomplete. This row re-executes the original four-member request prefix on a fresh instance; its shape sensitivity controls live on member-problem-shape, which now additionally observes named Link and alias-result branches. No separate row-local controls or extra ordering witness are claimed.",
       "bindings": [
         {
           "scenario": "read-update.sequence.order-and-partial-commit",
@@ -4215,7 +4215,7 @@
       "id": "read-update.sequence.member-problem-shape",
       "status": "bounded-observation",
       "wholeContract": true,
-      "reason": "Actual 200 envelope checks exact result cardinality/order, present names only for declared creators, and would-be status/type/code/retry for named identity conflict and unnamed missing subject; independent success/failure afterstate and targeted response controls.",
+      "reason": "Actual 200 envelope checks exact result cardinality/order, present names only for declared creators, and would-be status/type/code/retry for named identity conflict and unnamed missing subject; independent success/failure afterstate and targeted response controls. Also observes named createLink and unnamed putAlias result branches with independent Link/alias GETs; shape controls discriminate their name/index obligations.",
       "bindings": [
         {
           "scenario": "read-update.sequence.member-problem-shape",
@@ -4273,6 +4273,13 @@
             "member-shapes.index-3",
             "member-shapes.name-3",
             "member-shapes.no-extra-result",
+            "member-shapes.index-4",
+            "member-shapes.name-4",
+            "member-shapes.index-5",
+            "member-shapes.name-5",
+            "member-shapes.link-outcome",
+            "member-shapes.link-no-code",
+            "member-shapes.alias-result",
             "prefix-read.status",
             "prefix-read.written",
             "prefix-read.body-schema",
@@ -4300,7 +4307,20 @@
             "tail-read.type",
             "tail-read.properties",
             "tail-read.metadata",
-            "tail-read.postimage"
+            "tail-read.postimage",
+            "edge-read.status",
+            "edge-read.written",
+            "edge-read.body-schema",
+            "edge-read.id",
+            "edge-read.type",
+            "edge-read.properties",
+            "edge-read.metadata",
+            "edge-read.postimage",
+            "edge-read.source",
+            "edge-read.target",
+            "shape-alias-read.status",
+            "shape-alias-read.location",
+            "shape-alias-read.empty"
           ]
         }
       ]
@@ -4328,6 +4348,7 @@
             "discovery.profile",
             "discovery.no-tx",
             "discovery.target-member-limit",
+            "discovery.target-body-limit",
             "directory.status",
             "directory.schema",
             "directory-captures.status",

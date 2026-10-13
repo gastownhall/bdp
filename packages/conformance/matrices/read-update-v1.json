@@ -40770,6 +40770,27 @@
                     "tag": "w2"
                   },
                   "id": "beads/w2-tail"
+                },
+                {
+                  "operation": "createLink",
+                  "idempotencyKey": "w2-link",
+                  "id": "links/w2-shape",
+                  "type": "https://reference.invalid/acme/types/relates",
+                  "source": "@prefix",
+                  "target": "beads/w2-collision",
+                  "name": "edge",
+                  "properties": {
+                    "marker": "edge"
+                  },
+                  "metadata": {
+                    "tag": "w2-link"
+                  }
+                },
+                {
+                  "operation": "putAlias",
+                  "idempotencyKey": "w2-alias",
+                  "alias": "alias/w2-shape",
+                  "target": "beads/w2-prefix"
                 }
               ]
             },
@@ -40788,6 +40809,13 @@
               "from": {
                 "kind": "json-pointer",
                 "pointer": "/body/results/3/resource"
+              }
+            },
+            {
+              "binding": "edge-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/4/resource"
               }
             }
           ],
@@ -40820,7 +40848,7 @@
                   "pointer": "/operationIndex"
                 }
               ],
-              "equals": [[0], [1], [2], [3]],
+              "equals": [[0], [1], [2], [3], [4], [5]],
               "ordered": true
             },
             {
@@ -40974,8 +41002,60 @@
             {
               "id": "no-extra-result",
               "kind": "json-pointer",
-              "pointer": "/body/results/4",
+              "pointer": "/body/results/6",
               "exists": false
+            },
+            {
+              "id": "index-4",
+              "kind": "json-pointer",
+              "pointer": "/body/results/4/operationIndex",
+              "exists": true,
+              "equals": 4
+            },
+            {
+              "id": "name-4",
+              "kind": "json-pointer",
+              "pointer": "/body/results/4/operationName",
+              "exists": true,
+              "equals": "edge"
+            },
+            {
+              "id": "index-5",
+              "kind": "json-pointer",
+              "pointer": "/body/results/5/operationIndex",
+              "exists": true,
+              "equals": 5
+            },
+            {
+              "id": "name-5",
+              "kind": "json-pointer",
+              "pointer": "/body/results/5/operationName",
+              "exists": false
+            },
+            {
+              "id": "link-outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/results/4/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "link-no-code",
+              "kind": "json-pointer",
+              "pointer": "/body/results/4/code",
+              "exists": false
+            },
+            {
+              "id": "alias-result",
+              "kind": "json-pointer",
+              "pointer": "/body/results/5",
+              "exists": true,
+              "equals": {
+                "operationIndex": 5,
+                "outcome": "created",
+                "alias": "https://reference.invalid/acme/alias/w2-shape",
+                "target": "https://reference.invalid/acme/beads/w2-prefix"
+              }
             }
           ]
         },
@@ -41230,6 +41310,120 @@
               "equalsBinding": "tail-record"
             }
           ]
+        },
+        {
+          "id": "edge-read",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "w2.links.w2-shape",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/links/w2-shape"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/relates"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "marker": "edge"
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "w2-link"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "edge-record"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/body/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/w2-prefix"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/body/target",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/w2-collision"
+            }
+          ]
+        },
+        {
+          "id": "shape-alias-read",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "w2.alias.shape"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 307
+            },
+            {
+              "id": "location",
+              "kind": "header",
+              "name": "location",
+              "equals": "https://reference.invalid/acme/beads/w2-prefix"
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
         }
       ],
       "cleanup": {
@@ -41341,6 +41535,13 @@
               "pointer": "/limits/sequence/operations",
               "exists": true,
               "equals": 32
+            },
+            {
+              "id": "target-body-limit",
+              "kind": "json-pointer",
+              "pointer": "/limits/request/bodyBytes",
+              "exists": true,
+              "equals": 65536
             }
           ]
         },

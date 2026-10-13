@@ -96,7 +96,9 @@ type W2Counterfactual =
   | "retained-failure"
   | "tail-state"
   | "prefix-present"
-  | "corrected-conflict";
+  | "corrected-conflict"
+  | "link-name"
+  | "alias-index";
 async function run(
   manifestValue?: unknown,
   selectedIds?: string[],
@@ -348,6 +350,8 @@ async function run(
           "wrong-name",
           "problem",
           "swap",
+          "link-name",
+          "alias-index",
         ].includes(w2Counterfactual ?? "");
         const w2SequenceControl =
           w1Input.method === "POST" &&
@@ -383,6 +387,8 @@ async function run(
           };
           counterfactualApplications++;
           const results = changed.body.results;
+          if (w2Counterfactual === "link-name") delete results[4]!.operationName;
+          if (w2Counterfactual === "alias-index") results[5]!.operationIndex = 4;
           if (w2Counterfactual === "index") results[1]!.operationIndex = 9;
           if (w2Counterfactual === "missing-name") delete results[1]!.operationName;
           if (w2Counterfactual === "extra-name") results[2]!.operationName = "invented";
@@ -630,7 +636,12 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   ) as {
     scenarios: {
       id: string;
-      actions: { id: string; family: string; raw?: { body?: { value: string } } }[];
+      actions: {
+        id: string;
+        family: string;
+        raw?: { body?: { encoding: "utf8" | "base64"; value: string } };
+        input?: { body?: unknown };
+      }[];
     }[];
   };
   const carrier = authored.scenarios.find((row) => row.id === carrierId)!;
@@ -641,8 +652,28 @@ it("executes the partial cumulative RU matrix against actual installed factory H
     expect(
       observed.exchanges.find((exchange) => exchange.request.id === action.id)?.request.exact
         ?.bodyOctets,
-    ).toBe(Buffer.byteLength(action.raw!.body!.value));
+    ).toBe(Buffer.from(action.raw!.body!.value, action.raw!.body!.encoding).byteLength);
   }
+  // The elevated harness budget is consumed only by the explicit body-size probe.
+  const bodyLimit = 65536;
+  for (const row of authored.scenarios)
+    for (const action of row.actions) {
+      if (action.raw?.body && !(row.id === carrierId && action.id === "body-size"))
+        expect(
+          Buffer.from(action.raw.body.value, action.raw.body.encoding).byteLength,
+          `${row.id}/${action.id}`,
+        ).toBeLessThanOrEqual(bodyLimit);
+      if (action.input?.body !== undefined)
+        expect(
+          Buffer.byteLength(JSON.stringify(action.input.body)),
+          `${row.id}/${action.id}`,
+        ).toBeLessThanOrEqual(bodyLimit);
+    }
+  // Actual serialized client bodies include values substituted from earlier captures.
+  for (const item of report.observations as {
+    observation: { observation: { bodyOctets: number } };
+  }[])
+    expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(bodyLimit);
   const countBody = carrier.actions.find((action) => action.id === "count-33")!.raw!.body!.value;
   const countMembers = JSON.parse(countBody).operations as { idempotencyKey: string }[];
   expect(countMembers).toHaveLength(33);
@@ -657,7 +688,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "3d36a5222635858592d92c2b79df03bae8b0c9ac1deeb9e5c176498c9f6b94e9",
+    "89d471885903a3e1dda4939f54993a88696e1b8c336dfef287a0c28966c47d0a",
   );
   expect(report.uncoveredIds).toHaveLength(101);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
@@ -974,11 +1005,13 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "3d36a5222635858592d92c2b79df03bae8b0c9ac1deeb9e5c176498c9f6b94e9",
+    "89d471885903a3e1dda4939f54993a88696e1b8c336dfef287a0c28966c47d0a",
   );
 }, 30000);
 
 it.each([
+  ["link-name", "member-problem-shape", "member-shapes", ["name-4"]],
+  ["alias-index", "member-problem-shape", "member-shapes", ["indices", "index-5", "alias-result"]],
   ["index", "member-problem-shape", "member-shapes", ["indices", "index-1"]],
   ["missing-name", "member-problem-shape", "member-shapes", ["name-1"]],
   ["extra-name", "member-problem-shape", "member-shapes", ["name-2"]],
@@ -1028,7 +1061,7 @@ it.each([
   30000,
 );
 
-it.each(["wrong-status", "wrong-code", "below-count-boundary"])(
+it.each(["wrong-status", "wrong-code", "below-count-boundary", "base64"])(
   "detects W2 raw carrier %s control",
   async (control) => {
     const manifest = JSON.parse(
@@ -1037,7 +1070,10 @@ it.each(["wrong-status", "wrong-code", "below-count-boundary"])(
     const id = "read-update.sequence.carrier-rejection";
     const scenario = manifest.scenarios.find((row: { id: string }) => row.id === id);
     const action = scenario.actions.find((row: { id: string }) => row.id === "count-33");
-    if (control === "below-count-boundary") {
+    if (control === "base64") {
+      action.raw.body.value = Buffer.from(action.raw.body.value).toString("base64");
+      action.raw.body.encoding = "base64";
+    } else if (control === "below-count-boundary") {
       const body = JSON.parse(action.raw.body.value);
       body.operations.pop();
       action.raw.body.value = JSON.stringify(body);
@@ -1048,7 +1084,7 @@ it.each(["wrong-status", "wrong-code", "below-count-boundary"])(
       ).equals = control === "wrong-status" ? 400 : "request-too-large";
     const report = await run(manifest, [id]);
     const row = report.result.scenarios.find((row) => row.id === id);
-    expect(row?.state).toBe("fail");
+    expect(row?.state).toBe(control === "base64" ? "pass" : "fail");
     const exchange = row?.exchanges.find((exchange) => exchange.request.id === "count-33");
     const failures = exchange?.assertions
       .filter((assertion) => !assertion.passed)
@@ -1056,8 +1092,13 @@ it.each(["wrong-status", "wrong-code", "below-count-boundary"])(
     if (control === "below-count-boundary") {
       expect(exchange?.response?.status).toBe(200);
       expect(failures).toContain("status");
-    } else expect(failures).toEqual([control === "wrong-status" ? "status" : "code"]);
-    expect(exchange?.request.exact?.bodyOctets).toBe(Buffer.byteLength(action.raw.body.value));
+    } else
+      expect(failures).toEqual(
+        control === "base64" ? [] : [control === "wrong-status" ? "status" : "code"],
+      );
+    expect(exchange?.request.exact?.bodyOctets).toBe(
+      Buffer.from(action.raw.body.value, action.raw.body.encoding).byteLength,
+    );
   },
   30000,
 );
@@ -1087,4 +1128,26 @@ it("leaves singleton missing-key refusal to the actual authority after optional 
   scenario.actions.splice(scenario.actions.indexOf(original), 0, refused);
   const report = await run(manifest, [id]);
   expect(report.result.scenarios.find((row) => row.id === id)?.state).toBe("pass");
+}, 30000);
+
+it("detects a mismatched advertised request body bound in the actual carrier discovery", async () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const id = "read-update.sequence.carrier-rejection";
+  const row = manifest.scenarios.find((row: { id: string }) => row.id === id);
+  row.actions
+    .find((action: { id: string }) => action.id === "discovery")
+    .assertions.find(
+      (assertion: { id: string }) => assertion.id === "target-body-limit",
+    ).equals = 65537;
+  const report = await run(manifest, [id]);
+  const result = report.result.scenarios.find((row) => row.id === id);
+  expect(result?.state).toBe("fail");
+  expect(
+    result?.exchanges
+      .find((exchange) => exchange.request.id === "discovery")
+      ?.assertions.filter((assertion) => !assertion.passed)
+      .map((assertion) => assertion.id),
+  ).toEqual(["target-body-limit"]);
 }, 30000);
