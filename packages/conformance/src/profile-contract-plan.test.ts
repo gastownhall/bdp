@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import type { ProtocolProfile } from "@bdp/protocol";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   assertSameServedProfileConfiguration,
   bindServedProfileConfiguration,
@@ -395,6 +395,65 @@ describe("truthful executable readiness", () => {
         .filter((r) => [a.id, b.id].includes(r.id))
         .every((r) => r.readiness === "prerequisite-blocked"),
     ).toBe(true);
+  });
+  it("bounds shared prerequisite DAG work across every canonical Read obligation", () => {
+    const selected = loadProfileContractSelection("read");
+    const config = configuration("read");
+    const template = readManifest.scenarios[0];
+    if (!template) throw new Error("missing template");
+    const ids = new Set(selected.required.map((row) => row.id));
+    const scenarios = selected.required.map((row, index) => ({
+      ...template,
+      id: row.id,
+      requiredProfile: row.requiredProfile,
+      requests: undefined,
+      actions: [
+        ...[index - 1, index - 2]
+          .filter((i) => i >= 0)
+          .map((i, n) => ({
+            id: `dependency-${n}`,
+            family: "http",
+            method: "GET",
+            target: { binding: "scope" },
+            prerequisiteScenario: selected.required[i]?.id,
+            captures: [],
+            assertions: [{ id: "status", kind: "status", equals: 200 }],
+          })),
+        {
+          id: "owned",
+          family: "http",
+          method: "GET",
+          target: { binding: "scope" },
+          captures: [],
+          assertions: [{ id: "status", kind: "status", equals: 200 }],
+        },
+      ],
+    }));
+    const manifest = source({ ...readManifest, scenarios });
+    // Count actual requirement lookups, not elapsed time. The generous linear
+    // budget fails fast for repeated shared-subgraph traversal even on slow CI.
+    const originalGet = Map.prototype.get;
+    let lookups = 0;
+    const budget = selected.required.length * 100;
+    const get = vi.spyOn(Map.prototype, "get").mockImplementation(function (
+      this: Map<unknown, unknown>,
+      key: unknown,
+    ) {
+      if (typeof key === "string" && ids.has(key) && ++lookups > budget)
+        throw new Error("shared prerequisite evaluation exceeded linear lookup budget");
+      return originalGet.call(this, key);
+    });
+    try {
+      const plan = planProfileExecution(selected, config, { configuration: config, manifest });
+      expect(plan.requirements).toHaveLength(selected.required.length);
+      expect(plan.requirements.every((row) => row.readiness === "ready-unexecuted")).toBe(true);
+      expect(plan.requirements.every((row) => row.blockedPrerequisites.length === 0)).toBe(true);
+      expect(plan.unobservedIds).toHaveLength(selected.required.length);
+      expect(plan.claimEligible).toBe(false);
+      expect(lookups).toBeLessThanOrEqual(budget);
+    } finally {
+      get.mockRestore();
+    }
   });
   it("rejects retired, diagnostic, History, misprofiled or wrong-fixture rows", () => {
     const config = configuration();

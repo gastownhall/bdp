@@ -385,19 +385,28 @@ export function planProfileExecution(
     const missingSetup = row?.setup.requires.filter((key) => !declared.has(key)) ?? [];
     return { row, missingApplicability, missingSetup };
   };
-  const dependencyReady = (id: string, ancestors = new Set<string>()): boolean => {
-    if (!required.has(id) || ancestors.has(id)) return false;
+  // Dependencies must precede their consumer in canonical catalog order.
+  // Resolve each row once in that order: shared DAGs stay linear, and missing,
+  // retired or later dependencies (including cycles) remain unavailable.
+  const dependencyReady = new Map<string, boolean>();
+  for (const { id } of selection.catalog.scenarios) {
+    if (!required.has(id)) continue;
     const { row, missingApplicability, missingSetup } = base(id);
-    if (!row || missingApplicability.length || missingSetup.length || carrierBlocker) return false;
-    const next = new Set([...ancestors, id]);
-    return (dependencies.get(id) ?? []).every(
-      (dependency) => earlier(id, dependency) && dependencyReady(dependency, next),
+    dependencyReady.set(
+      id,
+      !!row &&
+        !missingApplicability.length &&
+        !missingSetup.length &&
+        !carrierBlocker &&
+        (dependencies.get(id) ?? []).every(
+          (dependency) => earlier(id, dependency) && dependencyReady.get(dependency) === true,
+        ),
     );
-  };
+  }
   const requirements: PlannedProfileRequirement[] = selection.required.map(({ id }) => {
     const { row, missingApplicability, missingSetup } = base(id);
     const blockedPrerequisites = (dependencies.get(id) ?? []).filter(
-      (dependency) => !earlier(id, dependency) || !dependencyReady(dependency),
+      (dependency) => !earlier(id, dependency) || dependencyReady.get(dependency) !== true,
     );
     return {
       id,
