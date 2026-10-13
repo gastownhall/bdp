@@ -368,7 +368,8 @@ async function installPackedWorkspace() {
       "startTransactionRuntime" in publicServer ||
       "snapshotTransactionMinimum" in publicServer ||
       "waitForTransactionMinimum" in publicServer ||
-      "checkTransactionMinimum" in publicServer
+      "checkTransactionMinimum" in publicServer ||
+      "transactionReceiptMaximum" in publicServer
     )
       throw new Error("packed root exposes private transaction service");
     if ("createContextualReadPagination" in publicServer)

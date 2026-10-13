@@ -1001,7 +1001,6 @@ it("uses actual epoch/view decisions and an exhausted wait before conditional or
     "",
     "bdp.json",
     "operations/",
-    "beads/a?unknown=1",
     "beads/?cursor=missing",
   ]) {
     const target = `${f.runtime.scope}${suffix}`;
@@ -1102,4 +1101,197 @@ it("uses the final actual attempt context for GET and HEAD timeouts after real p
     }
   }
   expect(writes).toBe(4);
+});
+
+it("preserves concrete query syntax failures and accepts the reserved genesis minimum", async () => {
+  const f = await fixture(),
+    created = await f.post();
+  const headers = minimumHeaders(created, "genesis");
+  expect((await f.get(`${f.runtime.scope}beads/a`, { headers })).status).toBe(200);
+  for (const suffix of [
+    "beads/a?unknown=1",
+    "beads/a?view=bogus",
+    "beads/a?view=properties&unknown=2",
+  ]) {
+    const response = await f.get(`${f.runtime.scope}${suffix}`, { headers });
+    expect(response.status).toBe(400);
+    expect(checkedProblem(await body(response)).code).toBe("invalid-parameter");
+  }
+});
+
+it.each([1, 2, 5])(
+  "serves immutable receipt pages at the exact configured maximum %s",
+  async (maximum) => {
+    const f = await fixture({ receiptMaximumItems: maximum });
+    const input = batch(Array.from({ length: 5 }, (_, index) => create(`page_${index}`)));
+    const response = await f.post(input),
+      receipt = await body(response);
+    const validateReceipt = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceipt` });
+    const validatePage = ajv.compile({ $ref: `${schema.$id}#/$defs/mutationReceiptPage` });
+    expect(validateReceipt(receipt), JSON.stringify(validateReceipt.errors)).toBe(true);
+    expect(receipt.results).toHaveLength(maximum);
+    const collected = [...(receipt.results as unknown[])],
+      pages: { url: string; body: Record<string, unknown> }[] = [];
+    let next = receipt.next;
+    while (typeof next === "string") {
+      const pageResponse = await f.get(next),
+        page = await body(pageResponse);
+      expect(pageResponse.status).toBe(200);
+      expect(validatePage(page), JSON.stringify(validatePage.errors)).toBe(true);
+      expect(page.receipt).toBe(receipt.id);
+      expect((page.results as unknown[]).length).toBeLessThanOrEqual(maximum);
+      pages.push({ url: next, body: page });
+      collected.push(...(page.results as unknown[]));
+      next = page.next;
+    }
+    expect(next).toBeNull();
+    expect(collected).toHaveLength(5);
+    expect(collected.map((entry) => record(entry).operationIndex)).toEqual([0, 1, 2, 3, 4]);
+    expect(await body(await f.post(input))).toEqual(receipt);
+    await f.reopen();
+    expect(await body(await f.get(id(receipt)))).toEqual(receipt);
+    for (const page of pages) expect(await body(await f.get(page.url))).toEqual(page.body);
+    expect((await f.post(batch([create("later")]), "later")).status).toBe(200);
+    for (const page of pages) {
+      for (const method of ["GET", "HEAD"]) {
+        for (const [conditions, status] of [
+          [{}, 200],
+          [{ "if-none-match": "*" }, 304],
+          [{ "if-match": '"different"' }, 412],
+        ] as const) {
+          const selected = await f.get(page.url, {
+            method,
+            headers: { ...minimumHeaders(response, "pos-2"), ...conditions },
+          });
+          expect(selected.status).toBe(status);
+          expect(selected.headers.get("bdp-scope-position")).toBe("pos-2");
+          expect(selected.headers.has("etag")).toBe(false);
+          expect(selected.headers.has("last-modified")).toBe(false);
+          expect(selected.headers.get("cache-control")).toBe("private, no-store");
+          if (method === "HEAD" || status !== 200) expect(await selected.text()).toBe("");
+          else expect(await body(selected)).toEqual(page.body);
+        }
+      }
+    }
+  },
+);
+it("orders page nondisclosure, minimum waits, expiry and representation using actual owner state", async () => {
+  let tick = 0;
+  const f = await fixture({
+    receiptMaximumItems: 2,
+    minimumReads: { budgetMs: 2, now: () => tick++, wait: async () => {} },
+  });
+  const created = await f.post(batch([create("a"), create("b"), create("c")])),
+    receipt = await body(created);
+  const next = String(receipt.next),
+    headers = minimumHeaders(created, "pos-99");
+  f.setTime(86401001);
+  for (const principal of [token, otherToken]) {
+    const unsupported = await f.get(next, {
+      headers: { authorization: `Bearer ${principal}`, "bdp-minimum-scope-position": "pos-99" },
+    });
+    expect(unsupported.status).toBe(principal === token ? 500 : 404);
+    if (principal === token)
+      expect(unsupported.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+  }
+  expect((await f.get(`${id(receipt)}/pages`)).status).toBe(404);
+  for (const method of ["GET", "HEAD"]) {
+    for (const [auth, status] of [
+      ["", 401],
+      [`Bearer ${otherToken}`, 404],
+    ] as const) {
+      const denied = await f.get(next, {
+        method,
+        headers: { ...headers, authorization: auth, "bdp-scope-epoch": "foreign" },
+      });
+      expect(denied.status).toBe(status);
+      expect(denied.headers.has("bdp-scope-position")).toBe(false);
+    }
+    const unknown = await f.get(`${id(receipt)}/pages/unknown`, { method, headers });
+    expect(unknown.status).toBe(404);
+    expect(unknown.headers.has("bdp-scope-position")).toBe(false);
+    const timeout = await f.get(next, { method, headers });
+    expect(timeout.status).toBe(503);
+    expect(timeout.headers.get("retry-after")).toBe("1");
+    expect(timeout.headers.get("bdp-scope-position")).toBe("pos-1");
+    if (method === "GET") expect(checkedProblem(await body(timeout)).code).toBe("catch-up-timeout");
+    const foreign = await f.get(next, {
+      method,
+      headers: { ...headers, "bdp-authorization-view": "foreign" },
+    });
+    expect(foreign.status).toBe(409);
+    const expired = await f.get(next, {
+      method,
+      headers: { ...minimumHeaders(created), "if-none-match": "*" },
+    });
+    expect(expired.status).toBe(410);
+    expect(expired.headers.get("bdp-scope-position")).toBe("pos-1");
+    if (method === "GET") expect(checkedProblem(await body(expired)).code).toBe("cursor-expired");
+  }
+  expect(await body(await f.get(id(receipt)))).toMatchObject({
+    detail: "expired",
+    allocated: expect.any(Array),
+  });
+  const wrongMethod = await f.get(next, { method: "DELETE", headers: { authorization: "" } });
+  expect(wrongMethod.status).toBe(405);
+  expect(wrongMethod.headers.get("allow")).toBe("GET, HEAD");
+  expect(await wrongMethod.text()).toBe("");
+});
+
+it("keeps singleton, alias, no-op, failed and sequence outcomes valid with a page maximum of one", async () => {
+  const f = await fixture({ receiptMaximumItems: 1 });
+  const created = await body(await f.post());
+  expect(created.next).toBeNull();
+  const alias = await body(
+    await f.post(JSON.stringify({ alias: "alias/latest", target: "beads/a" }), "alias", "putAlias"),
+  );
+  expect(alias).toMatchObject({ next: null, results: [{ outcome: "created" }] });
+  const noop = await body(
+    await f.post(
+      batch([
+        {
+          operation: "updateBead",
+          bead: "beads/a",
+          propertiesChange: [{ op: "replace", path: "/title", value: "a" }],
+        },
+      ]),
+      "noop",
+    ),
+  );
+  expect(noop).toMatchObject({
+    next: null,
+    results: [{ outcome: "updated" }],
+    requiredPosition: "pos-1",
+  });
+  expect(noop.effectPosition).toBeUndefined();
+  const failed = await body(
+    await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]), "failed"),
+  );
+  expect(failed.status).toBe("failed");
+  expect(failed.next).toBeUndefined();
+  expect(failed.results).toBeUndefined();
+  const sequence = await body(
+    await f.post(batch([{ ...create(), idempotencyKey: "key" }]), null, "sequence"),
+  );
+  expect(sequence).toMatchObject({ results: [{ outcome: "created" }] });
+});
+it("checks a stored failed receipt minimum before read-triggered retention disposal over HTTP", async () => {
+  let tick = 0,
+    f: Awaited<ReturnType<typeof fixture>>;
+  f = await fixture({
+    minimumReads: {
+      budgetMs: 2,
+      now: () => tick++,
+      wait: async () => {
+        f.setTime(86401001);
+      },
+    },
+  });
+  const created = await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]));
+  const failed = await body(created);
+  const result = await f.get(id(failed), { headers: minimumHeaders(created, "pos-99") });
+  expect(result.status).toBe(503);
+  expect(checkedProblem(await body(result)).code).toBe("catch-up-timeout");
+  expect(result.headers.get("bdp-scope-position")).toBe("pos-0");
+  expect((await f.get(id(failed))).status).toBe(404);
 });

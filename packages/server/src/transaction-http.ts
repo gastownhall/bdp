@@ -318,6 +318,21 @@ export function createTransactionHttpHandler(
         ? transactionMinimumHeaders(request.headers)
         : undefined;
       const access = { kind: "authenticated" as const, principal: authorization.principal };
+      if (url.pathname.slice(`${scopeUrl.pathname}receipts/`.length).includes("/pages/")) {
+        const page = await service.receiptPage(
+          access,
+          url.href,
+          minimum ?? (hasMinimumControls(request) ? "unsupported" : undefined),
+        );
+        if (page.kind === "refused") return transactionHttpProblem(page.code);
+        if (page.kind === "unsupported") return developmentGap("minimum-position");
+        return context(
+          page.kind === "expired"
+            ? transactionHttpProblem("cursor-expired")
+            : jsonResponse(page.page),
+          page.context,
+        );
+      }
       const result = minimum
         ? await service.receiptAtMinimum(access, url.href, minimum)
         : service.receipt(access, url.href);
@@ -333,6 +348,7 @@ export function createTransactionHttpHandler(
     if (hasMinimumControls(request) && !minimum) return developmentGap("minimum-position");
     if (minimum) {
       const parsed = requestFromUrl(url, scope);
+      if (isReadProblem(parsed) && parsed.status === 400) return problem(parsed);
       if (
         classifyAliasPath(url, scope) !== undefined ||
         isReadProblem(parsed) ||

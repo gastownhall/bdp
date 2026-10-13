@@ -644,11 +644,11 @@ this does not add a separate SQLite BEGIN around every ordinary Read.
 
 The default private wait budget is finite; injected scheduling/clock seams are
 for tests, not new public configuration or advertised limits. Service close drains
-accepted finite waits and abort signals cancel point-read delivery. Unsupported
-command controls still fail before mutation admission, after the existing
-authentication/authorization refusal. Receipt waits are tracked and drained on
-close; point delivery can also use an AbortSignal. HTTP disconnect does not
-cancel a receipt wait, whose finite budget bounds shutdown delay.
+accepted finite waits. The private point facet accepts an AbortSignal, but the
+HTTP path does not pass a signal or connect socket disconnects to a controller.
+Actual HTTP point and receipt disconnects both drain the remaining finite wait
+budget, which also bounds their shutdown delay. Unsupported command controls
+still fail before mutation admission, after authentication/authorization.
 
 This remains a named subset, not complete minimum-position qualification.
 Absent/hidden Resource ordering relative to a minimum has no established ruling;
@@ -670,3 +670,42 @@ context; receipt 401/404 nondisclosure responses carry none. HTTP method handlin
 uses target shape without checking non-operation existence. The origin-form
 CONNECT probes exercise method dispatch; actual authority-form CONNECT is rejected
 by raw-target validation with 400, and neither path establishes a tunnel.
+
+
+### Durable receipt pages in the private receiver
+
+Completed receipt facts remain whole in the owner. Root wire projection returns
+all entries if they fit the exact installed page maximum, otherwise a prefix and
+an absolute next URL. Durable opaque page tokens and contiguous entry boundaries
+commit with the terminal receipt, effects and group. Pages select original facts;
+they never rebuild results from current Resources. Full facts still feed sequence
+projection and creation-allocation tombstones, including tail-page allocations.
+
+One validated maximum configures store partitioning, the service page bound and
+Read pagination. It defaults to 32; paging tests use maxima 1, 2 and 5 with a valid
+default at or below the maximum. This changes only the new private fixture's page
+setting and makes no change to historical Read evidence. Prior private formats or
+changed installation bounds are refused by a read-only compatibility check before
+opening a writable owner or running recovery/maintenance; no migration or reseed.
+Recorded missing, overlapping, truncated or wrong-parent chains are service faults,
+never permission to generate replacement handles or truncate results.
+
+Receipt-page reads use current principal/epoch nondisclosure first, then the
+supported minimum context and finite wait, then expiry and representation in the
+same owner entry. Unsupported minimum forms remain a private gap after disclosure
+and before expiry. Known expired pages return 410; unknown/foreign pages return
+uniform 404. Recorded page identities survive same-epoch process loss and changed
+listener ports with a stable configured Scope. Root/page GET and HEAD retain the
+current observation and normal conditional handling without validators.
+
+Minimum-read review corrections also preserve already-decided query 400 errors,
+accept the reserved genesis minimum, and move root read-triggered retention after
+the minimum check for a still-stored disclosed receipt. If independent maintenance
+actually forgets a failed receipt while a read waits, the next lookup still returns
+uniform 404; no retention pin is introduced. The 5 ms polling strategy can repeatedly
+materialize points and acquire receipt transactions, including after disconnect;
+its bounded loopback behavior is not a production concurrency or load qualification.
+
+This implements paging for existing explicit mutations, not the catalog's large-set
+expansion witness. Sets, installed-contract integration, variable-view/erasure
+projection, replication and truthful full Transactional discovery remain open.

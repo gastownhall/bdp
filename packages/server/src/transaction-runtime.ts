@@ -8,8 +8,8 @@ import { TextDecoder } from "node:util";
 import { parseCanonicalScope, stringifyJsonValue, type TypeDescriptor } from "@bdp/protocol";
 import type { HttpResponse } from "./index.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
-import { openTransactionStore } from "./transaction-store.js";
-import { TRANSACTION_RUNTIME_LIMITS, TRANSACTION_MAXIMUM_OPERATIONS } from "./transaction-batch.js";
+import { openTransactionStore, transactionReceiptMaximum } from "./transaction-store.js";
+import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
 import { createTransactionService, type TransactionServiceOptions } from "./transaction-service.js";
 import {
   createTransactionHttpHandler,
@@ -39,6 +39,7 @@ export interface TransactionRuntimeTestSeams {
   readonly maximumOperations?: number;
   readonly comparison?: TransactionServiceOptions["comparison"];
   readonly minimumReads?: TransactionServiceOptions["minimumReads"];
+  readonly receiptMaximumItems?: number;
 }
 async function receive(request: IncomingMessage): Promise<TransactionReceivedBody> {
   const length = request.headers["content-length"];
@@ -77,6 +78,9 @@ export async function startTransactionRuntime(
     throw new TypeError("explicit absolute store directory/provisioning required");
   if (!Number.isSafeInteger(options.port) || options.port < 0 || options.port > 65535)
     throw new TypeError("invalid private transaction port");
+  // One detached bound configures all three consumers before owner open/recovery.
+  const receiptMaximumItems = transactionReceiptMaximum(seams.receiptMaximumItems);
+  const defaultItems = Math.min(2, receiptMaximumItems);
   const credentials = options.credentials.map(({ token, principal, canMutate }) => {
     if (
       !/^[A-Za-z0-9_-]{32,256}$/.test(token) ||
@@ -225,6 +229,7 @@ export async function startTransactionRuntime(
       scope,
       create: options.create,
       types: options.types,
+      receiptMaximumItems,
       ...(seams.clock ? { clock: seams.clock } : {}),
     });
     const clock = seams.clock ?? Date.now;
@@ -236,14 +241,14 @@ export async function startTransactionRuntime(
       read: {
         selectorLimits: { bytes: 4096, depth: 32, nodes: 256 },
         advertisedLimits: {
-          page: { defaultItems: 2, maximumItems: TRANSACTION_MAXIMUM_OPERATIONS },
+          page: { defaultItems, maximumItems: receiptMaximumItems },
           selector: { bytes: 4096, depth: 32, nodes: 256 },
           cursorTtlMilliseconds: 1000,
         },
         pagination: {
           scope,
-          defaultPageItems: 2,
-          maxPageItems: TRANSACTION_MAXIMUM_OPERATIONS,
+          defaultPageItems: defaultItems,
+          maxPageItems: receiptMaximumItems,
           cursorTtlMs: 1000,
           retainedStateCapacity: 100,
           maxRetainedCursorPositionsPerSnapshot: 20,

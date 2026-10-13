@@ -152,7 +152,7 @@ describe("private same-owner Transactional service", () => {
           },
         },
       }),
-    ).toThrow("page.maximumItems");
+    ).toThrow("receipt page maximum");
     // Failed construction does not take ownership.
     expect(f.owner.inspect().resources).toEqual([]);
   });
@@ -730,38 +730,45 @@ describe("private minimum-read owner/lifecycle", () => {
     });
     expect(waits).toBe(1);
   });
-  it("rechecks receipt retention and principal nondisclosure on each attempt", async () => {
-    const f = fixture();
-    let waits = 0;
-    const service = f.open({
-      minimumReads: {
-        wait: async () => {
-          waits++;
-          f.setTime(86401001);
+  it.each([false, true])(
+    "checks minimum before read-triggered expiry but honors independently forgotten receipts (%s)",
+    async (forget) => {
+      const f = fixture();
+      let waits = 0,
+        tick = 0;
+      const service = f.open({
+        minimumReads: {
+          budgetMs: 2,
+          now: () => tick++,
+          wait: async () => {
+            waits++;
+            f.setTime(86401001);
+            if (forget) f.owner.maintain();
+          },
         },
-      },
-    });
-    const failed = requireReceipt(
-      await service.submit(batch([{ operation: "deleteBead", bead: "beads/missing" }])),
-    );
-    const minimum = {
-      scopeEpoch: failed.context.scopeEpoch,
-      authorizationView: failed.context.authorizationView,
-      minimumPosition: "pos-1",
-    };
-    expect(
-      await service.receiptAtMinimum(
-        { kind: "authenticated", principal: "other" },
-        failed.receipt.id,
-        { ...minimum, scopeEpoch: "foreign" },
-      ),
-    ).toMatchObject({ status: 404 });
-    expect(waits).toBe(0);
-    expect(await service.receiptAtMinimum(access, failed.receipt.id, minimum)).toMatchObject({
-      status: 404,
-    });
-    expect(waits).toBe(1);
-  });
+      });
+      const failed = requireReceipt(
+        await service.submit(batch([{ operation: "deleteBead", bead: "beads/missing" }])),
+      );
+      const minimum = {
+        scopeEpoch: failed.context.scopeEpoch,
+        authorizationView: failed.context.authorizationView,
+        minimumPosition: "pos-1",
+      };
+      expect(
+        await service.receiptAtMinimum(
+          { kind: "authenticated", principal: "other" },
+          failed.receipt.id,
+          { ...minimum, scopeEpoch: "foreign" },
+        ),
+      ).toMatchObject({ status: 404 });
+      expect(waits).toBe(0);
+      const result = service.receiptAtMinimum(access, failed.receipt.id, minimum);
+      if (forget) expect(await result).toMatchObject({ status: 404 });
+      else await expect(result).rejects.toMatchObject({ reason: "catch-up-timeout" });
+      expect(waits).toBe(1);
+    },
+  );
   it("drains a bounded pending read on close and respects an aborted reader", async () => {
     const f = fixture();
     let tick = 0;
