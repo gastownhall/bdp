@@ -194,5 +194,7 @@ editing, history, and display—not finding a more elaborate taxonomy.
 The parent design note now leaves Type-versus-kind and properties-versus-metadata
 choices open. “Template” above means an optional writing aid, not a chosen product
 mechanism or a substitute for a Type/kind contract. Existing Issue and Dependency
-semantics are the baseline; Activity is already proposed in beads#7510. These
+semantics must be preserved, but neither their current nor pending discriminator
+design is precedent for new norms. Dependency is pending a kind discriminator
+analogous to Issue. Activity is already proposed in beads#7510. These
 research recommendations must not be read as selected catalog or taxonomy rules.

@@ -48,6 +48,8 @@ _Avoid_: automatic upgrade on property edit
 
 ## Existing Beads domain vocabulary
 
+These established meanings do not prescribe Type-versus-kind norms for new designs.
+
 **Issue**:
 The established Beads work record, carried into the graph as a Bead Type.
 Its classifications, such as task and bug, retain their existing meanings.

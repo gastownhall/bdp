@@ -12,7 +12,11 @@ that choice changed. Both need the same basics: identifiable knowledge, useful
 relationships, exact references when history matters, and understandable updates.
 
 The baseline is **Issue (Bead Type)** and **Dependency (Link Type)**, carrying
-forward the existing product's semantics and vocabulary. **Activity** is the
+forward the existing product's semantics and vocabulary. Dependency is pending
+a change to a kind discriminator analogous to Issue classification. These are
+legacy designs to accommodate, **not precedents that constrain new norms**. We
+are free to select different principles for new Types and grandfather existing
+contracts explicitly. **Activity** is the
 Type proposed in [Provenance V2, beads#7510](https://github.com/gastownhall/beads/issues/7510),
 not a new alternative coined by this exercise. Memory is the knowledge contract
 we are working through against Chris's proposal.
@@ -67,7 +71,8 @@ installation/version plumbing remain outside this exercise.
 | Activity | Bead Type proposed in Provenance V2 | Independently recorded activity, subject/kind/producer/participant/time/artifacts, with its own revision provenance | Reuse #7510; do not invent a competing activity contract here |
 | Memory | Bead Type under design | Chris's durable knowledge contract without Issue workflow | Categories and application fields remain decisions, not a settled catalog |
 
-Issue and Dependency are names of the established domain contracts. Their final
+Issue and Dependency are names of the established domain contracts, not examples
+of necessarily ideal Type design. Their final
 published descriptor/schema artifacts should document those contracts, not
 reinterpret them. `issue_type` remains a subordinate Issue classification.
 Dependency's existing discriminator is exposed with different spellings on
@@ -80,8 +85,10 @@ the verified head of merged [fork PR91](https://github.com/donnabox/beads/pull/9
 Issue classification remains a property. That preview maps several native
 Dependency kinds to distinct experimental Link Type IDs, with empty properties
 and source ownership; its descriptors explicitly disclaim a complete production
-contract. This is an in-flight representation to reconcile, not evidence that
-all kinds must become Types or permission to collapse those descriptors now.
+contract. Donna clarified that replacement with a Dependency kind discriminator
+is pending. Record that intended direction separately from this observed preview
+head; this exercise neither implements it nor treats either representation as
+a precedent for new Types.
 The current `feat/bead-graph` head is not a reliable substitute for that PR's
 verified source; read the cited artifact when comparing this mapping.
 
@@ -135,8 +142,9 @@ one. It cannot substitute for that choice. We have not selected a template featu
 
 Both can carry real semantics and validation. A Type can use a discriminated
 schema to require different fields for different kinds. Different behavior is
-therefore not sufficient reason, by itself, to coin another Type: existing
-Issue and Dependency classifications are important counterexamples.
+therefore not sufficient reason, by itself, to coin another Type. That follows
+from the available modeling choices, not from treating legacy Issue or Dependency
+as good design precedent.
 
 | Consideration | Favors a discriminator within one Type | Favors a separately named Type |
 | --- | --- | --- |
@@ -150,7 +158,9 @@ an identity, definition, compatibility obligations and installation coordination
 A new kind costs branch handling and kind-evolution rules; it is not free merely
 because the Type ID remains the same. Nominal affiliation and mutable kind are
 also different commitments under our proposed Type model. Choose deliberately.
-Preserve Issue/Dependency behavior while working out the new-system principle.
+Establish the new-system principle on its merits; preserve legacy behavior through
+explicit exceptions or compatibility mappings where necessary. No new principle
+must be weakened merely to describe Issue and Dependency as ideal examples.
 
 ### Type properties or common metadata?
 
@@ -372,7 +382,8 @@ Key seams to resolve explicitly:
 
 ## Suggested next discussion
 
-First write down Issue and Dependency's existing contracts without changing them,
-then compare Type-versus-kind alternatives on one Memory example. Keep Activity
+Record Issue and Dependency as legacy contracts, including the pending Dependency
+kind change. Establish new Type/kind and properties/metadata norms independently,
+using one Memory example to compare what each choice promises. Keep Activity
 anchored to #7510. Separately choose the property/metadata boundary for that
 example. Writing aids can follow; they do not resolve either modeling question.
