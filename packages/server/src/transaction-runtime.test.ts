@@ -84,13 +84,22 @@ it.each([false, true])(
     const original = await submit(wire(first.ready.targets.batch, first.ready));
     expect(original.status).toBe(200);
     const receipt = (await original.json()) as { id: string; next: string | null };
-    const page = receipt.next
-      ? await (
-          await fetch(wire(receipt.next, first.ready), {
-            headers: { authorization: `Bearer ${token}` },
-          })
-        ).json()
-      : undefined;
+    if (pages) expect(receipt.next).toBeTruthy();
+    let page: unknown;
+    if (receipt.next) {
+      const response = await fetch(wire(receipt.next, first.ready), {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(response.status).toBe(200);
+      page = await response.json();
+      expect(page).toMatchObject({
+        receipt: receipt.id,
+        results: [
+          { operationIndex: 2, outcome: "created" },
+          { operationIndex: 3, outcome: "created" },
+        ],
+      });
+    }
     first.child.kill("SIGKILL");
     const exit = await first.exited;
     expect(exit[1]).toBe("SIGKILL");
@@ -105,13 +114,11 @@ it.each([false, true])(
     });
     expect(await read.json()).toEqual(receipt);
     if (receipt.next) {
-      expect(
-        await (
-          await fetch(wire(receipt.next, second.ready), {
-            headers: { authorization: `Bearer ${token}` },
-          })
-        ).json(),
-      ).toEqual(page);
+      const response = await fetch(wire(receipt.next, second.ready), {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual(page);
     }
     second.child.stdin.write("close\n");
     expect((await second.exited)[0]).toBe(0);
