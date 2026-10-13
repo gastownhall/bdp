@@ -9,6 +9,8 @@ import { closeSync, existsSync, openSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseCanonicalScope, parseTypeDescriptor, type TypeDescriptor } from "@bdp/protocol";
+import { assertDevelopmentContracts, type DevelopmentContracts } from "./development-contracts.js";
+import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import type { AuthorityReadReader, OwnerReadEntryResult } from "./authority-read.js";
 import type { EvaluatorStoredResource } from "./resource-evaluator.js";
 import {
@@ -107,6 +109,7 @@ export interface TransactionStoreOptions {
   readonly scope: string;
   readonly create: boolean;
   readonly types: readonly TypeDescriptor[];
+  readonly contracts?: DevelopmentContracts;
   readonly clock?: () => number;
   readonly receiptMaximumItems?: number;
   /** Private maintenance cadence; not a discovery or receipt retention duration. */
@@ -133,7 +136,7 @@ interface Row {
   dependency: string | null;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-set-core-7";
+const format = "bdp-private-transaction-contracts-8";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
 const identityPolicy = "transaction-revision-provenance-4";
@@ -176,22 +179,43 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   const scope = parseCanonicalScope(options.scope);
   if (!path.isAbsolute(options.file))
     throw new TypeError("absolute transaction store file required");
+  const compiled = options.contracts;
+  if (compiled !== undefined) assertDevelopmentContracts(compiled);
   const descriptors = options.types.map((d) => parseTypeDescriptor(d));
+  if (compiled && descriptors.some((d) => !d.id.startsWith(`${scope}types/`)))
+    throw new TypeError("compiled transaction Types must be Scope-local");
   if (new Set(descriptors.map((d) => d.id)).size !== descriptors.length)
     throw new TypeError("duplicate Type");
   for (const d of descriptors) {
     if (
-      d.propertiesSchema !== undefined ||
+      (d.propertiesSchema !== undefined && !compiled) ||
       (d.describes === "bead" && d.ownsOutgoing !== undefined)
     )
-      throw new TypeError("first transaction slice supports schema-free unowned Types only");
+      throw new TypeError("transaction store requires compiled schemas and unowned Types");
   }
   const installed = new Map(descriptors.map((d) => [d.id, json(d)]));
+  if (
+    compiled &&
+    (descriptors.length !== compiled.descriptors.length ||
+      descriptors.some((d) => compiled.types[d.id] !== installed.get(d.id)))
+  )
+    throw new TypeError("compiled transaction descriptor mismatch");
+  // Separate from configurationIdentity: no Read entry handles artifact payloads.
+  // URI JSON escaping + base64 data + bounded entry metadata, with finite headroom.
+  const captureMaximumBytes =
+    8 * CONTRACT_ARTIFACT_CEILINGS.totalBytes +
+    1024 * CONTRACT_ARTIFACT_CEILINGS.submittedArtifacts +
+    4096;
+  const capture = compiled ? json(compiled.capture) : "null";
+  if (Buffer.byteLength(capture) > captureMaximumBytes)
+    throw new TypeError("transaction contract capture exceeds private bound");
   const receiptMaximumItems = transactionReceiptMaximum(options.receiptMaximumItems);
   const configuration = json({
     format,
     receiptMaximumItems,
     identityPolicy,
+    contractIdentity: compiled?.identity ?? null,
+    runtimeLimits: TRANSACTION_RUNTIME_LIMITS,
     scope,
     types: [...installed].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
   });
@@ -430,6 +454,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         db.exec(schema);
         const put = db.prepare("INSERT INTO metadata VALUES(?,?)");
         put.run("configuration", configuration);
+        put.run("contractCapture", capture);
         put.run("epoch", randomUUID());
         put.run("position", "0");
       } else {
@@ -440,6 +465,19 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           );
         if (storedConfiguration !== configuration)
           throw new Error("transaction installation mismatch");
+        // Exact bytes validate retained capture, including constant witnesses, even
+        // if the stored claimed identity was left unchanged by corruption.
+        const captureLength = db
+          .prepare(
+            "SELECT length(CAST(value AS BLOB)) AS bytes FROM metadata WHERE name='contractCapture'",
+          )
+          .get();
+        if (
+          !captureLength ||
+          Number(captureLength.bytes) > captureMaximumBytes ||
+          metadata("contractCapture") !== capture
+        )
+          throw new Error("transaction contract capture mismatch");
       }
       const retracted = Number(
         db.prepare("DELETE FROM receipts WHERE owner IS NOT NULL").run().changes,
@@ -975,7 +1013,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
                 tx,
                 {
                   scope,
-                  contracts: {
+                  contracts: compiled?.registry ?? {
                     get(id, bytes) {
                       const descriptor = descriptors.find((d) => d.id === id);
                       return descriptor && installed.get(id) === bytes ? { descriptor } : undefined;

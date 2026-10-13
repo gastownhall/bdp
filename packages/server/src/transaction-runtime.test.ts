@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
+import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
 import { afterEach, expect, it } from "vitest";
 const cleanup: (() => void | Promise<void>)[] = [];
 afterEach(async () => {
@@ -11,19 +12,50 @@ afterEach(async () => {
 });
 const token = "x".repeat(32),
   type = "https://example.test/process-bead";
-it.each([false, true])(
-  "reopens actual emitted HTTP service after abrupt process loss (durable pages=%s)",
-  async (pages) => {
+it.each([
+  { pages: false, compiled: false },
+  { pages: true, compiled: false },
+  { pages: true, compiled: true },
+])(
+  "reopens actual emitted HTTP service after abrupt process loss (pages=$pages compiled=$compiled)",
+  async ({ pages, compiled }) => {
+    const stableScope = "https://example.test/stable/pages/";
+    const fixtureType = compiled ? `${stableScope}types/process` : type;
+    const schema = "https://offline.invalid/process-properties";
+    const types = [
+      {
+        id: fixtureType,
+        name: "Process Bead",
+        describes: "bead",
+        conformsTo: [],
+        ...(compiled ? { propertiesSchema: schema } : {}),
+      },
+    ];
+    const artifacts = {
+      descriptors: types.map((d) => ({ retrievalUri: d.id, utf8: JSON.stringify(d) })),
+      schemas: [
+        {
+          retrievalUri: schema,
+          utf8: JSON.stringify({
+            $id: schema,
+            type: "object",
+            required: ["n"],
+            properties: { n: { type: "integer", minimum: 0 } },
+          }),
+        },
+      ],
+      limits: CONTRACT_ARTIFACT_CEILINGS,
+    };
     const directory = mkdtempSync(path.join(tmpdir(), "bdp-tx-http-process-"));
     cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
     async function start(create: boolean, port: number) {
       const runtime = new URL("../dist/transaction-runtime.js", import.meta.url).href;
       const options = {
         directory,
-        ...(pages ? { scope: "https://example.test/stable/pages/" } : {}),
+        ...(pages ? { scope: stableScope } : {}),
         create,
         port,
-        types: [{ id: type, name: "Process Bead", describes: "bead", conformsTo: [] }],
+        ...(compiled ? { artifacts } : { types }),
         credentials: [{ token, principal: "operator", canMutate: true }],
       };
       const script = `import {startTransactionRuntime} from ${JSON.stringify(runtime)};const runtime=await startTransactionRuntime(${JSON.stringify(options)},${JSON.stringify({ receiptMaximumItems: 2 })});process.stdout.write(JSON.stringify({scope:runtime.scope,targets:runtime.targets,listenUrl:runtime.listenUrl})+'\\n');process.stdin.once('data',async()=>{await runtime.close();process.exit(0)});`;
@@ -66,7 +98,8 @@ it.each([false, true])(
       operations: Array.from({ length: pages ? 5 : 1 }, (_, n) => ({
         operation: "createBead",
         id: `beads/b${n}`,
-        type,
+        type: fixtureType,
+        ...(compiled ? { properties: { n } } : {}),
       })),
     });
     const wire = (url: string, ready: { listenUrl: string }) =>
@@ -119,6 +152,35 @@ it.each([false, true])(
       });
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual(page);
+    }
+    if (compiled) {
+      const typeRead = await fetch(wire(fixtureType, second.ready), {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(typeRead.status).toBe(200);
+      expect(await typeRead.json()).toEqual(types[0]);
+      const invalid = await fetch(wire(second.ready.targets.batch, second.ready), {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          "idempotency-key": "invalid-after-reopen",
+        },
+        body: JSON.stringify({
+          operations: [
+            {
+              operation: "createBead",
+              id: "beads/invalid",
+              type: fixtureType,
+              properties: { n: -1 },
+            },
+          ],
+        }),
+      });
+      expect(await invalid.json()).toMatchObject({
+        status: "failed",
+        problem: { code: "validation-failed" },
+      });
     }
     second.child.stdin.write("close\n");
     expect((await second.exited)[0]).toBe(0);

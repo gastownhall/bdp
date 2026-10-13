@@ -801,3 +801,49 @@ remains all-visible, schema-free and unowned, and owned-source fanout and nonwri
 match behavior remain outside this slice. Negative Selector wire admission remains
 closed. Operation-local failures require an operation index at the type boundary;
 only the currently implemented transaction-wide Event and match limits can omit it.
+
+### Private compiled-contract installation and retention
+
+The Transactional owner can now accept the existing branded DevelopmentContracts
+for schema-backed unowned Types. Its installed descriptor bytes, effective property
+validators and same-owner Read inventory come from that one authority. The older
+schema-free administrative path remains available for newly provisioned stores.
+Compiled Types must be Scope-local; a separately supplied descriptor inventory must
+match the installed bytes exactly. JSON serialization retains property order and is
+not a new canonical identity algorithm.
+
+DevelopmentContracts exposes the immutable ingestion capture: exact artifact URI,
+base64 bytes, byte length and digest, bounded artifact limits, and the current schema
+compiler/evaluator ceiling witnesses. Its identity algorithm is unchanged. Private
+format `bdp-private-transaction-contracts-8` records that capture in a separate
+`contractCapture` metadata row at explicit creation. The existing configuration
+holds the closure identity and fixed runtime property/diagnostic limits, keeping the
+artifact payload out of Read configurationIdentity. The capture has a finite private
+serialized byte bound derived from artifact ceilings (142,610,432 bytes); it is kept
+for the whole installation lifetime without garbage collection.
+
+Reopen compares configuration and exact capture under the existing locked owner
+entry before pending retraction or maintenance. SQLite may first recover a hot
+journal. Clean mismatches refuse byte-identically; no migration, automatic refresh
+or reseeding occurs. Compiler constants are comparison witnesses, not persisted
+controls that override the running build. Changed constants or runtime bounds fail
+closed. Administrative configuration is still required to reopen; exact persisted
+artifacts can reconstruct the same compiler object offline. The capture proves
+artifact retention/reconstruction; the existing identity supplies changed-artifact
+refusal.
+
+The private HTTP fixture accepts bounded plain URI/UTF8 artifact data, requires an
+explicit stable Scope and compiles inside its own module instance before owner use.
+It derives Type inventory if the redundant types argument is omitted, preserving
+strict agreement if both are supplied. Branded compiler objects never cross the
+child-process or source/dist module boundary. Tests cover immutable capture,
+inherited validation, unknown Types, deterministic retained diagnostics, late batch
+and selected-set rollback, independent sequence prefix/tail commits, Type inventory
+and Resource reads, exact saved-capture reconstruction, tampered metadata refusal,
+actual process-loss restart and a real predecessor-format file refusal.
+
+This remains a private all-visible installation with empty aggregate policy and
+owned Types refused. Schema references are served in Type descriptors; schema-byte
+GET/HEAD hosting is not implemented here. No HTTP set admission, new Type lifecycle,
+Snapshot/changefeed, public configuration/profile admission or conformance claim is
+added. Read+Update durable artifact retention remains a separate follow-up.
