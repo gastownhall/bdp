@@ -14,7 +14,7 @@ The manifest `packages/conformance/matrices/read-update-v1.json` is version 2 an
 | `read-update.singleton.idempotent-retry` | Retained retry preserves allocated identity and complete disposition, independent GET | Incomplete: in-flight/expired and sequence comparison remain |
 | `read-update.singleton.idempotency-conflict` | Changed semantic input refused, unchanged independent GET, original disposition still retained | Yes |
 
-A passing authored probe is not a completed required row when the inventory names an unobserved branch. Twenty-eight whole-contract rows are bounded implementation observations, not an admission decision. Of 129 required IDs, 101 remain uncovered; thirty-six rows have bounded observations.
+A passing authored probe is not a completed required row when the inventory names an unobserved branch. Twenty-seven whole-contract rows are bounded implementation observations, not an admission decision. Of 129 required IDs, 102 remain uncovered; thirty-six rows have bounded observations.
 
 Six additional inherited Read cases observe Scope service-desc, canonical navigation, Type inventory, all thirteen hosted closed Type descriptors, invalid/repeated query rejection and unsupported Read-endpoint method handling. They reuse existing Read request/assertion forms with fixture oracles specific to the installed configuration. Each discovery request validates the RU discovery schema locally; the retired Read discovery row is absent and no forward prerequisite is introduced. The original Read manifest/evidence remain unchanged. These six cases use finite exact routes and require no graph seeding.
 
@@ -41,7 +41,7 @@ Next, add the remaining inherited Read and companion bindings and the remaining 
 
 ## W1 baseline write observations
 
-The same installed configuration now has nine additional authored rows. Eight are assessed complete for their cited clauses; alias deletion remains incomplete for fragment handling. The exact reviewed ID list and uncovered inventory are machine-pinned. A passing row alone does not award whole-contract credit.
+The same installed configuration now has nine additional authored rows. Seven are assessed complete for their cited clauses; alias deletion remains incomplete for fragment handling and create-link remains incomplete for pin equality comparison. The exact reviewed ID list and uncovered inventory are machine-pinned. A passing row alone does not award whole-contract credit.
 
 | Required row | Row-local evidence and boundary |
 | --- | --- |
@@ -55,7 +55,7 @@ The same installed configuration now has nine additional authored rows. Eight ar
 | alias.delete-releases | Closed deletion result, reuse, unknown and live-query404 are observed. Fragment-bearing raw targets remain unobserved. The no-aliases antecedent is inapplicable because Read+Update requires aliases. This row remains incomplete. |
 | alias.no-version-minted | Both target records remain exactly equal through create/repoint/same-target/delete/reuse. Complete Bead and Link collections (`next:null`) exclude alias membership; alias results carry no revision or representation. |
 
-The existing update-bead row additionally observes metadata updates but remains incomplete until effective-Type-schema rejection is exercised. Owned-Link, schema-configuration, authorization and sequence obligations are not inferred from these unowned baseline operations.
+The existing update-bead row additionally observes metadata updates and metadata non-object refusal with an unchanged independent postimage, but remains incomplete until effective-Type-schema rejection is exercised. Owned-Link, schema-configuration, authorization and sequence obligations are not inferred from these unowned baseline operations.
 
 Mutation client observations wrap actual status, headers and body. The source-private `apps/bdptest/test-support/installed-body-schema.ts` clones the canonical schema unchanged and adds only harness definitions that require `body` and reference the existing normative mutation/alias/record/problem definitions. These harness refs validate complete bodies independently of static semantic and afterstate oracles. The wrapper source is bound by the reviewed harness source commit, not claimed as part of the target's installed payload identity. Neither normative schemas nor the shared runner/public package API change.
 
@@ -73,3 +73,11 @@ Three further row-local contracts use the existing Decision descriptor's explici
 - `singleton.owned-link-no-op` independently checks known actor/agent/message context on both Link and owner before retaining their actual envelopes. Reordered equal documents with different supplied provenance retain the Link result, later complete Link and owner records, and the owner's revision. The unchanged target is checked separately.
 
 Eight post-observation counterfactual controls target wrong source revisions, mismatched current inline Link, overwritten Link/owner no-op provenance, incorrect first-class metadata, source fields on an unowned result and changed target state. These are assertion-input sensitivity controls after actual HTTP, not substituted authority wire evidence. Canonical required inventory and exact whole-ID audit stay authoritative; public eligibility remains false and unrelated ownership/application obligations remain uncovered.
+
+## W1 review follow-up
+
+Whole-contract accounting excludes create-link until its opaque-pin equality comparison clause has a discriminating observation; successful storage/echo and no interpretation alone do not prove that clause. Row-local alias controls now fabricate an alias revision and a target revision after actual observation and require their specific result/postimage assertions to fail. Omitted inventory entries mean no row-local scenario, with existing cross-row discovery/patch observations named where relevant.
+
+The fixed client GET allowlist derives only from actual authored client actions and known fixture targets. Captured Bead identities still use the existing restricted per-request gate. Adding an unused fixture binding must not change the exact configuration digest. The oracle port is allocated before creating its temporary store, and configuration/launch remain inside cleanup.
+
+Alias scenario trimming is deferred: the existing repeated workflows discriminate the cited clauses; reducing that duplication now would churn evidence while profile completion remains unfinished. No runner/inventory contract or public schema changed.

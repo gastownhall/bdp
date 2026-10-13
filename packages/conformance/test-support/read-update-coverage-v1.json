@@ -44,7 +44,7 @@
       "id": "read.discovery.optional-limits",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -91,7 +91,7 @@
       "id": "read.resource.external-endpoint",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -134,7 +134,7 @@
       "id": "read.resource.not-found-nondisclosure",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -258,28 +258,28 @@
       "id": "read.collections.structural-predicates",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.collections.selector",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.collections.pagination-snapshot",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.collections.cursor-errors",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -320,14 +320,14 @@
       "id": "read.bead-links.directions",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.bead-links.pagination",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -415,14 +415,14 @@
       "id": "read.http.problem-table",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.http.internal-fault",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -476,105 +476,105 @@
       "id": "read.http.raw-request-targets",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.scope.restore-identity",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.alias.resolution",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.alias.absent",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.disclosure.gone",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.disclosure.gate",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.owned.closure",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.attribution.carried",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.attribution.link",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.owned-wildcard.declaration",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.owned-wildcard.max-required",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.owned-wildcard.explicit-max-bounded",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.owned-wildcard.present-entries",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.owned-wildcard.closure",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read.numeric-model.declared-token-model",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -900,21 +900,21 @@
       "id": "read-update.discovery.aliases",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "Operation Directory alias entries and served alias resolution are observed in the four alias scenarios; no row-local discovery-aliases scenario binds all cited obligations.",
       "bindings": []
     },
     {
       "id": "read-update.discovery.limits",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.discovery.operation-directory",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -957,7 +957,7 @@
       "id": "read-update.singleton.update-bead",
       "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "Actual properties and metadata updates, guarded semantic no-op and independent postimages observed; effective-Type-schema rejection remains unobserved. Row remains incomplete.",
+      "reason": "Actual properties and metadata updates, metadata non-object refusal with independent unchanged record, and guarded semantic no-op are observed. Effective-Type-schema rejection remains unobserved.",
       "bindings": [
         {
           "scenario": "read-update.singleton.update-bead",
@@ -1003,7 +1003,15 @@
             "read-metadata-update.status",
             "read-metadata-update.written",
             "read-metadata-update.body-schema",
-            "read-metadata-update.postimage"
+            "read-metadata-update.postimage",
+            "metadata-non-object.status",
+            "metadata-non-object.written",
+            "metadata-non-object.body-schema",
+            "metadata-non-object.problem",
+            "read-after-metadata-refusal.status",
+            "read-after-metadata-refusal.written",
+            "read-after-metadata-refusal.body-schema",
+            "read-after-metadata-refusal.postimage"
           ]
         }
       ]
@@ -1213,7 +1221,7 @@
       "id": "read-update.singleton.document-patch-validation",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "Nonexistent patch paths and atomic refusal are observed in document-patch-merge-replace/atomicity; metadata non-object refusal and unchanged record are observed in update-bead. No row-local scenario covers all patch validation clauses, including effective Type schemas.",
       "bindings": []
     },
     {
@@ -1274,14 +1282,14 @@
       "id": "read-update.singleton.incident-links-nondisclosure",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.singleton.create-link",
       "status": "bounded-observation",
-      "wholeContract": true,
-      "reason": "Actual same-configuration HTTP mutations, complete normative body schemas, independent static semantic oracles and real GET afterstate. Negative controls must detect returned-body corruption; scoped to the cited row clauses.",
+      "wholeContract": false,
+      "reason": "Relative endpoint resolution, missing-local-endpoint refusal, byte-identical opaque local/external pin storage and no interpretation are observed. The pin equality-comparison conjunct remains unobserved; this row is incomplete.",
       "bindings": [
         {
           "scenario": "read-update.singleton.create-link",
@@ -2592,7 +2600,7 @@
       "id": "read-update.singleton.attribution",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -2653,28 +2661,28 @@
       "id": "read-update.singleton.expected-revision-race",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.singleton.hidden-subject",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.singleton.idempotency-key-required",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.singleton.unauthenticated",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -2755,21 +2763,21 @@
       "id": "read-update.singleton.unsupported-media-type",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.singleton.method-405",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.singleton.no-local-bindings",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
@@ -2938,7 +2946,7 @@
       "id": "read-update.alias.put-creates",
       "status": "bounded-observation",
       "wholeContract": true,
-      "reason": "Actual same-configuration HTTP mutations, complete normative body schemas, independent static semantic oracles and real GET afterstate. Negative controls must detect returned-body corruption; scoped to the cited row clauses.",
+      "reason": "Closed exact created result, canonical alias/target and bodyless GET/HEAD 307 are observed. Alias-target corruption is checked in the byte-identical put-repoints scenario, not as a row-local control here.",
       "bindings": [
         {
           "scenario": "read-update.alias.put-creates",
@@ -3517,63 +3525,63 @@
       "id": "read-update.alias.uniqueness-invariant",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.link-coexistence",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.allocation-avoids-aliases",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.non-canonical-target",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.unknown-subject",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.carrier-syntax",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.authorization",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.forbidden",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.no-version-minted",
       "status": "bounded-observation",
       "wholeContract": true,
-      "reason": "Actual same-configuration HTTP mutations, complete normative body schemas, independent static semantic oracles and real GET afterstate. Negative controls must detect returned-body corruption; scoped to the cited row clauses.",
+      "reason": "Both complete target records remain unchanged across alias creation, repoint, same-target put, deletion and reuse; complete collections exclude alias membership. Row-local fabricated alias and target revisions fail closed result/independent postimage assertions.",
       "bindings": [
         {
           "scenario": "read-update.alias.no-version-minted",
@@ -3766,322 +3774,322 @@
       "id": "read-update.alias.sequence-binding",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.retained-without-reauthorization",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.reference-resolution",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.alias.reference-idempotency",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.order-and-partial-commit",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.local-bindings",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.transient-predecessor",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.expired-creator-binding",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.retained-failure",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.member-problem-shape",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.retry-after-hint",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.carrier-rejection",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.contextual-validation",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.idempotent-retry",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.disconnect",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.internal-fault",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.sequence.interleaving",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.in-progress",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.key-reservation",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.claim-atomicity",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.concurrent-dependent-retry",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.transient-not-retained",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.semantic-identity",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.principal-isolation",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.cross-carrier",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.authorization-view",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.forbidden-retained",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.retention-minimum",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.expired",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.expired-failure",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.durable-boundary",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.crash-mid-sequence",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.idempotency.restore",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.problem.table",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.validation.type-contract",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.validation.diagnostics",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.validation.identity-taken",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.validation.aggregate-constraint",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.http.request-too-large",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.http.cache-no-store",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.http.cors-idempotency-key",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.numeric-model.same-value-no-op",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.numeric-model.round-trip-admission",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.numeric-model.nested-refusal",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.owned-wildcard.explicit-precedence",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     },
     {
       "id": "read-update.owned-wildcard.undeclared-type-versions-source",
       "status": "omitted",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "reason": "No row-local scenario in this slice; cross-row observations do not award this required ID whole-contract credit.",
       "bindings": []
     }
   ]

@@ -65,6 +65,8 @@ type W1Counterfactual =
   | "link-pin"
   | "deleted-revision"
   | "alias-target"
+  | "alias-revision"
+  | "target-revision"
   | "resource-header"
   | "alias-header"
   | "closed-body";
@@ -102,8 +104,8 @@ async function run(
   const coverage = JSON.parse(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.toString(),
   ) as { rows: { id: string; wholeContract: boolean }[] };
-  const directory = mkdtempSync(path.join(tmpdir(), "bdp-cumulative-ru-"));
   const port = await helpers.availablePort();
+  const directory = mkdtempSync(path.join(tmpdir(), "bdp-cumulative-ru-"));
   const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port };
   const knownReadBindings: Record<string, string> = {
     ...Object.fromEntries(
@@ -134,17 +136,24 @@ async function run(
       return [{ method: action.method, url: url.href }];
     }),
   );
+  // Only fixed client GET targets actually referenced by an action join the
+  // allowlist. Captured Bead identities retain the existing per-request route gate.
+  const clientReadRoutes = bundle.manifest.scenarios.flatMap((row) =>
+    (row.actions ?? []).flatMap((action) => {
+      if (action.family !== "client" || action.operation !== "installed.exact-request") return [];
+      const input = action.input as { method?: string; targetBinding?: string };
+      if (input.method !== "GET" || typeof input.targetBinding !== "string") return [];
+      const url = knownReadBindings[input.targetBinding];
+      return url === undefined ? [] : [{ method: "GET" as const, url }];
+    }),
+  );
   const mode: ExactHttpModeOptions = {
     scope,
     profile: "read-update",
     maximumRequestBodyBytes: 65536,
     maximumRequestHeaderBytes: 16384,
     routes: [
-      { method: "GET" as const, url: `${scope}operations/` },
-      ...Object.values(bundle.fixture.bindings).map((value) => ({
-        method: "GET" as const,
-        url: new URL(value, scope).href,
-      })),
+      ...clientReadRoutes,
       ...readRoutes.filter(
         (route, index) =>
           readRoutes.findIndex(
@@ -244,6 +253,7 @@ async function run(
   const nativeReadObservations: unknown[] = [];
   let currentScenario = "";
   let counterfactualApplications = 0;
+  let aliasPutObserved = false;
   const target = createRawHttpScenarioTarget(
     async (scenario, _scope, _seed, fixture, signal) => {
       currentScenario = scenario.id;
@@ -308,6 +318,24 @@ async function run(
       exactExecution: { execute: target.execute, configuration: target.exactConfiguration },
       actionExecutor: async (execution) => {
         const actual = await executeClient(execution);
+        const w1Input = execution.input as {
+          method?: string;
+          targetBinding?: string;
+          idempotencyKey?: string;
+        };
+        if (w1Input.idempotencyKey === "put-alias") aliasPutObserved = true;
+        if (
+          w1Counterfactual === "target-revision" &&
+          aliasPutObserved &&
+          w1Input.method === "GET" &&
+          w1Input.targetBinding === "w1.a" &&
+          counterfactualApplications === 0
+        ) {
+          const corrupted = structuredClone(actual) as { body: { revision: string } };
+          corrupted.body.revision = "fabricated-target-revision";
+          counterfactualApplications++;
+          return corrupted;
+        }
         if (
           corruptNoopResponse &&
           (execution.input as { idempotencyKey?: string }).idempotencyKey === "noop"
@@ -320,18 +348,20 @@ async function run(
           corrupted.body.resource.revision = "incorrect-noop-response-revision";
           return corrupted;
         }
-        const selectedKey: Record<W1Counterfactual, string> = {
+        const selectedKey: Partial<Record<W1Counterfactual, string>> = {
           "patch-array": "merge-replace",
           "noop-provenance": "combined-noop",
           "link-pin": "create-local-pin",
           "deleted-revision": "delete-link",
           "alias-target": "repoint-alias",
+          "alias-revision": "put-alias",
           "resource-header": "update-bead",
           "alias-header": "put-alias",
           "closed-body": "create-a",
         };
         if (
           w1Counterfactual &&
+          w1Input.method === "POST" &&
           (execution.input as { idempotencyKey?: string }).idempotencyKey ===
             selectedKey[w1Counterfactual]
         ) {
@@ -348,6 +378,7 @@ async function run(
               deleted: { resource: { revision: string } };
               target: string;
               unexpected?: boolean;
+              revision?: string;
             };
           };
           counterfactualApplications++;
@@ -363,6 +394,8 @@ async function run(
           if (w1Counterfactual === "deleted-revision")
             corrupted.body.deleted.resource.revision = "newly-minted-wrong-delete-revision";
           if (w1Counterfactual === "alias-target") corrupted.body.target = `${scope}beads/w1-a`;
+          if (w1Counterfactual === "alias-revision")
+            corrupted.body.revision = "fabricated-alias-revision";
           if (w1Counterfactual === "resource-header")
             corrupted.headers.etag = '"incorrect-mutation-etag"';
           if (w1Counterfactual === "alias-header")
@@ -481,9 +514,9 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "90961f97ac07547d6e6e59006e9f683dc32fb193618158a16039c51136a8e00c",
+    "f04e98d80971e813b73d1b57d225c0a6bfb0669647d6bbf9b026a908bbf37f26",
   );
-  expect(report.uncoveredIds).toHaveLength(101);
+  expect(report.uncoveredIds).toHaveLength(102);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
   expect(report.sessions).toHaveLength(report.plannedIds.length);
   expect(report.observations.length).toBeGreaterThan(30);
@@ -730,3 +763,46 @@ it.each([
   },
   30000,
 );
+
+it.each([
+  ["alias-revision", "put-alias", ["body-schema", "alias-result"]],
+  ["target-revision", "put-alias-a", ["postimage"]],
+] as const)(
+  "detects row-local alias %s corruption after actual HTTP",
+  async (control, actionId, failed) => {
+    const report = await run(
+      undefined,
+      ["read-update.alias.no-version-minted"],
+      false,
+      false,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    const row = report.result.scenarios.find(
+      (row) => row.id === "read-update.alias.no-version-minted",
+    );
+    expect(row?.state).toBe("fail");
+    expect(
+      row?.actions
+        ?.find((action) => action.action.id === actionId)
+        ?.assertions.filter((assertion) => !assertion.passed)
+        .map((assertion) => assertion.id),
+    ).toEqual(failed);
+  },
+  30000,
+);
+
+it("does not admit an unused fixture binding as a fixed client GET route", async () => {
+  const fixture = JSON.parse(
+    source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
+  );
+  fixture.bindings["unused.client-target"] = "links/never-requested";
+  const report = await run(undefined, ["read-update.singleton.create-bead"], false, false, fixture);
+  expect(
+    report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
+  ).toBe("pass");
+  expect(report.reportBinding.exactConfigurationDigest).toBe(
+    "f04e98d80971e813b73d1b57d225c0a6bfb0669647d6bbf9b026a908bbf37f26",
+  );
+}, 30000);

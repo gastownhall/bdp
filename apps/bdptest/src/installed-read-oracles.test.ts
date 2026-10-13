@@ -64,9 +64,8 @@ it.each(cases)(
           ? "read.types.inventory"
           : "read.resource.default-bounded";
     const suffix = collection === "resource" ? "beads/read-a" : `${collection}/`;
-    const dir = mkdtempSync(path.join(tmpdir(), "bdp-read-oracle-"));
     const port = await helpers.availablePort();
-    const config = helpers.referenceConfiguration(dir, port, token, scope);
+    const dir = mkdtempSync(path.join(tmpdir(), "bdp-read-oracle-"));
     let child: Awaited<ReturnType<typeof helpers.launchInstalledReference>> | undefined;
     let target: ReturnType<typeof createRawHttpScenarioTarget> | undefined;
     let changed = 0;
@@ -138,6 +137,7 @@ it.each(cases)(
       request.pipe(upstream);
     });
     try {
+      const config = helpers.referenceConfiguration(dir, port, token, scope);
       child = await helpers.launchInstalledReference(entry, config);
       proxy.listen(0, "127.0.0.1");
       await once(proxy, "listening");

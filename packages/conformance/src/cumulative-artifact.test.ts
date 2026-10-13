@@ -162,7 +162,6 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
     "read-update.singleton.document-patch-merge-replace",
     "read-update.singleton.document-patch-atomicity",
     "read-update.singleton.delete-bead",
-    "read-update.singleton.create-link",
     "read-update.singleton.update-link",
     "read-update.singleton.delete-link",
     "read-update.singleton.owned-link-source-revision",

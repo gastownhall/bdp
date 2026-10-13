@@ -7325,6 +7325,98 @@
               "equalsBinding": "metadata-record"
             }
           ]
+        },
+        {
+          "id": "metadata-non-object",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "metadataChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": 5
+                }
+              ]
+            },
+            "idempotencyKey": "metadata-non-object",
+            "targetBaseBinding": "operations",
+            "bodyBindings": {
+              "bead": "a-id"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 422
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "validation-failed"
+            }
+          ]
+        },
+        {
+          "id": "read-after-metadata-refusal",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "metadata-record"
+            }
+          ]
         }
       ],
       "cleanup": {
