@@ -1,5 +1,6 @@
 /** Private installed-test association only. Never a ConformanceRunResult or admission artifact. */
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import {
   canonicalJson,
@@ -261,3 +262,204 @@ export function associateArtifactObservations(
     shards: summary,
   };
 }
+
+/** Safe attempt evidence is separate from the all-checks-passed set summary. */
+export function createArtifactEvidenceWriter(
+  set: ReadUpdateArtifactSet,
+  sourceCommit: string,
+  filename: string | undefined,
+  credentialValues: readonly string[],
+) {
+  assertReadUpdateArtifactSet(set);
+  const credentials = [...credentialValues];
+  if (!/^[a-f0-9]{40}$/.test(sourceCommit) || credentials.some((s) => !s))
+    throw Error("invalid evidence writer identity");
+  if (
+    filename &&
+    [
+      filename,
+      `${filename}.attempt.json`,
+      ...set.shards.map((s) => `${filename}.${s.id}.json`),
+    ].some(existsSync)
+  )
+    throw Error("evidence output already exists; choose a fresh attempt path");
+  type Cleanup = "not-started" | "pending" | "complete" | "failed";
+  const rows = set.shards.map((s) => ({
+    id: s.id,
+    source: s.source,
+    manifestDigest: s.bundle.digests.manifestDigest,
+    status: "unobserved" as "unobserved" | "running" | "returned" | "aborted" | "failed",
+    cleanup: "not-started" as Cleanup,
+    evidence: "absent" as "absent" | "retained" | "withheld-credential",
+    reportDigest: undefined as string | undefined,
+  }));
+  const snapshots = new Map<number, Record<string, unknown>>();
+  let failed = false;
+  type FailureStage = "execution" | "assertion" | "cleanup" | "credential-check";
+  const failureStages: FailureStage[] = [];
+  function safeJson(value: unknown) {
+    const text = JSON.stringify(value, null, 2);
+    function inspect(v: unknown): boolean {
+      if (typeof v === "string") {
+        const candidates = [v];
+        if (v.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(v))
+          candidates.push(Buffer.from(v, "base64").toString("utf8"));
+        try {
+          candidates.push(decodeURIComponent(v));
+        } catch {
+          /* Non-URI strings remain checked literally. */
+        }
+        return candidates.some((candidate) =>
+          credentials.some((secret) => candidate.includes(secret)),
+        );
+      }
+      return (
+        v !== null &&
+        typeof v === "object" &&
+        Object.entries(v).some(([key, value]) => inspect(key) || inspect(value))
+      );
+    }
+    if (inspect(JSON.parse(text))) throw Error("credential-bearing evidence withheld");
+    return text;
+  }
+  // Cleanup metadata replaces a complete file atomically. A failed replacement
+  // leaves previously returned genuine evidence intact (not a power-loss claim).
+  function replaceFile(destination: string, encoded: string) {
+    const temporary = `${destination}.pending-${randomUUID()}`;
+    try {
+      writeFileSync(temporary, encoded, { flag: "wx", mode: 0o600 });
+      renameSync(temporary, destination);
+    } catch (error) {
+      try {
+        rmSync(temporary, { force: true });
+      } catch (cleanup) {
+        throw new AggregateError([error, cleanup], "evidence replacement and cleanup failed", {
+          cause: error,
+        });
+      }
+      throw error;
+    }
+  }
+  function ledger(outcome: "running" | "failed" | "observed", stage?: FailureStage) {
+    if (stage && !failureStages.includes(stage)) failureStages.push(stage);
+    const value = {
+      claimEligible: false,
+      outcome,
+      ...(failureStages.length
+        ? { failureStage: failureStages[0], failureStages: [...failureStages] }
+        : {}),
+      sourceCommit,
+      ...set.digests,
+      shards: rows.map((r) => ({
+        ...r,
+        ...(r.evidence === "retained" && filename ? { report: `${filename}.${r.id}.json` } : {}),
+      })),
+    };
+    const encoded = safeJson(value);
+    if (filename) replaceFile(`${filename}.attempt.json`, encoded);
+    return value;
+  }
+  function persist(index: number) {
+    const snapshot = snapshots.get(index);
+    if (!snapshot) return;
+    snapshot.cleanupStatus = rows[index]!.cleanup;
+    snapshot.cleanupComplete = rows[index]!.cleanup === "complete";
+    const encoded = safeJson(snapshot);
+    if (filename) replaceFile(`${filename}.${rows[index]!.id}.json`, encoded);
+    rows[index]!.evidence = "retained";
+  }
+  const api = {
+    start(index: number) {
+      rows[index]!.status = "running";
+      ledger("running");
+    },
+    acquired(index: number) {
+      rows[index]!.cleanup = "pending";
+      ledger("running");
+    },
+    returned(index: number, report: ArtifactObservation) {
+      // Only known wrapper fields accompany the genuine runner result. Never retain
+      // thrown errors, child stderr, resolver functions or arbitrary wrapper keys.
+      const extra = report as ArtifactObservation & {
+        observations?: unknown;
+        setupObservations?: unknown;
+        nativeReadObservations?: unknown;
+        sourceDirty?: boolean;
+      };
+      const snapshot = {
+        claimEligible: false,
+        sourceCommit: report.sourceCommit,
+        configuration: report.configuration,
+        baselineReceipt: readySummary(report.baselineReceipt),
+        sessions: report.sessions.map((s) => ({ scenario: s.scenario, ...readySummary(s) })),
+        catalogSources: report.catalogSources,
+        plannedManifestDigest: report.plannedManifestDigest,
+        plannedIds: report.plannedIds,
+        requiredIds: report.requiredIds,
+        exactConfiguration: {
+          scope: report.exactConfiguration.scope,
+          profile: report.exactConfiguration.profile,
+          routes: report.exactConfiguration.routes,
+          maximumRequestHeaderBytes: report.exactConfiguration.maximumRequestHeaderBytes,
+          maximumRequestBodyBytes: report.exactConfiguration.maximumRequestBodyBytes,
+          credentialHandles: report.exactConfiguration.credentialHandles,
+          defaultCredentialRef: report.exactConfiguration.defaultCredentialRef,
+        },
+        result: report.result,
+        observations: extra.observations,
+        setupObservations: extra.setupObservations,
+        nativeReadObservations: extra.nativeReadObservations,
+        sourceDirty: extra.sourceDirty,
+      };
+      let captured: Record<string, unknown>;
+      try {
+        // Capture once: later caller mutation cannot corrupt a retained child report.
+        captured = JSON.parse(safeJson(snapshot));
+      } catch (error) {
+        rows[index]!.status = "failed";
+        rows[index]!.evidence = "withheld-credential";
+        failed = true;
+        ledger("failed", "credential-check");
+        throw error;
+      }
+      snapshots.set(index, captured);
+      rows[index]!.status = "returned";
+      rows[index]!.reportDigest = digest(report.result);
+      persist(index);
+      ledger("running");
+    },
+    cleaned(index: number, status: "complete" | "failed") {
+      rows[index]!.cleanup = status;
+      if (status === "failed") {
+        rows[index]!.status = "failed";
+        failed = true;
+      }
+      persist(index);
+      ledger(failed ? "failed" : "running", status === "failed" ? "cleanup" : undefined);
+    },
+    failed(index: number, aborted: boolean) {
+      rows[index]!.status = aborted ? "aborted" : "failed";
+      failed = true;
+      ledger("failed", "execution");
+    },
+    failedSet() {
+      failed = true;
+      ledger("failed", "assertion");
+    },
+    succeeded(summary: unknown) {
+      if (
+        failed ||
+        rows.some(
+          (r) => r.status !== "returned" || r.cleanup !== "complete" || r.evidence !== "retained",
+        )
+      )
+        throw Error("cannot publish incomplete artifact evidence");
+      const encoded = safeJson(summary);
+      ledger("observed");
+      if (filename) replaceFile(filename, encoded);
+    },
+  };
+  ledger("running");
+  return api;
+}
+export type ArtifactEvidenceWriter = ReturnType<typeof createArtifactEvidenceWriter>;

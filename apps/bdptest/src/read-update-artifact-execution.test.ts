@@ -1,3 +1,6 @@
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
@@ -13,6 +16,7 @@ import {
 import {
   artifactRoutes,
   associateArtifactObservations,
+  createArtifactEvidenceWriter,
   type ArtifactObservation,
 } from "../test-support/read-update-artifact-execution.js";
 const selection = loadProfileContractSelection("read-update");
@@ -231,4 +235,132 @@ describe("private installed artifact report association (synthetic metadata only
     if (kind === "selected-order") input[0].result.selectedScenarioIds.reverse();
     expect(() => associateArtifactObservations(set, sourceCommit, input)).toThrow();
   });
+});
+
+describe("private attempt persistence (synthetic metadata only)", () => {
+  function output() {
+    const directory = mkdtempSync(path.join(tmpdir(), "artifact-evidence-unit-"));
+    const filename = path.join(directory, "summary.json");
+    return {
+      filename,
+      close: () => rmSync(directory, { recursive: true, force: true }),
+      read: (suffix: string) => JSON.parse(readFileSync(filename + suffix, "utf8")),
+    };
+  }
+  it("retains exact detached runner results and safe wrappers before cleanup; no invented unrun result", () => {
+    const files = output();
+    try {
+      const { set, observations } = setup();
+      const secret = "unit-credential-sentinel";
+      const writer = createArtifactEvidenceWriter(set, sourceCommit, files.filename, [secret]);
+      const first = observations[0]!;
+      first.baselineReceipt.arbitraryStderr = secret;
+      Object.assign(first, { exception: secret, targetEntry: secret });
+      const authentic = structuredClone(first.result);
+      writer.start(0);
+      writer.acquired(0);
+      writer.returned(0, first);
+      Object.assign(first.result, { scenarios: [] });
+      writer.cleaned(0, "failed");
+      writer.failedSet();
+      const retained = files.read(".shard-0.json");
+      expect(retained.result).toEqual(authentic);
+      expect(retained).toMatchObject({
+        cleanupComplete: false,
+        cleanupStatus: "failed",
+        claimEligible: false,
+      });
+      expect(JSON.stringify(retained)).not.toContain(secret);
+      expect(files.read(".attempt.json")).toMatchObject({
+        outcome: "failed",
+        claimEligible: false,
+        shards: [
+          { evidence: "retained", cleanup: "failed" },
+          { status: "unobserved", evidence: "absent", cleanup: "not-started" },
+        ],
+      });
+      expect(existsSync(files.filename + ".shard-1.json")).toBe(false);
+      expect(() => writer.succeeded({ outcome: "observed" })).toThrow("incomplete");
+      expect(existsSync(files.filename)).toBe(false);
+      const prior = readFileSync(files.filename + ".attempt.json", "utf8");
+      expect(() =>
+        createArtifactEvidenceWriter(set, sourceCommit, files.filename, [secret]),
+      ).toThrow("fresh attempt");
+      expect(readFileSync(files.filename + ".attempt.json", "utf8")).toBe(prior);
+    } finally {
+      files.close();
+    }
+  });
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "a failed cleanup file replacement preserves previously returned bytes",
+    () => {
+      const files = output();
+      try {
+        const { set, observations } = setup();
+        const writer = createArtifactEvidenceWriter(set, sourceCommit, files.filename, [
+          "sentinel",
+        ]);
+        writer.start(0);
+        writer.acquired(0);
+        writer.returned(0, observations[0]!);
+        const original = readFileSync(`${files.filename}.shard-0.json`, "utf8");
+        chmodSync(path.dirname(files.filename), 0o500);
+        try {
+          expect(() => writer.cleaned(0, "failed")).toThrow();
+        } finally {
+          chmodSync(path.dirname(files.filename), 0o700);
+        }
+        expect(readFileSync(`${files.filename}.shard-0.json`, "utf8")).toBe(original);
+        writer.failedSet();
+        expect(files.read(".attempt.json")).toMatchObject({
+          outcome: "failed",
+          shards: [
+            { cleanup: "failed", evidence: "retained" },
+            { status: "unobserved", evidence: "absent" },
+          ],
+        });
+        expect(existsSync(files.filename)).toBe(false);
+      } finally {
+        files.close();
+      }
+    },
+  );
+  it.each(["literal", "base64", "percent", "key"])(
+    "withholds credential-bearing genuine %s result before writing it",
+    (encoding) => {
+      const files = output();
+      try {
+        const { set, observations } = setup();
+        const secret = "unit/credential?secret=123";
+        const writer = createArtifactEvidenceWriter(set, sourceCommit, files.filename, [secret]);
+        const value =
+          encoding === "base64"
+            ? Buffer.from(secret).toString("base64")
+            : encoding === "percent"
+              ? encodeURIComponent(secret)
+              : secret;
+        Object.assign(
+          observations[0]!.result.declarations,
+          encoding === "key" ? { [secret]: "withheld key" } : { targetLabel: value },
+        );
+        writer.start(0);
+        writer.acquired(0);
+        expect(() => writer.returned(0, observations[0]!)).toThrow(
+          "credential-bearing evidence withheld",
+        );
+        writer.cleaned(0, "complete");
+        expect(existsSync(files.filename + ".shard-0.json")).toBe(false);
+        expect(existsSync(files.filename)).toBe(false);
+        const ledger = files.read(".attempt.json");
+        expect(ledger).toMatchObject({
+          outcome: "failed",
+          shards: [{ evidence: "withheld-credential", status: "failed" }, { status: "unobserved" }],
+        });
+        expect(JSON.stringify(ledger)).not.toContain(secret);
+        expect(JSON.stringify(ledger)).not.toContain(value);
+      } finally {
+        files.close();
+      }
+    },
+  );
 });
