@@ -110,6 +110,26 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
   expect(bundle.digests.catalogDigest).toBe(
     createHash("sha256").update(canonicalJson(selected.catalogDigests)).digest("hex"),
   );
+  const catalogOrder = bundle.catalog.scenarios.map((row) => row.id);
+  expect(bundle.manifest.scenarios.map((row) => row.id)).toEqual(
+    catalogOrder.filter((id) => bundle.manifest.scenarios.some((row) => row.id === id)),
+  );
+  for (const scenario of bundle.manifest.scenarios) {
+    for (const action of scenario.actions ?? []) {
+      if (action.family !== "http") continue;
+      if (action.prerequisiteScenario)
+        expect(catalogOrder.indexOf(action.prerequisiteScenario)).toBeLessThan(
+          catalogOrder.indexOf(scenario.id),
+        );
+      expect(action.prerequisiteScenario).not.toBe("read.discovery.document");
+      if (scenario.requiredProfile === "read" && action.id === "discovery")
+        expect(action.assertions).toContainEqual({
+          id: "local-ru-discovery",
+          kind: "json-schema",
+          schema: "#/$defs/readUpdateDiscovery",
+        });
+    }
+  }
   expect(bundle.catalog.scenarios.map((row) => row.id)).toEqual(
     selected.catalog.scenarios.map((row) => row.id),
   );
@@ -123,6 +143,26 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
     }[];
   };
   expect(inventory.claimEligible).toBe(false);
+  // Reviewed whole-contract IDs; changing this list requires a clause-level coverage audit.
+  expect(inventory.rows.filter((row) => row.wholeContract).map((row) => row.id)).toEqual([
+    "read.discovery.scope-service-desc",
+    "read.discovery.canonical-navigation",
+    "read.resource.link-record",
+    "read.resource.properties-view",
+    "read.resource.default-bounded",
+    "read.types.inventory",
+    "read.types.descriptor",
+    "read.collections.beads",
+    "read.collections.links",
+    "read.collections.invalid-query",
+    "read.http.get-head",
+    "read.http.method-405",
+    "read.http.cache-cors",
+    "read-update.singleton.create-bead",
+    "read-update.singleton.delete-bead",
+    "read-update.singleton.expected-revision",
+    "read-update.singleton.idempotency-conflict",
+  ]);
   expect(inventory.rows.map((row) => row.id)).toEqual(selected.required.map((row) => row.id));
   for (const row of inventory.rows) {
     const planned = bundle.manifest.scenarios.find((scenario) => scenario.id === row.id);

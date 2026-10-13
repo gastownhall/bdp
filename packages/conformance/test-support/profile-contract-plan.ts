@@ -242,7 +242,8 @@ export function planProfileExecution(
         );
   if (manifest) validateFixtureOraclePointers(manifest, fixture);
   // The current ordinary artifact factory accepts read-v1. The runner permits
-  // v2 Read+Update only with matching exact execution configuration; this plan
+  // v1 non-Read lacks the exact execution binding and remains unsupported.
+  // v2 Read+Update requires matching exact execution configuration; this plan
   // is not execution, qualification or proof that such a target was observed.
   // The separate cumulative RU factory currently supports baseline (no History) only.
   const carrierBlocker =

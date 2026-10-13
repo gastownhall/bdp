@@ -309,6 +309,24 @@ describe("truthful executable readiness", () => {
       }
     },
   );
+  it.each([
+    ["read", "read-v1", 2, "ready-unexecuted"],
+    ["read-update", "read-update-v1", 1, "carrier-unsupported"],
+    ["read", "read-update-v1", 2, "carrier-unsupported"],
+  ] as const)("pins carrier %s/%s/v%s", (profile, catalogId, manifestVersion, readiness) => {
+    const config = configuration(profile);
+    const plan = planProfileExecution(loadProfileContractSelection(profile), config, {
+      configuration: config,
+      manifest: source({
+        ...manifestFor("read.discovery.scope-service-desc"),
+        catalogId,
+        manifestVersion,
+      }),
+    });
+    expect(
+      plan.requirements.find((row) => row.id === "read.discovery.scope-service-desc")?.readiness,
+    ).toBe(readiness);
+  });
   it("separates missing setup and unresolved applicability without waivers", () => {
     const config = bindServedProfileConfiguration({
       ...input("read"),
