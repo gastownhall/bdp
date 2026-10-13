@@ -41,7 +41,7 @@ Next, add the remaining inherited Read and companion bindings and the remaining 
 
 ## W1 baseline write observations
 
-The same installed configuration now has nine additional authored rows. Seven are assessed complete for their cited clauses; alias deletion remains incomplete for fragment handling and create-link remains incomplete for pin equality comparison. The exact reviewed ID list and uncovered inventory are machine-pinned. A passing row alone does not award whole-contract credit.
+The same installed configuration now has nine additional authored rows. Six are assessed complete for their cited clauses; alias deletion remains incomplete for fragment handling, create-link for pin equality comparison, and document-patch-merge-replace for the additional full-section clauses stated below. The exact reviewed ID list and uncovered inventory are machine-pinned. A passing row alone does not award whole-contract credit.
 
 | Required row | Row-local evidence and boundary |
 | --- | --- |
