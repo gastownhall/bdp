@@ -1394,6 +1394,13 @@
               "pointer": "/request/body/expectedRevision",
               "exists": true,
               "equalsBinding": "b-rev"
+            },
+            {
+              "id": "retained-postimage",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "b-record"
             }
           ]
         },

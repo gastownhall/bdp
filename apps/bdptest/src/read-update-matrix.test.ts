@@ -54,7 +54,12 @@ const configModule = (await import(
     history: false;
   };
 };
-async function run(manifestValue?: unknown, selectedIds?: string[], mismatchedPolicy = false) {
+async function run(
+  manifestValue?: unknown,
+  selectedIds?: string[],
+  mismatchedPolicy = false,
+  corruptNoopResponse = false,
+) {
   const selection = loadProfileContractSelection("read-update");
   const fixtureSource = source("packages/conformance/fixtures/read-update-reference-v1.json");
   const manifestSource =
@@ -193,6 +198,9 @@ async function run(manifestValue?: unknown, selectedIds?: string[], mismatchedPo
   );
   try {
     if (!target.exactConfiguration) throw Error("exact target configuration missing");
+    const executeClient = createInstalledExactClient(mode, dialRoute, (observation) =>
+      observations.push({ scenario: currentScenario, observation }),
+    );
     const result = await runConformanceMatrix({
       scope,
       profile: "read-update",
@@ -201,9 +209,22 @@ async function run(manifestValue?: unknown, selectedIds?: string[], mismatchedPo
       ...(selectedIds === undefined ? {} : { scenarioSelection: selectedIds }),
       execute: target.execute,
       exactExecution: { execute: target.execute, configuration: target.exactConfiguration },
-      actionExecutor: createInstalledExactClient(mode, dialRoute, (observation) =>
-        observations.push({ scenario: currentScenario, observation }),
-      ),
+      actionExecutor: async (execution) => {
+        const actual = await executeClient(execution);
+        if (
+          corruptNoopResponse &&
+          (execution.input as { idempotencyKey?: string }).idempotencyKey === "noop"
+        ) {
+          // Counterfactual only: corrupt the returned value after real HTTP and
+          // observation capture. The store and subsequent GET remain untouched.
+          const corrupted = structuredClone(actual) as {
+            body: { resource: { revision: string } };
+          };
+          corrupted.body.resource.revision = "incorrect-noop-response-revision";
+          return corrupted;
+        }
+        return actual;
+      },
       harness: target.harness,
       schemaValidator: createJsonSchemaValidator(schema),
       declaredTargetLabel: "installed-cumulative-read-update-candidate",
@@ -247,7 +268,8 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       state: !report.plannedIds.includes(row.id) ? "harness-error" : "pass",
     });
   expect(report.result.claimEligible).toBe(false);
-  expect(report.uncoveredIds.length).toBeGreaterThan(100);
+  expect(report.uncoveredIds).toHaveLength(125);
+  expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
   expect(report.sessions).toHaveLength(report.plannedIds.length);
   expect(report.observations.length).toBeGreaterThan(30);
   expect(JSON.stringify(report)).not.toContain(token);
@@ -309,3 +331,13 @@ it.each(["anonymous", "unknown"])(
 it("rejects mismatched observed configuration identity before any matrix request", async () => {
   await expect(run(undefined, undefined, true)).rejects.toThrow("configuration");
 });
+
+it("rejects response-only no-op revision corruption after actual HTTP", async () => {
+  const report = await run(undefined, ["read-update.singleton.update-bead"], false, true);
+  expect(report.result.scenarios[0]?.state).toBe("fail");
+  const noop = report.result.scenarios[0]?.actions?.find((row) => row.action.id === "noop");
+  expect(noop?.assertions.filter((row) => !row.passed).map((row) => row.id)).toEqual([
+    "retained-postimage",
+  ]);
+  expect(JSON.stringify(report.observations)).not.toContain("incorrect-noop-response-revision");
+}, 30000);

@@ -399,8 +399,8 @@
     {
       "id": "read-update.singleton.update-bead",
       "status": "bounded-observation",
-      "wholeContract": true,
-      "reason": "Selected contract legs have executable HTTP and independent afterstate assertions; not profile qualification.",
+      "wholeContract": false,
+      "reason": "Observed guarded properties replacement, direct no-op returned postimage retention and independent GET; metadata-patch object and effective-Type-schema rejection clauses remain unobserved.",
       "bindings": [
         {
           "scenario": "read-update.singleton.update-bead",
@@ -432,6 +432,7 @@
             "noop.updated",
             "noop.value",
             "noop.guard-wire",
+            "noop.retained-postimage",
             "read-noop.status",
             "read-noop.written",
             "read-noop.retained"

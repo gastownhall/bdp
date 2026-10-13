@@ -8,13 +8,13 @@ The manifest `packages/conformance/matrices/read-update-v1.json` is version 2 an
 | --- | --- | --- |
 | `read-update.discovery.document` | Cold service-desc navigation, RU closed schema, operation directory, actual canonical collection order | Incomplete: target advertises order; omitted-order fallback not observed |
 | `read-update.singleton.create-bead` | Honored and authority-allocated identities, independent GET of each returned postimage | Yes |
-| `read-update.singleton.update-bead` | Guarded patch, independent GET, semantic no-op and retained complete postimage | Yes |
+| `read-update.singleton.update-bead` | Guarded properties patch, direct no-op response equality and independent GET of retained complete postimage | Incomplete: metadata-patch object and effective-Type-schema rejection clauses remain unobserved |
 | `read-update.singleton.delete-bead` | Live incident-Link refusal, unchanged GET, remove Link, final identity without minting, ordinary/properties/links 404s | Yes |
 | `read-update.singleton.expected-revision` | Matching guard, stale update/delete refusal with unchanged independent GET, unguarded update, guarded deletion | Yes |
 | `read-update.singleton.idempotent-retry` | Retained retry preserves allocated identity and complete disposition, independent GET | Incomplete: in-flight/expired and sequence comparison remain |
 | `read-update.singleton.idempotency-conflict` | Changed semantic input refused, unchanged independent GET, original disposition still retained | Yes |
 
-A passing authored probe is not a completed required row when the inventory names an unobserved branch. The five whole-contract rows are a bounded implementation observation, not an admission decision.
+A passing authored probe is not a completed required row when the inventory names an unobserved branch. The four whole-contract rows are a bounded implementation observation, not an admission decision. Of 129 required IDs, 125 remain uncovered; seven rows have bounded observations.
 
 ## Artifact and observation identity
 
