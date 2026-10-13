@@ -21,12 +21,12 @@ export function memberNumericDiagnosticBudget(
         );
         if (!object)
           throw new TypeError("unexpected numeric position in admitted create operation");
-        const { message, type, schemaLocation } = diagnostic(occurrence);
+        // Numeric admission precedes Type validation. Even an embedder callback
+        // cannot turn this refusal into a failed Type-schema keyword.
+        const { message } = diagnostic(occurrence);
         return Object.freeze({
           message: object === "metadata" ? `metadata: ${message}` : message,
           ...(object === "metadata" ? { document: "metadata" as const } : {}),
-          ...(object === "properties" && type !== undefined ? { type } : {}),
-          ...(object === "properties" && schemaLocation !== undefined ? { schemaLocation } : {}),
           instanceLocation: occurrence.pointer.slice(object.length + 1),
         });
       },
@@ -40,14 +40,8 @@ export function memberNumericDiagnosticBudget(
       diagnostic: (occurrence: Parameters<JsonNumberDiagnosticBudget["diagnostic"]>[0]) => {
         const formatted = diagnostic(occurrence);
         if (!occurrence.pointer.startsWith("/metadataChange/")) {
-          // Keep caller context without presenting a request pointer as a
-          // document location or relabeling properties as metadata.
-          const { message, type, schemaLocation } = formatted;
-          return {
-            message,
-            ...(type !== undefined ? { type } : {}),
-            ...(schemaLocation !== undefined ? { schemaLocation } : {}),
-          };
+          // Neither a Type keyword nor a resulting document was evaluated.
+          return Object.freeze({ message: formatted.message });
         }
         // The patch has not been applied. An input value location (especially
         // an array append) need not identify a position in the resulting document.
