@@ -169,8 +169,7 @@ it("exposes detached frozen exact capture without changing compiler identity and
     .digest("hex")}`;
   expect(compiled.identity).toBe(identity);
   const saved = JSON.parse(JSON.stringify(compiled.capture));
-  present(input.schemas[0]).utf8Bytes.fill(0);
-  present(input.descriptors[0]).utf8Bytes.fill(0);
+  for (const artifact of [...input.descriptors, ...input.schemas]) artifact.utf8Bytes.fill(0);
   input.limits.totalBytes = 1;
   input.descriptors.length = 0;
   expect(compiled.capture).toEqual(saved);
@@ -377,12 +376,15 @@ it("installs a complete compiled owning descriptor bundle in its own store", () 
   owner.close();
 });
 it("compiles plain runtime artifacts in emitted module and serves same-owner Types, writes, sequence and restart", async () => {
+  const artifacts = plain();
+  // Installation order must not become the canonical inventory order.
+  artifacts.descriptors.reverse();
   const options = {
     scope,
     directory: directory(),
     create: true,
     port: 0,
-    artifacts: plain(),
+    artifacts,
     credentials: [{ token: "a".repeat(32), principal: "p", canMutate: true }],
   };
   let runtime = await emitted.startTransactionRuntime(options);
@@ -399,7 +401,21 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
     });
     return { status: response.status, value: await response.json() };
   };
-  const installedDescriptors = options.artifacts.descriptors.map(({ utf8 }) => JSON.parse(utf8));
+  const installedDescriptors = options.artifacts.descriptors
+    .map(({ utf8 }) => JSON.parse(utf8))
+    .sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+  expect(options.artifacts.descriptors.map(({ utf8 }) => JSON.parse(utf8).id)).toEqual([
+    type,
+    base,
+  ]);
+  expect(installedDescriptors.map(({ id }) => id)).toEqual([base, type]);
+  const inventory = {
+    status: 200,
+    value: {
+      items: installedDescriptors.map(({ id, name, describes }) => ({ id, name, describes })),
+      next: null,
+    },
+  };
   expect(await request(base)).toEqual({ status: 200, value: installedDescriptors[0] });
   const typeUrl = new URL(new URL(base).pathname, runtime.listenUrl);
   const typeGet = await fetch(typeUrl, { headers: { authorization: `Bearer ${"a".repeat(32)}` } });
@@ -414,13 +430,7 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
   expect(Number(typeHead.headers.get("content-length"))).toBe(Buffer.byteLength(typeBytes));
   expect(await typeHead.text()).toBe("");
   expect(JSON.parse(typeBytes)).toEqual(installedDescriptors[0]);
-  expect(await request("types/")).toEqual({
-    status: 200,
-    value: {
-      items: installedDescriptors.map(({ id, name, describes }) => ({ id, name, describes })),
-      next: null,
-    },
-  });
+  expect(await request("types/")).toEqual(inventory);
   for (const descriptor of installedDescriptors)
     expect(await request(descriptor.id)).toEqual({ status: 200, value: descriptor });
   const unknown = await request(
@@ -461,6 +471,7 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
   expect((await request("beads/tail")).status).toBe(200);
   await runtime.close();
   runtime = await emitted.startTransactionRuntime({ ...options, create: false });
+  expect(await request("types/")).toEqual(inventory);
   expect(
     await request("operations/create-bead", { id: "beads/a", type, properties: { n: 1 } }, "first"),
   ).toEqual(first);

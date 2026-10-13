@@ -727,12 +727,7 @@ it("retains detached immutable capture without changing the predecessor compiler
     "development-schema5-894c98da1156e66e72d7f5b4321365b9496ec68afea377dc1861bdaaa2cadf55",
   );
   const saved = JSON.parse(JSON.stringify(installed.capture));
-  const original = input.schemas[0];
-  if (!original) throw new Error("fixture schema missing");
-  original.utf8Bytes.fill(0);
-  const originalDescriptor = input.descriptors[0];
-  if (!originalDescriptor) throw new Error("fixture descriptor missing");
-  originalDescriptor.utf8Bytes.fill(0);
+  for (const artifact of [...input.descriptors, ...input.schemas]) artifact.utf8Bytes.fill(0);
   input.schemas.length = 0;
   input.descriptors.length = 0;
   expect(installed.capture).toEqual(saved);
