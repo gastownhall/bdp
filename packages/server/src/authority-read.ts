@@ -32,6 +32,7 @@ import {
 } from "./resource-evaluator.js";
 import {
   type ReadPaginationOptions,
+  type ReadSourceContext,
   type ReadPagination,
   createReadPagination,
   ReadPaginationError,
@@ -96,7 +97,9 @@ export type OwnerReadEntryResult<T> =
     };
 export interface AuthorityReadEntry {
   readonly scope: string;
-  withRead<T>(callback: (reader: AuthorityReadReader) => T): OwnerReadEntryResult<T>;
+  withRead<T>(
+    callback: (reader: AuthorityReadReader, sourceContext?: ReadSourceContext) => T,
+  ): OwnerReadEntryResult<T>;
 }
 export interface AuthorityReadOptions {
   readonly entry: AuthorityReadEntry;
@@ -115,6 +118,10 @@ export interface AuthorityReadOptions {
   ): ReadAuthorizationDecision;
 }
 export interface ReadObservation {
+  /** Source-private context captured with this request's read entry. */
+  readonly sourceContext?: ReadSourceContext;
+  /** Original source context of a retained collection page, when supplied. */
+  readonly snapshotSourceContext?: ReadSourceContext;
   readonly authorizationView: string;
   readonly scopeEpoch: string;
   readonly policyIdentity: string;
@@ -440,7 +447,15 @@ function captureContext(
   reader: AuthorityReadReader,
   principal: ReadPrincipal,
   intent: ReadIntent,
+  sourceContext?: ReadSourceContext,
 ): ReadContext | ReadRefusal {
+  const capturedSource =
+    sourceContext === undefined ? undefined : ownData(sourceContext, "Read source context");
+  if (
+    capturedSource !== undefined &&
+    Object.values(capturedSource).some((value) => typeof value !== "string")
+  )
+    throw new AuthorityReadError("configuration", "Read source context must contain strings");
   const decision = synchronous(prepared.capture(reader, principal, intent));
   if (decision.kind === "problem") return preContext(parseReadProblem(decision.problem));
   if (decision.kind !== "authorized")
@@ -463,6 +478,7 @@ function captureContext(
     scopeEpoch,
     policyIdentity: identity(policyIdentity, "policy identity"),
     configurationIdentity: identity(configurationIdentity, "configuration identity"),
+    ...(capturedSource === undefined ? {} : { sourceContext: capturedSource as ReadSourceContext }),
   });
   return Object.freeze({
     observation,
@@ -810,6 +826,17 @@ function materialize(
   return Object.freeze({ kind: "page", items: Object.freeze(items), observation });
 }
 
+function pageObservation(
+  prepared: Prepared,
+  page: import("./read-pagination.js").ReadPage<PageItem>,
+  observation: ReadObservation,
+): ReadObservation {
+  const context = prepared.pagination.sourceContext(page);
+  return context === undefined
+    ? observation
+    : Object.freeze({ ...observation, snapshotSourceContext: context });
+}
+
 function finish(prepared: Prepared, intent: ReadIntent, result: Materialized): ConcreteResult {
   if (result.kind === "continuation") {
     const page = control(
@@ -824,7 +851,11 @@ function finish(prepared: Prepared, intent: ReadIntent, result: Materialized): C
     );
     return isRefusal(page)
       ? page
-      : Object.freeze({ kind: "success", body: page, observation: result.observation });
+      : Object.freeze({
+          kind: "success",
+          body: page,
+          observation: pageObservation(prepared, page, result.observation),
+        });
   }
   if (result.kind !== "page") return result;
   if (intent.kind === "alias" || !isPageOperation(intent))
@@ -846,11 +877,18 @@ function finish(prepared: Prepared, intent: ReadIntent, result: Materialized): C
       scopeEpoch: result.observation.scopeEpoch,
       projection: navigation,
       continuationUrl: navigation,
+      ...(result.observation.sourceContext === undefined
+        ? {}
+        : { sourceContext: result.observation.sourceContext }),
     });
   }, result.observation);
   return isRefusal(body)
     ? body
-    : Object.freeze({ kind: "success", body, observation: result.observation });
+    : Object.freeze({
+        kind: "success",
+        body,
+        observation: pageObservation(prepared, body, result.observation),
+      });
 }
 
 function principalSnapshot(value: ReadPrincipal): {
@@ -920,11 +958,11 @@ export function createAuthorityReadPlane(options: AuthorityReadOptions): Authori
     let calls = 0;
     let captured: Materialized | undefined;
     const entry = synchronous(
-      prepared.enter((reader) => {
+      prepared.enter((reader, sourceContext) => {
         calls += 1;
         if (calls !== 1)
           throw new AuthorityReadError("integrity", "owner invoked Read callback more than once");
-        const context = captureContext(prepared, reader, principal, intent);
+        const context = captureContext(prepared, reader, principal, intent, sourceContext);
         captured = isRefusal(context) ? context : materialize(prepared, reader, context, intent);
         return captured;
       }),

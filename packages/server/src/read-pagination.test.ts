@@ -704,3 +704,62 @@ describe("Read snapshot pagination", () => {
     }
   });
 });
+
+describe("source-private pagination context", () => {
+  it("keeps immutable context paired with actual pages without adding wire fields", () => {
+    const { pagination, advance } = harness();
+    const sourceContext = { source: "one" };
+    const first = pagination.firstPage({ ...firstInput([1, 2, 3], 1), sourceContext });
+    sourceContext.source = "changed";
+    const second = pagination.continuePage({ ...identity, token: tokenFrom(first.next) });
+    expect(pagination.sourceContext(first)).toEqual({ source: "one" });
+    expect(pagination.sourceContext(second)).toBe(pagination.sourceContext(first));
+    expect(Object.isFrozen(pagination.sourceContext(first))).toBe(true);
+    expect(Object.keys(first).sort()).toEqual(["items", "next"]);
+    expectPaginationError(
+      () => pagination.sourceContext({ items: [1], next: null }),
+      "invalid-input",
+    );
+    advance(1000);
+    pagination.cleanupExpired();
+    expectPaginationError(
+      () => pagination.continuePage({ ...identity, token: tokenFrom(first.next) }),
+      "cursor-expired",
+    );
+    // Metadata of an already-delivered page is not a traversal capability.
+    expect(pagination.sourceContext(first)).toEqual({ source: "one" });
+    pagination.close();
+  });
+  it.each(["bytes", "nodes"])(
+    "counts context against the existing %s retention budget and releases it on expiry",
+    (dimension) => {
+      const overrides =
+        dimension === "bytes"
+          ? { retainedSnapshotByteCapacity: 20 }
+          : { retainedSnapshotNodeCapacity: 6 };
+      const { pagination, advance } = harness(overrides);
+      const input = { ...firstInput([1, 2], 1), sourceContext: { x: "1234567" } };
+      const first = pagination.firstPage(input);
+      expectPaginationError(() => pagination.firstPage(input), "capacity-exceeded");
+      expect(pagination.continuePage({ ...identity, token: tokenFrom(first.next) }).items).toEqual([
+        2,
+      ]);
+      advance(1000);
+      pagination.cleanupExpired();
+      expect(pagination.firstPage(input).items).toEqual([1]);
+      pagination.close();
+    },
+  );
+  it("preserves absence and supports a context on a terminal first page", () => {
+    const { pagination } = harness();
+    const plain = pagination.firstPage(firstInput([1]));
+    expect(pagination.sourceContext(plain)).toBeUndefined();
+    const contextual = pagination.firstPage({
+      ...firstInput([2]),
+      sourceContext: { source: "two" },
+    });
+    expect(pagination.sourceContext(contextual)).toEqual({ source: "two" });
+    expect(contextual).toEqual({ items: [2], next: null });
+    pagination.close();
+  });
+});

@@ -455,3 +455,35 @@ propagation, continuation source context, current serving fields, minimum-positi
 barriers, receipt reads and replication Snapshot/changefeed support remain outside
 this slice. Existing collection pagination is not a replication bootstrap. No HTTP
 listener or Transactional profile claim is introduced.
+
+## Private Transactional Read source context
+
+The same-owner Read entry now captures an immutable epoch/view/position record
+alongside the rows. The epoch comes from persisted owner metadata; the view is the
+owner's existing fixed all-visible projection, also used by its receipts/groups.
+The position comes from the committed metadata head, including `pos-0` for an empty
+Scope. Admission, no-op, alias-only and failed batches do not invent a new position.
+No receipt effect position or later diagnostic inspection supplies read context.
+
+The shared Read plane treats this as optional, source-private string data. Basic
+Read and Read+Update gain no required Scope-history field or wire member. On a
+collection continuation, the observation distinguishes current `sourceContext`
+from the retained page's original `snapshotSourceContext`. The latter stays paired
+with its original selected rows and revisions while current context is captured at
+each serving entry. A WeakMap pairs actual immutable page objects with their original
+context; it neither retains page keys indefinitely nor points back to snapshots.
+It is not a traversal capability. Cursor expiry and projection checks remain in
+ordinary pagination, and context storage consumes the same retained byte/node budget.
+
+The private Transactional composition validates exact epoch/view/position records
+before delivering observed results, including alias and observed-problem responses.
+Tests distinguish synchronous capture from later Promise delivery, a newer position
+with an unchanged Resource revision, repeated continuation serving context, current
+context on expired-cursor refusal, and immutable callback capture. Existing
+provenance, metadata, diagnostic-budget and storage-format changes on main are
+preserved through ordinary merge ancestry.
+
+This supplies internal observations, not HTTP consistency qualification. Selecting
+and enforcing response fields/minimum barriers, conditional/HEAD ordering, receipt
+serving context, replication Snapshots and changefeeds remain separate work. No
+public profile advertisement or historical evidence relabeling is implied.

@@ -2464,3 +2464,27 @@ describe("G11 partial plane construction error ownership", () => {
     },
   );
 });
+
+describe("source-private read context capture", () => {
+  it("snapshots owner context before callbacks and keeps basic Read context optional", async () => {
+    const f = fixture();
+    f.createBead("a");
+    const sourceContext = { source: "before" },
+      original = f.options.entry;
+    const entry: AuthorityReadOptions["entry"] = {
+      scope,
+      withRead: (callback) => original.withRead((reader) => callback(reader, sourceContext)),
+    };
+    Object.assign(f.options, { entry });
+    f.state.captureHook = () => {
+      sourceContext.source = "after";
+    };
+    const plane = f.open(),
+      facet = plane.readFor({ kind: "anonymous" });
+    const result = await facet.perform(resourceRequest());
+    expect(observation(result).sourceContext).toEqual({ source: "before" });
+    expect(Object.isFrozen(observation(result).sourceContext)).toBe(true);
+    expect(observation(result)).not.toHaveProperty("snapshotSourceContext");
+    expect(body(result)).not.toHaveProperty("sourceContext");
+  });
+});

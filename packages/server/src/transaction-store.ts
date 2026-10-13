@@ -29,6 +29,13 @@ import {
   type ReferenceBindings,
 } from "./transaction-dependencies.js";
 
+/** Actual fixed-view owner observation; not a receipt effect checkpoint. */
+export type TransactionReadContext = {
+  readonly scopeEpoch: string;
+  readonly authorizationView: string;
+  readonly scopePosition: string;
+};
+
 interface ReceiptCore {
   readonly id: string;
   readonly status: "pending" | "completed" | "failed";
@@ -418,7 +425,9 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       maximumEndpointMultiplicity: Object.freeze([]),
     }),
   });
-  function withRead<T>(callback: (reader: AuthorityReadReader) => T): OwnerReadEntryResult<T> {
+  function withRead<T>(
+    callback: (reader: AuthorityReadReader, context: TransactionReadContext) => T,
+  ): OwnerReadEntryResult<T> {
     if (busy)
       return {
         kind: "entry-refused",
@@ -476,7 +485,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         },
       });
       try {
-        const value = callback(reader);
+        const position = metadata("position");
+        if (!/^(0|[1-9][0-9]*)$/.test(position) || !Number.isSafeInteger(Number(position)))
+          throw new Error("invalid transaction read position");
+        const context: TransactionReadContext = Object.freeze({
+          scopeEpoch: epoch,
+          authorizationView: view,
+          scopePosition: `pos-${position}`,
+        });
+        const value = callback(reader, context);
         if (
           value !== null &&
           (typeof value === "object" || typeof value === "function") &&

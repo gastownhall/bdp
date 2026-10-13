@@ -11,7 +11,8 @@ import {
 } from "@bdp/protocol";
 import { prepareTransaction, prepareTransactionSingleton } from "./transaction-batch.js";
 import { openTransactionStore } from "./transaction-store.js";
-import { createTransactionReadPlane } from "./transaction-read.js";
+import { createTransactionReadPlane, transactionReadContexts } from "./transaction-read.js";
+import type { ReadObservation } from "./authority-read.js";
 import { requestFromUrl } from "./read-request.js";
 
 const scope = "https://example.test/transaction/";
@@ -117,6 +118,11 @@ const resource = (id: string, kind: "bead" | "link" = "bead"): ReadRequest => ({
 function body(result: unknown): Record<string, unknown> {
   expect(result).toMatchObject({ kind: "success" });
   return (result as { body: Record<string, unknown> }).body;
+}
+function contexts(result: unknown) {
+  if (typeof result !== "object" || result === null || !("observation" in result))
+    throw new Error("expected observation");
+  return transactionReadContexts(result.observation as ReadObservation);
 }
 function items(result: unknown): Record<string, unknown>[] {
   return body(result).items as Record<string, unknown>[];
@@ -356,4 +362,184 @@ describe("private same-owner Transactional Read", () => {
       ).toHaveLength(phase === "after" ? 2 : 0);
     },
   );
+});
+
+describe("Transactional same-entry source context", () => {
+  it("captures zero/committed positions with rows before asynchronous delivery or a later unrelated commit", async () => {
+    const f = fixture(),
+      { facet } = f.open();
+    const empty = facet.perform({ kind: "collection", collection: "beads" });
+    f.write(seed);
+    const initial = await empty;
+    expect(items(initial)).toEqual([]);
+    expect(contexts(initial)).toMatchObject({
+      current: { scopePosition: "pos-0" },
+      snapshot: { scopePosition: "pos-0" },
+    });
+    const original = facet.perform(resource("beads/a"));
+    f.write([
+      {
+        operation: "updateBead",
+        bead: "beads/b",
+        propertiesChange: [{ op: "replace", path: "/n", value: 8 }],
+      },
+    ]);
+    const beforeDelivery = await original;
+    const current = await facet.perform(resource("beads/a"));
+    expect(body(current)).toEqual(body(beforeDelivery));
+    expect(contexts(beforeDelivery).current.scopePosition).toBe("pos-1");
+    expect(contexts(current).current.scopePosition).toBe("pos-2");
+    expect(contexts(current)).not.toHaveProperty("snapshot");
+    expect(Object.isFrozen(contexts(current).current)).toBe(true);
+    expect(contexts(current).current.scopeEpoch).toBe(f.store.scopeEpoch);
+    expect(contexts(current).current.authorizationView).toBe("development-all-visible");
+  });
+
+  it("pairs original page rows/revisions/context with a new serving observation on each continuation", async () => {
+    const f = fixture();
+    f.write(seed);
+    const { facet, plane } = f.open();
+    const first = await facet.perform({ kind: "collection", collection: "beads", limit: 1 });
+    const originalB = body(await facet.perform(resource("beads/b")));
+    const request = requestFromUrl(new URL(body(first).next as string), scope as AbsoluteHttpUrl);
+    if (isReadProblem(request)) throw new Error("invalid continuation");
+    expect(contexts(first).snapshot).toEqual(contexts(first).current);
+    expect(Object.keys(body(first)).sort()).toEqual(["items", "next"]);
+    f.write([
+      {
+        operation: "updateBead",
+        bead: "beads/b",
+        propertiesChange: [{ op: "replace", path: "/n", value: 9 }],
+      },
+    ]);
+    const second = await facet.perform(request);
+    expect(items(second)).toEqual([originalB]);
+    expect(contexts(second).snapshot).toEqual(contexts(first).snapshot);
+    expect(contexts(second).current.scopePosition).toBe("pos-2");
+    f.write([{ operation: "deleteBead", bead: "beads/b" }]);
+    const replay = await facet.perform(request);
+    expect(body(replay)).toEqual(body(second));
+    expect(contexts(replay).snapshot?.scopePosition).toBe("pos-1");
+    expect(contexts(replay).current.scopePosition).toBe("pos-3");
+    await plane.close();
+    f.reopen();
+    const unavailable = await f.open().facet.perform(request);
+    expect(unavailable).toMatchObject({ kind: "problem", problem: { code: "cursor-expired" } });
+    expect(contexts(unavailable)).toMatchObject({ current: { scopePosition: "pos-3" } });
+    expect(contexts(unavailable)).not.toHaveProperty("snapshot");
+  });
+
+  it("does not advance observed position for pending admission, no-op, alias change or failed batch", async () => {
+    const f = fixture();
+    f.write(seed);
+    const { facet } = f.open();
+    const pending = f.store.admit(
+      "principal",
+      "pending",
+      prepareTransaction(
+        scope,
+        JSON.stringify({ operations: [{ operation: "createBead", type: bead }] }),
+      ),
+    );
+    expect(pending.kind).toBe("owned");
+    expect(
+      f.write([
+        {
+          operation: "updateBead",
+          bead: "beads/b",
+          propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
+        },
+      ]).status,
+    ).toBe("completed");
+    expect(f.alias("putAlias", { alias: "alias/work", target: "beads/a" }).status).toBe(
+      "completed",
+    );
+    expect(
+      f.write([
+        { operation: "createBead", id: "beads/tentative", type: bead },
+        { operation: "deleteBead", bead: "beads/missing" },
+      ]).status,
+    ).toBe("failed");
+    expect(contexts(await facet.resolveAlias(url("alias/work"))).current.scopePosition).toBe(
+      "pos-1",
+    );
+    const missing = await facet.perform(resource("beads/tentative"));
+    expect(missing).toMatchObject({ kind: "problem", problem: { code: "resource-not-found" } });
+    expect(contexts(missing).current.scopePosition).toBe("pos-1");
+    expect(
+      contexts(await facet.perform({ kind: "scope-discovery", scope: scope as AbsoluteHttpUrl }))
+        .current.scopePosition,
+    ).toBe("pos-1");
+    if (pending.kind !== "owned") throw new Error("missing claim");
+    f.store.retract(pending.claim);
+  });
+
+  it("captures immutable owner context under the same reentrancy guard as the row facade", () => {
+    const f = fixture();
+    f.write(seed);
+    const captured = f.store.withRead((reader, context) => {
+      expect(reader.resources()).toHaveLength(3);
+      expect(context.scopePosition).toBe("pos-1");
+      expect(Object.isFrozen(context)).toBe(true);
+      expect(() => f.write([{ operation: "deleteBead", bead: "beads/b" }])).toThrow("reentrant");
+      expect(reader.resources()).toHaveLength(3);
+      return context;
+    });
+    expect(captured).toMatchObject({ kind: "read", value: { scopePosition: "pos-1" } });
+    f.write([{ operation: "deleteBead", bead: "beads/b" }]);
+    expect(captured).toMatchObject({ kind: "read", value: { scopePosition: "pos-1" } });
+    expect(f.store.withRead((_reader, context) => context.scopePosition)).toEqual({
+      kind: "read",
+      value: "pos-2",
+    });
+  });
+
+  it.each([
+    "absent",
+    "extra",
+    "foreign-epoch",
+    "foreign-view",
+    "invalid-position",
+    "unsafe-position",
+    "future-snapshot",
+  ])("refuses %s context at the Transactional interpretation boundary", (fault) => {
+    const context = { scopeEpoch: "epoch", authorizationView: "view", scopePosition: "pos-2" };
+    const observation: ReadObservation = {
+      scopeEpoch: "epoch",
+      authorizationView: "view",
+      policyIdentity: "policy",
+      configurationIdentity: "config",
+      sourceContext: context,
+    };
+    if (fault === "absent") delete (observation as { sourceContext?: unknown }).sourceContext;
+    if (fault === "extra") Object.assign(context, { unknown: "value" });
+    if (fault === "foreign-epoch") context.scopeEpoch = "other";
+    if (fault === "foreign-view") context.authorizationView = "other";
+    if (fault === "invalid-position") context.scopePosition = "pos-02";
+    if (fault === "unsafe-position") context.scopePosition = "pos-9007199254740992";
+    if (fault === "future-snapshot")
+      Object.assign(observation, { snapshotSourceContext: { ...context, scopePosition: "pos-3" } });
+    expect(() => transactionReadContexts(observation)).toThrow("Read");
+  });
+});
+
+it("refuses accessor/proxy context at the TX boundary without executing it", () => {
+  const getter = vi.fn(() => "pos-1");
+  const source = { scopeEpoch: "epoch", authorizationView: "view" };
+  Object.defineProperty(source, "scopePosition", { enumerable: true, get: getter });
+  const observation = {
+    scopeEpoch: "epoch",
+    authorizationView: "view",
+    policyIdentity: "p",
+    configurationIdentity: "c",
+    sourceContext: source,
+  };
+  expect(() => transactionReadContexts(observation)).toThrow("context fields");
+  expect(getter).not.toHaveBeenCalled();
+  const trap = vi.fn();
+  const proxy = new Proxy({}, { ownKeys: trap });
+  expect(() => transactionReadContexts({ ...observation, sourceContext: proxy })).toThrow(
+    "context",
+  );
+  expect(trap).not.toHaveBeenCalled();
 });
