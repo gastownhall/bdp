@@ -922,7 +922,12 @@ bounds. The small fixture's configuration length is evidence about the fixture o
 not a general configuration byte budget.
 
 A shared compiler regression now pins a literal identity observed from the actual
-pre-capture compiler and checks deep capture immutability. TX regressions recreate a
-rolled-back tentative Resource ID, replay the exact failed-set receipt, and compare
-Type HEAD status/content length with GET. These strengthen evidence without changing
-runtime behavior or broadening any profile claim.
+pre-capture compiler and checks deep capture immutability after mutating both schema
+and descriptor input buffers. That identity binds the fixture artifacts and artifact,
+graph and evaluator ceilings; intentional input changes need a justified replacement
+witness rather than a pasted hash. TX regressions recreate a rolled-back tentative
+Resource ID, compare complete failed-batch and failed-set receipts on replay, compare
+Type HEAD status/content length with GET, require exact Type inventory summaries
+from the installed descriptors, and follow both IDs to compare the full documents.
+Inventory items remain the normative id/name/describes summaries. These strengthen evidence without
+changing runtime behavior or broadening any profile claim.

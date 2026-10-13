@@ -719,6 +719,10 @@ it("retains detached immutable capture without changing the predecessor compiler
   const installed = contracts.compileDevelopmentContracts(input);
   // Literal observed with the actual pre-capture compiler at fccb951 (its compiler
   // and artifact/schema sources are identical to the parent 3e2b878).
+  // Reproduce: node ../bdp-integration-logs/transaction-contracts-evidence/prior-identity.mjs
+  // Identity binds fixture artifacts plus artifact, graph and evaluator ceilings.
+  // Intentional changes to those inputs need a justified new witness, not a pasted
+  // hash or an expectation that the old compiler reproduces newly changed ceilings.
   expect(installed.identity).toBe(
     "development-schema5-894c98da1156e66e72d7f5b4321365b9496ec68afea377dc1861bdaaa2cadf55",
   );
@@ -726,6 +730,9 @@ it("retains detached immutable capture without changing the predecessor compiler
   const original = input.schemas[0];
   if (!original) throw new Error("fixture schema missing");
   original.utf8Bytes.fill(0);
+  const originalDescriptor = input.descriptors[0];
+  if (!originalDescriptor) throw new Error("fixture descriptor missing");
+  originalDescriptor.utf8Bytes.fill(0);
   input.schemas.length = 0;
   input.descriptors.length = 0;
   expect(installed.capture).toEqual(saved);
