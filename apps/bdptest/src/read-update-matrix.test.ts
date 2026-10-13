@@ -2171,6 +2171,8 @@ it.each([
   [0, "ra-create-link-source-pin", "source-pin", 200],
   [1, "rb-alias-local", "missing-bead", 404],
   [1, "rb-endpoint-source", "valid-endpoint", 200],
+  [1, "rb-seed-alias", "wrong-absolute-category", 422],
+  [1, "rb-seed-link", "wrong-pinned-category", 422],
 ] as const)(
   "detects reference input correction %s/%s/%s",
   async (index, actionId, control, status) => {
@@ -2182,6 +2184,9 @@ it.each([
     const action = row.actions.find((a: { id: string }) => a.id === actionId);
     if (control === "source-pin") action.input.body.source.uri = "beads/ra-source";
     else if (control === "missing-bead") action.input.body.target = "beads/rb-missing-control";
+    else if (control === "wrong-absolute-category")
+      action.input.body.target = `${scope}links/rb-live`;
+    else if (control === "wrong-pinned-category") action.input.body.source.uri = "links/rb-live";
     else action.input.body.source = "beads/rb-source";
     const report = await run(manifest, [id]);
     const observed = report.result.scenarios.find((r) => r.id === id);
@@ -2205,6 +2210,13 @@ it.each([
 );
 
 it.each([
+  {
+    scenario: referenceRows[1],
+    action: "rb-seed-link",
+    path: ["body", "resource", "source", "revision"],
+    value: "wrong-pin",
+    failed: "source-0",
+  },
   {
     scenario: referenceRows[0],
     action: "ra-create-link-source-pin-corrected",
@@ -2368,3 +2380,65 @@ it("detects reference live alias oracle corruption after fresh corrected put", a
       .map((a) => a.id),
   ).toEqual(["location"]);
 }, 30000);
+
+it("pins admitted absolute alias target and opaque pinned endpoint comparators in category row", () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[1]);
+  const alias = row.actions.find((a: { id: string }) => a.id === "rb-seed-alias");
+  expect(alias.input.body.target).toBe(`${scope}beads/rb-source`);
+  expect(alias.assertions.find((a: { id: string }) => a.id === "status")).toMatchObject({
+    equals: 200,
+  });
+  const aliasRead = row.actions.find((a: { id: string }) => a.id === "rb-seed-alias-0-read");
+  expect(aliasRead.assertions.find((a: { id: string }) => a.id === "status")).toMatchObject({
+    equals: 307,
+  });
+  expect(aliasRead.assertions.find((a: { id: string }) => a.id === "location")).toMatchObject({
+    equals: `${scope}beads/rb-source`,
+  });
+  const link = row.actions.find((a: { id: string }) => a.id === "rb-seed-link");
+  expect(link.input.body.source).toEqual({ uri: "beads/rb-source", revision: "fixture-pin" });
+  expect(link.assertions.find((a: { id: string }) => a.id === "status")).toMatchObject({
+    equals: 200,
+  });
+  expect(link.assertions.find((a: { id: string }) => a.id === "source-0")).toMatchObject({
+    equals: { uri: `${scope}beads/rb-source`, revision: "fixture-pin" },
+  });
+  expect(link.input.bodyBindings).toBeUndefined();
+});
+
+it.each(["identities", "stale-record"] as const)(
+  "detects named reference collection oracle corruption %s",
+  async (control) => {
+    const manifest = JSON.parse(
+      source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+    );
+    const row = manifest.scenarios.find((r: { id: string }) => r.id === referenceRows[0]);
+    const action = row.actions.find((a: { id: string }) => a.id === "ra-final-beads");
+    const assertionId = control === "identities" ? "identities" : "record-4";
+    const assertion = action.assertions.find((a: { id: string }) => a.id === assertionId);
+    if (control === "identities") {
+      expect(assertion.fixturePointer).toBe("/oracles/referenceEvidence/identities-9");
+      const fixture = JSON.parse(
+        source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
+      );
+      assertion.equals = structuredClone(fixture.oracles.referenceEvidence["identities-9"]);
+      assertion.equals[0][0] = `${scope}beads/incorrect-collection-identity`;
+      delete assertion.fixturePointer;
+    } else {
+      expect(assertion.equalsBinding).toBe("ra-update-bead-corrected-0-record");
+      // Same Resource identity, stale properties and revision from the actual earlier create.
+      assertion.equalsBinding = "ra-seed-update-0-record";
+    }
+    const report = await run(manifest, [referenceRows[0]]);
+    const observed = report.result.scenarios.find((r) => r.id === referenceRows[0]);
+    expect(observed?.state).toBe("fail");
+    expect(observed?.exchanges.at(-1)?.request.id).toBe(action.id);
+    const exchange = observed?.exchanges.find((a) => a.request.id === action.id);
+    expect(exchange?.response?.status).toBe(200);
+    expect(exchange?.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
+  },
+  30000,
+);

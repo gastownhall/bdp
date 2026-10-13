@@ -85616,7 +85616,10 @@
             "body": {
               "id": "links/rb-live",
               "type": "https://reference.invalid/acme/types/relates",
-              "source": "beads/rb-source",
+              "source": {
+                "uri": "beads/rb-source",
+                "revision": "fixture-pin"
+              },
               "target": "beads/rb-target",
               "properties": {
                 "edge": 1
@@ -85675,7 +85678,10 @@
               "kind": "json-pointer",
               "pointer": "/body/resource/source",
               "exists": true,
-              "equals": "https://reference.invalid/acme/beads/rb-source"
+              "equals": {
+                "uri": "https://reference.invalid/acme/beads/rb-source",
+                "revision": "fixture-pin"
+              }
             },
             {
               "id": "target-0",
@@ -85752,7 +85758,7 @@
             "credentialRef": "operator",
             "body": {
               "alias": "alias/rb-locator-live",
-              "target": "beads/rb-source"
+              "target": "https://reference.invalid/acme/beads/rb-source"
             },
             "idempotencyKey": "rb-seed-alias"
           },

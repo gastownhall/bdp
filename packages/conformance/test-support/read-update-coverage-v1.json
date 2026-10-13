@@ -8488,7 +8488,7 @@
       "id": "read-update.alias.non-canonical-target",
       "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "Installed alias target-category and Link-endpoint category corpus with full fixture diagnostic Problems, retained identity/conflict controls and reached-member/independent-tail observations. Pending independent selected-clause review; no general validation, retention-period or public conformance credit.",
+      "reason": "Installed alias target-category and Link-endpoint category corpus with full fixture diagnostic Problems, retained identity/conflict controls and reached-member/independent-tail observations. Pending independent selected-clause review; no general validation, retention-period or public conformance credit. In-row successful seed operations also admit an absolute canonical in-Scope Bead alias target and an opaque pinned Bead Link endpoint, with complete result facts and immediate alias/Resource readback. Diagnostic cause identifies the invalid canonical/in-Scope-Bead target condition; distinct prose for each disallowed category is not required. This remains a bounded observation, not whole-contract credit.",
       "bindings": [
         {
           "scenario": "read-update.alias.non-canonical-target",
