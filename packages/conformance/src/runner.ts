@@ -3097,7 +3097,8 @@ function compareKeys(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function isCanonicalScope(value: string): boolean {
+/** Internal predicate reused by source-only planning, not a package API. */
+export function isCanonicalScope(value: string): boolean {
   if (!isHttpUrl(value)) return false;
   const parsed = new URL(value);
   return (

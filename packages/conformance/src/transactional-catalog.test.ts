@@ -166,8 +166,10 @@ describe("draft Transactional catalog", () => {
       scenarios: [...readCatalog.scenarios, ...readUpdateCatalog.scenarios, ...catalog.scenarios],
     });
     const retired = new Set(Object.values(RETIREMENTS).flat());
-    expect([...retiredScenarioIds(combined, "transactional")].sort()).toEqual([...retired].sort());
-    expect([...retiredScenarioIds(combined, "read-update")]).toEqual([]);
+    expect([...retiredScenarioIds(combined, "transactional")].sort()).toEqual(
+      [...retired, "read.discovery.document"].sort(),
+    );
+    expect([...retiredScenarioIds(combined, "read-update")]).toEqual(["read.discovery.document"]);
     const transactional = selectNormativeScenariosForProfile(combined, "transactional").map(
       ({ id }) => id,
     );
