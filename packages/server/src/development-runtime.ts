@@ -44,7 +44,10 @@ const operations: Readonly<Record<string, ReadUpdateOperation>> = Object.freeze(
 export interface DevelopmentHttpComposition {
   readonly scopePath: string;
   createReadRoute(
-    authority: Awaited<ReturnType<typeof openDevelopmentAuthority>>,
+    authority: Pick<
+      Awaited<ReturnType<typeof openDevelopmentAuthority>>,
+      "scope" | "limits" | "discover" | "resolveAlias" | "perform"
+    >,
     directory: ReadUpdateOperationDirectory,
   ): HttpHandler;
 }
@@ -153,7 +156,16 @@ export async function startDevelopmentReferenceRuntime(
     throw new TypeError("invalid development port");
   if (!/^[A-Za-z0-9_-]{32,256}$/.test(options.token))
     throw new TypeError("development token must have 32-256 base64url characters");
+  if (
+    composition !== undefined &&
+    (composition === null ||
+      typeof composition !== "object" ||
+      typeof composition.scopePath !== "string" ||
+      typeof composition.createReadRoute !== "function")
+  )
+    throw new TypeError("invalid private HTTP composition");
   const scopePath = composition?.scopePath ?? "/";
+  const createReadRoute = composition?.createReadRoute;
   if (
     parseCanonicalScope(`http://127.0.0.1${scopePath}`) !== `http://127.0.0.1${scopePath}` ||
     !scopePath.startsWith("/") ||
@@ -195,7 +207,11 @@ export async function startDevelopmentReferenceRuntime(
       const name = rawUrl.startsWith(targetRoot) ? rawUrl.slice(targetRoot.length) : "";
       const operation = Object.hasOwn(operations, name) ? operations[name] : undefined;
       const mutationTarget = operation !== undefined || name === "sequence";
-      if (rawUrl.startsWith(targetRoot) && rawUrl !== targetRoot && !mutationTarget)
+      if (
+        rawUrl.startsWith(targetRoot) &&
+        (composition === undefined || rawUrl !== targetRoot) &&
+        !mutationTarget
+      )
         throw new ReceivingError("resource-not-found");
       if (request.method !== "POST" && mutationTarget) {
         empty(response, 405, "POST");
@@ -334,8 +350,17 @@ export async function startDevelopmentReferenceRuntime(
       ...(scheduler === undefined ? {} : { scheduler }),
       ...(clock === undefined ? {} : { clock }),
     });
-    if (composition !== undefined) {
-      composedRead = composition.createReadRoute(authority, directory);
+    if (createReadRoute !== undefined) {
+      composedRead = createReadRoute(
+        Object.freeze({
+          scope: authority.scope,
+          limits: authority.limits,
+          discover: authority.discover,
+          resolveAlias: authority.resolveAlias,
+          perform: authority.perform,
+        }),
+        directory,
+      );
       if (typeof composedRead !== "function") throw new TypeError("invalid private Read route");
     }
   } catch (error) {

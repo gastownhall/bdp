@@ -52,8 +52,16 @@ export function jsonResponse(body: unknown): HttpResponse {
   };
 }
 
-export function scopeDataResponse(operation: ReadRequest, body: unknown): HttpResponse {
+export function scopeDataResponse(
+  operation: ReadRequest,
+  body: unknown,
+  observedResourceRevision?: string,
+): HttpResponse {
   const response = jsonResponse(body);
+  // Properties carry no revision in their body. Owner-backed adapters can supply
+  // the revision captured atomically with that value, never a later fresh read.
+  if (operation.kind === "properties" && observedResourceRevision !== undefined)
+    response.headers.set("etag", resourceRevisionEtag(observedResourceRevision));
   if (
     operation.kind === "resource" &&
     operation.resource !== "type" &&
