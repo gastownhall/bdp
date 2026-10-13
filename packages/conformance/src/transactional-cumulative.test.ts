@@ -186,7 +186,7 @@ it("copies source bytes before binding and exposes all missing obligations witho
   expect(
     plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
   ).toEqual(actual.manifest.scenarios.map((r) => r.id));
-  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(242);
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(241);
   expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
   expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
   expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
@@ -691,6 +691,16 @@ function objectSlices(text: string, key: "scenarios" | "rows") {
 const originalObjectPins = {
   manifest: [
     [
+      "transactional.set.mutation",
+      "6e7280a9ebbbc3faa1da989015cc802f82cd51b17a9cea11e7cc91392bef49d6",
+      71739,
+    ],
+    [
+      "transactional.set.zero-match",
+      "35aa23bd32539869ea3db41e1c9f3e81a3217e2eb983e764e860a6e00c9eb2c9",
+      36055,
+    ],
+    [
       "transactional.set.cardinality",
       "205af1c54d62efb09c9eadf20147a1730909e788c0d4763ce9718b8648f24ede",
       28546,
@@ -722,6 +732,16 @@ const originalObjectPins = {
     ],
   ],
   coverage: [
+    [
+      "transactional.set.mutation",
+      "058147f8194f091ee5a7ef3d4fd378f0324f6570049df777f993acb5f967d540",
+      11676,
+    ],
+    [
+      "transactional.set.zero-match",
+      "4e79e18a5e4c2735b5c686b9ad610dedc890386bfb06584f98268a421bbb832b",
+      6520,
+    ],
     [
       "transactional.set.cardinality",
       "2a255ed4d364c435c9f985d7a770386bc7b20b2865887b9c8cc2d6cc5f0dd116",
@@ -762,7 +782,7 @@ function assertOriginalObjects(text: string, name: keyof typeof originalObjectPi
     expect(createHash("sha256").update(raw).digest("hex"), id).toBe(hash);
   }
 }
-it("preserves every original TX scenario and coverage object while adding two bounded partial rows", () => {
+it("preserves every original TX scenario and coverage object while adding one bounded partial receipt page row", () => {
   for (const name of ["manifest", "coverage"] as const)
     assertOriginalObjects(read(name).toString(), name);
   const changed = read("manifest").toString().replace('"equals": 401', '"equals": 402');
@@ -777,6 +797,7 @@ it("preserves every original TX scenario and coverage object while adding two bo
     "transactional.set.cardinality",
     "transactional.set.singleton-targets",
     "transactional.receipt.readable",
+    "transactional.receipt.pagination",
     "transactional.idempotency.failed-retained",
   ]);
   const counts = new Map<string, number>();
@@ -785,6 +806,7 @@ it("preserves every original TX scenario and coverage object while adding two bo
     ["transactional.set.singleton-targets", 22],
     ["transactional.set.mutation", 30],
     ["transactional.set.zero-match", 17],
+    ["transactional.receipt.pagination", 18],
   ] as const) {
     const rows = manifest.scenarios.filter((r: { id: string }) => r.id === id);
     expect(rows, id).toHaveLength(1);
@@ -798,10 +820,10 @@ it("preserves every original TX scenario and coverage object while adding two bo
   expect(
     counts.get("transactional.set.mutation")! + counts.get("transactional.set.zero-match")!,
   ).toBe(47);
-  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(121);
-  expect(read("manifest").byteLength - 130887).toBeLessThanOrEqual(112 * 1024);
-  expect(read("manifest").byteLength).toBeLessThanOrEqual(240 * 1024);
-  expect(read("coverage").byteLength - 23604).toBeLessThanOrEqual(24 * 1024);
+  expect(manifest.scenarios.flatMap((r: { actions: unknown[] }) => r.actions)).toHaveLength(139);
+  expect(read("manifest").byteLength - 238693).toBeLessThanOrEqual(136 * 1024);
+  expect(read("manifest").byteLength).toBeLessThanOrEqual(370 * 1024);
+  expect(read("coverage").byteLength - 41812).toBeLessThanOrEqual(16 * 1024);
   expect(read("fixture").byteLength).toBe(716);
   expect(createHash("sha256").update(read("fixture")).digest("hex")).toBe(
     "3a7899ced771d4880066d98b0000c53f801ece53458502cc4f3bc641146c9a85",
@@ -813,7 +835,7 @@ it("preserves every original TX scenario and coverage object while adding two bo
     nodes++;
     if (value && typeof value === "object") pending.push(...Object.values(value));
   }
-  expect(nodes).toBeLessThanOrEqual(7000);
+  expect(nodes).toBeLessThanOrEqual(10200);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
     "transactional.set.mutation": ["#set-mutation-objects", "#mutation-receipt-responses"],
@@ -858,5 +880,64 @@ it("pins required context presence before equality in both new set rows", () => 
         }
       }
     }
+  }
+});
+
+it("pins the one-page matched-plus-updated witness without advertised-limit or other-outcome credit", () => {
+  const row = manifest.scenarios.find(
+    (r: { id: string }) => r.id === "transactional.receipt.pagination",
+  );
+  expect(manifest.scenarios.indexOf(row)).toBe(7);
+  expect(row.actions).toHaveLength(18);
+  const later = row.actions.find((a: { id: string }) => a.id === "p-later-state");
+  expect(later.captures).toEqual([]); // HTTP capture is URL-only; no unimplemented array capture.
+  const final = row.actions.at(-1);
+  expect(final.id).toBe("p-final");
+  for (const [action, assertionId] of [
+    [later, "ordered-state"],
+    [final, "exact-later-items"],
+  ] as const) {
+    const tuple = action.assertions.find((a: { id: string }) => a.id === assertionId);
+    expect(tuple).toMatchObject({ kind: "json-array-tuples", pointer: "/items", ordered: true });
+    expect(tuple.projections).toEqual(
+      ["/id", "/type", "/properties", "/metadata"].map((pointer) => ({ pointer })),
+    );
+    expect(tuple.equals).toEqual(
+      Array.from({ length: 32 }, (_, index) => [
+        `https://reference.invalid/acme/beads/p${String(index).padStart(2, "0")}`,
+        "https://reference.invalid/acme/types/task",
+        { title: index === 31 ? "later" : "changed" },
+        { tag: "pagination" },
+      ]),
+    );
+  }
+  // Semantic final state is literal; opaque current envelopes are not captured.
+  // Exact recorded root/page whole-body retention remains a separate client oracle.
+  expect(
+    row.actions.filter((a: { operation?: string }) => a.operation === "transactional.reopen"),
+  ).toHaveLength(1);
+  const coverage = JSON.parse(read("coverage").toString()).rows.find(
+    (r: { id: string }) => r.id === row.id,
+  );
+  expect(coverage.reason).toContain("Matched consumes one entry slot");
+  expect(coverage.reason).toContain("only matched+updated");
+  expect(coverage.reason).toContain("advertised page.maximumItems");
+  for (const action of row.actions) {
+    if (action.family !== "client" || action.operation !== "transactional.receipt-read") continue;
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(action.assertions).toContainEqual(
+        expect.objectContaining({
+          kind: "json-pointer",
+          pointer: `/headers/${name}`,
+          exists: true,
+        }),
+      );
+    expect(action.assertions).toContainEqual(
+      expect.objectContaining({ pointer: "/headers/cache-control", equals: "private, no-store" }),
+    );
+    for (const name of ["etag", "last-modified"])
+      expect(action.assertions).toContainEqual(
+        expect.objectContaining({ pointer: `/headers/${name}`, exists: false }),
+      );
   }
 });
