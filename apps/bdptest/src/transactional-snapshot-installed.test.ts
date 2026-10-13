@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
   createRawHttpExchangeExecutor,
   type HttpExchangeResponse,
@@ -144,16 +144,39 @@ async function failureAfterCleanup(error: unknown, cleanup: () => Promise<void>)
     throw error;
   }, cleanup);
 }
-async function withInstalled(run: (f: Awaited<ReturnType<typeof start>>) => Promise<void>) {
-  const f = await start();
+async function withDeadline<T>(
+  run: (signal: AbortSignal) => Promise<T>,
+  milliseconds = 45000,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new Error("installed Snapshot test deadline")),
+    milliseconds,
+  );
+  return finishObservation(
+    () => run(controller.signal),
+    async () => {
+      clearTimeout(timer);
+    },
+    controller.signal,
+  );
+}
+async function withInstalled(
+  run: (f: Awaited<ReturnType<typeof start>>) => Promise<void>,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (!signal) return withDeadline((shared) => withInstalled(run, shared));
+  signal.throwIfAborted();
+  const f = await start(signal);
   await finishObservation(
     () => run(f),
     () => f.close(),
-    f.signal,
+    signal,
     (ok) => f.report(ok),
   );
 }
-async function start() {
+async function start(signal: AbortSignal) {
+  signal.throwIfAborted();
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-snapshot-installed-"));
   const operator = randomBytes(32).toString("base64url"),
     reader = randomBytes(32).toString("base64url");
@@ -167,17 +190,11 @@ async function start() {
       { token: reader, principal: "reader", canMutate: false },
     ],
   };
-  const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(new Error("installed Snapshot test deadline")),
-    45000,
-  );
   let child: Awaited<ReturnType<typeof launchInstalledTransaction>>;
   try {
-    child = await launchInstalledTransaction(entry, configuration, controller.signal);
+    child = await launchInstalledTransaction(entry, configuration, signal);
   } catch (error) {
     return failureAfterCleanup(error, async () => {
-      clearTimeout(timer);
       rmSync(directory, { recursive: true, force: true });
     });
   }
@@ -191,7 +208,6 @@ async function start() {
       finishObservation(
         () => child.close(),
         async () => {
-          clearTimeout(timer);
           rmSync(directory, { recursive: true, force: true });
         },
       ),
@@ -243,7 +259,7 @@ async function start() {
     const response = await execute({
       method,
       url,
-      signal: controller.signal,
+      signal,
       credentialRef,
       raw: {
         headerLines: Object.entries(headers).map(([name, value]) => ({ name, value })),
@@ -268,7 +284,7 @@ async function start() {
   return {
     exchange,
     baseline,
-    signal: controller.signal,
+    signal,
     async write(operations: unknown[], credential = "operator") {
       const response = await exchange(
         `${scope}operations/batch`,
@@ -288,18 +304,13 @@ async function start() {
     },
     async reopen() {
       await child.close();
-      child = await launchInstalledTransaction(
-        entry,
-        { ...configuration, create: false },
-        controller.signal,
-      );
+      child = await launchInstalledTransaction(entry, { ...configuration, create: false }, signal);
       expect(installedTransactionBinding(child.ready, sourceCommit, fixture)).toEqual(baseline);
     },
     async close() {
       await finishObservation(
         () => child.close(),
         async () => {
-          clearTimeout(timer);
           rmSync(directory, { recursive: true, force: true });
         },
       );
@@ -310,7 +321,7 @@ async function start() {
         JSON.stringify({
           observation: "private-installed-snapshot",
           outcome: ok ? "passed" : "failed",
-          aborted: controller.signal.aborted,
+          aborted: signal.aborted,
           declaredSourceCommit: sourceCommit,
           workspaceDirty,
           entry: resolvedEntry,
@@ -504,57 +515,61 @@ it("observes packed-capable canonical Snapshot streams, retained bytes and chang
 }, 60000);
 
 it("observes nonallocating creation decisions through the actual eight-handle capacity boundary", async () => {
-  let calibratedPayload: string | undefined;
-  await withInstalled(async (f) => {
-    calibratedPayload = f.baseline.served.installedPayloadDigest;
-    await f.write([createBead("a")]);
-    const ids = new Set<string>();
-    for (let i = 0; i < 8; i++) ids.add((await f.capture()).id);
-    expect(ids.size).toBe(8);
-    expect(json<{ code: string }>(await f.exchange(), 503).code).toBe("temporarily-unavailable");
-  });
-  await withInstalled(async (f) => {
-    expect(f.baseline.served.installedPayloadDigest).toBe(calibratedPayload);
-    await f.write([createBead("a")]);
-    const prior: Manifest[] = [];
-    for (let i = 0; i < 7; i++) prior.push(await f.capture());
-    for (const [status, method, headers, credential] of [
-      [200, "HEAD", {}, "operator"],
-      [304, "GET", { "if-none-match": "*" }, "operator"],
-      [412, "GET", { "if-match": '"absent"' }, "operator"],
-      [406, "GET", { accept: "text/plain" }, "operator"],
-      [401, "GET", {}, "anonymous"],
-      [405, "POST", {}, "operator"],
-      [403, "GET", { origin: "https://other.invalid" }, "operator"],
-    ] as [number, HttpMethod, Record<string, string>, string][]) {
-      const response = await f.exchange(undefined, method, headers, undefined, credential);
-      expect(response.status).toBe(status);
-      if ([200, 304, 412, 406].includes(status)) {
-        expect(response.bodyText).toBe("");
-        expect(response.headers.location).toBeUndefined();
-        expect(response.headers["bdp-scope-position"]).toBe("pos-1");
+  await withDeadline(async (signal) => {
+    let calibratedPayload: string | undefined;
+    await withInstalled(async (f) => {
+      calibratedPayload = f.baseline.served.installedPayloadDigest;
+      await f.write([createBead("a")]);
+      const ids = new Set<string>();
+      for (let i = 0; i < 8; i++) ids.add((await f.capture()).id);
+      expect(ids.size).toBe(8);
+      expect(json<{ code: string }>(await f.exchange(), 503).code).toBe("temporarily-unavailable");
+    }, signal);
+    await withInstalled(async (f) => {
+      expect(f.baseline.served.installedPayloadDigest).toBe(calibratedPayload);
+      await f.write([createBead("a")]);
+      const prior: Manifest[] = [];
+      for (let i = 0; i < 7; i++) prior.push(await f.capture());
+      for (const [status, method, headers, credential] of [
+        [200, "HEAD", {}, "operator"],
+        [304, "GET", { "if-none-match": "*" }, "operator"],
+        [412, "GET", { "if-match": '"absent"' }, "operator"],
+        [406, "GET", { accept: "text/plain" }, "operator"],
+        [401, "GET", {}, "anonymous"],
+        [405, "POST", {}, "operator"],
+        [403, "GET", { origin: "https://other.invalid" }, "operator"],
+      ] as [number, HttpMethod, Record<string, string>, string][]) {
+        const response = await f.exchange(undefined, method, headers, undefined, credential);
+        expect(response.status).toBe(status);
+        if ([200, 304, 412, 406].includes(status)) {
+          expect(response.bodyText).toBe("");
+          expect(response.headers.location).toBeUndefined();
+          expect(response.headers["bdp-scope-position"]).toBe("pos-1");
+        }
+        if (status === 406) expect(response.headers.vary).toBe("Accept");
+        if (status === 304 || method === "HEAD")
+          expect(response.headers["content-length"]).toBeUndefined();
       }
-      if (status === 406) expect(response.headers.vary).toBe("Accept");
-      if (status === 304 || method === "HEAD")
-        expect(response.headers["content-length"]).toBeUndefined();
-    }
-    const malformed = await f.exchange(`${scope}snapshot?snapshot=a&snapshot=b`);
-    expect(json<{ code: string }>(malformed, 400).code).toBe("invalid-parameter");
-    const unsupported = await f.exchange(undefined, "GET", {
-      "bdp-minimum-scope-position": "genesis",
-    });
-    expect(unsupported.status).toBe(500);
-    expect(unsupported.headers["x-bdp-development-limit"]).toBe("minimum-position");
-    const last = await f.capture();
-    expect(new Set([...prior, last].map((s) => s.id)).size).toBe(8);
-    const refused = await f.exchange();
-    expect(json<{ code: string }>(refused, 503).code).toBe("temporarily-unavailable");
-    expect(Number(refused.headers["retry-after"])).toBeGreaterThan(0);
-    for (const snapshot of [...prior, last])
-      expect(json<Manifest>(await f.exchange(snapshot.id))).toEqual(snapshot);
-    await f.reopen();
-    expect(json<{ code: string }>(await f.exchange(), 503).code).toBe("temporarily-unavailable");
-    expect(json<Manifest>(await f.exchange(last.id, "GET", {}, undefined, "reader"))).toEqual(last);
+      const malformed = await f.exchange(`${scope}snapshot?snapshot=a&snapshot=b`);
+      expect(json<{ code: string }>(malformed, 400).code).toBe("invalid-parameter");
+      const unsupported = await f.exchange(undefined, "GET", {
+        "bdp-minimum-scope-position": "genesis",
+      });
+      expect(unsupported.status).toBe(500);
+      expect(unsupported.headers["x-bdp-development-limit"]).toBe("minimum-position");
+      const last = await f.capture();
+      expect(new Set([...prior, last].map((s) => s.id)).size).toBe(8);
+      const refused = await f.exchange();
+      expect(json<{ code: string }>(refused, 503).code).toBe("temporarily-unavailable");
+      expect(Number(refused.headers["retry-after"])).toBeGreaterThan(0);
+      for (const snapshot of [...prior, last])
+        expect(json<Manifest>(await f.exchange(snapshot.id))).toEqual(snapshot);
+      await f.reopen();
+      expect(json<{ code: string }>(await f.exchange(), 503).code).toBe("temporarily-unavailable");
+      expect(json<Manifest>(await f.exchange(last.id, "GET", {}, undefined, "reader"))).toEqual(
+        last,
+      );
+    }, signal);
   });
 }, 60000);
 
@@ -604,4 +619,61 @@ it.each(["after-wire", "during-cleanup"])("refuses late deadline success %s", as
   expect(result).toBe(reason);
   expect(closed).toBe(true);
   expect(reports).toEqual([false]);
+});
+
+it("expires one aggregate budget between fixtures without starting an aborted fixture", async () => {
+  vi.useFakeTimers();
+  const reports: boolean[] = [];
+  let secondObservationStarted = false;
+  try {
+    const result = await withDeadline(async (signal) => {
+      await finishObservation(
+        async () => {
+          await vi.advanceTimersByTimeAsync(12);
+        },
+        async () => {},
+        signal,
+        (ok) => reports.push(ok),
+      );
+      await vi.advanceTimersByTimeAsync(9);
+      await withInstalled(async () => {
+        secondObservationStarted = true;
+      }, signal);
+    }, 20).catch((error) => error);
+    expect(result).toBeInstanceOf(Error);
+    expect(result.message).toBe("installed Snapshot test deadline");
+    expect(secondObservationStarted).toBe(false);
+    expect(reports).toEqual([true]); // First fixture finished before expiry; no second ledger.
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("charges sequential observations to the same budget and cannot report late success", async () => {
+  vi.useFakeTimers();
+  const reports: boolean[] = [];
+  let cleaned = 0;
+  try {
+    const result = await withDeadline(async (signal) => {
+      for (let fixture = 0; fixture < 2; fixture++)
+        await finishObservation(
+          async () => {
+            await vi.advanceTimersByTimeAsync(12);
+          },
+          async () => {
+            cleaned++;
+          },
+          signal,
+          (ok) => reports.push(ok),
+        );
+    }, 20).catch((error) => error);
+    expect(result).toBeInstanceOf(Error);
+    expect(result.message).toBe("installed Snapshot test deadline");
+    expect(cleaned).toBe(2);
+    expect(reports).toEqual([true, false]);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
 });

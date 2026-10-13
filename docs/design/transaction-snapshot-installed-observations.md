@@ -58,7 +58,12 @@ written to observation logs.
 
 Each observation requires a completed raw request write and framed HTTP response;
 receiver activity alone cannot pass a test. Test cleanup closes/reaps each child,
-with a 45-second fixture deadline and existing bounded launcher shutdown. Each
+with one 45-second aggregate deadline per service test and existing bounded
+launcher shutdown. Calibration and the following nonallocation fixture share
+that same controller; startup, exchanges and reopen never reset it. A fixture
+cannot start after aggregate expiry. The existing10-second launcher cleanup
+allowance remains inside the unchanged60-second outer test timeout. Single-
+fixture tests still get the same45-second budget. Each
 request retains the executor's five-second bound. Observation/startup failures
 and cleanup failures retain their individual causes in an AggregateError.
 The deadline is checked after observation and after cleanup; the completed-wire
@@ -68,7 +73,11 @@ of becoming sentinel data. Responses must carry the nonattesting marker and JSON
 or Problem media type as applicable;406 must carry Vary: Accept. Declared body
 length is checked against actual framing, rather than re-encoding decoded UTF-8. Local lifecycle countercontrols cover
 primary+cleanup failures and aborts after the last wire or during cleanup; they
-are helper tests, not synthetic successful target responses. No request bodies
+are helper tests, not synthetic successful target responses. Scaled deterministic
+controls also expire the aggregate budget between fixtures (no later fixture
+starts) and during the second observation (cleanup occurs and no late passed
+ledger is emitted). A passed first-fixture ledger remains its own completed
+observation, not a claim that the later aggregate test passed. No request bodies
 or credential headers are serialized into the safe summary.
 
 ## Limits
