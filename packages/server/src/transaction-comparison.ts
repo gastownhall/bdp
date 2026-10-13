@@ -13,7 +13,14 @@ export type DirectComparison =
 /** The private default is finite and independent of transaction duration. Options
  * are test seams, not protocol/discovery configuration or another key owner. */
 export async function compareAndAdmitTransaction(
-  store: Pick<ReturnType<typeof openTransactionStore>, "scopeEpoch" | "comparisonEpoch" | "admit">,
+  store: Pick<ReturnType<typeof openTransactionStore>, "scopeEpoch" | "comparisonEpoch"> & {
+    admit(
+      principal: string,
+      key: string,
+      request: PreparedTransaction,
+      controls?: TransactionReceivingControls,
+    ): TransactionReceivingAdmission;
+  },
   principal: string,
   key: string,
   request: PreparedTransaction,

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import { loadProfileContractSelection } from "./profile-contract-selection.js";
 
 import {
   loadExecutableScenarioManifestJson,
@@ -11,16 +12,9 @@ import {
   validateCatalogCitations,
 } from "./index.js";
 
-/**
- * The drafted Read+Update rows are metadata only. They bind normative text
- * so that the profile's obligations are reviewable now, but no executable
- * manifest names this catalog, no fixture realizes it, and no runner can
- * report a row from it — so nothing can claim it. That absence is asserted
- * here so it cannot erode silently. What is checked is structure and
- * citation consistency — the rows parse, every excerpt still appears in
- * its anchored section, and the rows mirror the specification's table in
- * order — never the behavior a row describes.
- */
+/** Catalog citations and composition are checked here. The explicit private
+ * cumulative manifest observes only its authored cases; missing obligations
+ * remain uncovered and public qualification is not enabled by this test. */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const readText = (relativePath: string): string =>
   readFileSync(path.resolve(root, relativePath), "utf8");
@@ -50,13 +44,32 @@ describe("draft Read+Update catalog", () => {
     expect(selectNormativeScenariosForProfile(catalog, "read").map(({ id }) => id)).toEqual([]);
   });
 
+  it("mirrors the declared Read discovery retirement exactly", () => {
+    const spec = readText("docs/specs/bdp.md");
+    const section =
+      spec
+        .split("#### Read+Update conformance rows")[1]
+        ?.split("#### Transactional conformance rows")[0] ?? "";
+    const declared = [
+      ...section.matchAll(/^- `(read-update\.[a-z0-9.-]+)` retires `(read\.[a-z0-9.-]+)`$/gm),
+    ].map((match) => [match[1], match[2]]);
+    const actual = catalog.scenarios.flatMap((row) =>
+      (row.retires ?? []).map((id) => [row.id, id]),
+    );
+    expect(declared).toEqual([["read-update.discovery.document", "read.discovery.document"]]);
+    expect(actual).toEqual(declared);
+    expect(section).toContain(
+      "replacing the\nRead+Update discovery row does not restore the Read-only shape",
+    );
+  });
+
   it("does not collide with the sealed Read catalog", () => {
     const readCatalog = loadScenarioCatalogJson(readText(READ_CATALOG_PATH), "read-v1.json");
     const readIds = new Set(readCatalog.scenarios.map(({ id }) => id));
     for (const id of ids) expect(readIds.has(id), id).toBe(false);
   });
 
-  it("is bound by no executable manifest, so no runner report can carry its rows", () => {
+  it("binds only the explicit partial version 2 RU manifest, preserving the sealed Read matrix", () => {
     const manifests = readdirSync(path.resolve(root, MATRICES_DIRECTORY)).filter((entry) =>
       entry.endsWith(".json"),
     );
@@ -66,6 +79,16 @@ describe("draft Read+Update catalog", () => {
         readText(path.join(MATRICES_DIRECTORY, entry)),
         entry,
       );
+      if (entry === "read-update-v1.json") {
+        expect(manifest.catalogId).toBe("read-update-v1");
+        expect(manifest.manifestVersion).toBe(2);
+        const cumulativeIds = loadProfileContractSelection("read-update").required.map(
+          (row) => row.id,
+        );
+        expect(manifest.scenarios.length).toBeLessThan(cumulativeIds.length);
+        for (const row of manifest.scenarios) expect(cumulativeIds).toContain(row.id);
+        continue;
+      }
       expect(manifest.catalogId, entry).not.toBe("read-update-v1");
       const bound = new Set(manifest.scenarios.map(({ id }) => id));
       for (const id of ids) expect(bound.has(id), `${entry} binds ${id}`).toBe(false);

@@ -2835,111 +2835,114 @@ describe("black-box conformance runner", () => {
     });
   });
 
-  it("compares HEAD status and stable metadata with an earlier GET exchange", async () => {
-    const base = inputs([{ id: "status", kind: "status", equals: 200 }]);
-    const scenario = requestScenario(base.artifactBundle.manifest.scenarios[0]);
-    const request = scenario?.requests[0];
-    if (scenario === undefined || request === undefined)
-      throw new Error("test inputs unexpectedly empty");
-    const manifest = parseExecutableScenarioManifest({
-      ...base.artifactBundle.manifest,
-      scenarios: [
-        {
-          ...scenario,
-          requests: [
-            request,
-            {
-              ...request,
-              id: "head",
-              method: "HEAD",
-              assertions: [
-                {
-                  id: "metadata",
-                  kind: "response-metadata-equals",
-                  request: request.id,
-                  headers: ["content-length", "content-type"],
-                },
-                { id: "body", kind: "body-absent" },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-    const execute = vi.fn(
-      async ({ method }: { readonly method: string }): Promise<HttpExchangeResponse> => ({
+  it.each(["content-length", "bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])(
+    "compares HEAD stable metadata %s with earlier GET",
+    async (header) => {
+      const base = inputs([{ id: "status", kind: "status", equals: 200 }]);
+      const scenario = requestScenario(base.artifactBundle.manifest.scenarios[0]);
+      const request = scenario?.requests[0];
+      if (scenario === undefined || request === undefined)
+        throw new Error("test inputs unexpectedly empty");
+      const manifest = parseExecutableScenarioManifest({
+        ...base.artifactBundle.manifest,
+        scenarios: [
+          {
+            ...scenario,
+            requests: [
+              request,
+              {
+                ...request,
+                id: "head",
+                method: "HEAD",
+                assertions: [
+                  {
+                    id: "metadata",
+                    kind: "response-metadata-equals",
+                    request: request.id,
+                    headers: [header],
+                  },
+                  { id: "body", kind: "body-absent" },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const execute = vi.fn(
+        async ({ method }: { readonly method: string }): Promise<HttpExchangeResponse> => ({
+          url: "https://scope.example/",
+          status: 200,
+          headers: { [header]: "2" },
+          bodyText: method === "HEAD" ? "" : "{}",
+          bodyOctets: method === "HEAD" ? 0 : 2,
+        }),
+      );
+
+      const passing = await runConformanceMatrix({
+        ...base,
+        artifactBundle: replaceArtifacts(base, { manifest }),
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        execute,
+        harness: harness(),
+      });
+      expect(passing.scenarios[0]).toMatchObject({ state: "pass" });
+
+      execute.mockResolvedValueOnce({
         url: "https://scope.example/",
         status: 200,
-        headers: { "content-length": "2", "content-type": "application/json" },
-        bodyText: method === "HEAD" ? "" : "{}",
-        bodyOctets: method === "HEAD" ? 0 : 2,
-      }),
-    );
+        headers: {},
+        bodyText: "{}",
+        bodyOctets: 2,
+      });
+      execute.mockResolvedValueOnce({
+        url: "https://scope.example/",
+        status: 200,
+        headers: {},
+        bodyText: "",
+        bodyOctets: 0,
+      });
+      const mutuallyAbsent = await runConformanceMatrix({
+        ...base,
+        artifactBundle: replaceArtifacts(base, { manifest }),
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        execute,
+        harness: harness(),
+      });
+      expect(mutuallyAbsent.scenarios[0]).toMatchObject({ state: "pass" });
 
-    const passing = await runConformanceMatrix({
-      ...base,
-      artifactBundle: replaceArtifacts(base, { manifest }),
-      scope: "https://scope.example/",
-      profile: "read",
-      seed: 0,
-      execute,
-      harness: harness(),
-    });
-    expect(passing.scenarios[0]).toMatchObject({ state: "pass" });
-
-    execute.mockResolvedValueOnce({
-      url: "https://scope.example/",
-      status: 200,
-      headers: {},
-      bodyText: "{}",
-      bodyOctets: 2,
-    });
-    execute.mockResolvedValueOnce({
-      url: "https://scope.example/",
-      status: 200,
-      headers: {},
-      bodyText: "",
-      bodyOctets: 0,
-    });
-    const mutuallyAbsent = await runConformanceMatrix({
-      ...base,
-      artifactBundle: replaceArtifacts(base, { manifest }),
-      scope: "https://scope.example/",
-      profile: "read",
-      seed: 0,
-      execute,
-      harness: harness(),
-    });
-    expect(mutuallyAbsent.scenarios[0]).toMatchObject({ state: "pass" });
-
-    execute.mockResolvedValueOnce({
-      url: "https://scope.example/",
-      status: 200,
-      headers: { "content-length": "2", "content-type": "application/json" },
-      bodyText: "{}",
-      bodyOctets: 2,
-    });
-    execute.mockResolvedValueOnce({
-      url: "https://scope.example/",
-      status: 200,
-      headers: { "content-length": "3", "content-type": "application/json" },
-      bodyText: "",
-      bodyOctets: 0,
-    });
-    const failing = await runConformanceMatrix({
-      ...base,
-      artifactBundle: replaceArtifacts(base, { manifest }),
-      scope: "https://scope.example/",
-      profile: "read",
-      seed: 0,
-      execute,
-      harness: harness(),
-    });
-    expect(failing.scenarios[0]).toMatchObject({
-      state: "fail",
-      reason: "response metadata did not match request 'scope'",
-    });
-  });
+      execute.mockResolvedValueOnce({
+        url: "https://scope.example/",
+        status: 200,
+        headers: { [header]: "2" },
+        bodyText: "{}",
+        bodyOctets: 2,
+      });
+      execute.mockResolvedValueOnce({
+        url: "https://scope.example/",
+        status: 200,
+        headers: { [header]: "3" },
+        bodyText: "",
+        bodyOctets: 0,
+      });
+      const failing = await runConformanceMatrix({
+        ...base,
+        artifactBundle: replaceArtifacts(base, { manifest }),
+        scope: "https://scope.example/",
+        profile: "read",
+        seed: 0,
+        execute,
+        harness: harness(),
+      });
+      expect(failing.scenarios[0]).toMatchObject({
+        state: "fail",
+        reason: "response metadata did not match request 'scope'",
+      });
+    },
+  );
 
   it.each([
     {
@@ -5915,3 +5918,76 @@ describe("version 2 exact HTTP receiving", () => {
     expect(report.declarations).not.toHaveProperty("exactConfigurationDigest");
   });
 });
+
+// Source-private gate: public root does not export this assertion helper.
+it.each([
+  "dynamicExactConfiguration",
+  "dynamicExactConfigurationDigest",
+  "sourceReceiptObservation",
+  "servedSession",
+])("refuses private %s fields in the runner legacy boundary", async (field) => {
+  const { assertLegacyScenario } = await import("./runner.js");
+  const scenario = {
+    id: "read.discovery",
+    requiredProfile: "read",
+    state: "pass",
+    requirements: [],
+    exchanges: [
+      {
+        request: { id: "get", method: "GET", url: "https://example.test/", headers: {} },
+        assertions: [],
+        [field]: {},
+      },
+    ],
+  } as unknown as import("./runner.js").ScenarioRunResult;
+  expect(() => assertLegacyScenario(scenario)).toThrow("legacy report");
+});
+
+it("excludes all private Transactional metadata from the legacy exchange type", () => {
+  type Legacy = import("./runner.js").LegacyObservedExchange;
+  type Fields = import("./transactional-observation.js").TransactionalExchangeFields;
+  const closed: [NonNullable<Legacy[keyof Fields]>] extends [never] ? true : false = true;
+  expect(closed).toBe(true);
+});
+
+it.each(["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])(
+  "requires explicit %s presence even when metadata equality sees two absent values",
+  async (name) => {
+    const base = { family: "http", target: { binding: "scope" }, headers: {}, captures: [] };
+    const options = actionInputs([
+      {
+        ...base,
+        id: "prior",
+        method: "GET",
+        assertions: [{ id: "status", kind: "status", equals: 200 }],
+      },
+      {
+        ...base,
+        id: "events",
+        method: "GET",
+        assertions: [
+          { id: "same", kind: "response-metadata-equals", request: "prior", headers: [name] },
+          { id: "present", kind: "header", name, absent: false },
+        ],
+      },
+    ]);
+    const observed = await runConformanceMatrix({
+      ...options,
+      scope: "https://scope.example/",
+      profile: "read",
+      seed: 0,
+      harness: harness(),
+      execute: async (request) => ({
+        url: request.url,
+        status: 200,
+        headers: {},
+        bodyText: "",
+        bodyOctets: 0,
+      }),
+    });
+    const row = observed.scenarios[0]!;
+    expect(row.state).toBe("fail");
+    expect(row.exchanges[1]?.assertions.find((a) => a.id === "same")?.passed).toBe(true);
+    expect(row.exchanges[1]?.assertions.find((a) => a.id === "present")?.passed).toBe(false);
+  },
+);

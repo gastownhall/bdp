@@ -1,8 +1,20 @@
-/** Private first Transactional slice. No transport or profile admission. */
+/** Private Transactional evaluator. Set serving admission remains closed. */
+import {
+  prepareSetCore,
+  transactionInputText as losslessText,
+  TransactionDevelopmentLimitError,
+  TRANSACTION_SELECTOR_LIMITS,
+  type PreparedTransactionSet,
+} from "./transaction-set.js";
+import { selectReadResources } from "./read-selector.js";
 import { snapshotReadUpdateRuntimeLimits } from "./read-update-runtime-limits.js";
 import { memberNumericDiagnosticBudget } from "./member-numeric-diagnostics.js";
 import {
   JsonNumberLiteral,
+  admitJsonNumbers,
+  compareCanonicalIds,
+  parseCanonicalScope,
+  type UnadmittedReadUpdateOperation,
   decodeJsonDocument,
   prepareReadUpdateSequence,
   prepareReadUpdateSingleton,
@@ -29,6 +41,7 @@ import {
 } from "./alias-evaluator.js";
 import {
   evaluateResourceMutation,
+  isResourceVisible,
   readStoredResource,
   type ResourceMutation,
   type ResourceOperation,
@@ -37,20 +50,31 @@ import {
   type ResourceRecord,
 } from "./resource-evaluator.js";
 
+export { TransactionDevelopmentLimitError } from "./transaction-set.js";
+
+class EventExpansionLimit extends Error {}
+class MatchExpansionLimit extends Error {}
+
 /** Private owner bounds. Check first-diagnostic feasibility against the same
  * receiving/property caps, including pointer escaping. No profile advertisement. */
 export const TRANSACTION_RUNTIME_LIMITS = Object.freeze({
+  maximumOperations: 32,
+  inducedEvents: 256,
+  matchedResources: 32,
+  representationBytes: 256 * 1024,
+  scopeSourceBytes: 64 * 1024,
   requestBodyBytes: 64 * 1024,
   propertiesBytes: 64 * 1024,
   diagnosticBytes: 512 * 1024,
   diagnosticCount: 16,
 });
+export const TRANSACTION_MAXIMUM_OPERATIONS: number = TRANSACTION_RUNTIME_LIMITS.maximumOperations;
 snapshotReadUpdateRuntimeLimits(TRANSACTION_RUNTIME_LIMITS);
 
-/** An unsupported private composition is not a protocol syntax ruling. */
-export class TransactionDevelopmentLimitError extends Error {}
 export interface PreparedTransaction {
-  readonly carrier: PreparedReadUpdateCarrier;
+  readonly carrier: Omit<PreparedReadUpdateCarrier, "operations"> & {
+    readonly operations: readonly (UnadmittedReadUpdateOperation | PreparedTransactionSet)[];
+  };
 }
 const prepared = new WeakSet<object>();
 function assertResourceOperation(operation: unknown): asserts operation is ResourceOperation {
@@ -76,16 +100,6 @@ function object(value: LosslessJsonValue | undefined): Record<string, LosslessJs
     throw new TypeError("expected object");
   return value as Record<string, LosslessJsonValue>;
 }
-function losslessText(value: LosslessJsonValue, depth = 0): string {
-  if (depth > 32) throw new TransactionDevelopmentLimitError("development batch depth limit");
-  if (value instanceof JsonNumberLiteral) return value.literal;
-  if (Array.isArray(value)) return `[${value.map((v) => losslessText(v, depth + 1)).join(",")}]`;
-  if (value && typeof value === "object")
-    return `{${Object.entries(value)
-      .map(([k, v]) => `${JSON.stringify(k)}:${losslessText(v, depth + 1)}`)
-      .join(",")}}`;
-  return JSON.stringify(value);
-}
 /** Whole-carrier syntax/Scope checks happen before consulting any durable key.
  * Reuses RU parsing, not RU admission or identity: synthetic member keys never
  * enter storage. This bounded owner accepts the six singleton Resource operation kinds. */
@@ -106,6 +120,49 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
     return { ...op, idempotencyKey: `internal-${index}` };
   });
   return prepareCarrier(prepareReadUpdateSequence(scope, losslessText({ operations })));
+}
+/** Experimental source-private core only. HTTP preparation deliberately does not
+ * call this seam until negative Selector admission semantics are resolved. */
+export function prepareTransactionSetCore(
+  scope: string,
+  text: string,
+  singleton = false,
+): PreparedTransaction {
+  if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
+    throw new RangeError("development batch byte limit");
+  const root = object(decodeJsonDocument(text));
+  losslessText(root);
+  if (Object.keys(root).length !== 1 || !Array.isArray(root.operations) || !root.operations.length)
+    throw new TypeError("expected nonempty batch operations");
+  if (singleton && root.operations.length !== 1) throw new TypeError("expected one core operation");
+  const canonicalScope = parseCanonicalScope(scope);
+  const raw = root.operations.map(object);
+  const resourceInputs = raw.filter(
+    (op) => op.operation !== "updateWhere" && op.operation !== "deleteWhere",
+  );
+  // Existing parser owns reference syntax, label order/kind/uniqueness and brands.
+  // Removing sets preserves relative Resource order; sets cannot declare labels.
+  const resources = resourceInputs.length
+    ? prepareTransaction(scope, losslessText({ operations: resourceInputs })).carrier.operations
+    : [];
+  let index = 0;
+  const operations = raw.map((op) => {
+    if (op.operation !== "updateWhere" && op.operation !== "deleteWhere") {
+      const resource = resources[index++];
+      if (!resource) throw new Error("missing prepared Resource operation");
+      return resource;
+    }
+    const { operation, ...input } = op;
+    return prepareSetCore(canonicalScope, operation, Object.freeze(input));
+  });
+  return prepareCarrier(
+    Object.freeze({
+      scope: canonicalScope,
+      kind: singleton ? "singleton" : "sequence",
+      operations: Object.freeze(operations),
+      keys: Object.freeze([]),
+    }),
+  );
 }
 /** A singleton is the same one-operation Transactional request, not a RU
  * execution. Its raw record excludes the discriminator, label and body key.
@@ -147,7 +204,8 @@ export function prepareTransactionSequence(
   if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     throw new RangeError("development sequence byte limit");
   const carrier = prepareReadUpdateSequence(scope, text);
-  if (carrier.operations.length > 32) throw new RangeError("development sequence member limit");
+  if (carrier.operations.length > TRANSACTION_MAXIMUM_OPERATIONS)
+    throw new RangeError("development sequence member limit");
   losslessText(object(decodeJsonDocument(text)));
   const labels = new Map<string, number>();
   const members = carrier.operations.map((op, index) => {
@@ -211,7 +269,7 @@ export function assertPreparedTransactionSequence(
   if (!sequences.has(sequence) || sequence.scope !== scope)
     throw new TypeError("expected prepared transaction sequence for this Scope");
 }
-function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction {
+function prepareCarrier(carrier: PreparedTransaction["carrier"]): PreparedTransaction {
   const result = Object.freeze({ carrier });
   prepared.add(result);
   return result;
@@ -220,13 +278,15 @@ export function assertPreparedTransaction(batch: PreparedTransaction, scope: str
   if (!prepared.has(batch) || batch.carrier.scope !== scope)
     throw new TypeError("expected prepared transaction for this Scope");
 }
-function aliasFields(operation: ReadUpdateOperation): readonly string[] {
+function aliasFields(
+  operation: ReadUpdateOperation | PreparedTransactionSet["operation"],
+): readonly string[] {
   if (operation === "createLink") return ["source", "target"];
   if (operation === "updateBead" || operation === "deleteBead") return ["bead"];
   return [];
 }
 interface OperationWitnesses {
-  readonly operation: ReadUpdateOperation;
+  readonly operation: ReadUpdateOperation | PreparedTransactionSet["operation"];
   readonly aliases: readonly { readonly locator: string; readonly target: string | null }[];
 }
 const witnessFormat = "transaction-alias-witnesses-1";
@@ -250,16 +310,21 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
     data.scope !== scope ||
     !Array.isArray(data.operations) ||
     data.operations.length < 1 ||
-    data.operations.length > 32
+    data.operations.length > TRANSACTION_MAXIMUM_OPERATIONS
   )
     throw new TypeError("invalid transaction alias witness envelope");
   return data.operations.map((value) => {
     const entry = object(value);
     if (Object.keys(entry).length !== 2 || !Array.isArray(entry.aliases))
       throw new TypeError("invalid transaction operation witnesses");
-    if (entry.operation !== "putAlias" && entry.operation !== "deleteAlias")
+    if (
+      entry.operation !== "putAlias" &&
+      entry.operation !== "deleteAlias" &&
+      entry.operation !== "updateWhere" &&
+      entry.operation !== "deleteWhere"
+    )
       assertResourceOperation(entry.operation);
-    const operation = entry.operation as ReadUpdateOperation;
+    const operation = entry.operation as OperationWitnesses["operation"];
     if (entry.aliases.length > aliasFields(operation).length)
       throw new TypeError("invalid transaction alias witness count");
     const seen = new Set<string>();
@@ -389,6 +454,54 @@ export interface TransactionStateChange {
     | ResourceRecord
     | { readonly id: string; readonly type: string; readonly revision: string };
 }
+// Source-private receipt subset; shared Read+Update Problems also describe
+// receiving/Read failures that are not terminal mutation receipt outcomes.
+const receiptProblemCodes = [
+  "forbidden",
+  "resource-not-found",
+  "limit-exceeded",
+  "binding-unavailable",
+  "validation-failed",
+  "type-not-installed",
+  "identity-taken",
+  "alias-path-taken",
+  "revision-mismatch",
+  "incident-links-exist",
+  "aggregate-constraint-violation",
+  "cardinality-violated",
+  "revision-allocation-unsafe",
+] as const;
+type ReceiptProblemCode = (typeof receiptProblemCodes)[number];
+const receiptProblemStatuses = [400, 403, 404, 409, 413, 422] as const;
+type ReceiptProblemStatus = (typeof receiptProblemStatuses)[number];
+function isReceiptCode(value: unknown): value is ReceiptProblemCode {
+  return receiptProblemCodes.some((code) => code === value);
+}
+function isReceiptStatus(value: unknown): value is ReceiptProblemStatus {
+  return receiptProblemStatuses.some((status) => status === value);
+}
+// Restate required receipt fields: mapped Omit over RFC9457's string index
+// signature would erase their requirements. Preserve extension fields explicitly.
+interface BatchProblem {
+  readonly type: string;
+  readonly status: ReceiptProblemStatus;
+  readonly retry: ReadUpdateProblem["retry"];
+  readonly diagnostics?: ReadUpdateProblem["diagnostics"];
+  readonly diagnosticsTruncated?: boolean;
+  readonly [key: string]: unknown;
+}
+function receiptProblem(
+  problem: ReadUpdateProblem,
+): BatchProblem & { readonly code: ReceiptProblemCode } {
+  if (
+    typeof problem.type !== "string" ||
+    !isReceiptCode(problem.code) ||
+    !isReceiptStatus(problem.status) ||
+    !["never", "after-state-change", "after-delay"].includes(problem.retry)
+  )
+    throw new Error("evaluator failure lacks required receipt Problem fields");
+  return { ...problem, type: problem.type, code: problem.code, status: problem.status };
+}
 export type BatchEvaluation =
   | {
       readonly ok: true;
@@ -398,14 +511,40 @@ export type BatchEvaluation =
     }
   | {
       readonly ok: false;
-      readonly problem: ReadUpdateProblem & {
+      readonly problem: BatchProblem & {
+        readonly code: ReceiptProblemCode;
         readonly operationIndex: number;
         readonly operationName?: string;
       };
+    }
+  | {
+      readonly ok: false;
+      readonly problem: BatchProblem & {
+        readonly code: "limit-exceeded";
+        readonly limit: "transaction.inducedEvents" | "transaction.matchedResources";
+        readonly operationIndex?: never;
+        readonly operationName?: never;
+      };
     };
-export type TransactionMutationContext = ResourceTransaction & AliasTransaction;
+export type TransactionMutationContext = ResourceTransaction &
+  AliasTransaction & {
+    resources(
+      kind: "bead" | "link",
+    ): readonly NonNullable<ReturnType<ResourceTransaction["resource"]>>[];
+  };
 export interface TransactionEvaluationOptions extends ResourceEvaluationOptions {
+  /** TX materialization proof requires finite complete-Resource bounds.
+   * The owner passes the captured tuple; this does not change RU optionality. */
+  readonly limits: ResourceEvaluationOptions["limits"] & {
+    readonly propertiesBytes: number;
+    readonly representationBytes: number;
+    readonly diagnosticBytes: number;
+    readonly diagnosticCount: number;
+  };
   readonly aliasPolicy: AliasEvaluationOptions["policy"];
+  /** Evaluator-only test seam; cannot raise the private authority cap. */
+  readonly maximumInducedEvents?: number;
+  readonly maximumMatchedResources?: number;
 }
 export function evaluateTransaction(
   normalized: NormalizedTransaction,
@@ -415,15 +554,42 @@ export function evaluateTransaction(
   position: string,
   now: number,
 ): BatchEvaluation {
+  for (const field of [
+    "propertiesBytes",
+    "representationBytes",
+    "diagnosticBytes",
+    "diagnosticCount",
+  ] as const) {
+    const value = options.limits[field];
+    if (!Number.isSafeInteger(value) || value < 1 || value > TRANSACTION_RUNTIME_LIMITS[field])
+      throw new TypeError(`invalid transaction evaluator ${field} bound`);
+  }
   const state = normalizedState.get(normalized);
   if (!state || state.batch.carrier.scope !== options.scope)
     throw new TypeError("expected normalized transaction for this Scope");
+  const eventMaximum = options.maximumInducedEvents ?? TRANSACTION_RUNTIME_LIMITS.inducedEvents;
+  if (
+    !Number.isSafeInteger(eventMaximum) ||
+    eventMaximum < 1 ||
+    eventMaximum > TRANSACTION_RUNTIME_LIMITS.inducedEvents
+  )
+    throw new TypeError("invalid evaluator Event bound");
+  const matchMaximum =
+    options.maximumMatchedResources ?? TRANSACTION_RUNTIME_LIMITS.matchedResources;
+  if (
+    !Number.isSafeInteger(matchMaximum) ||
+    matchMaximum < 1 ||
+    matchMaximum > TRANSACTION_RUNTIME_LIMITS.matchedResources
+  )
+    throw new TypeError("invalid evaluator matched Resource bound");
+  let matchedResources = 0;
   const batch = state.batch;
   const bindings = new Map<string, string>();
   const results: unknown[] = [],
     events: TransactionEvent[] = [];
   const changes = new Map<string, TransactionStateChange>();
   function scopeEvent(subject: ResourceRecord, type: TransactionEvent["type"], data: unknown) {
+    if (events.length >= eventMaximum) throw new EventExpansionLimit();
     const ordinal = events.length;
     events.push({
       id: `${position}-${ordinal}`,
@@ -439,83 +605,12 @@ export function evaluateTransaction(
       data,
     });
   }
-  for (const [operationIndex, op] of batch.carrier.operations.entries()) {
-    if ([...state.references.values()].includes(UNBOUND_SEMANTIC_REFERENCE))
-      return {
-        ok: false,
-        problem: {
-          type: "https://github.com/gastownhall/bdp/problems/request",
-          status: 400,
-          code: "binding-unavailable",
-          retry: "never",
-          operationIndex,
-        },
-      };
-    const admitted = admitReadUpdateOperationNumbers(
-      op,
-      memberNumericDiagnosticBudget(op.operation, {
-        diagnostics: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
-        diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
-        diagnostic: ({ pointer }) => ({
-          message:
-            pointer.startsWith("/propertiesChange/") || pointer.startsWith("/metadataChange/")
-              ? `unsupported number at request location ${pointer}`
-              : "unsupported number",
-        }),
-      }),
-    );
-    if (!admitted.ok)
-      return {
-        ok: false,
-        problem: {
-          type: "https://github.com/gastownhall/bdp/problems/validation",
-          status: 422,
-          code: "validation-failed",
-          retry: "never",
-          diagnostics: admitted.diagnostics,
-          ...(admitted.diagnosticsTruncated ? { diagnosticsTruncated: true } : {}),
-          operationIndex,
-          ...(op.name ? { operationName: op.name } : {}),
-        },
-      };
-    const input: Record<string, unknown> = { ...admitted.input };
-    if (operationIndex === 0)
-      for (const [field, value] of state.references) {
-        const prior = input[field];
-        input[field] = typeof prior === "string" ? value : { ...(prior as object), uri: value };
-      }
-    if (op.operation === "putAlias" || op.operation === "deleteAlias") {
-      // Alias singletons and sequence members share this one-operation owner.
-      // Locator effects have
-      // a durable receipt but deliberately no Resource Event or Scope position.
-      if (batch.carrier.kind !== "singleton" || batch.carrier.operations.length !== 1)
-        throw new Error("alias operation escaped singleton admission");
-      const result = evaluateAliasMutation(
-        tx,
-        { operation: op.operation, input } as AliasMutation,
-        { scope: options.scope, policy: options.aliasPolicy, limits: options.limits },
-      );
-      if (result.effect === "failure")
-        return { ok: false, problem: { ...result.outcome, operationIndex } };
-      results.push({ operationIndex, ...result.outcome });
-      continue;
-    }
-    const aliases = state.aliases[operationIndex];
-    if (!aliases) throw new Error("missing admitted operation witnesses");
-    for (const field of ["source", "target", "bead", "link"]) {
-      const ref = input[field] as string | { uri: string; revision: string } | undefined;
-      if (ref === undefined) continue;
-      const uri = referenceUri(ref);
-      if (uri.startsWith("@")) {
-        const id = bindings.get(uri.slice(1));
-        if (!id) throw new Error("validated binding missing");
-        input[field] = typeof ref === "string" ? id : { ...ref, uri: id };
-      } else if (aliasFields(op.operation).includes(field)) {
-        const target = aliases.get(canonicalReference(options.scope, uri));
-        if (target != null)
-          input[field] = typeof ref === "string" ? target : { ...ref, uri: target };
-      }
-    }
+  function applyResource(
+    op: { readonly operation: ResourceOperation; readonly name?: string },
+    input: Record<string, unknown>,
+    operationIndex: number,
+    aliases: ReadonlyMap<string, string | null>,
+  ): Extract<BatchEvaluation, { ok: false }> | undefined {
     const locator = input.bead ?? input.link;
     const beforeRow =
       typeof locator === "string"
@@ -524,10 +619,20 @@ export function evaluateTransaction(
           )
         : undefined;
     const before = beforeRow ? readStoredResource(beforeRow, options.scope) : undefined;
+    // Capture each same-turn preimage before the evaluator writes either the
+    // direct Resource or its owning source. No recipe or allocator is duplicated.
+    const previous = new Map<string, ResourceRecord | undefined>();
     // Syntax and numeric admission preserve the operation/input pairing.
     const result = evaluateResourceMutation(
       {
         ...tx,
+        putResource(row) {
+          if (!previous.has(row.id)) {
+            const old = tx.resource(row.id);
+            previous.set(row.id, old ? readStoredResource(old, options.scope) : undefined);
+          }
+          tx.putResource(row);
+        },
         // A captured miss must not become a live target after admission. Other
         // lookups (e.g. creation uniqueness) still consult current authority state.
         alias(path) {
@@ -544,34 +649,43 @@ export function evaluateTransaction(
       return {
         ok: false,
         problem: {
-          ...result.outcome,
+          ...receiptProblem(result.outcome),
           operationIndex,
           ...(op.name ? { operationName: op.name } : {}),
         },
       };
     const outcome = result.outcome;
-    if (outcome.sourceRevision !== undefined) throw new Error("unsupported owned-Link transition");
     results.push({ operationIndex, ...(op.name ? { operationName: op.name } : {}), ...outcome });
     const resource = outcome.resource;
     if (op.name && outcome.outcome === "created" && resource) bindings.set(op.name, resource.id);
     // A retained revision is an observed no-op, not a committed transition.
-    if (result.changed.length === 0 && result.deleted.length === 0) continue;
+    if (result.changed.length === 0 && result.deleted.length === 0) return;
     const subject = resource ?? before;
     if (!subject) throw new Error("successful transition lacks Resource state");
-    changes.set(
-      subject.id,
-      outcome.deleted
-        ? {
-            operation: "tombstone",
-            resourceKind: outcome.deleted.resourceKind,
-            resource: outcome.deleted.resource,
-          }
-        : {
-            operation: "upsert",
-            resourceKind: "source" in subject ? "link" : "bead",
-            resource: subject,
-          },
-    );
+    // Evaluator IDs are local lookup paths; group identity is always canonical.
+    // One owned operation changes at most the Link and its source Bead.
+    for (const id of result.changed) {
+      const row = tx.resource(id);
+      if (!row) throw new Error("changed Resource lacks staged postimage");
+      const record = readStoredResource(row, options.scope);
+      changes.set(record.id, {
+        operation: "upsert",
+        resourceKind: "source" in record ? "link" : "bead",
+        resource: record,
+      });
+    }
+    for (const id of result.deleted) {
+      if (
+        !before ||
+        !outcome.deleted ||
+        before.id !== `${options.scope}${id}` ||
+        outcome.deleted.resource.id !== before.id ||
+        outcome.deleted.resource.type !== before.type ||
+        outcome.deleted.resource.revision !== before.revision
+      )
+        throw new Error("deleted Resource lacks matching previous identity");
+      changes.set(before.id, { operation: "tombstone", ...outcome.deleted });
+    }
     if (outcome.outcome === "created") {
       scopeEvent(subject, "created", {
         revision: subject.revision,
@@ -606,7 +720,237 @@ export function evaluateTransaction(
         });
       }
     }
+    if (outcome.sourceRevision !== undefined) {
+      if (!("source" in subject) || !outcome.source?.startsWith(options.scope))
+        throw new Error("owned transition lacks canonical Link/source identity");
+      const localSource = outcome.source.slice(options.scope.length);
+      const oldSource = previous.get(localSource),
+        row = tx.resource(localSource);
+      const source = row ? readStoredResource(row, options.scope) : undefined;
+      if (
+        !oldSource ||
+        !source ||
+        "source" in source ||
+        "source" in oldSource ||
+        source.id !== outcome.source ||
+        source.revision !== outcome.sourceRevision
+      )
+        throw new Error("owned transition lacks matching source versions");
+      let link: unknown;
+      if (outcome.outcome === "created") link = subject;
+      else if (outcome.outcome === "deleted")
+        link = { id: subject.id, type: subject.type, revision: subject.revision };
+      else {
+        if (!before || (input.propertiesChange === undefined && input.metadataChange === undefined))
+          throw new Error("owned update lacks committed patch");
+        link = {
+          id: subject.id,
+          type: subject.type,
+          previousRevision: before.revision,
+          revision: subject.revision,
+          ...(input.propertiesChange !== undefined ? { change: input.propertiesChange } : {}),
+          ...(input.metadataChange !== undefined ? { metadataChange: input.metadataChange } : {}),
+          ...(subject.revisionProvenance ? { revisionProvenance: subject.revisionProvenance } : {}),
+        };
+      }
+      // Up to four facts: Link lifecycle, source/target incidence, owning Bead.
+      // The source Event is last and never carries a direct Resource patch.
+      scopeEvent(source, "updated", {
+        previousRevision: oldSource.revision,
+        revision: source.revision,
+        ownedLink: { operation: outcome.outcome, link },
+        ...(source.revisionProvenance ? { revisionProvenance: source.revisionProvenance } : {}),
+      });
+    }
+    return undefined;
   }
+  try {
+    for (const [operationIndex, op] of batch.carrier.operations.entries()) {
+      if ([...state.references.values()].includes(UNBOUND_SEMANTIC_REFERENCE))
+        return {
+          ok: false,
+          problem: {
+            type: "https://github.com/gastownhall/bdp/problems/request",
+            status: 400,
+            code: "binding-unavailable",
+            retry: "never",
+            operationIndex,
+          },
+        };
+      if (op.operation === "updateWhere" || op.operation === "deleteWhere") {
+        const admitted = admitJsonNumbers(op.input, {
+          diagnostics: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
+          diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
+          diagnostic: ({ pointer }) => ({
+            message: `unsupported number at request location ${pointer}`,
+          }),
+        });
+        if (!admitted.ok)
+          return {
+            ok: false,
+            problem: {
+              type: "https://github.com/gastownhall/bdp/problems/validation",
+              status: 422,
+              code: "validation-failed",
+              retry: "never",
+              operationIndex,
+              diagnostics: admitted.diagnostics,
+              ...(admitted.diagnosticsTruncated ? { diagnosticsTruncated: true } : {}),
+            },
+          };
+        const input = admitted.value as Record<string, unknown>;
+        const selected = selectReadResources(
+          input.selector as string,
+          TRANSACTION_SELECTOR_LIMITS,
+          tx
+            .resources(input.collection === "beads" ? "bead" : "link")
+            .map((row) => {
+              if (!row) throw new Error("staged collection contains missing Resource");
+              return readStoredResource(row, options.scope);
+            })
+            .filter((record) => isResourceVisible(tx, record, options.scope, options.policy)),
+        )
+          .slice()
+          .sort((a, b) => compareCanonicalIds(a.id, b.id));
+        const cardinality = input.cardinality as { min?: number; max?: number } | undefined;
+        if (
+          (cardinality?.min !== undefined && selected.length < cardinality.min) ||
+          (cardinality?.max !== undefined && selected.length > cardinality.max)
+        )
+          return {
+            ok: false,
+            problem: {
+              type: "https://github.com/gastownhall/bdp/problems/conflict",
+              status: 409,
+              code: "cardinality-violated",
+              retry: "after-state-change",
+              operationIndex,
+            },
+          };
+        // Count selections across operations, including repeat matches and
+        // semantic no-ops, before adding their result entries. Enumeration and
+        // selection above still scan the complete candidate collection.
+        matchedResources += selected.length;
+        if (matchedResources > matchMaximum) throw new MatchExpansionLimit();
+        results.push({ operationIndex, outcome: "matched", count: selected.length });
+        for (const resource of selected) {
+          const bead = input.collection === "beads";
+          const failure = applyResource(
+            {
+              operation:
+                op.operation === "updateWhere"
+                  ? bead
+                    ? "updateBead"
+                    : "updateLink"
+                  : bead
+                    ? "deleteBead"
+                    : "deleteLink",
+            },
+            {
+              [bead ? "bead" : "link"]: resource.id,
+              ...(op.operation === "updateWhere" ? { propertiesChange: input.change } : {}),
+              ...(input.revisionProvenance === undefined
+                ? {}
+                : { revisionProvenance: input.revisionProvenance }),
+            },
+            operationIndex,
+            new Map(),
+          );
+          if (failure) return failure;
+        }
+        continue;
+      }
+      const admitted = admitReadUpdateOperationNumbers(
+        op as UnadmittedReadUpdateOperation,
+        memberNumericDiagnosticBudget(op.operation, {
+          diagnostics: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
+          diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
+          diagnostic: ({ pointer }) => ({
+            message:
+              pointer.startsWith("/propertiesChange/") || pointer.startsWith("/metadataChange/")
+                ? `unsupported number at request location ${pointer}`
+                : "unsupported number",
+          }),
+        }),
+      );
+      if (!admitted.ok)
+        return {
+          ok: false,
+          problem: {
+            type: "https://github.com/gastownhall/bdp/problems/validation",
+            status: 422,
+            code: "validation-failed",
+            retry: "never",
+            diagnostics: admitted.diagnostics,
+            ...(admitted.diagnosticsTruncated ? { diagnosticsTruncated: true } : {}),
+            operationIndex,
+            ...(op.name ? { operationName: op.name } : {}),
+          },
+        };
+      const input: Record<string, unknown> = { ...admitted.input };
+      if (operationIndex === 0)
+        for (const [field, value] of state.references) {
+          const prior = input[field];
+          input[field] = typeof prior === "string" ? value : { ...(prior as object), uri: value };
+        }
+      if (op.operation === "putAlias" || op.operation === "deleteAlias") {
+        // Alias singletons and sequence members share this one-operation owner.
+        // Locator effects have
+        // a durable receipt but deliberately no Resource Event or Scope position.
+        if (batch.carrier.kind !== "singleton" || batch.carrier.operations.length !== 1)
+          throw new Error("alias operation escaped singleton admission");
+        const result = evaluateAliasMutation(
+          tx,
+          { operation: op.operation, input } as AliasMutation,
+          { scope: options.scope, policy: options.aliasPolicy, limits: options.limits },
+        );
+        if (result.effect === "failure")
+          return { ok: false, problem: { ...receiptProblem(result.outcome), operationIndex } };
+        results.push({ operationIndex, ...result.outcome });
+        continue;
+      }
+      const aliases = state.aliases[operationIndex];
+      if (!aliases) throw new Error("missing admitted operation witnesses");
+      for (const field of ["source", "target", "bead", "link"]) {
+        const ref = input[field] as string | { uri: string; revision: string } | undefined;
+        if (ref === undefined) continue;
+        const uri = referenceUri(ref);
+        if (uri.startsWith("@")) {
+          const id = bindings.get(uri.slice(1));
+          if (!id) throw new Error("validated binding missing");
+          input[field] = typeof ref === "string" ? id : { ...ref, uri: id };
+        } else if (aliasFields(op.operation).includes(field)) {
+          const target = aliases.get(canonicalReference(options.scope, uri));
+          if (target != null)
+            input[field] = typeof ref === "string" ? target : { ...ref, uri: target };
+        }
+      }
+      const failure = applyResource(
+        { operation: op.operation as ResourceOperation, ...(op.name ? { name: op.name } : {}) },
+        input,
+        operationIndex,
+        aliases,
+      );
+      if (failure) return failure;
+    }
+  } catch (error) {
+    if (!(error instanceof EventExpansionLimit) && !(error instanceof MatchExpansionLimit))
+      throw error;
+    return {
+      ok: false,
+      problem: {
+        type: "https://github.com/gastownhall/bdp/problems/size",
+        status: 413,
+        code: "limit-exceeded",
+        retry: "never",
+        limit:
+          error instanceof MatchExpansionLimit
+            ? "transaction.matchedResources"
+            : "transaction.inducedEvents",
+      },
+    };
+  }
+
   return { ok: true, results, changes: [...changes.values()], events };
 }
 export function transactionStorageText(value: unknown): string {

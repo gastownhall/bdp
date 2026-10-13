@@ -1,0 +1,13 @@
+{
+  "fixtureVersion": 1,
+  "id": "reference-transactional-v1",
+  "seed": 0,
+  "capabilities": ["installed-transactional-http", "transactional-receipt-observation"],
+  "bindings": {
+    "batch": "https://reference.invalid/acme/operations/batch",
+    "subject": "https://reference.invalid/acme/beads/a",
+    "created": "https://reference.invalid/acme/beads/new"
+  },
+  "scope": "https://reference.invalid/acme/",
+  "description": "Private configured installed Transactional fixture for four bounded observations; no cold discovery or whole-contract qualification."
+}

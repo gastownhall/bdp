@@ -543,3 +543,58 @@ it("refuses accessor/proxy context at the TX boundary without executing it", () 
   );
   expect(trap).not.toHaveBeenCalled();
 });
+
+it("checks visible point rows and their minimum in the same entry and leaves the owner reusable", async () => {
+  const f = fixture();
+  f.write([{ operation: "createBead", id: "beads/a", type: bead }]);
+  const { plane } = f.open(),
+    config = f.store.readConfiguration();
+  const minimum = {
+    scopeEpoch: config.scopeEpoch,
+    authorizationView: config.authorizationView,
+    minimumPosition: "pos-1",
+  };
+  const original = DatabaseSync.prototype.prepare;
+  let resources = 0,
+    observations = 0;
+  const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql: string,
+  ) {
+    if (sql === "SELECT value FROM metadata WHERE name=?") {
+      observations++;
+      expect(() => f.store.inspect()).toThrow("reentrant");
+    }
+    if (sql === "SELECT * FROM resources WHERE id=?") {
+      resources++;
+      expect(() => f.store.inspect()).toThrow("reentrant");
+    }
+    return original.call(this, sql);
+  });
+  try {
+    const result = await plane
+      .minimumFor({ kind: "anonymous" }, minimum)
+      .perform(resource("beads/a"));
+    expect(contexts(result).current.scopePosition).toBe("pos-1");
+    expect(resources).toBeGreaterThan(0);
+    resources = 0;
+    await expect(
+      plane
+        .minimumFor({ kind: "anonymous" }, { ...minimum, minimumPosition: "pos-2" })
+        .perform(resource("beads/a")),
+    ).rejects.toMatchObject({ reason: "behind", context: { scopePosition: "pos-1" } });
+    expect(resources).toBeGreaterThan(0);
+    // Each owner entry reads current position; epoch was captured at installation open.
+    expect(observations).toBe(2);
+  } finally {
+    spy.mockRestore();
+  }
+  f.write([{ operation: "createBead", id: "beads/b", type: bead }]);
+  expect(
+    contexts(
+      await plane
+        .minimumFor({ kind: "anonymous" }, { ...minimum, minimumPosition: "pos-2" })
+        .perform(resource("beads/a")),
+    ).current.scopePosition,
+  ).toBe("pos-2");
+});

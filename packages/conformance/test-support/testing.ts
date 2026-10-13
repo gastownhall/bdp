@@ -1,3 +1,12 @@
+export { runCumulativeTransactionalMatrix } from "../src/runner.js";
+export { createCumulativeTransactionalArtifactBundle } from "../src/artifact-bundle.js";
+export {
+  bindServedProfileConfiguration,
+  assertSameServedProfileConfiguration,
+  planProfileExecution,
+} from "./profile-contract-plan.js";
+export { createCumulativeReadUpdateArtifactBundle } from "../src/artifact-bundle.js";
+export { loadProfileContractSelection } from "../src/profile-contract-selection.js";
 export { createDevelopmentReadUpdateArtifactBundle } from "../src/artifact-bundle.js";
 import { isDeepStrictEqual } from "node:util";
 import { createHash } from "node:crypto";
@@ -1940,3 +1949,9 @@ export function createCurrentReadWireValidator(schemaValidator: SchemaValidator)
     }
   };
 }
+
+export type {
+  TransactionalRunContext,
+  TransactionalSessionBinding,
+  TransactionalSession,
+} from "../src/transactional-observation.js";

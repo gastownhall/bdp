@@ -1,0 +1,642 @@
+import { createServer } from "node:http";
+import { createRawHttpExchangeExecutor } from "./http-executor.js";
+import { createJsonSchemaValidator } from "./schema-validator.js";
+import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+import { createTransactionalObservations } from "./transactional-observation.js";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { expect, it, vi } from "vitest";
+import {
+  createConformanceArtifactBundle,
+  createDevelopmentReadUpdateArtifactBundle,
+  createCumulativeReadUpdateArtifactBundle,
+  createCumulativeTransactionalArtifactBundle,
+  isCumulativeTransactionalArtifactBundle,
+} from "./artifact-bundle.js";
+import { canonicalJson } from "./canonical-json.js";
+import { snapshotExactHttpMode } from "./http-executor.js";
+import { loadProfileContractSelection } from "./profile-contract-selection.js";
+import {
+  bindServedProfileConfiguration,
+  planProfileExecution,
+} from "../test-support/profile-contract-plan.js";
+import {
+  runConformanceMatrix,
+  runCumulativeTransactionalMatrix,
+  type ScenarioRunOptions,
+} from "./runner.js";
+
+const read = (name: string) =>
+  readFileSync(new URL(`../test-support/transactional/${name}-v1.json`, import.meta.url));
+const source = (value: unknown) => ({ bytes: Buffer.from(JSON.stringify(value)) });
+const manifest = JSON.parse(read("manifest").toString());
+const fixture = JSON.parse(read("fixture").toString());
+const inputs = () => ({
+  manifest: { bytes: read("manifest") },
+  fixture: { bytes: read("fixture") },
+});
+const selected = loadProfileContractSelection("transactional");
+const bundle = () => createCumulativeTransactionalArtifactBundle(selected, inputs());
+const configuration = (profile: "transactional" | "read-update" = "transactional") =>
+  bindServedProfileConfiguration({
+    scope: fixture.scope,
+    profile,
+    history: false,
+    sourceCommit: "a".repeat(40),
+    installedPayloadDigest: "b".repeat(64),
+    installedContractsDigest: "c".repeat(64),
+    policyDigest: "d".repeat(64),
+    authenticationDigest: "e".repeat(64),
+    fixture: inputs().fixture,
+  });
+const padded = (value: unknown, bytes: number) => ({
+  bytes: Buffer.from(JSON.stringify(value).padEnd(bytes, " ")),
+});
+const ruManifest = {
+  ...manifest,
+  catalogId: "read-update-v1",
+  scenarios: [
+    {
+      ...manifest.scenarios[0],
+      id: "read-update.discovery.document",
+      requiredProfile: "read-update",
+      actions: [
+        {
+          id: "discovery",
+          family: "http",
+          method: "GET",
+          target: { binding: "scope" },
+          raw: { headerLines: [] },
+          captures: [],
+          assertions: [{ id: "status", kind: "status", equals: 200 }],
+        },
+      ],
+    },
+  ],
+};
+
+it("binds the canonical cumulative TX selection and exact source digests without qualification", () => {
+  const actual = bundle();
+  expect(selected.required).toHaveLength(250);
+  expect(selected.retiredIds).toHaveLength(13);
+  expect(actual.catalog).toEqual(selected.catalog);
+  expect(actual.digests.catalogDigest).toBe(
+    createHash("sha256").update(canonicalJson(selected.catalogDigests)).digest("hex"),
+  );
+  for (const [name, bytes] of [
+    ["manifestDigest", read("manifest")],
+    ["fixtureDigest", read("fixture")],
+  ] as const)
+    expect(actual.digests[name]).toBe(createHash("sha256").update(bytes).digest("hex"));
+  expect(Object.isFrozen(actual.manifest.scenarios[0])).toBe(true);
+  const ordered = selected.catalog.scenarios.map((row) => row.id);
+  expect(actual.manifest.scenarios.map((row) => row.id)).toEqual(
+    ordered.filter((id) => actual.manifest.scenarios.some((row) => row.id === id)),
+  );
+  const coverage = JSON.parse(read("coverage").toString());
+  expect(coverage.claimEligible).toBe(false);
+  expect(coverage.status).toBe("bounded-observation");
+  expect(coverage.rows.map((r: { id: string }) => r.id)).toEqual(
+    actual.manifest.scenarios.map((row) => row.id),
+  );
+  for (const row of coverage.rows) {
+    expect(row.wholeContract).toBe(false);
+    expect(row.reason).toContain("Whole contract remains unqualified");
+    const plan = actual.manifest.scenarios.find((r) => r.id === row.id);
+    expect(Array.isArray(plan?.actions)).toBe(true);
+    expect(row.bindings).toStrictEqual([
+      {
+        scenario: row.id,
+        assertions: plan?.actions?.flatMap((a) => a.assertions.map((x) => `${a.id}:${x.id}`)),
+      },
+    ]);
+  }
+});
+
+it("rejects noncanonical selections, History, wrong factories, retired and misprofiled rows", () => {
+  for (const selection of [
+    loadProfileContractSelection("read"),
+    loadProfileContractSelection("read-update"),
+    loadProfileContractSelection("transactional", true),
+  ])
+    expect(() => createCumulativeTransactionalArtifactBundle(selection, inputs())).toThrow(
+      "baseline Transactional",
+    );
+  for (const selection of [{ ...selected }, { ...selected, required: selected.required.slice(1) }])
+    expect(() => createCumulativeTransactionalArtifactBundle(selection, inputs())).toThrow(
+      "factory-loaded",
+    );
+  expect(() => createCumulativeReadUpdateArtifactBundle(selected, inputs())).toThrow(
+    "baseline Read+Update",
+  );
+  const sources = { ...inputs(), catalog: source(selected.catalog) };
+  expect(() => createConformanceArtifactBundle(sources)).toThrow("catalogId");
+  expect(() => createDevelopmentReadUpdateArtifactBundle(sources)).toThrow("diagnostic-only");
+  for (const patch of [
+    { catalogId: "read-update-v1" },
+    { scenarios: [{ ...manifest.scenarios[0], requiredProfile: "read-update" }] },
+    { scenarios: [{ ...manifest.scenarios[0], id: selected.retiredIds[0] }] },
+  ])
+    expect(() =>
+      createCumulativeTransactionalArtifactBundle(selected, {
+        ...inputs(),
+        manifest: source({ ...manifest, ...patch }),
+      }),
+    ).toThrow();
+  const v1 = {
+    manifestVersion: 1,
+    catalogId: "transactional-v1",
+    scenarios: [
+      {
+        id: manifest.scenarios[0].id,
+        requiredProfile: "transactional",
+        setup: manifest.scenarios[0].setup,
+        applicability: { requires: [] },
+        cleanup: { resetFixture: true },
+        requests: [
+          {
+            id: "read",
+            method: "GET",
+            target: { binding: "scope" },
+            captures: [],
+            assertions: [{ id: "status", kind: "status", equals: 200 }],
+          },
+        ],
+      },
+    ],
+  };
+  expect(() =>
+    createCumulativeTransactionalArtifactBundle(selected, { ...inputs(), manifest: source(v1) }),
+  ).toThrow("requires version 2");
+});
+
+it("copies source bytes before binding and exposes all missing obligations without executing them", () => {
+  const input = inputs();
+  const actual = createCumulativeTransactionalArtifactBundle(selected, input);
+  input.manifest.bytes.fill(0);
+  input.fixture.bytes.fill(0);
+  expect(actual).toEqual(bundle());
+  const bound = configuration();
+  const plan = planProfileExecution(selected, bound, {
+    configuration: bound,
+    manifest: inputs().manifest,
+  });
+  expect(plan.claimEligible).toBe(false);
+  expect(plan.carrierBlocker).toBeUndefined();
+  expect(
+    plan.requirements.filter((r) => r.readiness === "ready-unexecuted").map((r) => r.id),
+  ).toEqual(actual.manifest.scenarios.map((r) => r.id));
+  expect(plan.requirements.filter((r) => r.readiness === "unplanned")).toHaveLength(246);
+  expect(plan.unobservedIds).toEqual(selected.required.map((r) => r.id));
+  expect(plan.manifestDigest).toBe(actual.digests.manifestDigest);
+  expect(() => planProfileExecution(selected, configuration("read-update"))).toThrow("disagree");
+});
+
+it("enforces TX1MiB and preserves RU4MiB at factory and planner boundaries", () => {
+  for (const [selection, value, profile, maximum] of [
+    [selected, manifest, "transactional", 1048576],
+    [loadProfileContractSelection("read-update"), ruManifest, "read-update", 4194304],
+  ] as const) {
+    const factory =
+      profile === "transactional"
+        ? createCumulativeTransactionalArtifactBundle
+        : createCumulativeReadUpdateArtifactBundle;
+    const bound = configuration(profile);
+    expect(() =>
+      factory(selection, { ...inputs(), manifest: padded(value, maximum) }),
+    ).not.toThrow();
+    expect(() =>
+      planProfileExecution(selection, bound, {
+        configuration: bound,
+        manifest: padded(value, maximum),
+      }),
+    ).not.toThrow();
+    expect(() => factory(selection, { ...inputs(), manifest: padded(value, maximum + 1) })).toThrow(
+      `must not exceed ${maximum}`,
+    );
+    expect(() =>
+      planProfileExecution(selection, bound, {
+        configuration: bound,
+        manifest: padded(value, maximum + 1),
+      }),
+    ).toThrow(`must not exceed ${maximum}`);
+    expect(() =>
+      factory(selection, {
+        ...inputs(),
+        fixture: padded(fixture, 1048577),
+        manifest: source(value),
+      }),
+    ).toThrow("1048576");
+  }
+});
+
+function options(profile: ScenarioRunOptions["profile"] = "transactional"): ScenarioRunOptions {
+  return {
+    profile,
+    scope: fixture.scope,
+    seed: 0,
+    artifactBundle: bundle(),
+    declaredTargetLabel: "h1a-no-target",
+    execute: vi.fn(async () => {
+      throw Error("must not execute");
+    }),
+    harness: {
+      prepare: vi.fn(async () => {
+        throw Error("must not prepare");
+      }),
+      cleanup: vi.fn(async () => {}),
+    },
+  };
+}
+it.each(["read", "read-update", "transactional"] as const)(
+  "denies genuine TX bundles through public runner declared %s",
+  async (profile) => {
+    const input = options(profile);
+    // A valid RU exact mode reaches the public brand gate even if the caller lies
+    // about the run profile; this is the formerly admissible F7 path.
+    const exactExecution = {
+      execute: vi.fn(async () => {
+        throw Error("must not dial");
+      }),
+      configuration: {
+        scope: fixture.scope,
+        profile: "read-update" as const,
+        routes: [{ method: "POST" as const, url: fixture.bindings.batch }],
+        maximumRequestHeaderBytes: 16384,
+        maximumRequestBodyBytes: 65536,
+        defaultCredentialRef: "operator",
+        credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
+      },
+    };
+    await expect(runConformanceMatrix({ ...input, exactExecution })).rejects.toThrow(
+      "private Transactional bundle",
+    );
+    expect(input.harness.prepare).not.toHaveBeenCalled();
+    expect(input.execute).not.toHaveBeenCalled();
+    expect(exactExecution.execute).not.toHaveBeenCalled();
+  },
+);
+it("private runner refuses lookalikes, RU bundles, wrong profiles and absent exact transport before setup", async () => {
+  for (const artifactBundle of [
+    { ...bundle() },
+    createCumulativeReadUpdateArtifactBundle(loadProfileContractSelection("read-update"), {
+      ...inputs(),
+      manifest: source(ruManifest),
+    }),
+  ])
+    await expect(
+      runCumulativeTransactionalMatrix({ ...options(), artifactBundle }),
+    ).rejects.toThrow("matching private runner");
+  await expect(runCumulativeTransactionalMatrix(options("read-update"))).rejects.toThrow(
+    "matching private runner",
+  );
+  // Structural private transport availability stays separate from partial
+  // observed coverage; malformed configuration still refuses before setup.
+  const bound = configuration();
+  const plan = planProfileExecution(selected, bound, {
+    configuration: bound,
+    manifest: inputs().manifest,
+  });
+  const coverage = JSON.parse(read("coverage").toString());
+  expect(plan.transportAdmission).toBe("private-exact-available");
+  expect(coverage.transportAdmission).toBe(plan.transportAdmission);
+  const input = options();
+  await expect(runCumulativeTransactionalMatrix(input)).rejects.toThrow(
+    "private session transport required",
+  );
+  await expect(
+    runCumulativeTransactionalMatrix({ ...input, scope: "not-a-scope" }),
+  ).rejects.toThrow("scope must");
+  const invalidExact = {
+    execute: vi.fn(async () => {
+      throw Error("must not dial");
+    }),
+    configuration: {
+      scope: fixture.scope,
+      profile: "transactional",
+      routes: [{ method: "POST", url: fixture.bindings.batch }],
+      maximumRequestHeaderBytes: 0,
+      maximumRequestBodyBytes: 65536,
+      defaultCredentialRef: "operator",
+      credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
+    },
+  };
+  // Malformed trusted configuration cannot reach preparation or dialing.
+  await expect(
+    runCumulativeTransactionalMatrix({
+      ...input,
+      exactExecution: invalidExact as unknown as NonNullable<ScenarioRunOptions["exactExecution"]>,
+    }),
+  ).rejects.toThrow("Exact HTTP execution binding is invalid");
+  const mode = {
+    ...invalidExact.configuration,
+    maximumRequestHeaderBytes: 16384,
+    profile: "read-update" as const,
+    routes: [{ method: "POST" as const, url: fixture.bindings.batch }],
+    resolveCredentials: () => ({}),
+  };
+  expect(snapshotExactHttpMode(mode).profile).toBe("read-update");
+  expect(snapshotExactHttpMode({ ...mode, profile: "transactional" }).profile).toBe(
+    "transactional",
+  );
+  expect(input.harness.prepare).not.toHaveBeenCalled();
+  expect(input.execute).not.toHaveBeenCalled();
+});
+
+it("keeps private cumulative factories, TX runner, receipt recorder and brand predicate out of public exports", async () => {
+  const root = await import("./index.js");
+  for (const symbol of [
+    createCumulativeTransactionalArtifactBundle,
+    createCumulativeReadUpdateArtifactBundle,
+    runCumulativeTransactionalMatrix,
+    isCumulativeTransactionalArtifactBundle,
+    createTransactionalObservations,
+  ])
+    expect(Object.values(root)).not.toContain(symbol);
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  expect(pkg.files).not.toContain("test-support");
+  expect(Object.keys(pkg.exports)).toEqual([
+    ".",
+    "./catalog/read-v1.json",
+    "./fixtures/read-reference-v1.json",
+    "./fixtures/read-bdpbd-v1.json",
+    "./matrices/read-v1.json",
+  ]);
+});
+
+it("refuses reserved receipt actions in an ordinary RU run before setup or a programmable callback", async () => {
+  const manifest = {
+    ...ruManifest,
+    scenarios: [
+      {
+        ...ruManifest.scenarios[0],
+        actions: [
+          {
+            id: "receipt",
+            family: "client",
+            operation: "transactional.receipt-read",
+            input: { binding: "subject", method: "GET" },
+            captures: [],
+            assertions: [
+              { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const input = options("read-update");
+  const actionExecutor = vi.fn(async () => ({ status: 200 }));
+  const configuration = {
+    scope: fixture.scope,
+    profile: "read-update" as const,
+    routes: [{ method: "POST" as const, url: fixture.bindings.batch }],
+    maximumRequestHeaderBytes: 16384,
+    maximumRequestBodyBytes: 65536,
+    defaultCredentialRef: "operator",
+    credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
+  };
+  await expect(
+    runConformanceMatrix({
+      ...input,
+      artifactBundle: createCumulativeReadUpdateArtifactBundle(
+        loadProfileContractSelection("read-update"),
+        { ...inputs(), manifest: source(manifest) },
+      ),
+      exactExecution: { configuration, execute: vi.fn() },
+      actionExecutor,
+    }),
+  ).rejects.toThrow("reserved Transactional");
+  expect(input.harness.prepare).not.toHaveBeenCalled();
+  expect(actionExecutor).not.toHaveBeenCalled();
+});
+
+it("uses preparation rather than HTTP timeout for private reopen lifecycle", async () => {
+  const row = {
+    ...manifest.scenarios[0],
+    actions: [
+      {
+        id: "reopen",
+        family: "client",
+        operation: "transactional.reopen",
+        input: {},
+        captures: [],
+        assertions: [
+          {
+            id: "reopened",
+            kind: "json-pointer",
+            pointer: "/reopened",
+            exists: true,
+            equals: true,
+          },
+        ],
+      },
+    ],
+  };
+  const artifactBundle = createCumulativeTransactionalArtifactBundle(selected, {
+    fixture: inputs().fixture,
+    manifest: source({ ...manifest, scenarios: [row] }),
+  });
+  const base = options();
+  let generation = 1;
+  const context: import("./transactional-observation.js").TransactionalRunContext = {
+    current: (scenario) => ({
+      binding: {
+        scenario,
+        generation,
+        listenUrl: "http://127.0.0.1:12345/",
+        runtimeConfigurationIdentity: "a".repeat(64),
+        configurationDigest: "b".repeat(64),
+        responseLimits: { headerBytes: 65536, bodyBytes: 1048576, wireBytes: 2097152 },
+      },
+      signal: new AbortController().signal,
+      dialRoute: { transport: "plain", host: "127.0.0.1", port: 12345 },
+      resolveCredentials: () => ({}),
+      register: (p) => p,
+    }),
+    reopen: async (_scenario, signal) => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      signal.throwIfAborted();
+      generation++;
+    },
+  };
+  const result = await runCumulativeTransactionalMatrix(
+    {
+      ...base,
+      artifactBundle,
+      requestTimeoutMs: 5,
+      prepareTimeoutMs: 500,
+      harness: {
+        prepare: async () => ({ capabilities: fixture.capabilities, bindings: fixture.bindings }),
+        cleanup: async () => {},
+      },
+      exactExecution: {
+        execute: async () => {
+          throw new Error("must not dial");
+        },
+        configuration: {
+          scope: fixture.scope,
+          profile: "transactional",
+          routes: [{ method: "POST", url: fixture.bindings.batch }],
+          maximumRequestHeaderBytes: 16384,
+          maximumRequestBodyBytes: 65536,
+          defaultCredentialRef: "operator",
+          credentialHandles: [{ id: "operator", headerNames: [] }],
+        },
+      },
+    },
+    context,
+  );
+  expect(result.scenarios.find((s) => s.id === row.id)).toMatchObject({ state: "pass" });
+  expect(generation).toBe(2);
+});
+
+it.each([
+  ["wire", "harness-error", "receipt wire headers mismatch"],
+  ["validator", "harness-error", "source receipt validator unavailable"],
+  ["source-schema", "fail", "source receipt schema invalid"],
+  ["retained", "fail", "retained receipt differs from original wire facts"],
+] as const)(
+  "retains safe %s receipt reason with correct attribution over raw HTTP",
+  async (kind, state, reason) => {
+    const scope = fixture.scope,
+      id = `${scope}receipts/r1`;
+    const body = {
+      id,
+      status: "completed",
+      detail: "available",
+      idempotencyKey: "key",
+      scopeEpoch: "epoch",
+      authorizationView: "view",
+      transaction: "tx",
+      requiredPosition: "pos-0",
+      results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+      next: null,
+      expiresAt: "2030-01-01T00:00:00Z",
+    };
+    let reads = 0;
+    const server = createServer((request, response) => {
+      request.resume();
+      if (request.method === "GET") reads++;
+      const text = JSON.stringify(
+        kind === "source-schema"
+          ? { ...body, unexpected: "private-target-body" }
+          : kind === "retained" && request.method === "GET"
+            ? { ...body, requiredPosition: "pos-1" }
+            : body,
+      );
+      response.writeHead(200, {
+        "content-type": "application/json",
+        "content-length": Buffer.byteLength(text),
+        connection: "close",
+      });
+      response.end(text);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw Error("missing address");
+    const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port: address.port };
+    const mode = {
+      scope,
+      profile: "transactional" as const,
+      routes: [{ method: "POST" as const, url: fixture.bindings.batch }],
+      maximumRequestHeaderBytes: 16384,
+      maximumRequestBodyBytes: 65536,
+      defaultCredentialRef: "operator",
+      credentialHandles: [{ id: "operator", headerNames: [] }],
+      resolveCredentials: () => ({}),
+    };
+    const raw = createRawHttpExchangeExecutor(dialRoute, {
+      exactMode: mode,
+      requestTimeoutMs: 5000,
+    });
+    const { resolveCredentials: _resolver, ...configuration } = mode;
+    const row = {
+      ...manifest.scenarios[0],
+      actions: [
+        {
+          id: "source",
+          family: "http",
+          method: "POST",
+          target: { binding: "batch" },
+          raw: { headerLines: [], body: { encoding: "utf8", value: "{}" } },
+          captures: [{ binding: "receipt", from: { kind: "json-pointer", pointer: "/id" } }],
+          assertions: [{ id: "status", kind: "status", equals: 200 }],
+        },
+        {
+          id: "read",
+          family: "client",
+          operation: "transactional.receipt-read",
+          input: { binding: "receipt", method: "GET" },
+          captures: [],
+          assertions: [
+            { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
+          ],
+        },
+      ],
+    };
+    try {
+      const result = await runCumulativeTransactionalMatrix(
+        {
+          ...options(),
+          artifactBundle: createCumulativeTransactionalArtifactBundle(selected, {
+            fixture: inputs().fixture,
+            manifest: source({ ...manifest, scenarios: [row] }),
+          }),
+          harness: {
+            prepare: async () => ({
+              capabilities: fixture.capabilities,
+              bindings: fixture.bindings,
+            }),
+            cleanup: async () => {},
+          },
+          ...(kind === "validator" ? {} : { schemaValidator: createJsonSchemaValidator(schema) }),
+          exactExecution: {
+            configuration,
+            execute: async (request) => {
+              const observed = await raw(request);
+              return kind === "wire"
+                ? {
+                    ...observed,
+                    headers: { ...observed.headers, "x-self-mismatch": "not-on-wire" },
+                  }
+                : observed;
+            },
+          },
+        },
+        {
+          current: (scenario) => ({
+            binding: {
+              scenario,
+              generation: 1,
+              listenUrl: `http://127.0.0.1:${address.port}/`,
+              runtimeConfigurationIdentity: "a".repeat(64),
+              configurationDigest: "b".repeat(64),
+              responseLimits: { headerBytes: 65536, bodyBytes: 1048576, wireBytes: 2097152 },
+            },
+            dialRoute,
+            signal: new AbortController().signal,
+            resolveCredentials: () => ({}),
+            register: (p) => p,
+          }),
+          reopen: async () => {
+            throw Error("must not reopen");
+          },
+        },
+      );
+      const actual = result.scenarios.find((s) => s.id === row.id)!;
+      expect(actual).toMatchObject({ state, reason });
+      expect(JSON.stringify(actual)).not.toContain("private-target-body");
+      expect(reads).toBe(kind === "retained" ? 1 : 0);
+      if (kind === "retained") {
+        expect(actual.actions?.at(-1)?.executionError?.message).toBe(reason);
+        expect(actual.exchanges.at(-1)?.dynamicExactConfiguration).toBeDefined();
+      }
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  },
+);

@@ -65,8 +65,8 @@ live revision. A Link emits its created/deleted fact followed by source and targ
 linked/unlinked facts for in-Scope endpoints. A graph fact's subject and subject
 Type are the Link;
 `data.endpoint` selects the incidence. The group Events use the Scope `events/`
-Event Source. Future Resource views must project them with the serving Bead or
-Link's `?view=events` Source URL; no Resource Event view is implemented here.
+Event Source. The finite serving slice below projects them with the serving Bead
+or Link's `?view=events` Source URL.
 A self-Link emits both endpoint facts in that order without versioning the Bead.
 Opaque external endpoints generate no endpoint fact; pinned references remain
 byte-identical in Link and graph fact data.
@@ -433,7 +433,8 @@ The Transactional owner now supplies an expiring synchronous Resource/configurat
 reader to the existing AuthorityReadPlane. The shared Read contract contains only
 resource, resources, incidentLinks, alias and policy; it does not require or fabricate
 Read+Update key outcomes. The owner's actual immutable installation supplies the
-Type inventory and fixed all-visible, schema-free/unowned configuration. Named
+Type inventory and fixed all-visible configuration (schema-free/unowned at this
+initial slice; compiled and owned support is recorded below). Named
 policy lookups are absent in this private installation.
 
 The private transaction-read module composes canonical Resource/properties reads,
@@ -495,3 +496,751 @@ context accessor. The private helper is absent from root exports and remains
 behind the package's deep-import boundary. Source public declarations, an actual
 Node package-root import and installed-package smoke tests cover this separation;
 internal context/retention tests continue to exercise the same engine.
+
+## Private Transactional service and receipt observations
+
+The source-private `transaction-service` composes one existing Transactional owner
+with its Read plane, direct submission boundary and sequence stepper. Construction
+requires `ownerLifetime: "service"`: successful construction transfers shutdown
+responsibility, and callers stop using the raw owner. Failed construction leaves
+ownership with the caller. Closing stops new work, drains accepted work, releases
+Read cursors and closes that same database. A detached response does not cancel
+admitted execution. Scheduler failure retracts only the affected sequence's
+unexecuted reservations; committed members and another attempt's reservations
+remain. Failed cleanup fences service entry and retains original/cleanup causes.
+
+The owner now offers an atomic receipt observation. Principal-filtered lookup,
+retention cleanup, fixed all-visible projection, detached immutable receipt bytes
+and current epoch/view/position share one guarded SQLite entry. Direct delivery
+and later receipt reads use that observation, never an earlier receipt object
+paired with a later `inspect()`/`withRead()` position. The body's original execution
+view/positions/postimages remain unchanged when the serving head advances or a
+Resource is deleted. Trusted transport identity supplies receipt access; writer
+attribution does not. Unknown, foreign, forgotten and retracted receipts remain
+uniformly absent. Current policy is still the fixed all-visible development view;
+this does not qualify changing grants, withheld/erased projection or owned Types.
+
+This bounded service inlines all supported results with `next: null`. The spec's
+Mutation Receipt responses section applies advertised `page.maximumItems` to
+receipt results as well as pages. Accordingly, this interim service refuses a
+configuration below 32 entries, the existing private batch limit. That restriction
+is a supported-configuration limit, not a protocol minimum. Sets and durable
+receipt pages remain unimplemented. No maximum representation-byte limit or
+complete Transactional directory/profile is advertised.
+
+Tests cover shared singleton/batch/sequence key identity, canonical afterstate,
+receipt immutability/current context, principal nondisclosure, retention and exact
+retry, finite unresolved comparison, drain after detached delivery, scheduler
+failures, and abrupt process exits before and after commit. Process exits and SQL
+fault injections are not disk/power-loss qualification. The receipt reader inherits
+the owner's reentrancy and sticky fencing checks. HTTP routing, raw sequence
+receiving order, minimum-position barriers/conditional fields, required Snapshot
+and changefeed paths, receipt pages/erasure, installed contracts and public evidence
+remain subsequent slices. No public API, storage format or normative change is
+part of this service layer.
+
+### Private actual HTTP service and atomic receipt delivery
+
+A source-private loopback runtime now composes one Transactional owner, Read
+plane and service. It serves the ten implemented operation targets, canonical
+Resource/collection/alias reads, and receipt GET/HEAD. Its credentials supply
+principal and mutation permission independently of carried actor attribution.
+A configured canonical Scope can stay fixed across listener addresses; receipt
+identities and navigation are never rewritten. Omitting this private fixture
+setting retains the disposable same-port behavior only.
+
+Direct admission retains the established bounds/syntax/auth/key/limits/Accept
+order. Exact pending retries return 202 with the receipt's own Location;
+original accepted submissions execute to terminal before returning. POST
+conditions do not suppress execution or its receipt. Sequence uses one runner,
+independent member commits and canonical dependencies; current response context
+is observed after that runner completes. Closing the listener prevents new work
+and drains admitted work even after delivery disconnect, before closing the
+service-owned database. A supplied test scheduler must eventually deliver each
+uncancelled turn; no new protocol timeout is implied.
+
+Executed and replayed direct receipts are projected with current context inside
+their original authoritative execution/admission entry. Delivery does not make a
+second retention-clock observation or scan receipts by ID. Receipt GET continues
+to apply retention in its own entry; its current ID lookup is still a linear
+principal-scoped scan. Serving asserts current position covers required/effect
+positions. Prior-epoch stored receipts are hidden; the test injects stored facts,
+not a production epoch-rotation capability. Fixed all-visible projection does
+not implement variable grants or erasure.
+
+The unchanged 32-operation development bound is shared by preparation, owner,
+service and HTTP. Available completed receipts must fit the configured inline
+page bound and have next:null. No set expansion or durable receipt paging was
+added. The minimum configured receipt page bound is an interim implementation
+limit, not a protocol-wide minimum.
+
+This increment does not advertise Transactional discovery or a profile. Valid
+unsupported set/depth/Resource-alias-sequence requests fail before key capture or
+effects with a bodyless internal 500, labeled as a development gap. Minimum
+context controls likewise cannot yield success or a conditional shortcut; their
+bodyless internal failure is explicitly **not** a normative catch-up outcome.
+Full minimum-position/epoch/view/expiry ordering remains required next work.
+Discovery, Directory, snapshot/changes/events, set operations, installed
+contracts, Resource-alias sequence timing, variable authorization/erasure,
+receipt pagination and complete executable qualification remain open. Public
+exports, installed profile admission, schemas and pinned Read evidence are
+unchanged.
+
+Verification includes real loopback precedence and receipt conditions, finite
+comparison 503, no key capture for unsupported valid requests, listener
+close/reopen, a child-process SIGKILL/restart after a completed response, client
+disconnect with admitted work, and an injected post-commit failure followed by
+sticky refusal/reopen. These are bounded executable witnesses, not disk or
+power-loss qualification. External exact-command results accompany the frozen
+candidate.
+
+#### HTTP review follow-up boundaries
+
+Unsupported minimum-context fields on commands also fail before any key binding
+or effect; no command barrier semantics are inferred. Operation routing accepts
+exact canonical target URLs. Unimplemented set/unknown targets, encoded alternate
+spellings and query-bearing command URLs are not registered targets and return
+404, rather than advertising a Read method table. Sequence depth failures use the
+same development-composition marker as batch depth failures; the alias marker is
+reserved for the actual Resource-alias sequence restriction.
+
+The private receiving maximumOperations setting controls transaction.operations
+only; sequence.operations retains its separate 32-member bound. Tests exercise
+both limits together. This is explicit private configuration, not new discovery.
+
+Runtime close aborts in-flight socket delivery, including connected clients, and
+then drains accepted durable work. Clients recover outcomes by key replay after
+reopen; “drain” does not promise completion of response delivery. Sequence response
+context still comes from the post-runner owner observation. A fault in that entry
+can lose delivery after member commits; replay recovers the original member
+outcomes. Moving that observation into the final turn remains separate work.
+
+HTTP internal faults are deliberately bodyless and disclose no causes or stored
+identifiers. The owner/service preserve causes, but this private HTTP fixture has
+not yet added a bounded internal diagnostic channel for those caught exceptions.
+That diagnosability gap remains open; it is not a claim that causes reach clients.
+
+### Canonical point and receipt minimum-read subset
+
+The private HTTP fixture now honors complete canonical epoch/view/minimum tuples
+on existing visible Bead and Link records, their properties views, and receipt instances.
+It validates immutable per-request controls before waiting. The shared Read plane
+has a source-private fixed condition hook after captured authorization and point
+materialization, still inside the same owner entry and before delivery; ordinary
+Read/Read+Update calls use no such condition. The
+Transactional hook checks the actual same-entry source context. It does not read
+a diagnostic position before or after the representation, retain a mutable global
+condition, or create another Read plane per request.
+
+Receipt attempts retain principal/epoch nondisclosure before minimum decisions,
+recheck actual retention each turn and capture body/current context together.
+Current owner integrity guards remain ahead of a wait decision. A foreign epoch
+returns cursor-expired; a foreign view returns foreign-view. An actual behind
+observation retries outside the owner until the original finite monotonic deadline
+or an actual concurrent commit satisfies it. Exhaustion returns catch-up-timeout
+with Retry-After. No SQLite entry remains open while awaiting. GET/HEAD and
+conditional decisions then use the resulting representation and current context.
+The existing exclusive synchronous owner entry provides point-read consistency;
+this does not add a separate SQLite BEGIN around every ordinary Read.
+
+The default private wait budget is finite; injected scheduling/clock seams are
+for tests, not new public configuration or advertised limits. Service close drains
+accepted finite waits. The private point facet accepts an AbortSignal, but the
+HTTP path does not pass a signal or connect socket disconnects to a controller.
+Actual HTTP point and receipt disconnects both drain the remaining finite wait
+budget, which also bounds their shutdown delay. Unsupported command controls
+still fail before mutation admission, after authentication/authorization.
+
+This remains a named subset, not complete minimum-position qualification.
+Absent/hidden Resource ordering relative to a minimum has no established ruling;
+such point requests return the explicit private visibility gap without adopting
+either 404-first or barrier-first semantics. This fixed all-visible owner does
+not qualify changing visibility policies. Collection continuations and other nonpoint routes retain the development gap
+when controls are supplied. Partial/malformed tuples, bare epoch/view fields and
+unknown opaque position spellings also retain that gap; no normative error rule
+is invented for them. In particular, whether a minimum constrains an old retained
+query page's anchor or its current serving observation remains unresolved. Normal
+continuations without controls retain their existing stable data/lifetime behavior.
+No public profile/discovery, schema, durable format, Type or evidence change was
+made. Snapshot/replay and the other previously named required gaps remain open.
+
+The configured fixture has no eligible replica routing and waits locally, one
+permitted strategy. CORS is disabled by the inherited Origin refusal. Actual
+409/410/503 wire bodies are schema-checked and carry the final attempt's captured
+context; receipt 401/404 nondisclosure responses carry none. HTTP method handling
+uses target shape without checking non-operation existence. The origin-form
+CONNECT probes exercise method dispatch; actual authority-form CONNECT is rejected
+by raw-target validation with 400, and neither path establishes a tunnel.
+
+
+### Durable receipt pages in the private receiver
+
+Completed receipt facts remain whole in the owner. Root wire projection returns
+all entries if they fit the exact installed page maximum, otherwise a prefix and
+an absolute next URL. Durable opaque page tokens and contiguous entry boundaries
+commit with the terminal receipt, effects and group. Pages select original facts;
+they never rebuild results from current Resources. Full facts still feed sequence
+projection and creation-allocation tombstones, including tail-page allocations.
+
+One validated maximum configures store partitioning, the service page bound and
+Read pagination. It defaults to 32; paging tests use maxima 1, 2 and 5 with a valid
+default at or below the maximum. This changes only the new private fixture's page
+setting and makes no change to historical Read evidence. Prior private formats or
+changed installation bounds are refused by the locked configuration check before
+BDP pending retraction, creator cleanup or retention maintenance; no migration or
+reseed. SQLite hot-journal recovery must run before that check can read configuration.
+Normal incompatible files are refused byte-identically; a hot-journal file may first
+be restored by SQLite to its committed state, even if its installation is then refused.
+Recorded missing, overlapping, truncated or wrong-parent chains are service faults,
+never permission to generate replacement handles or truncate results.
+
+Receipt-page reads use current principal/epoch nondisclosure first, then the
+supported minimum context and finite wait, then expiry and representation in the
+same owner entry. Unsupported minimum forms remain a private gap after disclosure
+and before read-triggered expiry for both roots and pages. Known expired pages return 410; unknown/foreign pages return
+uniform 404. Recorded page identities survive same-epoch process loss and changed
+listener ports with a stable configured Scope. Root/page GET and HEAD retain the
+current observation and normal conditional handling without validators.
+
+Minimum-read review corrections also preserve already-decided query 400 errors,
+accept the reserved genesis minimum, and move root read-triggered retention after
+the minimum check for a still-stored disclosed receipt. If independent maintenance
+actually forgets a failed receipt while a read waits, the next lookup still returns
+uniform 404; no retention pin is introduced. The 5 ms polling strategy can repeatedly
+materialize points and acquire receipt transactions, including after disconnect;
+its bounded loopback behavior is not a production concurrency or load qualification.
+
+This implements paging for existing explicit mutations, not the catalog's large-set
+expansion witness. Sets, installed-contract integration, variable-view/erasure
+projection, replication and truthful full Transactional discovery remain open.
+
+
+### Private valid-set core, with serving admission still closed
+
+A source-private preparation seam now admits valid bounded updateWhere/deleteWhere
+records to the existing Transactional owner for core testing. The normal batch,
+singleton and HTTP preparation paths still refuse sets. Selector grammar/complexity
+error timing remains an explicit development gap, pending normative review; this
+core is not a second wire parser or a completed set-serving claim.
+
+The staged collection facade reads the active owner's transaction, expires at the
+end of that turn and freezes returned stored rows. Selection uses canonical records
+and the existing Selector evaluator at the operation turn. The selected set is
+fixed before expansion, sorted in canonical ID order, and applies the same Resource
+mutation/fact path used by ordinary members. Cardinality failure and late Resource
+failure roll back the complete transaction while retaining its failed receipt.
+Matched entries, no-op results, intermediate postimages, final group state,
+provenance and metadata retain their existing meanings. Receipt pages persist the
+complete flat set result, including the matched entry, without recomputing selection.
+
+The initial set slice enforced a total 4,096 induced-Event bound across ordinary
+members and set expansion, plus 4,096 matched Resources counted across set operations.
+Those historical capacities are superseded by the measured budget below.
+Repeat matches and semantic no-ops each count toward the latter, bounding expanded
+result entries even when they emit no Events. Exceeding either yields an atomic
+transaction-wide failed receipt with limit-exceeded and the corresponding
+transaction.inducedEvents or transaction.matchedResources limit, without an operation
+index. Evaluator-only test seams can lower but never raise these fixed private bounds;
+those initial seams added no public configuration or advertised maximum. The current
+installation identity also binds the actual tuple, as described below. Collection enumeration, visibility traversal and selection still examine and
+materialize the full candidate population before the matched-resource check. This is
+not a bound on whole-collection scan work, memory or receipt byte size.
+
+Private format set-core-7 protects the expanded durable witness vocabulary; the
+identity codec is unchanged. No migration or reseed is provided. Core tests cover
+same-version recovery/replay and an external probe uses the actual prior paging
+writer to establish byte-identical incompatible-format refusal. Paging crash-recovery
+repairs are integrated: SQLite may recover a hot journal before the locked
+configuration check, which still precedes BDP cleanup and retention.
+
+At this historical set-core slice the installation was all-visible, schema-free
+and unowned; compiled and owned successors below supersede those restrictions.
+Installed contract/policy composition and owned-source fanout were then open. Full
+set HTTP admission, remaining consistency routes, replication and truthful
+Transactional discovery remain separately tracked.
+Recovery regressions kill a process inside maintenance and terminal execution,
+not merely after a response. Sixty committed three-result receipts and their page
+URLs survive hot-journal rollback; the terminal crash's pending admission is
+retracted without exposing its uncommitted effects. The terminal fixture reduces
+the real SQLite cache to force dirty-page spill; maintenance uses the ordinary
+cache. These are process-crash witnesses, not physical disk/power-loss testing.
+Concurrent page minimum waits also drain on close while an admitted commit can
+satisfy them. Unsupported root/page controls withhold serving context and do not
+trigger retention; independent maintenance can still expire or forget receipts.
+
+
+### Nonexistent receipt page retention and recovery follow-up
+
+A missing page plan checks parent disclosure and completed status without applying
+retention. Nonexistent pages of failed receipts return 404 for owner/foreign
+principals, with or without unsupported or behind minimum controls, and leave the
+receipt row unchanged. Actual independently scheduled maintenance may still forget
+an eligible failed receipt. Page namespace validation checks the parsed parent
+before the plan lookup. Service prefix checks remain defense in depth; the store
+constructs those prefixes, while the bounds checks independently validate results.
+
+The actual hot-journal terminal-crash regression copies the database and hot journal
+before attempting an incompatible page bound at an expiry-eligible clock on the copy.
+The refused open must consume the copy's journal through SQLite recovery, while the
+original journal remains hot for an independent valid-open witness. Both branches
+then reopen compatibly: each recovers the pending row and all 60 receipt chains remain
+available. The copied branch proves installation refusal precedes BDP pending cleanup
+and retention; the original branch directly proves valid-open crash recovery. This is
+process-crash evidence, not power-loss durability.
+
+### Bounded set-core review repairs
+
+Set deletion accepts the bundle's revisionProvenance input for either collection.
+Syntax validation reuses the existing deleteLink root, which admits that same input;
+its synthetic Link subject never reaches identity or evaluation. Deletion mints no
+version for either collection supported at this historical slice (Beads and
+unowned Links), so supplied provenance was inert in both. The owned successor
+below mints a source Bead version on owned-Link deletion and carries its attribution.
+Tests cross operation, collection, cardinality and provenance inputs against the canonical
+bundle, then execute all four operation/collection pairs against the real owner and
+inspect results and afterstate.
+
+Set candidates now use the shared isResourceVisible closure before selection and
+cardinality, including local endpoint visibility. Evaluator probes run the real owner
+with a narrowed per-turn policy to prove hidden-endpoint Links are not matched or
+mutated. This is not an installed variable-policy qualification: the actual owner
+was all-visible, schema-free and unowned at this slice. The owned successor below
+adds owned-source fanout and nonwritable-match evidence; the installed policy remains
+all-visible. Negative Selector wire admission remains closed. Operation-local failures require an operation index at the type boundary;
+only the currently implemented transaction-wide Event and match limits can omit it.
+
+### Private compiled-contract installation and retention
+
+The Transactional owner can now accept the existing branded DevelopmentContracts
+for schema-backed Types (unowned at this installation slice; owned support follows
+below). Its installed descriptor bytes, effective property validators and same-owner Read inventory come from that one authority. The older
+schema-free administrative path remains available for newly provisioned stores.
+Compiled Types must be Scope-local; a separately supplied descriptor inventory must
+match the installed bytes exactly. JSON serialization retains property order and is
+not a new canonical identity algorithm.
+
+DevelopmentContracts exposes the immutable ingestion capture: exact artifact URI,
+base64 bytes, byte length and digest, bounded artifact limits, and the current schema
+compiler/evaluator ceiling witnesses. Its identity algorithm is unchanged. Private
+format `bdp-private-transaction-contracts-8` records that capture in a separate
+`contractCapture` metadata row at explicit creation. The existing configuration
+holds the closure identity and fixed runtime property/diagnostic limits, keeping the
+artifact payload out of Read configurationIdentity. The capture has a finite private
+serialized byte bound derived from artifact ceilings (142,610,432 bytes); it is kept
+for the whole installation lifetime without garbage collection.
+
+Reopen compares configuration and exact capture under the existing locked owner
+entry before pending retraction or maintenance. SQLite may first recover a hot
+journal. Clean mismatches refuse byte-identically; no migration, automatic refresh
+or reseeding occurs. Compiler constants are comparison witnesses, not persisted
+controls that override the running build. Changed constants or runtime bounds fail
+closed. Administrative configuration is still required to reopen; exact persisted
+artifacts can reconstruct the same compiler object offline. The capture proves
+artifact retention/reconstruction; the existing identity supplies changed-artifact
+refusal.
+
+The private HTTP fixture accepts bounded plain URI/UTF8 artifact data, requires an
+explicit stable Scope and compiles inside its own module instance before owner use.
+It derives Type inventory if the redundant types argument is omitted, preserving
+strict agreement if both are supplied. Branded compiler objects never cross the
+child-process or source/dist module boundary. Tests cover immutable capture,
+inherited validation, unknown Types, deterministic retained diagnostics, late batch
+and selected-set rollback, independent sequence prefix/tail commits, Type inventory
+and Resource reads, exact saved-capture reconstruction, tampered metadata refusal,
+actual process-loss restart and a real predecessor-format file refusal.
+
+This installation slice initially refused owned Types; the owned successor below
+removes that restriction. The installation remains private and all-visible with
+empty aggregate policy. Schema references are served in Type descriptors;
+schema-byte GET/HEAD hosting is not implemented here. No HTTP set admission, new Type lifecycle,
+Snapshot/changefeed, public configuration/profile admission or conformance claim is
+added. Read+Update durable artifact retention remains a separate follow-up.
+
+### Set guard, receipt failure shape and materialization bounds
+
+Cardinality is checked before charging the matched-Resource budget. A failed guard
+retains its operation-local 409 with after-state-change retry, including when the
+same selection exceeds the private match cap. Passing the guard still subjects the
+request to that cap. Tests prove rollback, retained replay across reopen, the cap
+refusal when the guard permits the selection, and fresh-key success after shrinking
+the live collection. Compiler probes require type, status and typed retry on both
+failure branches, including the receipt-specific code and status subsets. The local
+evaluator boundary refuses missing required fields and out-of-subset codes/statuses
+as integrity failures rather than retaining invalid receipts. Tests prove immediate
+same-key reuse without reopening, followed separately by durable valid-failure
+replay. These checks narrow required fields; existing evaluator validation still
+owns code/status/retry combinations and optional diagnostic semantics. Valid
+Problems keep their existing fields and values.
+
+The earlier suite observed its then-current 4,096-match default without lowering it: 128 Beads
+matched by 32 no-op sets produce 4,128 flat result entries and no graph effects. A
+129th Bead causes atomic refusal; both dispositions replay after reopen. This is a
+count bound, not a receipt-byte, candidate-scan or authority-lock-duration bound.
+
+The original materialization gap led to the measured budget below. A disposable
+emitted-owner probe built one 262,144-byte Resource through real mutations, each
+request at most 60,138 bytes, by growing metadata across requests. Its 32 repeated
+no-op matches produced an 8,392,367-byte receipt and replayed after reopen. At 4,096
+matches, just those maximum-sized Resource postimages total 1,073,741,824 bytes,
+before result/envelope overhead. That figure is an arithmetic projection, not an
+attempt to allocate or persist a GiB receipt. On the pinned Node 24.16.0 runtime,
+V8's 536,870,888-code-unit string ceiling is lower than SQLite's 1,000,000,000-byte
+limit. For the measured ASCII payload family, 2,048 maximum-sized postimages alone
+already exceed V8's ceiling, before receipt overhead. This is a size projection,
+not an attempted allocation failure. Those earlier count and request bounds did not
+guarantee materializability: full receipt JSON is still built, stored and reparsed
+despite paged serving. No byte condition is relabeled as
+transaction.matchedResources or transaction.mutatedResources; those remain counts.
+That slice left the fixed cap at 4,096; the later measured budget replaces it.
+
+Deferred limitations: candidate enumeration still scans the entire collection and
+repeats local-endpoint visibility reads without a projection cache. The shared
+visibility predicate does not supply Read's checkedGraph body/index integrity
+validation for corrupted rows. This slice changes neither behavior and makes no
+whole-projection equivalence or installed profile qualification claim.
+
+The induced-Event lower-only evaluator seam rejects zero, negative, fractional,
+infinite and above-authority bounds in permanent tests. The owned-transition tests
+below originally observed its then-current 4,096 default with small Resource bodies;
+this count evidence does not qualify arbitrary materialization workloads.
+
+
+### Compiled-contract evidence and storage bounds clarification
+
+The shared DevelopmentContracts capture retains base64 artifact bytes in memory for
+all consumers, including Read+Update. Its installed reference factory also retains
+UTF8 copies for schema hosting; this additional memory retention is real even before
+RU gains durable artifact storage. This slice does not deduplicate those copies.
+
+TX's fixture uses external synthetic schema URIs, but that is a fixture convention,
+not a bridge constraint: a Scope-local propertiesSchema can be installed while no
+TX schema GET/HEAD route serves it. Schema hosting remains explicitly unimplemented;
+no new URI refusal or protocol rule is introduced here.
+
+The separate capture row has its explicit byte cap. The configuration text still
+embeds installed descriptor inventory with no additional TX serialization cap. The
+compiled path is bounded by ingestion's aggregate 16MiB artifact-byte ceiling (and
+separate URI limit), not 4096 independent 1MiB allowances; a multi-GiB compiled raw
+inventory estimate would ignore that aggregate bound. Serialization/parsed inventory
+may expand relative to raw bytes, and configurationIdentity still processes that
+text in Read entries. The legacy schema-free descriptor input lacks those ingestion
+bounds. The small fixture's configuration length is evidence about the fixture only,
+not a general configuration byte budget.
+
+A shared compiler regression now pins a literal identity observed from the actual
+pre-capture compiler and checks deep capture immutability after mutating both schema
+and descriptor input buffers. That identity binds the fixture artifacts and artifact,
+graph and evaluator ceilings; intentional input changes need a justified replacement
+witness rather than a pasted hash. TX regressions recreate a rolled-back tentative
+Resource ID, compare complete failed-batch and failed-set receipts on replay, compare
+Type HEAD status/content length with GET, require exact Type inventory summaries
+from the installed descriptors, and follow both IDs to compare the full documents.
+Inventory items remain the normative id/name/describes summaries. These strengthen evidence without
+changing runtime behavior or broadening any profile claim.
+
+### Atomic owned-Link projection
+
+The private Transactional owner now accepts installed owning Bead descriptors and
+projects the existing Resource evaluator's owned transitions. The evaluator remains
+the sole source of ownership rules, schema checks, revisions and provenance. A local
+same-turn write wrapper captures each Resource's previous state before forwarding
+the evaluator's write. It neither exposes version recipes nor adds another allocator
+or owner. An owned mutation changes at most its Link and source Bead; an ordinary
+target does not version, and a self-Link still versions the source once.
+
+Every evaluator changed/deleted Resource contributes a canonical-ID group entry.
+Repeated operations preserve intermediate receipt results and Event revision chains,
+while the group's changes retain only each Resource's final postimage or tombstone.
+The source's complete inline owned state agrees with the first-class Link. No-op
+updates preserve both revisions/provenance and report the unchanged sourceRevision
+without a group or effect position.
+
+Owned facts use existing Event types: Link lifecycle first, source/target incidence
+when creating/deleting, and the source's ownedLink updated fact last. An in-Scope
+owned creation/deletion induces four Events, including both self-Link incidences;
+an owned update induces two. The source Event carries its own revisions/provenance,
+with a complete created Link, field-built update delta, or deleted identity nested
+under ownedLink. The update delta never carries full properties and contains a patch;
+the source fact never combines ownedLink with a direct properties/metadata patch.
+All facts charge the total Event cap. The original default-bound test deleted
+1,024 owned self-Links on separate sources: 4,096 ordered Events succeed; a selection
+of 1,025 fails atomically and retains that failure across restart. Resource bodies
+are small in this count test; it supplies no high-fanout or byte-size qualification.
+That owned-transition slice changed no count or materialization budget; current
+boundary tests use the measured limits described below.
+
+The same application path serves the private staged-set evaluator. Selected Links
+remain canonical-ID ordered, each effective member versions its source, and the
+existing visibility-closure predicate and cardinality-before-cap behavior remain.
+Source write refusal, stale Link/Bead guards, schema failures, ownership bounds and
+late failures roll back both Resources and all group/page effects while preserving
+an ordinary failed receipt. Real SIGKILL probes at staged effects and terminal
+receipt boundaries reopen without either partial Resource or group effects. Tests
+also cover exact durable pages/replay, transitive cyclic visibility, compiled actual
+HTTP Reads/mutations and inherited-schema failure replay. This is process-loss test
+evidence, not a power-loss or mutable-policy qualification.
+
+The installation format and semantic identity stay unchanged: no durable record
+shape changed, old accepted stores contained no owning descriptors, and descriptor
+configuration changes already fail closed. Owning compiled bundles must still
+include the complete Link/endpoint descriptor closure; the legacy schema-free path
+continues to use the existing evaluator registry fallback. No new Type lifecycle,
+HTTP set admission, Snapshot/changefeed, schema hosting, public profile or evidence
+claim follows. The actual service still has fixed all-visible policy and empty
+aggregate policy. Retained variable-grant projection, mutated-Resource accounting
+and receipt/group byte materialization remain separate work.
+
+### Owned transition evidence follow-up
+
+Native agent/message inputs are now exercised through owned creation, update,
+singleton deletion and deleteWhere. Creation/update assertions compare exact
+committedAt-bearing source and Link provenance with both Event levels. Deletion
+assertions compare the newly minted source's attribution while keeping the deleted
+Link identity delta free of provenance. A mixed no-op/effectful updateWhere is
+followed by a staged second set and an explicit owned update in the same batch;
+receipt entries pin every member's sourceRevision, including the unchanged no-op,
+and the Event chain pins the corresponding intermediate source versions.
+
+These tests add evidence without changing evaluator, writer, budgets or serving.
+The earlier 4,096-Event observation is retained as a dated historical record;
+the subsequent boundary test used the measured 256-Event tuple. It is not evidence
+that the current source still exercises the historical 4,096 limit. Reducing repeated Resource parsing in
+the owned writer is deferred while separate materialization measurements proceed.
+
+## Private finite Event serving
+
+The same authority owner now serves finite Scope, Link and Bead Event pages.
+The owner reads committed groups one at a time in one synchronous entry and
+captures the current Scope context there. No live SQLite iterator escapes that
+entry. Event data and ordinals are unchanged; each Source receives stable opaque
+IDs bound to epoch, Authorization View, source URL, committed position and ordinal.
+The Scope projection uses the same rendering helper intended for the future
+changefeed. Raw storage Event IDs are not serving IDs.
+
+Link views contain lifecycle facts. Bead views contain their own lifecycle facts,
+endpoint-specific incidence facts, and incident Link property updates. Endpoint
+lookup uses only that group's final Link postimages, creation facts and incidence
+facts. Update then delete, and create then update then delete, remain projectable
+after restart without consulting current Links or retaining preimage bodies.
+The metadata-only incident Link case remains a named private development gap
+pending the specification disposition; Scope and Link views support that fact.
+
+Finite pages may split groups. They preserve ordinals, bound the complete encoded
+page to 4 MiB, and return an exclusive continuation after the last returned Event.
+The current M32/E256 materialization tuple bounds one encoded group to 169345024
+bytes; the later table preserves earlier rejected or superseded tuples. SQLite's `length(CAST(body AS BLOB))` is checked before selecting and parsing
+that row's body. This is a byte bound, not a general heap-safety claim. With the
+same R/Q bounds, one largest owned update plus Resource-source URL substitution,
+page envelope and continuation is bounded by `5R + 7Q + 8192 + 1024 = 1778688`
+bytes, below 4 MiB. No valid admitted first Event needs a new response-size refusal.
+A page scan remains synchronous and may visit many retained groups; neither total
+history length nor interruption inside a synchronous scan is newly bounded.
+Cursor context tags are not authentication or proof of prior issuance: a matching
+context must also identify a retained Event in that Source. Malformed and
+never-member cursors return `invalid-parameter` as a local reference convention.
+A known Resource identity remains an Event Source after deletion; an unknown
+source returns nondisclosing 404 before minimum checks, also a local reference
+ordering choice. Receipt detail expiry does not prune Events.
+
+HTTP authentication and Origin/Host/raw-target checks precede Event access. The
+existing finite minimum wait releases the owner entry between attempts, reports
+catch-up timeout rather than older success, and completes before conditional
+processing. Successful GET/HEAD carry the current context, no validators, and
+normal JSON negotiation and HEAD body suppression. Service facet AbortSignal
+cancellation is supported; disconnected HTTP sockets may drain the bounded wait
+budget rather than cancel immediately. The private fixed all-visible/no-pruning
+composition does not implement SSE, mutable views, erasure, Snapshot or changefeed
+serving, and does not advertise a public Transactional profile.
+
+### Measured private transaction materialization budget
+
+This initial measurement used one frozen, installation-bound tuple: 64 cumulative set
+matches, 256 induced Events, 32 explicit operations, 65536 request/property bytes,
+262144 complete Resource bytes, and 65536 encoded bytes for the Scope Event-source
+URI. No public profile or capacity advertisement changes. TX evaluator options
+require the properties and representation bounds; the actual owner passes that
+same tuple. Generic Read+Update evaluator optionality is unchanged.
+
+A missing/different persisted tuple refuses the existing installation before BDP
+maintenance, preserving SQLite hot-journal recovery ordering. Older 4096-count
+receipts and tests are historical evidence, not current-capacity claims or silently
+reinterpreted stores. At that checkpoint tests exercised 64/65 matches and 256/257 Events,
+including no-ops, rollback, retained refusal, conflict, fresh-key success and reopen.
+
+For R=262144, Q=S=65536, normalized combined patch bound N=7Q, A=8192, H=1048576,
+K=M+32, the closed owned Event shapes give:
+
+- Group <= min(E*(2.5R+N+S)+K*A+H, K*(max(9R+4S,5R+2N+2S)+A)+H).
+- Receipt <= K*(2R+Q+A)+32*128+S+H.
+
+| Private matches / Events | Group byte bound | Receipt byte bound |
+| --- | ---: | ---: |
+| 256 / 256 (rejected after measurement) | 305397760 | 173346816 |
+| 128 / 256 (insufficient measured headroom) | 304349184 | 96800768 |
+| 64 / 256 (superseded after stronger stress) | 253493248 | 58527744 |
+
+The proof includes both copies of the **combined** property/metadata patch in owned
+updates, separate source/Link provenance, at most two Resource effects, and no
+preimage bodies. Exact Event, result and upsert-wrapper assertions preserve those premises.
+The receipt's separate S term pays its first Scope-bearing URI; H explicitly also
+pays the second Scope occurrence in `next`, fixed receipt/page suffixes and the
+bounded failed-receipt envelope (diagnostics <=524288, name <=Q). Those allowances
+must be rechecked together if the fields or ceilings change. Scope and
+complete-Resource limits are actual owner checks, not assumptions about typical
+URLs or schemas. Alias/no-op results still consume result space without Events.
+
+Bounded emitted-owner stress used normal sub-limit requests, exact Resource limits,
+receipt/page reads, exact-key retries, point afterstate and durable reopen; it never
+called inspect(). A post-close read-only scalar query measured only the selected
+group's stored byte length. The predeclared abort bounds were 120 seconds and 1 GiB
+RSS per disposable child. At 256 matches the 67,124,671-byte no-op receipt completed,
+but replay exceeded the RSS ceiling and was killed: replay qualification was
+inconclusive. At 128 matches no-op work passed at 802800 KiB child high-water RSS;
+128 owned updates/256 Events passed at 975216 KiB, too close to the ceiling.
+
+At that 64-match tuple, repeated no-ops produced a 16,782,715-byte receipt,
+with 480000 KiB high-water RSS through replay/pages/reopen. Dense transient numeric
+patches on 64 owned Links with full-size source Beads produced 128 Events and a
+45,059,033-byte group, with 557584 KiB high-water RSS. That case measured 128 Events;
+under that superseded 64-match tuple, the then-current boundary test exercised all
+256 Events using 64 owned deletes.
+These finite workloads do not prove general heap safety. Candidate selection still
+materializes the complete collection before count checks; C*R scan memory, dense
+object overhead, unbounded trusted principal/other SQLite-row fields, accumulated
+history and multi-group reads remain separate limits of this result.
+
+
+### Stronger owned materialization measurement and 32-match tuple
+
+The current private tuple lowers cumulative set matches to **32**, retaining 256
+Events, 32 explicit operations and the existing byte/diagnostic ceilings. Its
+installation identity changes; existing 64-match private stores must be explicitly
+reprovisioned and are not silently reopened or relabeled. There is no new public
+capacity or profile claim. With K=64 the same formulas give a 169,345,024-byte group
+bound and 39,391,232-byte receipt bound. These are serialized bounds, not heap bounds.
+
+The stronger emitted-owner measurement grows each owned Link first, then fills its
+source's residual metadata. Sources are exactly 262,144 bytes; Links are
+261,849–261,850 bytes. Only the exact empty source metadata wrapper is reserved
+before growing the Link. Both cannot independently reach R because the source embeds
+the complete Link. The entire 65,536-byte request is a batch envelope plus patch
+(no outside padding): 13,061 numeric values normalize to a combined 287,461-byte
+patch. The transient array is removed before final properties validation.
+
+At 64 matches an initial variant reserving 1 KiB of source metadata produced a 70,350,401-byte group and a 16,705,001-byte receipt.
+Execution, replay and the first finite Link Event page completed, but verification
+after reopen exceeded the 1 GiB supervisor gate (1,072,128 KiB sampled) and was
+killed after 8.349s. Its final verification is **inconclusive**. The last child
+self-reported high-water was 958,528 KiB before termination; it is not the peak.
+The earlier smaller-Link/50KB-patch run did not establish headroom for this
+achievable workload.
+
+The actual 32-match tuple completed the tighter case in 4.161s: 35,207,784-byte
+group, 8,385,225-byte receipt, 562,976 KiB child self-reported maxRSS and 540,304 KiB
+supervisor sampled peak. It verified exact-key replay, receipt pages, finite Link
+Event payloads and all corresponding observations after reopen. Repeated no-ops
+also completed through replay/pages/reopen. All runs used disposable stores and
+the same predeclared 120s/1 GiB gate; no inspect() was used. Scalar group-byte
+measurement happened after owner close. The successful workload is not a universal
+worst-case heap guarantee: collection scans, accumulated history and other graph
+shapes remain unqualified.
+
+All four evaluator bound fields now reject missing/invalid/raised values before
+effects. TX tests pin closed create/update/delete results and upsert wrappers,
+and permanently exercise extremal admitted numeric normalization through stored
+Events. Current default match tests observe 32/33. The 32-owned-delete test observes
+128/129 Events using a deliberately lowered evaluator Event cap; 256 remains the
+owner cap, validated as a configured bound; its default refusal is not observed
+by this lowered-cap fixture. The earlier 256/257 and 4,096 observations are historical, not
+relabelled as current default-boundary tests. E>=4M is a usability relationship,
+not a premise needed for the serialized bound.
+
+### Private finite whole-group changefeed
+
+The private changes/ GET/HEAD route now serves one complete committed group per
+page from the same locked owner as mutations and finite Events. It reuses the
+Scope Event renderer, so facts and IDs agree across those two observation paths.
+An owner-internal bounded row helper prepares its two statements once per observation
+and checks encoded group length before selecting
+and parsing it; no inspect/all-history array or independent log is used. Body,
+observedHeadPosition and response context come from one owner entry.
+
+Requests provide exactly one after checkpoint or start=now. The reserved genesis
+checkpoint is distinct from the pos-0 position. New group checkpoints bind Scope,
+epoch and view; stored group records and position spelling remain unchanged. A
+start=now request captures its initial head once before any finite minimum wait,
+so intervening commits remain in its suffix. Continuations are absolute URLs and
+never split a group. Existing failed/no-op/locator-only changes create no group.
+Finite JSON ignores Last-Event-ID; it neither supplies nor overrides start intent.
+SSE-only negotiation remains406, and public discovery/profile admission stays closed.
+
+The current installation-bound32-match/256-Event tuple yields a169,345,024-byte
+stored group bound. Conservatively adding all rewritten Scope-source/ID bytes and
+the page/HTTP envelope gives186,334,744 encoded bytes, below pinned Node24's
+536,870,888 UTF-16 code-unit string ceiling. This arithmetic allocates no giant
+proof string and does not establish heap/RSS or concurrent request capacity. The
+private one-group page bound is not a Resource/receipt page.maximumItems claim.
+
+Tests reconstruct the graph from genesis with a replica oracle that stages final
+postimages/tombstones and publishes graph plus checkpoint atomically. The oracle
+rejects owned inline/first-class disagreement, gaps, context mismatch and conflicting
+duplicates without partial publication; it compares positions only for equality.
+Other evidence covers original intermediate facts versus final postimages,128
+Events from32 selected owned Links in one group, large postimages/Scope sources, actual HTTP minimum and
+conditional/HEAD behavior, restart-stable IDs and owner fencing. This is no Snapshot
+bootstrap, erasure, pruning/late-cursor, hidden-view or SSE qualification. Remaining
+unsupported minimum forms stay explicit development gaps. Cold discovery changes,
+headPosition/minimumReplayPosition and cumulative installed Transactional evidence
+remain separate completion work.
+
+
+### Mixed explicit/set workload and reproducible emitted-tuple witnesses
+
+A further bounded run exercised 31 explicit owned Link updates plus one set update
+matching 32 other Links: 32 carrier operations, 63 affected owned pairs and 64
+receipt entries including the set summary. These are the reachable explicit-plus-set
+units absent from the earlier set-only measurement. All 63 source Beads were exactly
+262,144 bytes, and Links were 261,849–261,850 bytes. The single 65,536-byte carrier
+included 3,287 bytes of explicit operation-array serialization; its remaining set
+payload contained 12,403 numbers, normalizing to a 272,985-byte combined patch.
+The measurement does not allocate a full Q patch to each explicit operation.
+
+The mixed run completed execution, exact-key retry, receipt-page and finite Link
+Event reads, and the corresponding checks after reopen in 8.073 seconds. The group
+was 50,568,556 bytes and receipt 16,507,992 bytes. Child self-reported maxRSS was
+886,912 KiB; supervisor sampled peak was 832,480 KiB against the predeclared
+1,048,576 KiB/120-second gate. This is substantially less margin than the set-only
+case, not a universal heap-safety or comfortable-all-workloads claim. The tuple
+remains M32/E256; no further count change was made from this measurement. The measured
+serialized group is about 30% of the admitted 169,345,024-byte bound; reachability
+of that conservative bound and its heap cost are not established. The supervisor
+gates the sampled RSS metric, which can miss peaks; the separately reported child
+high-water metric is higher and was not the gate's enforcement input.
+
+These runs used emitted production bytes from source `d907a1e1576c5795c17edb5f15528f47edfd7d6b`
+with the three reported test/prose working changes, and emitted tree digest
+`73b5a9866729b2254c23d47995ab50c7cb301a27dde923d35c6d31d36236ce1a`.
+[Exact scripts, outputs and provenance](https://github.com/donnabox/beads/tree/3d393dbf772dfd8b759bfaa455e04be950c1f976/docs/architecture/bdp-client-v2/transaction-materialization-closure)
+retain the source status rather than claiming a pristine committed source run.
+
+Fresh repeats on the same actual emitted tuple completed the 32-match set-only
+case (551,504 KiB self / 523,040 KiB sampled) and 32 repeated no-op matches
+(288,544 KiB self / 261,840 KiB sampled). Each new script imports and asserts the
+emitted tuple and logs all its fields, source commit/status, relevant source hashes,
+emitted server/protocol JS/JSON file hashes and tree digest, and script/helper hashes.
+A separate old-M64/new-M32 probe records both actual tuples, verifies refusal leaves
+database bytes unchanged, and reopens/replays the receipt under the old owner.
+It makes no stronger claim about an unobserved internal maintenance execution path.
+
+Each new named variant and its exact script remain beside its output; the supervisor
+refuses to overwrite an existing run log. Earlier intermediate variants retained
+outputs but overwrote script versions. Those historical scripts cannot be recovered
+by asserting their contents now; that reproducibility limitation remains. New runs
+provide independent evidence rather than retroactively repairing their provenance.
+
+The permanent owned-update assertion now checks the exact two-entry changes array
+against independently read Link and source records. All four extremal numeric
+normalization cases pin exact serialized literals as well as the factor-seven bound.
+These changes strengthen observations only; no store, runtime or Event implementation
+changed in this follow-up. The default E256 refusal is still not directly observed;
+actual refusal tests use the lowered evaluator cap described above.

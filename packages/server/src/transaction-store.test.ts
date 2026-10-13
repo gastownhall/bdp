@@ -2122,6 +2122,7 @@ describe("private transaction storage failure fencing", () => {
       () => store.inspect(),
       () => store.aliasTarget("x"),
       () => store.receipt("principal", claim.receipt.id),
+      () => store.readReceipt("principal", claim.receipt.id),
       () => store.maintain(),
       () => admit(store, batch, "fresh"),
       () => store.execute(claim),
@@ -2931,4 +2932,127 @@ describe("private transaction reader lifetime", () => {
     });
     expect(callback).not.toHaveBeenCalled();
   });
+});
+
+describe("private atomic receipt observation", () => {
+  it("captures retention, receipt bytes and current context in one guarded SQLite entry", () => {
+    const f = fixture({ clock: () => 1000 });
+    const receipt = f.store.execute(admit(f.store));
+    const prepare = DatabaseSync.prototype.prepare;
+    const observed: boolean[] = [];
+    const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (
+        sql === "SELECT * FROM receipts WHERE principal=?" ||
+        sql === "SELECT value FROM metadata WHERE name=?"
+      ) {
+        observed.push(this.isTransaction);
+        expect(() => f.store.inspect()).toThrow("reentrant");
+      }
+      return prepare.call(this, sql);
+    });
+    try {
+      expect(f.store.readReceipt("principal", receipt.id)).toEqual({
+        receipt,
+        context: {
+          scopeEpoch: receipt.scopeEpoch,
+          authorizationView: receipt.authorizationView,
+          scopePosition: "pos-1",
+        },
+      });
+      // Receipt and current position come from this entry; epoch is installation-constant.
+      expect(observed).toEqual([true, true]);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(f.store.inspect().groups).toHaveLength(1);
+  });
+
+  it("cannot observe tentative effects or use a closed owner", () => {
+    let store: ReturnType<typeof openTransactionStore> | undefined;
+    const attempted = vi.fn();
+    const f = fixture({
+      fault(stage) {
+        if (stage === "after-effects") {
+          attempted();
+          expect(() => store?.readReceipt("principal", "unknown")).toThrow("reentrant");
+        }
+      },
+    });
+    store = f.store;
+    const receipt = f.store.execute(admit(f.store));
+    expect(attempted).toHaveBeenCalledOnce();
+    expect(f.store.readReceipt("principal", receipt.id).receipt).toEqual(receipt);
+    f.store.close();
+    expect(() => f.store.readReceipt("principal", receipt.id)).toThrow("closed");
+  });
+});
+
+it("guards receipt serving positions and prior-epoch nondisclosure using persisted facts", () => {
+  const f = fixture({ clock: () => 1000 });
+  const receipt = f.store.executeObserved(admit(f.store));
+  expect(receipt.context.scopePosition).toBe("pos-1");
+  expect(Object.isFrozen(receipt.receipt.results)).toBe(true);
+  f.store.close();
+  const raw = new DatabaseSync(f.options.file);
+  raw
+    .prepare("UPDATE receipts SET receipt=? WHERE principal=? AND key=?")
+    .run(
+      JSON.stringify({ ...receipt.receipt, requiredPosition: "pos-2" }),
+      "principal",
+      receipt.receipt.idempotencyKey,
+    );
+  raw.close();
+  const reopened = openTransactionStore({ ...f.options, create: false });
+  try {
+    expect(() => reopened.readReceipt("principal", receipt.receipt.id)).toThrow("position exceeds");
+  } finally {
+    reopened.close();
+  }
+  const edit = new DatabaseSync(f.options.file);
+  edit
+    .prepare("UPDATE receipts SET receipt=? WHERE principal=? AND key=?")
+    .run(
+      JSON.stringify({ ...receipt.receipt, scopeEpoch: "another-epoch" }),
+      "principal",
+      receipt.receipt.idempotencyKey,
+    );
+  edit.close();
+  const prior = openTransactionStore({ ...f.options, create: false });
+  try {
+    expect(prior.readReceipt("principal", receipt.receipt.id).receipt).toBeUndefined();
+  } finally {
+    prior.close();
+  }
+});
+
+it("captures exact replay and execute observations inside their owner transactions", () => {
+  const f = fixture({ clock: () => 1000 });
+  const claim = admit(f.store);
+  const prepare = DatabaseSync.prototype.prepare;
+  let observations = 0;
+  const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql: string,
+  ) {
+    if (sql === "SELECT value FROM metadata WHERE name=?") {
+      expect(this.isTransaction).toBe(true);
+      observations++;
+    }
+    return prepare.call(this, sql);
+  });
+  try {
+    const executed = f.store.executeObserved(claim);
+    const replay = f.store.admitObserved(
+      "principal",
+      claim.receipt.idempotencyKey,
+      prepareTransaction(scope, JSON.stringify(batch)),
+    );
+    expect(replay).toEqual({ kind: "existing", ...executed });
+    expect(observations).toBeGreaterThanOrEqual(3);
+  } finally {
+    spy.mockRestore();
+  }
 });

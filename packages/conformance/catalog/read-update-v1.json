@@ -11,8 +11,19 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#readupdate-discovery",
           "selectedText": "Read+Update adds required `operations` and `aliases` navigation members to Read discovery and advertises `profile: \"read-update\"`. It inherits the optional History capability. Its discovery schema is the closed `readUpdateDiscovery` definition: `bdpVersion`, `profile`, `scope`, `beads`, `links`, `types`, `operations`, and `aliases` are required; `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` are optional under their inherited contracts. These are the only admitted members."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "The optional `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` members apply under their contracts."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "An omitted `order` means `canonical-uri`."
         }
-      ]
+      ],
+      "retires": ["read.discovery.document"]
     },
     {
       "id": "read-update.discovery.aliases",
@@ -239,7 +250,7 @@
     },
     {
       "id": "read-update.singleton.update-link",
-      "title": "update-link returns the Link postimage; an unowned Link's update versions no endpoint",
+      "title": "update-link returns the Link postimage; an unowned Link's update moves only the Link's own revision and versions no endpoint",
       "kind": "normative",
       "requiredProfile": "read-update",
       "requirements": [
@@ -257,6 +268,11 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#sequence-local-resource-references",
           "selectedText": "Creating or deleting a Link does not mutate an in-Scope endpoint Bead or change that Bead's Resource revision"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#mutation-revisions-and-guards",
+          "selectedText": "Every successful create — and every update that changes `properties`, common `metadata`, or, for a Bead whose Type owns outgoing Link Types, its owned Links — produces a fresh opaque Resource revision."
         }
       ]
     },
@@ -326,11 +342,6 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#mutation-revisions-and-guards",
           "selectedText": "If applying an update leaves both `properties` and common `metadata` equal, under the JSON value-comparison rules of RFC 6902 Section 4.6, to their values immediately before that operation, then the operation retains the existing revision."
-        },
-        {
-          "source": "docs/specs/bdp.md",
-          "anchor": "#readupdate-consistency",
-          "selectedText": "Read+Update has no durable Mutation Receipts and no BDP Events."
         },
         {
           "source": "docs/specs/bdp.md",

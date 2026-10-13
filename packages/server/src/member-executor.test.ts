@@ -2277,6 +2277,71 @@ describe("runtime properties limits on actual member storage", () => {
   });
 });
 
+describe.each(["properties", "metadata"] as const)("numeric admission in %s", (document) => {
+  it.each(["createBead", "createLink", "updateBead", "updateLink"] as const)(
+    "%s strips Type-schema claims from callback diagnostics and retains the refusal",
+    (operation) => {
+      const f = fixture();
+      const create = operation.startsWith("create");
+      const link = operation.endsWith("Link");
+      const input = create
+        ? {
+            id: `${link ? "links" : "beads"}/numeric-refusal`,
+            type: link ? linkType : type,
+            ...(link ? { source: "beads/a", target: "beads/b" } : {}),
+            [document]: { bad: "NUMBER_TOKEN" },
+          }
+        : {
+            [link ? "link" : "bead"]: link ? "links/old" : "beads/a",
+            [`${document}Change`]: [{ op: "add", path: "/bad", value: "NUMBER_TOKEN" }],
+          };
+      const text = stringifyJsonValue(input).replace('"NUMBER_TOKEN"', "1e400");
+      const before = [f.body("beads/a"), f.body("beads/b"), f.body("links/old")];
+      const options: MemberExecutorOptions = {
+        ...f.options,
+        numericBudget: {
+          diagnostic: () => ({
+            message: "number cannot be represented",
+            type,
+            schemaLocation: "https://types.test/schema#/properties/bad",
+            instanceLocation: "/callback-location",
+          }),
+        },
+        contracts: {
+          get() {
+            throw Error("numeric admission must precede Type validation");
+          },
+        },
+      };
+      const refused = f.run(operation, text, "numeric-context", options);
+      expect(refused.disposition).toMatchObject({ code: "validation-failed" });
+      expect(refused.disposition).toHaveProperty("diagnostics", [
+        {
+          message:
+            document === "metadata"
+              ? "metadata: number cannot be represented"
+              : "number cannot be represented",
+          ...(document === "metadata" ? { document: "metadata" } : {}),
+          ...(create ? { instanceLocation: "/bad" } : {}),
+        },
+      ]);
+      expect([f.body("beads/a"), f.body("beads/b"), f.body("links/old")]).toEqual(before);
+      expect(f.body(`${link ? "links" : "beads"}/numeric-refusal`)).toBeUndefined();
+      f.reopen();
+      const replay = f.run(operation, text, "numeric-context", {
+        ...options,
+        numericBudget: {
+          diagnostic: () => {
+            throw Error("retained failure must not rerun numeric validation");
+          },
+        },
+      });
+      expect(replay.disposition).toEqual(refused.disposition);
+      expect([f.body("beads/a"), f.body("beads/b"), f.body("links/old")]).toEqual(before);
+    },
+  );
+});
+
 it("keeps a complete large first diagnostic and deep valid/invalid neighbors through real member storage", () => {
   const key = "~".repeat(1048576 - 1024);
   const pointer = `/${"~0".repeat(key.length)}`;

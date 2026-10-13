@@ -364,3 +364,293 @@ lifecycle. The saved non-attesting report records all 797 assertions passing.
 Build, typecheck, dependency boundaries, formatting and both executable smokes
 passed on Node 24.16.0/pnpm 11.20.0. Lint retains the baseline three warnings and
 one informational finding. No full repository suite was run for this slice.
+
+## Private installed-contract and trusted-principal composition (U2)
+
+The source-only canonical HTTP fixture can now supply an internal deployment
+configuration to the existing mutable owner. Ordinary installed startup and the
+public development facade keep their original fixed contract, credential and
+admission behavior. Neither accepts the new configuration, advertises another
+profile, nor acquires new package exports.
+
+`development-contracts.ts` captures exact offline descriptor/schema bytes with
+the existing artifact ingester and compiles them with the existing guarded
+schema evaluator. Every schema reference must resolve from that captured bundle
+or the evaluator's immutable built-ins. The registry matches exact installed
+Type bytes. The installation identity binds the captured closure and fixed
+aggregate policies; reopening under different bytes or aggregate configuration
+is refused. This supplies no network fetch or Type installation lifecycle API.
+
+The adapter emits confirmed property diagnostics and stops when the receiver's
+own diagnostic bound is reached. If the compiler truncated its prefix before
+the receiver stopped, the adapter refuses to claim completeness. Local evaluation
+refusal also fails closed; neither case becomes successful validation or invented
+complete diagnostics. Final Resource evaluation attaches the effective Type
+and applies its own advertised diagnostic count/byte budget. This fixture does
+not qualify every schema dialect keyword, every compiler budget refusal, or
+production compiler resource consumption.
+
+The private deployment captures a bounded token-to-principal map. The actual
+Authorization credential selects the stable principal; writer-supplied actor
+attribution has no authority. Administrative policy snapshots independently
+control creation, writes, hidden Resources and read-only Resources. A private
+operator handle can replace a principal's snapshot between owner turns, and
+pagination authorization views change with that snapshot. Policies are supplied
+again on startup; this slice adds neither a policy persistence subsystem nor a
+remote administration endpoint. Fixed aggregate policy changes require a new
+installation, rather than silently tightening a live graph.
+
+Eight focused observations cover inherited schema failure and retained replay;
+immutable captured schema bytes; owned-Link source revisions, provenance and
+no-op preservation; aggregate refusal without effects; source write permission;
+principal-separated keys and actor non-authority; hidden versus forbidden
+responses and current-policy retained disclosure; whole owned-Resource
+withholding and pagination view invalidation; exact-config durable reopen;
+administrative accessor/credential rejection; and refusal to claim completeness for truncated
+compiler diagnostics when the receiver has not stopped. Seven run real HTTP against the same disposable mutable
+owner; the eighth directly tests the compiler-to-diagnostic adapter's refusal
+boundary. The schema fixture uses an open object with an inherited integer
+property constraint and an external schema reference supplied as pinned bytes.
+
+These are bounded source-only observations, not installed profile qualification.
+The later served profile still needs an installed mutable payload, applicable
+cumulative Read receiving/CORS behavior and profile-specific executable evidence.
+No conformance row, profile guard or existing evidence artifact is relabeled.
+
+## Installed mutable candidate factory (P1a)
+
+The server package now contains a private installed reference factory and an IPC
+qualification process entry. They are neither package exports nor executable
+bins or ordinary `bdptest` switches. The packed-package smoke starts the actual
+installed entry outside the workspace. It supplies configuration through an
+inherited IPC channel, never argv, and observes the same factory intended for
+later evidence-gated startup. IPC possession is process control, not admission.
+Readiness explicitly reports `claimEligible: false`.
+
+The closed configuration captures a canonical Scope, separate loopback listener,
+explicit create/reopen choice and store directory, trusted credential/principal
+mapping, administrative policy snapshots, fixed aggregate policy and exact
+Type/schema artifact bytes. Empty descriptor input selects the full current
+reference Type family instantiated at Scope-local identities. All conformance,
+endpoint and ownership references are remapped together; these identities do
+not claim to host the original work.example URLs. Actual Type reads use the
+installed registry. Optional local schema routes serve exact captured bytes
+from a closed manifest, with no network fetch or arbitrary routing callback.
+
+The factory reports three distinct identities: the captured contract artifact
+identity, the configuration identity including principal/policy/credential
+mapping and actual fixed limits, and a hash of the actual installed server and
+protocol JavaScript payload. Store invariants bind Scope, contracts and aggregate
+configuration; changing live credential/policy configuration on a later reopen
+changes qualification identity without changing the contract installation.
+Listener port and provisioning choice are separate from persistent Scope
+identity. Factory hashes are observation metadata, not signed or independently
+verified conformance evidence. The eventual evidence artifact still needs its
+own target/configuration/source binding and verification.
+
+The installed transport normalizes raw targets before classifying every route,
+including singleton and sequence targets. Valid absolute-form requests retain
+only their validated path/query; configured Scope remains the identity authority.
+Host and forwarding headers cannot rebind it. Disabled CORS processes Origin
+normally without grant headers and retains endpoint-specific OPTIONS refusal.
+Ordinary development transport restrictions remain unchanged. Both transports
+share the actual receiver, mutable owner, Read projection and HTTP semantics.
+
+Startup and shutdown now close the durable owner even when listener cleanup
+fails; startup preserves the original and cleanup failures together. The private
+entry accepts one startup, handles SIGTERM/parent disconnect, drains accepted
+work through the existing owner and closes unadmitted partial bodies. No clock,
+scheduler, synthetic outcome, fault, database mutation or policy-replacement
+control is exposed through IPC.
+
+Packed and emitted process observations cover all nine targets, actual afterstate,
+Type closure navigation, stable Scope across different listener ports, exact-key
+reopen, negotiation/conditional/HEAD/method behavior, disabled CORS, raw targets,
+pre-admission rejection and corrected-key reuse. Additional tests cover exact
+schema bytes and real validation, detached captured credentials/policy, second
+owner/installation mismatch, one-start/bind failure, partial-body disconnect and
+an injected listener-cleanup failure followed by a successful real-store reopen.
+
+P1a does not activate public Write profiles or refresh/relabel existing Read
+evidence. The packed smoke still proves ordinary Read startup and write-profile
+refusal. No deterministic installed between-member interruption or power-loss
+durability claim follows from this slice; existing separate owner/process tests
+retain their original scope. Full cumulative executable requirements, broader
+schema applicability, independent profile-specific evidence and its public
+admission gate remain prerequisites for activation. The listener is an explicit
+loopback candidate; deployment TLS and optional CORS-enabled/History behavior
+are not newly provided here.
+
+
+### Configuration and diagnostic boundary corrections
+
+A compiler-produced diagnostic prefix can be longer than the receiver permits.
+The adapter now emits that confirmed prefix until the receiver stops and returns
+invalid/incomplete at that point. A real 1025-branch schema produces a retained
+422 with 32 diagnostics and `diagnosticsTruncated`, rather than a local error.
+If the receiver accepts the entire truncated compiler prefix, the adapter still
+throws instead of inventing completeness. An actual evaluator work-budget
+refusal remains a local 500 with no effects or retained key; a corrected request
+can use the same key successfully.
+
+Aggregate constraints require positive maxima and are captured as sorted,
+exact-deduplicated semantic entries before hashing or provisioning. Credential
+principals must already have policy snapshots before store creation. Contract
+identity now also covers captured artifact/compiler limits and the fixed graph
+and evaluator bounds. This changes private custom-installation identities;
+previous U2 custom stores are not silently adopted. The ordinary default
+installation remains unchanged.
+
+Captured Scope configuration is frozen. Its policy digest describes all
+administrative policy snapshots; a separate per-principal snapshot identity
+controls pagination authorization. Configured authorities expose only explicit
+principal facets; duplicate credentials for one principal share one route.
+Hidden/read-only policies accept the protocol's actual canonical local IDs,
+including nested and encoded IDs, and use private Sets for membership checks.
+Read remains an explicit bounded deny-list fixture rather than a general
+whole-Scope deny-read policy. No broader IAM capability is claimed.
+
+### Whole-startup readiness and fixed owner-limit identity
+
+The listener now refuses all requests until every configured principal's Read
+view and discovery routes have initialized. A deterministic second-principal
+barrier observes real GET and mutation refusals, then tests both successful
+startup and later startup failure. In both cases the Resource remains absent and
+the original mutation key can be used after readiness or durable reopen.
+
+The private installed process module is inert when imported, including by a
+process with inherited IPC. Only direct execution installs the IPC lifecycle;
+direct execution without IPC refuses with the fixed redacted diagnostic.
+
+One frozen private tuple supplies the actual owner, member, receiver and
+pagination limits and the installed configuration identity. This includes patch
+and representation bounds, retention and maintenance, pagination capacity and
+token limits. Existing values and advertised limits are unchanged; there are no
+new configuration overrides. Hash-sensitivity tests vary captured limit groups
+in the test import only. This changes qualification configuration identities,
+not persisted installation identities, and does not relabel historical evidence.
+
+### Shared private composition and installed observation bindings
+
+The installed factory and source fixture now call one emitted private Read and
+Operation Directory composition. Neither implementation imports test support.
+Actual HTTP refusal tests exercise the owner gate before both the static
+Operation Directory and captured schema route; restoring the owner observation
+restores their responses. Hosted schema responses carry the non-attesting marker.
+
+Shutdown retries a failed listener cleanup while retaining the owner's single
+terminal completion. A successful owner close is not invoked again, and an owner
+failure cannot be erased by a later listener retry. Concurrent callers share an
+attempt; successful completion remains idempotent. A real-owner regression keeps
+the first listener open through an injected failure, reopens the durable owner at
+a second listener under the same Scope, and then completes the first cleanup.
+
+The default reference closure now recursively checks output keys and values for
+foreign absolute URIs, including future fields outside the remapper's current
+positions. This guard applies to the shipped local reference fixture; it does
+not introduce a new Type lifecycle or generic custom-schema policy.
+
+Payload identity includes the resolved declared runtime package closure:
+server/protocol emitted files and schema assets, package manifests and runtime
+dependency code/data. It includes fast-uri and the protocol's Ajv dependencies.
+Dependency resolution is from each installed package, not a caller-provided list;
+Node itself and deployment/TLS are outside this identity. An isolated copied
+fast-uri file change alters the observed payload identity without changing the
+configuration or artifact identity. Historical payload hashes are not relabeled.
+
+Private configuration capture, factory results and IPC readiness now also carry
+`policyIdentity`, `authenticationIdentity`, `profile: "read-update"` and
+`history: false`. The configuration identity binds these actual captured values.
+Authentication identity hashes the captured ordered principal/token-digest
+mapping; no token is emitted. Policy-only and credential-only changes have
+distinct identity witnesses, and callers cannot supply these metadata fields.
+Source commit remains launcher metadata rather than a claim by the target.
+This remains a non-attesting private candidate with public admission unchanged.
+
+
+### Qualification limits for the current installed fixture
+
+Bodyless method refusals from the shared receiver now carry the same
+non-attesting marker; emitted and packed HTTP observations assert it for the
+service description, Operation Directory and operation target. IPC smoke checks
+require an opaque 64-hex policy identity, as for the sibling digest fields.
+
+Payload binding is qualified against the fixed current declared dependency
+closure. Optional/peer edges, ESM-only dependency resolution and traversal work
+bounds for larger dependency graphs are not generalized by this candidate.
+The reference-output guard covers absolute URI strings in the current reference
+closure; it is not a semantic classifier for future URI-reference or prose
+fields. Authentication identity deliberately captures credential array order.
+Listener retry tests inject a failure that leaves the listener open; this does
+not establish that ordinary Node close produces that state. The actual owner
+close, released store lock and preserved terminal result remain observed.
+
+
+Across the ordinary and installed configurations of the shared receiver,
+the explicit response paths carrying the marker are JSON/Problem
+responses, shared empty responses, ordinary Read responses, captured installed schemas,
+composed Read responses (including installed alias redirects), the ordinary
+development alias redirect, and the installed raw CONNECT refusal. Direct
+ordinary alias and installed packed alias observations assert the marker. A
+bounded raw-socket observation asserts CONNECT405, Allow, marker and empty body
+in both emitted and packed runs. These statements cover responses written by
+the candidate receiver; Node-generated transport errors are outside this list.
+Readiness additionally requires the actual prefixed artifact digest shape
+`development-schema5-<64 lowercase hex digits>`.
+
+Detached CONNECT sockets observe write errors and are destroyed after the refusal
+finishes. Bounded reset-peer probes check continued service in emitted and packed
+runs; they do not claim every possible kernel write-error timing was injected.
+
+### Exact installation artifact retention
+
+The development authority now supplies its bounded serialized compiled capture and
+complete frozen canonical Type inventory to recovery-store startup. Capture lives in
+one immutable metadata row, separately from compact installation/lineage identity;
+member policy writes cannot reach it. It contains original descriptor/schema bytes
+and artifact, graph and evaluator limit witnesses, never access/authentication state.
+The existing compiler identity, registry and schema-hosting path are unchanged.
+Retaining the shared capture also retains an additional in-memory base64 copy; this
+slice does not remove the existing hosting copy or optimize installation memory.
+
+Recovery format4 intentionally refuses format3 stores, including stores behind the
+public nonattesting development facade. No migration or reseed is performed. Direct
+store callers default to explicit uncaptured metadata (`null`) and no inventory
+expectation; captured stores cannot reopen through that default. Both configured and
+built-in authorities always opt into the complete inventory gate. Literal built-in
+Types carry no whole exact-artifact conformance claim.
+
+Within locked open, stored capture UTF8 byte length is checked before materializing
+text, then exact capture and inventory equality are checked before claimed-key
+recovery or maintenance. Capture JSON is not parsed by storage. Writable SQLite hot-
+journal recovery remains allowed first. Refused ordinary files remain byte-identical;
+a recovered journal can restore physical bytes before refusing BDP startup. Refused
+opens leave claimed keys present; subsequent valid open counts their removal in
+runtime.recoveredClaims. Later Resource-Type and runtime-limit compatibility scans
+remain post-open checks; this is not a universal startup-refusal ordering repair.
+
+Full capture stays for installation lifetime, including deletion and receipt expiry.
+Administrative input remains required on reopen; saved bytes can reconstruct the
+same compiler offline. Compiler-limit changes deliberately refuse existing stores.
+Existing policy/authentication changes remain allowed and hosted schema bytes are
+unchanged. Tests cover built-in and compiled corruption, original-byte retention,
+offline reconstruction, replay/lifetime, and actual hot-journal refusal/recovery.
+No public profile activation or new Type lifecycle follows from these observations.
+
+
+### Retention review follow-ups
+
+A missing required capture row is an integrity failure; a present but unequal
+capture remains an installation mismatch. Corruption tests identify the exact gate
+and reason, and a permanent format3-shaped fixture (no capture row) proves format
+refusal precedes the new capture gate while preserving bytes and pending claims.
+
+Deferred maintenance: consolidate the twin serialized-capture ceiling in
+`development-authority.ts` (`maximumCaptureBytes`) and `transaction-store.ts`
+(`captureMaximumBytes`) when both lanes can be changed together. Both currently use
+8 times artifact bytes plus 1024 per submitted artifact plus 4096 overhead; the RU
+site explicitly cross-references its TX twin. Their stored-length checks intentionally
+differ: RU compares the supplied bounded expectation's exact byte length; TX checks
+the shared ceiling before exact equality. The one production RU authority bounds
+serialization; a direct recovery-store caller remains responsible for bounding its
+expectation. No shared accessor or TX refactor is included in this follow-up.
