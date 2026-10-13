@@ -75,7 +75,7 @@ describe("draft Read+Update catalog", () => {
     for (const id of ids) expect(readIds.has(id), id).toBe(false);
   });
 
-  it("is bound by no executable manifest, so no runner report can carry its rows", () => {
+  it("binds only the explicit partial version 2 RU manifest, preserving the sealed Read matrix", () => {
     const manifests = readdirSync(path.resolve(root, MATRICES_DIRECTORY)).filter((entry) =>
       entry.endsWith(".json"),
     );
@@ -85,6 +85,13 @@ describe("draft Read+Update catalog", () => {
         readText(path.join(MATRICES_DIRECTORY, entry)),
         entry,
       );
+      if (entry === "read-update-v1.json") {
+        expect(manifest.catalogId).toBe("read-update-v1");
+        expect(manifest.manifestVersion).toBe(2);
+        expect(manifest.scenarios.length).toBeLessThan(ids.length);
+        for (const row of manifest.scenarios) expect(ids).toContain(row.id);
+        continue;
+      }
       expect(manifest.catalogId, entry).not.toBe("read-update-v1");
       const bound = new Set(manifest.scenarios.map(({ id }) => id));
       for (const id of ids) expect(bound.has(id), `${entry} binds ${id}`).toBe(false);

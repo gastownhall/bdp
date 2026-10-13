@@ -1,0 +1,1164 @@
+{
+  "version": 1,
+  "claimEligible": false,
+  "rows": [
+    {
+      "id": "read.discovery.scope-service-desc",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.discovery.canonical-navigation",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.discovery.optional-limits",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.resource.bead-record",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.resource.link-record",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.resource.external-endpoint",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.resource.properties-view",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.resource.default-bounded",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.resource.not-found-nondisclosure",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.types.inventory",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.types.descriptor",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.collections.beads",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.collections.links",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.collections.structural-predicates",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.collections.selector",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.collections.pagination-snapshot",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.collections.cursor-errors",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.collections.invalid-query",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.bead-links.directions",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.bead-links.pagination",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.http.get-head",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.http.method-405",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.http.problem-table",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.http.internal-fault",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.http.cache-cors",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.http.raw-request-targets",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.scope.restore-identity",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.alias.resolution",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.alias.absent",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.disclosure.gone",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.disclosure.gate",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.owned.closure",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.attribution.carried",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.attribution.link",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.owned-wildcard.declaration",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.owned-wildcard.max-required",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.owned-wildcard.explicit-max-bounded",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.owned-wildcard.present-entries",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.owned-wildcard.closure",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.numeric-model.declared-token-model",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.http.accept-negotiation",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.http.conditional-reads",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read.http.head-conditional-parity",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.discovery.document",
+      "status": "bounded-observation",
+      "wholeContract": false,
+      "reason": "Actual target advertises canonical-uri order; omitted-order fallback not observed in this configuration.",
+      "bindings": [
+        {
+          "scenario": "read-update.discovery.document",
+          "assertions": [
+            "scope.status",
+            "scope.empty",
+            "discovery.status",
+            "discovery.schema",
+            "discovery.profile",
+            "discovery.no-tx",
+            "directory.status",
+            "directory.schema",
+            "directory-captures.status",
+            "task.status",
+            "relates.status",
+            "create-z.status",
+            "create-z.written",
+            "create-z.created",
+            "create-a.status",
+            "create-a.written",
+            "create-a.created",
+            "canonical-inventory.status",
+            "canonical-inventory.order"
+          ],
+          "limits": [
+            "Actual target advertises canonical-uri order; omitted-order fallback not observed in this configuration."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.discovery.aliases",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.discovery.limits",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.discovery.operation-directory",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.create-bead",
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Selected contract legs have executable HTTP and independent afterstate assertions; not profile qualification.",
+      "bindings": [
+        {
+          "scenario": "read-update.singleton.create-bead",
+          "assertions": [
+            "scope.status",
+            "scope.empty",
+            "discovery.status",
+            "discovery.schema",
+            "discovery.profile",
+            "discovery.no-tx",
+            "directory.status",
+            "directory.schema",
+            "directory-captures.status",
+            "task.status",
+            "relates.status",
+            "create.status",
+            "create.written",
+            "create.created",
+            "read.status",
+            "read.written",
+            "read.postimage",
+            "allocate.status",
+            "allocate.written",
+            "allocate.created",
+            "read-allocated.status",
+            "read-allocated.written",
+            "read-allocated.postimage"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.update-bead",
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Selected contract legs have executable HTTP and independent afterstate assertions; not profile qualification.",
+      "bindings": [
+        {
+          "scenario": "read-update.singleton.update-bead",
+          "assertions": [
+            "scope.status",
+            "scope.empty",
+            "discovery.status",
+            "discovery.schema",
+            "discovery.profile",
+            "discovery.no-tx",
+            "directory.status",
+            "directory.schema",
+            "directory-captures.status",
+            "task.status",
+            "relates.status",
+            "create.status",
+            "create.written",
+            "create.created",
+            "update.status",
+            "update.written",
+            "update.updated",
+            "update.value",
+            "update.guard-wire",
+            "read-update.status",
+            "read-update.written",
+            "read-update.postimage",
+            "noop.status",
+            "noop.written",
+            "noop.updated",
+            "noop.value",
+            "noop.guard-wire",
+            "read-noop.status",
+            "read-noop.written",
+            "read-noop.retained"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.document-patch-merge-replace",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.document-patch-atomicity",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.document-patch-validation",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.delete-bead",
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Selected contract legs have executable HTTP and independent afterstate assertions; not profile qualification.",
+      "bindings": [
+        {
+          "scenario": "read-update.singleton.delete-bead",
+          "assertions": [
+            "scope.status",
+            "scope.empty",
+            "discovery.status",
+            "discovery.schema",
+            "discovery.profile",
+            "discovery.no-tx",
+            "directory.status",
+            "directory.schema",
+            "directory-captures.status",
+            "task.status",
+            "relates.status",
+            "create.status",
+            "create.written",
+            "create.created",
+            "link.status",
+            "link.written",
+            "blocked-delete.status",
+            "blocked-delete.problem",
+            "blocked-delete.written",
+            "unchanged.status",
+            "unchanged.written",
+            "unchanged.postimage",
+            "delete-link.status",
+            "delete-link.written",
+            "delete.status",
+            "delete.written",
+            "delete.deleted",
+            "delete.resource-absent",
+            "delete.id",
+            "delete.type",
+            "delete.revision",
+            "delete.kind",
+            "gone-ordinary.status",
+            "gone-ordinary.problem",
+            "gone-ordinary.written",
+            "gone-properties.status",
+            "gone-properties.problem",
+            "gone-properties.written",
+            "gone-links.status",
+            "gone-links.problem",
+            "gone-links.written"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.incident-links-nondisclosure",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.create-link",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.update-link",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.delete-link",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.owned-link-source-revision",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.owned-link-no-op",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.attribution",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.expected-revision",
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Selected contract legs have executable HTTP and independent afterstate assertions; not profile qualification.",
+      "bindings": [
+        {
+          "scenario": "read-update.singleton.expected-revision",
+          "assertions": [
+            "scope.status",
+            "scope.empty",
+            "discovery.status",
+            "discovery.schema",
+            "discovery.profile",
+            "discovery.no-tx",
+            "directory.status",
+            "directory.schema",
+            "directory-captures.status",
+            "task.status",
+            "relates.status",
+            "create.status",
+            "create.written",
+            "create.created",
+            "update.status",
+            "update.written",
+            "update.updated",
+            "update.value",
+            "update.guard-wire",
+            "stale.status",
+            "stale.problem",
+            "stale.written",
+            "after-stale.status",
+            "after-stale.written",
+            "after-stale.postimage",
+            "stale-delete.status",
+            "stale-delete.problem",
+            "stale-delete.written",
+            "after-stale-delete.status",
+            "after-stale-delete.written",
+            "after-stale-delete.postimage",
+            "unguarded.status",
+            "unguarded.written",
+            "unguarded.updated",
+            "unguarded.value",
+            "matching-delete.status",
+            "matching-delete.written",
+            "matching-delete.revision",
+            "deleted-read.status",
+            "deleted-read.problem",
+            "deleted-read.written"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.expected-revision-race",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.hidden-subject",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.idempotency-key-required",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.unauthenticated",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.idempotent-retry",
+      "status": "bounded-observation",
+      "wholeContract": false,
+      "reason": "Retained allocated-ID retry observed; in-flight/expired and singleton-versus-sequence comparison remain unobserved.",
+      "bindings": [
+        {
+          "scenario": "read-update.singleton.idempotent-retry",
+          "assertions": [
+            "scope.status",
+            "scope.empty",
+            "discovery.status",
+            "discovery.schema",
+            "discovery.profile",
+            "discovery.no-tx",
+            "directory.status",
+            "directory.schema",
+            "directory-captures.status",
+            "task.status",
+            "relates.status",
+            "allocate.status",
+            "allocate.written",
+            "allocate.created",
+            "retry.status",
+            "retry.written",
+            "retry.created",
+            "retry.same-result",
+            "allocated-after-retry.status",
+            "allocated-after-retry.written",
+            "allocated-after-retry.postimage"
+          ],
+          "limits": [
+            "Retained allocated-ID retry observed; in-flight/expired and singleton-versus-sequence comparison remain unobserved."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.idempotency-conflict",
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Selected contract legs have executable HTTP and independent afterstate assertions; not profile qualification.",
+      "bindings": [
+        {
+          "scenario": "read-update.singleton.idempotency-conflict",
+          "assertions": [
+            "scope.status",
+            "scope.empty",
+            "discovery.status",
+            "discovery.schema",
+            "discovery.profile",
+            "discovery.no-tx",
+            "directory.status",
+            "directory.schema",
+            "directory-captures.status",
+            "task.status",
+            "relates.status",
+            "create.status",
+            "create.written",
+            "create.created",
+            "conflicting.status",
+            "conflicting.problem",
+            "conflicting.written",
+            "after-conflict.status",
+            "after-conflict.written",
+            "after-conflict.postimage",
+            "retry-original.status",
+            "retry-original.written",
+            "retry-original.created",
+            "retry-original.retained-original",
+            "after-original-retry.status",
+            "after-original-retry.written",
+            "after-original-retry.postimage"
+          ],
+          "limits": []
+        }
+      ]
+    },
+    {
+      "id": "read-update.singleton.unsupported-media-type",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.method-405",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.no-local-bindings",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.singleton.result-headers",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.put-creates",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.put-repoints",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.delete-releases",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.uniqueness-invariant",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.link-coexistence",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.allocation-avoids-aliases",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.non-canonical-target",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.unknown-subject",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.carrier-syntax",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.authorization",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.forbidden",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.no-version-minted",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.sequence-binding",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.retained-without-reauthorization",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.reference-resolution",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.alias.reference-idempotency",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.order-and-partial-commit",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.local-bindings",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.transient-predecessor",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.expired-creator-binding",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.retained-failure",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.member-problem-shape",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.retry-after-hint",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.carrier-rejection",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.contextual-validation",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.idempotent-retry",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.disconnect",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.internal-fault",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.sequence.interleaving",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.in-progress",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.key-reservation",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.claim-atomicity",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.concurrent-dependent-retry",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.transient-not-retained",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.semantic-identity",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.principal-isolation",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.cross-carrier",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.authorization-view",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.forbidden-retained",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.retention-minimum",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.expired",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.expired-failure",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.durable-boundary",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.crash-mid-sequence",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.idempotency.restore",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.problem.table",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.validation.type-contract",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.validation.diagnostics",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.validation.identity-taken",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.validation.aggregate-constraint",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.http.request-too-large",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.http.cache-no-store",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.http.cors-idempotency-key",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.numeric-model.same-value-no-op",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.numeric-model.round-trip-admission",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.numeric-model.nested-refusal",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.owned-wildcard.explicit-precedence",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    },
+    {
+      "id": "read-update.owned-wildcard.undeclared-type-versions-source",
+      "status": "omitted",
+      "wholeContract": false,
+      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
+      "bindings": []
+    }
+  ]
+}

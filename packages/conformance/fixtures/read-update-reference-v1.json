@@ -1,0 +1,7 @@
+{
+  "fixtureVersion": 1,
+  "id": "reference-read-update-v1",
+  "seed": 0,
+  "capabilities": ["installed-read-update-http"],
+  "bindings": {}
+}

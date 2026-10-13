@@ -189,6 +189,8 @@ export type ScenarioAssertion =
       readonly exists: boolean;
       readonly equals?: JsonValue;
       readonly equalsRunProfile?: true;
+      /** Compare with a capture from an earlier observed action; no normalization. */
+      readonly equalsBinding?: string;
       /** Expected value after optional normalization, selected from the bound realization. */
       readonly fixturePointer?: string;
       readonly normalize?: "scope-relative-url" | "iso-timestamps";
@@ -386,6 +388,7 @@ const JSON_POINTER_ASSERTION_KEYS = new Set([
   "exists",
   "equals",
   "equalsRunProfile",
+  "equalsBinding",
   "fixturePointer",
   "normalize",
   "timestampPointers",
@@ -692,6 +695,7 @@ function parseRequests(
       captures,
       assertions,
     } satisfies ScenarioRequest;
+    validatePriorCaptureAssertions(assertions, establishedBindings, requestPath, issues);
     const requestBindings = new Set<string>();
     for (const [captureIndex, capture] of captures.entries()) {
       if (requestBindings.has(capture.binding)) continue;
@@ -786,6 +790,7 @@ function parseActions(
     }
 
     if (parsed !== undefined) {
+      validatePriorCaptureAssertions(parsed.assertions, establishedBindings, actionPath, issues);
       const actionBindings = new Set<string>();
       for (const [captureIndex, capture] of parsed.captures.entries()) {
         if (actionBindings.has(capture.binding)) continue;
@@ -1939,6 +1944,11 @@ function parseAssertions(
       const exists = ownValue(candidate, "exists");
       const equals = ownValue(candidate, "equals");
       const equalsRunProfile = ownValue(candidate, "equalsRunProfile");
+      const equalsBindingValue = ownValue(candidate, "equalsBinding");
+      const equalsBinding =
+        equalsBindingValue === undefined
+          ? undefined
+          : readId(equalsBindingValue, `${assertionPath}.equalsBinding`, issues);
       const fixturePointerValue = ownValue(candidate, "fixturePointer");
       const timestampPointersValue = ownValue(candidate, "timestampPointers");
       const fixturePointer =
@@ -1961,13 +1971,21 @@ function parseAssertions(
       if (equals !== undefined && !isJsonValue(equals))
         issues.push({ path: `${assertionPath}.equals`, message: "must be a JSON value" });
       if (
-        [equals !== undefined, equalsRunProfile === true, fixturePointerValue !== undefined].filter(
-          Boolean,
-        ).length > 1
+        [
+          equals !== undefined,
+          equalsRunProfile === true,
+          fixturePointerValue !== undefined,
+          equalsBindingValue !== undefined,
+        ].filter(Boolean).length > 1
       )
         issues.push({
           path: assertionPath,
           message: "json-pointer assertion may choose only one expected value source",
+        });
+      if (equalsBindingValue !== undefined && (exists !== true || normalize !== undefined))
+        issues.push({
+          path: assertionPath,
+          message: "equalsBinding requires exists true and no normalization",
         });
       if (fixturePointer !== undefined && !fixturePointer.startsWith("/oracles/"))
         issues.push({
@@ -2031,6 +2049,7 @@ function parseAssertions(
           exists,
           ...(equals === undefined ? {} : { equals: cloneJson(equals as JsonValue) }),
           ...(equalsRunProfile === true ? { equalsRunProfile: true } : {}),
+          ...(equalsBinding === undefined ? {} : { equalsBinding }),
           ...(fixturePointer === undefined ? {} : { fixturePointer }),
           ...(normalize === "scope-relative-url" || normalize === "iso-timestamps"
             ? { normalize }
@@ -2498,4 +2517,22 @@ function isPlainRecord(value: unknown): value is Readonly<Record<string, unknown
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function validatePriorCaptureAssertions(
+  assertions: readonly ScenarioAssertion[],
+  established: ReadonlySet<string>,
+  path: string,
+  issues: ManifestIssue[],
+): void {
+  for (const assertion of assertions)
+    if (
+      assertion.kind === "json-pointer" &&
+      assertion.equalsBinding !== undefined &&
+      (assertion.equalsBinding === "scope" || !established.has(assertion.equalsBinding))
+    )
+      issues.push({
+        path: `${path}.assertions`,
+        message: `equalsBinding must name an earlier capture: ${assertion.equalsBinding}`,
+      });
 }

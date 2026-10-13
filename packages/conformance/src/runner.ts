@@ -930,6 +930,8 @@ async function runProgrammaticAction(
       runProfile,
       new Map(),
       {},
+      undefined,
+      bindings,
     ),
   );
   actions[actions.length - 1] = { ...next, assertions: outcomes };
@@ -1265,6 +1267,7 @@ async function runRequest(
         priorResponses,
         headers,
         exactWitness,
+        bindings,
       ),
   );
   exchanges[exchanges.length - 1] = { ...next, assertions: outcomes };
@@ -1801,6 +1804,7 @@ function evaluateAssertion(
   priorResponses: ReadonlyMap<string, ComparableResponse>,
   requestedHeaders: Readonly<Record<string, string>>,
   exactWitness?: ExactHeaderWitness,
+  bindings: ReadonlyMap<string, JsonValue> = new Map(),
 ): AssertionOutcome {
   if (
     assertion.kind === "request-authored-body" ||
@@ -2010,6 +2014,16 @@ function evaluateAssertion(
     if (body.kind !== "json") return outcome(assertion.id, false, observedBodyIssue(body));
     const value = jsonPointer(body.value, assertion.pointer);
     const exists = value !== undefined;
+    if (assertion.equalsBinding !== undefined) {
+      const expected = bindings.get(assertion.equalsBinding);
+      if (expected === undefined)
+        throw new ConformanceRunnerError("JSON assertion capture is unavailable");
+      return outcome(
+        assertion.id,
+        exists && deepEqual(value, expected),
+        "JSON pointer did not equal the earlier observed capture",
+      );
+    }
     const fixtureExpected =
       assertion.fixturePointer === undefined
         ? undefined
@@ -2868,6 +2882,15 @@ function validateScenarioBindingFlow(
   }
   for (const action of scenarioActionSequence(scenario)) {
     if (action.family !== "http") {
+      for (const assertion of action.assertions)
+        if (
+          assertion.kind === "json-pointer" &&
+          assertion.equalsBinding !== undefined &&
+          !established.has(assertion.equalsBinding)
+        )
+          throw new ConformanceRunnerError(
+            `action '${action.id}' assertion references unknown capture '${assertion.equalsBinding}'`,
+          );
       for (const capture of action.captures) {
         if (established.has(capture.binding))
           throw new ConformanceRunnerError(

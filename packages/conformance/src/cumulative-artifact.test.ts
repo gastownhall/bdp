@@ -1,0 +1,170 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import {
+  createConformanceArtifactBundle,
+  createCumulativeReadUpdateArtifactBundle,
+  createDevelopmentReadUpdateArtifactBundle,
+} from "./artifact-bundle.js";
+import { loadProfileContractSelection } from "./profile-contract-selection.js";
+const source = (value: unknown) => ({ bytes: Buffer.from(JSON.stringify(value)) });
+const fixture = {
+  fixtureVersion: 1,
+  id: "reference-read-update-v1",
+  seed: 0,
+  capabilities: ["installed-read-update-http"],
+  bindings: {},
+};
+const manifest = {
+  manifestVersion: 2,
+  catalogId: "read-update-v1",
+  scenarios: [
+    {
+      id: "read-update.discovery.document",
+      requiredProfile: "read-update",
+      setup: { fixture: fixture.id, requires: fixture.capabilities },
+      cleanup: { resetFixture: true },
+      applicability: { requires: [] },
+      requests: [
+        {
+          id: "discover",
+          method: "GET",
+          target: { binding: "scope" },
+          raw: { headerLines: [] },
+          captures: [],
+          assertions: [{ id: "status", kind: "status", equals: 200 }],
+        },
+      ],
+    },
+  ],
+};
+describe("source-private cumulative RU artifact boundary", () => {
+  it("binds canonical cumulative catalog bytes and preserves uncovered obligations", () => {
+    const selection = loadProfileContractSelection("read-update");
+    const bundle = createCumulativeReadUpdateArtifactBundle(selection, {
+      manifest: source(manifest),
+      fixture: source(fixture),
+    });
+    expect(bundle.catalog).toEqual(selection.catalog);
+    expect(bundle.manifest.scenarios).toHaveLength(1);
+    expect(selection.required.length).toBeGreaterThan(bundle.manifest.scenarios.length);
+    expect(Object.isFrozen(bundle)).toBe(true);
+    expect(bundle.manifest.manifestVersion).toBe(2);
+  });
+  it("rejects structural or trimmed selections, other profiles, History and retired IDs", () => {
+    const selected = loadProfileContractSelection("read-update");
+    const input = { manifest: source(manifest), fixture: source(fixture) };
+    expect(() =>
+      createCumulativeReadUpdateArtifactBundle({ ...selected, required: [] }, input),
+    ).toThrow("factory-loaded");
+    for (const selection of [
+      loadProfileContractSelection("read"),
+      loadProfileContractSelection("transactional"),
+      loadProfileContractSelection("read-update", true),
+    ])
+      expect(() => createCumulativeReadUpdateArtifactBundle(selection, input)).toThrow(
+        "baseline Read+Update",
+      );
+    for (const id of [
+      "read.discovery.document",
+      "read.discovery.unsupported-client-input",
+      "made.up",
+    ])
+      expect(() =>
+        createCumulativeReadUpdateArtifactBundle(selected, {
+          ...input,
+          manifest: source({ ...manifest, scenarios: [{ ...manifest.scenarios[0], id }] }),
+        }),
+      ).toThrow("not a cumulative requirement");
+    expect(() =>
+      createCumulativeReadUpdateArtifactBundle(selected, {
+        ...input,
+        manifest: source({ ...manifest, manifestVersion: 1 }),
+      }),
+    ).toThrow();
+  });
+  it("does not weaken existing Read or development factory guards", () => {
+    const selection = loadProfileContractSelection("read-update");
+    const inputs = {
+      catalog: source(selection.catalog),
+      manifest: source(manifest),
+      fixture: source(fixture),
+    };
+    expect(() => createConformanceArtifactBundle(inputs)).toThrow("catalogId");
+    expect(() => createDevelopmentReadUpdateArtifactBundle(inputs)).toThrow("diagnostic-only");
+    const index = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    expect(index).not.toContain("createCumulativeReadUpdateArtifactBundle");
+    expect(index).not.toContain("loadProfileContractSelection");
+  });
+});
+
+it("pins cumulative source digest map, catalog order and every coverage binding", async () => {
+  const { createHash } = await import("node:crypto");
+  const { canonicalJson } = await import("./canonical-json.js");
+  const selected = loadProfileContractSelection("read-update");
+  const read = (name: string) => readFileSync(new URL(`../${name}`, import.meta.url));
+  const manifestSource = { bytes: read("matrices/read-update-v1.json") };
+  const bundle = createCumulativeReadUpdateArtifactBundle(selected, {
+    manifest: manifestSource,
+    fixture: { bytes: read("fixtures/read-update-reference-v1.json") },
+  });
+  expect(bundle.digests.catalogDigest).toBe(
+    createHash("sha256").update(canonicalJson(selected.catalogDigests)).digest("hex"),
+  );
+  expect(bundle.catalog.scenarios.map((row) => row.id)).toEqual(
+    selected.catalog.scenarios.map((row) => row.id),
+  );
+  const inventory = JSON.parse(read("test-support/read-update-coverage-v1.json").toString()) as {
+    claimEligible: boolean;
+    rows: {
+      id: string;
+      status: string;
+      wholeContract: boolean;
+      bindings: { scenario: string; assertions: string[] }[];
+    }[];
+  };
+  expect(inventory.claimEligible).toBe(false);
+  expect(inventory.rows.map((row) => row.id)).toEqual(selected.required.map((row) => row.id));
+  for (const row of inventory.rows) {
+    const planned = bundle.manifest.scenarios.find((scenario) => scenario.id === row.id);
+    expect(row.status).toBe(planned ? "bounded-observation" : "omitted");
+    if (!planned) {
+      expect(row.wholeContract).toBe(false);
+      expect(row.bindings).toEqual([]);
+      continue;
+    }
+    expect(row.bindings[0]?.scenario).toBe(row.id);
+    expect(row.bindings[0]?.assertions).toEqual(
+      (planned.actions ?? []).flatMap((action) =>
+        action.assertions.map((assertion) => `${action.id}.${assertion.id}`),
+      ),
+    );
+  }
+});
+
+it("mirrors private cumulative carrier admission in the planner without qualification", async () => {
+  const { bindServedProfileConfiguration, planProfileExecution } = await import(
+    "../test-support/profile-contract-plan.js"
+  );
+  for (const history of [false, true]) {
+    const selection = loadProfileContractSelection("read-update", history);
+    const configuration = bindServedProfileConfiguration({
+      scope: "https://example.invalid/",
+      profile: "read-update",
+      history,
+      sourceCommit: "a".repeat(40),
+      installedPayloadDigest: "b".repeat(64),
+      installedContractsDigest: "c".repeat(64),
+      policyDigest: "d".repeat(64),
+      authenticationDigest: "e".repeat(64),
+      fixture: source(fixture),
+    });
+    const plan = planProfileExecution(selection, configuration, {
+      configuration,
+      manifest: source(manifest),
+    });
+    expect(
+      plan.requirements.find((row) => row.id === "read-update.discovery.document")?.readiness,
+    ).toBe(history ? "carrier-unsupported" : "ready-unexecuted");
+    expect(plan.claimEligible).toBe(false);
+  }
+});
