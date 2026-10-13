@@ -1,16 +1,24 @@
 /** Source-only planning for future served runners. Never evidence or admission. */
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { types } from "node:util";
 import { isProtocolProfile, type ProtocolProfile } from "@bdp/protocol";
-import type { ConformanceArtifactSource } from "../src/artifact-bundle.js";
+import {
+  type ConformanceArtifactSource,
+  type ConformanceFixture,
+  copySourceBytes,
+  parseBoundedJson,
+  parseFixtureJson,
+  validateFixtureOraclePointers,
+} from "../src/artifact-bundle.js";
 import { canonicalJson } from "../src/canonical-json.js";
 import {
   loadScenarioCatalogJson,
   type ScenarioCatalog,
   type ScenarioMetadata,
 } from "../src/catalog.js";
-import { loadExecutableScenarioManifestJson } from "../src/executable-manifest.js";
+import { parseExecutableScenarioManifest } from "../src/executable-manifest.js";
+import { isCanonicalScope } from "../src/runner.js";
 import {
   profileIncludes,
   retiredScenarioIds,
@@ -21,6 +29,7 @@ const coreCatalogs = ["read-v1.json", "read-update-v1.json", "transactional-v1.j
 const companionCatalogs = ["numeric-model-v1.json", "owned-wildcard-v1.json"] as const;
 const historyCatalog = "history-v1.json";
 const selections = new WeakSet<object>();
+const configurations = new WeakMap<object, ConformanceFixture>();
 
 export interface ProfileContractSelection {
   readonly profile: ProtocolProfile;
@@ -32,17 +41,38 @@ export interface ProfileContractSelection {
   readonly retiredIds: readonly string[];
 }
 
-/**
- * The loader is the trusted repository source boundary, not a caller's proposed
- * requirement list. All core and companion files are loaded before selection.
- * No mirrored IDs/counts: the current committed catalogs remain authoritative.
- */
+/** The ordinary loader has no caller-supplied requirement source seam. */
 export function loadProfileContractSelection(
   profile: ProtocolProfile,
   history = false,
-  readSource: (name: string) => string = (name) =>
-    readFileSync(new URL(`../catalog/${name}`, import.meta.url), "utf8"),
 ): ProfileContractSelection {
+  const directory = new URL("../catalog/", import.meta.url);
+  const selection = inspectProfileContractSourcesForTest(
+    profile,
+    history,
+    (name) => readFileSync(new URL(name, directory), "utf8"),
+    readdirSync(directory).filter((name) => name.endsWith(".json")),
+  );
+  selections.add(selection);
+  return selection;
+}
+
+/** Negative-control inspection only. Its result cannot enter planProfileExecution. */
+export function inspectProfileContractSourcesForTest(
+  profile: ProtocolProfile,
+  history: boolean,
+  readSource: (name: string) => string,
+  catalogFiles: readonly string[] = [...coreCatalogs, ...companionCatalogs, historyCatalog],
+): ProfileContractSelection {
+  const classified = new Set<string>([...coreCatalogs, ...companionCatalogs, historyCatalog]);
+  if (
+    catalogFiles.length !== classified.size ||
+    new Set(catalogFiles).size !== classified.size ||
+    catalogFiles.some((name) => !classified.has(name))
+  )
+    throw new Error(
+      "catalog directory must contain exactly the classified core, companion and optional files",
+    );
   if (!isProtocolProfile(profile) || typeof history !== "boolean")
     throw new Error("valid profile and explicit History configuration required");
   const byId = new Map<string, ScenarioMetadata>();
@@ -93,7 +123,6 @@ export function loadProfileContractSelection(
     required: selectNormativeScenariosForProfile(catalog, profile),
     retiredIds: [...retiredScenarioIds(catalog, profile)].sort(),
   });
-  selections.add(selection);
   return selection;
 }
 
@@ -121,6 +150,11 @@ export interface ServedProfileConfiguration {
   readonly capabilities: readonly string[];
 }
 
+export type ServedProfileConfigurationInput = Omit<
+  ServedProfileConfiguration,
+  "fixtureDigest" | "fixtureId" | "capabilities"
+> & { readonly fixture: ConformanceArtifactSource };
+
 const configurationKeys = [
   "scope",
   "profile",
@@ -130,28 +164,32 @@ const configurationKeys = [
   "installedContractsDigest",
   "policyDigest",
   "authenticationDigest",
-  "fixtureDigest",
-  "fixtureId",
-  "capabilities",
+  "fixture",
 ] as const;
 
-/** Inspect only own data descriptors; never invoke a caller getter or proxy trap. */
-function configurationData(value: unknown): Record<string, unknown> {
+/** Own data only. Callers never supply behavior through a binding or source. */
+function ownData(
+  value: unknown,
+  allowed: readonly string[],
+  required = allowed,
+): Record<string, unknown> {
   if (value === null || typeof value !== "object" || types.isProxy(value))
-    throw new Error("served configuration must be a plain data record");
+    throw new Error("planning input must be a plain data record");
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null)
-    throw new Error("served configuration must be a plain data record");
+    throw new Error("planning input must be a plain data record");
   const descriptors = Object.getOwnPropertyDescriptors(value);
-  if (Reflect.ownKeys(descriptors).length !== configurationKeys.length)
-    throw new Error("served configuration must contain exactly the planning binding fields");
   const captured: Record<string, unknown> = Object.create(null);
-  for (const key of configurationKeys) {
+  for (const key of Reflect.ownKeys(descriptors)) {
+    if (typeof key !== "string" || !allowed.includes(key))
+      throw new Error("planning input must contain exactly the allowed fields");
     const descriptor = descriptors[key];
     if (!descriptor || !("value" in descriptor) || !descriptor.enumerable)
-      throw new Error("served configuration requires own enumerable data fields");
+      throw new Error("planning input requires own enumerable data fields");
     captured[key] = descriptor.value;
   }
+  if (required.some((key) => !Object.hasOwn(captured, key)))
+    throw new Error("planning input is missing required fields");
   return captured;
 }
 
@@ -160,41 +198,18 @@ function primitiveString(value: unknown, field: string): string {
   return value;
 }
 
-function capabilitySnapshot(value: unknown): readonly string[] {
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    types.isProxy(value) ||
-    !Array.isArray(value) ||
-    Object.getPrototypeOf(value) !== Array.prototype
-  )
-    throw new Error("fixture capabilities must be a plain data array");
-  const descriptors = Object.getOwnPropertyDescriptors(value as object);
-  const length = descriptors.length?.value as number;
-  // Reject holes, custom iterators/properties and indexed accessors without
-  // reading array elements, length or invoking caller-controlled iteration.
-  if (Reflect.ownKeys(descriptors).length !== length + 1)
-    throw new Error("fixture capabilities must be a dense data array");
-  const result: string[] = [];
-  for (let index = 0; index < length; index += 1) {
-    const descriptor = descriptors[String(index)];
-    if (!descriptor || !("value" in descriptor) || !descriptor.enumerable)
-      throw new Error("fixture capabilities require own data elements");
-    const capability = primitiveString(descriptor.value, "capability");
-    if (capability.trim().length === 0) throw new Error("unique fixture capabilities required");
-    result.push(capability);
-  }
-  if (new Set(result).size !== result.length)
-    throw new Error("unique fixture capabilities required");
-  return Object.freeze(result.sort());
+function snapshotSource(input: unknown, kind: "fixture" | "manifest") {
+  const source = ownData(input, ["bytes", "label"], ["bytes"]);
+  const label =
+    source.label === undefined ? undefined : primitiveString(source.label, "source label");
+  const bytes = copySourceBytes({ bytes: source.bytes as Uint8Array }, kind);
+  return { bytes, label };
 }
 
 export function bindServedProfileConfiguration(
-  input: ServedProfileConfiguration,
+  input: ServedProfileConfigurationInput,
 ): ServedProfileConfiguration {
-  // Capture once before validating. Only detached primitives/arrays can reach
-  // canonicalJson/freeze; no later spread or read touches caller-owned input.
-  const captured = configurationData(input);
+  const captured = ownData(input, configurationKeys);
   const scope = primitiveString(captured.scope, "scope");
   const profile = captured.profile;
   const history = captured.history;
@@ -212,19 +227,7 @@ export function bindServedProfileConfiguration(
     captured.authenticationDigest,
     "authenticationDigest",
   );
-  const fixtureDigest = primitiveString(captured.fixtureDigest, "fixtureDigest");
-  const fixtureId = primitiveString(captured.fixtureId, "fixtureId");
-  const capabilities = capabilitySnapshot(captured.capabilities);
-  const url = new URL(scope);
-  if (
-    !["http:", "https:"].includes(url.protocol) ||
-    url.href !== scope ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash ||
-    !url.pathname.endsWith("/")
-  )
+  if (!isCanonicalScope(scope))
     throw new Error("served configuration requires a canonical HTTP Scope");
   if (!isProtocolProfile(profile) || typeof history !== "boolean")
     throw new Error("served configuration requires profile and History selection");
@@ -234,11 +237,14 @@ export function bindServedProfileConfiguration(
     installedContractsDigest,
     policyDigest,
     authenticationDigest,
-    fixtureDigest,
   }))
     if (!/^[0-9a-f]{64}$/.test(value)) throw new Error(`invalid ${key}`);
-  if (fixtureId.trim().length === 0) throw new Error("fixture identity required");
-  return Object.freeze({
+  const source = snapshotSource(captured.fixture, "fixture");
+  const fixture = parseFixtureJson(
+    parseBoundedJson(source.bytes, "fixture", source.label),
+    source.label,
+  );
+  const bound = freeze({
     scope,
     profile,
     history,
@@ -247,20 +253,27 @@ export function bindServedProfileConfiguration(
     installedContractsDigest,
     policyDigest,
     authenticationDigest,
-    fixtureDigest,
-    fixtureId,
-    capabilities,
+    fixtureDigest: digest(source.bytes),
+    fixtureId: fixture.id,
+    capabilities: [...fixture.capabilities].sort(),
   });
+  configurations.set(bound, fixture);
+  return bound;
+}
+
+function assertBoundConfiguration(value: ServedProfileConfiguration): ConformanceFixture {
+  const fixture = configurations.get(value);
+  if (!fixture) throw new Error("factory-bound served configuration required");
+  return fixture;
 }
 
 export function assertSameServedProfileConfiguration(
   expected: ServedProfileConfiguration,
   actual: ServedProfileConfiguration,
 ): void {
-  if (
-    canonicalJson(bindServedProfileConfiguration(expected)) !==
-    canonicalJson(bindServedProfileConfiguration(actual))
-  )
+  assertBoundConfiguration(expected);
+  assertBoundConfiguration(actual);
+  if (canonicalJson(expected) !== canonicalJson(actual))
     throw new Error("served configuration mismatch; cannot combine different targets");
 }
 
@@ -270,9 +283,12 @@ export interface PlannedProfileRequirement {
     | "unplanned"
     | "applicability-unresolved"
     | "setup-unavailable"
-    | "ready-unexecuted";
+    | "ready-unexecuted"
+    | "carrier-unsupported"
+    | "prerequisite-blocked";
   readonly missingApplicability: readonly string[];
   readonly missingSetup: readonly string[];
+  readonly blockedPrerequisites: readonly string[];
 }
 
 export interface ProfileExecutionPlan {
@@ -280,6 +296,7 @@ export interface ProfileExecutionPlan {
   readonly configuration: ServedProfileConfiguration;
   readonly catalogDigests: Readonly<Record<string, string>>;
   readonly manifestDigest?: string;
+  readonly carrierBlocker?: string;
   readonly retiredIds: readonly string[];
   /** Every selected obligation remains here, including absent manifest rows. */
   readonly requirements: readonly PlannedProfileRequirement[];
@@ -302,18 +319,34 @@ export function planProfileExecution(
 ): ProfileExecutionPlan {
   if (!selections.has(selection))
     throw new Error("factory-loaded complete catalog selection required");
-  const bound = bindServedProfileConfiguration(configuration);
+  const fixture = assertBoundConfiguration(configuration);
+  const bound = configuration;
   if (bound.profile !== selection.profile || bound.history !== selection.history)
     throw new Error("selection and served configuration disagree");
-  if (execution) assertSameServedProfileConfiguration(bound, execution.configuration);
-  const bytes = execution === undefined ? undefined : Uint8Array.from(execution.manifest.bytes);
+  let source: ReturnType<typeof snapshotSource> | undefined;
+  if (execution !== undefined) {
+    const captured = ownData(execution, ["configuration", "manifest"]);
+    assertSameServedProfileConfiguration(
+      bound,
+      captured.configuration as ServedProfileConfiguration,
+    );
+    source = snapshotSource(captured.manifest, "manifest");
+  }
   const manifest =
-    bytes === undefined
+    source === undefined
       ? undefined
-      : loadExecutableScenarioManifestJson(
-          new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-          execution?.manifest.label,
+      : parseExecutableScenarioManifest(
+          parseBoundedJson(source.bytes, "manifest", source.label),
+          source.label,
         );
+  if (manifest) validateFixtureOraclePointers(manifest, fixture);
+  // Current ordinary artifact factory admits only read-v1. Its runner refuses
+  // that v1 carrier at non-Read profiles; v2 also refuses Transactional. No
+  // normative writer bundle/executor has been admitted by this groundwork.
+  const carrierBlocker =
+    manifest === undefined || (manifest.catalogId === "read-v1" && bound.profile === "read")
+      ? undefined
+      : `current normative artifact/runner carrier does not support ${manifest.catalogId} version ${manifest.manifestVersion} on ${bound.profile}`;
   const required = new Map(selection.required.map((row) => [row.id, row]));
   for (const row of manifest?.scenarios ?? []) {
     if (selection.retiredIds.includes(row.id))
@@ -330,30 +363,66 @@ export function planProfileExecution(
   }
   const declared = new Set(bound.capabilities);
   const executable = new Map(manifest?.scenarios.map((row) => [row.id, row]));
-  const requirements: PlannedProfileRequirement[] = selection.required.map(({ id }) => {
+  const positions = new Map(selection.catalog.scenarios.map((row, index) => [row.id, index]));
+  const earlier = (id: string, dependency: string) =>
+    (positions.get(dependency) ?? Infinity) < (positions.get(id) ?? -1);
+  const dependencies = new Map(
+    [...executable].map(([id, row]) => [
+      id,
+      [
+        ...new Set(
+          (row.actions ?? row.requests).flatMap((action) =>
+            action.prerequisiteScenario === undefined ? [] : [action.prerequisiteScenario],
+          ),
+        ),
+      ],
+    ]),
+  );
+  const base = (id: string) => {
     const row = executable.get(id);
     const missingApplicability =
       row?.applicability.requires.filter((key) => !declared.has(key)) ?? [];
     const missingSetup = row?.setup.requires.filter((key) => !declared.has(key)) ?? [];
+    return { row, missingApplicability, missingSetup };
+  };
+  const dependencyReady = (id: string, ancestors = new Set<string>()): boolean => {
+    if (!required.has(id) || ancestors.has(id)) return false;
+    const { row, missingApplicability, missingSetup } = base(id);
+    if (!row || missingApplicability.length || missingSetup.length || carrierBlocker) return false;
+    const next = new Set([...ancestors, id]);
+    return (dependencies.get(id) ?? []).every(
+      (dependency) => earlier(id, dependency) && dependencyReady(dependency, next),
+    );
+  };
+  const requirements: PlannedProfileRequirement[] = selection.required.map(({ id }) => {
+    const { row, missingApplicability, missingSetup } = base(id);
+    const blockedPrerequisites = (dependencies.get(id) ?? []).filter(
+      (dependency) => !earlier(id, dependency) || !dependencyReady(dependency),
+    );
     return {
       id,
-      readiness:
-        row === undefined
-          ? "unplanned"
-          : missingApplicability.length > 0
-            ? "applicability-unresolved"
-            : missingSetup.length > 0
-              ? "setup-unavailable"
-              : "ready-unexecuted",
       missingApplicability,
       missingSetup,
+      blockedPrerequisites,
+      readiness: !row
+        ? "unplanned"
+        : carrierBlocker
+          ? "carrier-unsupported"
+          : blockedPrerequisites.length
+            ? "prerequisite-blocked"
+            : missingApplicability.length
+              ? "applicability-unresolved"
+              : missingSetup.length
+                ? "setup-unavailable"
+                : "ready-unexecuted",
     };
   });
   return freeze({
     claimEligible: false,
     configuration: bound,
     catalogDigests: selection.catalogDigests,
-    ...(bytes === undefined ? {} : { manifestDigest: digest(bytes) }),
+    ...(source === undefined ? {} : { manifestDigest: digest(source.bytes) }),
+    ...(carrierBlocker === undefined ? {} : { carrierBlocker }),
     retiredIds: selection.retiredIds,
     requirements,
     unobservedIds: requirements.map(({ id }) => id),

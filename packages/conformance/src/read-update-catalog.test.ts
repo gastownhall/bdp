@@ -50,6 +50,25 @@ describe("draft Read+Update catalog", () => {
     expect(selectNormativeScenariosForProfile(catalog, "read").map(({ id }) => id)).toEqual([]);
   });
 
+  it("mirrors the declared Read discovery retirement exactly", () => {
+    const spec = readText("docs/specs/bdp.md");
+    const section =
+      spec
+        .split("#### Read+Update conformance rows")[1]
+        ?.split("#### Transactional conformance rows")[0] ?? "";
+    const declared = [
+      ...section.matchAll(/^- `(read-update\.[a-z0-9.-]+)` retires `(read\.[a-z0-9.-]+)`$/gm),
+    ].map((match) => [match[1], match[2]]);
+    const actual = catalog.scenarios.flatMap((row) =>
+      (row.retires ?? []).map((id) => [row.id, id]),
+    );
+    expect(declared).toEqual([["read-update.discovery.document", "read.discovery.document"]]);
+    expect(actual).toEqual(declared);
+    expect(section).toContain(
+      "replacing the\nRead+Update discovery row does not restore the Read-only shape",
+    );
+  });
+
   it("does not collide with the sealed Read catalog", () => {
     const readCatalog = loadScenarioCatalogJson(readText(READ_CATALOG_PATH), "read-v1.json");
     const readIds = new Set(readCatalog.scenarios.map(({ id }) => id));

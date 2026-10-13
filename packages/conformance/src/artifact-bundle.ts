@@ -168,7 +168,8 @@ function createBoundArtifactBundle(
   return bundle;
 }
 
-function validateFixtureOraclePointers(
+/** Internal source boundary reuse; not exported by the package entry point. */
+export function validateFixtureOraclePointers(
   manifest: ExecutableScenarioManifest,
   fixture: ConformanceFixture,
 ): void {
@@ -303,7 +304,8 @@ export function assertFactoryCreatedArtifactBundle(
   }
 }
 
-function copySourceBytes(
+/** Internal source boundary reuse; not exported by the package entry point. */
+export function copySourceBytes(
   source: ConformanceArtifactSource,
   kind: keyof ConformanceArtifactBundleSources,
 ): Uint8Array {
@@ -338,7 +340,8 @@ function decodeUtf8(bytes: Uint8Array, kind: string, label: string | undefined):
   }
 }
 
-function parseBoundedJson(
+/** Internal source boundary reuse; not exported by the package entry point. */
+export function parseBoundedJson(
   bytes: Uint8Array,
   kind: keyof ConformanceArtifactBundleSources,
   sourceLabel?: string,
@@ -385,7 +388,8 @@ function assertJsonComplexity(value: unknown, label: string): void {
   }
 }
 
-function parseFixtureJson(value: unknown, sourceLabel?: string): ConformanceFixture {
+/** Internal source boundary reuse; not exported by the package entry point. */
+export function parseFixtureJson(value: unknown, sourceLabel?: string): ConformanceFixture {
   if (!isPlainRecord(value)) {
     throw new ConformanceArtifactBundleError(`${sourceLabel ?? "fixture"}: must be a JSON object`);
   }

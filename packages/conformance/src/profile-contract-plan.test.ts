@@ -1,13 +1,14 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import type { ProtocolProfile } from "@bdp/protocol";
 import { describe, expect, it } from "vitest";
 import {
   assertSameServedProfileConfiguration,
   bindServedProfileConfiguration,
+  inspectProfileContractSourcesForTest,
   loadProfileContractSelection,
   planProfileExecution,
-  type ServedProfileConfiguration,
+  type ServedProfileConfigurationInput,
 } from "../test-support/profile-contract-plan.js";
 import { loadScenarioCatalogJson } from "./catalog.js";
 import type { ExecutableScenarioManifest } from "./executable-manifest.js";
@@ -16,7 +17,11 @@ const read = (name: string) => readFileSync(new URL(`../catalog/${name}`, import
 const readManifest = JSON.parse(
   readFileSync(new URL("../matrices/read-v1.json", import.meta.url), "utf8"),
 ) as ExecutableScenarioManifest;
-const configuration = (profile: ProtocolProfile = "read-update"): ServedProfileConfiguration => ({
+const fixtureBytes = readFileSync(new URL("../fixtures/read-reference-v1.json", import.meta.url));
+const source = (value: unknown) => ({ bytes: Buffer.from(JSON.stringify(value)) });
+const fixture = (overrides: Record<string, unknown> = {}) =>
+  source({ ...JSON.parse(fixtureBytes.toString()), ...overrides });
+const input = (profile: ProtocolProfile = "read-update"): ServedProfileConfigurationInput => ({
   scope: "http://127.0.0.1:43210/",
   profile,
   history: false,
@@ -25,13 +30,13 @@ const configuration = (profile: ProtocolProfile = "read-update"): ServedProfileC
   installedContractsDigest: "c".repeat(64),
   policyDigest: "d".repeat(64),
   authenticationDigest: "e".repeat(64),
-  fixtureDigest: "f".repeat(64),
-  fixtureId: "reference-read-v1",
-  capabilities: ["public-http"],
+  fixture: { bytes: fixtureBytes },
 });
-const manifestSource = (manifest: ExecutableScenarioManifest) => ({
-  bytes: Buffer.from(JSON.stringify(manifest)),
-  label: "planning-only",
+const configuration = (profile: ProtocolProfile = "read-update") =>
+  bindServedProfileConfiguration(input(profile));
+const manifestFor = (...ids: string[]): ExecutableScenarioManifest => ({
+  ...readManifest,
+  scenarios: readManifest.scenarios.filter((row) => ids.includes(row.id)),
 });
 const mutation =
   (file: string, change: (catalog: ReturnType<typeof JSON.parse>) => void) => (name: string) => {
@@ -39,150 +44,75 @@ const mutation =
     if (name === file) change(parsed);
     return JSON.stringify(parsed);
   };
+const inspect = (profile: ProtocolProfile, load = read, files?: readonly string[]) =>
+  inspectProfileContractSourcesForTest(profile, false, load, files);
 
-// Real current catalog sources are the oracle. No mirrored required-ID list.
-describe("source-private cumulative required contracts", () => {
+// The on-disk catalogs, not a mirrored ID list, remain the requirement authority.
+describe("canonical cumulative profile contracts", () => {
   it.each(["read", "read-update", "transactional"] as const)(
-    "derives %s obligations with companions, excluding diagnostics and optional History",
+    "derives %s obligations including companions, excluding diagnostics and optional History",
     (profile) => {
       const selected = loadProfileContractSelection(profile);
+      const ids = selected.required.map((row) => row.id);
       expect(selected.required.every((row) => row.kind === "normative")).toBe(true);
-      expect(selected.required.some((row) => row.id.startsWith("history."))).toBe(false);
-      expect(new Set(selected.required.map((row) => row.id)).size).toBe(selected.required.length);
-      expect(selected.required.map((row) => row.id)).not.toContain(
-        "read.discovery.unsupported-client-input",
-      );
+      expect(ids.some((id) => id.startsWith("history."))).toBe(false);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(ids).not.toContain("read.discovery.unsupported-client-input");
       for (const file of ["numeric-model-v1.json", "owned-wildcard-v1.json"])
         for (const row of loadScenarioCatalogJson(read(file)).scenarios)
           if (row.requiredProfile === "read" || profile !== "read")
-            expect(
-              selected.required.map((entry) => entry.id),
-              row.id,
-            ).toContain(row.id);
+            expect(ids, row.id).toContain(row.id);
     },
   );
-
-  it("replaces closed Read discovery at RU and retains its retirement at TX", () => {
-    const readIds = loadProfileContractSelection("read").required.map((row) => row.id);
+  it("replaces Read closed discovery transitively, preserving shared limits", () => {
+    expect(loadProfileContractSelection("read").required.map((r) => r.id)).toContain(
+      "read.discovery.document",
+    );
     const ru = loadProfileContractSelection("read-update");
     const tx = loadProfileContractSelection("transactional");
-    expect(readIds).toContain("read.discovery.document");
     expect(ru.retiredIds).toEqual(["read.discovery.document"]);
-    expect(ru.required.map((row) => row.id)).toContain("read-update.discovery.document");
-    expect(tx.retiredIds).toContain("read.discovery.document");
-    for (const selected of [ru, tx]) {
-      expect(selected.required.map((row) => row.id)).not.toContain("read.discovery.document");
-      expect(selected.required.map((row) => row.id)).toContain("read.discovery.optional-limits");
+    const direct = loadScenarioCatalogJson(read("transactional-v1.json")).scenarios.flatMap(
+      (r) => r.retires ?? [],
+    );
+    expect(direct).toHaveLength(12);
+    expect(tx.retiredIds).toEqual([...direct, "read.discovery.document"].sort());
+    for (const selection of [ru, tx]) {
+      const ids = selection.required.map((r) => r.id);
+      for (const id of selection.retiredIds) expect(ids).not.toContain(id);
+      expect(ids).toContain("read.discovery.optional-limits");
     }
-    const explicitTxRetirements = loadScenarioCatalogJson(
-      read("transactional-v1.json"),
-    ).scenarios.flatMap((row) => row.retires ?? []);
-    expect(explicitTxRetirements).toHaveLength(12);
-    expect(tx.retiredIds).toEqual([...explicitTxRetirements, "read.discovery.document"].sort());
-    for (const id of tx.retiredIds) expect(tx.required.map((row) => row.id)).not.toContain(id);
   });
-
-  it("keeps the TX sequence envelope and shared code/limit laws while replacing direct forms", () => {
-    const selected = loadProfileContractSelection("transactional");
-    const ids = selected.required.map((row) => row.id);
-    for (const id of [
-      "read-update.sequence.member-problem-shape",
-      "read-update.sequence.order-and-partial-commit",
-      "read-update.sequence.retained-failure",
-      "read-update.sequence.idempotent-retry",
-      "read-update.sequence.disconnect",
-      "read-update.problem.table",
-      "read-update.http.cache-no-store",
-      "read-update.http.request-too-large",
-      "read.discovery.optional-limits",
-    ])
-      expect(ids, id).toContain(id);
-    const spec = readFileSync(new URL("../../../docs/specs/bdp.md", import.meta.url), "utf8");
-    expect(spec).toContain("| `sequence` | `POST` | `200` envelope");
-    expect(spec).toContain("its envelope, its member records, its declaration order, its separate");
-    const noOp = selected.required.find(
-      (row) => row.id === "read-update.singleton.owned-link-no-op",
+  it("requires every catalog to have an explicit directory classification", () => {
+    const files = readdirSync(new URL("../catalog/", import.meta.url)).filter((name) =>
+      name.endsWith(".json"),
     );
-    expect(
-      noOp?.requirements.some(({ selectedText }) =>
-        selectedText.includes("has no durable Mutation Receipts"),
-      ),
-    ).toBe(false);
-  });
-
-  it("requires the inherited catalog rather than accepting a delta-only source", () => {
+    expect(() => inspect("read", read, files)).not.toThrow();
+    expect(() => inspect("read", read, [...files, "new-required-v1.json"])).toThrow("classified");
     expect(() =>
-      loadProfileContractSelection("transactional", false, (name) =>
-        name === "read-v1.json" ? '{"catalogVersion":1,"scenarios":[]}' : read(name),
-      ),
-    ).toThrow("empty required catalog");
-    expect(() =>
-      loadProfileContractSelection("transactional", false, () => read("transactional-v1.json")),
-    ).toThrow("duplicate or conflicting");
-  });
-
-  it("rejects conflicting companion copies, repeated retirements and unknown retirement targets", () => {
-    expect(() =>
-      loadProfileContractSelection(
-        "read-update",
-        false,
-        mutation("numeric-model-v1.json", (catalog) => {
-          catalog.scenarios.find(
-            (row: { requiredProfile: string }) => row.requiredProfile === "read",
-          ).title += " conflict";
-        }),
-      ),
-    ).toThrow("duplicate or conflicting");
-    expect(() =>
-      loadProfileContractSelection(
-        "transactional",
-        false,
-        mutation("transactional-v1.json", (catalog) => {
-          catalog.scenarios[1].retires = ["read-update.discovery.document"];
-        }),
-      ),
-    ).toThrow("multiple retirements");
-    expect(() =>
-      loadProfileContractSelection(
+      inspect(
         "read",
-        false,
-        mutation("transactional-v1.json", (catalog) => {
-          catalog.scenarios[0].retires = ["read.missing"];
-        }),
+        read,
+        files.filter((name) => name !== "history-v1.json"),
       ),
-    ).toThrow("known normative row");
-    expect(() =>
-      loadProfileContractSelection(
-        "transactional",
-        false,
-        mutation("transactional-v1.json", (catalog) => {
-          catalog.scenarios[0].retires = [
-            "read-update.discovery.document",
-            "read-update.discovery.document",
-          ];
-        }),
-      ),
-    ).toThrow("validation failed");
+    ).toThrow("classified");
+    expect(() => inspect("read", read, [...files.slice(1), files[1] ?? ""])).toThrow("classified");
   });
-
-  it("does not accidentally include History via another catalog or via profile rank", () => {
-    const injectHistory = mutation("read-v1.json", (catalog) => {
-      catalog.scenarios.push(JSON.parse(read("history-v1.json")).scenarios[0]);
-    });
-    expect(() => loadProfileContractSelection("transactional", false, injectHistory)).toThrow(
-      "optional catalog",
+  it("cannot turn injected/shrunken catalogs into a runner-accepted selection", () => {
+    const trimmed = inspect(
+      "transactional",
+      mutation("read-update-v1.json", (catalog) => {
+        const retired = new Set(loadProfileContractSelection("transactional").retiredIds);
+        catalog.scenarios = catalog.scenarios.filter(
+          (r: { id: string }) => retired.has(r.id) || r.id === "read-update.discovery.document",
+        );
+      }),
     );
-    const enabled = loadProfileContractSelection("read-update", true);
-    expect(enabled.required.some((row) => row.id === "history.discovery")).toBe(true);
-    expect(
-      enabled.required
-        .filter((row) => row.id.startsWith("history."))
-        .every((row) => row.requiredProfile !== "transactional"),
-    ).toBe(true);
-    expect(() => planProfileExecution(enabled, configuration())).toThrow("disagree");
-  });
-
-  it("refuses fabricated subsets and preserves exact catalog source digests", () => {
+    expect(trimmed.required.length).toBeLessThan(
+      loadProfileContractSelection("transactional").required.length,
+    );
+    expect(() => planProfileExecution(trimmed, configuration("transactional"))).toThrow(
+      "factory-loaded",
+    );
     const selected = loadProfileContractSelection("read-update");
     expect(() => planProfileExecution({ ...selected, required: [] }, configuration())).toThrow(
       "factory-loaded",
@@ -192,196 +122,484 @@ describe("source-private cumulative required contracts", () => {
     );
     expect(Object.isFrozen(selected.required[0]?.requirements)).toBe(true);
   });
+  it("rejects delta-only sources, conflicting companion copies and bad retirements", () => {
+    expect(() =>
+      inspect("transactional", (name) =>
+        name === "read-v1.json" ? '{"catalogVersion":1,"scenarios":[]}' : read(name),
+      ),
+    ).toThrow("empty required catalog");
+    expect(() => inspect("transactional", () => read("transactional-v1.json"))).toThrow(
+      "duplicate or conflicting",
+    );
+    expect(() =>
+      inspect(
+        "read-update",
+        mutation("numeric-model-v1.json", (catalog) => {
+          catalog.scenarios.find(
+            (r: { requiredProfile: string }) => r.requiredProfile === "read",
+          ).title += " conflict";
+        }),
+      ),
+    ).toThrow("duplicate or conflicting");
+    expect(() =>
+      inspect(
+        "transactional",
+        mutation("transactional-v1.json", (catalog) => {
+          catalog.scenarios[1].retires = ["read-update.discovery.document"];
+        }),
+      ),
+    ).toThrow("multiple retirements");
+    expect(() =>
+      inspect(
+        "read",
+        mutation("transactional-v1.json", (catalog) => {
+          catalog.scenarios[0].retires = ["read.missing"];
+        }),
+      ),
+    ).toThrow("known normative row");
+    expect(() =>
+      inspect(
+        "transactional",
+        mutation("transactional-v1.json", (catalog) => {
+          catalog.scenarios[0].retires = [
+            "read-update.discovery.document",
+            "read-update.discovery.document",
+          ];
+        }),
+      ),
+    ).toThrow("validation failed");
+  });
+  it("keeps optional History outside baseline and rejects mismatched selection", () => {
+    expect(() =>
+      inspect(
+        "transactional",
+        mutation("read-v1.json", (catalog) => {
+          catalog.scenarios.push(JSON.parse(read("history-v1.json")).scenarios[0]);
+        }),
+      ),
+    ).toThrow("optional catalog");
+    const enabled = loadProfileContractSelection("read-update", true);
+    expect(enabled.required.some((r) => r.id === "history.discovery")).toBe(true);
+    expect(
+      enabled.required
+        .filter((r) => r.id.startsWith("history."))
+        .every((r) => r.requiredProfile !== "transactional"),
+    ).toBe(true);
+    expect(() => planProfileExecution(enabled, configuration())).toThrow("disagree");
+  });
+  it("keeps surviving discovery clauses through both retirements, with removal counterfactuals", () => {
+    const clauses = [
+      "An omitted `order` means `canonical-uri`.",
+      "The optional `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` members apply under their contracts.",
+    ];
+    const assertClauses = (selected: ReturnType<typeof loadProfileContractSelection>) => {
+      for (const clause of clauses)
+        if (
+          !selected.required.some((row) =>
+            row.requirements.some((q) => q.selectedText.includes(clause)),
+          )
+        )
+          throw new Error("surviving discovery clause lost");
+    };
+    for (const profile of ["read-update", "transactional"] as const) {
+      assertClauses(loadProfileContractSelection(profile));
+      for (const clause of clauses)
+        expect(() =>
+          assertClauses(
+            inspect(
+              profile,
+              mutation(`${profile}-v1.json`, (catalog) => {
+                const row = catalog.scenarios.find(
+                  (r: { id: string }) => r.id === `${profile}.discovery.document`,
+                );
+                row.requirements = row.requirements.filter(
+                  (q: { selectedText: string }) => !q.selectedText.includes(clause),
+                );
+              }),
+            ),
+          ),
+        ).toThrow("clause lost");
+    }
+  });
+  it("locks every inheritance-audit row and replacement to the catalogs", () => {
+    const doc = readFileSync(
+      new URL("../../../docs/design/profile-contract-planning.md", import.meta.url),
+      "utf8",
+    );
+    const rows = [
+      ...doc.matchAll(/^\| `(read-update\.[^`]+)` \| (Inherited|Retired) \| ([^\n]+) \|$/gm),
+    ];
+    const ru = loadScenarioCatalogJson(read("read-update-v1.json")).scenarios;
+    const replacements = new Map(
+      loadScenarioCatalogJson(read("transactional-v1.json")).scenarios.flatMap((r) =>
+        (r.retires ?? []).map((id) => [id, r.id]),
+      ),
+    );
+    expect(rows.map((r) => r[1])).toEqual(ru.map((r) => r.id));
+    for (const row of rows) {
+      const replacement = replacements.get(row[1] ?? "");
+      expect(row[2]).toBe(replacement ? "Retired" : "Inherited");
+      if (replacement) expect(row[3]).toContain(`Replaced by \`${replacement}\``);
+    }
+    const ids = loadProfileContractSelection("transactional").required.map((r) => r.id);
+    for (const id of [
+      "read-update.sequence.member-problem-shape",
+      "read-update.sequence.order-and-partial-commit",
+      "read-update.sequence.retained-failure",
+      "read-update.sequence.idempotent-retry",
+      "read-update.sequence.disconnect",
+      "read-update.problem.table",
+      "read-update.http.cache-no-store",
+      "read-update.http.request-too-large",
+    ])
+      expect(ids).toContain(id);
+    const spec = readFileSync(new URL("../../../docs/specs/bdp.md", import.meta.url), "utf8");
+    expect(spec).toContain("| `sequence` | `POST` | `200` envelope");
+    expect(spec).toContain("its envelope, its member records, its declaration order, its separate");
+    expect(
+      ru
+        .find((r) => r.id === "read-update.singleton.owned-link-no-op")
+        ?.requirements.some((q) => q.selectedText.includes("has no durable Mutation Receipts")),
+    ).toBe(false);
+  });
 });
 
-describe("same served configuration planning", () => {
-  it("keeps every missing inherited or write obligation unplanned and unobserved", () => {
-    const selected = loadProfileContractSelection("read-update");
+describe("truthful executable readiness", () => {
+  it("preserves missing inherited/write obligations and rejects unsupported carriers as readiness", () => {
     const config = configuration();
-    const executable = {
-      ...readManifest,
-      scenarios: readManifest.scenarios.filter(
-        (row) => row.id === "read.discovery.scope-service-desc",
-      ),
-    };
-    const plan = planProfileExecution(selected, config, {
+    const selection = loadProfileContractSelection("read-update");
+    const plan = planProfileExecution(selection, config, {
       configuration: config,
-      manifest: manifestSource(executable),
+      manifest: source(manifestFor("read.discovery.scope-service-desc")),
     });
     expect(plan.claimEligible).toBe(false);
+    expect(plan.carrierBlocker).toContain("read-v1 version 1 on read-update");
     expect(
-      plan.requirements.find((row) => row.id === "read.discovery.scope-service-desc")?.readiness,
-    ).toBe("ready-unexecuted");
+      plan.requirements.find((r) => r.id === "read.discovery.scope-service-desc")?.readiness,
+    ).toBe("carrier-unsupported");
+    for (const id of ["read.discovery.canonical-navigation", "read-update.singleton.create-bead"])
+      expect(plan.requirements.find((r) => r.id === id)?.readiness).toBe("unplanned");
+    expect(plan.unobservedIds).toEqual(selection.required.map((r) => r.id));
     expect(
-      plan.requirements.find((row) => row.id === "read.discovery.canonical-navigation")?.readiness,
-    ).toBe("unplanned");
-    expect(
-      plan.requirements.find((row) => row.id === "read-update.singleton.create-bead")?.readiness,
-    ).toBe("unplanned");
-    expect(plan.unobservedIds).toEqual(selected.required.map((row) => row.id));
-    expect(
-      planProfileExecution(selected, config).requirements.every(
-        (row) => row.readiness === "unplanned",
+      planProfileExecution(selection, config).requirements.every(
+        (r) => r.readiness === "unplanned",
       ),
     ).toBe(true);
   });
-
-  it("separates missing setup from unresolved applicability, without waiving either", () => {
-    const selected = loadProfileContractSelection("read");
-    const config = configuration("read");
-    const rows = readManifest.scenarios.filter((row) =>
-      ["read.discovery.scope-service-desc", "read.discovery.canonical-navigation"].includes(row.id),
-    );
-    const first = rows[0];
-    const second = rows[1];
-    if (!first || !second) throw new Error("expected current Read rows");
-    const source = manifestSource({
-      ...readManifest,
-      scenarios: [
-        { ...first, setup: { ...first.setup, requires: ["unavailable-harness"] } },
-        { ...second, applicability: { requires: ["conditional-policy"] } },
-      ],
+  it.each([1, 2] as const)(
+    "does not admit version%s normative TX or unknown catalog carrier",
+    (manifestVersion) => {
+      for (const [profile, catalogId] of [
+        ["transactional", "read-v1"],
+        ["read", "unadmitted-v1"],
+      ] as const) {
+        const config = configuration(profile);
+        const manifest = {
+          ...manifestFor("read.discovery.scope-service-desc"),
+          manifestVersion,
+          catalogId,
+        };
+        const plan = planProfileExecution(loadProfileContractSelection(profile), config, {
+          configuration: config,
+          manifest: source(manifest),
+        });
+        expect(
+          plan.requirements.find((r) => r.id === "read.discovery.scope-service-desc")?.readiness,
+        ).toBe("carrier-unsupported");
+      }
+    },
+  );
+  it("separates missing setup and unresolved applicability without waivers", () => {
+    const config = bindServedProfileConfiguration({
+      ...input("read"),
+      fixture: fixture({ capabilities: ["public-http"] }),
     });
-    const plan = planProfileExecution(selected, config, {
-      configuration: config,
-      manifest: source,
-    });
-    expect(plan.requirements.find((row) => row.id === first.id)).toMatchObject({
-      readiness: "setup-unavailable",
-      missingSetup: ["unavailable-harness"],
-    });
-    expect(plan.requirements.find((row) => row.id === second.id)).toMatchObject({
-      readiness: "applicability-unresolved",
-      missingApplicability: ["conditional-policy"],
-    });
-    expect(plan.unobservedIds).toContain(first.id);
-    expect(plan.unobservedIds).toContain(second.id);
+    const first = readManifest.scenarios[0];
+    if (!first) throw new Error("missing row");
+    for (const [field, readiness] of [
+      ["setup", "setup-unavailable"],
+      ["applicability", "applicability-unresolved"],
+    ] as const) {
+      const row = { ...first, [field]: { ...first[field], requires: ["missing-capability"] } };
+      const plan = planProfileExecution(loadProfileContractSelection("read"), config, {
+        configuration: config,
+        manifest: source({ ...readManifest, scenarios: [row] }),
+      });
+      expect(plan.requirements.find((r) => r.id === row.id)?.readiness).toBe(readiness);
+      expect(plan.unobservedIds).toContain(row.id);
+    }
   });
-
-  it("rejects retired, diagnostic, optional-History and misprofiled execution rows", () => {
+  it("exposes real inherited Read prerequisites retired at RU alongside carrier blockers", () => {
+    const selection = loadProfileContractSelection("read-update");
+    const config = configuration();
+    const ids = new Set(selection.required.map((r) => r.id));
+    const manifest = {
+      ...readManifest,
+      scenarios: readManifest.scenarios.filter((r) => ids.has(r.id)),
+    };
+    const plan = planProfileExecution(selection, config, {
+      configuration: config,
+      manifest: source(manifest),
+    });
+    const dependents = plan.requirements.filter((r) =>
+      r.blockedPrerequisites.includes("read.discovery.document"),
+    );
+    expect(dependents).toHaveLength(9);
+    expect(dependents.every((r) => r.readiness === "carrier-unsupported")).toBe(true);
+  });
+  it("blocks missing, unready and cyclic prerequisites for a supported carrier", () => {
+    const config = configuration("read");
+    const a = readManifest.scenarios[0];
+    const b = readManifest.scenarios.find((r) => r.id === "read.discovery.canonical-navigation");
+    if (!a || !b) throw new Error("missing rows");
+    const withDependency = (row: typeof a, dependency: string) => ({
+      ...row,
+      actions: [
+        {
+          id: "dependency",
+          family: "http",
+          method: "GET",
+          target: { binding: "scope" },
+          prerequisiteScenario: dependency,
+          captures: [],
+          assertions: [{ id: "status", kind: "status", equals: 200 }],
+        },
+        {
+          id: "owned",
+          family: "http",
+          method: "GET",
+          target: { binding: "scope" },
+          captures: [],
+          assertions: [{ id: "status", kind: "status", equals: 200 }],
+        },
+      ],
+      requests: undefined,
+    });
+    const attempt = (rows: unknown[]) =>
+      planProfileExecution(loadProfileContractSelection("read"), config, {
+        configuration: config,
+        manifest: source({ ...readManifest, scenarios: rows }),
+      });
+    expect(
+      attempt([withDependency(b, a.id)]).requirements.find((r) => r.id === b.id),
+    ).toMatchObject({ readiness: "prerequisite-blocked", blockedPrerequisites: [a.id] });
+    expect(
+      attempt([
+        withDependency(b, a.id),
+        { ...a, setup: { ...a.setup, requires: ["missing-setup"] } },
+      ]).requirements.find((r) => r.id === b.id)?.readiness,
+    ).toBe("prerequisite-blocked");
+    const cyclic = attempt([withDependency(a, b.id), withDependency(b, a.id)]);
+    expect(
+      cyclic.requirements
+        .filter((r) => [a.id, b.id].includes(r.id))
+        .every((r) => r.readiness === "prerequisite-blocked"),
+    ).toBe(true);
+  });
+  it("rejects retired, diagnostic, History, misprofiled or wrong-fixture rows", () => {
     const config = configuration();
     const selected = loadProfileContractSelection(config.profile);
-    const retired = readManifest.scenarios.find((row) => row.id === "read.discovery.document");
-    const diagnostic = readManifest.scenarios.find(
-      (row) => row.id === "read.discovery.unsupported-client-input",
-    );
-    const base = readManifest.scenarios[0];
-    if (!retired || !diagnostic || !base) throw new Error("expected current Read rows");
-    const attempt = (row: typeof base) =>
+    const first = readManifest.scenarios[0];
+    if (!first) throw new Error();
+    const attempt = (row: typeof first) =>
       planProfileExecution(selected, config, {
         configuration: config,
-        manifest: manifestSource({ ...readManifest, scenarios: [row] }),
+        manifest: source({ ...readManifest, scenarios: [row] }),
       });
-    expect(() => attempt(retired)).toThrow("retired requirement");
-    expect(() => attempt(diagnostic)).toThrow("not a selected requirement");
-    expect(() => attempt({ ...base, id: "history.discovery" })).toThrow(
+    for (const [id, message] of [
+      ["read.discovery.document", "retired requirement"],
+      ["read.discovery.unsupported-client-input", "not a selected requirement"],
+      ["history.discovery", "not a selected requirement"],
+    ])
+      expect(() => attempt({ ...first, id: id as string })).toThrow(message);
+    expect(() => attempt({ ...first, requiredProfile: "read-update" })).toThrow(
       "not a selected requirement",
     );
-    expect(() => attempt({ ...base, requiredProfile: "read-update" })).toThrow(
-      "not a selected requirement",
+    expect(() => attempt({ ...first, setup: { ...first.setup, fixture: "different" } })).toThrow(
+      "fixture mismatch",
     );
-    expect(() =>
-      attempt({ ...base, setup: { ...base.setup, fixture: "different-fixture" } }),
-    ).toThrow("fixture mismatch");
   });
+});
 
+describe("captured source and exact configuration binding", () => {
+  it("derives immutable fixture identity/capabilities/digest from exact fixture bytes", () => {
+    const captured = Buffer.from(fixtureBytes);
+    const config = bindServedProfileConfiguration({ ...input(), fixture: { bytes: captured } });
+    const parsed = JSON.parse(captured.toString());
+    expect(config.fixtureId).toBe(parsed.id);
+    expect(config.capabilities).toEqual([...parsed.capabilities].sort());
+    expect(config.fixtureDigest).toBe(createHash("sha256").update(captured).digest("hex"));
+    captured.fill(0);
+    expect(config.fixtureId).toBe(parsed.id);
+    expect(Object.isFrozen(config.capabilities)).toBe(true);
+    expect(() =>
+      bindServedProfileConfiguration({
+        ...input(),
+        fixtureDigest: "0".repeat(64),
+      } as ServedProfileConfigurationInput),
+    ).toThrow("exactly");
+    expect(() =>
+      bindServedProfileConfiguration({
+        ...input(),
+        capabilities: ["invented"],
+      } as ServedProfileConfigurationInput),
+    ).toThrow("exactly");
+  });
   it.each([
-    ["scope", "http://127.0.0.1:43211/"],
-    ["profile", "transactional"],
-    ["history", true],
-    ["sourceCommit", "0".repeat(40)],
-    ["installedPayloadDigest", "0".repeat(64)],
-    ["installedContractsDigest", "0".repeat(64)],
-    ["policyDigest", "0".repeat(64)],
-    ["authenticationDigest", "0".repeat(64)],
-    ["fixtureDigest", "0".repeat(64)],
-    ["fixtureId", "another-fixture"],
-    ["capabilities", ["different-capability"]],
-  ])("refuses to combine a different %s", (field, value) => {
-    const expected = configuration();
-    const actual = { ...expected, [String(field)]: value } as ServedProfileConfiguration;
+    "scope",
+    "profile",
+    "history",
+    "sourceCommit",
+    "installedPayloadDigest",
+    "installedContractsDigest",
+    "policyDigest",
+    "authenticationDigest",
+    "fixture",
+  ] as const)("refuses different captured %s", (field) => {
+    const left = input();
+    const replacement = {
+      scope: "http://127.0.0.1:43211/",
+      profile: "transactional",
+      history: true,
+      sourceCommit: "0".repeat(40),
+      installedPayloadDigest: "0".repeat(64),
+      installedContractsDigest: "0".repeat(64),
+      policyDigest: "0".repeat(64),
+      authenticationDigest: "0".repeat(64),
+      fixture: fixture({ seed: 123 }),
+    }[field];
+    const expected = bindServedProfileConfiguration(left);
+    const actual = bindServedProfileConfiguration({
+      ...left,
+      [field]: replacement,
+    } as ServedProfileConfigurationInput);
     expect(() => assertSameServedProfileConfiguration(expected, actual)).toThrow(
       "configuration mismatch",
     );
     expect(() =>
       planProfileExecution(loadProfileContractSelection("read-update"), expected, {
         configuration: actual,
-        manifest: manifestSource({ ...readManifest, scenarios: [] }),
+        manifest: source(readManifest),
       }),
     ).toThrow("configuration mismatch");
-  });
-
-  it("copies/freeze-binds configuration and rejects secrets or malformed identities", () => {
-    const input = configuration();
-    const bound = bindServedProfileConfiguration(input);
-    expect(bound).not.toBe(input);
-    expect(Object.isFrozen(bound.capabilities)).toBe(true);
-    expect(() =>
-      bindServedProfileConfiguration({ ...input, scope: "https://user:secret@example.test/" }),
-    ).toThrow("canonical HTTP Scope");
-    expect(() =>
-      bindServedProfileConfiguration({ ...input, fixtureDigest: "not-a-digest" }),
-    ).toThrow("invalid fixtureDigest");
-    expect(() =>
-      bindServedProfileConfiguration({ ...input, capabilities: ["public-http", "public-http"] }),
-    ).toThrow("unique fixture capabilities");
-    expect(() =>
-      bindServedProfileConfiguration({ ...input, token: "secret" } as ServedProfileConfiguration),
-    ).toThrow("exactly");
-    assertSameServedProfileConfiguration(
-      { ...input, capabilities: ["a", "b"] },
-      { ...input, capabilities: ["b", "a"] },
+    expect(() => assertSameServedProfileConfiguration(expected, { ...expected })).toThrow(
+      "factory-bound",
     );
+  });
+  it.each([
+    "http://127.0.0.1:43210/a%2fb/",
+    "http://127.0.0.1:43210//x/",
+    "http://127.0.0.1:43210/%7Ea/",
+    "https://user:secret@example.test/",
+  ])("rejects noncanonical Scope %s using runner predicate", (scope) => {
+    expect(() => bindServedProfileConfiguration({ ...input(), scope })).toThrow(
+      "canonical HTTP Scope",
+    );
+  });
+  it.each([
+    { id: " reference-read-v1 " },
+    { capabilities: [" public-http "] },
+    { capabilities: [] },
+    { capabilities: ["x", "x"] },
+  ])("uses existing fixture identifier validation: %j", (invalid) => {
+    expect(() =>
+      bindServedProfileConfiguration({ ...input(), fixture: fixture(invalid) }),
+    ).toThrow();
+  });
+  it.each([
+    new Uint16Array([1, 2]),
+    [300, 44],
+    { 0: 123, length: 1 },
+    new Proxy(new Uint8Array([123]), {}),
+  ])("rejects non-exact source byte containers", (bytes) => {
+    expect(() =>
+      bindServedProfileConfiguration({ ...input(), fixture: { bytes } as never }),
+    ).toThrow("Uint8Array");
+  });
+  it("reuses byte, depth and UTF-8 bounds for fixture and manifest", () => {
+    const config = configuration("read");
+    for (const bytes of [
+      new Uint8Array(1048577),
+      new Uint8Array([255]),
+      Buffer.from(`${"[".repeat(130)}0${"]".repeat(130)}`),
+    ]) {
+      expect(() => bindServedProfileConfiguration({ ...input(), fixture: { bytes } })).toThrow();
+      expect(() =>
+        planProfileExecution(loadProfileContractSelection("read"), config, {
+          configuration: config,
+          manifest: { bytes },
+        }),
+      ).toThrow();
+    }
+  });
+  it("copies exact manifest bytes without invoking overridden iteration", () => {
+    const config = configuration("read");
+    const bytes = Buffer.from(JSON.stringify(manifestFor("read.discovery.scope-service-desc")));
+    let calls = 0;
+    Object.defineProperty(bytes, Symbol.iterator, {
+      value() {
+        calls++;
+        return [300].values();
+      },
+    });
+    const plan = planProfileExecution(loadProfileContractSelection("read"), config, {
+      configuration: config,
+      manifest: { bytes },
+    });
+    expect(calls).toBe(0);
+    expect(plan.manifestDigest).toBe(createHash("sha256").update(bytes).digest("hex"));
+    expect(
+      plan.requirements.find((r) => r.id === "read.discovery.scope-service-desc")?.readiness,
+    ).toBe("ready-unexecuted");
+    bytes.fill(0);
+    expect(plan.manifestDigest).not.toBe(createHash("sha256").update(bytes).digest("hex"));
   });
 });
 
-describe("served configuration is detached data, never caller behavior", () => {
-  it("rejects the changing sourceCommit getter without invoking it", () => {
-    const input = configuration();
-    let reads = 0;
-    Object.defineProperty(input, "sourceCommit", {
-      enumerable: true,
-      get() {
-        return ++reads === 1 ? "a".repeat(40) : "invalid";
-      },
-    });
-    expect(() => bindServedProfileConfiguration(input)).toThrow("own enumerable data");
-    expect(reads).toBe(0);
+describe("native snapshot regressions", () => {
+  it("rejects changing accessors before invocation", () => {
+    for (const field of ["sourceCommit", "fixture"] as const) {
+      const value = input();
+      let reads = 0;
+      Object.defineProperty(value, field, {
+        enumerable: true,
+        get() {
+          return ++reads === 1 ? input()[field] : "invalid";
+        },
+      });
+      expect(() => bindServedProfileConfiguration(value)).toThrow("own enumerable data");
+      expect(reads).toBe(0);
+    }
   });
-
-  it("rejects the changing ownKeys proxy before it can introduce a secret field", () => {
-    const target = { ...configuration(), token: "secret" };
+  it("rejects changing ownKeys and revoked proxies before reflection", () => {
+    const target = { ...input(), token: "secret" };
     let calls = 0;
-    const input = new Proxy(target, {
-      ownKeys(value) {
-        return ++calls === 1
-          ? Reflect.ownKeys(value).filter((key) => key !== "token")
-          : Reflect.ownKeys(value);
+    const proxy = new Proxy(target, {
+      ownKeys(v) {
+        return ++calls === 1 ? Reflect.ownKeys(v).filter((k) => k !== "token") : Reflect.ownKeys(v);
       },
     });
-    expect(() => bindServedProfileConfiguration(input)).toThrow("plain data record");
+    expect(() => bindServedProfileConfiguration(proxy)).toThrow("plain data");
     expect(calls).toBe(0);
-    const revoked = Proxy.revocable(configuration(), {});
+    const revoked = Proxy.revocable(input(), {});
     revoked.revoke();
-    expect(() => bindServedProfileConfiguration(revoked.proxy)).toThrow("plain data record");
+    expect(() => bindServedProfileConfiguration(revoked.proxy)).toThrow("plain data");
   });
-
-  it("rejects distinct coercible digest objects instead of comparing them as empty objects", () => {
-    let coercions = 0;
+  it("rejects unequal coercible digests without canonicalizing both as empty objects", () => {
+    let calls = 0;
     const coercible = (text: string) =>
       Object.create({
         toString() {
-          coercions++;
+          calls++;
           return text;
         },
       });
-    const left = { ...configuration(), policyDigest: coercible("1".repeat(64)) };
-    const right = { ...configuration(), policyDigest: coercible("2".repeat(64)) };
-    expect(() => assertSameServedProfileConfiguration(left, right)).toThrow("primitive string");
-    expect(() => bindServedProfileConfiguration(right)).toThrow("primitive string");
-    expect(coercions).toBe(0);
+    for (const text of ["1".repeat(64), "2".repeat(64)])
+      expect(() =>
+        bindServedProfileConfiguration({ ...input(), policyDigest: coercible(text) }),
+      ).toThrow("primitive string");
+    expect(calls).toBe(0);
   });
-
   it.each([
     "scope",
     "profile",
@@ -390,112 +608,73 @@ describe("served configuration is detached data, never caller behavior", () => {
     "installedContractsDigest",
     "policyDigest",
     "authenticationDigest",
-    "fixtureDigest",
-    "fixtureId",
-  ] as const)("rejects a boxed %s without coercing it", (field) => {
-    const input = configuration();
-    const bad = { ...input, [field]: Object(input[field]) } as ServedProfileConfiguration;
-    expect(() => bindServedProfileConfiguration(bad)).toThrow();
-  });
-
-  it.each(["fixtureId", "fixtureDigest", "capabilities"] as const)(
-    "rejects accessor %s without reading it",
-    (field) => {
-      const input = configuration();
-      let reads = 0;
-      Object.defineProperty(input, field, {
-        enumerable: true,
-        get() {
-          reads++;
-          return configuration()[field];
-        },
-      });
-      expect(() => bindServedProfileConfiguration(input)).toThrow("own enumerable data");
-      expect(reads).toBe(0);
-    },
-  );
-
-  it("does not invoke capability proxy traps, indexed getters or custom iteration", () => {
-    let calls = 0;
-    const proxy = new Proxy(["public-http"], {
-      get(value, key) {
-        calls++;
-        return Reflect.get(value, key);
-      },
-    });
+  ] as const)("rejects boxed %s", (field) => {
+    const value = input();
     expect(() =>
-      bindServedProfileConfiguration({ ...configuration(), capabilities: proxy }),
-    ).toThrow("plain data array");
-    const accessor = ["public-http"];
-    Object.defineProperty(accessor, "0", {
+      bindServedProfileConfiguration({
+        ...value,
+        [field]: Object(value[field]),
+      } as ServedProfileConfigurationInput),
+    ).toThrow();
+  });
+  it("rejects nested source getters/proxies without reading or freezing caller data", () => {
+    let calls = 0;
+    const nested = {};
+    Object.defineProperty(nested, "bytes", {
       enumerable: true,
       get() {
         calls++;
-        return "hidden-policy";
+        return fixtureBytes;
       },
     });
-    expect(() =>
-      bindServedProfileConfiguration({ ...configuration(), capabilities: accessor }),
-    ).toThrow("own data elements");
-    const iterator = ["public-http"];
-    Object.defineProperty(iterator, Symbol.iterator, {
-      value() {
-        calls++;
-        return ["different"].values();
-      },
-    });
-    expect(() =>
-      bindServedProfileConfiguration({ ...configuration(), capabilities: iterator }),
-    ).toThrow("dense data array");
-    expect(calls).toBe(0);
-  });
-
-  it("rejects malformed nested capabilities rather than freezing caller objects", () => {
-    const object = Object.create({ toString: () => "public-http" });
-    for (const capabilities of [
-      [object],
-      Array(1),
-      Object.assign(["public-http"], { token: "secret" }),
-    ]) {
-      expect(() => bindServedProfileConfiguration({ ...configuration(), capabilities })).toThrow();
-      expect(Object.isFrozen(capabilities)).toBe(false);
-    }
-    expect(Object.isFrozen(object)).toBe(false);
-    class Capabilities extends Array<string> {}
-    expect(() =>
-      bindServedProfileConfiguration({
-        ...configuration(),
-        capabilities: new Capabilities("public-http"),
-      }),
-    ).toThrow("plain data array");
-  });
-
-  it("captures independent primitives and array storage without freezing the caller", () => {
-    const capabilities = ["public-http", "owned-links"];
-    const input = { ...configuration(), capabilities };
-    const bound = bindServedProfileConfiguration(input);
-    input.fixtureDigest = "0".repeat(64);
-    capabilities[0] = "changed";
-    capabilities.push("another");
-    expect(bound.fixtureDigest).toBe("f".repeat(64));
-    expect(bound.capabilities).toEqual(["owned-links", "public-http"]);
-    expect(Object.isFrozen(input)).toBe(false);
-    expect(Object.isFrozen(capabilities)).toBe(false);
-    expect(bound.capabilities).not.toBe(capabilities);
-    expect(Object.isFrozen(bound)).toBe(true);
-    expect(Object.isFrozen(bound.capabilities)).toBe(true);
-  });
-
-  it("rejects inherited or hidden extra fields and accepts null-prototype data", () => {
-    expect(() => bindServedProfileConfiguration(Object.create(configuration()))).toThrow(
-      "plain data record",
+    expect(() => bindServedProfileConfiguration({ ...input(), fixture: nested as never })).toThrow(
+      "own enumerable data",
     );
+    const proxy = new Proxy(
+      { bytes: fixtureBytes },
+      {
+        get(v, k) {
+          calls++;
+          return Reflect.get(v, k);
+        },
+      },
+    );
+    expect(() => bindServedProfileConfiguration({ ...input(), fixture: proxy })).toThrow(
+      "plain data",
+    );
+    const config = configuration("read");
+    expect(() =>
+      planProfileExecution(loadProfileContractSelection("read"), config, {
+        configuration: config,
+        manifest: nested as never,
+      }),
+    ).toThrow("own enumerable data");
+    const execution = { configuration: config };
+    Object.defineProperty(execution, "manifest", {
+      enumerable: true,
+      get() {
+        calls++;
+        return source(readManifest);
+      },
+    });
+    expect(() =>
+      planProfileExecution(loadProfileContractSelection("read"), config, execution as never),
+    ).toThrow("own enumerable data");
+    expect(calls).toBe(0);
+    expect(Object.isFrozen(nested)).toBe(false);
+  });
+  it("rejects inherited/hidden extras and detaches mutable input with null-prototype support", () => {
+    expect(() => bindServedProfileConfiguration(Object.create(input()))).toThrow("plain data");
     for (const key of ["token", Symbol("secret")]) {
-      const input = configuration();
-      Object.defineProperty(input, key, { value: "secret" });
-      expect(() => bindServedProfileConfiguration(input)).toThrow("exactly");
+      const value = input();
+      Object.defineProperty(value, key, { value: "secret" });
+      expect(() => bindServedProfileConfiguration(value)).toThrow("exactly");
     }
-    const nullPrototype = Object.assign(Object.create(null), configuration());
-    expect(bindServedProfileConfiguration(nullPrototype)).toEqual(configuration());
+    const value = Object.assign(Object.create(null), input());
+    const bound = bindServedProfileConfiguration(value);
+    value.policyDigest = "0".repeat(64);
+    expect(bound.policyDigest).toBe("d".repeat(64));
+    expect(Object.isFrozen(value)).toBe(false);
+    expect(Object.isFrozen(bound)).toBe(true);
   });
 });

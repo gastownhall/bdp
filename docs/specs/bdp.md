@@ -6703,6 +6703,16 @@ source citations. Metadata alone is not executable evidence; claims require
 the applicable runs under `packages/conformance/matrices/README.md`. The Read+Update
 profile is not realized until every applicable row is proved.
 
+A Read+Update claim inherits the Read obligations it preserves and replaces
+the closed Read discovery shape. The retiring row names the predecessor in
+its `retires` member; cumulative selection excludes that predecessor while
+retaining the shared navigation, optional-contract and omitted-order rules:
+
+- `read-update.discovery.document` retires `read.discovery.document`
+
+This retirement also applies to a Transactional claim; replacing the
+Read+Update discovery row does not restore the Read-only shape.
+
 | Row | Obligation |
 | --- | --- |
 | `read-update.discovery.document` | Read+Update discovery carries `operations` and no Transactional member |
@@ -6795,8 +6805,9 @@ source citations. Metadata alone is not executable evidence; claims require
 the applicable runs under `packages/conformance/matrices/README.md`. The Transactional
 profile is not realized until every applicable row is proved.
 
-A Transactional claim inherits the Read rows and the Read+Update rows whose
-obligations the profile preserves — the Read+Update singleton obligations
+A Transactional claim inherits the Read and Read+Update rows whose
+obligations the profile preserves, including the Read+Update retirement of
+`read.discovery.document` — the Read+Update singleton obligations
 are observed through the receipt's one entry — and retires the twelve
 Read+Update rows the profile contradicts: the rows bound to Read+Update's
 discovery document, limits, and directory shapes, to its inline singleton

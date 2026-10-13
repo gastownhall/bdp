@@ -21,6 +21,16 @@
           "source": "docs/specs/bdp.md",
           "anchor": "#discovery-profile-membership",
           "selectedText": "| `aliases` | optional | required | required |"
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "The optional `limits`, `maximumEndpointMultiplicity`, `order`, and `historicalResolution` members apply under their contracts."
+        },
+        {
+          "source": "docs/specs/bdp.md",
+          "anchor": "#scope-discovery-and-human-documentation",
+          "selectedText": "An omitted `order` means `canonical-uri`."
         }
       ],
       "retires": ["read-update.discovery.document"]

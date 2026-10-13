@@ -1,10 +1,10 @@
 # Cumulative profile execution planning (source-private)
 
-This groundwork prepares the current required contract set for an actual served runner. It does not execute a service, emit an evidence artifact, enable a profile, or change the public artifact/admission guard. The API is in `packages/conformance/test-support/profile-contract-plan.ts`; it is not exported or emitted in installed packages.
+This groundwork prepares the current required contract set for an actual served runner. It does not execute a service, emit an evidence artifact, enable a profile, or change the public artifact/admission guard. The source-only API is in `packages/conformance/test-support/profile-contract-plan.ts`; it is not exported or emitted in installed packages.
 
 ## One requirement set
 
-`loadProfileContractSelection(profile, history)` loads the current Read, Read+Update, Transactional, numeric and owned-wildcard catalog sources before calling the existing profile selection/retirement machinery. Exact companion copies of Read rows are deduplicated; conflicting copies, duplicate retirement owners, unknown targets and invalid retirement edges fail. Diagnostics remain in source catalogs but never enter the required set. Optional History is loaded only when explicitly selected. All exact source digests accompany the selection; the trusted loader must read committed catalog files, not a caller-authored replacement requirement list.
+`loadProfileContractSelection(profile, history)` loads the current Read, Read+Update, Transactional, numeric and owned-wildcard catalog sources before calling the existing profile selection/retirement machinery. Exact companion copies of Read rows are deduplicated; conflicting copies, duplicate retirement owners, unknown targets and invalid retirement edges fail. Diagnostics remain in source catalogs but never enter the required set. Optional History is loaded only when explicitly selected. All exact source digests accompany the selection. The ordinary loader reads the repository catalog directory directly, exposes no source-injection argument and refuses unclassified or missing catalog files. `inspectProfileContractSourcesForTest` permits malformed-source counterfactuals, but its results are unbranded and cannot enter execution planning.
 
 A factory selection is immutable and cannot be replaced by a caller's smaller structural lookalike. The planning function preserves every selected obligation even when the executable manifest contains only one or no rows. Missing inherited behavior cannot disappear behind a delta-only manifest. Retirement also remains active transitively: a TX row retiring an RU row does not restore the Read row that RU already replaced.
 
@@ -12,13 +12,13 @@ At this change's source, there are 44 normative Read obligations (the 49-row cat
 
 ## Discovery correction and inherited executable plans
 
-`read-update.discovery.document` now retires `read.discovery.document`: `readDiscovery` is closed and fixes profile read, whereas the normative RU discovery requires operations/aliases and profile read-update. TX already replaces the RU closed document; its cumulative set now also excludes the Read-only predecessor. This corrects catalog composition to the existing spec; it adds no protocol rule and changes no Read artifact.
+`read-update.discovery.document` now retires `read.discovery.document`: `readDiscovery` is closed and fixes profile read, whereas the normative RU discovery requires operations/aliases and profile read-update. TX already replaces the RU closed document; its cumulative set now also excludes the Read-only predecessor. The normative conformance index declares this replacement and its inherited effect at TX, mirrored by a catalog test. This reconciles selection metadata with existing closed discovery shapes; it adds no new wire semantics and changes no Read artifact. Shared optional-contract and omitted-order citations remain bound at each replacement profile.
 
 `read.discovery.optional-limits` is **not** retired. Its bound requirement says omission neither means infinity nor permits silent truncation/non-normative refusal, which remains true at every profile. The old Read executable realization additionally asserts `readDiscovery`; a future cumulative manifest must use the selected profile's schema while preserving the limits behavior. Keeping an obligation does not mean copying its old executable realization unmodified. The same applies to the code/status Problem laws: TX changes the envelope for some errors, not their embedded Problem status or meaning.
 
 ## Exact served configuration inputs
 
-`bindServedProfileConfiguration` snapshots and validates this closed, non-secret planning record. `assertSameServedProfileConfiguration` refuses to combine records differing in any field; capability order is immaterial. U1/U2/T2 launchers must capture these values from the **same installed service/fixture**, never from a second qualified Read listener.
+`bindServedProfileConfiguration` snapshots a closed, non-secret input record plus actual fixture source bytes, then returns a factory-bound configuration. Only factory-bound configurations can be compared or planned. `assertSameServedProfileConfiguration` refuses to combine records differing in any field. The derived capability list is sorted, but any change to exact fixture bytes still changes its digest. U1/U2/T2 launchers must capture these values from the **same installed service/fixture**, never from a second qualified Read listener.
 
 | Field | Required source |
 |---|---|
@@ -30,26 +30,31 @@ At this change's source, there are 44 normative Read obligations (the 49-row cat
 | `installedContractsDigest` | SHA-256 of exact installed descriptors, pinned identities and complete schema closure. U2 must define a deterministic capture of its actual configuration. |
 | `policyDigest` | SHA-256 of non-secret installed visibility/operation/aggregate policy configuration. |
 | `authenticationDigest` | SHA-256 identity of trusted credential-to-principal configuration, without raw credentials or attribution fields. |
-| `fixtureDigest` | SHA-256 of exact fixture source bytes, matching existing `ConformanceArtifactDigests.fixtureDigest`. |
-| `fixtureId` | That fixture's ID; every planned executable row must name it. |
-| `capabilities` | That fixture's declared capabilities, unique and nonempty strings. These are not passing-row declarations. |
+| `fixture` (input) | Exact `ConformanceArtifactSource` bytes from the installed fixture. The existing source copy, JSON complexity bounds and fixture parser derive the ID, capabilities and SHA-256. |
+| `fixtureDigest`, `fixtureId`, `capabilities` (output only) | Derived from those bytes; independent caller claims are rejected. Every planned row must name the captured fixture. |
 
-The boundary rejects proxies, accessors, non-plain records and coercible non-string identities. It captures own data descriptors once, copies dense primitive capability elements without custom iteration, then validates and freezes detached data. Caller records and arrays remain unfrozen and later caller mutation cannot change a binding. The binding validates format/equality, not the truth of supplied values. The launcher still must establish payload/configuration capture and pair those observations with the run. This record is **not a new persisted evidence format**, public schema or credential container. A later evidence change requires separate review.
+The boundary rejects proxies, accessors, non-plain records and coercible non-string identities. It captures own data descriptors once, copies exact Uint8Array source bytes through the existing intrinsic boundary without caller iteration, applies bounded JSON and fixture validation, then freezes detached data. Caller records and source byte arrays remain unfrozen and later caller mutation cannot change a binding. The binding validates format/equality, not the truth of supplied values. The launcher still must establish payload/configuration capture and pair those observations with the run. This record is **not a new persisted evidence format**, public schema or credential container. A later evidence change requires separate review.
 
 ## Executable planning contract
 
-`planProfileExecution(selection, configuration, execution?)` consumes exact executable manifest bytes using the existing manifest parser, returns their SHA-256, and verifies the execution's same-configuration binding. No second request/action language exists. The result always has `claimEligible:false`; every requirement also appears in `unobservedIds`.
+`planProfileExecution(selection, configuration, execution?)` consumes exact executable manifest bytes using the existing intrinsic byte copy, bounded JSON and manifest parser, returns their SHA-256, and verifies the execution's same-configuration binding. No second request/action language exists. The result always has `claimEligible:false`; every requirement also appears in `unobservedIds`.
 
 | Readiness | Meaning and next step |
 |---|---|
 | `unplanned` | No executable row exists. Author a real observation; do not drop the obligation. |
 | `setup-unavailable` | Fixture lacks an executable setup capability. Supply an actual harness/service fixture; not a normative applicability waiver. |
 | `applicability-unresolved` | Fixture lacks a manifest applicability capability. Review/justify the condition against actual supported configuration; this planner does not certify N/A. |
-| `ready-unexecuted` | A parsed matching row has declared setup/applicability capabilities. A future runner may attempt it; no behavior or coverage is yet established. |
+| `carrier-unsupported` | Current normative artifact/runner gates do not admit this manifest catalog/profile combination. Public gates stay unchanged; implement/review the carrier before running it. |
+| `prerequisite-blocked` | A parsed prerequisite is retired, unplanned, lacks readiness, occurs too late in catalog order or forms a cycle. Repair the executable dependency chain. |
+| `ready-unexecuted` | A parsed matching row has supported carrier, declared setup/applicability and ready prerequisites. A future runner may attempt it; no behavior or coverage is established. |
 
-Both missing-setup and missing-applicability lists remain available even when both apply. Retired rows, wrong-profile rows, diagnostics and unselected optional History cannot be counted as required execution. Invalid fixture/configuration pairing fails before planning. Ready means ready to attempt, not adequate assertions or passing conformance. The actual runner must validate fixture bindings and execute requests/negative controls on the actual target before producing observed results.
+Missing setup, missing applicability and blocked prerequisite lists remain available together. For a present row the display precedence is carrier unsupported, then prerequisite blocked, then applicability unresolved, then setup unavailable; absent rows stay unplanned. A carrier reason is also recorded at plan level, so unsupported carriers do not hide dependency failures. Retired rows, wrong-profile rows, diagnostics and unselected optional History cannot be counted as required execution. Invalid fixture/configuration pairing fails before planning. Current ordinary normative bundles admit only `read-v1`; normative Update/TX carriers therefore remain unsupported in this groundwork. Ready means ready to attempt, not adequate assertions or passing conformance. Fixture oracle pointers are checked against the captured parsed fixture. The actual runner must validate dynamic bindings and execute requests/negative controls on the actual target before producing observed results.
 
 For U1 integration, capture its installed SQLite listener configuration, author a cumulative manifest with profile-specific discovery/limits representations and actual after-mutation Read observations, then submit those exact bytes here. Gaps remain explicit. U2 supplies installed contract/auth/policy fixture variants; each variant receives its own binding and applicability review. T2/T3 must do the same for the single Transactional owner and its receipt/replication surfaces. No sealed Read or development diagnostic bundle changes are needed for this planning layer.
+
+## Next runner slice
+
+After council closure, author the actual cumulative Read+Update v2 manifest and fixture against the installed P1 factory, including profile-specific discovery/limits and repaired inherited prerequisites. Add a separately reviewed profile-specific artifact path while preserving the existing Read guard; execute actual credentialed HTTP and after-state observations through the exact Read+Update configuration. Bind candidate evidence only after the installed U2 repair source is frozen. This is the next delivery slice; this planning layer does not pre-enable it.
 
 ## RU→TX inheritance audit
 
@@ -141,4 +146,4 @@ One misleading citation was removed from `read-update.singleton.owned-link-no-op
 | `read-update.http.cache-no-store` | Inherited | TX receipt and sequence representations retain private,no-store. Additional streaming no-transform rule is independent. |
 | `read-update.http.cors-idempotency-key` | Inherited | Optional CORS, if enabled, still accepts Idempotency-Key and exposes applicable fields; TX adds its fields. |
 
-This is a metadata/inheritance audit, not executed parity. The existing 12 TX retirement declarations remain tested against their maintained spec/packet list. The new RU→Read edge is separately tested, and its inherited exclusion is checked at TX. Optional-limit and preserved sequence assertions have explicit regression controls. No administrative erasure/restore capability, optional History or public write-profile admission is added.
+This is a metadata/inheritance audit, not executed parity. The existing 12 TX retirement declarations remain tested against their maintained spec/packet list. The new RU→Read edge is mirrored against its normative declaration and separately tested, and its inherited exclusion is checked at TX. Optional-limit and preserved sequence assertions have explicit regression controls. The audit table is locked to current catalog ID order, inherited/retired treatment and each replacement ID; surviving discovery clauses have removal counterfactuals. No administrative erasure/restore capability, optional History or public write-profile admission is added.
