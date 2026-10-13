@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, expectTypeOf, it, vi } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { parseTypeDescriptor, isJsonSchemaUri, isJsonSchemaDateTime } from "@bdp/protocol";
 import * as batch from "./transaction-batch.js";
@@ -102,7 +102,13 @@ function body(value: unknown) {
       operationIndex: number;
       outcome: string;
       count?: number;
-      resource: { id: string; properties: { n: number }; source: string };
+      resource: {
+        id: string;
+        type: string;
+        revision: string;
+        properties: { n: number };
+        source: string;
+      };
     }[];
     problem: { operationIndex?: number };
     page: unknown;
@@ -523,7 +529,7 @@ it("counts all outer set members before new-key admission without a filtered Res
   expect(f.admit([update()], "large").kind).toBe("owned");
 });
 it.each(["updateWhere", "deleteWhere"] as const)(
-  "checks %s shapes against the normative bundle, including cardinality",
+  "checks %s cardinality, collection and provenance shapes against the normative bundle",
   (operation) => {
     const schema = ajv.compile({ $ref: `${bundle.$id}#/$defs/${operation}Operation` });
     for (const cardinality of [
@@ -537,17 +543,35 @@ it.each(["updateWhere", "deleteWhere"] as const)(
       { max: false },
       { extra: 1 },
     ]) {
-      const member = {
-        ...(operation === "updateWhere" ? update() : remove()),
-        ...(cardinality === undefined ? {} : { cardinality }),
-      };
-      let accepted = true;
-      try {
-        batch.prepareTransactionSetCore(scope, JSON.stringify({ operations: [member] }));
-      } catch {
-        accepted = false;
-      }
-      expect(accepted, JSON.stringify(member)).toBe(schema(member));
+      for (const collection of ["beads", "links"])
+        for (const revisionProvenance of [
+          undefined,
+          {},
+          { message: "cleanup" },
+          { message: null },
+          { agent: null },
+          { actor: { id: "writer", basis: "writer-supplied" } },
+          { actor: null, agent: null, message: null },
+          null,
+          [],
+          { message: 1 },
+          { actor: { id: "writer", basis: "invented" } },
+          { extra: true },
+        ]) {
+          const member = {
+            ...(operation === "updateWhere" ? update() : remove()),
+            collection,
+            ...(cardinality === undefined ? {} : { cardinality }),
+            ...(revisionProvenance === undefined ? {} : { revisionProvenance }),
+          };
+          let accepted = true;
+          try {
+            batch.prepareTransactionSetCore(scope, JSON.stringify({ operations: [member] }));
+          } catch {
+            accepted = false;
+          }
+          expect(accepted, JSON.stringify(member)).toBe(schema(member));
+        }
     }
   },
 );
@@ -595,4 +619,218 @@ it("preserves outer witness/alias indices and result pages with a set before ali
   expect(f.admit(ops)).toMatchObject({ kind: "existing", receipt: { id: observed.receipt.id } });
   const direct = [ops[0], { ...ops[1], bead: "beads/a" }];
   expect(f.admit(direct)).toMatchObject({ kind: "existing", receipt: { id: observed.receipt.id } });
+});
+
+it.each([
+  ["updateWhere", "beads"],
+  ["updateWhere", "links"],
+  ["deleteWhere", "beads"],
+  ["deleteWhere", "links"],
+] as const)(
+  "executes %s %s with valid provenance without minting a deleted version",
+  (operation, collection) => {
+    const f = fixture();
+    const seeded = f.run(
+      [
+        {
+          ...create("a"),
+          revisionProvenance: { actor: { id: "original", basis: "writer-supplied" } },
+        },
+        ...(collection === "links"
+          ? [
+              {
+                operation: "createLink",
+                id: "links/a",
+                type: link,
+                source: "beads/a",
+                target: "beads/a",
+                properties: { n: 0 },
+                metadata: { note: "keep" },
+              },
+            ]
+          : []),
+      ],
+      "seed",
+    );
+    const prior = body(seeded).results.at(-1)?.resource;
+    if (!prior) throw new Error("missing seeded Resource");
+    const before = f.owner.inspect();
+    const receipt = f.run([
+      {
+        ...(operation === "updateWhere" ? update() : remove(collection, "$[?@.properties.n == 0]")),
+        collection,
+        revisionProvenance: {
+          actor: { id: "set-writer", basis: "writer-supplied" },
+          message: "cleanup",
+        },
+      },
+    ]);
+    expect(receipt.status).toBe("completed");
+    expect(body(receipt).results[0]).toEqual({ operationIndex: 0, outcome: "matched", count: 1 });
+    if (operation === "updateWhere") {
+      expect(body(receipt).results[1]?.resource).toMatchObject({
+        id: prior.id,
+        properties: { n: 1 },
+        metadata: { note: "keep" },
+        revisionProvenance: {
+          actor: { id: "set-writer", basis: "writer-supplied" },
+          message: { state: "present", value: "cleanup" },
+        },
+      });
+      expect(body(receipt).results[1]?.resource).not.toEqual(prior);
+    } else {
+      expect(body(receipt).results[1]).toEqual({
+        operationIndex: 0,
+        outcome: "deleted",
+        deleted: {
+          resourceKind: collection === "beads" ? "bead" : "link",
+          resource: {
+            id: prior.id,
+            type: prior.type,
+            revision: prior.revision,
+          },
+        },
+      });
+      expect(f.owner.inspect().groups.at(-1)).toMatchObject({
+        changes: [
+          {
+            operation: "tombstone",
+            resource: {
+              id: prior.id,
+              revision: prior.revision,
+            },
+          },
+        ],
+      });
+      if (collection === "links")
+        expect(f.owner.inspect().resources).toEqual(
+          before.resources.filter((r) => (r as { id: string }).id !== prior.id),
+        );
+      else expect(f.owner.inspect().resources).toEqual([]);
+    }
+  },
+);
+
+it("bounds total matched Resources across no-op sets and retains atomic failure after reopen", () => {
+  const f = fixture();
+  f.run([create("a"), create("b")], "seed");
+  const original = batch.evaluateTransaction;
+  vi.spyOn(batch, "evaluateTransaction").mockImplementation((normalized, tx, options, ...rest) =>
+    original(normalized, tx, { ...options, maximumMatchedResources: 2 }, ...rest),
+  );
+  const before = f.owner.inspect();
+  const boundary = f.run([update(undefined, 0)], "boundary");
+  expect(boundary.status).toBe("completed");
+  expect(boundary.effectPosition).toBeUndefined();
+  expect(body(boundary).results).toHaveLength(3);
+  expect(f.owner.inspect()).toEqual(before);
+  const operations = [create("rollback", 5), update(undefined, 0), update(undefined, 0)];
+  const failed = f.run(operations, "over");
+  expect(failed).toMatchObject({
+    status: "failed",
+    problem: {
+      status: 413,
+      code: "limit-exceeded",
+      retry: "never",
+      limit: "transaction.matchedResources",
+    },
+  });
+  expect(body(failed).problem.operationIndex).toBeUndefined();
+  expect(failed.results).toBeUndefined();
+  expect(f.owner.inspect()).toEqual(before);
+  expect(f.admit(operations, "over")).toMatchObject({ kind: "existing", receipt: failed });
+  f.reopen();
+  expect(f.admit(operations, "over")).toMatchObject({ kind: "existing", receipt: failed });
+  expect(f.owner.inspect()).toEqual(before);
+});
+
+it.each(["updateWhere", "deleteWhere"] as const)(
+  "projects %s Link matches through local endpoint visibility before cardinality",
+  (operation) => {
+    const f = fixture();
+    f.run(
+      [
+        create("a"),
+        create("hidden"),
+        {
+          operation: "createLink",
+          id: "links/visible",
+          type: link,
+          source: "beads/a",
+          target: "beads/a",
+          properties: { n: 0 },
+        },
+        {
+          operation: "createLink",
+          id: "links/hidden-endpoint",
+          type: link,
+          source: "beads/a",
+          target: "beads/hidden",
+          properties: { n: 0 },
+        },
+      ],
+      "seed",
+    );
+    const before = f.owner.inspect();
+    const original = batch.evaluateTransaction;
+    // Exercise the actual owner/evaluator under a narrower per-turn policy. The
+    // fixed public/private owner installation remains all-visible and unchanged.
+    vi.spyOn(batch, "evaluateTransaction").mockImplementation((normalized, tx, options, ...rest) =>
+      original(
+        normalized,
+        tx,
+        {
+          ...options,
+          maximumMatchedResources: 1,
+          policy: { ...options.policy, canRead: (record) => record.id !== `${scope}beads/hidden` },
+        },
+        ...rest,
+      ),
+    );
+    const receipt = f.run([
+      {
+        ...(operation === "updateWhere" ? update() : remove("links", "$[?@.properties.n == 0]")),
+        collection: "links",
+        cardinality: { min: 1, max: 1 },
+      },
+    ]);
+    expect(receipt.status).toBe("completed");
+    expect(body(receipt).results[0]).toEqual({ operationIndex: 0, outcome: "matched", count: 1 });
+    expect(body(receipt).results).toHaveLength(2);
+    const after = f.owner.inspect();
+    const hidden = (value: unknown) => (value as { id: string }).id !== `${scope}links/visible`;
+    expect(after.resources.filter(hidden)).toEqual(before.resources.filter(hidden));
+    expect(body(after.groups.at(-1)).events.map((event) => event.subject)).toEqual(
+      Array(operation === "updateWhere" ? 1 : 3).fill(`${scope}links/visible`),
+    );
+  },
+);
+
+it.each([0, -1, 1.5, 4097, Number.POSITIVE_INFINITY])(
+  "refuses an invalid or raised matched Resource bound %s",
+  (maximumMatchedResources) => {
+    const f = fixture();
+    const original = batch.evaluateTransaction;
+    vi.spyOn(batch, "evaluateTransaction").mockImplementation((normalized, tx, options, ...rest) =>
+      original(normalized, tx, { ...options, maximumMatchedResources }, ...rest),
+    );
+    expect(() => f.run([update()])).toThrow("invalid evaluator matched Resource bound");
+    expect(f.owner.inspect()).toMatchObject({ resources: [], groups: [], identities: [] });
+  },
+);
+
+it("requires operation indices except for enumerated whole-transaction limits at the type boundary", () => {
+  type Failure = Extract<batch.BatchEvaluation, { ok: false }>["problem"];
+  type MissingIndex = { type: string; status: 422; code: "validation-failed"; retry: "never" };
+  type SelectorLimit = {
+    type: string;
+    status: 413;
+    code: "limit-exceeded";
+    retry: "never";
+    limit: "selector.bytes";
+  };
+  type WholeLimit = Omit<SelectorLimit, "limit"> & { limit: "transaction.matchedResources" };
+  expectTypeOf<MissingIndex extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<SelectorLimit extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<WholeLimit extends Failure ? true : false>().toEqualTypeOf<true>();
 });

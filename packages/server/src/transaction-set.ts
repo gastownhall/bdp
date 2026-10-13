@@ -66,11 +66,23 @@ export function prepareSetCore(
   }
   // Only syntax is reused. The placeholder is never resolved, admitted, executed,
   // normalized into a key, persisted or returned in a diagnostic.
+  // DeleteWhere accepts provenance for either collection. The deleteLink
+  // syntax root validates that exact shared provenance input even when the
+  // selected collection is Beads; deleteBead itself accepts no provenance.
+  // This synthetic Resource kind affects syntax validation only.
+  const syntaxOperation =
+    operation === "deleteWhere"
+      ? "deleteLink"
+      : input.collection === "beads"
+        ? "updateBead"
+        : "updateLink";
   prepareReadUpdateSingleton(
     scope,
-    operation === "updateWhere" ? "updateBead" : "deleteBead",
+    syntaxOperation,
     transactionInputText({
-      bead: "beads/__set_syntax_only__",
+      ...(syntaxOperation === "updateBead"
+        ? { bead: "beads/__set_syntax_only__" }
+        : { link: "links/__set_syntax_only__" }),
       ...(operation === "updateWhere"
         ? { propertiesChange: input.change as LosslessJsonValue }
         : {}),
