@@ -535,26 +535,26 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       scopePosition: `pos-${position}`,
     });
   }
-  /** One bounded durable group. Never expose a live SQLite iterator or all-log array. */
-  function retainedGroupAtOrAfter(
-    at: number,
-    head: number,
-  ): { position: number; value: unknown } | undefined {
-    const row = db
-      .prepare(
-        "SELECT position,length(CAST(body AS BLOB)) AS bytes FROM groups WHERE position>=? AND position<=? ORDER BY position LIMIT 1",
-      )
-      .get(at, head);
-    if (!row) return undefined;
-    const position = Number(row.position),
-      bytes = Number(row.bytes);
-    if (!Number.isSafeInteger(position) || position < at)
-      throw new Error("invalid Event group position");
-    if (!Number.isSafeInteger(bytes) || bytes < 2 || bytes > TRANSACTION_EVENT_GROUP_BYTES)
-      throw new Error("retained Event group exceeds admitted byte bound");
-    const body = db.prepare("SELECT body FROM groups WHERE position=?").get(position)?.body;
-    if (typeof body !== "string") throw new Error("invalid retained Event group body");
-    return { position, value: JSON.parse(body) as unknown };
+  /** Prepare once per owner observation, not once per scanned group. The
+   * reader remains inside its synchronous entry; no SQLite capability escapes. */
+  function retainedGroupReader() {
+    const rowAt = db.prepare(
+      "SELECT position,length(CAST(body AS BLOB)) AS bytes FROM groups WHERE position>=? AND position<=? ORDER BY position LIMIT 1",
+    );
+    const bodyAt = db.prepare("SELECT body FROM groups WHERE position=?");
+    return (at: number, head: number): { position: number; value: unknown } | undefined => {
+      const row = rowAt.get(at, head);
+      if (!row) return undefined;
+      const position = Number(row.position),
+        bytes = Number(row.bytes);
+      if (!Number.isSafeInteger(position) || position < at)
+        throw new Error("invalid Event group position");
+      if (!Number.isSafeInteger(bytes) || bytes < 2 || bytes > TRANSACTION_EVENT_GROUP_BYTES)
+        throw new Error("retained Event group exceeds admitted byte bound");
+      const body = bodyAt.get(position)?.body;
+      if (typeof body !== "string") throw new Error("invalid retained Event group body");
+      return { position, value: JSON.parse(body) as unknown };
+    };
   }
   function createPagePlan(principal: string, key: string, receipt: TransactionReceipt): void {
     const entries = receipt.results as readonly unknown[];
@@ -1316,6 +1316,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           Buffer.byteLength(json({ source: source.url, events: [], next: null })) - 4;
         let eventBytes = 0;
         let next: string | null = null;
+        const retainedGroupAtOrAfter = retainedGroupReader();
         let at = start?.position ?? 1;
         for (;;) {
           const row = retainedGroupAtOrAfter(at, head);
@@ -1396,7 +1397,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         if (start > 0 && !db.prepare("SELECT position FROM groups WHERE position=?").get(start))
           throw new Error("missing retained change group");
         if (minimum !== undefined) checkTransactionMinimum(minimum, context);
-        const row = retainedGroupAtOrAfter(start + 1, head);
+        const row = retainedGroupReader()(start + 1, head);
         if ((!row && start < head) || (row && row.position !== start + 1))
           throw new Error("missing retained change group");
         const group = row

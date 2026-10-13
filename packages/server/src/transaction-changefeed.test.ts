@@ -271,7 +271,7 @@ it("replica refuses partial publication, gaps, conflicts and owned upsert/tombst
   if (!seed || !created || !deleted) throw Error("groups");
   expect(() => client.apply(seed, true)).toThrow("publication failed");
   expect(client.state()).toEqual({ graph: new Map(), checkpoint: "genesis", position: "pos-0" });
-  client.apply(seed);
+  client.apply(page(f.owner, client.state().checkpoint).groups[0]!);
   const before = client.state();
   for (const bad of [
     { ...created, previousPosition: "different" },
@@ -364,6 +364,10 @@ it("fails closed on corrupt stored framing without renumbering or changing graph
   const raw = f.owner.inspect().groups[0] as TransactionChangeGroup,
     context = { ...f.owner.readConfiguration(), scopePosition: "pos-1" };
   for (const change of [
+    { position: "pos-99" },
+    { checkpoint: "cg_x" },
+    { scopeEpoch: "foreign" },
+    { authorizationView: "foreign" },
     { previousPosition: "wrong" },
     { projectionAdvance: true },
     { events: [], changes: [], eventCount: 0 },
@@ -395,11 +399,11 @@ it("does not classify a missing previously committed cursor row as never issued 
   expect(() => f.owner.readChanges(checkpoint)).toThrow("missing retained change group");
   expect(() => f.owner.readChanges("genesis")).toThrow("missing retained change group");
 });
-it("serves all256 boundary Events as one group despite a two-item receipt page setting", () => {
+it("serves128 Events from32 selected owned Links as one group despite a two-item receipt page setting", () => {
   const f = fixture();
-  for (let start = 0; start < 64; start += 32)
+  for (let start = 0; start < 32; start += 32)
     f.run(Array.from({ length: 32 }, (_, i) => create(`a${start + i}`)));
-  for (let start = 0; start < 64; start += 32)
+  for (let start = 0; start < 32; start += 32)
     f.run(
       Array.from({ length: 32 }, (_, i) => edge(`l${start + i}`, `a${start + i}`, `a${start + i}`)),
     );
@@ -410,9 +414,9 @@ it("serves all256 boundary Events as one group despite a two-item receipt page s
   ).toBe("completed");
   const result = page(f.owner, checkpoint);
   expect(result.groups).toHaveLength(1);
-  expect(result.groups[0]?.events).toHaveLength(256);
+  expect(result.groups[0]?.events).toHaveLength(128);
   expect(result.next).toBeNull();
-  expect(TRANSACTION_CHANGEFEED_BYTES).toBe(270482968);
+  expect(TRANSACTION_CHANGEFEED_BYTES).toBe(186334744);
   expect(TRANSACTION_CHANGEFEED_BYTES).toBeLessThan(constants.MAX_STRING_LENGTH);
   expect(Buffer.byteLength(stringifyJsonValue(result))).toBeLessThan(TRANSACTION_CHANGEFEED_BYTES);
 });

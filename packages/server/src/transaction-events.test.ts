@@ -622,11 +622,14 @@ it("continues a Resource cursor across groups with zero contributions and observ
       ]).status,
     ).toBe("completed");
   }
+  const prepare = vi.spyOn(DatabaseSync.prototype, "prepare");
   expect(f.owner.readEvents(source, first.id)).toMatchObject({
     kind: "page",
     page: { source, events: [], next: null },
     context: { scopePosition: "pos-13" },
   });
+  expect(prepare.mock.calls.filter(([sql]) => /FROM groups/.test(sql))).toHaveLength(2);
+  prepare.mockRestore();
   f.run([
     {
       operation: "updateBead",
