@@ -64008,6 +64008,5221 @@
       }
     },
     {
+      "id": "read-update.sequence.idempotent-retry",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-schema-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            },
+            {
+              "binding": "update-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateLink"
+              }
+            },
+            {
+              "binding": "put-alias",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/putAlias"
+              }
+            },
+            {
+              "binding": "delete-alias",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteAlias"
+              }
+            },
+            {
+              "binding": "sequence",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/sequence"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "sequence-target",
+              "kind": "json-pointer",
+              "pointer": "/body/sequence",
+              "exists": true,
+              "equals": "sequence"
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "task-id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "f-absent",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-position-f",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readProblem"
+            },
+            {
+              "id": "problem-status-body",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
+            }
+          ]
+        },
+        {
+          "id": "initial",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "sequence",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-position-a",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 1
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  }
+                },
+                {
+                  "operation": "updateBead",
+                  "idempotencyKey": "retry-position-f",
+                  "bead": "beads/retry-position-f",
+                  "propertiesChange": [
+                    {
+                      "op": "add",
+                      "path": "/n",
+                      "value": 5
+                    }
+                  ]
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-position-b",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 3
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "id": "beads/retry-position-b",
+                  "name": "oldTail"
+                }
+              ]
+            },
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "position-a-id",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/0/resource/id"
+              }
+            },
+            {
+              "binding": "position-a-original",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/0/resource"
+              }
+            },
+            {
+              "binding": "position-b-original",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/2/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_sequenceResponse"
+            },
+            {
+              "id": "indices",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                }
+              ],
+              "equals": [[0], [1], [2]],
+              "ordered": true
+            },
+            {
+              "id": "name-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": false
+            },
+            {
+              "id": "name-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationName",
+              "exists": false
+            },
+            {
+              "id": "name-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationName",
+              "exists": true,
+              "equals": "oldTail"
+            },
+            {
+              "id": "outcome-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1
+              }
+            },
+            {
+              "id": "metadata-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "problem-status-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "outcome-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 3
+              }
+            },
+            {
+              "id": "metadata-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "type-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "complete-problem-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change",
+                "operationIndex": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "a-advance",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 2
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "position-a-advance",
+            "bodyBindings": {
+              "bead": "position-a-id"
+            }
+          },
+          "captures": [
+            {
+              "binding": "position-a-live",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "b-advance",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "bead": "beads/retry-position-b",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 4
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "position-b-advance"
+          },
+          "captures": [
+            {
+              "binding": "position-b-live",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 4
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            }
+          ]
+        },
+        {
+          "id": "f-create",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "type": "https://reference.invalid/acme/types/task",
+              "properties": {
+                "n": 0
+              },
+              "metadata": {
+                "tag": "retry"
+              },
+              "id": "beads/retry-position-f"
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "position-f-create"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 0
+              }
+            },
+            {
+              "id": "metadata-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "created-type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "created-id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-position-f"
+            }
+          ]
+        },
+        {
+          "id": "f-before",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-position-f",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "position-f-live",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-position-f"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 0
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            }
+          ]
+        },
+        {
+          "id": "a-before",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "position-a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 2
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "position-a-live"
+            }
+          ]
+        },
+        {
+          "id": "b-before",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-position-b",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-position-b"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 4
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "position-b-live"
+            }
+          ]
+        },
+        {
+          "id": "reordered",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "sequence",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-position-b",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 3
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "id": "beads/retry-position-b"
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-position-d",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 7
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "id": "beads/retry-position-d",
+                  "name": "fresh"
+                },
+                {
+                  "operation": "updateBead",
+                  "idempotencyKey": "retry-position-f",
+                  "bead": "beads/retry-position-f",
+                  "propertiesChange": [
+                    {
+                      "op": "add",
+                      "path": "/n",
+                      "value": 5
+                    }
+                  ]
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-position-a",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 1
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "name": "renamed"
+                }
+              ]
+            },
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "position-d",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/1/resource"
+              }
+            },
+            {
+              "binding": "position-reordered",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_sequenceResponse"
+            },
+            {
+              "id": "indices",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                }
+              ],
+              "equals": [[0], [1], [2], [3]],
+              "ordered": true
+            },
+            {
+              "id": "name-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": false
+            },
+            {
+              "id": "name-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationName",
+              "exists": true,
+              "equals": "fresh"
+            },
+            {
+              "id": "name-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationName",
+              "exists": false
+            },
+            {
+              "id": "name-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/operationName",
+              "exists": true,
+              "equals": "renamed"
+            },
+            {
+              "id": "outcome-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 3
+              }
+            },
+            {
+              "id": "metadata-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "retained-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource",
+              "exists": true,
+              "equalsBinding": "position-b-original"
+            },
+            {
+              "id": "outcome-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 7
+              }
+            },
+            {
+              "id": "metadata-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "problem-status-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "outcome-body-results-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body-results-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1
+              }
+            },
+            {
+              "id": "metadata-body-results-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "retained-body-results-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/resource",
+              "exists": true,
+              "equalsBinding": "position-a-original"
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "type-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "type-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "complete-problem-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change",
+                "operationIndex": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "a-after",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "position-a-id",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 2
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "position-a-live"
+            }
+          ]
+        },
+        {
+          "id": "b-after",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-position-b",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-position-b"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 4
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "position-b-live"
+            }
+          ]
+        },
+        {
+          "id": "f-after",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-position-f",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-position-f"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 0
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "position-f-live"
+            }
+          ]
+        },
+        {
+          "id": "d-after",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-position-d",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-position-d"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 7
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "position-d"
+            }
+          ]
+        },
+        {
+          "id": "reordered-again",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "sequence",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-position-b",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 3
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "id": "beads/retry-position-b"
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-position-d",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 7
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "id": "beads/retry-position-d",
+                  "name": "fresh"
+                },
+                {
+                  "operation": "updateBead",
+                  "idempotencyKey": "retry-position-f",
+                  "bead": "beads/retry-position-f",
+                  "propertiesChange": [
+                    {
+                      "op": "add",
+                      "path": "/n",
+                      "value": 5
+                    }
+                  ]
+                },
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-position-a",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 1
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "name": "renamed"
+                }
+              ]
+            },
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_sequenceResponse"
+            },
+            {
+              "id": "indices",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                }
+              ],
+              "equals": [[0], [1], [2], [3]],
+              "ordered": true
+            },
+            {
+              "id": "name-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": false
+            },
+            {
+              "id": "name-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/operationName",
+              "exists": true,
+              "equals": "fresh"
+            },
+            {
+              "id": "name-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2/operationName",
+              "exists": false
+            },
+            {
+              "id": "name-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/operationName",
+              "exists": true,
+              "equals": "renamed"
+            },
+            {
+              "id": "same-results",
+              "kind": "json-pointer",
+              "pointer": "/body/results",
+              "exists": true,
+              "equalsBinding": "position-reordered"
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "type-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "type-3",
+              "kind": "json-pointer",
+              "pointer": "/body/results/3/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
+      "id": "read-update.idempotency.cross-carrier",
+      "requiredProfile": "read-update",
+      "setup": {
+        "fixture": "reference-read-update-schema-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "discovery",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "operations",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/operations"
+              }
+            },
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            },
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equals": "read-update"
+            },
+            {
+              "id": "no-tx",
+              "kind": "json-pointer",
+              "pointer": "/transactional",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "directory",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "operations"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateOperationDirectory"
+            }
+          ]
+        },
+        {
+          "id": "directory-captures",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "operations",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "create-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createBead"
+              }
+            },
+            {
+              "binding": "update-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateBead"
+              }
+            },
+            {
+              "binding": "delete-bead",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteBead"
+              }
+            },
+            {
+              "binding": "create-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/createLink"
+              }
+            },
+            {
+              "binding": "delete-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteLink"
+              }
+            },
+            {
+              "binding": "update-link",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/updateLink"
+              }
+            },
+            {
+              "binding": "put-alias",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/putAlias"
+              }
+            },
+            {
+              "binding": "delete-alias",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/deleteAlias"
+              }
+            },
+            {
+              "binding": "sequence",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/sequence"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "sequence-target",
+              "kind": "json-pointer",
+              "pointer": "/body/sequence",
+              "exists": true,
+              "equals": "sequence"
+            }
+          ]
+        },
+        {
+          "id": "task",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "task-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "task-id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            }
+          ]
+        },
+        {
+          "id": "relates",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "types",
+            "path": "relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [
+            {
+              "binding": "relates-type",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/id"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ]
+        },
+        {
+          "id": "a-initial",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "type": "https://reference.invalid/acme/types/task",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "retry"
+              },
+              "id": "beads/retry-cross-a"
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "retry-cross-a"
+          },
+          "captures": [
+            {
+              "binding": "a-original",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            },
+            {
+              "binding": "a-disposition",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1
+              }
+            },
+            {
+              "id": "metadata-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "created-type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "created-id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-a"
+            }
+          ]
+        },
+        {
+          "id": "a-advance",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "bead": "beads/retry-cross-a",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 2
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "a-advance"
+          },
+          "captures": [
+            {
+              "binding": "a-live",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 2
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            }
+          ]
+        },
+        {
+          "id": "a-advanced",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-a",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 2
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-live"
+            }
+          ]
+        },
+        {
+          "id": "a-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "sequence",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-cross-a",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 1
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "id": "beads/retry-cross-a",
+                  "name": "renamed"
+                }
+              ]
+            },
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_sequenceResponse"
+            },
+            {
+              "id": "indices",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                }
+              ],
+              "equals": [[0]],
+              "ordered": true
+            },
+            {
+              "id": "name-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": true,
+              "equals": "renamed"
+            },
+            {
+              "id": "outcome-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1
+              }
+            },
+            {
+              "id": "metadata-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "retained-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource",
+              "exists": true,
+              "equalsBinding": "a-original"
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            }
+          ]
+        },
+        {
+          "id": "a-after-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-a",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 2
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-live"
+            }
+          ]
+        },
+        {
+          "id": "a-conflict",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "sequence",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-cross-a",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 99
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "id": "beads/retry-cross-a"
+                }
+              ]
+            },
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_sequenceResponse"
+            },
+            {
+              "id": "indices",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                }
+              ],
+              "equals": [[0]],
+              "ordered": true
+            },
+            {
+              "id": "name-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": false
+            },
+            {
+              "id": "problem-status-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem-type-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/conflict"
+            },
+            {
+              "id": "problem-code-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            },
+            {
+              "id": "problem-retry-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "absent-detail-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/conflict",
+                "code": "idempotency-conflict",
+                "status": 409,
+                "retry": "never",
+                "operationIndex": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "a-after-conflict",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-a",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-a"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 2
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-live"
+            }
+          ]
+        },
+        {
+          "id": "a-final-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "type": "https://reference.invalid/acme/types/task",
+              "properties": {
+                "n": 1
+              },
+              "metadata": {
+                "tag": "retry"
+              },
+              "id": "beads/retry-cross-a"
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "retry-cross-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 1
+              }
+            },
+            {
+              "id": "metadata-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "retained-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "a-original"
+            },
+            {
+              "id": "created-type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "created-id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-a"
+            },
+            {
+              "id": "disposition",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "a-disposition"
+            }
+          ]
+        },
+        {
+          "id": "b-initial",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "sequence",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "operations": [
+                {
+                  "operation": "createBead",
+                  "idempotencyKey": "retry-cross-b",
+                  "type": "https://reference.invalid/acme/types/task",
+                  "properties": {
+                    "n": 3
+                  },
+                  "metadata": {
+                    "tag": "retry"
+                  },
+                  "id": "beads/retry-cross-b",
+                  "name": "initial"
+                }
+              ]
+            },
+            "targetBaseBinding": "operations"
+          },
+          "captures": [
+            {
+              "binding": "b-original",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/results/0/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_sequenceResponse"
+            },
+            {
+              "id": "indices",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                }
+              ],
+              "equals": [[0]],
+              "ordered": true
+            },
+            {
+              "id": "name-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": true,
+              "equals": "initial"
+            },
+            {
+              "id": "outcome-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 3
+              }
+            },
+            {
+              "id": "metadata-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "type-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            }
+          ]
+        },
+        {
+          "id": "b-advance",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "bead": "beads/retry-cross-b",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 4
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "b-advance"
+          },
+          "captures": [
+            {
+              "binding": "b-live",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 4
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            }
+          ]
+        },
+        {
+          "id": "b-advanced",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-b",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-b"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 4
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "b-live"
+            }
+          ]
+        },
+        {
+          "id": "b-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "type": "https://reference.invalid/acme/types/task",
+              "properties": {
+                "n": 3
+              },
+              "metadata": {
+                "tag": "retry"
+              },
+              "id": "beads/retry-cross-b"
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "retry-cross-b"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 3
+              }
+            },
+            {
+              "id": "metadata-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "retained-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "b-original"
+            },
+            {
+              "id": "no-index",
+              "kind": "json-pointer",
+              "pointer": "/body/operationIndex",
+              "exists": false
+            },
+            {
+              "id": "no-name",
+              "kind": "json-pointer",
+              "pointer": "/body/operationName",
+              "exists": false
+            },
+            {
+              "id": "created-type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "created-id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-b"
+            }
+          ]
+        },
+        {
+          "id": "b-after-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-b",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-b"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 4
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "b-live"
+            }
+          ]
+        },
+        {
+          "id": "b-conflict",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "type": "https://reference.invalid/acme/types/task",
+              "properties": {
+                "n": 99
+              },
+              "metadata": {
+                "tag": "retry"
+              },
+              "id": "beads/retry-cross-b"
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "retry-cross-b"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-status-body",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 409
+            },
+            {
+              "id": "problem-type-body",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/conflict"
+            },
+            {
+              "id": "problem-code-body",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "idempotency-conflict"
+            },
+            {
+              "id": "problem-retry-body",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "absent-detail-body",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/conflict",
+                "code": "idempotency-conflict",
+                "status": 409,
+                "retry": "never"
+              }
+            }
+          ]
+        },
+        {
+          "id": "b-after-conflict",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-b",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-b"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 4
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "b-live"
+            }
+          ]
+        },
+        {
+          "id": "b-final-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "type": "https://reference.invalid/acme/types/task",
+              "properties": {
+                "n": 3
+              },
+              "metadata": {
+                "tag": "retry"
+              },
+              "id": "beads/retry-cross-b"
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "retry-cross-b"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 3
+              }
+            },
+            {
+              "id": "metadata-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "retained-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "b-original"
+            },
+            {
+              "id": "created-type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "created-id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-b"
+            }
+          ]
+        },
+        {
+          "id": "f-absent",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-f",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readProblem"
+            },
+            {
+              "id": "problem-status-body",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
+            }
+          ]
+        },
+        {
+          "id": "f-initial",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "bead": "beads/retry-cross-f",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 5
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "retry-cross-f"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-status-body",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
+            }
+          ]
+        },
+        {
+          "id": "f-create",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "type": "https://reference.invalid/acme/types/task",
+              "properties": {
+                "n": 0
+              },
+              "metadata": {
+                "tag": "retry"
+              },
+              "id": "beads/retry-cross-f"
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "f-create"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 0
+              }
+            },
+            {
+              "id": "metadata-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "created-type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "created-id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-f"
+            }
+          ]
+        },
+        {
+          "id": "f-before-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-f",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "f-live",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-f"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 0
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            }
+          ]
+        },
+        {
+          "id": "f-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "sequence",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "operations": [
+                {
+                  "operation": "updateBead",
+                  "idempotencyKey": "retry-cross-f",
+                  "bead": "beads/retry-cross-f",
+                  "propertiesChange": [
+                    {
+                      "op": "add",
+                      "path": "/n",
+                      "value": 5
+                    }
+                  ]
+                }
+              ]
+            },
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_sequenceResponse"
+            },
+            {
+              "id": "indices",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                }
+              ],
+              "equals": [[0]],
+              "ordered": true
+            },
+            {
+              "id": "name-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": false
+            },
+            {
+              "id": "problem-status-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change",
+                "operationIndex": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "f-after-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-f",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-f"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 0
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "f-live"
+            }
+          ]
+        },
+        {
+          "id": "f-fresh",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "bead": "beads/retry-cross-f",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 5
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "f-fresh"
+          },
+          "captures": [
+            {
+              "binding": "f-fresh-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 5
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            }
+          ]
+        },
+        {
+          "id": "f-final-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "bead": "beads/retry-cross-f",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 5
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "retry-cross-f"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-status-body",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
+            }
+          ]
+        },
+        {
+          "id": "f-after-final",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-f",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-f"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 5
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "f-fresh-record"
+            }
+          ]
+        },
+        {
+          "id": "g-absent",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-g",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readProblem"
+            },
+            {
+              "id": "problem-status-body",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
+            }
+          ]
+        },
+        {
+          "id": "g-initial",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "sequence",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "operations": [
+                {
+                  "operation": "updateBead",
+                  "idempotencyKey": "retry-cross-g",
+                  "bead": "beads/retry-cross-g",
+                  "propertiesChange": [
+                    {
+                      "op": "add",
+                      "path": "/n",
+                      "value": 5
+                    }
+                  ]
+                }
+              ]
+            },
+            "targetBaseBinding": "operations"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_sequenceResponse"
+            },
+            {
+              "id": "indices",
+              "kind": "json-array-tuples",
+              "pointer": "/body/results",
+              "projections": [
+                {
+                  "pointer": "/operationIndex"
+                }
+              ],
+              "equals": [[0]],
+              "ordered": true
+            },
+            {
+              "id": "name-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/operationName",
+              "exists": false
+            },
+            {
+              "id": "problem-status-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change",
+                "operationIndex": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "g-create",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "create-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "type": "https://reference.invalid/acme/types/task",
+              "properties": {
+                "n": 0
+              },
+              "metadata": {
+                "tag": "retry"
+              },
+              "id": "beads/retry-cross-g"
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "g-create"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "created"
+            },
+            {
+              "id": "properties-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 0
+              }
+            },
+            {
+              "id": "metadata-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "created-type",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "created-id",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-g"
+            }
+          ]
+        },
+        {
+          "id": "g-before-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-g",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "g-live",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-g"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 0
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            }
+          ]
+        },
+        {
+          "id": "g-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "bead": "beads/retry-cross-g",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 5
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "retry-cross-g"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-status-body",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
+            }
+          ]
+        },
+        {
+          "id": "g-after-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-g",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-g"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 0
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "g-live"
+            }
+          ]
+        },
+        {
+          "id": "g-fresh",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "bead": "beads/retry-cross-g",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 5
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "g-fresh"
+          },
+          "captures": [
+            {
+              "binding": "g-fresh-record",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/resource"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/properties",
+              "exists": true,
+              "equals": {
+                "n": 5
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/resource/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            }
+          ]
+        },
+        {
+          "id": "g-final-replay",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "update-bead",
+            "method": "POST",
+            "credentialRef": "operator",
+            "body": {
+              "bead": "beads/retry-cross-g",
+              "propertiesChange": [
+                {
+                  "op": "add",
+                  "path": "/n",
+                  "value": 5
+                }
+              ]
+            },
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "retry-cross-g"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_readUpdateProblem"
+            },
+            {
+              "id": "problem-status-body",
+              "kind": "json-pointer",
+              "pointer": "/body/status",
+              "exists": true,
+              "equals": 404
+            },
+            {
+              "id": "problem-type-body",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/not-found"
+            },
+            {
+              "id": "problem-code-body",
+              "kind": "json-pointer",
+              "pointer": "/body/code",
+              "exists": true,
+              "equals": "resource-not-found"
+            },
+            {
+              "id": "problem-retry-body",
+              "kind": "json-pointer",
+              "pointer": "/body/retry",
+              "exists": true,
+              "equals": "after-state-change"
+            },
+            {
+              "id": "absent-detail-body",
+              "kind": "json-pointer",
+              "pointer": "/body/detail",
+              "exists": false
+            },
+            {
+              "id": "absent-outcome-body",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": false
+            },
+            {
+              "id": "absent-resource-body",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnostics-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics",
+              "exists": false
+            },
+            {
+              "id": "absent-diagnosticstruncated-body",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnosticsTruncated",
+              "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
+            }
+          ]
+        },
+        {
+          "id": "g-after-final",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "targetBinding": "retry.retry-cross-g",
+            "method": "GET",
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/body/id",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/retry-cross-g"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/body/type",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/body/properties",
+              "exists": true,
+              "equals": {
+                "n": 5
+              }
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/body/metadata",
+              "exists": true,
+              "equals": {
+                "tag": "retry"
+              }
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "g-fresh-record"
+            }
+          ]
+        }
+      ],
+      "cleanup": {
+        "resetFixture": true
+      }
+    },
+    {
       "id": "read-update.validation.type-contract",
       "requiredProfile": "read-update",
       "setup": {
