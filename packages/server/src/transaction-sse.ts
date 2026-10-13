@@ -12,6 +12,17 @@ export const TRANSACTION_SSE_DEFAULTS = Object.freeze({
   heartbeatMilliseconds: 5000,
   maximumStreams: 1,
 });
+/** Node timers clamp invalid/out-of-range values; refuse rather than busy-poll. */
+export function validateTransactionStreamTimers(
+  settings: { readonly pollMilliseconds: number; readonly heartbeatMilliseconds: number },
+  idleTimeout?: number,
+): void {
+  for (const value of [settings.pollMilliseconds, settings.heartbeatMilliseconds])
+    if (!Number.isSafeInteger(value) || value <= 0 || value > 2_147_483_647)
+      throw new TypeError("invalid transaction stream timer");
+  if (idleTimeout !== undefined && settings.heartbeatMilliseconds >= idleTimeout)
+    throw new TypeError("stream heartbeat must precede socket idle timeout");
+}
 // Includes id/event/data framing beyond the already bounded finite page. This
 // is a source-derived proof, never a new post-commit rejection of a legal group.
 export const TRANSACTION_SSE_FRAME_BYTES = TRANSACTION_CHANGEFEED_BYTES + 512;
@@ -74,6 +85,7 @@ export async function pumpTransactionChanges(
     readonly heartbeatMilliseconds: number;
   } = TRANSACTION_SSE_DEFAULTS,
 ): Promise<void> {
+  validateTransactionStreamTimers(settings);
   let page = initial;
   let after = page.after;
   let lastWrite = performance.now();

@@ -1,5 +1,5 @@
-import { TRANSACTION_SSE_DEFAULTS } from "./transaction-sse.js";
 /** Private captured runtime inputs. No installed launcher or profile admission. */
+import { TRANSACTION_SSE_DEFAULTS, validateTransactionStreamTimers } from "./transaction-sse.js";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -293,6 +293,14 @@ export function captureTransactionRuntimeConfiguration(
   });
   if (settings.transport.headersTimeout > settings.transport.requestTimeout)
     throw new TypeError("headers timeout exceeds request timeout");
+  // Installed defaults must support live idle delivery. Short transport test
+  // seams preserve finite deadline tests but never acquire a live stream slot.
+  validateTransactionStreamTimers(
+    TRANSACTION_RUNTIME_DEFAULTS.changefeedStream,
+    TRANSACTION_RUNTIME_DEFAULTS.transport.timeout,
+  );
+  const liveStreamsAvailable =
+    settings.changefeedStream.heartbeatMilliseconds < settings.transport.timeout;
   const clock = seams.clock ?? Date.now;
   return Object.freeze({
     directory,
@@ -304,6 +312,7 @@ export function captureTransactionRuntimeConfiguration(
     types,
     seams,
     settings,
+    liveStreamsAvailable,
     authenticate(supplied: Buffer): TransactionHttpAuthorization {
       const credential = secrets.find(
         (c) => c.credential.length === supplied.length && timingSafeEqual(c.credential, supplied),

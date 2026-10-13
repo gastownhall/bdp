@@ -13,12 +13,14 @@ import {
   pumpTransactionChanges,
   transactionChangeFrame,
   TRANSACTION_SSE_FRAME_BYTES,
+  validateTransactionStreamTimers,
+  TRANSACTION_SSE_DEFAULTS,
 } from "./transaction-sse.js";
 import {
   TRANSACTION_CHANGEFEED_BYTES,
   type TransactionChangefeedPage,
 } from "./transaction-changefeed.js";
-import { recordRawSse } from "../../../apps/bdptest/test-support/raw-sse-recorder.js";
+import { recordRawSse } from "../test-support/raw-sse-recorder.js";
 const { startTransactionRuntime } = (await import(
   new URL("../dist/transaction-runtime.js", import.meta.url).href
 )) as typeof import("./transaction-runtime.js");
@@ -30,7 +32,10 @@ afterEach(async () => {
 const scope = "https://sse.invalid/acme/",
   type = `${scope}types/task`,
   linkType = `${scope}types/link`;
-async function fixture(seams: import("./transaction-runtime.js").TransactionRuntimeTestSeams = {}) {
+async function fixture(
+  seams: import("./transaction-runtime.js").TransactionRuntimeTestSeams = {},
+  shutdownFailure?: (error: unknown) => void,
+) {
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-sse-"));
   const token = randomBytes(32).toString("base64url");
   const options = {
@@ -59,8 +64,15 @@ async function fixture(seams: import("./transaction-runtime.js").TransactionRunt
   };
   let runtime = await startTransactionRuntime(options, seams);
   cleanup.push(async () => {
-    await runtime.close();
-    rmSync(directory, { recursive: true, force: true });
+    try {
+      await runtime.close();
+      if (shutdownFailure) throw new Error("expected shutdown failure");
+    } catch (error) {
+      if (!shutdownFailure) throw error;
+      shutdownFailure(error);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
   let key = 0;
   const f = {
@@ -134,7 +146,12 @@ it("raw replay equals finite groups, live commits follow once, no-op emits no fr
   const f = await fixture();
   const literal = JSON.stringify({
     operations: [
-      { operation: "createBead", id: "beads/a", type, properties: { n: 100, title: "café\n🦉" } },
+      {
+        operation: "createBead",
+        id: "beads/a",
+        type,
+        properties: { "10": "ten", "2": "two", n: 100, title: "café\n🦉" },
+      },
     ],
   }).replace('"n":100', '"n":1.0e2');
   expect(literal).toContain('"n":1.0e2');
@@ -148,17 +165,19 @@ it("raw replay equals finite groups, live commits follow once, no-op emits no fr
     ).status,
   ).toBe(200);
   await f.create("b");
-  const first = (await (
-    await f.request("changes/?after=genesis")
-  ).json()) as TransactionChangefeedPage;
-  const second = (await (
+  const firstBytes = await (await f.request("changes/?after=genesis")).text();
+  const first = JSON.parse(firstBytes) as TransactionChangefeedPage;
+  const secondBytes = await (
     await f.request(`changes/?after=${first.groups[0]!.checkpoint}`)
-  ).json()) as TransactionChangefeedPage;
+  ).text();
+  const second = JSON.parse(secondBytes) as TransactionChangefeedPage;
   const stream = f.stream();
   await stream.until(() => groups(stream).length === 2);
   expect(groups(stream)).toEqual(
     [...first.groups, ...second.groups].map((g) => transactionChangeFrame(g).slice(0, -2)),
   );
+  for (const [index, rawFinite] of [firstBytes, secondBytes].entries())
+    expect(rawFinite).toContain(groups(stream)[index]!.split("\ndata: ")[1]!);
   expect(groups(stream)[0]).toContain('"n":100');
   expect(stream.headers).toMatchObject({
     "content-type": "text/event-stream",
@@ -506,8 +525,12 @@ it("observes incomplete requests and finite keepalive closure under bounded timi
   }
 });
 
-it("post-header owner failure closes the real stream without a second HTTP status or error frame", async () => {
-  const f = await fixture();
+it("post-header owner failure closes the wire and retains the original cause for shutdown", async () => {
+  const original = new Error("injected stream owner failure");
+  const f = await fixture({}, (error) => {
+    expect(error).toBeInstanceOf(AggregateError);
+    expect((error as AggregateError).errors).toEqual([original]);
+  });
   await f.create("a");
   const stream = f.stream();
   await stream.until(() => groups(stream).length === 1);
@@ -516,7 +539,7 @@ it("post-header owner failure closes the real stream without a second HTTP statu
     this: DatabaseSync,
     sql: string,
   ) {
-    if (sql.includes("FROM groups")) throw new Error("injected stream owner failure");
+    if (sql.includes("FROM groups")) throw original;
     return prepare.call(this, sql);
   });
   await stream.closed;
@@ -666,4 +689,76 @@ it("disconnects an actual raw response before frame completion and replays from 
   const resumed = f.stream("changes/?after=genesis");
   await resumed.until(() => groups(resumed).length === 1);
   expect(group(groups(resumed)[0]!).previousPosition).toBe("pos-0");
+});
+
+it("validates pump timers and the minimal heartbeat/idle relationship", async () => {
+  for (const value of [0, -1, NaN, Infinity, 0.5, 2_147_483_648]) {
+    for (const name of ["pollMilliseconds", "heartbeatMilliseconds"] as const) {
+      const sink = { destroyed: false, write: vi.fn() };
+      await expect(
+        pumpTransactionChanges(
+          sink as never,
+          { after: "genesis", groups: [] } as unknown as TransactionChangefeedPage,
+          vi.fn(),
+          new AbortController().signal,
+          { ...TRANSACTION_SSE_DEFAULTS, [name]: value },
+        ),
+      ).rejects.toThrow("invalid transaction stream timer");
+      expect(sink.write).not.toHaveBeenCalled();
+    }
+  }
+  expect(() => validateTransactionStreamTimers(TRANSACTION_SSE_DEFAULTS, 5000)).toThrow(
+    "heartbeat must precede",
+  );
+  expect(() => validateTransactionStreamTimers(TRANSACTION_SSE_DEFAULTS, 4999)).toThrow(
+    "heartbeat must precede",
+  );
+  expect(() => validateTransactionStreamTimers(TRANSACTION_SSE_DEFAULTS, 5001)).not.toThrow();
+});
+
+it("short finite-only transport seams cannot register live streams; HEAD and finite reads remain usable", async () => {
+  const f = await fixture({ transport: { timeout: 100 } });
+  expect(f.runtime.configurationMetadata).toBeUndefined();
+  const stream = f.stream();
+  await stream.closed;
+  expect(stream.status).toBe(500);
+  expect(stream.headers["x-bdp-development-limit"]).toBe("stream-transport-timing");
+  expect(stream.body).toBe("");
+  expect(stream.frames).toEqual([]);
+  expect((await f.request("changes/?after=genesis")).status).toBe(200);
+  expect(
+    (
+      await f.request("changes/?after=genesis", {
+        method: "HEAD",
+        headers: { accept: "text/event-stream" },
+      })
+    ).status,
+  ).toBe(200);
+});
+
+it("pre-abort between selection and stream registration never writes a finite500", async () => {
+  const disconnect = await import(new URL("../dist/node-http-disconnect.js", import.meta.url).href);
+  const serviceModule = await import(
+    new URL("../dist/transaction-service.js", import.meta.url).href
+  );
+  const controller = new AbortController();
+  vi.spyOn(disconnect, "createNodeHttpDisconnectSignal").mockReturnValue(controller.signal);
+  const create = serviceModule.createTransactionService;
+  vi.spyOn(serviceModule, "createTransactionService").mockImplementation((...args: unknown[]) => {
+    const service = create(...args);
+    return {
+      ...service,
+      stream(start: never, signal: AbortSignal) {
+        controller.abort(new Error("registration race disconnect"));
+        return service.stream(start, signal);
+      },
+    };
+  });
+  const f = await fixture();
+  const stream = f.stream();
+  await stream.closed;
+  expect(controller.signal.aborted).toBe(true);
+  expect(stream.wireBytes.length).toBe(0);
+  // Fixture cleanup awaits close: ordinary cancellation must not become a
+  // retained unexpected fault or shutdown AggregateError.
 });

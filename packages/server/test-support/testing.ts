@@ -425,3 +425,5 @@ export function assertObservedReadConformanceMockForTesting(
   if (installedMock !== observedBinding)
     throw new Error("test-support module did not observe its installed Read evidence mock");
 }
+
+export { recordRawSse } from "./raw-sse-recorder.js";

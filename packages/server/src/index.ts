@@ -1,4 +1,3 @@
-import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
 import {
   notFound,
   invalidParameter,
@@ -21,6 +20,7 @@ export {
   ScopeServerOperationAbortedError,
   type ScopeServerLocalErrorCode,
 } from "./read-request.js";
+import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
 import { randomBytes } from "node:crypto";
 import {
   createServer as createNodeServer,

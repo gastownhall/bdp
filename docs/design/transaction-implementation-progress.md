@@ -1311,3 +1311,28 @@ Event Source SSE, mutable-view/erasure fencing, set HTTP admission, remaining
 required consistency/discovery work and full profile qualification remain open.
 No public export, schema, catalog credit, profile advertisement or historical
 Read evidence label changes in G2a. `claimEligible` remains false.
+
+
+### G2a review closure
+
+The private pump rejects invalid Node timer values. Default heartbeat cadence must
+be strictly below the socket idle timeout; this is an ordering invariant, not a
+factor-of-two policy. Short transport seams used for finite deadline tests remain
+unattestable and refuse a selected live stream before headers or slot acquisition.
+Their finite and HEAD behavior is preserved, and installed timers remain unchanged.
+
+The runtime retains only its first unexpected post-header stream failure and
+includes that original cause in close-time error aggregation. Capture happens
+before destroying the response can turn the failure into disconnect cancellation.
+Ordinary disconnect, pre-aborted registration and service cancellation remain
+clean shutdown paths. No error Event or second HTTP status is introduced.
+
+The raw SSE recorder now belongs to server test support and is imported by the app
+through the existing source-only testing entry. Finite/SSE comparisons additionally
+check each data payload against raw finite response text, without JSON reserialization
+as the byte oracle. Numeric-like property names are included in the source witness.
+
+The deferred `start=now` plus `Last-Event-ID` gap also blocks automatic EventSource
+reconnect after that initial stream has delivered an Event. The private development
+refusal remains unchanged; this slice makes no browser interoperability claim or
+new protocol ruling for that combination.

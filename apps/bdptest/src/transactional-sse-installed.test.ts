@@ -8,7 +8,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { expect, it } from "vitest";
 import { createRawHttpExchangeExecutor } from "@bdp/conformance";
-import { recordRawSse } from "../test-support/raw-sse-recorder.js";
+import { recordRawSse } from "@bdp/server/testing";
 import { installedTransactionBinding } from "../test-support/transactional-execution-binding.js";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const { launchInstalledTransaction } = (await import(
@@ -146,7 +146,10 @@ it("installed actual-default SSE survives fifteen seconds then delivers a live g
       expect(response.status, response.bodyText).toBe(200);
       expect(response.exactRequest?.writeState).toBe("complete");
       expect(response.wireResponseBytes?.length).toBeGreaterThan(0);
-      return JSON.parse(response.bodyText) as { groups: unknown[] };
+      return {
+        bodyText: response.bodyText,
+        parsed: JSON.parse(response.bodyText) as { groups: unknown[] },
+      };
     };
     const create = (id: string) =>
       exchange("operations/batch", {
@@ -168,7 +171,8 @@ it("installed actual-default SSE survives fifteen seconds then delivers a live g
     const current = stream;
     await current.until(() => current.frames.some((f) => f.startsWith("id: ")));
     const first = current.frames.find((f) => f.startsWith("id: "))!;
-    expect(JSON.parse(first.split("\ndata: ")[1]!)).toEqual(finite.groups[0]);
+    expect(JSON.parse(first.split("\ndata: ")[1]!)).toEqual(finite.parsed.groups[0]);
+    expect(finite.bodyText).toContain(first.split("\ndata: ")[1]!);
     const idleStarted = performance.now();
     await delay(15100, undefined, { signal: controller.signal });
     expect(current.destroyed).toBe(false);

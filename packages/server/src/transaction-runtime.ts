@@ -1,8 +1,8 @@
+/** Source-private loopback fixture. Never selected by installed config/profile
+ * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
 import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
 import { pumpTransactionChanges } from "./transaction-sse.js";
 import { ScopeServerOperationAbortedError } from "./read-request.js";
-/** Source-private loopback fixture. Never selected by installed config/profile
- * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
 import { createServer, type IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { Socket } from "node:net";
@@ -104,7 +104,11 @@ export async function startTransactionRuntime(
   let scope = "",
     closing = false;
   const pending = new Set<Promise<void>>();
+  // Retain only the first unexpected live fault. Wire cancellation remains
+  // silent; close surfaces the original cause through existing aggregation.
+  let firstStreamFault: { readonly cause: unknown } | undefined;
   const handle = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    let signal: AbortSignal | undefined;
     try {
       if (closing || !handler) {
         deliver(response, transactionHttpProblem("temporarily-unavailable"));
@@ -138,7 +142,7 @@ export async function startTransactionRuntime(
         headers.append(request.rawHeaders[i] ?? "", request.rawHeaders[i + 1] ?? "");
       const supplied = Buffer.from(headers.get("authorization") ?? "");
       const authorization = captured.authenticate(supplied);
-      const signal = createNodeHttpDisconnectSignal(request, response);
+      signal = createNodeHttpDisconnectSignal(request, response);
       const input = new Request(url, { method: request.method ?? "GET", headers, signal });
       const lastEventIds: string[] = [];
       for (let i = 0; i < request.rawHeaders.length; i += 2)
@@ -159,12 +163,22 @@ export async function startTransactionRuntime(
       const selected = await handler.handle(input, authorization, body, lastEventIds);
       if (selected.kind === "finite") deliver(response, selected);
       else {
+        if (!captured.liveStreamsAvailable) {
+          deliver(response, {
+            status: 500,
+            headers: new Headers({
+              "cache-control": "private, no-store",
+              "x-bdp-development-limit": "stream-transport-timing",
+            }),
+          });
+          return;
+        }
         const activeService = service!;
         await activeService.stream(async (streamSignal) => {
-          streamSignal.throwIfAborted();
-          response.writeHead(selected.status, Object.fromEntries(selected.headers));
-          response.flushHeaders();
           try {
+            streamSignal.throwIfAborted();
+            response.writeHead(selected.status, Object.fromEntries(selected.headers));
+            response.flushHeaders();
             await pumpTransactionChanges(
               response,
               selected.page,
@@ -177,13 +191,22 @@ export async function startTransactionRuntime(
               streamSignal,
               settings.changefeedStream,
             );
+          } catch (error) {
+            // Capture before destroy() turns a genuine fault into a disconnect.
+            if (response.headersSent && !streamSignal.aborted && !firstStreamFault)
+              firstStreamFault = { cause: error };
+            throw error;
           } finally {
             response.destroy();
           }
         }, signal);
       }
     } catch (error) {
-      if (response.headersSent || error instanceof ScopeServerOperationAbortedError) {
+      if (
+        signal?.aborted ||
+        response.headersSent ||
+        error instanceof ScopeServerOperationAbortedError
+      ) {
         response.destroy();
       } else if (error instanceof TransactionStreamCapacityError) {
         deliver(response, transactionHttpProblem("temporarily-unavailable"));
@@ -313,6 +336,7 @@ export async function startTransactionRuntime(
           } catch (error) {
             failures.push(error);
           }
+          if (firstStreamFault) failures.unshift(firstStreamFault.cause);
           if (failures.length)
             throw new AggregateError(failures, "transaction runtime shutdown failed");
         })();
