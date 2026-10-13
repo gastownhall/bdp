@@ -2,9 +2,14 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { it, expect, vi } from "vitest";
+import { readProblem } from "@bdp/protocol";
+import { Server } from "node:http";
 const gate = vi.hoisted(() => ({
   enabled: false,
   fail: false,
+  refuse: false,
+  closeCalls: 0,
+  closeFailure: undefined as unknown,
   mark: () => {},
   release: Promise.resolve(),
   alternateLimits: undefined as unknown,
@@ -23,11 +28,21 @@ vi.mock("../../../packages/server/dist/development-authority.js", async (importO
       const owner = await actual.openDevelopmentAuthority(...args);
       return {
         ...owner,
+        async close() {
+          gate.closeCalls++;
+          await owner.close();
+          if (gate.closeFailure !== undefined) throw gate.closeFailure;
+        },
         forPrincipal(principal: { id: string }) {
           const facet = owner.forPrincipal(principal);
           return {
             ...facet,
             discover: async () => {
+              if (gate.refuse)
+                return {
+                  kind: "problem" as const,
+                  problem: readProblem("temporarily-unavailable"),
+                };
               if (gate.enabled && principal.id === "bob") {
                 gate.mark();
                 await gate.release;
@@ -193,4 +208,114 @@ it("binds every fixed owner-bound group into configuration identity without enab
     gate.alternateLimits = undefined;
   }
   expect(configModule.captureInstalledReferenceConfiguration(input).identity).toBe(baseline);
+});
+
+it("checks the actual owner before serving a static directory or hosted schema", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "bdp-owner-gate-"));
+  const token = "owner_gate_01234567890123456789012345";
+  const input = helper.referenceConfiguration(dir, await helper.availablePort(), token);
+  const schema = `${input.scope}schemas/local`;
+  const type = `${input.scope}types/local`;
+  const config = {
+    ...input,
+    contracts: {
+      descriptors: [
+        {
+          retrievalUri: type,
+          utf8: JSON.stringify({
+            id: type,
+            name: "Local",
+            describes: "bead",
+            conformsTo: [],
+            propertiesSchema: schema,
+          }),
+        },
+      ],
+      schemas: [{ retrievalUri: schema, utf8: '{"type":"object"}' }],
+    },
+  };
+  const server = await factory.startInstalledReferenceCandidate(config);
+  try {
+    for (const url of [`${input.scope}operations/`, schema])
+      expect((await helper.requestInstalled(config, token, url)).status).toBe(200);
+    gate.refuse = true;
+    for (const url of [`${input.scope}operations/`, schema]) {
+      const result = await helper.requestInstalled(config, token, url);
+      expect(result.status).toBe(503);
+      expect(result.value).toMatchObject({ status: 503 });
+      expect(result.value).not.toHaveProperty("operations");
+      expect(result.value).not.toHaveProperty("type", "object");
+    }
+    gate.refuse = false;
+    for (const url of [`${input.scope}operations/`, schema])
+      expect((await helper.requestInstalled(config, token, url)).status).toBe(200);
+  } finally {
+    gate.refuse = false;
+    await server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it("retries failed listener cleanup without repeating successful owner cleanup", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "bdp-close-retry-"));
+  const token = "close_retry_01234567890123456789012345";
+  const config = helper.referenceConfiguration(dir, await helper.availablePort(), token);
+  const server = await factory.startInstalledReferenceCandidate(config);
+  gate.closeCalls = 0;
+  const cleanup = new Error("listener did not close on first attempt");
+  const close = vi.spyOn(Server.prototype, "close").mockImplementationOnce(function (
+    this: Server,
+    callback,
+  ) {
+    callback?.(cleanup);
+    return this;
+  });
+  try {
+    const first = server.close();
+    expect(server.close()).toBe(first);
+    await expect(first).rejects.toMatchObject({ errors: [cleanup] });
+    expect(gate.closeCalls).toBe(1);
+    const reopened = await factory.startInstalledReferenceCandidate({
+      ...config,
+      create: false,
+      listener: { ...config.listener, port: await helper.availablePort() },
+    });
+    try {
+      await server.close();
+      expect(gate.closeCalls).toBe(1);
+      const calls = close.mock.calls.length;
+      await server.close();
+      expect(close).toHaveBeenCalledTimes(calls);
+    } finally {
+      await reopened.close();
+    }
+  } finally {
+    await server.close();
+    close.mockRestore();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it("does not erase a terminal owner cleanup failure or invoke owner close again on retry", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "bdp-owner-close-failure-"));
+  const token = "close_failure_01234567890123456789012345";
+  const config = helper.referenceConfiguration(dir, await helper.availablePort(), token);
+  const server = await factory.startInstalledReferenceCandidate(config);
+  const failure = new Error("owner terminal cleanup failure");
+  gate.closeCalls = 0;
+  gate.closeFailure = failure;
+  try {
+    await expect(server.close()).rejects.toMatchObject({ errors: [failure] });
+    expect(gate.closeCalls).toBe(1);
+    gate.closeFailure = undefined;
+    await expect(server.close()).rejects.toMatchObject({ errors: [failure] });
+    expect(gate.closeCalls).toBe(1);
+    // The injected failure follows the real owner completion; the store can reopen.
+    const reopened = await factory.startInstalledReferenceCandidate({ ...config, create: false });
+    await reopened.close();
+  } finally {
+    gate.closeFailure = undefined;
+    await server.close().catch(() => undefined);
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

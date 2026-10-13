@@ -53,6 +53,10 @@ async function main() {
         configurationIdentity: runtime.configurationIdentity,
         artifactIdentity: runtime.artifactIdentity,
         payloadIdentity: runtime.payloadIdentity,
+        policyIdentity: runtime.policyIdentity,
+        authenticationIdentity: runtime.authenticationIdentity,
+        profile: runtime.profile,
+        history: runtime.history,
       });
     await stopped;
   } finally {
