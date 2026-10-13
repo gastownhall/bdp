@@ -636,3 +636,21 @@ Existing policy/authentication changes remain allowed and hosted schema bytes ar
 unchanged. Tests cover built-in and compiled corruption, original-byte retention,
 offline reconstruction, replay/lifetime, and actual hot-journal refusal/recovery.
 No public profile activation or new Type lifecycle follows from these observations.
+
+
+### Retention review follow-ups
+
+A missing required capture row is an integrity failure; a present but unequal
+capture remains an installation mismatch. Corruption tests identify the exact gate
+and reason, and a permanent format3-shaped fixture (no capture row) proves format
+refusal precedes the new capture gate while preserving bytes and pending claims.
+
+Deferred maintenance: consolidate the twin serialized-capture ceiling in
+`development-authority.ts` (`maximumCaptureBytes`) and `transaction-store.ts`
+(`captureMaximumBytes`) when both lanes can be changed together. Both currently use
+8 times artifact bytes plus 1024 per submitted artifact plus 4096 overhead; the RU
+site explicitly cross-references its TX twin. Their stored-length checks intentionally
+differ: RU compares the supplied bounded expectation's exact byte length; TX checks
+the shared ceiling before exact equality. The one production RU authority bounds
+serialization; a direct recovery-store caller remains responsible for bounding its
+expectation. No shared accessor or TX refactor is included in this follow-up.

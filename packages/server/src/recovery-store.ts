@@ -643,6 +643,8 @@ export function openRecoveryStore(options: RecoveryStoreOptions): RecoveryStore 
     const storedCaptureBytes = get(
       "SELECT length(CAST(value AS BLOB)) AS bytes FROM metadata WHERE name='contractCapture'",
     )?.bytes;
+    if (storedCaptureBytes === undefined)
+      throw new RecoveryStoreError("integrity", "missing store metadata: contractCapture");
     if (storedCaptureBytes !== captureBytes || meta("contractCapture") !== contractCapture)
       throw new RecoveryStoreError("store-mismatch", "installation capture mismatch");
     if (expectedTypes !== undefined) {

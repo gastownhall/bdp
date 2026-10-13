@@ -384,7 +384,7 @@ export function normalizePreparedMemberIdentity(
   // Keep actor/null/string members and never insert generated version metadata.
   // Renaming either former envelope (attribution or changeContext) changes every
   // affected input's semantic-identity bytes, not only explicit-empty spellings.
-  // Recovery-store format 3 is the compatibility boundary for those bytes:
+  // Recovery-store format 4 is the compatibility boundary for those bytes:
   // prior formats are refused before recovery, never reinterpreted or rewritten.
   const contextInput = normalized.revisionProvenance;
   if (

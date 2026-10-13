@@ -43,10 +43,11 @@ preceded the output-envelope nonemptiness constraint and do not certify it.
 
 The common `revisionProvenance` envelope replaces the separate public
 attribution and change-context fields. Private recovery-store format 4 refuses
-older formats before claim cleanup or other recovery writes. The refusal
-preserves existing bytes and cannot silently reseed an existing database;
-there is no automatic migration. Format 4 adds exact installed-artifact capture
-and checks capture/inventory before claim cleanup; this also rejects existing
+older formats before claim cleanup or other recovery writes. Ordinary incompatible
+files remain byte-identical on refusal; necessary SQLite hot-journal recovery may restore
+physical bytes before metadata is readable and BDP startup is refused. Refusal
+cannot silently reseed an existing database; there is no automatic migration. Format 4
+adds exact installed-artifact capture and checks capture/inventory before claim cleanup; this also rejects existing
 nonattesting development-facade stores. Preserve old stores for any separately
 planned migration. Content-derived adapter revisions use the new projected
 record bytes and are not relabeled as earlier revisions.

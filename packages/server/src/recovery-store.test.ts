@@ -1156,6 +1156,46 @@ describe("native JSON syntax storage format", () => {
     expect(readFileSync(filename)).toEqual(before);
   });
 
+  it("refuses format 3 without capture before the format-4 integrity gate or pending recovery", () => {
+    const dir = directory();
+    const store = open(dir, true);
+    effect(store, "retained");
+    store.admit("alice", ["pending"]);
+    store.close();
+    const filename = path.join(dir, "reference.sqlite");
+    const raw = new DatabaseSync(filename);
+    // Format 3 had the same tables but no contractCapture metadata row.
+    raw.exec("UPDATE metadata SET value='3' WHERE name='format'");
+    raw.exec("DELETE FROM metadata WHERE name='contractCapture'");
+    const rows = raw.prepare("SELECT * FROM key_state ORDER BY key").all();
+    expect(rows.map((row) => row.state)).toEqual(["claimed", "retained"]);
+    raw.close();
+    const before = readFileSync(filename);
+    expect(() => open(dir)).toThrow(
+      expect.objectContaining({
+        reason: "store-mismatch",
+        message: "store format/Scope/installation/lineage mismatch",
+      }),
+    );
+    expect(readFileSync(filename)).toEqual(before);
+    const after = new DatabaseSync(filename, { readOnly: true });
+    try {
+      expect(after.prepare("SELECT * FROM key_state ORDER BY key").all()).toEqual(rows);
+      expect(after.prepare("SELECT value FROM metadata WHERE name='format'").get()?.value).toBe(
+        "3",
+      );
+      expect(
+        after.prepare("SELECT value FROM metadata WHERE name='contractCapture'").get(),
+      ).toBeUndefined();
+    } finally {
+      after.close();
+    }
+    expect(() => openRecoveryStore({ ...options(dir), create: {} })).toThrow(
+      expect.objectContaining({ code: "EEXIST" }),
+    );
+    expect(readFileSync(filename)).toEqual(before);
+  });
+
   it("cleans up an uncommitted new file when syntax function registration fails", () => {
     const dir = directory();
     const spy = vi.spyOn(DatabaseSync.prototype, "function").mockImplementationOnce(() => {
