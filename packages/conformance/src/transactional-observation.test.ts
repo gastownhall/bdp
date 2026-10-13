@@ -1,0 +1,169 @@
+import { expect, it } from "vitest";
+import {
+  createTransactionalObservations,
+  validateReceiptWire,
+  type TransactionalRunContext,
+  type TransactionalSessionBinding,
+} from "./transactional-observation.js";
+import { createJsonSchemaValidator } from "./schema-validator.js";
+import type { HttpExchangeResponse } from "./http-executor.js";
+import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
+const scope = "https://reference.invalid/acme/",
+  id = `${scope}receipts/r1`;
+const body = {
+  id,
+  status: "completed",
+  detail: "available",
+  idempotencyKey: "key",
+  scopeEpoch: "epoch",
+  authorizationView: "view",
+  transaction: "tx",
+  requiredPosition: "pos-0",
+  results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+  next: null,
+  expiresAt: "2030-01-01T00:00:00Z",
+};
+const validator = createJsonSchemaValidator(schema);
+function response(value: unknown = body): HttpExchangeResponse {
+  const bodyText = JSON.stringify(value),
+    headers = {
+      "content-length": String(Buffer.byteLength(bodyText)),
+      "content-type": "application/json",
+    };
+  return {
+    url: scope + "operations/batch",
+    status: 200,
+    headers,
+    bodyText,
+    bodyOctets: Buffer.byteLength(bodyText),
+    wireResponseBytes: Buffer.from(
+      `HTTP/1.1 200 OK\r\ncontent-length: ${headers["content-length"]}\r\ncontent-type: application/json\r\n\r\n${bodyText}`,
+    ),
+  };
+}
+function fixture() {
+  const controller = new AbortController();
+  let binding: TransactionalSessionBinding = {
+    scenario: "row",
+    generation: 1,
+    listenUrl: "http://127.0.0.1:12345/",
+    runtimeConfigurationIdentity: "a".repeat(64),
+    configurationDigest: "b".repeat(64),
+    responseLimits: { headerBytes: 65536, bodyBytes: 1048576, wireBytes: 2097152 },
+  };
+  const context: TransactionalRunContext = {
+    current: () => ({
+      binding,
+      dialRoute: { transport: "plain", host: "127.0.0.1", port: 12345 },
+      signal: controller.signal,
+      resolveCredentials: () => ({}),
+      register: (p) => p,
+    }),
+    reopen: async () => {
+      binding = { ...binding, generation: 2, listenUrl: "http://127.0.0.1:23456/" };
+    },
+  };
+  const observations = createTransactionalObservations(context, "row", scope, 4);
+  const config = {
+    scope,
+    profile: "transactional" as const,
+    routes: [{ method: "POST" as const, url: scope + "operations/batch" }],
+    maximumRequestHeaderBytes: 16384,
+    maximumRequestBodyBytes: 65536,
+    defaultCredentialRef: "operator",
+    credentialHandles: [{ id: "operator", headerNames: ["authorization"] }],
+  };
+  const register = (r = response(), value: unknown = body, pointer = "/id") =>
+    observations.register(
+      "receipt",
+      pointer,
+      "post",
+      r,
+      value,
+      config,
+      undefined,
+      validator,
+      observations.session().binding,
+    );
+  return {
+    observations,
+    controller,
+    register,
+    change: (change: Partial<TransactionalSessionBinding>) => {
+      binding = { ...binding, ...change };
+    },
+  };
+}
+it("retains immutable original wire provenance across explicit validated reopen", async () => {
+  const f = fixture();
+  f.register();
+  const before = f.observations.resolve("receipt", id).source;
+  await f.observations.reopen(new AbortController().signal);
+  const after = f.observations.resolve("receipt", id);
+  expect(after.source).toBe(before);
+  expect(after.source.session.generation).toBe(1);
+  expect(after.active.binding.generation).toBe(2);
+  expect(() => after.validate(response(), "GET")).not.toThrow();
+  expect(() => after.validate(response({ ...body, requiredPosition: "pos-2" }), "GET")).toThrow(
+    "original wire facts",
+  );
+});
+it.each(["unknown", `${scope}receipts/other`, `${scope}beads/a`, `${id}?x=1`, `${id}/../r1`])(
+  "rejects unobserved/substituted receipt %s",
+  (value) => {
+    const f = fixture();
+    f.register();
+    expect(() => f.observations.resolve("receipt", value)).toThrow();
+    expect(() => f.observations.resolve("other", id)).toThrow();
+  },
+);
+it.each([
+  { listenUrl: "http://127.0.0.1:9999/" },
+  { generation: 2 },
+  { scenario: "other" },
+  { runtimeConfigurationIdentity: "c".repeat(64) },
+])("rejects unvalidated session change %j", (change) => {
+  const f = fixture();
+  f.register();
+  f.change(change);
+  expect(() => f.observations.resolve("receipt", id)).toThrow();
+});
+it("refuses a wrong source pointer, aborted session, reused authority and malformed schema", () => {
+  const f = fixture();
+  f.register(response(), body, "/transaction");
+  expect(() => f.observations.resolve("receipt", id)).toThrow();
+  expect(() => f.register(response(), { ...body, unexpected: true })).toThrow("schema");
+  f.register();
+  expect(() => f.register()).toThrow("reuse");
+  f.controller.abort();
+  expect(() => f.observations.resolve("receipt", id)).toThrow("unavailable");
+});
+it.each(["body", "octets", "status", "headers", "wire", "absent"])(
+  "refuses inconsistent %s evidence before authority registration",
+  (kind) => {
+    const f = fixture(),
+      r = response();
+    const changed =
+      kind === "body"
+        ? { ...r, bodyText: "{}" }
+        : kind === "octets"
+          ? { ...r, bodyOctets: 0 }
+          : kind === "status"
+            ? { ...r, status: 201 }
+            : kind === "headers"
+              ? { ...r, headers: {} }
+              : kind === "absent"
+                ? { ...r, wireResponseBytes: undefined }
+                : { ...r, wireResponseBytes: Buffer.from("HTTP/1.1 200 OK\r\n\r\n{}") };
+    expect(() => f.register(changed as unknown as HttpExchangeResponse)).toThrow();
+    expect(() => f.observations.resolve("receipt", id)).toThrow();
+  },
+);
+it("validates bodyless HEAD wire independently from retained representation length", () => {
+  const r = { ...response(), bodyText: "", bodyOctets: 0 };
+  r.wireResponseBytes = Buffer.from(
+    `HTTP/1.1 200 OK\r\ncontent-length: ${r.headers["content-length"]}\r\ncontent-type: application/json\r\n\r\n`,
+  );
+  expect(() => validateReceiptWire(r, "HEAD")).not.toThrow();
+  expect(() => validateReceiptWire(response(), "HEAD")).toThrow();
+});

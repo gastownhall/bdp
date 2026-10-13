@@ -176,41 +176,55 @@ describe("report version isolation", () => {
       serializeConformanceReport({ ...base, reportVersion: 5 } as unknown as ConformanceRunResult),
     ).toThrow("unsupported");
   });
-  it.each(["exact", "harnessError", "writeState", "declaration"])(
-    "rejects %s metadata mislabeled as v3",
-    (field) => {
-      const exchange = {
-        request: {
+  it.each([
+    "exact",
+    "harnessError",
+    "writeState",
+    "declaration",
+    "dynamicExactConfiguration",
+    "dynamicExactConfigurationDigest",
+    "sourceReceiptObservation",
+    "servedSession",
+  ])("rejects %s metadata mislabeled as v3", (field) => {
+    const exchange = {
+      request: {
+        id: "probe",
+        method: "GET" as const,
+        url: base.scope,
+        headers: {},
+        ...(field === "exact" ? { exact: {} } : {}),
+      },
+      assertions: [],
+      ...([
+        "dynamicExactConfiguration",
+        "dynamicExactConfigurationDigest",
+        "sourceReceiptObservation",
+        "servedSession",
+      ].includes(field)
+        ? { [field]: {} }
+        : {}),
+      ...(field === "harnessError" ? { harnessError: {} } : {}),
+      ...(field === "writeState"
+        ? { transportError: { category: "abort", message: "aborted", writeState: "complete" } }
+        : {}),
+    };
+    const report = {
+      ...base,
+      reportVersion: 3,
+      declarations: {
+        ...base.declarations,
+        ...(field === "declaration" ? { exactConfigurationDigest: "d" } : {}),
+      },
+      scenarios: [
+        {
           id: "probe",
-          method: "GET" as const,
-          url: base.scope,
-          headers: {},
-          ...(field === "exact" ? { exact: {} } : {}),
+          requiredProfile: "read",
+          state: "pass",
+          requirements: [],
+          exchanges: [exchange],
         },
-        assertions: [],
-        ...(field === "harnessError" ? { harnessError: {} } : {}),
-        ...(field === "writeState"
-          ? { transportError: { category: "abort", message: "aborted", writeState: "complete" } }
-          : {}),
-      };
-      const report = {
-        ...base,
-        reportVersion: 3,
-        declarations: {
-          ...base.declarations,
-          ...(field === "declaration" ? { exactConfigurationDigest: "d" } : {}),
-        },
-        scenarios: [
-          {
-            id: "probe",
-            requiredProfile: "read",
-            state: "pass",
-            requirements: [],
-            exchanges: [exchange],
-          },
-        ],
-      } as unknown as ConformanceRunResult;
-      expect(() => serializeConformanceReport(report)).toThrow("version 4");
-    },
-  );
+      ],
+    } as unknown as ConformanceRunResult;
+    expect(() => serializeConformanceReport(report)).toThrow("version 4");
+  });
 });
