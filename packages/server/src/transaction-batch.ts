@@ -1,8 +1,10 @@
-/** Private Transactional evaluator. Set serving admission remains closed. */
+/** Private Transactional evaluator. Valid bounded sets share singleton/batch admission; negative Selector policy remains private. */
 import {
-  prepareSetCore,
+  prepareSetShape,
+  assertTransactionInputDepth,
+  validateSetSelector,
+  type TransactionSetOperation,
   transactionInputText as losslessText,
-  TransactionDevelopmentLimitError,
   TRANSACTION_SELECTOR_LIMITS,
   type PreparedTransactionSet,
 } from "./transaction-set.js";
@@ -71,6 +73,8 @@ export const TRANSACTION_RUNTIME_LIMITS = Object.freeze({
 export const TRANSACTION_MAXIMUM_OPERATIONS: number = TRANSACTION_RUNTIME_LIMITS.maximumOperations;
 snapshotReadUpdateRuntimeLimits(TRANSACTION_RUNTIME_LIMITS);
 
+export type TransactionSingletonOperation = ReadUpdateOperation | TransactionSetOperation;
+
 export interface PreparedTransaction {
   readonly carrier: Omit<PreparedReadUpdateCarrier, "operations"> & {
     readonly operations: readonly (UnadmittedReadUpdateOperation | PreparedTransactionSet)[];
@@ -84,11 +88,7 @@ function assertResourceOperation(operation: unknown): asserts operation is Resou
       operation,
     )
   )
-    throw operation === "updateWhere" || operation === "deleteWhere"
-      ? new TransactionDevelopmentLimitError(
-          "set operations are not implemented by this private owner",
-        )
-      : new TypeError("unsupported development transaction operation");
+    throw new TypeError("unsupported development transaction operation");
 }
 function object(value: LosslessJsonValue | undefined): Record<string, LosslessJsonValue> {
   if (
@@ -102,8 +102,8 @@ function object(value: LosslessJsonValue | undefined): Record<string, LosslessJs
 }
 /** Whole-carrier syntax/Scope checks happen before consulting any durable key.
  * Reuses RU parsing, not RU admission or identity: synthetic member keys never
- * enter storage. This bounded owner accepts the six singleton Resource operation kinds. */
-export function prepareTransaction(scope: string, text: string): PreparedTransaction {
+ * enter storage. This layer parses only the six Resource operation kinds. */
+function prepareResourceBatch(scope: string, text: string): PreparedTransaction {
   if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     throw new RangeError("development batch byte limit");
   const root = object(decodeJsonDocument(text));
@@ -121,8 +121,12 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
   });
   return prepareCarrier(prepareReadUpdateSequence(scope, losslessText({ operations })));
 }
-/** Experimental source-private core only. HTTP preparation deliberately does not
- * call this seam until negative Selector admission semantics are resolved. */
+/** One mixed carrier syntax path. Unsupported Selector categories remain a
+ * private pre-admission gap, never an inferred protocol failure law. */
+export function prepareTransaction(scope: string, text: string): PreparedTransaction {
+  return prepareTransactionSetCore(scope, text);
+}
+/** Retained source-private test seam uses the same mixed preparation. */
 export function prepareTransactionSetCore(
   scope: string,
   text: string,
@@ -130,8 +134,13 @@ export function prepareTransactionSetCore(
 ): PreparedTransaction {
   if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     throw new RangeError("development batch byte limit");
-  const root = object(decodeJsonDocument(text));
-  losslessText(root);
+  return prepareMixedTransaction(scope, object(decodeJsonDocument(text)), singleton);
+}
+function prepareMixedTransaction(
+  scope: string,
+  root: Record<string, LosslessJsonValue>,
+  singleton: boolean,
+): PreparedTransaction {
   if (Object.keys(root).length !== 1 || !Array.isArray(root.operations) || !root.operations.length)
     throw new TypeError("expected nonempty batch operations");
   if (singleton && root.operations.length !== 1) throw new TypeError("expected one core operation");
@@ -143,7 +152,7 @@ export function prepareTransactionSetCore(
   // Existing parser owns reference syntax, label order/kind/uniqueness and brands.
   // Removing sets preserves relative Resource order; sets cannot declare labels.
   const resources = resourceInputs.length
-    ? prepareTransaction(scope, losslessText({ operations: resourceInputs })).carrier.operations
+    ? prepareResourceBatch(scope, losslessText({ operations: resourceInputs })).carrier.operations
     : [];
   let index = 0;
   const operations = raw.map((op) => {
@@ -153,8 +162,13 @@ export function prepareTransactionSetCore(
       return resource;
     }
     const { operation, ...input } = op;
-    return prepareSetCore(canonicalScope, operation, Object.freeze(input));
+    return prepareSetShape(canonicalScope, operation, Object.freeze(input));
   });
+  // Synthetic syntax parsers do not impose the execution depth bound. Finish
+  // every unambiguous shape/reference/label check before any private gap.
+  assertTransactionInputDepth(root);
+  for (const op of operations)
+    if (op.operation === "updateWhere" || op.operation === "deleteWhere") validateSetSelector(op);
   return prepareCarrier(
     Object.freeze({
       scope: canonicalScope,
@@ -169,15 +183,30 @@ export function prepareTransactionSetCore(
  * Synthetic parsing keys are never consulted or persisted by the owner. */
 export function prepareTransactionSingleton(
   scope: string,
-  operation: ReadUpdateOperation,
+  operation: TransactionSingletonOperation,
   text: string,
 ): PreparedTransaction {
-  if (operation !== "putAlias" && operation !== "deleteAlias") assertResourceOperation(operation);
+  if (
+    operation !== "updateWhere" &&
+    operation !== "deleteWhere" &&
+    operation !== "putAlias" &&
+    operation !== "deleteAlias"
+  )
+    assertResourceOperation(operation);
   if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     throw new RangeError("development singleton byte limit");
   // Apply the same operation-content depth bound as the batch wrapper.
-  losslessText(object(decodeJsonDocument(text)), 2);
-  return prepareCarrier(prepareReadUpdateSingleton(scope, operation, text, "internal-singleton"));
+  const input = object(decodeJsonDocument(text));
+  if (operation === "updateWhere" || operation === "deleteWhere") {
+    // A raw discriminator must never replace the route. The single mixed pass
+    // below validates all remaining closed fields and the complete set shape.
+    if (Object.hasOwn(input, "operation")) throw new TypeError("singleton cannot carry operation");
+    // The byte cap applies to the submitted body, not a synthetic carrier.
+    return prepareMixedTransaction(scope, { operations: [{ operation, ...input }] }, true);
+  }
+  const carrier = prepareReadUpdateSingleton(scope, operation, text, "internal-singleton");
+  assertTransactionInputDepth(input, 2);
+  return prepareCarrier(carrier);
 }
 export interface PreparedTransactionSequence {
   readonly scope: string;
@@ -206,7 +235,7 @@ export function prepareTransactionSequence(
   const carrier = prepareReadUpdateSequence(scope, text);
   if (carrier.operations.length > TRANSACTION_MAXIMUM_OPERATIONS)
     throw new RangeError("development sequence member limit");
-  losslessText(object(decodeJsonDocument(text)));
+  assertTransactionInputDepth(object(decodeJsonDocument(text)));
   const labels = new Map<string, number>();
   const members = carrier.operations.map((op, index) => {
     const dependencies: {
@@ -794,6 +823,7 @@ export function evaluateTransaction(
               code: "validation-failed",
               retry: "never",
               operationIndex,
+              pointer: `${batch.carrier.kind === "singleton" ? "" : `/operations/${operationIndex}`}${admitted.offending[0]!.pointer}`,
               diagnostics: admitted.diagnostics,
               ...(admitted.diagnosticsTruncated ? { diagnosticsTruncated: true } : {}),
             },
@@ -825,6 +855,7 @@ export function evaluateTransaction(
               code: "cardinality-violated",
               retry: "after-state-change",
               operationIndex,
+              pointer: `${batch.carrier.kind === "singleton" ? "" : `/operations/${operationIndex}`}/cardinality/${cardinality?.min !== undefined && selected.length < cardinality.min ? "min" : "max"}`,
             },
           };
         // Count selections across operations, including repeat matches and
@@ -856,7 +887,32 @@ export function evaluateTransaction(
             operationIndex,
             new Map(),
           );
-          if (failure) return failure;
+          if (failure) {
+            if (op.operation === "updateWhere" && failure.problem.code === "validation-failed") {
+              // Diagnostics describe the final properties document, not the request.
+              // Only an actual Property Change path failure identifies a path member;
+              // repeated paths (or afterstate validation) identify the array, not an index.
+              let location = "/change";
+              const diagnostic = failure.problem.diagnostics?.[0];
+              if (
+                diagnostic?.message.startsWith("Property Change ") &&
+                Array.isArray(input.change)
+              ) {
+                const matches = input.change.flatMap((change, index) =>
+                  change.path === diagnostic.instanceLocation ? [index] : [],
+                );
+                if (matches.length === 1) location += `/${matches[0]}/path`;
+              }
+              return {
+                ...failure,
+                problem: {
+                  ...failure.problem,
+                  pointer: `${batch.carrier.kind === "singleton" ? "" : `/operations/${operationIndex}`}${location}`,
+                },
+              };
+            }
+            return failure;
+          }
         }
         continue;
       }

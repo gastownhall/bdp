@@ -1,6 +1,7 @@
 /** Private receiving/admission composition. No socket, export or profile claim. */
-import { JsonSyntaxError, ReadUpdateCarrierError, type ReadUpdateOperation } from "@bdp/protocol";
+import { JsonSyntaxError, ReadUpdateCarrierError } from "@bdp/protocol";
 import {
+  type TransactionSingletonOperation,
   prepareTransaction,
   prepareTransactionSingleton,
   TransactionDevelopmentLimitError,
@@ -22,7 +23,7 @@ type Authorization =
 export interface TransactionSubmission {
   readonly carrier:
     | { readonly kind: "batch" }
-    | { readonly kind: "singleton"; readonly operation: ReadUpdateOperation };
+    | { readonly kind: "singleton"; readonly operation: TransactionSingletonOperation };
   readonly body: string;
   readonly key: string;
   /** Trusted authentication/Scope permission decision, not client attribution. */
@@ -66,25 +67,25 @@ export async function submitTransaction(
   const { body, key } = submission;
   if (Buffer.byteLength(body) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
     return { kind: "refused", status: 413, code: "request-too-large" };
-  let prepared: ReturnType<typeof prepareTransaction>;
+  let prepared: ReturnType<typeof prepareTransaction> | undefined;
+  let developmentLimit: TransactionDevelopmentLimitError | undefined;
   try {
     prepared =
       submission.carrier.kind === "batch"
         ? prepareTransaction(store.scope, body)
         : prepareTransactionSingleton(store.scope, submission.carrier.operation, body);
-    if (typeof key !== "string" || !/^[A-Za-z0-9_-]{1,256}$/.test(key))
-      return { kind: "refused", status: 400, code: "malformed-request" };
   } catch (error) {
-    if (error instanceof TransactionDevelopmentLimitError)
-      return { kind: "development-limit", message: error.message };
-    if (
+    if (error instanceof TransactionDevelopmentLimitError) developmentLimit = error;
+    else if (
       error instanceof JsonSyntaxError ||
       error instanceof ReadUpdateCarrierError ||
       error instanceof TypeError
     )
       return { kind: "refused", status: 400, code: "malformed-request" };
-    throw error;
+    else throw error;
   }
+  if (typeof key !== "string" || !/^[A-Za-z0-9_-]{1,256}$/.test(key))
+    return { kind: "refused", status: 400, code: "malformed-request" };
   const authorization = submission.authorization;
   if (authorization.kind === "unauthenticated")
     return { kind: "refused", status: 401, code: "unauthenticated" };
@@ -96,6 +97,8 @@ export async function submitTransaction(
     !authorization.principal.isWellFormed()
   )
     throw new TypeError("invalid trusted principal");
+  if (developmentLimit) return { kind: "development-limit", message: developmentLimit.message };
+  if (!prepared) throw new Error("missing prepared transaction");
   const comparisonStore = observed
     ? {
         scopeEpoch: store.scopeEpoch,

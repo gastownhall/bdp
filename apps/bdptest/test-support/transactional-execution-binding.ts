@@ -56,6 +56,8 @@ export function installedTransactionBinding(
     deleteLink: "delete-link",
     putAlias: "put-alias",
     deleteAlias: "delete-alias",
+    updateWhere: "update-where",
+    deleteWhere: "delete-where",
     batch: "batch",
     sequence: "sequence",
   };

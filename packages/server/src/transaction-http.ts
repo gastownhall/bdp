@@ -12,7 +12,7 @@ import {
 } from "./transaction-events.js";
 import { transactionMinimumHeaders, TransactionMinimumFailure } from "./transaction-consistency.js";
 /** Source-private partial Transactional HTTP projection. No discovery/profile
- * advertisement: required sets, replication and consistency barriers are absent. */
+ * advertisement: discovery and complete consistency/Selector admission remain unqualified. */
 import {
   isReadProblem,
   JsonSyntaxError,
@@ -23,7 +23,6 @@ import {
   readProblem,
   type ReadProblem,
   type ReadProblemCode,
-  type ReadUpdateOperation,
 } from "@bdp/protocol";
 import { createReadHttpRoute, jsonResponse, scopeDataResponse } from "./read-http-routing.js";
 import {
@@ -34,6 +33,7 @@ import {
 } from "./read-http.js";
 import type { HttpResponse } from "./index.js";
 import {
+  type TransactionSingletonOperation,
   prepareTransactionSequence,
   TransactionDevelopmentLimitError,
   TRANSACTION_RUNTIME_LIMITS,
@@ -58,6 +58,8 @@ export const TRANSACTION_HTTP_OPERATIONS = Object.freeze({
   deleteLink: "delete-link",
   putAlias: "put-alias",
   deleteAlias: "delete-alias",
+  updateWhere: "update-where",
+  deleteWhere: "delete-where",
   batch: "batch",
   sequence: "sequence",
 } as const);
@@ -344,7 +346,7 @@ export function createTransactionHttpHandler(
         carrier:
           operation === "batch"
             ? { kind: "batch" }
-            : { kind: "singleton", operation: operation as ReadUpdateOperation },
+            : { kind: "singleton", operation: operation as TransactionSingletonOperation },
         body: received.text,
         key: request.headers.get("idempotency-key") ?? "",
         authorization: decision,
