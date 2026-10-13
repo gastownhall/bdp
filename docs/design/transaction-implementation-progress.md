@@ -1152,3 +1152,40 @@ Events. Current default match tests observe 32/33. The 32-owned-delete test obse
 owner cap, but the earlier 256/257 and 4,096 observations are historical, not
 relabelled as current default-boundary tests. E>=4M is a usability relationship,
 not a premise needed for the serialized bound.
+
+### Private finite whole-group changefeed
+
+The private changes/ GET/HEAD route now serves one complete committed group per
+page from the same locked owner as mutations and finite Events. It reuses the
+Scope Event renderer, so facts and IDs agree across those two observation paths.
+An owner-internal bounded row helper checks encoded group length before selecting
+and parsing it; no inspect/all-history array or independent log is used. Body,
+observedHeadPosition and response context come from one owner entry.
+
+Requests provide exactly one after checkpoint or start=now. The reserved genesis
+checkpoint is distinct from the pos-0 position. New group checkpoints bind Scope,
+epoch and view; stored group records and position spelling remain unchanged. A
+start=now request captures its initial head once before any finite minimum wait,
+so intervening commits remain in its suffix. Continuations are absolute URLs and
+never split a group. Existing failed/no-op/locator-only changes create no group.
+Finite JSON ignores Last-Event-ID; it neither supplies nor overrides start intent.
+SSE-only negotiation remains406, and public discovery/profile admission stays closed.
+
+The installation-bound64-match/256-Event tuple yields the existing253,493,248-byte
+stored group bound. Conservatively adding all rewritten Scope-source/ID bytes and
+the page/HTTP envelope gives270,482,968 encoded bytes, below pinned Node24's
+536,870,888 UTF-16 code-unit string ceiling. This arithmetic allocates no giant
+proof string and does not establish heap/RSS or concurrent request capacity. The
+private one-group page bound is not a Resource/receipt page.maximumItems claim.
+
+Tests reconstruct the graph from genesis with a replica oracle that stages final
+postimages/tombstones and publishes graph plus checkpoint atomically. The oracle
+rejects owned inline/first-class disagreement, gaps, context mismatch and conflicting
+duplicates without partial publication; it compares positions only for equality.
+Other evidence covers original intermediate facts versus final postimages, all256
+Events in one group, large postimages/Scope sources, actual HTTP minimum and
+conditional/HEAD behavior, restart-stable IDs and owner fencing. This is no Snapshot
+bootstrap, erasure, pruning/late-cursor, hidden-view or SSE qualification. Remaining
+unsupported minimum forms stay explicit development gaps. Cold discovery changes,
+headPosition/minimumReplayPosition and cumulative installed Transactional evidence
+remain separate completion work.

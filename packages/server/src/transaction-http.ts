@@ -1,4 +1,8 @@
 import {
+  transactionChangefeedRequest,
+  TransactionChangefeedParameterError,
+} from "./transaction-changefeed.js";
+import {
   transactionEventRequest,
   TransactionEventParameterError,
   TransactionEventProjectionGap,
@@ -315,6 +319,17 @@ export function createTransactionHttpHandler(
       });
     }
     if (authorization.kind === "unauthenticated") return transactionHttpProblem("unauthenticated");
+    const changefeed = transactionChangefeedRequest(url, scope);
+    if (changefeed) {
+      const minimum = hasMinimumControls(request)
+        ? (transactionMinimumHeaders(request.headers) ?? "unsupported")
+        : undefined;
+      // Last-Event-ID is not a finite-JSON starting intent or override. The
+      // shared response semantics refuse SSE-only negotiation until SSE exists.
+      const observed = await service.changes(changefeed, minimum, request.signal);
+      if (observed.kind === "unsupported") return developmentGap("minimum-position");
+      return context(jsonResponse(observed.page), observed.context);
+    }
     // Alias query refusals and receipt identity checks own these routes, even
     // when a query happens to spell view=events. Do not reclassify them as Events.
     const alias = classifyAliasPath(url, scope);
@@ -417,7 +432,10 @@ export function createTransactionHttpHandler(
             ),
             error.context,
           );
-        } else if (error instanceof TransactionEventParameterError)
+        } else if (
+          error instanceof TransactionEventParameterError ||
+          error instanceof TransactionChangefeedParameterError
+        )
           response = transactionHttpProblem("invalid-parameter");
         else if (error instanceof TransactionEventProjectionGap)
           response = developmentGap(error.message);
