@@ -1324,8 +1324,9 @@ describe("paired create numeric diagnostic locations", () => {
       const result = prepareMemberExecution(member, { diagnostic }).admission;
       expect(result.ok).toBe(false);
       if (result.ok) throw Error("expected numeric rejection");
+      const expected = { message: "bad", instanceLocation: pointer };
       expect(result.diagnostics).toEqual([
-        { ...formatted, instanceLocation: pointer },
+        expected,
         { message: "bad", instanceLocation: "/" },
       ]);
       expect(result.offending.map((o) => o.pointer)).toEqual([
@@ -1334,7 +1335,7 @@ describe("paired create numeric diagnostic locations", () => {
       ]);
       expect(formatted.instanceLocation).toBe("/wrong");
       expect(calls).toBe(2);
-      const n = Buffer.byteLength(JSON.stringify([{ ...formatted, instanceLocation: pointer }]));
+      const n = Buffer.byteLength(JSON.stringify([expected]));
       const exact = prepareMemberExecution(member, {
         diagnostics: 1,
         diagnosticBytes: n,
@@ -1342,7 +1343,7 @@ describe("paired create numeric diagnostic locations", () => {
       }).admission;
       expect(exact).toMatchObject({
         ok: false,
-        diagnostics: [{ ...formatted, instanceLocation: pointer }],
+        diagnostics: [expected],
         diagnosticsTruncated: true,
       });
       expect(() =>
@@ -1438,12 +1439,12 @@ describe("paired create numeric diagnostic locations", () => {
       );
       const expected = {
         message: "inadmissible number at input /propertiesChange/0/value",
-        type,
-        schemaLocation: "https://schema.test/#/x",
       };
       for (const callerLocation of ["/propertiesChange/0/value", "/caller-location"]) {
         const formatted = Object.freeze({
           ...expected,
+          type,
+          schemaLocation: "https://schema.test/#/x",
           instanceLocation: callerLocation,
           document: "metadata" as const,
         });
@@ -1483,13 +1484,19 @@ describe("unapplied property numeric diagnostics", () => {
         propertiesChange: [{ op: "add", path: "/items/-", value: ["BAD", "BAD"] }],
       }).replaceAll('"BAD"', "1e400");
       const member = ready(prepareReadUpdateSingleton(scope, operation, raw, "property-location"));
-      const expected = { message: "bad", type, schemaLocation: "https://schema.test/#/number" };
+      const expected = { message: "bad" };
       const bytes = Buffer.byteLength(JSON.stringify([expected]));
       for (const instanceLocation of [
         "/propertiesChange/0/value/0",
         `/guessed/${"x".repeat(1000)}`,
       ]) {
-        const diagnostic = () => ({ ...expected, instanceLocation, document: "metadata" as const });
+        const diagnostic = () => ({
+          ...expected,
+          type,
+          schemaLocation: "https://schema.test/#/number",
+          instanceLocation,
+          document: "metadata" as const,
+        });
         const result = prepareMemberExecution(member, {
           diagnostic,
           diagnosticBytes: bytes,
