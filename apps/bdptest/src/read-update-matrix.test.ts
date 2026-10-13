@@ -45,8 +45,8 @@ async function closeInstalledChild(
   child: Awaited<ReturnType<typeof helpers.launchInstalledReference>>,
 ) {
   await child.close();
-  // The helper resolves on the actual exit event; keep cancellation cleanup observable.
-  expect(child.child.exitCode !== null || child.child.signalCode !== null).toBe(true);
+  // A settled exit alone is insufficient: the helper also observes forced SIGKILL exits.
+  expect(child.child.exitCode === 0 || child.child.signalCode === "SIGTERM").toBe(true);
 }
 const token = "cumulative_fixture_operator_0123456789";
 const wrongToken = "cumulative_unknown_operator_0123456789";
@@ -719,6 +719,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   }
   if (process.env.BDP_CUMULATIVE_REPORT_PATH)
     writeFileSync(process.env.BDP_CUMULATIVE_REPORT_PATH, JSON.stringify(report, null, 2));
+  controller.signal.throwIfAborted();
   for (const row of report.result.scenarios)
     expect(row, JSON.stringify(row)).toMatchObject({
       state: !report.plannedIds.includes(row.id) ? "harness-error" : "pass",
@@ -1261,7 +1262,11 @@ it("stops the aggregate runner on cancellation without awarding a scenario pass"
   expect(report.sessions).toHaveLength(0);
   expect(report.observations).toHaveLength(0);
   expect(report.result.scenarios).toHaveLength(1);
-  expect(report.result.scenarios[0]?.state).not.toBe("pass");
+  expect(report.result.scenarios[0]).toMatchObject({
+    state: "harness-error",
+    category: "not-run",
+    reason: "matrix stopped before this scenario could run",
+  });
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -1310,3 +1315,17 @@ it.each([
   },
   30000,
 );
+
+it.each([
+  { exitCode: null, signalCode: "SIGKILL" },
+  { exitCode: 1, signalCode: null },
+] as const)("rejects settled but unsuccessful installed child exit %j", async (exit) => {
+  // Assertion sensitivity only; actual installed children are closed by each HTTP run.
+  await expect(
+    closeInstalledChild({
+      child: exit as ChildProcess,
+      ready: {},
+      close: async () => undefined,
+    }),
+  ).rejects.toThrow();
+});
