@@ -2283,6 +2283,150 @@
             "targetBinding": "att.subject",
             "credentialRef": "operator"
           },
+          "captures": [
+            {
+              "binding": "att-subject-after-noop-retained-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentBeadRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "att-subject-after-metadata"
+            }
+          ]
+        },
+        {
+          "id": "att-subject-retained-guard",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "POST",
+            "targetBinding": "update-bead",
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "att-subject-retained-guard",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {
+                    "open": {
+                      "b": 2,
+                      "a": 1
+                    },
+                    "n": 2
+                  }
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {
+                    "retained": true,
+                    "tag": "edited"
+                  }
+                }
+              ],
+              "bead": "beads/att-subject",
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer:att-ignored",
+                  "basis": "writer-supplied"
+                },
+                "agent": "agent:att-ignored",
+                "message": "message att-ignored"
+              }
+            },
+            "bodyBindings": {
+              "expectedRevision": "att-subject-after-noop-retained-rev"
+            },
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "att-subject-after-metadata"
+            },
+            {
+              "id": "no-source",
+              "kind": "json-pointer",
+              "pointer": "/body/source",
+              "exists": false
+            },
+            {
+              "id": "no-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/sourceRevision",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "att-subject-retained-guard-read",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "att.subject",
+            "credentialRef": "operator"
+          },
           "captures": [],
           "assertions": [
             {
@@ -4834,6 +4978,150 @@
             "targetBinding": "att.unowned",
             "credentialRef": "operator"
           },
+          "captures": [
+            {
+              "binding": "att-unowned-context-noop-read-retained-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "att-unowned-absence-3-read"
+            }
+          ]
+        },
+        {
+          "id": "att-unowned-retained-guard",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "POST",
+            "targetBinding": "update-link",
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "att-unowned-retained-guard",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {
+                    "open": {
+                      "b": 2,
+                      "a": 1
+                    },
+                    "n": 13
+                  }
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {
+                    "retained": true,
+                    "tag": "initial"
+                  }
+                }
+              ],
+              "link": "links/att-unowned",
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer:att-discarded",
+                  "basis": "writer-supplied"
+                },
+                "agent": "agent:att-discarded",
+                "message": "message att-discarded"
+              }
+            },
+            "bodyBindings": {
+              "expectedRevision": "att-unowned-context-noop-read-retained-rev"
+            },
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "att-unowned-absence-3-read"
+            },
+            {
+              "id": "no-source",
+              "kind": "json-pointer",
+              "pointer": "/body/source",
+              "exists": false
+            },
+            {
+              "id": "no-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/sourceRevision",
+              "exists": false
+            }
+          ]
+        },
+        {
+          "id": "att-unowned-retained-guard-read",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "att.unowned",
+            "credentialRef": "operator"
+          },
           "captures": [],
           "assertions": [
             {
@@ -6189,6 +6477,152 @@
         },
         {
           "id": "att-owned-noop-link",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "GET",
+            "targetBinding": "att.owned",
+            "credentialRef": "operator"
+          },
+          "captures": [
+            {
+              "binding": "att-owned-noop-link-retained-rev",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/body/revision"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_currentLinkRecord"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equalsBinding": "att-owned-properties-link"
+            }
+          ]
+        },
+        {
+          "id": "att-owned-retained-guard",
+          "family": "client",
+          "operation": "installed.exact-request",
+          "input": {
+            "method": "POST",
+            "targetBinding": "update-link",
+            "targetBaseBinding": "operations",
+            "idempotencyKey": "att-owned-retained-guard",
+            "body": {
+              "propertiesChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {
+                    "open": {
+                      "b": 2,
+                      "a": 1
+                    },
+                    "n": 2
+                  }
+                }
+              ],
+              "metadataChange": [
+                {
+                  "op": "replace",
+                  "path": "",
+                  "value": {
+                    "retained": true,
+                    "tag": "owned"
+                  }
+                }
+              ],
+              "link": "links/att-owned",
+              "revisionProvenance": {
+                "actor": {
+                  "id": "writer:att-owned-discarded",
+                  "basis": "writer-supplied"
+                },
+                "agent": "agent:att-owned-discarded",
+                "message": "message att-owned-discarded"
+              }
+            },
+            "bodyBindings": {
+              "expectedRevision": "att-owned-noop-link-retained-rev"
+            },
+            "credentialRef": "operator"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "json-pointer",
+              "pointer": "/status",
+              "exists": true,
+              "equals": 200
+            },
+            {
+              "id": "written",
+              "kind": "json-pointer",
+              "pointer": "/observation/writeState",
+              "exists": true,
+              "equals": "complete"
+            },
+            {
+              "id": "body-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/harnessInstalled_mutationResult"
+            },
+            {
+              "id": "outcome",
+              "kind": "json-pointer",
+              "pointer": "/body/outcome",
+              "exists": true,
+              "equals": "updated"
+            },
+            {
+              "id": "postimage",
+              "kind": "json-pointer",
+              "pointer": "/body/resource",
+              "exists": true,
+              "equalsBinding": "att-owned-properties-link"
+            },
+            {
+              "id": "owner",
+              "kind": "json-pointer",
+              "pointer": "/body/source",
+              "exists": true,
+              "equals": "https://reference.invalid/acme/beads/att-owner"
+            },
+            {
+              "id": "same-source-revision",
+              "kind": "json-pointer",
+              "pointer": "/body/sourceRevision",
+              "exists": true,
+              "equalsBinding": "att-owned-properties-owner-rev"
+            }
+          ]
+        },
+        {
+          "id": "att-owned-retained-guard-read",
           "family": "client",
           "operation": "installed.exact-request",
           "input": {

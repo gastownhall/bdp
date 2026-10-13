@@ -462,6 +462,8 @@ async function run(
           currentScenario === "read-update.numeric-model.same-value-no-op" &&
           clientAction?.id === "num-subject-restored-read"
         ) {
+          if (clientAction.family !== "client") throw Error("control requires client action");
+          expect(clientAction.input).toEqual(execution.input);
           numericControlRecord = structuredClone((actual as { body: unknown }).body);
         }
         if (
@@ -3393,6 +3395,14 @@ it.each([attributionId, numericId])(
 
 const attributionNumericControls: (RetryControl & { label: string; failed: string[] })[] = [
   {
+    label: "fresh retained-revision guard rejection",
+    scenario: attributionId,
+    action: "att-owned-retained-guard",
+    path: ["status"],
+    value: 409,
+    failed: ["status"],
+  },
+  {
     label: "minted actor basis",
     scenario: attributionId,
     action: "att-subject-metadata",
@@ -3519,7 +3529,7 @@ it.each(attributionNumericControls)(
   },
   30000,
 );
-it.each([
+const attributionNumericRawControls = [
   { mode: "digest", action: "num-subject-decimal", failed: ["authored-body"] },
   { mode: "changed-number", action: "num-subject-decimal", failed: ["authored-body", "postimage"] },
   {
@@ -3527,7 +3537,8 @@ it.each([
     action: "num-subject-inadmissible",
     failed: ["status", "body-schema", "complete-problem"],
   },
-] as const)(
+] as const;
+it.each(attributionNumericRawControls)(
   "detects attribution/numeric exact raw $mode",
   async ({ mode, action, failed }) => {
     const manifest = JSON.parse(source(continuationSource).bytes.toString());
@@ -3593,12 +3604,37 @@ it("pins attribution/numeric source budgets, raw literals and prior scenario byt
   );
   const set = installedArtifactSet();
   expect(set.shards[1]!.scenarioIds).toEqual([attributionId, continuationId, numericId]);
+  const attribution = set.shards[1]!.bundle.manifest.scenarios.find((r) => r.id === attributionId)!;
+  for (const [readId, guardId] of [
+    ["att-subject-after-noop", "att-subject-retained-guard"],
+    ["att-unowned-context-noop-read", "att-unowned-retained-guard"],
+    ["att-owned-noop-link", "att-owned-retained-guard"],
+  ]) {
+    const index = attribution.actions!.findIndex((action) => action.id === readId);
+    const read = attribution.actions![index]!;
+    const guard = attribution.actions![index + 1]!;
+    const after = attribution.actions![index + 2]!;
+    expect(guard.id).toBe(guardId);
+    expect(after.id).toBe(`${guardId}-read`);
+    expect(read.captures).toContainEqual({
+      binding: `${readId}-retained-rev`,
+      from: { kind: "json-pointer", pointer: "/body/revision" },
+    });
+    if (guard.family !== "client") throw Error("guard requires client action");
+    expect(guard.input).toMatchObject({
+      method: "POST",
+      idempotencyKey: guardId,
+      bodyBindings: { expectedRevision: `${readId}-retained-rev` },
+    });
+    // Both reads use the pre-no-op complete, independently pinned Resource as oracle.
+    expect(after.assertions).toEqual(read.assertions);
+  }
   const keys: string[] = [];
   let totalActions = 0;
   for (const [id, count, ids] of [
     [
       attributionId,
-      69,
+      75,
       [
         "beads/att-subject",
         "beads/att-owner",
@@ -3665,5 +3701,7 @@ it("pins attribution/numeric source budgets, raw literals and prior scenario byt
     expect(raw("exponent")).toContain('"large":1' + "0".repeat(300));
     expect(raw("inadmissible")).toContain('"bad":9007199254740993');
   }
-  expect(attributionNumericControls.length + 3).toBeLessThanOrEqual(16);
+  expect(
+    attributionNumericControls.length + attributionNumericRawControls.length,
+  ).toBeLessThanOrEqual(16);
 });
