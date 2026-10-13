@@ -194,7 +194,15 @@ describe("private two-artifact Read+Update set", () => {
     const set = createReadUpdateArtifactSet(selection, {
       ...input,
       fixture: read("fixtures/read-update-reference-v1.json"),
-      coverage: read("test-support/read-update-coverage-v1.json"),
+      coverage: bytes({
+        ...decode(read("test-support/read-update-coverage-v1.json")),
+        rows: decode(read("test-support/read-update-coverage-v1.json")).rows.map(
+          (r: { id: string }) =>
+            manifest.scenarios.some((s: { id: string }) => s.id === r.id)
+              ? r
+              : { ...r, status: "omitted", wholeContract: false, bindings: [] },
+        ),
+      }),
       manifests: {
         [names[0]]: bytes({ ...manifest, scenarios: manifest.scenarios.slice(0, -1) }),
         [names[1]]: bytes({ ...manifest, scenarios: [last] }),
@@ -203,9 +211,9 @@ describe("private two-artifact Read+Update set", () => {
     expect(set.shards.flatMap((s) => s.scenarioIds)).toEqual(
       manifest.scenarios.map((s: { id: string }) => s.id),
     );
-    expect(set.coverage.rows).toEqual(
-      decode(read("test-support/read-update-coverage-v1.json")).rows,
-    );
+    expect(
+      set.coverage.rows.filter((r) => r.status === "bounded-observation").map((r) => r.id),
+    ).toEqual(manifest.scenarios.map((s: { id: string }) => s.id));
     expect(set.claimEligible).toBe(false);
   });
   it.each(["index", "fixture", "coverage", ...names] as const)(
@@ -638,7 +646,10 @@ describe("private two-artifact Read+Update set", () => {
     expect(readFileSync(new URL("./index.ts", import.meta.url), "utf8")).not.toContain(
       "read-update-artifact-set",
     );
-    for (const module of [await import("./index.js"), await import("../test-support/testing.js")]) {
+    const testing = await import("../test-support/testing.js");
+    expect(Object.keys(testing)).not.toContain("ownData");
+    expect(testing.createReadUpdateArtifactSet).toBe(createReadUpdateArtifactSet);
+    for (const module of [await import("./index.js")]) {
       for (const name of [
         "ownData",
         "createReadUpdateArtifactSet",

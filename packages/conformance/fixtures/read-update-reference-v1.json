@@ -225,7 +225,17 @@
     "reference.beads.rb-rb-sequence-alias-tail": "beads/rb-rb-sequence-alias-tail",
     "reference.alias.rb-locator-sequence": "alias/rb-locator-sequence",
     "reference.beads.rb-rb-sequence-endpoint-tail": "beads/rb-rb-sequence-endpoint-tail",
-    "reference.links.rb-endpoint-source": "links/rb-endpoint-source"
+    "reference.links.rb-endpoint-source": "links/rb-endpoint-source",
+    "reference.beads.rc-source": "beads/rc-source",
+    "reference.beads.rc-target": "beads/rc-target",
+    "reference.links.rc-live": "links/rc-live",
+    "reference.alias.rc-locator-live": "alias/rc-locator-live",
+    "reference.alias.rc-locator-put-local": "alias/rc-locator-put-local",
+    "reference.alias.rc-locator-put-absolute": "alias/rc-locator-put-absolute",
+    "reference.alias.rc-locator-missing": "alias/rc-locator-missing",
+    "reference.alias.rc-locator-missing-absolute": "alias/rc-locator-missing-absolute",
+    "reference.beads.rc-rc-sequence-wrong-tail": "beads/rc-rc-sequence-wrong-tail",
+    "reference.beads.rc-missing": "beads/rc-missing"
   },
   "oracles": {
     "collections": {
@@ -572,7 +582,49 @@
       "identities-15": [
         ["https://reference.invalid/acme/links/rb-endpoint-source"],
         ["https://reference.invalid/acme/links/rb-live"]
-      ]
+      ],
+      "value-24": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rc-locator-live",
+        "target": "https://reference.invalid/acme/beads/rc-source"
+      },
+      "identities-16": [
+        ["https://reference.invalid/acme/beads/rc-source"],
+        ["https://reference.invalid/acme/beads/rc-target"]
+      ],
+      "identities-17": [["https://reference.invalid/acme/links/rc-live"]],
+      "value-25": {
+        "type": "https://github.com/gastownhall/bdp/problems/not-found",
+        "code": "resource-not-found",
+        "status": 404,
+        "retry": "after-state-change",
+        "operationIndex": 0
+      },
+      "identities-18": [
+        ["https://reference.invalid/acme/beads/rc-rc-sequence-wrong-tail"],
+        ["https://reference.invalid/acme/beads/rc-source"],
+        ["https://reference.invalid/acme/beads/rc-target"]
+      ],
+      "identities-19": [
+        ["https://reference.invalid/acme/beads/rc-missing"],
+        ["https://reference.invalid/acme/beads/rc-rc-sequence-wrong-tail"],
+        ["https://reference.invalid/acme/beads/rc-source"],
+        ["https://reference.invalid/acme/beads/rc-target"]
+      ],
+      "value-26": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rc-locator-put-local",
+        "target": "https://reference.invalid/acme/beads/rc-missing"
+      },
+      "value-27": {
+        "outcome": "created",
+        "alias": "https://reference.invalid/acme/alias/rc-locator-missing",
+        "target": "https://reference.invalid/acme/beads/rc-target"
+      },
+      "value-28": {
+        "outcome": "deleted",
+        "alias": "https://reference.invalid/acme/alias/rc-locator-missing"
+      }
     }
   },
   "readSeed": {

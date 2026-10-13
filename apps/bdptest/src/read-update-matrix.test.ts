@@ -17,6 +17,10 @@ import {
   bindServedProfileConfiguration,
   assertSameServedProfileConfiguration,
   planProfileExecution,
+  createReadUpdateArtifactSet,
+  assertReadUpdateArtifactSet,
+  copyReadUpdateArtifactSetSources,
+  type ReadUpdateArtifactSet,
 } from "@bdp/conformance/testing";
 import { expect, it } from "vitest";
 import { withSchemaCohort } from "../test-support/installed-schema-cohort.js";
@@ -27,6 +31,11 @@ import {
   exactNativeReadAdapter,
   seedInstalledReadFixture,
 } from "../test-support/installed-read-fixture.js";
+import {
+  artifactRoutes,
+  associateArtifactObservations,
+  type ArtifactObservation,
+} from "../test-support/read-update-artifact-execution.js";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const helpers = (await import(
   new URL("../../../scripts/installed-reference-observation.mjs", import.meta.url).href
@@ -151,87 +160,50 @@ async function run(
   signal?: AbortSignal,
   patchControl?: PatchControl,
   retryControl?: RetryControl,
+  artifact?: {
+    set: ReadUpdateArtifactSet;
+    shardId: string;
+    expected?: Pick<ArtifactObservation, "configuration" | "baselineReceipt">;
+  },
+  lifecycle?: { launched?(child: ChildProcess): void; observed?(): void },
 ) {
+  signal?.throwIfAborted();
+  if (artifact) assertReadUpdateArtifactSet(artifact.set);
+  const shard = artifact?.set.shards.find((s) => s.id === artifact.shardId);
+  if (artifact && !shard) throw Error("unknown artifact shard");
+  if (artifact && (manifestValue !== undefined || fixtureValue !== undefined))
+    throw Error("artifact source overrides are not permitted");
+  const capturedSources = artifact ? copyReadUpdateArtifactSetSources(artifact.set) : undefined;
   const selection = loadProfileContractSelection("read-update");
   const fixtureSource =
-    fixtureValue === undefined
+    capturedSources?.fixture ??
+    (fixtureValue === undefined
       ? source("packages/conformance/fixtures/read-update-reference-v1.json")
-      : { bytes: Buffer.from(JSON.stringify(fixtureValue)) };
+      : { bytes: Buffer.from(JSON.stringify(fixtureValue)) });
   const manifestSource =
-    manifestValue === undefined
+    (shard && capturedSources?.manifests[shard.source]) ??
+    (manifestValue === undefined
       ? source("packages/conformance/matrices/read-update-v1.json")
-      : { bytes: Buffer.from(JSON.stringify(manifestValue)) };
-  const bundle = createCumulativeReadUpdateArtifactBundle(selection, {
-    manifest: manifestSource,
-    fixture: fixtureSource,
-  });
+      : { bytes: Buffer.from(JSON.stringify(manifestValue)) });
+  const bundle =
+    shard?.bundle ??
+    createCumulativeReadUpdateArtifactBundle(selection, {
+      manifest: manifestSource,
+      fixture: fixtureSource,
+    });
   const coverage = JSON.parse(
     source("packages/conformance/test-support/read-update-coverage-v1.json").bytes.toString(),
   ) as { rows: { id: string; wholeContract: boolean }[] };
   const port = await helpers.availablePort();
   const directory = mkdtempSync(path.join(tmpdir(), "bdp-cumulative-ru-"));
   const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port };
-  const knownReadBindings: Record<string, string> = {
-    ...Object.fromEntries(
-      Object.entries(bundle.fixture.bindings).map(([key, value]) => [
-        key,
-        new URL(value, scope).href,
-      ]),
-    ),
-    scope,
-    "service-desc": `${scope}bdp.json`,
-    beads: `${scope}beads/`,
-    links: `${scope}links/`,
-    types: `${scope}types/`,
-    operations: `${scope}operations/`,
-  };
-  const readRoutes = bundle.manifest.scenarios.flatMap((row) =>
-    (row.actions ?? []).flatMap((action) => {
-      if (action.family !== "http") return [];
-      const base = knownReadBindings[action.target.binding];
-      if (!base) throw Error("Read target binding is not in the fixed fixture");
-      const url = new URL(action.target.path ?? "", base);
-      for (const [key, input] of Object.entries(action.target.query ?? {})) {
-        for (const value of Array.isArray(input) ? input : [input]) {
-          if (typeof value !== "string") throw Error("Read fixture query requires literal strings");
-          url.searchParams.append(key, value);
-        }
-      }
-      return [{ method: action.method, url: url.href }];
-    }),
-  );
-  // Only fixed client GET targets actually referenced by an action join the
-  // allowlist. Captured Bead identities retain the existing per-request route gate.
-  const clientReadRoutes = bundle.manifest.scenarios.flatMap((row) =>
-    (row.actions ?? []).flatMap((action) => {
-      if (action.family !== "client" || action.operation !== "installed.exact-request") return [];
-      const input = action.input as { method?: string; targetBinding?: string };
-      if (input.method !== "GET" || typeof input.targetBinding !== "string") return [];
-      const url = knownReadBindings[input.targetBinding];
-      return url === undefined ? [] : [{ method: "GET" as const, url }];
-    }),
-  );
   const mode: ExactHttpModeOptions = {
     scope,
     profile: "read-update",
     // Harness capacity exceeds installed65536 only to observe its actual body-size refusal.
     maximumRequestBodyBytes: 131072,
     maximumRequestHeaderBytes: 16384,
-    routes: [
-      ...clientReadRoutes,
-      ...readRoutes,
-      ...[
-        "sequence",
-        "create-bead",
-        "update-bead",
-        "delete-bead",
-        "create-link",
-        "update-link",
-        "delete-link",
-        "put-alias",
-        "delete-alias",
-      ].map((suffix) => ({ method: "POST" as const, url: `${scope}operations/${suffix}` })),
-    ],
+    routes: artifactRoutes(bundle, scope),
     defaultCredentialRef: "operator",
     credentialHandles: [
       { id: "operator", headerNames: ["authorization"] },
@@ -279,10 +251,19 @@ async function run(
   let baselineReceipt: Record<string, unknown>;
   let executionPlan: ReturnType<typeof planProfileExecution>;
   try {
+    signal?.throwIfAborted();
     const bootstrap = await helpers.launchInstalledReference(entry, bootstrapConfig);
     try {
+      lifecycle?.launched?.(bootstrap.child);
+      signal?.throwIfAborted();
       baselineReceipt = bootstrap.ready;
       baseline = bindReceipt(baselineReceipt);
+      if (artifact?.expected) {
+        assertSameServedProfileConfiguration(artifact.expected.configuration, baseline);
+        expect(baselineReceipt.configurationIdentity).toBe(
+          artifact.expected.baselineReceipt.configurationIdentity,
+        );
+      }
       expect(baselineReceipt.configurationIdentity).toBe(expectedCapture.identity);
       expect(baselineReceipt.artifactIdentity).toBe(expectedCapture.artifactIdentity);
       const expected = bindReceipt({
@@ -330,8 +311,11 @@ async function run(
         scope,
       );
       const captured = configModule.captureInstalledReferenceConfiguration(configuration);
+      signal.throwIfAborted();
       const child = await helpers.launchInstalledReference(entry, configuration);
       try {
+        lifecycle?.launched?.(child.child);
+        signal.throwIfAborted();
         assertSameServedProfileConfiguration(baseline, bindReceipt(child.ready));
         expect(child.ready.scope).toBe(scope);
         expect(child.ready.configurationIdentity).toBe(captured.identity);
@@ -385,6 +369,7 @@ async function run(
       exactExecution: { execute: target.execute, configuration: target.exactConfiguration },
       actionExecutor: async (execution) => {
         const actual = await executeClient(execution);
+        lifecycle?.observed?.();
         const clientAction = bundle.manifest.scenarios
           .find((row) => row.id === currentScenario)
           ?.actions?.filter((action) => action.family === "client")[retryClientIndex++];
@@ -767,6 +752,8 @@ async function run(
     });
     return {
       claimEligible: false,
+      cleanupComplete: true,
+      exactConfiguration: target.exactConfiguration,
       counterfactualApplications,
       sourceCommit,
       configuration: baseline,
@@ -796,35 +783,85 @@ async function run(
       result,
     };
   } finally {
-    await target.close();
-    rmSync(directory, { recursive: true, force: true });
+    try {
+      await target.close();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   }
 }
 
+function installedArtifactSet() {
+  const selection = loadProfileContractSelection("read-update");
+  const base = "packages/conformance/";
+  return createReadUpdateArtifactSet(selection, {
+    index: source(`${base}test-support/read-update-artifact-set-v1.json`),
+    fixture: source(`${base}fixtures/read-update-reference-v1.json`),
+    coverage: source(`${base}test-support/read-update-coverage-v1.json`),
+    manifests: {
+      "matrices/read-update-v1.json": source(`${base}matrices/read-update-v1.json`),
+      "matrices/read-update-reference-continuation-v1.json": source(
+        `${base}matrices/read-update-reference-continuation-v1.json`,
+      ),
+    },
+  });
+}
+async function runShard(
+  set: ReadUpdateArtifactSet,
+  index: number,
+  signal: AbortSignal,
+  lifecycle?: Parameters<typeof run>[12],
+  expected?: Pick<ArtifactObservation, "configuration" | "baselineReceipt">,
+) {
+  signal.throwIfAborted();
+  const shard = set.shards[index]!;
+  const report = await run(
+    undefined,
+    index === 0 ? undefined : [...shard.scenarioIds],
+    false,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    signal,
+    undefined,
+    undefined,
+    { set, shardId: shard.id, ...(expected ? { expected } : {}) },
+    lifecycle,
+  );
+  signal.throwIfAborted();
+  return report;
+}
+
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate job starts 49 isolated authorities; Linux CI previously exceeded 30s.
+  // One aggregate budget for both shards and 50 isolated scenario authorities.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(Error("cumulative run budget exceeded")), 90000);
-  let report: Awaited<ReturnType<typeof run>>;
+  const set = installedArtifactSet();
+  const reports: Awaited<ReturnType<typeof run>>[] = [];
+  const started = performance.now();
+  const timing: { id: string; elapsedMs: number; remainingMs: number }[] = [];
   try {
-    report = await run(
-      undefined,
-      undefined,
-      false,
-      false,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      controller.signal,
-    );
+    for (let index = 0; index < set.shards.length; index++) {
+      reports.push(await runShard(set, index, controller.signal, undefined, reports[0]));
+      timing.push({
+        id: set.shards[index]!.id,
+        elapsedMs: performance.now() - started,
+        remainingMs: Math.max(0, 90000 - (performance.now() - started)),
+      });
+    }
   } finally {
     clearTimeout(timer);
   }
   controller.signal.throwIfAborted();
-  if (process.env.BDP_CUMULATIVE_REPORT_PATH)
-    writeFileSync(process.env.BDP_CUMULATIVE_REPORT_PATH, JSON.stringify(report, null, 2));
+  const progress = associateArtifactObservations(
+    set,
+    execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+    reports,
+  );
+  const report = reports[0]!;
   for (const row of report.result.scenarios)
     expect(row, JSON.stringify(row)).toMatchObject({
       state: !report.plannedIds.includes(row.id) ? "harness-error" : "pass",
@@ -923,6 +960,42 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.observations.length).toBeGreaterThan(30);
   expect(JSON.stringify(report)).not.toContain(token);
   expect(JSON.stringify(report)).not.toContain(wrongToken);
+  for (const observed of reports) {
+    expect(observed.sessions).toHaveLength(observed.plannedIds.length);
+    expect(observed.cleanupComplete).toBe(true);
+    expect(JSON.stringify(observed)).not.toContain(token);
+    expect(JSON.stringify(observed)).not.toContain(wrongToken);
+    for (const item of observed.observations as {
+      observation: { observation: { bodyOctets: number } };
+    }[])
+      expect(item.observation.observation.bodyOctets).toBeLessThanOrEqual(65536);
+  }
+  expect(progress.authoredIds).toHaveLength(50);
+  expect(progress.reviewedWholeIds).toHaveLength(30);
+  expect(progress.omittedRequiredIds).toHaveLength(79);
+  expect(progress.shards[1]!.selectedIds).toEqual(["read-update.alias.unknown-subject"]);
+  controller.signal.throwIfAborted();
+  expect(performance.now() - started).toBeLessThan(90000);
+  if (process.env.BDP_CUMULATIVE_REPORT_PATH) {
+    const filename = process.env.BDP_CUMULATIVE_REPORT_PATH;
+    for (const [index, observed] of reports.entries())
+      writeFileSync(`${filename}.${set.shards[index]!.id}.json`, JSON.stringify(observed, null, 2));
+    writeFileSync(
+      filename,
+      JSON.stringify(
+        {
+          ...progress,
+          sourceDirty: reports.some((r) => r.sourceDirty),
+          targetEntry: entry,
+          timing,
+          outcome: "observed",
+          childReports: set.shards.map((s) => `${filename}.${s.id}.json`),
+        },
+        null,
+        2,
+      ),
+    );
+  }
 }, 120000);
 
 it("fails actual response comparisons for mutated captures and postimages", async () => {
@@ -1379,28 +1452,30 @@ it("detects a mismatched advertised request body bound in the actual carrier dis
   ).toEqual(["target-body-limit"]);
 }, 30000);
 
-it("stops the aggregate runner on cancellation without awarding a scenario pass", async () => {
-  const id = "read-update.singleton.create-bead";
-  const report = await run(
-    undefined,
-    [id],
-    false,
-    false,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    AbortSignal.abort(Error("test aggregate cancellation")),
-  );
-  expect(report.sessions).toHaveLength(0);
-  expect(report.observations).toHaveLength(0);
-  expect(report.result.scenarios).toHaveLength(1);
-  expect(report.result.scenarios[0]).toMatchObject({
-    state: "harness-error",
-    category: "not-run",
-    reason: "matrix stopped before this scenario could run",
-  });
-  expect(report.result.claimEligible).toBe(false);
+it("refuses an already cancelled aggregate before launching any installed child", async () => {
+  const children: ChildProcess[] = [];
+  await expect(
+    run(
+      undefined,
+      ["read-update.singleton.create-bead"],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      AbortSignal.abort(Error("test aggregate cancellation")),
+      undefined,
+      undefined,
+      undefined,
+      {
+        launched(child) {
+          children.push(child);
+        },
+      },
+    ),
+  ).rejects.toThrow("test aggregate cancellation");
+  expect(children).toEqual([]);
 }, 30000);
 
 it.each([
@@ -2510,3 +2585,201 @@ it.each(["identities", "stale-record"] as const)(
   },
   30000,
 );
+
+const continuationId = "read-update.alias.unknown-subject";
+const continuationSource =
+  "packages/conformance/matrices/read-update-reference-continuation-v1.json";
+it.each([
+  { action: "rc-delete-replay", path: ["status"], value: 200, failed: "status" },
+  {
+    action: "rc-sequence-wrong-0-read",
+    path: ["body", "properties", "n"],
+    value: 999,
+    failed: "postimage",
+  },
+])(
+  "detects restored C post-wire corruption $action",
+  async (control) => {
+    const manifest = JSON.parse(source(continuationSource).bytes.toString());
+    const report = await run(
+      manifest,
+      [continuationId],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { ...control, scenario: continuationId },
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    const observed = report.result.scenarios[0]!;
+    expect(observed.state).toBe("fail");
+    expect(
+      observed.actions
+        ?.find((a) => a.action.id === control.action)
+        ?.assertions.filter((a) => !a.passed)
+        .map((a) => a.id),
+    ).toEqual([control.failed]);
+  },
+  30000,
+);
+it("detects restored C retained-delete live-alias Location corruption", async () => {
+  const manifest = JSON.parse(source(continuationSource).bytes.toString());
+  const action = manifest.scenarios[0].actions.find(
+    (a: { id: string }) => a.id === "rc-delete-replay-alias",
+  );
+  action.assertions.find((a: { id: string }) => a.id === "location").equals =
+    `${scope}beads/rc-source`;
+  const report = await run(manifest, [continuationId]);
+  expect(report.result.scenarios[0]!.state).toBe("fail");
+  expect(
+    report.result.scenarios[0]!.exchanges.find((e) => e.request.id === action.id)
+      ?.assertions.filter((a) => !a.passed)
+      .map((a) => a.id),
+  ).toEqual(["location"]);
+}, 30000);
+it("binds restored C independent oracle corruption and fails its actual comparison", async () => {
+  const manifest = JSON.parse(source(continuationSource).bytes.toString());
+  const fixture = JSON.parse(
+    source("packages/conformance/fixtures/read-update-reference-v1.json").bytes.toString(),
+  );
+  const action = manifest.scenarios[0].actions.find((a: { id: string }) => a.id === "rc-put-local");
+  const pointer = action.assertions.find(
+    (a: { id: string }) => a.id === "complete-problem",
+  ).fixturePointer;
+  const key = pointer.split("/").at(-1);
+  fixture.oracles.referenceEvidence[key].code = "incorrect-independent-oracle";
+  const report = await run(manifest, [continuationId], false, false, fixture);
+  expect(report.reportBinding.artifacts.fixtureDigest).not.toBe(
+    installedArtifactSet().digests.fixtureDigest,
+  );
+  expect(report.result.scenarios[0]!.state).toBe("fail");
+  expect(
+    report.result.scenarios[0]!.actions?.find((a) => a.action.id === action.id)
+      ?.assertions.filter((a) => !a.passed)
+      .map((a) => a.id),
+  ).toEqual(["complete-problem"]);
+}, 30000);
+function smallExecutionSet() {
+  const set = installedArtifactSet();
+  const captured = copyReadUpdateArtifactSetSources(set);
+  const name = set.shards[0]!.source;
+  const manifest = JSON.parse(Buffer.from(captured.manifests[name]!.bytes).toString());
+  manifest.scenarios = manifest.scenarios.filter(
+    (r: { id: string }) => r.id === "read-update.singleton.create-bead",
+  );
+  const ids = new Set([manifest.scenarios[0].id, continuationId]);
+  const coverage = JSON.parse(Buffer.from(captured.coverage.bytes).toString());
+  coverage.rows = coverage.rows.map((row: { id: string }) =>
+    ids.has(row.id)
+      ? { ...row, wholeContract: false }
+      : { ...row, status: "omitted", wholeContract: false, bindings: [] },
+  );
+  return createReadUpdateArtifactSet(loadProfileContractSelection("read-update"), {
+    ...captured,
+    coverage: { bytes: Buffer.from(JSON.stringify(coverage)) },
+    manifests: { ...captured.manifests, [name]: { bytes: Buffer.from(JSON.stringify(manifest)) } },
+  });
+}
+it.each(["before-continuation", "after-continuation-launch", "during-continuation"] as const)(
+  "drains actual segmented children on abort %s",
+  async (when) => {
+    const set = smallExecutionSet();
+    const controller = new AbortController();
+    const children: ChildProcess[] = [];
+    const lifecycle = {
+      launched(child: ChildProcess) {
+        children.push(child);
+      },
+    };
+    const first = await runShard(set, 0, controller.signal, lifecycle);
+    expect(
+      first.result.scenarios.find((r) => r.id === "read-update.singleton.create-bead")?.state,
+    ).toBe("pass");
+    const firstCount = children.length;
+    if (when === "before-continuation") controller.abort(Error("bounded test abort"));
+    let observations = 0;
+    await expect(
+      runShard(
+        set,
+        1,
+        controller.signal,
+        {
+          launched(child) {
+            lifecycle.launched(child);
+            if (when === "after-continuation-launch") controller.abort(Error("bounded test abort"));
+          },
+          observed() {
+            observations++;
+            controller.abort(Error("bounded test abort"));
+          },
+        },
+        first,
+      ),
+    ).rejects.toThrow("bounded test abort");
+    expect(observations).toBe(when === "during-continuation" ? 1 : 0);
+    expect(children.length).toBe(
+      firstCount +
+        (when === "before-continuation" ? 0 : when === "after-continuation-launch" ? 1 : 2),
+    );
+    for (const child of children)
+      expect(child.exitCode === 0 || child.signalCode === "SIGTERM").toBe(true);
+  },
+  30000,
+);
+it("keeps dependent-only selection as an unexecuted runner prerequisite failure", async () => {
+  const id = "read.discovery.canonical-navigation";
+  const report = await run(undefined, [id]);
+  expect(report.result.scenarios[0]).toMatchObject({
+    state: "harness-error",
+    category: "not-run",
+    prerequisiteFailure: { reason: "prerequisite was not selected or did not run" },
+  });
+  expect(report.sessions).toEqual([]);
+  expect(report.result.scenarios[0]!.exchanges).toEqual([]);
+}, 30000);
+it("blocks a same-shard dependent after an actually failed prerequisite", async () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const id = "read.discovery.scope-service-desc";
+  const prerequisite = manifest.scenarios.find((r: { id: string }) => r.id === id);
+  const status = prerequisite.actions[0].assertions.find(
+    (a: { kind: string }) => a.kind === "status",
+  );
+  delete status.oneOf;
+  status.equals = 599;
+  const report = await run(manifest, [id, "read.discovery.canonical-navigation"]);
+  expect(report.result.scenarios[0]!.state).toBe("fail");
+  expect(report.result.scenarios[1]).toMatchObject({ state: "harness-error", category: "not-run" });
+  expect(report.sessions).toHaveLength(1);
+}, 30000);
+
+it("checks the actual second bootstrap configuration before starting its scenario", async () => {
+  const set = smallExecutionSet();
+  const controller = new AbortController();
+  const first = await runShard(set, 0, controller.signal);
+  const children: ChildProcess[] = [];
+  const mismatched = {
+    configuration: first.configuration,
+    baselineReceipt: { ...first.baselineReceipt, configurationIdentity: "0".repeat(64) },
+  };
+  await expect(
+    runShard(
+      set,
+      1,
+      controller.signal,
+      {
+        launched(child) {
+          children.push(child);
+        },
+      },
+      mismatched,
+    ),
+  ).rejects.toThrow();
+  expect(children).toHaveLength(1);
+  expect(children[0]!.exitCode === 0 || children[0]!.signalCode === "SIGTERM").toBe(true);
+}, 30000);

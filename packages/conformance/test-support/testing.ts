@@ -1,3 +1,9 @@
+export {
+  createReadUpdateArtifactSet,
+  assertReadUpdateArtifactSet,
+  copyReadUpdateArtifactSetSources,
+  type ReadUpdateArtifactSet,
+} from "./read-update-artifact-set.js";
 export { runCumulativeTransactionalMatrix } from "../src/runner.js";
 export { createCumulativeTransactionalArtifactBundle } from "../src/artifact-bundle.js";
 export {
