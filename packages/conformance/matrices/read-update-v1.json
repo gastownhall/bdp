@@ -64378,6 +64378,18 @@
               "kind": "json-pointer",
               "pointer": "/body/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
             }
           ]
         },
@@ -64626,6 +64638,19 @@
               "pointer": "/body/results/2/resource/type",
               "exists": true,
               "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "complete-problem-body-results-1",
+              "kind": "json-pointer",
+              "pointer": "/body/results/1",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change",
+                "operationIndex": 1
+              }
             }
           ]
         },
@@ -65354,6 +65379,19 @@
               "pointer": "/body/results/3/resource/type",
               "exists": true,
               "equals": "https://reference.invalid/acme/types/task"
+            },
+            {
+              "id": "complete-problem-body-results-2",
+              "kind": "json-pointer",
+              "pointer": "/body/results/2",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change",
+                "operationIndex": 2
+              }
             }
           ]
         },
@@ -66606,6 +66644,19 @@
               "kind": "json-pointer",
               "pointer": "/body/results/0/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/conflict",
+                "code": "idempotency-conflict",
+                "status": 409,
+                "retry": "never",
+                "operationIndex": 0
+              }
             }
           ]
         },
@@ -67299,6 +67350,18 @@
               "kind": "json-pointer",
               "pointer": "/body/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/conflict",
+                "code": "idempotency-conflict",
+                "status": 409,
+                "retry": "never"
+              }
             }
           ]
         },
@@ -67550,6 +67613,18 @@
               "kind": "json-pointer",
               "pointer": "/body/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
             }
           ]
         },
@@ -67652,6 +67727,18 @@
               "kind": "json-pointer",
               "pointer": "/body/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
             }
           ]
         },
@@ -67932,6 +68019,19 @@
               "kind": "json-pointer",
               "pointer": "/body/results/0/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change",
+                "operationIndex": 0
+              }
             }
           ]
         },
@@ -68182,6 +68282,18 @@
               "kind": "json-pointer",
               "pointer": "/body/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
             }
           ]
         },
@@ -68343,6 +68455,18 @@
               "kind": "json-pointer",
               "pointer": "/body/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
             }
           ]
         },
@@ -68468,6 +68592,19 @@
               "kind": "json-pointer",
               "pointer": "/body/results/0/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body-results-0",
+              "kind": "json-pointer",
+              "pointer": "/body/results/0",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change",
+                "operationIndex": 0
+              }
             }
           ]
         },
@@ -68725,6 +68862,18 @@
               "kind": "json-pointer",
               "pointer": "/body/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
             }
           ]
         },
@@ -68975,6 +69124,18 @@
               "kind": "json-pointer",
               "pointer": "/body/diagnosticsTruncated",
               "exists": false
+            },
+            {
+              "id": "complete-problem-body",
+              "kind": "json-pointer",
+              "pointer": "/body",
+              "exists": true,
+              "equals": {
+                "type": "https://github.com/gastownhall/bdp/problems/not-found",
+                "code": "resource-not-found",
+                "status": 404,
+                "retry": "after-state-change"
+              }
             }
           ]
         },

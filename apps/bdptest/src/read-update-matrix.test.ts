@@ -1557,7 +1557,49 @@ it("observes retained retry dispositions across actual installed carriers and cu
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
+// Problem title/instance/extensions are legal; these deterministic original failures have none.
+// Controls require exact fixture equality, not a narrower protocol Problem schema.
 const retryControls: (RetryControl & { label: string; failed: string })[] = [
+  {
+    label: "initial failure gains title",
+    scenario: retryRows[0]!,
+    action: "initial",
+    path: ["body", "results", "1", "title"],
+    value: "new initial title",
+    failed: "complete-problem-body-results-1",
+  },
+  {
+    label: "retained failure gains title",
+    scenario: retryRows[1]!,
+    action: "f-replay",
+    path: ["body", "results", "0", "title"],
+    value: "new title",
+    failed: "complete-problem-body-results-0",
+  },
+  {
+    label: "retained failure gains extension",
+    scenario: retryRows[1]!,
+    action: "f-replay",
+    path: ["body", "results", "0", "vendorExtension"],
+    value: { changed: true },
+    failed: "complete-problem-body-results-0",
+  },
+  {
+    label: "retained failure gains instance",
+    scenario: retryRows[1]!,
+    action: "g-replay",
+    path: ["body", "instance"],
+    value: "https://reference.invalid/other",
+    failed: "complete-problem-body",
+  },
+  {
+    label: "reordered failure gains extension",
+    scenario: retryRows[0]!,
+    action: "reordered",
+    path: ["body", "results", "2", "vendorExtension"],
+    value: "new",
+    failed: "complete-problem-body-results-2",
+  },
   {
     label: "fresh image instead of retained",
     scenario: retryRows[1]!,
