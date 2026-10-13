@@ -1,4 +1,12 @@
 import {
+  checkpointPosition,
+  transactionCheckpoint,
+  TransactionChangefeedParameterError,
+  projectTransactionChangeGroup,
+  freezeChangefeedPage,
+  type TransactionChangefeedPage,
+} from "./transaction-changefeed.js";
+import {
   TRANSACTION_EVENT_PAGE_BYTES,
   TRANSACTION_EVENT_GROUP_BYTES,
   TransactionEventParameterError,
@@ -526,6 +534,27 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       authorizationView: view,
       scopePosition: `pos-${position}`,
     });
+  }
+  /** One bounded durable group. Never expose a live SQLite iterator or all-log array. */
+  function retainedGroupAtOrAfter(
+    at: number,
+    head: number,
+  ): { position: number; value: unknown } | undefined {
+    const row = db
+      .prepare(
+        "SELECT position,length(CAST(body AS BLOB)) AS bytes FROM groups WHERE position>=? AND position<=? ORDER BY position LIMIT 1",
+      )
+      .get(at, head);
+    if (!row) return undefined;
+    const position = Number(row.position),
+      bytes = Number(row.bytes);
+    if (!Number.isSafeInteger(position) || position < at)
+      throw new Error("invalid Event group position");
+    if (!Number.isSafeInteger(bytes) || bytes < 2 || bytes > TRANSACTION_EVENT_GROUP_BYTES)
+      throw new Error("retained Event group exceeds admitted byte bound");
+    const body = db.prepare("SELECT body FROM groups WHERE position=?").get(position)?.body;
+    if (typeof body !== "string") throw new Error("invalid retained Event group body");
+    return { position, value: JSON.parse(body) as unknown };
   }
   function createPagePlan(principal: string, key: string, receipt: TransactionReceipt): void {
     const entries = receipt.results as readonly unknown[];
@@ -1279,34 +1308,16 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         let cursorMatched = start === undefined;
         const events: import("./transaction-batch.js").TransactionEvent[] = [];
         let next: string | null = null;
-        const rowAt = db.prepare(
-          "SELECT position,length(CAST(body AS BLOB)) AS bytes FROM groups WHERE position>=? AND position<=? ORDER BY position LIMIT 1",
-        );
-        const bodyAt = db.prepare("SELECT body FROM groups WHERE position=?");
         let at = start?.position ?? 1;
         for (;;) {
-          const row = rowAt.get(at, head);
+          const row = retainedGroupAtOrAfter(at, head);
           if (!row) {
             if (cursorMatched && at <= head) throw new Error("missing retained Event group");
             break;
           }
-          const p = Number(row.position),
-            bytes = Number(row.bytes);
-          if (!Number.isSafeInteger(p) || p < at) throw new Error("invalid Event group position");
+          const p = row.position;
           if (cursorMatched && p !== at) throw new Error("missing retained Event group");
-          // The locked configuration admitted the exact tuple used by this bound.
-          // Inspect SQLite's encoded length before copying or parsing the body.
-          if (!Number.isSafeInteger(bytes) || bytes < 2 || bytes > TRANSACTION_EVENT_GROUP_BYTES)
-            throw new Error("retained Event group exceeds admitted byte bound");
-          const body = bodyAt.get(p)?.body;
-          if (typeof body !== "string") throw new Error("invalid retained Event group body");
-          const projected = projectTransactionEventGroup(
-            JSON.parse(body),
-            context,
-            source,
-            scope,
-            p,
-          );
+          const projected = projectTransactionEventGroup(row.value, context, source, scope, p);
           if (!cursorMatched) {
             if (
               p !== start?.position ||
@@ -1344,6 +1355,68 @@ export function openTransactionStore(options: TransactionStoreOptions) {
           kind: "page" as const,
           context,
           page: freezeEventPage({ source: source.url, events, next }),
+        });
+      });
+    },
+    /** Request intent anchor only; the eventual page captures its own current context. */
+    captureChangesStart(): string {
+      return enter(() => {
+        const context = readContext();
+        return transactionCheckpoint(scope, context, Number(context.scopePosition.slice(4)));
+      });
+    },
+    readChanges(
+      after: string,
+      supplied?: TransactionMinimum | "unsupported",
+    ):
+      | {
+          readonly kind: "page";
+          readonly page: TransactionChangefeedPage;
+          readonly context: TransactionReadContext;
+        }
+      | { readonly kind: "unsupported" } {
+      if (typeof after !== "string") throw new TypeError("changefeed checkpoint must be a string");
+      const minimum =
+        supplied === undefined || supplied === "unsupported"
+          ? supplied
+          : snapshotTransactionMinimum(supplied);
+      return enter(() => {
+        if (minimum === "unsupported") return Object.freeze({ kind: "unsupported" as const });
+        const context = readContext(),
+          head = Number(context.scopePosition.slice(4)),
+          start = checkpointPosition(scope, context, after);
+        if (start > head) throw new TransactionChangefeedParameterError();
+        // Under this no-pruning owner every positive position through head was
+        // committed. Its absent row is corruption, not a never-issued cursor.
+        if (start > 0 && !db.prepare("SELECT position FROM groups WHERE position=?").get(start))
+          throw new Error("missing retained change group");
+        if (minimum !== undefined) checkTransactionMinimum(minimum, context);
+        const row = retainedGroupAtOrAfter(start + 1, head);
+        if ((!row && start < head) || (row && row.position !== start + 1))
+          throw new Error("missing retained change group");
+        const group = row
+          ? projectTransactionChangeGroup(row.value, scope, context, row.position)
+          : undefined;
+        let next: string | null = null;
+        if (group && row && row.position < head) {
+          if (!db.prepare("SELECT position FROM groups WHERE position=?").get(row.position + 1))
+            throw new Error("missing retained change group");
+          const url = new URL("changes/", scope);
+          url.searchParams.set("after", group.checkpoint);
+          next = url.href;
+        }
+        return Object.freeze({
+          kind: "page" as const,
+          context,
+          page: freezeChangefeedPage({
+            scope,
+            scopeEpoch: context.scopeEpoch,
+            authorizationView: context.authorizationView,
+            after,
+            observedHeadPosition: context.scopePosition,
+            groups: group ? [group] : [],
+            next,
+          }),
         });
       });
     },

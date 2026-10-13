@@ -1,3 +1,4 @@
+import type { TransactionChangefeedIntent } from "./transaction-changefeed.js";
 import {
   snapshotTransactionMinimum,
   waitForTransactionMinimum,
@@ -214,6 +215,30 @@ export function createTransactionService(owner: Owner, options: TransactionServi
         resolveAlias: () => Promise.reject(new TypeError("minimum-read aliases unsupported")),
       };
       return Object.freeze(guarded);
+    },
+    changes(
+      intent: TransactionChangefeedIntent,
+      supplied?: TransactionMinimum | "unsupported",
+      signal?: AbortSignal,
+    ) {
+      // Capture controls before asynchronous retries. start=now observes admission
+      // head once; advancing it at every attempt would skip intervening commits.
+      const copied =
+        "after" in intent
+          ? Object.freeze({ after: intent.after })
+          : Object.freeze({ start: intent.start });
+      const minimum =
+        supplied === undefined || supplied === "unsupported"
+          ? supplied
+          : snapshotTransactionMinimum(supplied);
+      return run(() => {
+        const after = "after" in copied ? copied.after : owner.captureChangesStart();
+        return waitForTransactionMinimum(
+          () => owner.readChanges(after, minimum),
+          minimumReads,
+          signal,
+        );
+      });
     },
     events(
       source: string,
