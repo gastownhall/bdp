@@ -4151,6 +4151,10 @@ it("pins numeric admission source growth, old blocks and independent row ledgers
       "39eb2fe22d25eada2c43490f37b6cb5d66950bd90042af1ae954036426e07f2a",
     ],
     [
+      "read-update.numeric-model.round-trip-admission",
+      "12982a61faf2f6710ad165d69022ba2e8c9cc083e599118910a173c52fb9aa6c",
+    ],
+    [
       "read-update.numeric-model.nested-refusal",
       "068f02059e00c89130eb6be9683768e4828812e22371645d58540942f60f1d56",
     ],
@@ -4828,9 +4832,9 @@ it("rejects incomplete R comparator maps, other-document differences and flatten
   ).toThrow();
   const duplicate = [
     ...clone(),
-    structuredClone(actions.find((a) => a.id === "nr-bead-schema-create-refused")!),
+    structuredClone(actions.find((a) => a.id === "nr-bead-schema-create-corrected")!),
   ];
-  expect(() => assertRRefusalPairs(duplicate)).toThrow();
+  expect(() => assertRRefusalPairs(duplicate)).toThrow("unique refusal/comparator");
   for (const kind of ["bead", "link"]) {
     const action = actions.find((a) => a.id === `nr-${kind}-precision-create-refused`)!;
     if (action.family !== "http") throw Error("raw fixture required");
