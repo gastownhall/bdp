@@ -884,3 +884,19 @@ it("cancels finite Event waits through the facet and drains uncancelled waits be
   await closing;
   expect(() => f.owner.readEvents(`${scope}events/`)).toThrow();
 });
+
+it("drains admitted finite Snapshot observation and refuses new work while closing", async () => {
+  const f = fixture(),
+    service = f.open();
+  const pending = service.snapshot({ kind: "create" });
+  const closing = service.close();
+  expect(() => service.snapshot({ kind: "preflight" })).toThrow("closing or closed");
+  expect(await pending).toMatchObject({
+    kind: "manifest",
+    body: { scope, scopePosition: "pos-0" },
+    context: { scopePosition: "pos-0" },
+  });
+  await closing;
+  await expect(service.closed).resolves.toBeUndefined();
+  expect(() => f.owner.inspect()).toThrow("closed");
+});

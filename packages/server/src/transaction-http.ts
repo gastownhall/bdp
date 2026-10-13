@@ -1,3 +1,4 @@
+import type { TransactionSnapshotRequest } from "./transaction-snapshot.js";
 import {
   transactionChangefeedRequest,
   TransactionChangefeedParameterError,
@@ -319,6 +320,51 @@ export function createTransactionHttpHandler(
       });
     }
     if (authorization.kind === "unauthenticated") return transactionHttpProblem("unauthenticated");
+    if (url.pathname === new URL("snapshot", scope).pathname) {
+      const fields = [...url.searchParams.keys()];
+      const id = url.searchParams.get("snapshot"),
+        stream = url.searchParams.get("stream"),
+        token = url.searchParams.get("page");
+      let target: TransactionSnapshotRequest;
+      // These closed query shapes are local route conventions. Unknown well-
+      // shaped identities go to the owner; they are never guessed as expired.
+      if (new Set(fields).size !== fields.length)
+        return transactionHttpProblem("invalid-parameter");
+      if (fields.length === 0) target = { kind: "create" };
+      else if (fields.length === 1 && id !== null && id !== "") target = { kind: "manifest", id };
+      else if (fields.length === 3 && id && token && (stream === "beads" || stream === "links"))
+        target = { kind: "page", id, token, stream: stream === "beads" ? "bead" : "link" };
+      else return transactionHttpProblem("invalid-parameter");
+      // No Q1 choice: all supplied consistency controls remain an explicit gap,
+      // after auth/closed shape and before any retained lookup or allocation.
+      if (hasMinimumControls(request)) return developmentGap("minimum-position");
+      function snapshotResponse(result: Awaited<ReturnType<Service["snapshot"]>>): HttpResponse {
+        if (result.kind === "problem") {
+          const response = context(transactionHttpProblem(result.code), result.context);
+          if (result.retryAfter !== undefined)
+            response.headers.set("retry-after", String(result.retryAfter));
+          return response;
+        }
+        if (result.kind === "eligible")
+          return context(
+            {
+              status: 200,
+              headers: new Headers({
+                "content-type": "application/json",
+                "cache-control": "private, no-store",
+              }),
+            },
+            result.context,
+          );
+        return context(jsonResponse(result.body), result.context);
+      }
+      if (target.kind === "create") {
+        const eligible = snapshotResponse(await service.snapshot({ kind: "preflight" }));
+        const decision = applyReadHttpSemantics(request, eligible);
+        if (decision.status !== 200 || request.method === "HEAD") return decision;
+      }
+      return snapshotResponse(await service.snapshot(target));
+    }
     const changefeed = transactionChangefeedRequest(url, scope);
     if (changefeed) {
       const minimum = hasMinimumControls(request)

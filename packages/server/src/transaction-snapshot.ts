@@ -76,11 +76,20 @@ export interface TransactionSnapshotManifest {
   readonly beads: TransactionSnapshotPage;
   readonly links: TransactionSnapshotPage;
 }
+export type TransactionSnapshotRequest =
+  | { readonly kind: "preflight" }
+  | { readonly kind: "create" }
+  | { readonly kind: "manifest"; readonly id: string }
+  | { readonly kind: "page"; readonly id: string; readonly stream: Kind; readonly token: string };
 export class TransactionSnapshotFailure extends Error {
   readonly problem: Readonly<Record<string, unknown>>;
   constructor(
-    code: "resource-not-found" | "cursor-expired" | "limit-exceeded" | "temporarily-unavailable",
-    retryAfter?: number,
+    readonly code:
+      | "resource-not-found"
+      | "cursor-expired"
+      | "limit-exceeded"
+      | "temporarily-unavailable",
+    readonly retryAfter?: number,
   ) {
     super(`Snapshot ${code}`);
     const [family, status, retry] = {
@@ -571,6 +580,15 @@ export function transactionSnapshotStorage(
     context: TransactionReadContext,
   ): TransactionSnapshotManifest {
     const { d, ranges } = resolve(id, now, context);
+    return manifestValue(id, d, context, page(id, ranges, "bead"), page(id, ranges, "link"));
+  }
+  function manifestValue(
+    id: string,
+    d: Disposition,
+    context: TransactionReadContext,
+    beads: TransactionSnapshotPage,
+    links: TransactionSnapshotPage,
+  ): TransactionSnapshotManifest {
     const result: TransactionSnapshotManifest = {
       id: transactionSnapshotUrl(scope, id),
       scope,
@@ -580,80 +598,83 @@ export function transactionSnapshotStorage(
       checkpoint: transactionCheckpoint(scope, context, d.position),
       expiresAt: new Date(d.expires).toISOString(),
       erasures: [],
-      beads: page(id, ranges, "bead"),
-      links: page(id, ranges, "link"),
+      beads,
+      links,
     };
     integrity(bytes(text(result)) <= limits.manifestBytes, "serialized manifest bound");
     return freeze(result);
   }
-  return Object.freeze({
-    expire,
-    manifest,
-    page(id: string, kind: Kind, token: string, now: number, context: TransactionReadContext) {
-      if ((kind !== "bead" && kind !== "link") || typeof token !== "string")
-        throw new TransactionSnapshotFailure("resource-not-found");
-      const { ranges } = resolve(id, now, context, kind, token);
-      return page(id, ranges, kind, token);
-    },
-    capture(now: number, context: TransactionReadContext): TransactionSnapshotManifest {
-      // Refuse permanent exhaustion before parsing even the live subset.
-      if (ledgerBounds() >= limits.issuedHandles)
-        throw new TransactionSnapshotFailure("limit-exceeded");
-      const live = liveLedger(now, context);
-      const totals = statement(
-        "SELECT count(*) AS count,coalesce(sum(length(CAST(body AS BLOB))),0) AS bytes,coalesce(sum(length(CAST(id AS BLOB))),0) AS idBytes FROM resources",
-      ).get()!;
-      if (Number(totals.count) > limits.resources || Number(totals.bytes) > limits.recordBytes)
-        throw new TransactionSnapshotFailure("limit-exceeded");
-      if (
-        live.length >= limits.liveHandles ||
-        live.reduce((n, row) => n + row.d.bytes, 0) + Number(totals.bytes) > limits.liveRecordBytes
-      ) {
-        throw new TransactionSnapshotFailure(
-          "temporarily-unavailable",
-          Math.max(0, Math.ceil((Math.min(...live.map((row) => row.d.expires)) - now) / 1000)),
-        );
-      }
-      integrity(Number(totals.idBytes) <= limits.recordBytes, "authority identity bytes");
-      // Count/byte checks precede bounded identity enumeration and every body load.
-      const ids = statement("SELECT id,kind FROM resources LIMIT ?").all(limits.resources + 1);
-      integrity(ids.length === Number(totals.count), "authority inventory changed inside owner");
-      ids.sort((a, b) => compareCanonicalIds(String(a.id), String(b.id)));
-      const id = randomUUID(),
-        seed = randomBytes(32).toString("hex"),
-        counts: [number, number] = [0, 0];
-      // One bounded decoded/serialized map and outgoing index per capture.
-      // This replaces repeated Link codecs and per-Bead full-table scans. The
-      // 32MiB encoded ceiling is not a promise about decoded-object heap size.
-      const records = new Map<string, { body: string; value: ResourceRecord }>();
-      const outgoing = new Map<string, LinkRecord[]>();
-      let totalBytes = 0;
-      for (const row of ids) {
-        integrity(
-          typeof row.id === "string" && (row.kind === "bead" || row.kind === "link"),
-          "authority identity/kind",
-        );
-        const captured = record(row.id, row.kind);
-        totalBytes += bytes(captured.body);
-        if (totalBytes > limits.recordBytes) throw new TransactionSnapshotFailure("limit-exceeded");
-        records.set(row.id, captured);
-        if (row.kind === "link") {
-          const link = captured.value as LinkRecord;
-          const source = referenceUri(link.source);
-          if (validateServerEndpoint(link.source, scope)) {
-            const local = source.slice(scope.length);
-            const links = outgoing.get(local) ?? [];
-            links.push(link);
-            outgoing.set(local, links);
-          }
+  function capture(
+    now: number,
+    context: TransactionReadContext,
+    retain: boolean,
+  ): TransactionSnapshotManifest {
+    // Refuse permanent exhaustion before parsing even the live subset.
+    if (ledgerBounds() >= limits.issuedHandles)
+      throw new TransactionSnapshotFailure("limit-exceeded");
+    const live = liveLedger(now, context);
+    const totals = statement(
+      "SELECT count(*) AS count,coalesce(sum(length(CAST(body AS BLOB))),0) AS bytes,coalesce(sum(length(CAST(id AS BLOB))),0) AS idBytes FROM resources",
+    ).get()!;
+    if (Number(totals.count) > limits.resources || Number(totals.bytes) > limits.recordBytes)
+      throw new TransactionSnapshotFailure("limit-exceeded");
+    if (
+      live.length >= limits.liveHandles ||
+      live.reduce((n, row) => n + row.d.bytes, 0) + Number(totals.bytes) > limits.liveRecordBytes
+    ) {
+      throw new TransactionSnapshotFailure(
+        "temporarily-unavailable",
+        Math.max(0, Math.ceil((Math.min(...live.map((row) => row.d.expires)) - now) / 1000)),
+      );
+    }
+    integrity(Number(totals.idBytes) <= limits.recordBytes, "authority identity bytes");
+    // Count/byte checks precede bounded identity enumeration and every body load.
+    const ids = statement("SELECT id,kind FROM resources LIMIT ?").all(limits.resources + 1);
+    integrity(ids.length === Number(totals.count), "authority inventory changed inside owner");
+    ids.sort((a, b) => compareCanonicalIds(String(a.id), String(b.id)));
+    // The nonallocating path uses fixed-width layout witnesses, never an issued
+    // identity/secret. No record/page/parent row is written in that path.
+    const id = retain ? randomUUID() : "00000000-0000-0000-0000-000000000000",
+      seed = retain ? randomBytes(32).toString("hex") : "0".repeat(64),
+      counts: [number, number] = [0, 0];
+    // One bounded decoded/serialized map and outgoing index per capture.
+    // This replaces repeated Link codecs and per-Bead full-table scans. The
+    // 32MiB encoded ceiling is not a promise about decoded-object heap size.
+    const records = new Map<string, { body: string; value: ResourceRecord }>();
+    const outgoing = new Map<string, LinkRecord[]>();
+    let totalBytes = 0;
+    for (const row of ids) {
+      integrity(
+        typeof row.id === "string" && (row.kind === "bead" || row.kind === "link"),
+        "authority identity/kind",
+      );
+      const captured = record(row.id, row.kind);
+      totalBytes += bytes(captured.body);
+      if (totalBytes > limits.recordBytes) throw new TransactionSnapshotFailure("limit-exceeded");
+      records.set(row.id, captured);
+      if (row.kind === "link") {
+        const link = captured.value as LinkRecord;
+        const source = referenceUri(link.source);
+        if (validateServerEndpoint(link.source, scope)) {
+          const local = source.slice(scope.length);
+          const links = outgoing.get(local) ?? [];
+          links.push(link);
+          outgoing.set(local, links);
         }
       }
-      for (const row of ids) {
-        const localId = String(row.id),
-          kind = row.kind as Kind;
-        const { body, value } = records.get(localId)!;
-        checkGraph(localId, kind, value, records, outgoing);
-        const ordinal = counts[kind === "bead" ? 0 : 1]++;
+    }
+    const streams: Record<Kind, { body: string; value: ResourceRecord }[]> = { bead: [], link: [] };
+    for (const row of ids) {
+      const localId = String(row.id),
+        kind = row.kind as Kind;
+      const { body, value } = records.get(localId)!;
+      checkGraph(localId, kind, value, records, outgoing);
+      const ordinal = counts[kind === "bead" ? 0 : 1]++;
+      streams[kind].push({ body, value });
+      // Retained capture inserts the sealed parent last, after ranges exist.
+      // This entire body is one owner transaction with no integrity reentry;
+      // transient detail without a parent can never be externally observed.
+      if (retain)
         statement("INSERT INTO snapshot_records VALUES(?,?,?,?,?)").run(
           id,
           kind,
@@ -661,51 +682,51 @@ export function transactionSnapshotStorage(
           value.id,
           body,
         );
-      }
-      if (live.reduce((n, row) => n + row.d.bytes, 0) + totalBytes > limits.liveRecordBytes)
-        throw new TransactionSnapshotFailure(
-          "temporarily-unavailable",
-          Math.max(0, Math.ceil((Math.min(...live.map((row) => row.d.expires)) - now) / 1000)),
+    }
+    if (live.reduce((n, row) => n + row.d.bytes, 0) + totalBytes > limits.liveRecordBytes)
+      throw new TransactionSnapshotFailure(
+        "temporarily-unavailable",
+        Math.max(0, Math.ceil((Math.min(...live.map((row) => row.d.expires)) - now) / 1000)),
+      );
+    const ranges: PageRange[] = [];
+    for (const [index, kind] of (["bead", "link"] as const).entries()) {
+      let start = 0,
+        ordinal = 0;
+      do {
+        const token = pageToken(seed, id, kind, ordinal);
+        // A continuation names the successor, whose ordinal can have more
+        // digits (9 -> 10, 99 -> 100). Reserve that exact URL even for the
+        // final page, where emitted null is smaller; never truncate.
+        const successor = pageToken(seed, id, kind, ordinal + 1);
+        const framing = bytes(
+          text({ items: [], next: transactionSnapshotUrl(scope, id, kind, successor) }),
         );
-      const ranges: PageRange[] = [];
-      for (const [index, kind] of (["bead", "link"] as const).entries()) {
-        let start = 0,
-          ordinal = 0;
-        do {
-          const token = pageToken(seed, id, kind, ordinal);
-          // A continuation names the successor, whose ordinal can have more
-          // digits (9 -> 10, 99 -> 100). Reserve that exact URL even for the
-          // final page, where emitted null is smaller; never truncate.
-          const successor = pageToken(seed, id, kind, ordinal + 1);
-          const framing = bytes(
-            text({ items: [], next: transactionSnapshotUrl(scope, id, kind, successor) }),
-          );
-          let size = 0,
-            end = start;
-          const digest = createHash("sha256");
-          while (end < counts[index]! && end - start < limits.snapshotPageItems) {
-            const row = statement(
-              "SELECT body FROM snapshot_records WHERE snapshot=? AND kind=? AND ordinal=?",
-            ).get(id, kind, end)!;
-            const body = String(row.body),
-              length = bytes(body);
-            if (framing + size + length + (end - start) > limits.pageBytes) break;
-            if (end > start) digest.update("\n");
-            digest.update(body);
-            size += length;
-            end++;
-          }
-          integrity(end > start || counts[index] === 0, "one record cannot fit page");
-          const range = {
-            kind,
-            ordinal,
-            token,
-            start,
-            end,
-            bytes: size,
-            digest: digest.digest("hex"),
-          };
-          ranges.push(range);
+        let size = 0,
+          end = start;
+        const digest = createHash("sha256");
+        while (end < counts[index]! && end - start < limits.snapshotPageItems) {
+          const stored = streams[kind][end];
+          integrity(stored, "missing prepared stream record");
+          const body = stored.body,
+            length = bytes(body);
+          if (framing + size + length + (end - start) > limits.pageBytes) break;
+          if (end > start) digest.update("\n");
+          digest.update(body);
+          size += length;
+          end++;
+        }
+        integrity(end > start || counts[index] === 0, "one record cannot fit page");
+        const range = {
+          kind,
+          ordinal,
+          token,
+          start,
+          end,
+          bytes: size,
+          digest: digest.digest("hex"),
+        };
+        ranges.push(range);
+        if (retain)
           statement("INSERT INTO snapshot_pages VALUES(?,?,?,?,?,?,?,?)").run(
             id,
             kind,
@@ -716,29 +737,58 @@ export function transactionSnapshotStorage(
             size,
             range.digest,
           );
-          start = end;
-          ordinal++;
-        } while (start < counts[index]!);
-      }
-      const d = sealDisposition(id, {
-        epoch: context.scopeEpoch,
-        view: context.authorizationView,
-        position: Number(context.scopePosition.slice(4)),
-        created: now,
-        expires: now + limits.lifetimeMs,
-        expired: false,
-        counts,
-        bytes: totalBytes,
-        plan: hash(text(ranges)),
-        seed,
-        pageCounts: [
-          ranges.filter((row) => row.kind === "bead").length,
-          ranges.filter((row) => row.kind === "link").length,
-        ],
-      });
-      integrity(bytes(text(d)) + bytes(id) <= limits.dispositionBytes, "disposition bound");
+        start = end;
+        ordinal++;
+      } while (start < counts[index]!);
+    }
+    const d = sealDisposition(id, {
+      epoch: context.scopeEpoch,
+      view: context.authorizationView,
+      position: Number(context.scopePosition.slice(4)),
+      created: now,
+      expires: now + limits.lifetimeMs,
+      expired: false,
+      counts,
+      bytes: totalBytes,
+      plan: hash(text(ranges)),
+      seed,
+      pageCounts: [
+        ranges.filter((row) => row.kind === "bead").length,
+        ranges.filter((row) => row.kind === "link").length,
+      ],
+    });
+    integrity(bytes(text(d)) + bytes(id) <= limits.dispositionBytes, "disposition bound");
+    if (retain) {
       statement("INSERT INTO snapshots VALUES(?,?)").run(id, text(d));
       return manifest(id, now, context);
+    }
+    function firstPage(kind: Kind): TransactionSnapshotPage {
+      const range = ranges.find((row) => row.kind === kind && row.ordinal === 0);
+      integrity(range, "missing prepared first page");
+      const next = ranges.find((row) => row.kind === kind && row.ordinal === 1);
+      const result = {
+        items: streams[kind].slice(range.start, range.end).map((row) => row.value),
+        next: next ? transactionSnapshotUrl(scope, id, kind, next.token) : null,
+      };
+      integrity(bytes(text(result)) <= limits.pageBytes, "serialized page bound");
+      return result;
+    }
+    return manifestValue(id, d, context, firstPage("bead"), firstPage("link"));
+  }
+  return Object.freeze({
+    expire,
+    manifest,
+    page(id: string, kind: Kind, token: string, now: number, context: TransactionReadContext) {
+      if ((kind !== "bead" && kind !== "link") || typeof token !== "string")
+        throw new TransactionSnapshotFailure("resource-not-found");
+      const { ranges } = resolve(id, now, context, kind, token);
+      return page(id, ranges, kind, token);
+    },
+    preflight(now: number, context: TransactionReadContext): void {
+      capture(now, context, false);
+    },
+    capture(now: number, context: TransactionReadContext): TransactionSnapshotManifest {
+      return capture(now, context, true);
     },
   });
 }

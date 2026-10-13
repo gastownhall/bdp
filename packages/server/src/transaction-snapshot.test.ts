@@ -625,7 +625,7 @@ it("permanent 65536 issued-identity bound refuses new issuance even after all de
   try {
     problem(() => f.owner.captureSnapshot(), "limit-exceeded");
     const expirySql = prepared.filter((sql) => !sql.includes(" FROM metadata "));
-    expect(expirySql.filter((sql, index) => expirySql.indexOf(sql) !== index)).toEqual([]);
+    expect(new Set(expirySql).size).toBe(expirySql.length);
     // The loop really expired the entire fixture, including its page records;
     // each newly used mutation statement was compiled exactly once.
     for (const sql of [
@@ -849,7 +849,7 @@ it("shares one validated authority-record pass across owned topology and reuses 
     );
     // The surrounding owner metadata helper is outside the Snapshot cache.
     const snapshotSql = sql.filter((query) => !query.includes(" FROM metadata "));
-    expect(snapshotSql.filter((query, index) => snapshotSql.indexOf(query) !== index)).toEqual([]);
+    expect(new Set(snapshotSql).size).toBe(snapshotSql.length);
     expect(sql.some((query) => query.includes("kind='link' AND source=?"))).toBe(false);
   } finally {
     sqlSpy.mockRestore();
@@ -1055,7 +1055,7 @@ it("validates a cold expired commitment on lookup without decoding all cold hist
 });
 
 it.each(["records", "pages"])(
-  "rejects orphaned %s before pending recovery without modifying the file",
+  "rejects orphaned %s during startup recovery with rollback and no file mutation",
   (detail) => {
     const f = fixture();
     f.run([create("a")]);
@@ -1146,3 +1146,63 @@ it("continues to refuse impossible excess live handles as integrity corruption",
   });
   expect(() => f.owner.captureSnapshot()).toThrow("live issuance ledger exceeds bound");
 });
+
+it("pairs expected preflight and retained failures inside the same entry after atomic rollback", () => {
+  const f = fixture();
+  f.run([create("a")]);
+  for (let n = 0; n < limits.liveHandles; n++) f.owner.captureSnapshot();
+  const actual = DatabaseSync.prototype.exec;
+  let rollback = 0;
+  const spy = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+    this: DatabaseSync,
+    sql: string,
+  ) {
+    if (sql === "ROLLBACK") {
+      rollback++;
+      expect(() => f.owner.inspect()).toThrow("reentrant");
+    }
+    return actual.call(this, sql);
+  });
+  try {
+    expect(f.owner.observeSnapshot({ kind: "preflight" })).toMatchObject({
+      kind: "problem",
+      code: "temporarily-unavailable",
+      retryAfter: 300,
+      context: { scopePosition: "pos-1" },
+    });
+    expect(rollback).toBe(1);
+    expect(f.owner.observeSnapshot({ kind: "manifest", id: "unknown" })).toMatchObject({
+      kind: "problem",
+      code: "resource-not-found",
+      context: { scopePosition: "pos-1" },
+    });
+    expect(
+      f.owner.observeSnapshot({ kind: "page", id: "unknown", stream: "bead", token: "unknown" }),
+    ).toMatchObject({
+      kind: "problem",
+      code: "resource-not-found",
+      context: { scopePosition: "pos-1" },
+    });
+  } finally {
+    spy.mockRestore();
+  }
+});
+
+it.each(["after-snapshot-copy", "after-snapshot-commit"] as const)(
+  "paired observation preserves unexpected %s failure and its committed disposition",
+  (stage) => {
+    let armed = true;
+    const f = fixture((point) => {
+      if (armed && point === stage) {
+        armed = false;
+        throw new Error("delivery fault");
+      }
+    });
+    expect(() => f.owner.observeSnapshot({ kind: "create" })).toThrow("delivery fault");
+    f.offline((db) => {
+      expect(db.prepare("SELECT count(*) AS n FROM snapshots").get()?.n).toBe(
+        stage === "after-snapshot-commit" ? 1 : 0,
+      );
+    });
+  },
+);

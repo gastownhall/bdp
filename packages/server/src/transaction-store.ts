@@ -3,6 +3,8 @@ import {
   TRANSACTION_SNAPSHOT_TOKEN_POLICY,
   transactionSnapshotSchema,
   transactionSnapshotStorage,
+  TransactionSnapshotFailure,
+  type TransactionSnapshotRequest,
 } from "./transaction-snapshot.js";
 import {
   checkpointPosition,
@@ -1288,8 +1290,51 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     scopeEpoch: epoch,
     recoveredPending,
     withRead,
-    /** Owner-only capture. HTTP creation preflight and retained minimum controls
-     * are deliberately not supplied by this private storage seam. */
+    /** Expected failures are paired inside the same entry, after any atomic
+     * rollback. Unexpected integrity/SQLite/uncertain-commit errors propagate. */
+    observeSnapshot(request: TransactionSnapshotRequest) {
+      return enter(() => {
+        const context = readContext(),
+          now = instant();
+        try {
+          atomic(() => snapshots.expire(now, context));
+          if (request.kind === "preflight") {
+            atomic(() => snapshots.preflight(now, context));
+            return Object.freeze({ kind: "eligible" as const, context });
+          }
+          if (request.kind === "create") {
+            const manifest = atomic(() => {
+              const value = snapshots.capture(now, context);
+              options.fault?.("after-snapshot-copy");
+              return value;
+            });
+            options.fault?.("after-snapshot-commit");
+            return Object.freeze({ kind: "manifest" as const, body: manifest, context });
+          }
+          if (request.kind === "manifest")
+            return Object.freeze({
+              kind: "manifest" as const,
+              body: snapshots.manifest(request.id, now, context),
+              context,
+            });
+          return Object.freeze({
+            kind: "page" as const,
+            body: snapshots.page(request.id, request.stream, request.token, now, context),
+            context,
+          });
+        } catch (error) {
+          if (!(error instanceof TransactionSnapshotFailure)) throw error;
+          return Object.freeze({
+            kind: "problem" as const,
+            code: error.code,
+            ...(error.retryAfter === undefined ? {} : { retryAfter: error.retryAfter }),
+            context,
+          });
+        }
+      });
+    },
+    /** Owner-only compatibility entry. HTTP uses the paired observation above;
+     * supplied retained-minimum controls remain explicitly unsupported. */
     captureSnapshot() {
       return enter(() => {
         const context = readContext(),
