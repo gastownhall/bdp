@@ -209,8 +209,9 @@ export interface ProfileExecutionPlan {
  * Uses the real executable manifest parser; no second action/fixture language.
  * ready-unexecuted is structural readiness, conditional on the runner enforcing
  * matching exact transport configuration before observing a non-Read target.
- * It supplies no execution admission or observation. Missing applicability is a
- * review obligation, never a waiver.
+ * TX structural readiness does not admit TX exact transport, which remains a
+ * separate implementation gate. It supplies no execution admission or observation.
+ * Missing applicability is a review obligation, never a waiver.
  */
 export function planProfileExecution(
   selection: ProfileContractSelection,
@@ -258,9 +259,14 @@ export function planProfileExecution(
   // v1 non-Read lacks the exact execution binding and remains unsupported.
   // v2 Read+Update requires matching exact execution configuration; this plan
   // is not execution, qualification or proof that such a target was observed.
-  // The separate cumulative RU factory currently supports baseline (no History) only.
+  // Separate cumulative RU/TX factories support baseline (no History) only.
+  // TX carrier planning does not enable the still-closed exact transport gate.
   const carrierBlocker =
     manifest === undefined ||
+    (manifest.catalogId === "transactional-v1" &&
+      !bound.history &&
+      manifest.manifestVersion === 2 &&
+      bound.profile === "transactional") ||
     (manifest.catalogId === "read-update-v1" &&
       !bound.history &&
       manifest.manifestVersion === 2 &&

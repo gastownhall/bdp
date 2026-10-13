@@ -85,6 +85,7 @@ export class ConformanceArtifactBundleError extends Error {
 }
 
 const factoryCreatedBundles = new WeakSet<ConformanceArtifactBundle>();
+const cumulativeTransactionalBundles = new WeakSet<ConformanceArtifactBundle>();
 
 export function createConformanceArtifactBundle(
   sources: ConformanceArtifactBundleSources,
@@ -122,6 +123,34 @@ export function createCumulativeReadUpdateArtifactBundle(
   return bundle;
 }
 
+/** Source-private TX carrier; transport and public profile admission remain separate. */
+export function createCumulativeTransactionalArtifactBundle(
+  selection: ProfileContractSelection,
+  sources: Pick<ConformanceArtifactBundleSources, "manifest" | "fixture">,
+): ConformanceArtifactBundle {
+  assertCanonicalProfileContractSelection(selection);
+  if (selection.profile !== "transactional" || selection.history)
+    throw new ConformanceArtifactBundleError(
+      "cumulative candidate requires baseline Transactional selection",
+    );
+  const bundle = createBoundArtifactBundle(
+    {
+      catalog: { bytes: Buffer.from(JSON.stringify(selection.catalog)) },
+      manifest: sources.manifest,
+      fixture: sources.fixture,
+    },
+    false,
+    selection,
+  );
+  cumulativeTransactionalBundles.add(bundle);
+  return bundle;
+}
+
+/** Internal brand check, never a user-supplied admission flag. */
+export function isCumulativeTransactionalArtifactBundle(value: ConformanceArtifactBundle): boolean {
+  return cumulativeTransactionalBundles.has(value);
+}
+
 function createBoundArtifactBundle(
   sources: ConformanceArtifactBundleSources,
   development: boolean,
@@ -131,7 +160,7 @@ function createBoundArtifactBundle(
   const manifestBytes = copySourceBytes(
     sources.manifest,
     "manifest",
-    cumulative === undefined ? undefined : CUMULATIVE_MANIFEST_MAX_BYTES,
+    cumulative?.profile === "read-update" ? CUMULATIVE_MANIFEST_MAX_BYTES : undefined,
   );
   const fixtureBytes = copySourceBytes(sources.fixture, "fixture");
   const catalog = parseScenarioCatalog(
@@ -148,7 +177,7 @@ function createBoundArtifactBundle(
   );
 
   const expectedCatalogId = cumulative
-    ? "read-update-v1"
+    ? `${cumulative.profile}-v1`
     : development
       ? "development-read-update-v1"
       : `read-v${catalog.catalogVersion}`;
@@ -184,7 +213,11 @@ function createBoundArtifactBundle(
   }
   if (cumulative) {
     if (manifest.manifestVersion !== 2)
-      throw new ConformanceArtifactBundleError("cumulative Read+Update requires version 2");
+      throw new ConformanceArtifactBundleError(
+        cumulative.profile === "read-update"
+          ? "cumulative Read+Update requires version 2"
+          : "cumulative Transactional requires version 2",
+      );
     const required = new Map(cumulative.required.map((row) => [row.id, row]));
     for (const row of manifest.scenarios)
       if (required.get(row.id)?.requiredProfile !== row.requiredProfile)
