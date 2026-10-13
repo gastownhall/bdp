@@ -47,6 +47,18 @@ it("pins the complete schema cohort closure, identical schema URIs and canonical
   }
   const captured = module.captureInstalledReferenceConfiguration(configuration);
   expect(captured.profile).toBe("read-update");
+  const shippedCapture = module.captureInstalledReferenceConfiguration({
+    ...configuration,
+    contracts: { descriptors: [], schemas: [] },
+  });
+  const shippedIds = new Set(shippedCapture.configuration.contracts.descriptors.map((d) => d.id));
+  expect(captured.configuration.contracts.descriptors.filter((d) => shippedIds.has(d.id))).toEqual(
+    shippedCapture.configuration.contracts.descriptors,
+  );
+  expect(captured.configuration.contracts.descriptors).toHaveLength(17);
+  expect(captured.schemas).toEqual(
+    additions.schemas.map((schema) => ({ uri: schema.retrievalUri, utf8: schema.utf8 })),
+  );
   const expected = [...shipped, ...additions.descriptors].sort((a, b) =>
     Buffer.compare(Buffer.from(a.id), Buffer.from(b.id)),
   );

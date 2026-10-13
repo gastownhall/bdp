@@ -115,6 +115,8 @@ type W2Counterfactual =
   | "link-name"
   | "alias-index";
 type PatchControl =
+  | "schema-document"
+  | "schema-contract-code"
   | "schema-type"
   | "schema-keyword"
   | "schema-pointer"
@@ -382,8 +384,13 @@ async function run(
         const patchValidation =
           currentScenario === "read-update.singleton.document-patch-validation";
         const patchHit =
+          (currentScenario === "read-update.validation.type-contract" &&
+            patchControl === "schema-contract-code" &&
+            w1Input.idempotencyKey === "schema-contract-bead-uninstalled") ||
           (currentScenario === "read-update.validation.diagnostics" &&
-            ["schema-type", "schema-keyword", "schema-pointer"].includes(patchControl ?? "") &&
+            ["schema-type", "schema-keyword", "schema-pointer", "schema-document"].includes(
+              patchControl ?? "",
+            ) &&
             w1Input.idempotencyKey === "schema-diagnostics-bead-base") ||
           (patchValidation &&
             patchControl === "schema-afterstate" &&
@@ -422,12 +429,21 @@ async function run(
           const changed = structuredClone(actual) as {
             status: number;
             body: {
+              code?: string;
               resource: { properties: Record<string, unknown>; metadata: Record<string, unknown> };
               properties: Record<string, unknown>;
               diagnostics: Record<string, unknown>[];
             };
           };
           counterfactualApplications++;
+          if (patchControl === "schema-contract-code")
+            Object.assign(changed.body, {
+              code: "validation-failed",
+              retry: "never",
+              diagnostics: [{ message: "counterfactual validation refusal" }],
+            });
+          if (patchControl === "schema-document")
+            changed.body.diagnostics[0]!.document = "metadata";
           if (patchControl === "schema-type")
             changed.body.diagnostics[0]!.type = `${scope}types/schema-bead-child`;
           if (patchControl === "schema-keyword")
@@ -1409,6 +1425,18 @@ it.each([
 });
 
 it.each([
+  [
+    "schema-document",
+    "read-update.validation.diagnostics",
+    "schema-diagnostics-bead-base",
+    "document",
+  ],
+  [
+    "schema-contract-code",
+    "read-update.validation.type-contract",
+    "schema-contract-bead-uninstalled",
+    "problem-code",
+  ],
   [
     "schema-type",
     "read-update.validation.diagnostics",

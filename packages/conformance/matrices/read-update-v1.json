@@ -8208,6 +8208,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": "/n"
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -15338,6 +15344,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": "/n"
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -15509,6 +15521,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": "/enabled"
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -15679,6 +15697,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": ""
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -16407,6 +16431,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": "/n"
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -16670,6 +16700,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": "/enabled"
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -16932,6 +16968,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": ""
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -67141,6 +67183,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": "/n"
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -67312,6 +67360,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": "/enabled"
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -67692,6 +67746,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": "/n"
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
@@ -67877,6 +67937,12 @@
               "pointer": "/body/diagnostics/0/instanceLocation",
               "exists": true,
               "equals": "/enabled"
+            },
+            {
+              "id": "document",
+              "kind": "json-pointer",
+              "pointer": "/body/diagnostics/0/document",
+              "exists": false
             }
           ]
         },
