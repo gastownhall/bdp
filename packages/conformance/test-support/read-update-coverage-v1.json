@@ -4,17 +4,34 @@
   "rows": [
     {
       "id": "read.discovery.scope-service-desc",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the inherited cited contract with its own fixture and local discovery validation.",
+      "bindings": [
+        {
+          "scenario": "read.discovery.scope-service-desc",
+          "assertions": ["scope.successful"]
+        }
+      ]
     },
     {
       "id": "read.discovery.canonical-navigation",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the inherited cited contract with its own fixture and local discovery validation.",
+      "bindings": [
+        {
+          "scenario": "read.discovery.canonical-navigation",
+          "assertions": [
+            "scope.successful",
+            "discovery.successful",
+            "discovery.beads-navigation",
+            "discovery.links-navigation",
+            "discovery.types-navigation",
+            "discovery.local-ru-discovery"
+          ]
+        }
+      ]
     },
     {
       "id": "read.discovery.optional-limits",
@@ -25,17 +42,43 @@
     },
     {
       "id": "read.resource.bead-record",
-      "status": "omitted",
+      "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "reason": "Complete open record observed, but cited untouched-property preservation after an effectful update is not observed by this Read case.",
+      "bindings": [
+        {
+          "scenario": "read.resource.bead-record",
+          "assertions": [
+            "bead.successful",
+            "bead.schema",
+            "bead.id",
+            "bead.type",
+            "bead.properties",
+            "bead.metadata"
+          ]
+        }
+      ]
     },
     {
       "id": "read.resource.link-record",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the cited inherited contract on a public-HTTP-seeded fixture with independent static oracles.",
+      "bindings": [
+        {
+          "scenario": "read.resource.link-record",
+          "assertions": [
+            "link.successful",
+            "link.schema",
+            "link.id",
+            "link.type",
+            "link.source",
+            "link.target",
+            "link.metadata",
+            "link.properties"
+          ]
+        }
+      ]
     },
     {
       "id": "read.resource.external-endpoint",
@@ -46,17 +89,34 @@
     },
     {
       "id": "read.resource.properties-view",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the cited inherited contract on a public-HTTP-seeded fixture with independent static oracles.",
+      "bindings": [
+        {
+          "scenario": "read.resource.properties-view",
+          "assertions": [
+            "bead-properties.bead-properties-status",
+            "bead-properties.bead-properties-schema",
+            "bead-properties.fixture-bead-properties",
+            "link-properties.link-properties-status",
+            "link-properties.link-properties-schema",
+            "link-properties.fixture-link-properties"
+          ]
+        }
+      ]
     },
     {
       "id": "read.resource.default-bounded",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the cited inherited contract on a public-HTTP-seeded fixture with independent static oracles.",
+      "bindings": [
+        {
+          "scenario": "read.resource.default-bounded",
+          "assertions": ["bead.successful", "bead.no-embedded-links"]
+        }
+      ]
     },
     {
       "id": "read.resource.not-found-nondisclosure",
@@ -67,31 +127,118 @@
     },
     {
       "id": "read.types.inventory",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP checks independent complete Type summary tuples (id, name, describes), canonical order and closed summary schema; real response-only name and kind corruptions must fail.",
+      "bindings": [
+        {
+          "scenario": "read.types.inventory",
+          "assertions": [
+            "scope.successful",
+            "discovery.successful",
+            "discovery.local-ru-discovery",
+            "types.successful",
+            "types.schema",
+            "types.complete-page",
+            "types.fixture-type-summaries",
+            "types.canonical-uri-order"
+          ]
+        }
+      ]
     },
     {
       "id": "read.types.descriptor",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the inherited cited contract with its own fixture and local discovery validation.",
+      "bindings": [
+        {
+          "scenario": "read.types.descriptor",
+          "assertions": [
+            "blocks.status",
+            "blocks.closed-descriptor",
+            "blocks.identity",
+            "bug.status",
+            "bug.closed-descriptor",
+            "bug.identity",
+            "chore.status",
+            "chore.closed-descriptor",
+            "chore.identity",
+            "cites.status",
+            "cites.closed-descriptor",
+            "cites.identity",
+            "decision.status",
+            "decision.closed-descriptor",
+            "decision.identity",
+            "dependency.status",
+            "dependency.closed-descriptor",
+            "dependency.identity",
+            "epic.status",
+            "epic.closed-descriptor",
+            "epic.identity",
+            "feature.status",
+            "feature.closed-descriptor",
+            "feature.identity",
+            "relates.status",
+            "relates.closed-descriptor",
+            "relates.identity",
+            "relationship.status",
+            "relationship.closed-descriptor",
+            "relationship.identity",
+            "task.status",
+            "task.closed-descriptor",
+            "task.identity",
+            "tracked-item.status",
+            "tracked-item.closed-descriptor",
+            "tracked-item.identity",
+            "work-item.status",
+            "work-item.closed-descriptor",
+            "work-item.identity"
+          ]
+        }
+      ]
     },
     {
       "id": "read.collections.beads",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP checks independent per-identity Bead tuples (id, Type, complete properties and metadata), canonical order and closed record schema with opaque revisions; real response-only corruptions must fail.",
+      "bindings": [
+        {
+          "scenario": "read.collections.beads",
+          "assertions": [
+            "scope.successful",
+            "discovery.successful",
+            "discovery.local-ru-discovery",
+            "beads.successful",
+            "beads.schema",
+            "beads.complete-page",
+            "beads.fixture-bead-records",
+            "beads.canonical-uri-order"
+          ]
+        }
+      ]
     },
     {
       "id": "read.collections.links",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the cited inherited contract on a public-HTTP-seeded fixture with independent static oracles.",
+      "bindings": [
+        {
+          "scenario": "read.collections.links",
+          "assertions": [
+            "scope.successful",
+            "discovery.successful",
+            "discovery.local-ru-discovery",
+            "links.successful",
+            "links.schema",
+            "links.complete-page",
+            "links.fixture-link-records",
+            "links.canonical-uri-order"
+          ]
+        }
+      ]
     },
     {
       "id": "read.collections.structural-predicates",
@@ -123,10 +270,37 @@
     },
     {
       "id": "read.collections.invalid-query",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the inherited cited contract with its own fixture and local discovery validation.",
+      "bindings": [
+        {
+          "scenario": "read.collections.invalid-query",
+          "assertions": [
+            "unsupported-parameter.status",
+            "unsupported-parameter.media-type",
+            "unsupported-parameter.schema",
+            "unsupported-parameter.code",
+            "unsupported-parameter.family",
+            "unsupported-parameter.retry",
+            "unsupported-parameter.cache-control",
+            "repeated-limit.status",
+            "repeated-limit.media-type",
+            "repeated-limit.schema",
+            "repeated-limit.code",
+            "repeated-limit.family",
+            "repeated-limit.retry",
+            "repeated-limit.cache-control",
+            "repeated-selector.status",
+            "repeated-selector.media-type",
+            "repeated-selector.schema",
+            "repeated-selector.code",
+            "repeated-selector.family",
+            "repeated-selector.retry",
+            "repeated-selector.cache-control"
+          ]
+        }
+      ]
     },
     {
       "id": "read.bead-links.directions",
@@ -144,17 +318,84 @@
     },
     {
       "id": "read.http.get-head",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the cited inherited contract on a public-HTTP-seeded fixture with independent static oracles.",
+      "bindings": [
+        {
+          "scenario": "read.http.get-head",
+          "assertions": [
+            "scope.successful",
+            "discovery-get.status",
+            "discovery-get.media-type",
+            "discovery-get.local-ru-discovery",
+            "scope-head.metadata",
+            "scope-head.body",
+            "discovery-head.metadata",
+            "discovery-head.body",
+            "beads-get.status",
+            "beads-get.media-type",
+            "beads-head.metadata",
+            "beads-head.body",
+            "bead-get.status",
+            "bead-get.media-type",
+            "bead-head.metadata",
+            "bead-head.body",
+            "bead-properties-get.status",
+            "bead-properties-get.media-type",
+            "bead-properties-head.metadata",
+            "bead-properties-head.body",
+            "bead-links-get.status",
+            "bead-links-get.media-type",
+            "bead-links-head.metadata",
+            "bead-links-head.body",
+            "links-get.status",
+            "links-get.media-type",
+            "links-head.metadata",
+            "links-head.body",
+            "link-get.status",
+            "link-get.media-type",
+            "link-head.metadata",
+            "link-head.body",
+            "link-properties-get.status",
+            "link-properties-get.media-type",
+            "link-properties-head.metadata",
+            "link-properties-head.body",
+            "types-get.status",
+            "types-get.media-type",
+            "types-head.metadata",
+            "types-head.body",
+            "task-descriptor-get.status",
+            "task-descriptor-get.descriptor",
+            "task-descriptor-head.status",
+            "task-descriptor-head.bodyless",
+            "relates-descriptor-get.status",
+            "relates-descriptor-get.descriptor",
+            "relates-descriptor-head.status",
+            "relates-descriptor-head.bodyless"
+          ]
+        }
+      ]
     },
     {
       "id": "read.http.method-405",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the inherited cited contract with its own fixture and local discovery validation.",
+      "bindings": [
+        {
+          "scenario": "read.http.method-405",
+          "assertions": [
+            "scope.successful",
+            "discovery.successful",
+            "discovery.profile",
+            "discovery.local-ru-discovery",
+            "post.status",
+            "post.allow",
+            "post.bodyless"
+          ]
+        }
+      ]
     },
     {
       "id": "read.http.problem-table",
@@ -172,10 +413,50 @@
     },
     {
       "id": "read.http.cache-cors",
-      "status": "omitted",
-      "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "status": "bounded-observation",
+      "wholeContract": true,
+      "reason": "Actual installed RU HTTP observes the cited inherited contract on a public-HTTP-seeded fixture with independent static oracles.",
+      "bindings": [
+        {
+          "scenario": "read.http.cache-cors",
+          "assertions": [
+            "scope.successful",
+            "discovery.successful",
+            "discovery.profile",
+            "discovery.local-ru-discovery",
+            "beads.status",
+            "beads.cache-control",
+            "beads.access-control-allow-origin-absent",
+            "beads.access-control-allow-credentials-absent",
+            "beads.access-control-expose-headers-absent",
+            "links.status",
+            "links.cache-control",
+            "types.status",
+            "types.cache-control",
+            "bead.status",
+            "bead.cache-control",
+            "link.status",
+            "link.cache-control",
+            "bead-properties.status",
+            "bead-properties.cache-control",
+            "link-properties.status",
+            "link-properties.cache-control",
+            "bead-links.status",
+            "bead-links.cache-control",
+            "missing-bead.status",
+            "missing-bead.media-type",
+            "missing-bead.cache-control",
+            "cors-preflight.status",
+            "cors-preflight.allow",
+            "cors-preflight.access-control-allow-origin-absent",
+            "cors-preflight.access-control-allow-credentials-absent",
+            "cors-preflight.access-control-allow-methods-absent",
+            "cors-preflight.access-control-allow-headers-absent",
+            "cors-preflight.access-control-expose-headers-absent",
+            "cors-preflight.access-control-max-age-absent"
+          ]
+        }
+      ]
     },
     {
       "id": "read.http.raw-request-targets",
@@ -284,24 +565,290 @@
     },
     {
       "id": "read.http.accept-negotiation",
-      "status": "omitted",
+      "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "reason": "Media ranges, weights, exclusions, missing/query precedence observed; authorization/non-disclosure precedence remains unobserved on this single-principal fixture.",
+      "bindings": [
+        {
+          "scenario": "read.http.accept-negotiation",
+          "assertions": [
+            "control.status",
+            "control.media",
+            "control.cache-control",
+            "link-control.status",
+            "link-control.media",
+            "link-control.cache-control",
+            "collection-control.status",
+            "collection-control.media",
+            "collection-control.cache-control",
+            "json.status",
+            "json.cache-control",
+            "json.media",
+            "any.status",
+            "any.cache-control",
+            "any.media",
+            "subtype.status",
+            "subtype.cache-control",
+            "subtype.media",
+            "weighted.status",
+            "weighted.cache-control",
+            "weighted.media",
+            "specific-allowed.status",
+            "specific-allowed.cache-control",
+            "specific-allowed.media",
+            "specific-excluded.status",
+            "specific-excluded.empty",
+            "specific-excluded.cache-control",
+            "specific-excluded.no-validator",
+            "subtype-excluded.status",
+            "subtype-excluded.empty",
+            "subtype-excluded.cache-control",
+            "subtype-excluded.no-validator",
+            "none.status",
+            "none.empty",
+            "none.cache-control",
+            "none.no-validator",
+            "unsupported.status",
+            "unsupported.empty",
+            "unsupported.cache-control",
+            "unsupported.no-validator",
+            "unsupported-parameter.status",
+            "unsupported-parameter.empty",
+            "unsupported-parameter.cache-control",
+            "unsupported-parameter.no-validator",
+            "collection-refusal.status",
+            "collection-refusal.empty",
+            "collection-refusal.cache-control",
+            "collection-refusal.no-validator",
+            "link-refusal.status",
+            "link-refusal.empty",
+            "link-refusal.cache-control",
+            "link-refusal.no-validator",
+            "scope-has-no-json-representation.status",
+            "scope-has-no-json-representation.empty",
+            "missing-before-negotiation.status",
+            "query-before-negotiation.status",
+            "discovery-locator.status",
+            "discovery-locator.empty",
+            "discovery-control.status",
+            "discovery-control.media",
+            "discovery-control.cache-control",
+            "discovery-control.local-ru-discovery",
+            "discovery-refusal.status",
+            "discovery-refusal.empty",
+            "discovery-refusal.no-validator"
+          ]
+        }
+      ]
     },
     {
       "id": "read.http.conditional-reads",
-      "status": "omitted",
+      "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "reason": "Actual validators and bodyless outcomes observed; authorization and cursor failure precedence remain unobserved. History is absent in this configured target.",
+      "bindings": [
+        {
+          "scenario": "read.http.conditional-reads",
+          "assertions": [
+            "control.status",
+            "control.media",
+            "control.cache-control",
+            "control.etag",
+            "link-control.status",
+            "link-control.media",
+            "link-control.cache-control",
+            "link-control.etag",
+            "untagged-control.status",
+            "untagged-control.media",
+            "untagged-control.cache-control",
+            "untagged-control.etag",
+            "strong-match.status",
+            "strong-match.cache-control",
+            "strong-match.etag",
+            "strong-match.media",
+            "weak-match-fails.status",
+            "weak-match-fails.empty",
+            "weak-match-fails.cache-control",
+            "nonmatch-fails.status",
+            "nonmatch-fails.empty",
+            "nonmatch-fails.cache-control",
+            "strong-none.status",
+            "strong-none.empty",
+            "strong-none.cache-control",
+            "strong-none.etag",
+            "strong-none.content-location-retained",
+            "strong-none.date-retained",
+            "strong-none.vary-retained",
+            "strong-none.expires-retained",
+            "weak-none.status",
+            "weak-none.empty",
+            "weak-none.cache-control",
+            "weak-none.etag",
+            "weak-none.content-location-retained",
+            "weak-none.date-retained",
+            "weak-none.vary-retained",
+            "weak-none.expires-retained",
+            "nonmatch-none.status",
+            "nonmatch-none.cache-control",
+            "nonmatch-none.etag",
+            "nonmatch-none.media",
+            "match-list.status",
+            "match-list.cache-control",
+            "match-list.etag",
+            "match-list.media",
+            "weak-list.status",
+            "weak-list.empty",
+            "weak-list.cache-control",
+            "weak-list.etag",
+            "weak-list.content-location-retained",
+            "weak-list.date-retained",
+            "weak-list.vary-retained",
+            "weak-list.expires-retained",
+            "match-star.status",
+            "match-star.cache-control",
+            "match-star.etag",
+            "match-star.media",
+            "none-star.status",
+            "none-star.empty",
+            "none-star.cache-control",
+            "none-star.etag",
+            "none-star.content-location-retained",
+            "none-star.date-retained",
+            "none-star.vary-retained",
+            "none-star.expires-retained",
+            "match-precedes-none.status",
+            "match-precedes-none.empty",
+            "match-precedes-none.cache-control",
+            "both-pass-to-none.status",
+            "both-pass-to-none.empty",
+            "both-pass-to-none.cache-control",
+            "both-pass-to-none.etag",
+            "both-pass-to-none.content-location-retained",
+            "both-pass-to-none.date-retained",
+            "both-pass-to-none.vary-retained",
+            "both-pass-to-none.expires-retained",
+            "link-weak-none.status",
+            "link-weak-none.empty",
+            "link-weak-none.cache-control",
+            "link-weak-none.etag",
+            "link-weak-none.content-location-retained",
+            "link-weak-none.date-retained",
+            "link-weak-none.vary-retained",
+            "link-weak-none.expires-retained",
+            "untagged-match-star.status",
+            "untagged-match-star.cache-control",
+            "untagged-match-star.etag",
+            "untagged-none-star.status",
+            "untagged-none-star.empty",
+            "untagged-none-star.cache-control",
+            "untagged-none-star.etag",
+            "untagged-none-star.content-location-retained",
+            "untagged-none-star.date-retained",
+            "untagged-none-star.vary-retained",
+            "untagged-none-star.expires-retained",
+            "untagged-specific-match.status",
+            "untagged-specific-match.empty",
+            "untagged-specific-match.cache-control",
+            "untagged-specific-match.etag",
+            "untagged-specific-none.status",
+            "untagged-specific-none.cache-control",
+            "untagged-specific-none.etag",
+            "missing-before-conditions.status",
+            "query-before-conditions.status",
+            "scope-match-star.status",
+            "scope-match-star.empty",
+            "scope-none-star.status",
+            "scope-none-star.empty",
+            "scope-specific-match.status",
+            "scope-specific-match.empty",
+            "scope-specific-none.status",
+            "scope-specific-none.empty"
+          ]
+        }
+      ]
     },
     {
       "id": "read.http.head-conditional-parity",
-      "status": "omitted",
+      "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "No executable binding in this first slice; inherited Read and companions require actual same-target observations.",
-      "bindings": []
+      "reason": "Actual GET/HEAD success, conditions, negotiation, missing and query parity observed; authorization and cursor refusal parity remain unobserved.",
+      "bindings": [
+        {
+          "scenario": "read.http.head-conditional-parity",
+          "assertions": [
+            "control.status",
+            "control.media",
+            "control.cache-control",
+            "control.etag",
+            "success-get.status",
+            "success-head.status",
+            "success-head.empty",
+            "success-head.metadata",
+            "not-modified-get.status",
+            "not-modified-get.empty",
+            "not-modified-head.status",
+            "not-modified-head.empty",
+            "not-modified-head.metadata",
+            "precondition-get.status",
+            "precondition-get.empty",
+            "precondition-head.status",
+            "precondition-head.empty",
+            "precondition-head.metadata",
+            "negotiation-get.status",
+            "negotiation-get.empty",
+            "negotiation-get.no-validator",
+            "negotiation-head.status",
+            "negotiation-head.empty",
+            "negotiation-head.metadata",
+            "negotiation-head.no-validator",
+            "missing-get.status",
+            "missing-head.status",
+            "missing-head.empty",
+            "missing-head.metadata",
+            "query-get.status",
+            "query-head.status",
+            "query-head.empty",
+            "query-head.metadata",
+            "collection-get.status",
+            "collection-head.status",
+            "collection-head.empty",
+            "collection-head.metadata",
+            "untagged-not-modified-get.status",
+            "untagged-not-modified-get.empty",
+            "untagged-not-modified-head.status",
+            "untagged-not-modified-head.empty",
+            "untagged-not-modified-head.metadata",
+            "scope-get.status",
+            "scope-get.empty",
+            "scope-head.status",
+            "scope-head.empty",
+            "scope-head.metadata",
+            "link-get.status",
+            "link-head.status",
+            "link-head.empty",
+            "link-head.metadata",
+            "discovery-locator.status",
+            "discovery-locator.empty",
+            "discovery-control.status",
+            "discovery-control.media",
+            "discovery-control.cache-control",
+            "discovery-control.local-ru-discovery",
+            "discovery-head.status",
+            "discovery-head.empty",
+            "discovery-head.metadata",
+            "scope-not-modified-get.status",
+            "scope-not-modified-get.empty",
+            "scope-not-modified-head.status",
+            "scope-not-modified-head.empty",
+            "scope-not-modified-head.metadata",
+            "scope-precondition-get.status",
+            "scope-precondition-get.empty",
+            "scope-precondition-head.status",
+            "scope-precondition-head.empty",
+            "scope-precondition-head.metadata"
+          ]
+        }
+      ]
     },
     {
       "id": "read-update.discovery.document",
@@ -423,7 +970,7 @@
             "update.written",
             "update.updated",
             "update.value",
-            "update.guard-wire",
+            "update.guard-binding-agreement",
             "read-update.status",
             "read-update.written",
             "read-update.postimage",
@@ -431,7 +978,7 @@
             "noop.written",
             "noop.updated",
             "noop.value",
-            "noop.guard-wire",
+            "noop.guard-binding-agreement",
             "noop.retained-postimage",
             "read-noop.status",
             "read-noop.written",
@@ -593,7 +1140,7 @@
             "update.written",
             "update.updated",
             "update.value",
-            "update.guard-wire",
+            "update.guard-binding-agreement",
             "stale.status",
             "stale.problem",
             "stale.written",

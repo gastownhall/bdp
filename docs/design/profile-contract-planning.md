@@ -44,7 +44,7 @@ The boundary rejects proxies, accessors, non-plain records and coercible non-str
 | `unplanned` | No executable row exists. Author a real observation; do not drop the obligation. |
 | `setup-unavailable` | Fixture lacks an executable setup capability. Supply an actual harness/service fixture; not a normative applicability waiver. |
 | `applicability-unresolved` | Fixture lacks a manifest applicability capability. Review/justify the condition against actual supported configuration; this planner does not certify N/A. |
-| `carrier-unsupported` | Current normative artifact/runner gates do not admit this manifest catalog/profile combination. Public gates stay unchanged; implement/review the carrier before running it. |
+| `carrier-unsupported` | Current normative artifact/runner gates do not admit this manifest catalog/version/profile combination. Public gates stay unchanged; implement/review the carrier before running it. |
 | `prerequisite-blocked` | A parsed prerequisite is retired, unplanned, lacks readiness, occurs too late in catalog order or forms a cycle. Repair the executable dependency chain. |
 | `ready-unexecuted` | A parsed matching row has supported carrier, declared setup/applicability and ready prerequisites. This is structural readiness, conditional on a runner enforcing matching exact transport configuration before execution; no admission, behavior or coverage is established. |
 

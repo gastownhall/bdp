@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import { loadProfileContractSelection } from "./profile-contract-selection.js";
 
 import {
   loadExecutableScenarioManifestJson,
@@ -11,16 +12,9 @@ import {
   validateCatalogCitations,
 } from "./index.js";
 
-/**
- * The drafted Read+Update rows are metadata only. They bind normative text
- * so that the profile's obligations are reviewable now, but no executable
- * manifest names this catalog, no fixture realizes it, and no runner can
- * report a row from it — so nothing can claim it. That absence is asserted
- * here so it cannot erode silently. What is checked is structure and
- * citation consistency — the rows parse, every excerpt still appears in
- * its anchored section, and the rows mirror the specification's table in
- * order — never the behavior a row describes.
- */
+/** Catalog citations and composition are checked here. The explicit private
+ * cumulative manifest observes only its authored cases; missing obligations
+ * remain uncovered and public qualification is not enabled by this test. */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const readText = (relativePath: string): string =>
   readFileSync(path.resolve(root, relativePath), "utf8");
@@ -88,8 +82,11 @@ describe("draft Read+Update catalog", () => {
       if (entry === "read-update-v1.json") {
         expect(manifest.catalogId).toBe("read-update-v1");
         expect(manifest.manifestVersion).toBe(2);
-        expect(manifest.scenarios.length).toBeLessThan(ids.length);
-        for (const row of manifest.scenarios) expect(ids).toContain(row.id);
+        const cumulativeIds = loadProfileContractSelection("read-update").required.map(
+          (row) => row.id,
+        );
+        expect(manifest.scenarios.length).toBeLessThan(cumulativeIds.length);
+        for (const row of manifest.scenarios) expect(cumulativeIds).toContain(row.id);
         continue;
       }
       expect(manifest.catalogId, entry).not.toBe("read-update-v1");

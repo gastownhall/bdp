@@ -3,6 +3,5693 @@
   "catalogId": "read-update-v1",
   "scenarios": [
     {
+      "id": "read.discovery.scope-service-desc",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "oneOf": [200, 204]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.discovery.canonical-navigation",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "prerequisiteScenario": "read.discovery.scope-service-desc",
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "oneOf": [200, 204]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "beads-navigation",
+              "kind": "json-pointer",
+              "pointer": "/beads",
+              "exists": true,
+              "equals": "beads/",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "links-navigation",
+              "kind": "json-pointer",
+              "pointer": "/links",
+              "exists": true,
+              "equals": "links/",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "types-navigation",
+              "kind": "json-pointer",
+              "pointer": "/types",
+              "exists": true,
+              "equals": "types/",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "local-ru-discovery",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.resource.bead-record",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "bead",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "fixturePointer": "/oracles/resources/bead.demo-a/id",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "types/task",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/properties",
+              "exists": true,
+              "fixturePointer": "/oracles/resources/bead.demo-a/properties"
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/metadata",
+              "exists": true,
+              "fixturePointer": "/oracles/resources/bead.demo-a/metadata"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.resource.link-record",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "link",
+          "method": "GET",
+          "target": {
+            "binding": "link.demo-b-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentLinkRecord"
+            },
+            {
+              "id": "id",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "fixturePointer": "/oracles/resources/link.demo-b-a/id",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "type",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "types/relates",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "source",
+              "kind": "json-pointer",
+              "pointer": "/source",
+              "exists": true,
+              "fixturePointer": "/oracles/resources/link.demo-b-a/source",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "target",
+              "kind": "json-pointer",
+              "pointer": "/target",
+              "exists": true,
+              "fixturePointer": "/oracles/resources/link.demo-b-a/target",
+              "normalize": "scope-relative-url"
+            },
+            {
+              "id": "metadata",
+              "kind": "json-pointer",
+              "pointer": "/metadata",
+              "exists": true,
+              "fixturePointer": "/oracles/resources/link.demo-b-a/metadata"
+            },
+            {
+              "id": "properties",
+              "kind": "json-pointer",
+              "pointer": "/properties",
+              "exists": true,
+              "fixturePointer": "/oracles/resources/link.demo-b-a/properties"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.resource.properties-view",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "bead-properties",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "bead-properties-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "bead-properties-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/properties"
+            },
+            {
+              "id": "fixture-bead-properties",
+              "kind": "json-equals",
+              "fixturePointer": "/oracles/resources/bead.demo-a/properties"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "link-properties",
+          "method": "GET",
+          "target": {
+            "binding": "link.demo-b-a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "link-properties-status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "link-properties-schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/properties"
+            },
+            {
+              "id": "fixture-link-properties",
+              "kind": "json-equals",
+              "fixturePointer": "/oracles/resources/link.demo-b-a/properties"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.resource.default-bounded",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "bead",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "no-embedded-links",
+              "kind": "json-pointer",
+              "pointer": "/links",
+              "exists": false
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.types.inventory",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "prerequisiteScenario": "read.discovery.scope-service-desc",
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "oneOf": [200, 204]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [
+            {
+              "binding": "types",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/types"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "local-ru-discovery",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "types",
+          "method": "GET",
+          "target": {
+            "binding": "types"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/typesInventory"
+            },
+            {
+              "id": "complete-page",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "fixture-type-summaries",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-or-absolute-uri"
+                },
+                {
+                  "pointer": "/name"
+                },
+                {
+                  "pointer": "/describes"
+                }
+              ],
+              "fixturePointer": "/oracles/collections/type-summaries"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-or-absolute-uri"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/types"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.types.descriptor",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "blocks",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/blocks"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/blocks",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "bug",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/bug"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/bug",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "chore",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/chore"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/chore",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "cites",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/cites"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/cites",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "decision",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/decision"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/decision",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "dependency",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/dependency"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/dependency",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "epic",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/epic"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/epic",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "feature",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/feature"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/feature",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "relates",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/relates"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/relates",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "relationship",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/relationship"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/relationship",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "task",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/task"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/task",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "tracked-item",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/tracked-item"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/tracked-item",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "work-item",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/work-item"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "closed-descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            },
+            {
+              "id": "identity",
+              "kind": "json-pointer",
+              "pointer": "/id",
+              "exists": true,
+              "equals": "types/work-item",
+              "normalize": "scope-relative-url"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.collections.beads",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "prerequisiteScenario": "read.discovery.scope-service-desc",
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "oneOf": [200, 204]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [
+            {
+              "binding": "beads",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/beads"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "local-ru-discovery",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "beads",
+          "method": "GET",
+          "target": {
+            "binding": "beads"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentBeadCollection"
+            },
+            {
+              "id": "complete-page",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "fixture-bead-records",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                },
+                {
+                  "pointer": "/type",
+                  "normalize": "scope-relative-url"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "fixturePointer": "/oracles/collections/bead-records"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/beads"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.collections.links",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "prerequisiteScenario": "read.discovery.scope-service-desc",
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "oneOf": [200, 204]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [
+            {
+              "binding": "links",
+              "from": {
+                "kind": "json-pointer",
+                "pointer": "/links"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "local-ru-discovery",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "links",
+          "method": "GET",
+          "target": {
+            "binding": "links"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/currentLinkCollection"
+            },
+            {
+              "id": "complete-page",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true,
+              "equals": null
+            },
+            {
+              "id": "fixture-link-records",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                },
+                {
+                  "pointer": "/type",
+                  "normalize": "scope-relative-url"
+                },
+                {
+                  "pointer": "/source",
+                  "normalize": "scope-relative-url"
+                },
+                {
+                  "pointer": "/target",
+                  "normalize": "scope-relative-url"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "fixturePointer": "/oracles/collections/link-records"
+            },
+            {
+              "id": "canonical-uri-order",
+              "kind": "json-array-tuples",
+              "pointer": "/items",
+              "ordered": true,
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                }
+              ],
+              "fixturePointer": "/oracles/ordering/links"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.collections.invalid-query",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "unsupported-parameter",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "unsupported": "1"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "invalid-parameter"
+            },
+            {
+              "id": "family",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "repeated-limit",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": ["1", "2"]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "invalid-parameter"
+            },
+            {
+              "id": "family",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "repeated-selector",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/",
+            "query": {
+              "selector": ["$[?@.id]", "$[?@.type]"]
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "schema",
+              "kind": "json-schema",
+              "schema": "#/$defs/readProblem"
+            },
+            {
+              "id": "code",
+              "kind": "json-pointer",
+              "pointer": "/code",
+              "exists": true,
+              "equals": "invalid-parameter"
+            },
+            {
+              "id": "family",
+              "kind": "json-pointer",
+              "pointer": "/type",
+              "exists": true,
+              "equals": "https://github.com/gastownhall/bdp/problems/request"
+            },
+            {
+              "id": "retry",
+              "kind": "json-pointer",
+              "pointer": "/retry",
+              "exists": true,
+              "equals": "never"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.http.get-head",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "prerequisiteScenario": "read.discovery.scope-service-desc",
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "oneOf": [200, 204]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery-get",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "local-ru-discovery",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "scope-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "scope",
+              "headers": ["content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "discovery-get",
+              "headers": ["content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "beads-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "beads-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "beads-get",
+              "headers": ["cache-control", "content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "bead-get",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "bead-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "bead.demo-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "bead-get",
+              "headers": ["cache-control", "content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "bead-properties-get",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "bead-properties-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "bead.demo-a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "bead-properties-get",
+              "headers": ["cache-control", "content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "bead-links-get",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a",
+            "query": {
+              "view": "links"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "bead-links-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "bead.demo-a",
+            "query": {
+              "view": "links"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "bead-links-get",
+              "headers": ["cache-control", "content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "links-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "links-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "links-get",
+              "headers": ["cache-control", "content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "link-get",
+          "method": "GET",
+          "target": {
+            "binding": "link.demo-b-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "link-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "link.demo-b-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "link-get",
+              "headers": ["cache-control", "content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "link-properties-get",
+          "method": "GET",
+          "target": {
+            "binding": "link.demo-b-a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "link-properties-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "link.demo-b-a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "link-properties-get",
+              "headers": ["cache-control", "content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "types-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "types-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "types/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "types-get",
+              "headers": ["cache-control", "content-length", "content-type"]
+            },
+            {
+              "id": "body",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "task-descriptor-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            }
+          ]
+        },
+        {
+          "id": "task-descriptor-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "types/task"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "bodyless",
+              "kind": "body-absent"
+            }
+          ]
+        },
+        {
+          "id": "relates-descriptor-get",
+          "family": "http",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "descriptor",
+              "kind": "json-schema",
+              "schema": "#/$defs/typeDescriptor"
+            }
+          ]
+        },
+        {
+          "id": "relates-descriptor-head",
+          "family": "http",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "types/relates"
+          },
+          "raw": {
+            "headerLines": []
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "bodyless",
+              "kind": "body-absent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read.http.method-405",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "prerequisiteScenario": "read.discovery.scope-service-desc",
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "oneOf": [200, 204]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equalsRunProfile": true
+            },
+            {
+              "id": "local-ru-discovery",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "post",
+          "method": "POST",
+          "negativeMethodProbe": true,
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 405
+            },
+            {
+              "id": "allow",
+              "kind": "header-tokens",
+              "name": "allow",
+              "includes": ["GET", "HEAD"],
+              "allowsAdditional": false
+            },
+            {
+              "id": "bodyless",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.http.cache-cors",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "scope",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "prerequisiteScenario": "read.discovery.scope-service-desc",
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "oneOf": [200, 204]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "successful",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "profile",
+              "kind": "json-pointer",
+              "pointer": "/profile",
+              "exists": true,
+              "equalsRunProfile": true
+            },
+            {
+              "id": "local-ru-discovery",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "beads",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            },
+            {
+              "id": "access-control-allow-origin-absent",
+              "kind": "header",
+              "name": "access-control-allow-origin",
+              "absent": true
+            },
+            {
+              "id": "access-control-allow-credentials-absent",
+              "kind": "header",
+              "name": "access-control-allow-credentials",
+              "absent": true
+            },
+            {
+              "id": "access-control-expose-headers-absent",
+              "kind": "header",
+              "name": "access-control-expose-headers",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              },
+              {
+                "name": "origin",
+                "value": "https://cors-probe.invalid"
+              }
+            ]
+          }
+        },
+        {
+          "id": "links",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "links/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "types",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "types/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "bead",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "link",
+          "method": "GET",
+          "target": {
+            "binding": "link.demo-b-a"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "bead-properties",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "link-properties",
+          "method": "GET",
+          "target": {
+            "binding": "link.demo-b-a",
+            "query": {
+              "view": "properties"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "bead-links",
+          "method": "GET",
+          "target": {
+            "binding": "bead.demo-a",
+            "query": {
+              "view": "links"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "missing-bead",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/does-not-exist"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "media-type",
+              "kind": "media-type",
+              "equals": "application/problem+json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header-tokens",
+              "name": "cache-control",
+              "includes": ["private", "no-store"],
+              "allowsAdditional": false,
+              "caseInsensitive": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/problem+json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "cors-preflight",
+          "method": "OPTIONS",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 405
+            },
+            {
+              "id": "allow",
+              "kind": "header-tokens",
+              "name": "allow",
+              "includes": ["GET", "HEAD"],
+              "allowsAdditional": false
+            },
+            {
+              "id": "access-control-allow-origin-absent",
+              "kind": "header",
+              "name": "access-control-allow-origin",
+              "absent": true
+            },
+            {
+              "id": "access-control-allow-credentials-absent",
+              "kind": "header",
+              "name": "access-control-allow-credentials",
+              "absent": true
+            },
+            {
+              "id": "access-control-allow-methods-absent",
+              "kind": "header",
+              "name": "access-control-allow-methods",
+              "absent": true
+            },
+            {
+              "id": "access-control-allow-headers-absent",
+              "kind": "header",
+              "name": "access-control-allow-headers",
+              "absent": true
+            },
+            {
+              "id": "access-control-expose-headers-absent",
+              "kind": "header",
+              "name": "access-control-expose-headers",
+              "absent": true
+            },
+            {
+              "id": "access-control-max-age-absent",
+              "kind": "header",
+              "name": "access-control-max-age",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "origin",
+                "value": "https://cors-probe.invalid"
+              },
+              {
+                "name": "access-control-request-method",
+                "value": "GET"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.http.accept-negotiation",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "control",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "link-control",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "collection-control",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "json",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "id": "any",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "subtype",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "weighted",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html;q=1, application/json;q=0.2"
+              }
+            ]
+          }
+        },
+        {
+          "id": "specific-allowed",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json;q=0.1, */*;q=0"
+              }
+            ]
+          }
+        },
+        {
+          "id": "specific-excluded",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "subtype-excluded",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/*;q=0, */*;q=1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json;q=0"
+              }
+            ]
+          }
+        },
+        {
+          "id": "unsupported",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "unsupported-parameter",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json;profile=\"unavailable\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "collection-refusal",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "link-refusal",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "scope-has-no-json-representation",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "missing-before-negotiation",
+          "method": "GET",
+          "target": {
+            "binding": "http.absent"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "query-before-negotiation",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "discovery-locator",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery-control",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "local-ru-discovery",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery-refusal",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "application/json;q=0, */*;q=1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "read.http.conditional-reads",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "control",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "link-control",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "untagged-control",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "strong-match",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "weak-match-fails",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "nonmatch-fails",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "strong-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "weak-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "nonmatch-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "match-list",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact-list"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "weak-list",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak-list"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "match-star",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "none-star",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "match-precedes-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            },
+            "if-none-match": "*"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "both-pass-to-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            },
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "control"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "link-weak-none",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "link-control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "equalsResponse": "link-control"
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "link-control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "link-control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "link-control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "link-control"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "untagged-match-star",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "untagged-none-star",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            },
+            {
+              "id": "content-location-retained",
+              "kind": "header",
+              "name": "content-location",
+              "presentIfResponse": "untagged-control"
+            },
+            {
+              "id": "date-retained",
+              "kind": "header",
+              "name": "date",
+              "presentIfResponse": "untagged-control"
+            },
+            {
+              "id": "vary-retained",
+              "kind": "header",
+              "name": "vary",
+              "presentIfResponse": "untagged-control"
+            },
+            {
+              "id": "expires-retained",
+              "kind": "header",
+              "name": "expires",
+              "presentIfResponse": "untagged-control"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "untagged-specific-match",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "untagged-specific-none",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "missing-before-conditions",
+          "method": "GET",
+          "target": {
+            "binding": "http.absent"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              },
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "query-before-conditions",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              },
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "scope-match-star",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "scope-none-star",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "scope-specific-match",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "scope-specific-none",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http"
+        }
+      ]
+    },
+    {
+      "id": "read.http.head-conditional-parity",
+      "requiredProfile": "read",
+      "setup": {
+        "fixture": "reference-read-update-v1",
+        "requires": ["installed-read-update-http"]
+      },
+      "applicability": {
+        "requires": []
+      },
+      "cleanup": {
+        "resetFixture": true
+      },
+      "actions": [
+        {
+          "id": "control",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "etag",
+              "kind": "header",
+              "name": "etag",
+              "absent": false
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "success-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "success-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "success-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "not-modified-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "not-modified-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-none-match": {
+              "etagFrom": "control",
+              "form": "weak"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "not-modified-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "precondition-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "precondition-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.resource"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "nonmatching"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "precondition-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "negotiation-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "negotiation-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.resource"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 406
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "negotiation-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            },
+            {
+              "id": "no-validator",
+              "kind": "header",
+              "name": "etag",
+              "absent": true
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "missing-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.absent"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              },
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "missing-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.absent"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 404
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "missing-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              },
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "query-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              },
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "query-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/",
+            "query": {
+              "limit": "0"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 400
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "query-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              },
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "collection-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "collection-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "collection-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "untagged-not-modified-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "untagged-not-modified-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope",
+            "path": "beads/"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "untagged-not-modified-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "scope-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "scope-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "scope-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "id": "link-get",
+          "method": "GET",
+          "target": {
+            "binding": "http.link"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "link-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "http.link"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "link-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery-locator",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [
+            {
+              "binding": "service-desc",
+              "from": {
+                "kind": "header-link",
+                "rel": "service-desc"
+              }
+            }
+          ],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 204
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery-control",
+          "method": "GET",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "media",
+              "kind": "media-type",
+              "equals": "application/json"
+            },
+            {
+              "id": "cache-control",
+              "kind": "header",
+              "name": "cache-control",
+              "equals": "private, no-store"
+            },
+            {
+              "id": "local-ru-discovery",
+              "kind": "json-schema",
+              "schema": "#/$defs/readUpdateDiscovery"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "discovery-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "service-desc"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 200
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "discovery-control",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": []
+          }
+        },
+        {
+          "id": "scope-not-modified-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "scope-not-modified-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope"
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 304
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "scope-not-modified-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http",
+          "raw": {
+            "headerLines": [
+              {
+                "name": "if-none-match",
+                "value": "*"
+              }
+            ]
+          }
+        },
+        {
+          "id": "scope-precondition-get",
+          "method": "GET",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            }
+          ],
+          "family": "http"
+        },
+        {
+          "id": "scope-precondition-head",
+          "method": "HEAD",
+          "target": {
+            "binding": "scope"
+          },
+          "headers": {
+            "if-match": {
+              "etagFrom": "control",
+              "form": "exact"
+            }
+          },
+          "captures": [],
+          "assertions": [
+            {
+              "id": "status",
+              "kind": "status",
+              "equals": 412
+            },
+            {
+              "id": "empty",
+              "kind": "body-absent"
+            },
+            {
+              "id": "metadata",
+              "kind": "response-metadata-equals",
+              "request": "scope-precondition-get",
+              "headers": [
+                "cache-control",
+                "content-type",
+                "content-length",
+                "etag",
+                "last-modified",
+                "vary",
+                "link"
+              ],
+              "optionalHeaders": ["content-type", "content-length", "vary"]
+            }
+          ],
+          "family": "http"
+        }
+      ]
+    },
+    {
       "id": "read-update.discovery.document",
       "requiredProfile": "read-update",
       "setup": {
@@ -1277,7 +6964,7 @@
               "equals": 2
             },
             {
-              "id": "guard-wire",
+              "id": "guard-binding-agreement",
               "kind": "json-pointer",
               "pointer": "/request/body/expectedRevision",
               "exists": true,
@@ -1389,7 +7076,7 @@
               "equals": 2
             },
             {
-              "id": "guard-wire",
+              "id": "guard-binding-agreement",
               "kind": "json-pointer",
               "pointer": "/request/body/expectedRevision",
               "exists": true,
@@ -2480,7 +8167,7 @@
               "equals": 2
             },
             {
-              "id": "guard-wire",
+              "id": "guard-binding-agreement",
               "kind": "json-pointer",
               "pointer": "/request/body/expectedRevision",
               "exists": true,

@@ -3,5 +3,197 @@
   "id": "reference-read-update-v1",
   "seed": 0,
   "capabilities": ["installed-read-update-http"],
-  "bindings": {}
+  "bindings": {
+    "bead.demo-a": "beads/read-a",
+    "link.demo-b-a": "links/read-a",
+    "http.resource": "beads/read-a",
+    "http.link": "links/read-a",
+    "http.absent": "beads/http-never-created"
+  },
+  "oracles": {
+    "collections": {
+      "link-records": [
+        [
+          "links/read-a",
+          "types/relates",
+          "beads/read-z",
+          "beads/read-a",
+          {
+            "edge": "a"
+          },
+          {
+            "tag": "a"
+          }
+        ],
+        [
+          "links/read-z",
+          "types/relates",
+          "beads/read-z",
+          "beads/read-a",
+          {
+            "edge": "z"
+          },
+          {
+            "tag": "z"
+          }
+        ]
+      ],
+      "bead-records": [
+        [
+          "beads/read-a",
+          "types/task",
+          {
+            "title": "a",
+            "open": {
+              "untouched": true
+            }
+          },
+          {
+            "tag": "a"
+          }
+        ],
+        [
+          "beads/read-z",
+          "types/task",
+          {
+            "title": "z",
+            "open": {
+              "untouched": true
+            }
+          },
+          {
+            "tag": "z"
+          }
+        ]
+      ],
+      "type-summaries": [
+        ["types/blocks", "Blocks", "link"],
+        ["types/bug", "Bug", "bead"],
+        ["types/chore", "Chore", "bead"],
+        ["types/cites", "Cites", "link"],
+        ["types/decision", "Decision", "bead"],
+        ["types/dependency", "Dependency", "link"],
+        ["types/epic", "Epic", "bead"],
+        ["types/feature", "Feature", "bead"],
+        ["types/relates", "Relates", "link"],
+        ["types/relationship", "Relationship", "link"],
+        ["types/task", "Task", "bead"],
+        ["types/tracked-item", "Tracked Item", "bead"],
+        ["types/work-item", "Work Item", "bead"]
+      ]
+    },
+    "ordering": {
+      "types": [
+        ["types/blocks"],
+        ["types/bug"],
+        ["types/chore"],
+        ["types/cites"],
+        ["types/decision"],
+        ["types/dependency"],
+        ["types/epic"],
+        ["types/feature"],
+        ["types/relates"],
+        ["types/relationship"],
+        ["types/task"],
+        ["types/tracked-item"],
+        ["types/work-item"]
+      ],
+      "beads": [["beads/read-a"], ["beads/read-z"]],
+      "links": [["links/read-a"], ["links/read-z"]]
+    },
+    "resources": {
+      "bead.demo-a": {
+        "id": "beads/read-a",
+        "properties": {
+          "title": "a",
+          "open": {
+            "untouched": true
+          }
+        },
+        "metadata": {
+          "tag": "a"
+        }
+      },
+      "link.demo-b-a": {
+        "id": "links/read-a",
+        "source": "beads/read-z",
+        "target": "beads/read-a",
+        "properties": {
+          "edge": "a"
+        },
+        "metadata": {
+          "tag": "a"
+        }
+      }
+    }
+  },
+  "readSeed": {
+    "beads": [
+      {
+        "id": "beads/read-z",
+        "type": "types/task",
+        "properties": {
+          "title": "z",
+          "open": {
+            "untouched": true
+          }
+        },
+        "metadata": {
+          "tag": "z"
+        }
+      },
+      {
+        "id": "beads/read-a",
+        "type": "types/task",
+        "properties": {
+          "title": "a",
+          "open": {
+            "untouched": true
+          }
+        },
+        "metadata": {
+          "tag": "a"
+        }
+      }
+    ],
+    "links": [
+      {
+        "id": "links/read-z",
+        "type": "types/relates",
+        "source": "beads/read-z",
+        "target": "beads/read-a",
+        "properties": {
+          "edge": "z"
+        },
+        "metadata": {
+          "tag": "z"
+        }
+      },
+      {
+        "id": "links/read-a",
+        "type": "types/relates",
+        "source": "beads/read-z",
+        "target": "beads/read-a",
+        "properties": {
+          "edge": "a"
+        },
+        "metadata": {
+          "tag": "a"
+        }
+      }
+    ]
+  },
+  "readSeedScenarios": [
+    "read.resource.bead-record",
+    "read.resource.link-record",
+    "read.resource.properties-view",
+    "read.resource.default-bounded",
+    "read.collections.beads",
+    "read.collections.links",
+    "read.http.get-head",
+    "read.http.cache-cors",
+    "read.http.accept-negotiation",
+    "read.http.conditional-reads",
+    "read.http.head-conditional-parity"
+  ]
 }
