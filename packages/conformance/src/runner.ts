@@ -891,7 +891,7 @@ async function runScenarioAction(
         !["GET", "HEAD"].includes(String(input.method))
       )
         throw new TransactionalHarnessError("invalid private receipt input");
-      const { source, active, validate } = transactional.resolve(
+      const { source, target, active, validate } = transactional.resolve(
         input.binding,
         bindings.get(input.binding),
       );
@@ -899,7 +899,7 @@ async function runScenarioAction(
       if (!original) throw new TransactionalHarnessError("exact transport required");
       const mode = snapshotExactHttpMode({
         ...original.configuration,
-        routes: [{ method: input.method as "GET" | "HEAD", url: source.receipt }],
+        routes: [{ method: input.method as "GET" | "HEAD", url: target }],
         resolveCredentials: active.resolveCredentials,
       });
       const { resolveCredentials: _resolver, ...configuration } = mode;
@@ -952,9 +952,13 @@ async function runScenarioAction(
             if (!schemaValidator)
               throw new TransactionalHarnessError("receipt validator unavailable");
             if (
-              schemaValidator.validate("#/$defs/mutationReceipt", body).length ||
-              body.id !== source.receipt ||
-              (body.status === "completed" && body.next !== null)
+              schemaValidator.validate(
+                source.pointer === "/next"
+                  ? "#/$defs/mutationReceiptPage"
+                  : "#/$defs/mutationReceipt",
+                body,
+              ).length ||
+              (source.pointer === "/next" ? body.receipt : body.id) !== source.receipt
             )
               throw new TransactionalReceiptFailure("retained receipt schema or identity mismatch");
           }

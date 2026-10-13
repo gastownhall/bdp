@@ -80,9 +80,10 @@ function fixture() {
     value: unknown = body,
     pointer = "/id",
     request = { method: "POST", url: scope + "operations/batch" },
+    bindingName = "receipt",
   ) =>
     observations.register(
-      "receipt",
+      bindingName,
       pointer,
       "post",
       request,
@@ -342,3 +343,119 @@ it.each(["GET", "HEAD", "query", "slash", "foreign", "other-scope", "sequence"])
     }
   },
 );
+
+const pageUrl = `${id}/pages/p1`;
+const paginated = { ...body, next: pageUrl };
+const pageBody = { receipt: id, results: body.results, next: null };
+function pageHead(): HttpExchangeResponse {
+  const r = response(pageBody);
+  return {
+    ...r,
+    bodyText: "",
+    bodyOctets: 0,
+    wireResponseBytes: Buffer.from(
+      `HTTP/1.1 200 OK\r\ncontent-length: ${r.headers["content-length"]}\r\ncontent-type: application/json\r\n\r\n`,
+    ),
+  };
+}
+it.each([
+  ["/id", "/next"],
+  ["/next", "/id"],
+])("grants only each requested binding independently in capture order %j", async (...pointers) => {
+  const f = fixture();
+  for (const pointer of pointers) {
+    f.register(response(paginated), paginated, pointer, undefined, pointer);
+    const resolved = f.observations.resolve(pointer, pointer === "/id" ? id : pageUrl);
+    expect(resolved.source.pointer).toBe(pointer);
+    expect(resolved.source.receipt).toBe(id);
+    expect(resolved.target).toBe(pointer === "/id" ? id : pageUrl);
+    expect(() => f.observations.resolve("implicit", pageUrl)).toThrow("not authorized");
+  }
+  const original = f.observations.resolve("/next", pageUrl).source;
+  const read = () => f.observations.resolve("/next", pageUrl);
+  expect(() => read().validate(pageHead(), "HEAD")).not.toThrow();
+  expect(() =>
+    read().validate(response({ ...pageBody, receipt: `${scope}receipts/wrong` }), "GET"),
+  ).toThrow("schema or identity");
+  expect(() => read().validate(response(pageBody), "GET")).not.toThrow();
+  expect(() =>
+    read().validate(
+      response({ ...pageBody, results: [{ operationIndex: 0, outcome: "matched", count: 1 }] }),
+      "GET",
+    ),
+  ).toThrow("original wire facts");
+  await f.observations.reopen(new AbortController().signal);
+  expect(read().source).toBe(original);
+  expect(read().active.binding.generation).toBe(2);
+  expect(() => read().validate(response(pageBody), "GET")).not.toThrow();
+  expect(() => read().validate(pageHead(), "HEAD")).not.toThrow();
+  expect(() =>
+    f.observations.resolve("/id", id).validate(response(paginated), "GET"),
+  ).not.toThrow();
+});
+it.each([
+  `${id}/pages/`,
+  `${id}/pages/${"a".repeat(257)}`,
+  `${id}/pages/a.b`,
+  `${id}/pages/a/b`,
+  `${id}/pages/p1?x=1`,
+  `${id}/pages/p1#x`,
+  `${scope}receipts/other/pages/p1`,
+  `${id}/pages/../p1`,
+  `https://user@reference.invalid/acme/receipts/r1/pages/p1`,
+  `https://REFERENCE.invalid/acme/receipts/r1/pages/p1`,
+  `${id}/pages/${"a".repeat(8192)}`,
+])("refuses disclosed but noncanonical or wrong-parent page %s", (next) => {
+  const f = fixture(),
+    value = { ...body, next };
+  expect(() => f.register(response(value), value, "/next")).toThrow();
+  expect(() => f.observations.resolve("receipt", next)).toThrow("not authorized");
+});
+it("requires page disclosure and preserves duplicate/refused/revoked binding boundaries", () => {
+  const f = fixture();
+  expect(() => f.register(response(), body, "/next")).toThrow("page unavailable");
+  f.register(response(paginated), paginated, "/next");
+  expect(() => f.register(response(paginated), paginated, "/next")).toThrow("reuse");
+  expect(() => f.observations.resolve("receipt", `${id}/pages/other`)).toThrow("not authorized");
+  f.register(response(paginated), paginated, "/transaction");
+  expect(() => f.observations.resolve("receipt", pageUrl)).toThrow("not authorized");
+  const ordinary = { ...response(paginated), url: scope + "beads/a" };
+  f.register(ordinary, paginated, "/next", { method: "GET", url: ordinary.url });
+  expect(() => f.observations.resolve("receipt", pageUrl)).toThrow("not authorized");
+});
+it("does not initialize a page baseline from invalid schema, nonterminal page or mismatched wire", () => {
+  const f = fixture();
+  f.register(response(paginated), paginated, "/next");
+  const read = f.observations.resolve("receipt", pageUrl);
+  expect(() => read.validate(response({ ...pageBody, results: [] }), "GET")).toThrow("schema");
+  expect(() => read.validate(response({ ...pageBody, next: `${id}/pages/p2` }), "GET")).toThrow(
+    "single-page fixture",
+  );
+  expect(() => read.validate({ ...response(pageBody), bodyText: "{}" }, "GET")).toThrow(
+    "wire body",
+  );
+  expect(() => read.validate(response(pageBody), "GET")).not.toThrow();
+});
+it("requires the independently validated whole source body to agree with actual wire on each capture", () => {
+  const f = fixture();
+  expect(() =>
+    f.register(response(paginated), { ...paginated, next: `${id}/pages/p2` }, "/next"),
+  ).toThrow("body disagrees with wire");
+  expect(() => f.observations.resolve("receipt", `${id}/pages/p2`)).toThrow("not authorized");
+});
+
+it.each(["x", "a".repeat(256)])("accepts the declared page-token boundary of %s", (token) => {
+  const f = fixture(),
+    value = { ...body, next: `${id}/pages/${token}` };
+  f.register(response(value), value, "/next");
+  expect(f.observations.resolve("receipt", value.next).target).toBe(value.next);
+});
+it("charges each explicit root/page binding to the same existing bounded ledger", () => {
+  const f = fixture();
+  for (let index = 0; index < 4; index++)
+    f.register(response(paginated), paginated, index % 2 ? "/next" : "/id", undefined, `b${index}`);
+  expect(() => f.register(response(paginated), paginated, "/next", undefined, "overflow")).toThrow(
+    "binding limit or reuse",
+  );
+  expect(() => f.observations.resolve("overflow", pageUrl)).toThrow("not authorized");
+});

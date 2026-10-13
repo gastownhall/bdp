@@ -33,14 +33,16 @@ export interface TransactionalRunContext {
   current(scenario: string): TransactionalSession;
   reopen(scenario: string, signal: AbortSignal): Promise<void>;
 }
-export interface ReceiptObservationReference {
+interface ReceiptObservationSource {
   readonly action: string;
-  readonly pointer: "/id";
   readonly receipt: string;
   readonly responseDigest: string;
   readonly credentialRef: string;
   readonly session: TransactionalSessionBinding;
 }
+/** Old root references retain their exact shape; a page records its own target. */
+export type ReceiptObservationReference = ReceiptObservationSource &
+  ({ readonly pointer: "/id" } | { readonly pointer: "/next"; readonly page: string });
 export interface TransactionalExchangeFields {
   readonly dynamicExactConfiguration?: ExactHttpConfiguration;
   readonly dynamicExactConfigurationDigest?: string;
@@ -75,13 +77,44 @@ export function receiptUrl(value: unknown, scope: string): string {
     throw new TransactionalHarnessError("unobserved receipt target");
   return value;
 }
+/** Only a first-page URL actually disclosed by this canonical root is accepted. */
+function receiptPageUrl(value: unknown, receipt: string): string {
+  if (typeof value !== "string" || value.length > 8192)
+    throw new TransactionalHarnessError("unobserved receipt page target");
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch (cause) {
+    throw new TransactionalHarnessError("unobserved receipt page target", { cause });
+  }
+  const prefix = `${receipt}/pages/`;
+  if (
+    url.href !== value ||
+    !value.startsWith(prefix) ||
+    !/^[A-Za-z0-9_-]{1,256}$/.test(value.slice(prefix.length)) ||
+    url.search ||
+    url.hash ||
+    url.username ||
+    url.password
+  )
+    throw new TransactionalHarnessError("unobserved receipt page target");
+  return value;
+}
 export function createTransactionalObservations(
   context: TransactionalRunContext,
   scenario: string,
   scope: string,
   maximum: number,
 ) {
-  const ledger = new Map<string, { reference: ReceiptObservationReference; body: unknown }>();
+  const ledger = new Map<
+    string,
+    {
+      reference: ReceiptObservationReference;
+      body: unknown;
+      validator: SchemaValidator;
+      pageBody?: unknown;
+    }
+  >();
   let accepted: TransactionalSessionBinding | undefined;
   const session = () => {
     let current: TransactionalSession;
@@ -156,7 +189,7 @@ export function createTransactionalObservations(
           "delete-where",
           "batch",
         ].includes(operation ?? "");
-      if (pointer !== "/id" || !mutationSource) {
+      if ((pointer !== "/id" && pointer !== "/next") || !mutationSource) {
         // Ordinary captures keep their normal meaning. Reusing a binding revokes
         // its prior authority; only canonical mutation responses can grant it.
         ledger.delete(binding);
@@ -177,7 +210,7 @@ export function createTransactionalObservations(
       const body = value as Record<string, unknown>;
       if (body.status !== "completed" && body.status !== "failed")
         throw new TransactionalHarnessError("source receipt disposition unavailable");
-      if ((body.status === "completed" && body.next !== null) || body.detail !== "available")
+      if (body.detail !== "available")
         throw new TransactionalHarnessError("source receipt exceeds inline fixture");
       let receipt: string;
       try {
@@ -185,24 +218,45 @@ export function createTransactionalObservations(
       } catch {
         throw new TransactionalReceiptFailure("source receipt identity invalid");
       }
+      if (!isDeepStrictEqual(body, JSON.parse(response.bodyText)))
+        throw new TransactionalHarnessError("source receipt body disagrees with wire");
+      let page: string | undefined;
+      if (body.status === "completed" && body.next !== null) {
+        try {
+          page = receiptPageUrl(body.next, receipt);
+        } catch {
+          throw new TransactionalReceiptFailure("source receipt page identity invalid");
+        }
+      }
+      if (pointer === "/next" && !page)
+        throw new TransactionalHarnessError("source receipt page unavailable");
       if (ledger.has(binding) || ledger.size >= maximum)
         throw new TransactionalHarnessError("receipt authority binding limit or reuse");
       ledger.set(binding, {
         reference: Object.freeze({
           action,
-          pointer: "/id",
+          ...(pointer === "/next" ? { pointer, page: page! } : { pointer }),
           receipt,
           responseDigest: createHash("sha256").update(response.wireResponseBytes).digest("hex"),
           credentialRef: credential ?? config.defaultCredentialRef,
           session: Object.freeze({ ...served }),
         }),
         body: JSON.parse(response.bodyText),
+        validator,
       });
     },
     resolve(binding: unknown, value: unknown) {
       const entry = typeof binding === "string" ? ledger.get(binding) : undefined;
-      const source = entry?.reference;
-      if (!source || source.receipt !== value || receiptUrl(value, scope) !== source.receipt)
+      if (!entry)
+        throw new TransactionalHarnessError("receipt not authorized by original wire observation");
+      const source = entry.reference;
+      const target = source.pointer === "/next" ? source.page : source.receipt;
+      if (
+        target !== value ||
+        (source.pointer === "/next"
+          ? receiptPageUrl(value, source.receipt)
+          : receiptUrl(value, scope)) !== target
+      )
         throw new TransactionalHarnessError("receipt not authorized by original wire observation");
       // The digest records original wire provenance. Later serving headers may
       // change, so agreement compares retained JSON facts rather than wire bytes.
@@ -215,6 +269,7 @@ export function createTransactionalObservations(
         throw new TransactionalHarnessError("receipt session logical identity changed");
       return {
         source,
+        target,
         active,
         validate(response: HttpExchangeResponse, method: "GET" | "HEAD") {
           validateReceiptWire(response, method);
@@ -225,7 +280,26 @@ export function createTransactionalObservations(
             } catch {
               throw new TransactionalReceiptFailure("retained receipt JSON invalid");
             }
-            if (!isDeepStrictEqual(body, entry?.body))
+            if (source.pointer === "/next") {
+              const page = body as Record<string, unknown> | null;
+              if (
+                entry.validator.validate("#/$defs/mutationReceiptPage", body).length ||
+                page?.receipt !== source.receipt
+              )
+                throw new TransactionalReceiptFailure(
+                  "retained receipt page schema or identity mismatch",
+                );
+              if (page.next !== null)
+                throw new TransactionalHarnessError("receipt page exceeds single-page fixture");
+              // A HEAD never initializes this baseline. An invalid first GET does not either.
+              if (entry.pageBody === undefined) entry.pageBody = body;
+              else if (!isDeepStrictEqual(body, entry.pageBody))
+                throw new TransactionalReceiptFailure(
+                  "retained receipt page differs from original wire facts",
+                );
+              return;
+            }
+            if (!isDeepStrictEqual(body, entry.body))
               throw new TransactionalReceiptFailure(
                 "retained receipt differs from original wire facts",
               );
