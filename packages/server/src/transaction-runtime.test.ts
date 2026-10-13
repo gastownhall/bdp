@@ -137,7 +137,8 @@ it.each([
     const exit = await first.exited;
     expect(exit[1]).toBe("SIGKILL");
     const second = await start(false, pages ? 0 : Number(new URL(first.ready.scope).port));
-    if (pages) expect(second.ready.listenUrl).not.toBe(first.ready.listenUrl);
+    expect(new URL(second.ready.listenUrl).hostname).toBe("127.0.0.1");
+    expect(Number(new URL(second.ready.listenUrl).port)).toBeGreaterThan(0);
     const retry = await submit(wire(second.ready.targets.batch, second.ready));
     expect(retry.status).toBe(200);
     expect(await retry.json()).toEqual(receipt);

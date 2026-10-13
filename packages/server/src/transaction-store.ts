@@ -156,6 +156,7 @@ interface Row {
   dependency: string | null;
 }
 const day = 86400000;
+export const TRANSACTION_RECEIPT_DETAIL_MS = day;
 const format = "bdp-private-transaction-contracts-8";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
