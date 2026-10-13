@@ -60,7 +60,7 @@ class MatchExpansionLimit extends Error {}
 export const TRANSACTION_RUNTIME_LIMITS = Object.freeze({
   maximumOperations: 32,
   inducedEvents: 256,
-  matchedResources: 64,
+  matchedResources: 32,
   representationBytes: 256 * 1024,
   scopeSourceBytes: 64 * 1024,
   requestBodyBytes: 64 * 1024,
@@ -538,6 +538,8 @@ export interface TransactionEvaluationOptions extends ResourceEvaluationOptions 
   readonly limits: ResourceEvaluationOptions["limits"] & {
     readonly propertiesBytes: number;
     readonly representationBytes: number;
+    readonly diagnosticBytes: number;
+    readonly diagnosticCount: number;
   };
   readonly aliasPolicy: AliasEvaluationOptions["policy"];
   /** Evaluator-only test seam; cannot raise the private authority cap. */
@@ -552,7 +554,12 @@ export function evaluateTransaction(
   position: string,
   now: number,
 ): BatchEvaluation {
-  for (const field of ["propertiesBytes", "representationBytes"] as const) {
+  for (const field of [
+    "propertiesBytes",
+    "representationBytes",
+    "diagnosticBytes",
+    "diagnosticCount",
+  ] as const) {
     const value = options.limits[field];
     if (!Number.isSafeInteger(value) || value < 1 || value > TRANSACTION_RUNTIME_LIMITS[field])
       throw new TypeError(`invalid transaction evaluator ${field} bound`);

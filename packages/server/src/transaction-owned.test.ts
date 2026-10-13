@@ -155,7 +155,10 @@ it("projects owned lifecycle, property and metadata deltas with exact source ver
   const created = f.run([{ ...edge(), revisionProvenance: provenance }], "create");
   let current = f.record("beads/a"),
     linked = f.record("links/l");
-  expect(results(created)[0]).toMatchObject({
+  expect(results(created)[0]).toEqual({
+    operationIndex: 0,
+    outcome: "created",
+    resource: linked,
     source: current.id,
     sourceRevision: current.revision,
   });
@@ -193,9 +196,22 @@ it("projects owned lifecycle, property and metadata deltas with exact source ver
   ] as const) {
     previous = current;
     const oldLink = linked;
-    f.run([mutation], key);
+    const updated = f.run([mutation], key);
     current = f.record("beads/a");
     linked = f.record("links/l");
+    expect(results(updated)[0]).toEqual({
+      operationIndex: 0,
+      outcome: "updated",
+      resource: linked,
+      source: current.id,
+      sourceRevision: current.revision,
+    });
+    for (const change of f.group().changes)
+      expect(change).toEqual({
+        operation: "upsert",
+        resourceKind: "source" in change.resource ? "link" : "bead",
+        resource: change.resource,
+      });
     const events = f.group().events;
     expect(events).toHaveLength(2);
     expect(events[0]).toMatchObject({ subject: linked.id, type: "updated" });
@@ -246,7 +262,13 @@ it("projects owned lifecycle, property and metadata deltas with exact source ver
   previous = current;
   const deleted = f.run([remove()], "delete");
   current = f.record("beads/a");
-  expect(results(deleted)[0]).toMatchObject({
+  expect(results(deleted)[0]).toEqual({
+    operationIndex: 0,
+    outcome: "deleted",
+    deleted: {
+      resourceKind: "link",
+      resource: { id: linked.id, type: linked.type, revision: linked.revision },
+    },
     source: current.id,
     sourceRevision: current.revision,
   });
@@ -874,26 +896,32 @@ it("serves complete compiled owned records and atomically retains inherited-sche
   }
 });
 
-it("observes the real 256-Event boundary with four facts per owned self-Link deletion", () => {
+it("observes 128/129 real Events under a lowered evaluator cap within the 32-match owner", () => {
   const f = fixture({ types: descriptors({ [link]: { max: 32 } }), receiptMaximumItems: 32 });
   // One Link per source avoids testing unrelated high-fanout closure cost.
   // Every body stays small; the boundary is a fact count, not a byte allowance.
-  for (let start = 0; start < 65; start += 16) {
+  for (let start = 0; start < 33; start += 16) {
     const operations: unknown[] = [];
-    for (let index = start; index < Math.min(start + 16, 65); index++) {
+    for (let index = start; index < Math.min(start + 16, 33); index++) {
       const id = `owner${index}`;
       operations.push(create(id), {
         ...edge(`edge${index}`, `beads/${id}`, `beads/${id}`),
-        properties: { n: index === 64 ? 1 : 0 },
+        properties: { n: index === 32 ? 1 : 0 },
       });
     }
     f.run(operations, `seed${start}`);
   }
+  // The former 64-match/256-Event boundary is historical. This lower evaluator
+  // bound observes the same retained Event-count refusal without overriding M.
+  const evaluate = batch.evaluateTransaction;
+  vi.spyOn(batch, "evaluateTransaction").mockImplementation((normalized, tx, options, ...rest) =>
+    evaluate(normalized, tx, { ...options, maximumInducedEvents: 128 }, ...rest),
+  );
   const before = f.owner.inspect();
   const all = [
     {
       operation: "updateBead",
-      bead: "beads/owner64",
+      bead: "beads/owner32",
       propertiesChange: [{ op: "replace", path: "/n", value: 2 }],
     },
     { operation: "deleteWhere", collection: "links", selector: "$[?@.properties.n == 0]" },
@@ -914,10 +942,10 @@ it("observes the real 256-Event boundary with four facts per owned self-Link del
   const exact = [all[1]];
   const passed = f.run(exact, "exact");
   expect(passed.status).toBe("completed");
-  expect(results(passed)).toHaveLength(65);
-  expect(f.group().events).toHaveLength(256);
-  expect(f.group().events.at(-1)?.ordinal).toBe(255);
-  expect(f.group().changes).toHaveLength(128);
+  expect(results(passed)).toHaveLength(33);
+  expect(f.group().events).toHaveLength(128);
+  expect(f.group().events.at(-1)?.ordinal).toBe(127);
+  expect(f.group().changes).toHaveLength(64);
   expect(f.admit(all, "too-many")).toEqual({ kind: "existing", receipt: failed });
   expect(f.admit(exact, "too-many")).toEqual({ kind: "conflict" });
   expect(f.run(all, "fresh-after-delete").status).toBe("completed");
