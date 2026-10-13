@@ -11,5 +11,5 @@
     "created": "https://reference.invalid/acme/beads/new"
   },
   "scope": "https://reference.invalid/acme/",
-  "description": "Private configured installed Transactional fixture for four bounded observations; no cold discovery or whole-contract qualification."
+  "description": "Private configured installed Transactional fixture for bounded observations; no cold discovery or whole-contract qualification."
 }
