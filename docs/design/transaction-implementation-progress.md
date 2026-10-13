@@ -803,3 +803,32 @@ owned Types refused. Schema references are served in Type descriptors; schema-by
 GET/HEAD hosting is not implemented here. No HTTP set admission, new Type lifecycle,
 Snapshot/changefeed, public configuration/profile admission or conformance claim is
 added. Read+Update durable artifact retention remains a separate follow-up.
+
+
+### Compiled-contract evidence and storage bounds clarification
+
+The shared DevelopmentContracts capture retains base64 artifact bytes in memory for
+all consumers, including Read+Update. Its installed reference factory also retains
+UTF8 copies for schema hosting; this additional memory retention is real even before
+RU gains durable artifact storage. This slice does not deduplicate those copies.
+
+TX's fixture uses external synthetic schema URIs, but that is a fixture convention,
+not a bridge constraint: a Scope-local propertiesSchema can be installed while no
+TX schema GET/HEAD route serves it. Schema hosting remains explicitly unimplemented;
+no new URI refusal or protocol rule is introduced here.
+
+The separate capture row has its explicit byte cap. The configuration text still
+embeds installed descriptor inventory with no additional TX serialization cap. The
+compiled path is bounded by ingestion's aggregate 16MiB artifact-byte ceiling (and
+separate URI limit), not 4096 independent 1MiB allowances; a multi-GiB compiled raw
+inventory estimate would ignore that aggregate bound. Serialization/parsed inventory
+may expand relative to raw bytes, and configurationIdentity still processes that
+text in Read entries. The legacy schema-free descriptor input lacks those ingestion
+bounds. The small fixture's configuration length is evidence about the fixture only,
+not a general configuration byte budget.
+
+A shared compiler regression now pins a literal identity observed from the actual
+pre-capture compiler and checks deep capture immutability. TX regressions recreate a
+rolled-back tentative Resource ID, replay the exact failed-set receipt, and compare
+Type HEAD status/content length with GET. These strengthen evidence without changing
+runtime behavior or broadening any profile claim.

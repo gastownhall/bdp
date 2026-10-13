@@ -713,3 +713,32 @@ it("configured authorities expose only explicit principal facets and duplicate c
       .status,
   ).toBe(204);
 });
+
+it("retains detached immutable capture without changing the predecessor compiler identity", () => {
+  const input = bundle();
+  const installed = contracts.compileDevelopmentContracts(input);
+  // Literal observed with the actual pre-capture compiler at fccb951 (its compiler
+  // and artifact/schema sources are identical to the parent 3e2b878).
+  expect(installed.identity).toBe(
+    "development-schema5-894c98da1156e66e72d7f5b4321365b9496ec68afea377dc1861bdaaa2cadf55",
+  );
+  const saved = JSON.parse(JSON.stringify(installed.capture));
+  const original = input.schemas[0];
+  if (!original) throw new Error("fixture schema missing");
+  original.utf8Bytes.fill(0);
+  input.schemas.length = 0;
+  input.descriptors.length = 0;
+  expect(installed.capture).toEqual(saved);
+  for (const value of [
+    installed,
+    installed.capture,
+    installed.capture.artifacts,
+    ...installed.capture.artifacts,
+    installed.capture.artifactLimits,
+    installed.capture.graphLimits,
+    installed.capture.evaluatorLimits,
+  ])
+    expect(Object.isFrozen(value)).toBe(true);
+  expect(Reflect.set(installed.capture.artifactLimits, "totalBytes", 1)).toBe(false);
+  expect(installed.capture).toEqual(saved);
+});
