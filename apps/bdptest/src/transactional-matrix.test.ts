@@ -326,7 +326,7 @@ async function observe(control?: {
   if (!observed) throw new Error("missing installed observation");
   return observed;
 }
-it("observes eight partial Transactional contracts through packed-capable actual installed HTTP", async () => {
+it("observes nine partial Transactional contracts through packed-capable actual installed HTTP", async () => {
   const started = performance.now(),
     children: ChildProcess[] = [];
   const observed = await observe({ children });
@@ -335,10 +335,10 @@ it("observes eight partial Transactional contracts through packed-capable actual
   expect(observed.result.scenarios).toHaveLength(255); // Includes five optional catalog rows.
   for (const row of observed.result.scenarios.filter((s) => implemented.has(s.id)))
     expect(row, JSON.stringify(row, null, 2)).toMatchObject({ state: "pass" });
-  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(8);
+  expect(observed.result.scenarios.filter((s) => s.state === "pass")).toHaveLength(9);
   expect(observed.result.claimEligible).toBe(false);
-  expect(observed.sessions).toHaveLength(13);
-  expect(children).toHaveLength(14); // Thirteen scenario/reopen sessions plus separate bootstrap.
+  expect(observed.sessions).toHaveLength(15);
+  expect(children).toHaveLength(16); // Fifteen scenario/reopen sessions plus separate bootstrap.
   expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
     true,
   );
@@ -362,6 +362,9 @@ it("observes eight partial Transactional contracts through packed-capable actual
     "reopened-failed",
     "reopened-m-delete",
     "reopened-m-update",
+    "reopened-pagination-page",
+    "reopened-pagination-page-head",
+    "reopened-pagination-root",
     "reopened-set-cardinality-failed",
     "reopened-set-delete-completed",
     "reopened-set-update-completed",
@@ -378,6 +381,26 @@ it("observes eight partial Transactional contracts through packed-capable actual
     expect(exchange.servedSession?.configurationDigest).toBe(
       exchange.sourceReceiptObservation!.session.configurationDigest,
     );
+    const original = exchange.sourceReceiptObservation!;
+    expect(exchange.request.url).toBe(
+      original.pointer === "/next" ? original.page : original.receipt,
+    );
+    // Report headers intentionally omit private context. Require the successful
+    // actual client-projection assertions, including the first reopened HEAD.
+    const declared = bundle.manifest.scenarios
+      .find((r) => r.id === original.session.scenario)!
+      .actions!.find((a) => a.id === exchange.request.id)!;
+    const observedAction = observed.result.scenarios
+      .find((r) => r.id === original.session.scenario)!
+      .actions!.find((a) => a.action.id === exchange.request.id)!;
+    for (const name of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"]) {
+      const required = declared.assertions.find(
+        (a) => a.kind === "json-pointer" && a.pointer === `/headers/${name}` && a.exists === true,
+      )!;
+      expect(required).toBeDefined();
+      expect(observedAction.assertions.find((a) => a.id === required.id)?.passed).toBe(true);
+    }
+    if (exchange.request.method === "HEAD") expect(exchange.response?.decodedBodyBytes).toBe(0);
   }
   const newRows = observed.result.scenarios.filter(
     (row) => row.id === "transactional.set.mutation" || row.id === "transactional.set.zero-match",
@@ -388,10 +411,18 @@ it("observes eight partial Transactional contracts through packed-capable actual
         expect(exchange.request.exact!.bodyOctets).toBeLessThanOrEqual(2048);
       expect(exchange.response!.decodedBodyBytes).toBeLessThanOrEqual(32768);
     }
+  const pagination = observed.result.scenarios.find(
+    (row) => row.id === "transactional.receipt.pagination",
+  )!;
+  for (const exchange of pagination.exchanges) {
+    if (exchange.request.method === "POST")
+      expect(exchange.request.exact!.bodyOctets).toBeLessThanOrEqual(16384);
+    expect(exchange.response!.decodedBodyBytes).toBeLessThanOrEqual(32768);
+  }
   expect(performance.now() - started).toBeLessThanOrEqual(63000);
   console.log(
     JSON.stringify({
-      kind: "installed-tx-eight-partial-summary",
+      kind: "installed-tx-nine-partial-summary",
       sourceCommit,
       elapsedMs: performance.now() - started,
       actions: bundle.manifest.scenarios.reduce((n, s) => n + (s.actions?.length ?? 0), 0),
@@ -1020,6 +1051,40 @@ it.each([
     expect(exchange.request.exact?.writeState).toBe("complete");
     expect(exchange.response?.status).toBe(200);
     expect(exchange.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
+  },
+  120000,
+);
+
+it.each([
+  ["inline boundary", "p-update", "p30-id", `${scope}beads/p31`],
+  ["page member", "p-page-read", "p31-id", `${scope}beads/p30`],
+  ["page parent", "p-page-read", "parent", `${scope}receipts/wrong`],
+  ["historical title", "p-page-retained", "historical-title", "later"],
+  ["terminal next", "p-page-read", "no-next", `${scope}receipts/wrong/pages/next`],
+] as const)(
+  "discriminates receipt pagination against wrong %s expectation",
+  async (_kind, actionId, assertionId, wrong) => {
+    const observed = await observe({
+      manifest(value) {
+        const row = value.scenarios.find((s) => s.id === "transactional.receipt.pagination")!;
+        const action = row.actions.find((a) => a.id === actionId)!;
+        const assertion = (
+          action.assertions as { id: string; equals?: unknown; equalsBinding?: string }[]
+        ).find((a) => a.id === assertionId)!;
+        delete assertion.equalsBinding;
+        assertion.equals = wrong;
+      },
+    });
+    const row = observed.result.scenarios.find((s) => s.id === "transactional.receipt.pagination")!;
+    expect(row.state).toBe("fail");
+    const exchange = row.exchanges.find((e) => e.request.id === actionId)!;
+    expect(exchange.request.exact?.writeState).toBe("complete");
+    expect(exchange.response?.status).toBe(200);
+    const assertionResults =
+      actionId === "p-update"
+        ? exchange.assertions
+        : row.actions!.find((a) => a.action.id === actionId)!.assertions;
+    expect(assertionResults.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
   },
   120000,
 );
