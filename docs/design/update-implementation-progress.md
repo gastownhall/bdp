@@ -529,3 +529,40 @@ token limits. Existing values and advertised limits are unchanged; there are no
 new configuration overrides. Hash-sensitivity tests vary captured limit groups
 in the test import only. This changes qualification configuration identities,
 not persisted installation identities, and does not relabel historical evidence.
+
+### Shared private composition and installed observation bindings
+
+The installed factory and source fixture now call one emitted private Read and
+Operation Directory composition. Neither implementation imports test support.
+Actual HTTP refusal tests exercise the owner gate before both the static
+Operation Directory and captured schema route; restoring the owner observation
+restores their responses. Hosted schema responses carry the non-attesting marker.
+
+Shutdown retries a failed listener cleanup while retaining the owner's single
+terminal completion. A successful owner close is not invoked again, and an owner
+failure cannot be erased by a later listener retry. Concurrent callers share an
+attempt; successful completion remains idempotent. A real-owner regression keeps
+the first listener open through an injected failure, reopens the durable owner at
+a second listener under the same Scope, and then completes the first cleanup.
+
+The default reference closure now recursively checks output keys and values for
+foreign absolute URIs, including future fields outside the remapper's current
+positions. This guard applies to the shipped local reference fixture; it does
+not introduce a new Type lifecycle or generic custom-schema policy.
+
+Payload identity includes the resolved declared runtime package closure:
+server/protocol emitted files and schema assets, package manifests and runtime
+dependency code/data. It includes fast-uri and the protocol's Ajv dependencies.
+Dependency resolution is from each installed package, not a caller-provided list;
+Node itself and deployment/TLS are outside this identity. An isolated copied
+fast-uri file change alters the observed payload identity without changing the
+configuration or artifact identity. Historical payload hashes are not relabeled.
+
+Private configuration capture, factory results and IPC readiness now also carry
+`policyIdentity`, `authenticationIdentity`, `profile: "read-update"` and
+`history: false`. The configuration identity binds these actual captured values.
+Authentication identity hashes the captured ordered principal/token-digest
+mapping; no token is emitted. Policy-only and credential-only changes have
+distinct identity witnesses, and callers cannot supply these metadata fields.
+Source commit remains launcher metadata rather than a claim by the target.
+This remains a non-attesting private candidate with public admission unchanged.

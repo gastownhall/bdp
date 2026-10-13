@@ -1,4 +1,14 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  cpSync,
+  mkdirSync,
+  appendFileSync,
+  symlinkSync,
+  renameSync,
+  existsSync,
+} from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -150,14 +160,19 @@ it("hosts exact captured local schema bytes and validates real HTTP writes with 
     key?: string,
     headers?: Record<string, string>,
   ) => helpers.requestInstalled(config, token, url, method, value, key, headers);
-  expect((await wire(schema)).text).toBe(bytes);
+  const schemaGet = await wire(schema);
+  expect(schemaGet.text).toBe(bytes);
+  expect(schemaGet.headers["x-bdp-development"]).toBe("non-attesting");
   const head = await wire(schema, "HEAD");
   expect(head.text).toBe("");
+  expect(head.headers["x-bdp-development"]).toBe("non-attesting");
   expect(Number(head.headers["content-length"])).toBe(Buffer.byteLength(bytes));
   expect((await wire(schema, "GET", undefined, undefined, { accept: "text/plain" })).status).toBe(
     406,
   );
-  expect((await wire(schema, "OPTIONS")).status).toBe(405);
+  const options = await wire(schema, "OPTIONS");
+  expect(options.status).toBe(405);
+  expect(options.headers["x-bdp-development"]).toBe("non-attesting");
   expect(
     (await wire(schema, "GET", undefined, undefined, { authorization: "Bearer wrong" })).status,
   ).toBe(401);
@@ -348,3 +363,121 @@ it("refuses a second IPC start and occupied listener without leaving another own
   children.push(reopened);
   expect((await helpers.requestInstalled(config, token, config.scope)).status).toBe(204);
 });
+
+function isolatedPayload() {
+  const modules = path.join(directory(), "node_modules");
+  const require = createRequire(entry);
+  {
+    const root = path.resolve(path.dirname(entry), "..");
+    const destination = path.join(modules, "@bdp/server");
+    mkdirSync(destination, { recursive: true });
+    cpSync(path.join(root, "package.json"), path.join(destination, "package.json"));
+    cpSync(path.join(root, "dist"), path.join(destination, "dist"), { recursive: true });
+  }
+  symlinkSync(
+    path.resolve(path.dirname(require.resolve("@bdp/protocol")), ".."),
+    path.join(modules, "@bdp/protocol"),
+    "dir",
+  );
+  const dependency = path.join(modules, "fast-uri");
+  cpSync(path.dirname(require.resolve("fast-uri")), dependency, {
+    recursive: true,
+    dereference: true,
+  });
+  const copiedEntry = path.join(modules, "@bdp/server/dist/installed-reference-process.js");
+  return { dependency, copiedEntry };
+}
+it("binds resolved fast-uri runtime bytes in an isolated installed payload", async () => {
+  const { dependency, copiedEntry } = isolatedPayload();
+  const config = helpers.referenceConfiguration(directory(), await helpers.availablePort(), token);
+  const first = await helpers.launchInstalledReference(copiedEntry, config);
+  children.push(first);
+  await first.close();
+  appendFileSync(
+    path.join(dependency, "lib/utils.js"),
+    "\n// isolated payload identity regression\n",
+  );
+  const second = await helpers.launchInstalledReference(copiedEntry, { ...config, create: false });
+  children.push(second);
+  expect(second.ready.payloadIdentity).not.toBe(first.ready.payloadIdentity);
+  expect(second.ready.configurationIdentity).toBe(first.ready.configurationIdentity);
+  expect(second.ready.artifactIdentity).toBe(first.ready.artifactIdentity);
+});
+
+it("reports actual captured policy and authentication bindings over private IPC", async () => {
+  const config = helpers.referenceConfiguration(directory(), await helpers.availablePort(), token);
+  const captured = configuration.captureInstalledReferenceConfiguration(config);
+  const first = await helpers.launchInstalledReference(entry, config);
+  children.push(first);
+  expect(first.ready).toMatchObject({
+    configurationIdentity: captured.identity,
+    policyIdentity: captured.policyIdentity,
+    authenticationIdentity: captured.authenticationIdentity,
+    profile: "read-update",
+    history: false,
+  });
+  expect(JSON.stringify(first.ready)).not.toContain(token);
+  await first.close();
+  const changedPolicy = {
+    ...config,
+    create: false,
+    policies: { operator: { create: false, write: false, hidden: [], readOnly: [] } },
+  };
+  const second = await helpers.launchInstalledReference(entry, changedPolicy);
+  children.push(second);
+  expect(second.ready.policyIdentity).not.toBe(first.ready.policyIdentity);
+  expect(second.ready.authenticationIdentity).toBe(first.ready.authenticationIdentity);
+  expect(second.ready.configurationIdentity).not.toBe(first.ready.configurationIdentity);
+  await second.close();
+  const changedAuth = {
+    ...changedPolicy,
+    credentials: [{ token: "other_installed_01234567890123456789012345", principal: "operator" }],
+  };
+  const third = await helpers.launchInstalledReference(entry, changedAuth);
+  children.push(third);
+  expect(third.ready.policyIdentity).toBe(second.ready.policyIdentity);
+  expect(third.ready.authenticationIdentity).not.toBe(second.ready.authenticationIdentity);
+  expect(third.ready.configurationIdentity).not.toBe(second.ready.configurationIdentity);
+  for (const field of ["policyIdentity", "authenticationIdentity", "profile", "history"])
+    expect(() =>
+      configuration.captureInstalledReferenceConfiguration({
+        ...config,
+        [field]: first.ready[field],
+      }),
+    ).toThrow();
+});
+
+it.each(["file", "directory", "manifest"] as const)(
+  "refuses an internal dependency %s symlink before listener or store provisioning",
+  async (kind) => {
+    const { dependency, copiedEntry } = isolatedPayload();
+    const relative =
+      kind === "file" ? "lib/utils.js" : kind === "directory" ? "lib" : "package.json";
+    const target = path.join(
+      directory(),
+      kind === "file"
+        ? "actual-utils.cjs"
+        : kind === "directory"
+          ? "actual-lib"
+          : "actual-package.json",
+    );
+    const original = path.join(dependency, relative);
+    renameSync(original, target);
+    symlinkSync(target, original, kind === "directory" ? "dir" : "file");
+    const store = path.join(directory(), "unprovisioned");
+    const config = helpers.referenceConfiguration(store, await helpers.availablePort(), token);
+    await expect(helpers.launchInstalledReference(copiedEntry, config)).rejects.toThrow(
+      "installed reference qualification failed",
+    );
+    expect(existsSync(store)).toBe(false);
+    // The child exits without publishing readiness or retaining its configured listener.
+    const listener = new Server();
+    await new Promise<void>((resolve, reject) => {
+      listener.once("error", reject);
+      listener.listen(config.listener.port, config.listener.host, resolve);
+    });
+    await new Promise<void>((resolve, reject) =>
+      listener.close((error) => (error ? reject(error) : resolve())),
+    );
+  },
+);

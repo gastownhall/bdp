@@ -33,7 +33,7 @@ export function referenceTypeArtifacts(scope: string) {
     if (mapped === undefined) throw new TypeError("reference closure is incomplete");
     return mapped;
   };
-  return REFERENCE_TYPE_DESCRIPTORS.map(
+  const artifacts = REFERENCE_TYPE_DESCRIPTORS.map(
     (d): TypeDescriptor =>
       d.describes === "link"
         ? {
@@ -59,6 +59,21 @@ export function referenceTypeArtifacts(scope: string) {
                 }),
           },
   );
+  // Check every output key and value, not merely the positions remapped above.
+  // Future reference fields must not silently retain foreign artifact identities.
+  function local(value: unknown): void {
+    if (typeof value === "string" && /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)) {
+      if (!new URL(value).href.startsWith(canonical))
+        throw new TypeError("reference artifact is not Scope-local");
+    } else if (Array.isArray(value)) value.forEach(local);
+    else if (value !== null && typeof value === "object")
+      for (const [key, entry] of Object.entries(value)) {
+        local(key);
+        local(entry);
+      }
+  }
+  local(artifacts);
+  return artifacts;
 }
 function string(value: unknown, maximum = 16384): string {
   if (typeof value !== "string" || !value.length || Buffer.byteLength(value) > maximum)
@@ -151,16 +166,23 @@ export function captureInstalledReferenceConfiguration(input: unknown) {
     access: access.policy,
     maximumEndpointMultiplicity: Object.freeze(aggregate),
   });
+  const policyIdentity = access.policy.identity();
+  const authenticationIdentity = digest(
+    credentials.map((c) => ({ principal: c.principal, tokenDigest: digest(c.token) })),
+  );
+  const profile = "read-update" as const;
+  const history = false as const;
   const identity = digest({
     revision: "installed-reference-candidate-1",
     scope,
     contracts: contracts.identity,
-    policy: access.policy.identity(),
+    policyIdentity,
+    authenticationIdentity,
+    profile,
     aggregate,
     ownerLimits: DEVELOPMENT_OWNER_LIMITS,
-    credentials: credentials.map((c) => ({ principal: c.principal, tokenDigest: digest(c.token) })),
     cors: "disabled",
-    history: false,
+    history,
   });
   return Object.freeze({
     scope,
@@ -172,6 +194,10 @@ export function captureInstalledReferenceConfiguration(input: unknown) {
     configuration,
     schemas: Object.freeze(schemas),
     identity,
+    policyIdentity,
+    authenticationIdentity,
+    profile,
+    history,
     artifactIdentity: contracts.identity,
   });
 }

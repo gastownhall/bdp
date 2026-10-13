@@ -331,6 +331,7 @@ export async function startDevelopmentReferenceRuntime(
       const url = new URL(pathAndQuery, new URL(scope).origin);
       const schema = schemaArtifacts.find((entry) => entry.uri === url.href);
       if (schema !== undefined) {
+        response.setHeader("x-bdp-development", "non-attesting");
         const gate = await principalAuthority.discover();
         if (gate.kind === "problem") {
           json(response, gate.problem.status ?? 500, gate.problem, true);
@@ -494,6 +495,7 @@ export async function startDevelopmentReferenceRuntime(
   server.on("timeout", (socket) => socket.destroy());
   const closeListener = () =>
     new Promise<void>((resolve, reject) => {
+      if (!server.listening) return resolve();
       server.close((error) => (error ? reject(error) : resolve()));
       server.closeAllConnections();
     });
@@ -557,6 +559,9 @@ export async function startDevelopmentReferenceRuntime(
     throw error;
   }
   let completion: Promise<void> | undefined;
+  // The owner has a terminal close result. Retry listener cleanup only; never
+  // re-invoke owner close or erase its original failure.
+  let ownerCompletion: Promise<void> | undefined;
   return Object.freeze({
     scope,
     close(): Promise<void> {
@@ -566,13 +571,17 @@ export async function startDevelopmentReferenceRuntime(
         completion = (async () => {
           const listener = await Promise.allSettled([closeListener()]);
           await Promise.allSettled([...pending]);
-          const owner = await Promise.allSettled([authority?.close()]);
+          ownerCompletion ??= Promise.resolve().then(() => authority?.close());
+          const owner = await Promise.allSettled([ownerCompletion]);
           const failures = [...listener, ...owner].flatMap((result) =>
             result.status === "rejected" ? [result.reason] : [],
           );
           if (failures.length)
             throw new AggregateError(failures, "installed shutdown cleanup failed");
-        })();
+        })().catch((error) => {
+          completion = undefined;
+          throw error;
+        });
       }
       return completion;
     },

@@ -136,6 +136,10 @@ async function installPackedWorkspace() {
       "alias-evaluator.d.ts.map",
       "alias-evaluator.js",
       "alias-evaluator.js.map",
+      "development-composition.d.ts",
+      "development-composition.d.ts.map",
+      "development-composition.js",
+      "development-composition.js.map",
       "read-http-routing.d.ts",
       "read-http-routing.d.ts.map",
       "read-http-routing.js",
@@ -406,6 +410,8 @@ async function installPackedWorkspace() {
     }
 
     for (const specifier of [
+      "@bdp/server/development-composition",
+      "@bdp/server/dist/development-composition.js",
       "@bdp/server/read-http-routing",
       "@bdp/server/dist/read-http-routing.js",
       "@bdp/server/read-pagination",
