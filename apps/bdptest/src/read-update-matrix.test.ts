@@ -727,9 +727,9 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   } finally {
     clearTimeout(timer);
   }
+  controller.signal.throwIfAborted();
   if (process.env.BDP_CUMULATIVE_REPORT_PATH)
     writeFileSync(process.env.BDP_CUMULATIVE_REPORT_PATH, JSON.stringify(report, null, 2));
-  controller.signal.throwIfAborted();
   for (const row of report.result.scenarios)
     expect(row, JSON.stringify(row)).toMatchObject({
       state: !report.plannedIds.includes(row.id) ? "harness-error" : "pass",
@@ -1329,6 +1329,7 @@ it.each([
 );
 
 it.each([
+  { exitCode: null, signalCode: null },
   { exitCode: null, signalCode: "SIGKILL" },
   { exitCode: 1, signalCode: null },
 ] as const)("rejects settled but unsuccessful installed child exit %j", async (exit) => {
