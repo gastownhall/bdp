@@ -744,6 +744,91 @@ it("bounds total matched Resources across no-op sets and retains atomic failure 
   expect(f.owner.inspect()).toEqual(before);
 });
 
+it("checks cardinality before charging the matched Resource budget", () => {
+  const f = fixture();
+  f.run([create("a"), create("b"), create("c")], "seed");
+  const original = batch.evaluateTransaction;
+  vi.spyOn(batch, "evaluateTransaction").mockImplementation((normalized, tx, options, ...rest) =>
+    original(normalized, tx, { ...options, maximumMatchedResources: 2 }, ...rest),
+  );
+  const before = f.owner.inspect();
+  const guarded = [create("rollback", 5), { ...update(), cardinality: { max: 1 } }];
+  const failed = f.run(guarded, "guarded");
+  expect(failed).toMatchObject({
+    status: "failed",
+    problem: {
+      status: 409,
+      code: "cardinality-violated",
+      retry: "after-state-change",
+      operationIndex: 1,
+    },
+  });
+  expect(failed.results).toBeUndefined();
+  expect(f.owner.inspect()).toEqual(before);
+  f.reopen();
+  expect(f.admit(guarded, "guarded")).toMatchObject({ kind: "existing", receipt: failed });
+  expect(f.owner.inspect()).toEqual(before);
+  const unguarded = f.run([{ ...update(), cardinality: { max: 3 } }], "capacity");
+  expect(unguarded).toMatchObject({
+    status: "failed",
+    problem: {
+      status: 413,
+      code: "limit-exceeded",
+      retry: "never",
+      limit: "transaction.matchedResources",
+    },
+  });
+  expect(body(unguarded).problem.operationIndex).toBeUndefined();
+  expect(f.owner.inspect()).toEqual(before);
+  f.run([remove("beads", '$[?@.id != "https://example.test/set/beads/a"]')], "shrink");
+  expect(f.run(guarded, "guarded-fresh").status).toBe("completed");
+  expect(f.admit(guarded, "guarded")).toMatchObject({ kind: "existing", receipt: failed });
+});
+
+it("accepts 4096 real no-op matches at the private default and durably refuses overflow", () => {
+  const f = fixture();
+  for (let group = 0; group < 4; group++)
+    expect(
+      f.run(
+        Array.from({ length: 32 }, (_, i) => create(`n${group * 32 + i}`)),
+        `seed-${group}`,
+      ).status,
+    ).toBe("completed");
+  const operations = Array.from({ length: 32 }, () => update(undefined, 0));
+  const before = f.owner.inspect();
+  const accepted = f.run(operations, "boundary");
+  expect(accepted.status).toBe("completed");
+  expect(accepted.effectPosition).toBeUndefined();
+  expect(body(accepted).results).toHaveLength(4096 + 32);
+  expect(body(accepted).results.filter((r) => r.outcome === "matched")).toEqual(
+    Array.from({ length: 32 }, (_, operationIndex) => ({
+      operationIndex,
+      outcome: "matched",
+      count: 128,
+    })),
+  );
+  expect(f.owner.inspect()).toEqual(before);
+  f.run([create("extra")], "extra");
+  const expanded = f.owner.inspect();
+  const failed = f.run(operations, "overflow");
+  expect(failed).toMatchObject({
+    status: "failed",
+    problem: {
+      status: 413,
+      code: "limit-exceeded",
+      retry: "never",
+      limit: "transaction.matchedResources",
+    },
+  });
+  expect(body(failed).problem.operationIndex).toBeUndefined();
+  expect(failed.results).toBeUndefined();
+  expect(f.owner.inspect()).toEqual(expanded);
+  f.reopen();
+  expect(f.admit(operations, "boundary")).toMatchObject({ kind: "existing", receipt: accepted });
+  expect(f.admit(operations, "overflow")).toMatchObject({ kind: "existing", receipt: failed });
+  expect(f.owner.inspect()).toEqual(expanded);
+});
+
 it.each(["updateWhere", "deleteWhere"] as const)(
   "projects %s Link matches through local endpoint visibility before cardinality",
   (operation) => {
@@ -819,6 +904,42 @@ it.each([0, -1, 1.5, 4097, Number.POSITIVE_INFINITY])(
   },
 );
 
+it.each(["type", "status", "retry"] as const)(
+  "does not retain a malformed private evaluator failure missing %s",
+  (field) => {
+    const f = fixture();
+    const original = evaluator.evaluateResourceMutation;
+    vi.spyOn(evaluator, "evaluateResourceMutation").mockImplementation((...args) => {
+      const result = original(...args);
+      if (result.effect !== "failure") throw new Error("expected genuine missing Resource failure");
+      return { ...result, outcome: { ...result.outcome, [field]: undefined } } as typeof result;
+    });
+    const operations = [
+      {
+        operation: "updateBead",
+        bead: "beads/missing",
+        propertiesChange: [{ op: "add", path: "/n", value: 0 }],
+      },
+    ];
+    expect(() => f.run(operations)).toThrow(
+      "evaluator failure lacks required receipt Problem fields",
+    );
+    expect(f.owner.inspect()).toMatchObject({ resources: [], groups: [], identities: [] });
+    vi.restoreAllMocks();
+    f.reopen();
+    expect(f.run(operations)).toMatchObject({
+      status: "failed",
+      problem: {
+        type: "https://github.com/gastownhall/bdp/problems/not-found",
+        status: 404,
+        code: "resource-not-found",
+        retry: "after-state-change",
+        operationIndex: 0,
+      },
+    });
+  },
+);
+
 it("requires operation indices except for enumerated whole-transaction limits at the type boundary", () => {
   type Failure = Extract<batch.BatchEvaluation, { ok: false }>["problem"];
   type MissingIndex = { type: string; status: 422; code: "validation-failed"; retry: "never" };
@@ -830,6 +951,23 @@ it("requires operation indices except for enumerated whole-transaction limits at
     limit: "selector.bytes";
   };
   type WholeLimit = Omit<SelectorLimit, "limit"> & { limit: "transaction.matchedResources" };
+  type Valid = {
+    type: string;
+    status: 409;
+    code: "revision-mismatch";
+    retry: "after-state-change";
+    operationIndex: number;
+  };
+  expectTypeOf<Valid extends Failure ? true : false>().toEqualTypeOf<true>();
+  expectTypeOf<Omit<Valid, "type"> extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<Omit<Valid, "status"> extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<Omit<Valid, "retry"> extends Failure ? true : false>().toEqualTypeOf<false>();
+  expectTypeOf<
+    Omit<Valid, "retry"> & { retry: "typo" } extends Failure ? true : false
+  >().toEqualTypeOf<false>();
+  expectTypeOf<
+    Omit<Valid, "status"> & { status: string } extends Failure ? true : false
+  >().toEqualTypeOf<false>();
   expectTypeOf<MissingIndex extends Failure ? true : false>().toEqualTypeOf<false>();
   expectTypeOf<SelectorLimit extends Failure ? true : false>().toEqualTypeOf<false>();
   expectTypeOf<WholeLimit extends Failure ? true : false>().toEqualTypeOf<true>();
