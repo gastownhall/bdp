@@ -1,6 +1,6 @@
 # Proposal: Provenance V2
 
-Status: proposal for review, October 11, 2026. Not an adopted BDP amendment or an
+Status: proposal for review, updated October 13, 2026. Not an adopted BDP amendment or an
 implementation commitment.
 
 ## Purpose
@@ -9,9 +9,12 @@ Let someone answer: **“What information did the author say this version was
 based on?”** Save that information with the version, alongside who changed it
 and when. The same mechanism applies to Beads and Links.
 
-Also let someone answer **“What happened around this resource?”** Record that
-activity independently, so reporting a commit or a use of information does not
-require editing the subject. These two questions need different record shapes.
+Also **connect work items to the work performed**: commits, pull requests,
+handoffs, and uses of information. Let someone answer **“What happened around
+this resource, and which artifacts were involved?”** Record that activity
+independently, including reports received after the work item changed or was
+deleted. Reporting work must not require editing its subject. These questions
+need different record shapes.
 
 ## Recommendation: two mechanisms for provenance
 
@@ -40,8 +43,7 @@ the separate BDP `attribution` and `changeContext` containers and the preview's
 combined attribution/time container with this one common representation. This is
 a proposed amendment and migration target, not a claim that either has changed.
 
-Within this mechanism, `revisionProvenance` is the one common field. The containing
-version is its subject, including initial creation and historical reads.
+The containing version is its subject, including creation and historical reads.
 
 ### Activity provenance: ordinary Activity Beads
 
@@ -62,20 +64,43 @@ a second common envelope to Activity Beads. Each Activity Bead has ordinary
 | Information sources | No shared source member | No shared source member | `revisionProvenance.sources` |
 | Source-list completeness | No shared source member | No shared source member | `revisionProvenance.sourcesCompleteness` |
 
-Use **`basis: writer-supplied | unknown`**, following
-[BDP PR65](https://github.com/gastownhall/bdp/pull/65), not the older `status` /
-`claimed` vocabulary. PR65 is open at `a7edb0c`; its normative source is `de99030`
-and it is included in Vickie's open PR83. The paired
-[Beads PR79](https://github.com/donnabox/beads/pull/79) is merged into the fork;
-public graph output already uses `basis`, even though private storage retains
-older names. `writer-supplied` says how the identity was obtained,
-not that it was authenticated; `unknown` preserves an identity with an uncertain
-relationship to this revision. A present actor requires both `id` and `basis`.
-Grouping it with server-observed time does not authenticate it or verify sources.
-These spellings and PR states were verified October 11. No separate new CLI
-basis-input flag was established by that output rename; the flag below is part
-of this strawman.
-An absent actor stays absent. For this draft, retain the existing History value
+Recommend **`basis: writer-supplied | unknown | authenticated`**. Retain the
+`basis` vocabulary from [BDP PR65](https://github.com/gastownhall/bdp/pull/65) and
+[Beads PR79](https://github.com/donnabox/beads/pull/79); `authenticated` is a new
+proposal, not a claim about those changes. The October 11 source check found
+PR65 open at `a7edb0c` (normative source `de99030`, included in open PR83) and
+PR79 merged into the fork. Public graph output uses `basis`; private storage
+still has older names. The CLI basis-input flag below is also proposed.
+
+| Proposed actor basis | Meaning and authority |
+| --- | --- |
+| `writer-supplied` | The caller supplied the identity; no authentication claim. This includes configured local CLI defaults. |
+| `unknown` | An identity is recorded, but its relationship to this revision is uncertain. |
+| `authenticated` | The accepting service derived the actor from the authenticated principal for this write. Only the service may assign this basis. |
+
+A saved actor requires `id` and `basis`. In a service mode that supplies
+authenticated attribution, the service assigns both from its verified request
+context on create/update/delete. Input may supply an actor ID without a basis
+in this mode. A caller's matching actor ID may be accepted,
+but is not the evidence; a conflicting ID or explicit request to suppress the
+service actor is rejected before mutation. Reject caller-supplied
+`basis: authenticated` in flags and ordinary JSON writes, even if the ID matches.
+Do not silently replace a conflicting attribution request. Services must declare
+their attribution mode; a backend without authenticated derivation retains
+writer-supplied/unknown behavior and must not label an OS username authenticated.
+
+Authentication identifies the principal that submitted the write. If that is
+an agent or service account, record that account, not an inferred human behind
+it. It does not authenticate the Activity participant, assisting agent, sources,
+or a claim of delegated responsibility. Delegation and causality are outside
+this round. The storing authority is the issuer of this limited authentication
+claim; a copied record is not proof. Import must preserve the distinction between
+original attribution and the importing account, and may preserve an original
+authenticated basis only through a separately specified evidence/trust path.
+Never upgrade historical attribution because the importer authenticated today.
+
+Without service-derived or caller-supplied attribution, actor stays absent.
+For this draft, retain the existing History value
 states for time, agent, and message rather than silently dropping distinctions
 between known absence and missing knowledge. The example below shows that
 conservative encoding; simplifying those value encodings is a separate choice.
@@ -115,10 +140,9 @@ activity time is `properties.occurredAt`; recording the version has its own
 is a statement someone explicitly stands behind.** An attestation can be about
 provenance; the words do not name competing places to store the same information.
 
-For this protocol, reserve **attestation** for a statement with a verifiable
-issuer and a defined claim about a specific subject. A signature is one possible
-mechanism; this proposal introduces no signing or attestation mechanism. The
-issuer may differ from the actor credited with producing the version.
+Reserve **attestation** for a statement with a verifiable issuer and a defined
+claim about a specific subject. This proposal introduces no signing or portable
+attestation mechanism. Issuer and credited actor may differ.
 
 For example, “Alice is listed as the author; report A is listed as a source” is
 recorded provenance. “Service S attests that it accepted these exact bytes from
@@ -194,6 +218,11 @@ absent/undetermined agent or
 message states when present. Unknown legacy commit time uses the existing
 `{ "state": "undetermined" }` representation.
 
+For a native write authenticated as Alice, the service instead writes
+`"actor": { "id": "human:alice", "basis": "authenticated" }` in this same
+envelope. If a CI account submits the write, that account is the authenticated
+revision actor even when the Activity's reported participant is Alice.
+
 ## Shared reference entries and optional relationship tags
 
 Use the same entry shape for revision `sources` and Activity `artifacts`:
@@ -220,6 +249,12 @@ extension relations without guessing their meaning; do not require a registry
 lookup or dereference to read the record. This borrows the extensibility pattern,
 not the entire IANA relation vocabulary or HTTP header grammar. Relationship
 extensions must still respect the containing field's meaning.
+
+No run/session member or causality ID is added in this round. A run or other
+causal input can be referenced through existing `sources` with an appropriate
+extension `rel`, when it satisfies the field's meaning. Defining causal relation
+vocabularies, cascading/transitive causality, or automatic propagation is deferred;
+the presence of a relation alone requires none of those behaviors.
 
 One shared shape does not make every Activity artifact a source of its subject
 or of the Activity record. A CI report can be the source used to write an Activity
@@ -253,9 +288,8 @@ opaque references need this adapter even when their spelling resembles a URL.
 6. References do not automatically become graph Links, fetch their targets,
    grant access, or guarantee that referenced content remains available.
 
-For example, R1 records report A as its source. Correcting that to report B
-creates R2. Reading R1 still reports A; reading R2 reports B. Both versions use
-the ordinary attribution and history rules for their respective writes.
+For example, correcting R1's source A to source B creates R2. Reading R1 still
+reports A; reading R2 reports B.
 
 ## What this does—and does not—claim
 
@@ -292,12 +326,9 @@ future mapping may use an import Activity and appropriate source references;
 meeting the Memory proposal's exact origin requirements still needs a separate
 mapping, not a second copy of Change Attribution.
 
-Changes to sources or their completeness count when deciding whether to create a
-new version. Moving the existing actor/context fields into `revisionProvenance`
-does not change their no-op behavior. On a real write, attribution is supplied
-for the new version and commit time is assigned by the authority. Do not blindly
-copy the entire previous envelope: that could credit the prior writer or preserve
-a stale time. The source-list carry-forward decision below is separate.
+On a real write, resolve attribution for the new version and assign commit time
+at the authority. Never copy the previous envelope wholesale: source carry-forward
+must not credit the prior writer or preserve a stale time.
 
 ## Proposed activity records in BDP
 
@@ -358,8 +389,8 @@ run as a related artifact. It does not say the run was an input to the Link.
   other subject outside BDP. No BDP revision or lifecycle guarantees apply.
 - **Local validation:** use the reference's Scope identity to distinguish local
   from remote references. Known local kind mismatches should be rejected. The
-  policy for missing, deleted, or no-longer-retained local subjects remains open;
-  it must accommodate delayed reporting and historical imports explicitly.
+  admission rules below accommodate delayed reporting without treating a typo as
+  a valid local subject. They apply to Activity subjects, not all reference fields.
 
 The subject is a **reference property**, not a normal graph Link endpoint.
 Consequently a Link can be a subject without making Links valid graph endpoints.
@@ -367,6 +398,36 @@ These references do not create incident graph Links or automatic traversal edges
 An external subject must not be used to bypass checks on a recognized local BDP
 reference. Activity records belong to their storing Scope; referencing a subject
 does not grant access to it or authority to change it.
+
+### Local subjects after deletion or pruning
+
+| Activity subject at admission | Proposed result |
+| --- | --- |
+| Exact pin to a retained revision of a deleted Bead or Link | Accept. Resolve retained live revisions through authorized History; a terminal pin resolves to the typed deleted-state result. |
+| Unpinned reference to a known deleted local identity | Accept without inventing a pin. Return an admission observation that the subject is deleted; this observation is not a revision claim or a permanent property of the reference. |
+| Pin to a pruned revision with retained evidence that it existed | Accept the exact pin. Resolution reports gone with a reason; never return latest content in its place. |
+| Local identity or revision established never to have existed | Reject ordinary recording; an explicit import path may preserve unresolved historical references without claiming verification. |
+| Existence cannot be established because evidence was erased, access is denied, or validation is unavailable | Do not label it never-existent. Return an authorization-safe unavailable/unverifiable outcome; ordinary local admission cannot claim success under the known-history rules. Import requires its explicit policy. |
+
+Retain sufficient identity/revision existence evidence to support the accepted
+deleted/pruned cases for the advertised retention period. A current GET returning
+404 is not evidence of never-existence. Admission checks and gone reasons must
+not expose hidden identities or history. Exact response spellings and placement
+of admission observations remain wire-design work; no new Activity property is
+selected here. Erasure can remove existence evidence, so support must disclose
+that limit rather than promise indefinite validation.
+
+> **Sidebar — late reports and decision sources make different promises.**
+> A CI report can arrive today about work completed before its subject was
+> deleted. Accepting that report preserves work history; it does not say the
+> reporting service read the subject's old content today. A new decision citing
+> an unavailable old revision as evidence raises a different question. These
+> Activity admission rules do not relax revision-source validation or Memory
+> write-time requirements. In particular, reconcile Memory R19 separately;
+> a gone-with-reason result is consistent with R16, not an exception to every
+> write-time check. Source omission on update preserves the existing list and
+> completeness, but does not prove the writer reread those sources. In either
+> mechanism, preserve exact pins and never substitute current content.
 
 ### Recording and finding activities
 
@@ -406,10 +467,18 @@ extends today's append-only command surface. A retry of `record` is still a
 create retry, never an implicit correction or resurrection of a deleted Activity.
 
 Deleting the activity's subject is a different operation. Today's Issue deletion
-cascades to its activity rows. Whether to retain Activity Beads about deleted
-subjects or preserve that cascade remains an explicit product decision; a
-reference property does not implement it automatically. Access and retention
-also require explicit policy, not presumed inheritance of subject permissions.
+cascades to its activity rows. **Retain Activity Beads by default when their
+subject is deleted.** They have independent lifetimes and remain queryable under
+their own authorization and retention policy. A subject reference grants no
+access and must not accidentally make a retained report public.
+
+An explicit cascade option may delete selected Activity Beads through ordinary
+Activity deletion, including terminal revisions. Its scope, authorization and
+atomicity must be defined before it is offered; it is not an implicit recursive
+deletion rule. Normal subject deletion is neither Activity deletion nor erasure.
+Separate erasure/retention policies still apply to content, history and indexes.
+The default is selected for this proposal; concrete access rules and the optional
+cascade interface remain implementation gates.
 
 | Acceptance case | Required result under this proposal |
 | --- | --- |
@@ -419,19 +488,23 @@ also require explicit policy, not presumed inheritance of subject permissions.
 | Report names an unavailable remote Bead or an external URL | Preserve the reference under the chosen admission policy; no implied fetch, verification, or access grant |
 | Query by subject identity versus exact revision | Identity includes all reports about that resource; exact revision excludes unknown/unpinned reports |
 | A supported Event stream reports the write | `created` identifies the Activity Bead, not an update to its subject |
-| Delete an Issue that has activity records | Apply the explicitly selected lifecycle policy; compatibility is not ready until this is decided and tested |
+| Delete an Issue that has activity records | Retain Activity Beads by default; live subject GET is 404 while authorized activity queries still find the reports |
+| Late report names a deleted local subject, with or without a pin | Accept using retained existence evidence; preserve the supplied pin or lack of pin |
+| Report pins a pruned revision known to have existed | Accept; resolve gone with reason, never current content |
+| Report names a proven nonexistent identity or revision | Reject outside an explicit import path; distinguish unverifiable or unauthorized from never-existent |
+| Explicit cascade is requested | Delete only its authorized, defined selection under declared atomicity; no undeclared recursive cascade |
 
 BDP owns the Activity Type's shared field meanings and reference/query semantics.
 Beads owns the command adapter, indexes, deduplication implementation, and
 operator policy within those semantics. The Activity Type, subject expansion,
 and adapter are **PROPOSED / NYI**; today's Issue event log is **EXISTING**.
 
-## Source-member choices still to settle
+## Source-member decisions and remaining choices
 
-- **Source defaults:** the CLI strawman below recommends preserving source fields
-  on update, and unknown sources on create/delete. Carry-forward does not prove a
-  new source read. Adopt or revise that rule and specify the BDP wire encoding for
-  omission versus an explicit reset to unknown.
+- **Source defaults — selected for this proposal:** preserve source list and
+  completeness on update omission; create/delete omission means unknown.
+  Carry-forward does not prove a new source read. The BDP wire encoding for
+  omission versus an explicit reset to unknown remains to specify.
 - **Exact source versions:** allow both pinned and unpinned references, as Memory
   R3 does, or require pins for Bead/Link sources? The draft above allows both and
   states their different promises.
@@ -482,6 +555,14 @@ migration require their own implementation/review pass after product decisions.
 - An actor/message-only no-op creates no version or fresh timestamp; a source-only
   change creates a version with that write's attribution and commit time.
 - Missing imported actor or time stays unknown; import time is not substituted.
+- A service authenticated as Alice derives actor Alice with basis `authenticated`;
+  no caller field is accepted as proof of authentication.
+- A caller supplies authenticated basis, a conflicting actor, or suppression in
+  service-attribution mode: reject before mutation. Local defaults remain
+  writer-supplied; they cannot forge or suppress service-derived attribution.
+- A service account records work reportedly performed by Alice: authenticate the
+  service account as revision writer, not Alice as participant or delegated human.
+- An authenticated import does not upgrade original historical attribution.
 - Legacy adapters preserve known values and reject contradictory old/new inputs.
 - An Activity can name Alice as participant and an importer as record writer;
   activity time and record commit time retain their different meanings.
@@ -557,9 +638,9 @@ There are two important spelling collisions:
 
 | Proposed option, on create/update/delete | Meaning |
 | --- | --- |
-| `--actor ID` | Set `revisionProvenance.actor.id` consistently on create/update/delete and the Activity wrapper; retain ordinary configured defaults. |
-| `--actor-basis writer-supplied\|unknown` | Qualify the revision actor. Default `writer-supplied` when the CLI supplies an actor, including its configured default. `unknown` preserves an identity whose relationship to the version is uncertain. No authenticated value. |
-| `--no-actor` | Suppress actor defaulting and leave revision actor absent; mutually exclusive with explicit revision actor or actor-basis. |
+| `--actor ID` | Supply the revision actor consistently on create/update/delete and the Activity wrapper. Retain configured defaults for backends without service-derived attribution; explicit conflict with the service-derived actor is an error. |
+| `--actor-basis writer-supplied\|unknown` | Qualify caller-supplied attribution; default `writer-supplied`. No caller-selectable authenticated value. Service-derived output follows the authentication rules above. |
+| `--no-actor` | Suppress local actor defaulting; mutually exclusive with explicit actor or basis. Cannot suppress service-derived attribution: reject in that mode. |
 | `--message TEXT` | Set the optional revision message, distinct from content/description or backend commit messages. An explicit empty string is a known empty message. |
 | `--assisting-agent ID` | Record an optional assisting agent, distinct from the responsible actor. Do not infer it from login identity. |
 | `--sources JSON`, `--sources @FILE`, or `--sources -` | Supply the entire source-entry array inline, from a UTF-8 JSON file, or stdin. Replaces the source list; no comma-splitting of URLs and no implicit append. |
@@ -568,6 +649,11 @@ There are two important spelling collisions:
 
 Only one input may consume stdin, and only one `--sources` option is allowed.
 Reject empty explicit actor/agent IDs and actor-basis without a resolved actor.
+For service-derived attribution, omit automatic local actor defaults and let the
+service supply the actor. An explicit matching ID does not authenticate it; the
+service derives the output independently. A basis option requesting preservation
+of `unknown` or `writer-supplied` attribution conflicts with mandatory service
+derivation and must be rejected, not silently relabeled.
 Each source entry has `ref` and optional `rel` and `note`, using the same reference grammar
 as BDP. A plain URI is unpinned; `{ "uri": "…", "revision": "…" }` pins exactly.
 Do not resolve unpinned sources to latest silently. CLI-local identity shorthand,
@@ -580,7 +666,8 @@ All caller-provided values travel in the operation's proposed
 set it through a generic JSON write as well as flags. Imports remain a separately
 specified path and may not backdate native writes. Actor/message/agent describe
 this write: omission must never copy them from the previous revision. Omitted
-agent/message means undetermined; absent resolved actor stays absent.
+agent/message means undetermined; actor is resolved afresh by the applicable
+service or local attribution mode, never inherited.
 
 | Source input | Create | Update | Delete |
 | --- | --- | --- | --- |
@@ -592,8 +679,8 @@ agent/message means undetermined; absent resolved actor stays absent.
 A replacement source list defaults its completeness to unknown unless supplied;
 a preserved list preserves completeness unless explicitly changed. Completeness
 alone may change a known existing list on update. An explicit empty list does
-not imply complete. These omission defaults are strawman recommendations replacing
-the earlier undecided source carry-forward question.
+not imply complete. These omission defaults are selected for this proposal;
+the exact BDP input/reset encoding remains to specify.
 
 Source-only changes mint a revision. Actor/message/agent-only submissions retain
 the existing no-op rule; the CLI must report that no revision was created and
@@ -648,7 +735,8 @@ means no value was supplied for this write; `--message ''` is an explicitly empt
 message. Keep existing known-absent versus undetermined states losslessly in
 History/import/structured inputs, without dedicated negative flags. This is a CLI
 simplification, not permission to erase those distinctions from saved records.
-`--no-actor` still has a purpose: it disables the existing automatic actor default.
+`--no-actor` disables the local automatic actor default; it cannot disable
+authenticated attribution supplied by a service.
 
 Reusing `--message` and making wrapper `--actor` consistent are deliberate breaking
 changes from the inspected legacy meanings. Cut them over at an explicit CLI
@@ -660,9 +748,8 @@ meaning change. No implementation ships before that compatibility choice is made
 
 ### `bd provenance record` is an Activity-create convenience command
 
-The command builds an Activity Bead and invokes the same underlying create operation
-as `bd create` with the Activity Type. It is not another event-storage API.
-It retains useful validation and retry handling beyond a bare unkeyed create.
+The command invokes ordinary create with the Activity Type, adding validation
+and retry handling beyond a bare unkeyed create.
 
 | Wrapper option | Activity content or revision metadata |
 | --- | --- |
@@ -774,8 +861,8 @@ of this feature's contract. Reliable following is NYI, not a timestamp shortcut.
 History modes and reverse indexes obey retained-history authorization and erasure;
 no index may disclose a revision the caller cannot read. Return the applicable
 retention/completeness information, not an implication of an all-time complete
-log. Whether deleting a subject deletes its Activity Beads remains a product
-choice; explicit Activity deletion itself follows ordinary terminal-revision rules.
+log. Subject deletion retains Activity Beads by default; explicit Activity
+deletion, including any defined cascade selection, follows terminal-revision rules.
 
 ### CLI acceptance and readiness
 
@@ -786,7 +873,9 @@ choice; explicit Activity deletion itself follows ordinary terminal-revision rul
 | Explicit empty sources versus unknown sources | Remain distinct through flags, JSON output, BDP and retained reads |
 | Two flags request stdin, conflicting value/default-suppression flags, invalid basis, or client commit time | Fail before mutation |
 | Activity performed by Alice, recorded by CI | Separate activity participant and revision actor; no flag shadowing changes their meaning |
-| Actor supplied with no basis flag | Record `basis: writer-supplied`; never upgrade this to authenticated attribution |
+| Actor supplied with no basis flag to a backend without service derivation | Record `basis: writer-supplied`; never infer authentication from the flag |
+| Authenticated service supplies the actor; caller omits actor | Save the service-derived identity and authenticated basis; no local default overrides it |
+| Caller requests authenticated basis, conflicting actor/basis, or `--no-actor` against service derivation | Reject before mutation; neither spoof nor suppress authenticated attribution |
 | Omitted activity occurrence time | Remains unknown, or fails the applicable required-time rule; never defaults to server time |
 | Message and agent omitted on an update | No copied prior values and no negative flags required |
 | Revision cites evidence; Activity identifies an output | Shared entry shape preserves their different roles; optional unknown extension relations round-trip |
@@ -800,10 +889,12 @@ choice; explicit Activity deletion itself follows ordinary terminal-revision rul
 
 **EXISTING:** inherited actor option, Activity-log record/log/by-ref and its retry
 rules, preview actor/time metadata. **PROPOSED / NYI:** common provenance flags,
-unified output shape, Activity wrapper backed by Beads, ordinary Activity edits,
+unified output shape, service-derived authenticated actors, Activity wrapper
+backed by Beads, ordinary Activity edits,
 terminal revisions, revision/all queries and ordered follow. Before implementation,
 settle the BDP terminal-history amendment, compatibility/output version, Activity
-subject deletion policy, retry mapping/retention and query capability declarations.
+access/retention and optional cascade details, retry mapping/retention and query
+capability declarations. Retaining activities on subject deletion is the proposed default.
 
 ## Appendix A: relationship to today's `bd provenance`
 
@@ -863,20 +954,13 @@ identity, or event-log queries.
 | List events by Issue/kind or find them by artifact reference | **Not met:** source retrieval is a different query; it does not reconstruct the event log |
 | Record exact input sources with a new version | **Met by the proposal:** save them with that version |
 
-Consider a CI job reporting that commit C landed for Issue I after another
-writer has already updated I. Today it appends a small event row associated with
-I. It does not need to rewrite I's current content or guess which revision C
-belongs to. The source-only model would require a new I revision and additional
-event fields, bringing activity recording into contention with ordinary Issue
-edits. A changed actor on that new revision would describe recording the event,
-not necessarily producing the Issue's substantive content.
-
-An ever-growing event list on every version also enlarges successive logical
-records. Storing only new events on each version instead requires retained
-history and an event index to answer the existing queries. Storage engines may
-reduce physical copying, but that does not remove the extra Resource revisions
-or their changed meaning. These are architectural costs, not measured benchmark
-results; this review ran no performance tests.
+For example, CI can report commit C landing for Issue I after I changes, without
+rewriting I or guessing its relevant revision. Forcing that report into I's
+sources would create contention with Issue edits and attribute the new revision
+to the reporter. Embedding an accumulating event list also enlarges logical
+records; distributing events across revisions instead requires historical
+queries. Storage deduplication does not remove those semantic costs. No
+performance equivalence has been measured.
 
 **Recommendation:** preserve the activity-log behavior, using the Activity Bead
 design above as its proposed BDP representation, and add the source member for
@@ -887,13 +971,10 @@ by source reference and subject revision as versions are saved and removed,
 rather than scan all historical bodies on every query. That index is an
 implementation option, not a second authoritative source list.
 
-The existing schema already has indexes for Issue/event time, artifact reference
-and event kind, and the record path handles duplicate delivery. This is a
-grounded implementation contract. Source inspection alone does not establish
-how frequently each command is used in deployed systems. The Activity design
-provides a route to preserving those behaviors in BDP, but migration, deletion,
-access policy, and retry identity must be settled before replacing the current
-storage path. No implementation or measured performance equivalence is claimed.
+Existing indexes cover Issue/event time, artifact reference and event kind;
+the record path handles duplicate delivery. Preserve those capabilities, with
+migration, access/retention and retry policy settled before replacing storage.
+Source inspection does not establish deployed usage frequency or performance.
 
 ### Proposed compatibility approach
 
