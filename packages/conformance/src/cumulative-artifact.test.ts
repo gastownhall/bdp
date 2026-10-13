@@ -168,9 +168,11 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
     "read-update.singleton.idempotency-key-required",
     "read-update.singleton.idempotency-conflict",
     "read-update.singleton.unsupported-media-type",
+    "read-update.singleton.no-local-bindings",
     "read-update.singleton.result-headers",
     "read-update.alias.put-creates",
     "read-update.alias.put-repoints",
+    "read-update.alias.non-canonical-target",
     "read-update.alias.no-version-minted",
     "read-update.sequence.member-problem-shape",
   ]);
