@@ -304,7 +304,7 @@ it("installed valid sets preserve atomic effects, original receipts, owned versi
     ]);
     expect(await run([{ operation: "deleteWhere", ...input }], "delete32")).toEqual(receipt);
     expect((await send("links/later")).id).toBe(`${scope}links/later`);
-    await run([
+    const ownedCreated = await run([
       {
         operation: "createLink",
         id: "links/owned",
@@ -319,12 +319,54 @@ it("installed valid sets preserve atomic effects, original receipts, owned versi
       selector: `$[?@.id == "${scope}links/owned"]`,
       change: [{ op: "replace", path: "/n", value: 1 }],
     };
+    const sourceBefore = await send("beads/owner"),
+      linkBefore = await send("links/owned");
+    expect(linkBefore.properties).toEqual({ n: 0 });
+    expect(typeof sourceBefore.revision).toBe("string");
+    expect(typeof linkBefore.revision).toBe("string");
     const updated = await send("operations/update-where", ownedInput, "owned_update");
     const sourceAfter = await send("beads/owner"),
       linkAfter = await send("links/owned"),
       updatedEntry = array(updated.results)[1]!;
-    expect(updatedEntry.sourceRevision).toBe(sourceAfter.revision);
-    expect(object(updatedEntry.resource)).toEqual(linkAfter);
+    const assertOwnedTransition = (
+      receipt: Record<string, unknown>,
+      liveSource: Record<string, unknown>,
+      liveLink: Record<string, unknown>,
+    ) => {
+      expect(liveLink.properties, "requested owned Link properties").toEqual({ n: 1 });
+      expect(liveLink.metadata).toEqual(linkBefore.metadata);
+      expect(liveSource.properties).toEqual(sourceBefore.properties);
+      expect(liveSource.metadata).toEqual(sourceBefore.metadata);
+      expect(typeof liveLink.revision).toBe("string");
+      expect(liveLink.revision, "owned Link revision advances").not.toBe(linkBefore.revision);
+      expect(typeof liveSource.revision).toBe("string");
+      expect(liveSource.revision, "owner revision advances").not.toBe(sourceBefore.revision);
+      expect(receipt.effectPosition, "effectful owned update has a position").toEqual(
+        expect.any(String),
+      );
+      expect(receipt.effectPosition).not.toBe(ownedCreated.requiredPosition);
+      expect(receipt.requiredPosition).toBe(receipt.effectPosition);
+      const entry = array(receipt.results)[1]!;
+      expect(entry.sourceRevision).toBe(liveSource.revision);
+      expect(object(entry.resource)).toEqual(liveLink);
+      expect(object(liveSource.ownedLinks)[owned]).toEqual([liveLink]);
+    };
+    assertOwnedTransition(updated, sourceAfter, linkAfter);
+    // The native runtime mutant changes n1 to n0 and returns mutually consistent
+    // stale outputs. Reject that exact observation class at the intended literal
+    // assertion, rather than relying on an unrelated exception or inequality.
+    const staleReceipt = {
+      ...updated,
+      effectPosition: undefined,
+      requiredPosition: ownedCreated.requiredPosition,
+      results: [
+        array(updated.results)[0],
+        { ...updatedEntry, resource: linkBefore, sourceRevision: sourceBefore.revision },
+      ],
+    };
+    expect(() => assertOwnedTransition(staleReceipt, sourceBefore, linkBefore)).toThrow(
+      /requested owned Link properties/,
+    );
     const assertOwned = (row: Record<string, unknown>) =>
       expect(row.sourceRevision).toBe(sourceAfter.revision);
     expect(() => assertOwned({ ...updatedEntry, sourceRevision: "wrong" })).toThrow();
@@ -390,7 +432,7 @@ it("installed valid sets preserve atomic effects, original receipts, owned versi
         eventPages: suffix.lengths,
         events: 96,
         groups: 1,
-        negativeOracles: 4,
+        negativeOracles: 5,
       },
       observations,
     };
