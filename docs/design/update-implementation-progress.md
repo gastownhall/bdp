@@ -566,3 +566,21 @@ mapping; no token is emitted. Policy-only and credential-only changes have
 distinct identity witnesses, and callers cannot supply these metadata fields.
 Source commit remains launcher metadata rather than a claim by the target.
 This remains a non-attesting private candidate with public admission unchanged.
+
+
+### Qualification limits for the current installed fixture
+
+Bodyless method refusals from the shared receiver now carry the same
+non-attesting marker; emitted and packed HTTP observations assert it for the
+service description, Operation Directory and operation target. IPC smoke checks
+require an opaque 64-hex policy identity, as for the sibling digest fields.
+
+Payload binding is qualified against the fixed current declared dependency
+closure. Optional/peer edges, ESM-only dependency resolution and traversal work
+bounds for larger dependency graphs are not generalized by this candidate.
+The reference-output guard covers absolute URI strings in the current reference
+closure; it is not a semantic classifier for future URI-reference or prose
+fields. Authentication identity deliberately captures credential array order.
+Listener retry tests inject a failure that leaves the listener open; this does
+not establish that ordinary Node close produces that state. The actual owner
+close, released store lock and preserved terminal result remain observed.

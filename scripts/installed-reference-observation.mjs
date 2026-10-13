@@ -62,7 +62,7 @@ export async function launchInstalledReference(entry, configuration) {
     assert.equal(ready.claimEligible, false);
     assert.match(ready.configurationIdentity, /^[a-f0-9]{64}$/);
     assert.match(ready.payloadIdentity, /^[a-f0-9]{64}$/);
-    assert.equal(typeof ready.policyIdentity, "string");
+    assert.match(ready.policyIdentity, /^[a-f0-9]{64}$/);
     assert.match(ready.authenticationIdentity, /^[a-f0-9]{64}$/);
     assert.equal(ready.profile, "read-update");
     assert.equal(ready.history, false);
@@ -292,6 +292,7 @@ export async function observeInstalledReference(entry, directory) {
         origin: "https://origin.invalid",
       });
       assert.equal(options.status, 405);
+      assert.equal(options.headers["x-bdp-development"], "non-attesting");
       assert.equal(options.headers.allow, allow);
       assert.equal(options.text, "");
     }
