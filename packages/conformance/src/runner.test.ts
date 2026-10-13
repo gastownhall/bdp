@@ -6000,6 +6000,8 @@ it.each([
   "empty-page",
   "changed-page",
   "cancel-page",
+  "null-next",
+  "absent-next",
 ] as const)("observes private first-page authority over actual HTTP: %s", async (kind) => {
   const { readFileSync } = await import("node:fs");
   const { createCumulativeTransactionalArtifactBundle } = await import("./artifact-bundle.js");
@@ -6028,7 +6030,7 @@ it.each([
     transaction: "tx",
     requiredPosition: "pos-0",
     results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
-    next: page,
+    ...(kind === "absent-next" ? {} : { next: kind === "null-next" ? null : page }),
     expiresAt: "2030-01-01T00:00:00Z",
   };
   let pageGets = 0,
@@ -6202,6 +6204,17 @@ it.each([
       });
       expect(observed.servedSession?.generation).toBe(2);
       expect(observed.dynamicExactConfiguration?.routes).toEqual([{ method: "GET", url: page }]);
+    } else if (kind === "null-next" || kind === "absent-next") {
+      expect(actual).toMatchObject({
+        state: "fail",
+        reason:
+          kind === "null-next"
+            ? "source receipt page unavailable"
+            : "source receipt schema invalid",
+      });
+      expect(actual.exchanges).toHaveLength(1);
+      expect(actual.exchanges[0]?.response?.status).toBe(200);
+      expect(pageGets).toBe(0);
     } else if (kind === "cancel-page") {
       expect(sessionAbort.signal.aborted).toBe(true);
       expect(actual.state).not.toBe("pass");
@@ -6218,11 +6231,15 @@ it.each([
       });
       expect(actual.exchanges.at(-1)?.sourceReceiptObservation?.pointer).toBe("/next");
     }
-    expect(requests.slice(0, 3)).toEqual([
-      "POST /acme/operations/batch",
-      "GET /acme/receipts/r1",
-      "HEAD /acme/receipts/r1/pages/p1",
-    ]);
+    expect(requests.slice(0, 3)).toEqual(
+      kind === "null-next" || kind === "absent-next"
+        ? ["POST /acme/operations/batch"]
+        : [
+            "POST /acme/operations/batch",
+            "GET /acme/receipts/r1",
+            "HEAD /acme/receipts/r1/pages/p1",
+          ],
+    );
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) =>

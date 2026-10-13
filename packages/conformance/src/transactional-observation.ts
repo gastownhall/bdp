@@ -229,7 +229,7 @@ export function createTransactionalObservations(
         }
       }
       if (pointer === "/next" && !page)
-        throw new TransactionalHarnessError("source receipt page unavailable");
+        throw new TransactionalReceiptFailure("source receipt page unavailable");
       if (ledger.has(binding) || ledger.size >= maximum)
         throw new TransactionalHarnessError("receipt authority binding limit or reuse");
       ledger.set(binding, {

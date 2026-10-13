@@ -1056,6 +1056,7 @@ it.each([
 );
 
 it.each([
+  ["root next", "p-root-read", "next-page", null],
   ["inline boundary", "p-update", "p30-id", `${scope}beads/p31`],
   ["page member", "p-page-read", "p31-id", `${scope}beads/p30`],
   ["page parent", "p-page-read", "parent", `${scope}receipts/wrong`],

@@ -838,6 +838,10 @@ it("preserves every original TX scenario and coverage object while adding one bo
   expect(nodes).toBeLessThanOrEqual(10200);
   // Clause ownership is independent from the exhaustive mechanical assertion mirror.
   const clauseMap = {
+    "transactional.receipt.pagination": [
+      "#mutation-receipt-responses",
+      "#mutation-receipt-responses",
+    ],
     "transactional.set.mutation": ["#set-mutation-objects", "#mutation-receipt-responses"],
     "transactional.set.zero-match": ["#events-and-event-sources", "#mutation-receipt-responses"],
     "transactional.set.cardinality": ["#set-mutation", "#transactional-problem-details"],
@@ -911,6 +915,43 @@ it("pins the one-page matched-plus-updated witness without advertised-limit or o
       ]),
     );
   }
+  const update = row.actions.find((a: { id: string }) => a.id === "p-update");
+  const page = row.actions.find((a: { id: string }) => a.id === "p-page-read");
+  const assertion = (action: typeof update, id: string) =>
+    action.assertions.find((a: { id: string }) => a.id === id);
+  expect(assertion(update, "matched")).toMatchObject({
+    kind: "json-pointer",
+    pointer: "/results/0",
+    exists: true,
+    equals: { operationIndex: 0, outcome: "matched", count: 32 },
+  });
+  expect(assertion(update, "outcomes")).toMatchObject({
+    kind: "json-array-tuples",
+    pointer: "/results",
+    ordered: true,
+    projections: [{ pointer: "/operationIndex" }, { pointer: "/outcome" }],
+    equals: [[0, "matched"], ...Array.from({ length: 31 }, () => [0, "updated"])],
+  });
+  expect(assertion(update, "no-extra")).toMatchObject({ pointer: "/results/32", exists: false });
+  expect(assertion(update, "next-page")).toMatchObject({ pointer: "/next", exists: true });
+  const root = row.actions.find((a: { id: string }) => a.id === "p-root-read");
+  expect(assertion(root, "next-page")).toMatchObject({
+    pointer: "/body/next",
+    exists: true,
+    equalsBinding: "p-page",
+  });
+  expect(page.assertions).toContainEqual(
+    expect.objectContaining({ pointer: "/body/results/1", exists: false }),
+  );
+  for (const [pointer, equals] of [
+    ["/body/results/0/resource/id", "https://reference.invalid/acme/beads/p31"],
+    ["/body/results/0/resource/type", "https://reference.invalid/acme/types/task"],
+    ["/body/results/0/resource/properties", { title: "changed" }],
+    ["/body/results/0/resource/metadata", { tag: "pagination" }],
+  ])
+    expect(page.assertions).toContainEqual(
+      expect.objectContaining({ pointer, exists: true, equals }),
+    );
   // Semantic final state is literal; opaque current envelopes are not captured.
   // Exact recorded root/page whole-body retention remains a separate client oracle.
   expect(

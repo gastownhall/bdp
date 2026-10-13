@@ -9799,6 +9799,12 @@
             {
               "id": "request-body",
               "kind": "request-authored-body"
+            },
+            {
+              "id": "next-page",
+              "kind": "json-pointer",
+              "pointer": "/next",
+              "exists": true
             }
           ]
         },
@@ -9891,6 +9897,13 @@
               "kind": "json-pointer",
               "pointer": "/headers/last-modified",
               "exists": false
+            },
+            {
+              "id": "next-page",
+              "kind": "json-pointer",
+              "pointer": "/body/next",
+              "exists": true,
+              "equalsBinding": "p-page"
             }
           ]
         },

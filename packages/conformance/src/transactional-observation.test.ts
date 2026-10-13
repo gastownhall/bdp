@@ -415,6 +415,7 @@ it.each([
 });
 it("requires page disclosure and preserves duplicate/refused/revoked binding boundaries", () => {
   const f = fixture();
+  expect(() => f.register(response(), body, "/next")).toThrow(TransactionalReceiptFailure);
   expect(() => f.register(response(), body, "/next")).toThrow("page unavailable");
   f.register(response(paginated), paginated, "/next");
   expect(() => f.register(response(paginated), paginated, "/next")).toThrow("reuse");
