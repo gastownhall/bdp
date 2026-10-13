@@ -9,6 +9,8 @@ import {
   existsSync,
 } from "node:fs";
 import { createRequire } from "node:module";
+import { createConnection } from "node:net";
+import { once } from "node:events";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -93,6 +95,67 @@ afterEach(async () => {
 it("cold-navigates the emitted installed factory, all targets and stable reopen using the packed-smoke observations", async () => {
   expect((await helpers.observeInstalledReference(entry, directory())).claimEligible).toBe(false);
 }, 30000);
+
+it("releases the installed owner while a non-reading CONNECT peer withholds FIN", async () => {
+  const config = helpers.referenceConfiguration(directory(), await helpers.availablePort(), token);
+  const running = await helpers.launchInstalledReference(entry, config);
+  children.push(running);
+  const created = await helpers.requestInstalled(
+    config,
+    token,
+    `${config.scope}operations/create-bead`,
+    "POST",
+    { id: "beads/connect-owner", type: `${config.scope}types/task`, properties: { kept: true } },
+    "connect-owner",
+  );
+  expect(created.status).toBe(200);
+  const peer = createConnection({ ...config.listener, allowHalfOpen: true });
+  peer.pause();
+  const errors: Error[] = [];
+  peer.on("error", (error) => errors.push(error));
+  async function bounded<T>(operation: Promise<T>, message: string): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        operation,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(Error(message)), 2000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  try {
+    await bounded(once(peer, "connect"), "CONNECT peer connection deadline");
+    const refusal = once(peer, "readable");
+    peer.write("CONNECT example.invalid:443 HTTP/1.1\r\nHost: example.invalid:443\r\n\r\n");
+    await bounded(refusal, "CONNECT refusal arrival deadline");
+    // Actual refusal bytes establish that CONNECT reached the child. Do not read
+    // them or send FIN: a reset/fully closed peer cannot pin detached shutdown.
+    expect(peer.readableLength).toBeGreaterThan(0);
+    expect(peer.writableEnded).toBe(false);
+    await expect(
+      bounded(running.close(), "installed shutdown blocked by non-reading CONNECT peer"),
+    ).resolves.toEqual({ code: 0, signal: null });
+    expect(peer.writableEnded).toBe(false);
+    const reopened = await helpers.launchInstalledReference(entry, { ...config, create: false });
+    children.push(reopened);
+    const retained = await helpers.requestInstalled(
+      config,
+      token,
+      `${config.scope}beads/connect-owner`,
+    );
+    expect(retained.status).toBe(200);
+    expect(retained.value).toEqual(created.value.resource);
+    expect(errors).toEqual([]);
+  } finally {
+    // Release the peer before awaiting cleanup, including the deliberate mutant
+    // timeout; this lets an unfixed child finish without the launcher's SIGKILL.
+    peer.destroy();
+    await running.close();
+  }
+}, 15000);
 
 it("captures detached configuration, remaps the whole reference Type closure and separates live policy identity", async () => {
   const config = helpers.referenceConfiguration(directory(), await helpers.availablePort(), token);

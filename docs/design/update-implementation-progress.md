@@ -588,7 +588,7 @@ close, released store lock and preserved terminal result remain observed.
 
 Across the ordinary and installed configurations of the shared receiver,
 the explicit response paths carrying the marker are JSON/Problem
-responses, shared empty responses, ordinary Read responses, captured schemas,
+responses, shared empty responses, ordinary Read responses, captured installed schemas,
 composed Read responses (including installed alias redirects), the ordinary
 development alias redirect, and the installed raw CONNECT refusal. Direct
 ordinary alias and installed packed alias observations assert the marker. A

@@ -322,7 +322,7 @@ export async function observeInstalledReference(entry, directory) {
     assert.match(connect, /\r\nContent-Length: 0\r\n/i);
     assert.equal(connect.indexOf("\r\n\r\n"), connect.length - 4);
     // A detached CONNECT peer may reset before the refusal finishes writing.
-    // The receiver must remain usable and release those detached sockets.
+    // The receiver must remain usable after a reset peer.
     for (let attempt = 0; attempt < 4; attempt += 1) {
       await new Promise((resolve, reject) => {
         const socket = createConnection(config.listener.port, config.listener.host);
