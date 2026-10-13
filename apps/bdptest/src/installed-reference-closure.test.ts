@@ -11,9 +11,10 @@ vi.mock("@bdp/protocol", async (importOriginal) => {
     },
   };
 });
-const { referenceTypeArtifacts } = await import(
-  "../../../packages/server/dist/installed-reference-configuration.js"
-);
+const { referenceTypeArtifacts } = (await import(
+  new URL("../../../packages/server/dist/installed-reference-configuration.js", import.meta.url)
+    .href
+)) as typeof import("../../../packages/server/src/installed-reference-configuration.js");
 it("refuses foreign URIs in future reference fields, including nested values and keys", () => {
   const scope = "https://reference.invalid/acme/";
   try {

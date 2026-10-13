@@ -15,7 +15,7 @@ import {
   type MaximumEndpointMultiplicityPolicy,
 } from "@bdp/protocol";
 import * as protocolModule from "@bdp/protocol";
-import { openRecoveryStore, RecoveryStoreError, type StoreReader } from "./recovery-store.js";
+import { openRecoveryStore, RecoveryStoreError } from "./recovery-store.js";
 import {
   createSequenceLifecycle,
   SequenceLifecycleError,
@@ -26,6 +26,7 @@ import { type MemberExecutorOptions, type StablePrincipal } from "./member-execu
 import {
   AuthorityReadError,
   type AuthorityReadOptions,
+  type AuthorityReadReader,
   type AuthorityReadFacet,
   type AuthorityReadPlane,
   type ScopeReadConfiguration,
@@ -145,9 +146,9 @@ function makeFixture(owned: boolean) {
     hidden: new Set<string>(),
     memberSources: [] as ScopeReadConfiguration[],
     readSources: [] as ScopeReadConfiguration[],
-    readers: [] as StoreReader[],
+    readers: [] as AuthorityReadReader[],
     captures: 0,
-    hook: undefined as ((phase: string, reader?: StoreReader) => void) | undefined,
+    hook: undefined as ((phase: string, reader?: AuthorityReadReader) => void) | undefined,
     configuration: Object.freeze({
       policyIdentity: "policy-1",
       configurationIdentity: "configuration-1",
@@ -157,7 +158,7 @@ function makeFixture(owned: boolean) {
     }) as ScopeReadConfiguration,
   };
   const source = {
-    capture(reader: StoreReader) {
+    capture(reader: AuthorityReadReader) {
       expect(this).toBe(source);
       reader.policy("fixture");
       if (state.readers.at(-1) === reader) state.readSources.push(state.configuration);
@@ -1041,7 +1042,7 @@ function controlledClosures(
   },
 ) {
   const actualPlane = planeModule.createAuthorityReadPlane,
-    actualPagination = paginationModule.createReadPagination;
+    actualPagination = paginationModule.createContextualReadPagination;
   const calls = { owner: 0, read: 0, disposed: 0, released: [] as unknown[] };
   if (mode.ownerCompletion) {
     const close = f.store.close.bind(f.store);
@@ -1050,7 +1051,7 @@ function controlledClosures(
       throw mode.ownerCompletion;
     });
   }
-  vi.spyOn(paginationModule, "createReadPagination").mockImplementation((options) => {
+  vi.spyOn(paginationModule, "createContextualReadPagination").mockImplementation((options) => {
     const engine = actualPagination(options);
     return {
       ...engine,

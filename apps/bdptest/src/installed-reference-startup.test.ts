@@ -84,11 +84,16 @@ const helper = (await import(
     key?: string,
   ): Promise<{ status: number; value: unknown }>;
 };
-const configModule = await import(
-  "../../../packages/server/dist/installed-reference-configuration.js"
-);
-const factory = await import("../../../packages/server/dist/installed-reference.js");
-const authority = await import("../../../packages/server/dist/development-authority.js");
+const configModule = (await import(
+  new URL("../../../packages/server/dist/installed-reference-configuration.js", import.meta.url)
+    .href
+)) as typeof import("../../../packages/server/src/installed-reference-configuration.js");
+const factory = (await import(
+  new URL("../../../packages/server/dist/installed-reference.js", import.meta.url).href
+)) as typeof import("../../../packages/server/src/installed-reference.js");
+const authority = (await import(
+  new URL("../../../packages/server/dist/development-authority.js", import.meta.url).href
+)) as typeof import("../../../packages/server/src/development-authority.js");
 
 it.each([false, true])(
   "withholds reads and mutation admission until every principal is ready (later failure=%s)",
