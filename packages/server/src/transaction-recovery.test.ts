@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -66,39 +66,59 @@ it.each(["before-maintenance-commit", "after-terminal"] as const)(
     expect(readFileSync(`${file}-journal`).subarray(0, 8)).toEqual(
       Buffer.from("d9d505f920a163d7", "hex"),
     );
+    const reopenFiles = [file];
     if (stage === "after-terminal") {
-      // SQLite must recover the hot journal before configuration can be read;
+      const refusedFile = path.join(directory, "refused.sqlite");
+      cpSync(file, refusedFile);
+      cpSync(`${file}-journal`, `${refusedFile}-journal`);
+      reopenFiles.push(refusedFile);
+      // SQLite must recover the copied hot journal before configuration can be read;
       // incompatible installation refusal must still precede BDP cleanup.
       expect(() =>
         openTransactionStore({
           ...options,
+          file: refusedFile,
           create: false,
           receiptMaximumItems: 3,
           clock: () => 86401001,
         }),
       ).toThrow("installation mismatch");
+      expect(existsSync(`${refusedFile}-journal`)).toBe(false);
     }
-    const owner = openTransactionStore({ ...options, create: false, clock: () => 1000 });
-    try {
-      expect(owner.recoveredPending).toBe(stage === "after-terminal" ? 1 : 0);
-      expect(owner.inspect().groups).toHaveLength(60);
-      expect(owner.inspect().resources).toHaveLength(180);
-      for (const [n, receipt] of receipts.entries()) {
-        expect(owner.readReceipt("p", receipt.id).receipt).toMatchObject({
-          detail: "available",
-          next: receipt.next,
-        });
-        expect(owner.readReceiptPage("p", receipt.next)).toMatchObject({
-          kind: "page",
-          page: {
-            receipt: receipt.id,
-            next: null,
-            results: [{ resource: { properties: { n, i: 2, pad: "x".repeat(18000) } } }],
-          },
-        });
+    // The successful opener must independently encounter the original hot image.
+    expect(readFileSync(`${file}-journal`).subarray(0, 8)).toEqual(
+      Buffer.from("d9d505f920a163d7", "hex"),
+    );
+    // Check both branches: the untouched crash image and the recovered copy
+    // whose refused open must not retract pending work or sweep receipt detail.
+    for (const reopenFile of reopenFiles) {
+      const owner = openTransactionStore({
+        ...options,
+        file: reopenFile,
+        create: false,
+        clock: () => 1000,
+      });
+      try {
+        expect(owner.recoveredPending).toBe(stage === "after-terminal" ? 1 : 0);
+        expect(owner.inspect().groups).toHaveLength(60);
+        expect(owner.inspect().resources).toHaveLength(180);
+        for (const [n, receipt] of receipts.entries()) {
+          expect(owner.readReceipt("p", receipt.id).receipt).toMatchObject({
+            detail: "available",
+            next: receipt.next,
+          });
+          expect(owner.readReceiptPage("p", receipt.next)).toMatchObject({
+            kind: "page",
+            page: {
+              receipt: receipt.id,
+              next: null,
+              results: [{ resource: { properties: { n, i: 2, pad: "x".repeat(18000) } } }],
+            },
+          });
+        }
+      } finally {
+        owner.close();
       }
-    } finally {
-      owner.close();
     }
   },
   25000,
