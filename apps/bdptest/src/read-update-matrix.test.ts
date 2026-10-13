@@ -801,7 +801,7 @@ async function run(
 }
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate job starts 45 isolated authorities; Linux CI previously exceeded 30s.
+  // One aggregate job starts 47 isolated authorities; Linux CI previously exceeded 30s.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(Error("cumulative run budget exceeded")), 90000);
@@ -914,7 +914,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "092b9ac9abf64dcd02f592059bc6333b0a6dfc69efe9d50332086335474c8f3c",
+    "fdcbe130767421273c839d15cd8db5fef4b8047e7aabe192a54c1d4110aca6be",
   );
   expect(report.uncoveredIds).toHaveLength(103);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
@@ -1231,7 +1231,7 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "092b9ac9abf64dcd02f592059bc6333b0a6dfc69efe9d50332086335474c8f3c",
+    "fdcbe130767421273c839d15cd8db5fef4b8047e7aabe192a54c1d4110aca6be",
   );
 }, 30000);
 
@@ -1772,6 +1772,235 @@ it.each(retryControls)(
         .filter((assertion) => !assertion.passed)
         .map((assertion) => assertion.id),
     ).toContain(control.failed);
+  },
+  30000,
+);
+
+const admissionRows = [
+  "read-update.singleton.idempotency-key-required",
+  "read-update.singleton.unsupported-media-type",
+] as const;
+it("observes key and media admission against installed HTTP with paired afterstate", async () => {
+  const report = await run(undefined, [...admissionRows]);
+  if (process.env.BDP_ADMISSION_REPORT_PATH)
+    writeFileSync(process.env.BDP_ADMISSION_REPORT_PATH, JSON.stringify(report, null, 2));
+  for (const id of admissionRows)
+    expect(
+      report.result.scenarios.find((row) => row.id === id),
+      JSON.stringify(report.result),
+    ).toMatchObject({ state: "pass" });
+  expect(report.uncoveredIds).toHaveLength(103);
+  expect(report.result.claimEligible).toBe(false);
+}, 30000);
+
+it("pins admission action, request-byte and live-identity budgets without hidden setup", () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const ledgers = [
+    { id: admissionRows[0], actions: 244, raw: 151, client: 93, peak: { beads: 37, links: 4 } },
+    { id: admissionRows[1], actions: 116, raw: 73, client: 43, peak: { beads: 11, links: 4 } },
+  ];
+  const kinds: Record<string, string> = {
+    "create-bead": "createBead",
+    "update-bead": "updateBead",
+    "delete-bead": "deleteBead",
+    "create-link": "createLink",
+    "update-link": "updateLink",
+    "delete-link": "deleteLink",
+    "put-alias": "putAlias",
+    "delete-alias": "deleteAlias",
+    sequence: "sequence",
+  };
+  for (const ledger of ledgers) {
+    const row = manifest.scenarios.find((row: { id: string }) => row.id === ledger.id);
+    expect(row.actions).toHaveLength(ledger.actions);
+    expect(row.actions.filter((a: { family: string }) => a.family === "http")).toHaveLength(
+      ledger.raw,
+    );
+    expect(row.actions.filter((a: { family: string }) => a.family === "client")).toHaveLength(
+      ledger.client,
+    );
+    const live: Record<string, Set<string>> = { beads: new Set(), links: new Set() };
+    const peak = { beads: 0, links: 0 };
+    for (const action of row.actions) {
+      if (action.raw?.body)
+        expect(Buffer.byteLength(action.raw.body.value)).toBeLessThanOrEqual(65536);
+      if (action.method === "GET" && ["beads", "links"].includes(action.target?.binding)) {
+        const collection = action.target.binding;
+        expect(action.target.query).toEqual({ limit: "100" });
+        expect(action.assertions.find((a: { id: string }) => a.id === "complete")).toMatchObject({
+          pointer: "/next",
+          equals: null,
+        });
+        expect(action.assertions.find((a: { id: string }) => a.id === "identities").equals).toEqual(
+          [...live[collection]!].sort().map((id) => [`${scope}${id}`]),
+        );
+      }
+      const success = action.assertions.some(
+        (a: { id: string; equals?: unknown }) => a.id === "status" && a.equals === 200,
+      );
+      const method = action.method ?? action.input?.method;
+      if (!success || method !== "POST") continue;
+      const body = action.raw?.body ? JSON.parse(action.raw.body.value) : action.input.body;
+      const kind = kinds[action.target?.path ?? action.input.targetBinding];
+      const records = kind === "sequence" ? body.operations : [{ ...body, operation: kind }];
+      for (const operation of records) {
+        const collection = operation.operation.includes("Bead") ? "beads" : "links";
+        if (operation.operation.startsWith("create")) live[collection]!.add(operation.id);
+        if (operation.operation === "deleteBead") live.beads!.delete(operation.bead);
+        if (operation.operation === "deleteLink") live.links!.delete(operation.link);
+        peak.beads = Math.max(peak.beads, live.beads!.size);
+        peak.links = Math.max(peak.links, live.links!.size);
+      }
+    }
+    expect(peak).toEqual(ledger.peak);
+    expect(peak.beads).toBeLessThanOrEqual(64);
+    expect(peak.links).toBeLessThanOrEqual(16);
+  }
+});
+
+it.each([
+  [0, "key-repeat-distinct", "single-key", 200, "status"],
+  [0, "key-long", "length-256", 200, "status"],
+  [1, "media-parameter-charset", "wrong-media", 415, "status"],
+] as const)(
+  "detects admission raw input boundary %s/%s/%s",
+  async (index, actionId, control, status, assertion) => {
+    const manifest = JSON.parse(
+      source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+    );
+    const id = admissionRows[index];
+    const row = manifest.scenarios.find((row: { id: string }) => row.id === id);
+    const action = row.actions.find((a: { id: string }) => a.id === actionId);
+    if (control === "single-key") action.raw.headerLines.pop();
+    else if (control === "length-256")
+      action.raw.headerLines.find(
+        (line: { name: string }) => line.name === "idempotency-key",
+      ).value = "x".repeat(256);
+    else
+      action.raw.headerLines.find((line: { name: string }) => line.name === "content-type").value =
+        "text/plain";
+    const report = await run(manifest, [id]);
+    const observed = report.result.scenarios.find((row) => row.id === id);
+    expect(observed?.state).toBe("fail");
+    const exchange = observed?.exchanges.find((exchange) => exchange.request.id === actionId);
+    expect(exchange?.response?.status).toBe(status);
+    expect(exchange?.assertions.filter((a) => !a.passed).map((a) => a.id)).toContain(assertion);
+  },
+  30000,
+);
+
+it.each([
+  {
+    scenario: admissionRows[0]!,
+    action: "key-empty-corrected",
+    path: ["status"],
+    value: 409,
+    failed: "status",
+  },
+  {
+    scenario: admissionRows[0]!,
+    action: "key-empty-corrected-0-read",
+    path: ["body", "properties", "n"],
+    value: 999,
+    failed: "postimage",
+  },
+  {
+    scenario: admissionRows[1]!,
+    action: "media-plain-corrected",
+    path: ["status"],
+    value: 409,
+    failed: "status",
+  },
+  {
+    scenario: admissionRows[1]!,
+    action: "media-plain-corrected-0-read",
+    path: ["body", "properties", "n"],
+    value: 1,
+    failed: "postimage",
+  },
+])(
+  "detects admission corrected disposition or state corruption $action",
+  async (control) => {
+    const report = await run(
+      undefined,
+      [control.scenario],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    const row = report.result.scenarios.find((row) => row.id === control.scenario);
+    expect(row?.state).toBe("fail");
+    const action = row?.actions?.find((a) => a.action.id === control.action);
+    expect(action?.assertions.filter((a) => !a.passed).map((a) => a.id)).toContain(control.failed);
+  },
+  30000,
+);
+
+it("pairs every malformed key with identical body and route and only a valid key correction", () => {
+  const manifest = JSON.parse(
+    source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+  );
+  const row = manifest.scenarios.find((row: { id: string }) => row.id === admissionRows[0]);
+  const corpus = ["empty", "long", "quoted", "space", "tab", "punctuation", "comma", "latin"];
+  for (const name of corpus) {
+    const bad = row.actions.find((a: { id: string }) => a.id === `key-${name}`);
+    const corrected = row.actions.find((a: { id: string }) => a.id === `key-${name}-corrected`);
+    expect(corrected.input.body).toEqual(JSON.parse(bad.raw.body.value));
+    expect(corrected.input.targetBinding).toBe(bad.target.path);
+    expect(corrected.input.idempotencyKey).toMatch(/^[A-Za-z0-9_-]{1,256}$/);
+    expect(
+      bad.raw.headerLines.find((line: { name: string }) => line.name === "idempotency-key").value,
+    ).not.toMatch(/^[A-Za-z0-9_-]{1,256}$/);
+    const sequenceBad = row.actions.find((a: { id: string }) => a.id === `sequence-key-${name}`);
+    const sequenceGood = row.actions.find(
+      (a: { id: string }) => a.id === `sequence-key-${name}-corrected`,
+    );
+    const expected = JSON.parse(sequenceBad.raw.body.value);
+    expect(expected.operations[1].idempotencyKey).not.toMatch(/^[A-Za-z0-9_-]{1,256}$/);
+    expect(sequenceGood.input.body.operations[1].idempotencyKey).toMatch(/^[A-Za-z0-9_-]{1,256}$/);
+    expected.operations[1].idempotencyKey = sequenceGood.input.body.operations[1].idempotencyKey;
+    expect(sequenceGood.input.body).toEqual(expected);
+    expect(sequenceGood.input.targetBinding).toBe(sequenceBad.target.path);
+  }
+});
+
+it.each(["alias-location", "stale-collection-record"] as const)(
+  "detects admission independent %s oracle mismatch",
+  async (control) => {
+    const manifest = JSON.parse(
+      source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
+    );
+    const row = manifest.scenarios.find((row: { id: string }) => row.id === admissionRows[0]);
+    const actionId =
+      control === "alias-location" ? "key-route-put-alias-alias-after" : "key-empty-after-beads";
+    const action = row.actions.find((a: { id: string }) => a.id === actionId);
+    let assertionId: string;
+    if (control === "alias-location") {
+      assertionId = "location";
+      action.assertions.find((a: { id: string }) => a.id === assertionId).equals =
+        `${scope}beads/ak-target`;
+    } else {
+      const assertion = action.assertions.find(
+        (a: { equalsBinding?: string }) =>
+          a.equalsBinding === "key-route-update-bead-corrected-0-record",
+      );
+      assertionId = assertion.id;
+      assertion.equalsBinding = "ak-seed-update-0-record";
+    }
+    const report = await run(manifest, [admissionRows[0]]);
+    const observed = report.result.scenarios.find((row) => row.id === admissionRows[0]);
+    expect(observed?.state).toBe("fail");
+    const exchange = observed?.exchanges.find((exchange) => exchange.request.id === actionId);
+    expect(exchange?.assertions.filter((a) => !a.passed).map((a) => a.id)).toEqual([assertionId]);
   },
   30000,
 );
