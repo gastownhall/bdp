@@ -197,18 +197,15 @@ it("uses inherited schema for writes, atomic late failures and staged sets, reta
   });
   expect(f.owner.inspect().resources).toHaveLength(1);
   expect(f.owner.inspect().groups).toHaveLength(1);
-  const set = f.run(
-    [
-      {
-        operation: "updateWhere",
-        collection: "beads",
-        selector: "$[?@.properties.n >= 0]",
-        change: [{ op: "replace", path: "/n", value: -1 }],
-      },
-    ],
-    "set",
-    true,
-  );
+  const setOperations = [
+    {
+      operation: "updateWhere",
+      collection: "beads",
+      selector: "$[?@.properties.n >= 0]",
+      change: [{ op: "replace", path: "/n", value: -1 }],
+    },
+  ];
+  const set = f.run(setOperations, "set", true);
   expect(set).toMatchObject({
     status: "failed",
     problem: { code: "validation-failed", operationIndex: 0 },
@@ -221,6 +218,12 @@ it("uses inherited schema for writes, atomic late failures and staged sets, reta
     prepareTransaction(scope, JSON.stringify({ operations: bad })),
   );
   expect(retry).toMatchObject({ kind: "existing", receipt: failed });
+  const setRetry = f.owner.admit(
+    "p",
+    "set",
+    prepareTransactionSetCore(scope, JSON.stringify({ operations: setOperations })),
+  );
+  expect(setRetry).toMatchObject({ kind: "existing", receipt: set });
   const updated = f.run(
     [
       {
@@ -232,10 +235,10 @@ it("uses inherited schema for writes, atomic late failures and staged sets, reta
     "update",
   );
   expect(updated.status).toBe("completed");
+  // The earlier rejected batch must not reserve a never-committed identity.
+  expect(f.run([create("tentative")], "recreate-tentative").status).toBe("completed");
   f.raw((db) => {
-    expect(
-      db.prepare("SELECT * FROM resources WHERE id LIKE '%tentative' OR id LIKE '%invalid'").all(),
-    ).toEqual([]);
+    expect(db.prepare("SELECT * FROM resources WHERE id LIKE '%invalid'").all()).toEqual([]);
     expect(db.prepare("SELECT * FROM receipt_pages WHERE key IN ('bad','set')").all()).toEqual([]);
   });
 });
@@ -392,6 +395,18 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
     status: 200,
     value: { id: base, propertiesSchema: schema },
   });
+  const typeUrl = new URL(new URL(base).pathname, runtime.listenUrl);
+  const typeGet = await fetch(typeUrl, { headers: { authorization: `Bearer ${"a".repeat(32)}` } });
+  const typeBytes = await typeGet.text();
+  const typeHead = await fetch(typeUrl, {
+    method: "HEAD",
+    headers: { authorization: `Bearer ${"a".repeat(32)}` },
+  });
+  expect(typeHead.status).toBe(typeGet.status);
+  expect(typeHead.status).toBe(200);
+  expect(typeHead.headers.get("content-length")).toBe(typeGet.headers.get("content-length"));
+  expect(Number(typeHead.headers.get("content-length"))).toBe(Buffer.byteLength(typeBytes));
+  expect(await typeHead.text()).toBe("");
   expect(await request("types/")).toMatchObject({
     status: 200,
     value: { items: [{ id: base }, { id: type }], next: null },
