@@ -1027,8 +1027,8 @@ pending the specification disposition; Scope and Link views support that fact.
 
 Finite pages may split groups. They preserve ordinals, bound the complete encoded
 page to 4 MiB, and return an exclusive continuation after the last returned Event.
-The admitted materialization tuple below bounds one encoded group to 169345024
-bytes. SQLite's `length(CAST(body AS BLOB))` is checked before selecting and parsing
+The current M32/E256 materialization tuple bounds one encoded group to 169345024
+bytes; the later table preserves earlier rejected or superseded tuples. SQLite's `length(CAST(body AS BLOB))` is checked before selecting and parsing
 that row's body. This is a byte bound, not a general heap-safety claim. With the
 same R/Q bounds, one largest owned update plus Resource-source URL substitution,
 page envelope and continuation is bounded by `5R + 7Q + 8192 + 1024 = 1778688`
@@ -1211,7 +1211,17 @@ was 50,568,556 bytes and receipt 16,507,992 bytes. Child self-reported maxRSS wa
 886,912 KiB; supervisor sampled peak was 832,480 KiB against the predeclared
 1,048,576 KiB/120-second gate. This is substantially less margin than the set-only
 case, not a universal heap-safety or comfortable-all-workloads claim. The tuple
-remains M32/E256; no further count change was made from this measurement.
+remains M32/E256; no further count change was made from this measurement. The measured
+serialized group is about 30% of the admitted 169,345,024-byte bound; reachability
+of that conservative bound and its heap cost are not established. The supervisor
+gates the sampled RSS metric, which can miss peaks; the separately reported child
+high-water metric is higher and was not the gate's enforcement input.
+
+These runs used emitted production bytes from source `d907a1e1576c5795c17edb5f15528f47edfd7d6b`
+with the three reported test/prose working changes, and emitted tree digest
+`73b5a9866729b2254c23d47995ab50c7cb301a27dde923d35c6d31d36236ce1a`.
+[Exact scripts, outputs and provenance](https://github.com/donnabox/beads/tree/codex/vickie-bdp-client-design/docs/architecture/bdp-client-v2/transaction-materialization-closure)
+retain the source status rather than claiming a pristine committed source run.
 
 Fresh repeats on the same actual emitted tuple completed the 32-match set-only
 case (551,504 KiB self / 523,040 KiB sampled) and 32 repeated no-op matches

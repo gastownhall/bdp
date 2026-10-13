@@ -6828,7 +6828,7 @@
       "id": "read-update.validation.diagnostics",
       "status": "bounded-observation",
       "wholeContract": false,
-      "reason": "Installed child-declared Bead and Link failures identify the exact failing effective Type, authored schema URI and keyword pointer, properties-relative instance location, canonical Problem tuple and observed discovery bounds. Partial: truncation, evaluation order, retained diagnostic compatibility, non-Type causes and semantic message meaning are not established. Properties document omission is an installed choice, not a universal mandatory spelling.",
+      "reason": "Installed child-declared Bead and Link failures identify the exact failing effective Type, authored schema URI and keyword pointer, properties-relative instance location, canonical Problem tuple and observed discovery bounds. Partial: truncation, evaluation order, retained diagnostic compatibility, non-Type causes and semantic message meaning are not established. Properties document omission and root instanceLocation presence are installed choices, not universal mandatory spellings.",
       "bindings": [
         {
           "scenario": "read-update.validation.diagnostics",

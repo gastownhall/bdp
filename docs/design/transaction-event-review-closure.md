@@ -31,9 +31,9 @@ serialized Event bytes and array commas, then add the serialized continuation
 string. The observed tests establish one envelope serialization, one serialization
 per Event, escaping/non-ASCII handling, bounded emitted pages and first-Event
 feasibility. They do **not** observe an accumulator-to-wire equality at a one-byte
-budget boundary. The accumulator remains private; this low-severity evidence gap
-does not justify exposing a production hook or copying its implementation into a
-test. No new capacity or worst-case heap claim follows from the serialized bound.
+budget boundary. A black-box byte-driven split could strengthen this evidence without a production
+hook. That targeted boundary observation is deferred as a cost/priority decision,
+not because exposing the accumulator is necessary. No new capacity or worst-case heap claim follows from the serialized bound.
 
 The metadata-only incident projection still returns the documented private gap;
 Scope and Link Event sources remain available. No semantics for that unresolved
