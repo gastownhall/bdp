@@ -549,12 +549,22 @@
               "equals": null
             },
             {
-              "id": "fixture-types",
-              "kind": "json-array-set",
+              "id": "fixture-type-summaries",
+              "kind": "json-array-tuples",
               "pointer": "/items",
-              "itemPointer": "/id",
-              "fixturePointer": "/oracles/collections/type-ids",
-              "normalize": "scope-relative-or-absolute-uri"
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-or-absolute-uri"
+                },
+                {
+                  "pointer": "/name"
+                },
+                {
+                  "pointer": "/describes"
+                }
+              ],
+              "fixturePointer": "/oracles/collections/type-summaries"
             },
             {
               "id": "canonical-uri-order",
@@ -1132,11 +1142,26 @@
               "equals": null
             },
             {
-              "id": "fixture-beads",
-              "kind": "json-array-set",
+              "id": "fixture-bead-records",
+              "kind": "json-array-tuples",
               "pointer": "/items",
-              "itemPointer": "/properties/title",
-              "fixturePointer": "/oracles/collections/bead-titles"
+              "projections": [
+                {
+                  "pointer": "/id",
+                  "normalize": "scope-relative-url"
+                },
+                {
+                  "pointer": "/type",
+                  "normalize": "scope-relative-url"
+                },
+                {
+                  "pointer": "/properties"
+                },
+                {
+                  "pointer": "/metadata"
+                }
+              ],
+              "fixturePointer": "/oracles/collections/bead-records"
             },
             {
               "id": "canonical-uri-order",

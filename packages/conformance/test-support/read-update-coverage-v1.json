@@ -129,7 +129,7 @@
       "id": "read.types.inventory",
       "status": "bounded-observation",
       "wholeContract": true,
-      "reason": "Actual installed RU HTTP observes the inherited cited contract with its own fixture and local discovery validation.",
+      "reason": "Actual installed RU HTTP checks independent complete Type summary tuples (id, name, describes), canonical order and closed summary schema; real response-only name and kind corruptions must fail.",
       "bindings": [
         {
           "scenario": "read.types.inventory",
@@ -140,7 +140,7 @@
             "types.successful",
             "types.schema",
             "types.complete-page",
-            "types.fixture-types",
+            "types.fixture-type-summaries",
             "types.canonical-uri-order"
           ]
         }
@@ -202,7 +202,7 @@
       "id": "read.collections.beads",
       "status": "bounded-observation",
       "wholeContract": true,
-      "reason": "Actual installed RU HTTP observes the cited inherited contract on a public-HTTP-seeded fixture with independent static oracles.",
+      "reason": "Actual installed RU HTTP checks independent per-identity Bead tuples (id, Type, complete properties and metadata), canonical order and closed record schema with opaque revisions; real response-only corruptions must fail.",
       "bindings": [
         {
           "scenario": "read.collections.beads",
@@ -213,7 +213,7 @@
             "beads.successful",
             "beads.schema",
             "beads.complete-page",
-            "beads.fixture-beads",
+            "beads.fixture-bead-records",
             "beads.canonical-uri-order"
           ]
         }

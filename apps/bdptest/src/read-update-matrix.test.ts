@@ -506,12 +506,13 @@ it.each(["properties", "collection", "condition"] as const)(
         (kind === "properties"
           ? "fixture-bead-properties"
           : kind === "collection"
-            ? "fixture-beads"
+            ? "fixture-bead-records"
             : "status"),
     );
     delete assertion.fixturePointer;
     if (kind === "properties") assertion.value = { incorrect: true };
-    else assertion.equals = kind === "collection" ? ["incorrect"] : 200;
+    else if (kind === "collection") assertion.equals = [["incorrect", "incorrect", {}, {}]];
+    else assertion.equals = 200;
     const report = await run(manifest, ["read.discovery.scope-service-desc", id]);
     const observed = report.result.scenarios.find((row) => row.id === id);
     expect(observed?.state).toBe("fail");
