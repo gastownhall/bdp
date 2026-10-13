@@ -1,0 +1,223 @@
+/** Source-private same-owner lifecycle. No HTTP receiver, directory or profile
+ * advertisement. Passing ownerLifetime:"service" transfers owner shutdown to
+ * this service after successful construction; callers must stop using the owner.
+ * Only the existing fixed all-visible, schema-free/unowned configuration applies. */
+import { createNodeLifecycleScheduler, type LifecycleScheduler } from "./sequence-executor.js";
+import type { PreparedTransactionSequence } from "./transaction-batch.js";
+import {
+  createTransactionSequenceStepper,
+  type TransactionSequenceResponse,
+} from "./transaction-sequence.js";
+import { createTransactionReadPlane, type TransactionReadOptions } from "./transaction-read.js";
+import {
+  submitTransaction,
+  type TransactionSubmission,
+  type TransactionSubmissionResult,
+} from "./transaction-submission.js";
+import type {
+  openTransactionStore,
+  TransactionReadContext,
+  TransactionReceipt,
+} from "./transaction-store.js";
+
+type Owner = ReturnType<typeof openTransactionStore>;
+type ReceiptObservation = {
+  readonly kind: "receipt";
+  readonly receipt: TransactionReceipt;
+  readonly context: TransactionReadContext;
+};
+export type TransactionServiceSubmissionResult =
+  | Exclude<TransactionSubmissionResult, { readonly kind: "receipt" }>
+  | ReceiptObservation;
+export type TransactionServiceReceiptResult =
+  | ReceiptObservation
+  | { readonly kind: "refused"; readonly status: 401; readonly code: "unauthenticated" }
+  | { readonly kind: "refused"; readonly status: 404; readonly code: "resource-not-found" };
+export interface TransactionServiceOptions {
+  readonly ownerLifetime: "service";
+  readonly read: TransactionReadOptions;
+  /** Private test seam over the existing scheduler contract, not runtime config. */
+  readonly scheduler?: Pick<LifecycleScheduler, "turn">;
+  /** Existing finite comparison policy; never a fresh deadline on each retry. */
+  readonly comparison?: Parameters<typeof submitTransaction>[2];
+}
+
+export function createTransactionService(owner: Owner, options: TransactionServiceOptions) {
+  if (options.ownerLifetime !== "service")
+    throw new TypeError("explicit service owner lifetime required");
+  // This owner only implements <=32 single-Resource operations, each yielding
+  // one entry (alias singleton: one). Until durable receipt pages are added, the
+  // advertised per-page bound must fit every result, including retained replay.
+  if (options.read.advertisedLimits.page.maximumItems < 32)
+    throw new TypeError("inline transaction receipts require page.maximumItems >= 32");
+  const scheduler = options.scheduler ?? createNodeLifecycleScheduler();
+  const turn = scheduler.turn.bind(scheduler);
+  const comparison = Object.freeze({ ...options.comparison });
+  const read = createTransactionReadPlane(owner, options.read);
+  const active = new Set<Promise<unknown>>();
+  let accepting = true;
+  let cleanupFailure: AggregateError | undefined;
+  let closing: Promise<void> | undefined;
+  const completion = Promise.withResolvers<void>();
+  void completion.promise.catch(() => {});
+  function check() {
+    if (cleanupFailure)
+      throw new Error("transaction service cleanup failed; close and reopen", {
+        cause: cleanupFailure,
+      });
+    if (!accepting) throw new Error("transaction service is closing or closed");
+  }
+  function run<T>(start: () => Promise<T>): Promise<T> {
+    check();
+    const task = Promise.withResolvers<T>();
+    active.add(task.promise);
+    // Observe rejected detached delivery without changing what its caller sees.
+    void task.promise.then(
+      () => active.delete(task.promise),
+      () => active.delete(task.promise),
+    );
+    try {
+      task.resolve(start());
+    } catch (error) {
+      task.reject(error);
+    }
+    return task.promise;
+  }
+  function nextTurn(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      let scheduling = true,
+        inline = false,
+        live = true;
+      let cancel: (() => void) | undefined;
+      try {
+        cancel = turn(() => {
+          if (!live) return;
+          if (scheduling) {
+            inline = true;
+            return;
+          }
+          live = false;
+          resolve();
+        });
+        scheduling = false;
+        if (typeof cancel !== "function") throw new TypeError("scheduler must return cancellation");
+        if (inline) throw new TypeError("scheduler invoked callback inline");
+      } catch (error) {
+        live = false;
+        try {
+          if (typeof cancel === "function") cancel();
+        } catch (cleanup) {
+          reject(
+            new AggregateError([error, cleanup], "transaction scheduling and cancellation failed"),
+          );
+          return;
+        }
+        reject(error);
+      }
+    });
+  }
+  function receipt(principal: string, id: string): ReceiptObservation | undefined {
+    const observed = owner.readReceipt(principal, id);
+    return observed.receipt === undefined
+      ? undefined
+      : Object.freeze({ kind: "receipt", ...observed, receipt: observed.receipt });
+  }
+  return Object.freeze({
+    closed: completion.promise,
+    /** Actual fixed-owner Read configuration; no Transactional discovery claims. */
+    readFor(principal: Parameters<typeof read.readFor>[0]) {
+      check();
+      const facet = read.readFor(principal);
+      const guarded: ReturnType<typeof read.readFor> = {
+        perform: (request, options) => run(() => facet.perform(request, options)),
+        resolveAlias: (url, options) => run(() => facet.resolveAlias(url, options)),
+      };
+      return Object.freeze(guarded);
+    },
+    submit(request: TransactionSubmission): Promise<TransactionServiceSubmissionResult> {
+      return run(async () => {
+        const authorization = Object.freeze({ ...request.authorization });
+        const result = await submitTransaction(owner, { ...request, authorization }, comparison);
+        if (result.kind !== "receipt") return result;
+        if (authorization.kind !== "authorized") throw new Error("unauthorized receipt delivery");
+        // Re-project the current retained receipt and context together. Never pair
+        // the earlier execution/replay object with a later diagnostic position.
+        const observed = receipt(authorization.principal, result.receipt.id);
+        if (!observed) throw new Error("admitted receipt unavailable at delivery");
+        return observed;
+      });
+    },
+    /** Trusted prepared carrier + authenticated principal. Raw sequence receiving
+     * order/media/negotiation is intentionally left to the later HTTP boundary. */
+    sequence(
+      principal: string,
+      sequence: PreparedTransactionSequence,
+    ): Promise<TransactionSequenceResponse> {
+      return run(async () => {
+        const stepper = createTransactionSequenceStepper(owner, principal, sequence);
+        try {
+          for (;;) {
+            await nextTurn();
+            const step = stepper.step();
+            if (step.done) {
+              if (!step.response) throw new Error("completed sequence lost response");
+              return step.response;
+            }
+          }
+        } catch (error) {
+          try {
+            stepper.abort();
+          } catch (cleanup) {
+            cleanupFailure = new AggregateError(
+              [...(cleanupFailure ? [cleanupFailure] : []), error, cleanup],
+              "transaction sequence and cleanup failed",
+            );
+            throw cleanupFailure;
+          }
+          throw error;
+        }
+      });
+    },
+    /** Authentication is transport-supplied, never inferred from actor or URL.
+     * Current owner policy is all-visible; principal binding still denies foreign
+     * receipts uniformly. No key lookup, receipt listing or fabricated page URL. */
+    receipt(
+      access:
+        | { readonly kind: "unauthenticated" }
+        | { readonly kind: "authenticated"; readonly principal: string },
+      id: string,
+    ): TransactionServiceReceiptResult {
+      check();
+      if (access.kind === "unauthenticated")
+        return Object.freeze({ kind: "refused", status: 401, code: "unauthenticated" });
+      return (
+        receipt(access.principal, id) ??
+        Object.freeze({ kind: "refused", status: 404, code: "resource-not-found" })
+      );
+    },
+    /** Stop accepting work, drain admitted work even when the client dropped its
+     * delivery, then close cursors and this service-owned database. No disconnect
+     * cancellation exists: only authority failures retract remaining claims. */
+    close(): Promise<void> {
+      if (closing) return closing;
+      accepting = false;
+      closing = (async () => {
+        await Promise.allSettled([...active]);
+        const errors: unknown[] = [];
+        try {
+          await read.close();
+        } catch (error) {
+          errors.push(error);
+        }
+        try {
+          owner.close();
+        } catch (error) {
+          errors.push(error);
+        }
+        if (errors.length) throw new AggregateError(errors, "transaction service shutdown failed");
+      })();
+      void closing.then(completion.resolve, completion.reject);
+      return closing;
+    },
+  });
+}

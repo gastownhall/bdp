@@ -2122,6 +2122,7 @@ describe("private transaction storage failure fencing", () => {
       () => store.inspect(),
       () => store.aliasTarget("x"),
       () => store.receipt("principal", claim.receipt.id),
+      () => store.readReceipt("principal", claim.receipt.id),
       () => store.maintain(),
       () => admit(store, batch, "fresh"),
       () => store.execute(claim),
@@ -2930,5 +2931,60 @@ describe("private transaction reader lifetime", () => {
       reason: "not-accepting",
     });
     expect(callback).not.toHaveBeenCalled();
+  });
+});
+
+describe("private atomic receipt observation", () => {
+  it("captures retention, receipt bytes and current context in one guarded SQLite entry", () => {
+    const f = fixture({ clock: () => 1000 });
+    const receipt = f.store.execute(admit(f.store));
+    const prepare = DatabaseSync.prototype.prepare;
+    const observed: boolean[] = [];
+    const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (
+        sql === "SELECT * FROM receipts WHERE principal=?" ||
+        sql === "SELECT value FROM metadata WHERE name=?"
+      ) {
+        observed.push(this.isTransaction);
+        expect(() => f.store.inspect()).toThrow("reentrant");
+      }
+      return prepare.call(this, sql);
+    });
+    try {
+      expect(f.store.readReceipt("principal", receipt.id)).toEqual({
+        receipt,
+        context: {
+          scopeEpoch: receipt.scopeEpoch,
+          authorizationView: receipt.authorizationView,
+          scopePosition: "pos-1",
+        },
+      });
+      expect(observed).toEqual([true, true]);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(f.store.inspect().groups).toHaveLength(1);
+  });
+
+  it("cannot observe tentative effects or use a closed owner", () => {
+    let store: ReturnType<typeof openTransactionStore> | undefined;
+    const attempted = vi.fn();
+    const f = fixture({
+      fault(stage) {
+        if (stage === "after-effects") {
+          attempted();
+          expect(() => store?.readReceipt("principal", "unknown")).toThrow("reentrant");
+        }
+      },
+    });
+    store = f.store;
+    const receipt = f.store.execute(admit(f.store));
+    expect(attempted).toHaveBeenCalledOnce();
+    expect(f.store.readReceipt("principal", receipt.id).receipt).toEqual(receipt);
+    f.store.close();
+    expect(() => f.store.readReceipt("principal", receipt.id)).toThrow("closed");
   });
 });

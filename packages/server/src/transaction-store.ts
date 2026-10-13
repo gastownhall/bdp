@@ -425,6 +425,29 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       maximumEndpointMultiplicity: Object.freeze([]),
     }),
   });
+  function readContext(): TransactionReadContext {
+    const position = metadata("position");
+    if (!/^(0|[1-9][0-9]*)$/.test(position) || !Number.isSafeInteger(Number(position)))
+      throw new Error("invalid transaction read position");
+    return Object.freeze({
+      scopeEpoch: epoch,
+      authorizationView: view,
+      scopePosition: `pos-${position}`,
+    });
+  }
+  // Called only inside the guarded owner's transaction. The fixed all-visible
+  // policy projects retained facts, including postimages since updated/deleted.
+  function retainedReceipt(principal: string, id: string): TransactionReceipt | undefined {
+    for (const stored of db
+      .prepare("SELECT * FROM receipts WHERE principal=?")
+      .all(principal) as unknown as Row[]) {
+      const value = parseReceipt(stored.receipt);
+      if (value.id !== id) continue;
+      const remaining = expireRow(stored, instant()).row;
+      return remaining ? parseReceipt(remaining.receipt) : undefined;
+    }
+    return undefined;
+  }
   function withRead<T>(
     callback: (reader: AuthorityReadReader, context: TransactionReadContext) => T,
   ): OwnerReadEntryResult<T> {
@@ -485,15 +508,7 @@ export function openTransactionStore(options: TransactionStoreOptions) {
         },
       });
       try {
-        const position = metadata("position");
-        if (!/^(0|[1-9][0-9]*)$/.test(position) || !Number.isSafeInteger(Number(position)))
-          throw new Error("invalid transaction read position");
-        const context: TransactionReadContext = Object.freeze({
-          scopeEpoch: epoch,
-          authorizationView: view,
-          scopePosition: `pos-${position}`,
-        });
-        const value = callback(reader, context);
+        const value = callback(reader, readContext());
         if (
           value !== null &&
           (typeof value === "object" || typeof value === "function") &&
@@ -1173,17 +1188,34 @@ export function openTransactionStore(options: TransactionStoreOptions) {
       });
     },
     receipt(principal: string, id: string): TransactionReceipt | undefined {
+      return enter(() => atomic(() => retainedReceipt(principal, id)));
+    },
+    /** Trusted authenticated principal, never actor/provenance. Lookup, retention
+     * cleanup, fixed current projection and source context share one owner entry.
+     * No serving authorization callbacks run inside this observation. */
+    readReceipt(
+      principal: string,
+      id: string,
+    ): {
+      readonly receipt: TransactionReceipt | undefined;
+      readonly context: TransactionReadContext;
+    } {
+      if (typeof principal !== "string" || !principal || !principal.isWellFormed())
+        throw new TypeError("invalid trusted principal");
+      if (typeof id !== "string") throw new TypeError("receipt URL required");
       return enter(() =>
         atomic(() => {
-          for (const stored of db
-            .prepare("SELECT * FROM receipts WHERE principal=?")
-            .all(principal) as unknown as Row[]) {
-            const value = parseReceipt(stored.receipt);
-            if (value.id !== id) continue;
-            const remaining = expireRow(stored, instant()).row;
-            return remaining ? parseReceipt(remaining.receipt) : undefined;
-          }
-          return undefined;
+          const receipt = retainedReceipt(principal, id);
+          // Detached JSON values cannot retain a live capability. Freeze nested
+          // postimages as well as the top-level receipt delivered by this reader.
+          const freeze = (value: unknown): void => {
+            if (value !== null && typeof value === "object") {
+              for (const child of Object.values(value)) freeze(child);
+              Object.freeze(value);
+            }
+          };
+          freeze(receipt);
+          return Object.freeze({ receipt, context: readContext() });
         }),
       );
     },

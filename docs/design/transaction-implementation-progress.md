@@ -495,3 +495,45 @@ context accessor. The private helper is absent from root exports and remains
 behind the package's deep-import boundary. Emitted public declarations, an actual
 Node package-root import and installed-package smoke tests cover this separation;
 internal context/retention tests continue to exercise the same engine.
+
+## Private Transactional service and receipt observations
+
+The source-private `transaction-service` composes one existing Transactional owner
+with its Read plane, direct submission boundary and sequence stepper. Construction
+requires `ownerLifetime: "service"`: successful construction transfers shutdown
+responsibility, and callers stop using the raw owner. Failed construction leaves
+ownership with the caller. Closing stops new work, drains accepted work, releases
+Read cursors and closes that same database. A detached response does not cancel
+admitted execution. Scheduler failure retracts only the affected sequence's
+unexecuted reservations; committed members and another attempt's reservations
+remain. Failed cleanup fences service entry and retains original/cleanup causes.
+
+The owner now offers an atomic receipt observation. Principal-filtered lookup,
+retention cleanup, fixed all-visible projection, detached immutable receipt bytes
+and current epoch/view/position share one guarded SQLite entry. Direct delivery
+and later receipt reads use that observation, never an earlier receipt object
+paired with a later `inspect()`/`withRead()` position. The body's original execution
+view/positions/postimages remain unchanged when the serving head advances or a
+Resource is deleted. Trusted transport identity supplies receipt access; writer
+attribution does not. Unknown, foreign, forgotten and retracted receipts remain
+uniformly absent. Current policy is still the fixed all-visible development view;
+this does not qualify changing grants, withheld/erased projection or owned Types.
+
+This bounded service inlines all supported results with `next: null`. The spec's
+Mutation Receipt responses section applies advertised `page.maximumItems` to
+receipt results as well as pages. Accordingly, this interim service refuses a
+configuration below 32 entries, the existing private batch limit. That restriction
+is a supported-configuration limit, not a protocol minimum. Sets and durable
+receipt pages remain unimplemented. No maximum representation-byte limit or
+complete Transactional directory/profile is advertised.
+
+Tests cover shared singleton/batch/sequence key identity, canonical afterstate,
+receipt immutability/current context, principal nondisclosure, retention and exact
+retry, finite unresolved comparison, drain after detached delivery, scheduler
+failures, and abrupt process exits before and after commit. Process exits and SQL
+fault injections are not disk/power-loss qualification. The receipt reader inherits
+the owner's reentrancy and sticky fencing checks. HTTP routing, raw sequence
+receiving order, minimum-position barriers/conditional fields, required Snapshot
+and changefeed paths, receipt pages/erasure, installed contracts and public evidence
+remain subsequent slices. No public API, storage format or normative change is
+part of this service layer.
