@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { createServer } from "node:net";
+import { createServer, createConnection } from "node:net";
 import { request } from "node:http";
 import { once } from "node:events";
 import path from "node:path";
@@ -62,6 +62,7 @@ export async function launchInstalledReference(entry, configuration) {
     assert.equal(ready.claimEligible, false);
     assert.match(ready.configurationIdentity, /^[a-f0-9]{64}$/);
     assert.match(ready.payloadIdentity, /^[a-f0-9]{64}$/);
+    assert.match(ready.artifactIdentity, /^development-schema5-[a-f0-9]{64}$/);
     assert.match(ready.policyIdentity, /^[a-f0-9]{64}$/);
     assert.match(ready.authenticationIdentity, /^[a-f0-9]{64}$/);
     assert.equal(ready.profile, "read-update");
@@ -247,6 +248,7 @@ export async function observeInstalledReference(entry, directory) {
     );
     const alias = await wire(`${scope}alias/latest`);
     assert.equal(alias.status, 307);
+    assert.equal(alias.headers["x-bdp-development"], "non-attesting");
     assert.equal(alias.headers.location, a.id);
     assert.equal(
       (await post("deleteAlias", { alias: "alias/latest" }, "delete_alias")).status,
@@ -296,6 +298,29 @@ export async function observeInstalledReference(entry, directory) {
       assert.equal(options.headers.allow, allow);
       assert.equal(options.text, "");
     }
+    const connect = await new Promise((resolve, reject) => {
+      const socket = createConnection(config.listener.port, config.listener.host);
+      let raw = "";
+      socket.setEncoding("utf8");
+      socket.setTimeout(5000, () => socket.destroy(Error("CONNECT response deadline")));
+      socket.once("error", reject);
+      socket.once("connect", () =>
+        socket.end("CONNECT example.invalid:443 HTTP/1.1\r\nHost: example.invalid:443\r\n\r\n"),
+      );
+      socket.on("data", (chunk) => {
+        raw += chunk;
+        if (raw.length > 65536) socket.destroy(Error("CONNECT response bound"));
+      });
+      socket.once("end", () => {
+        socket.destroy();
+        resolve(raw);
+      });
+    });
+    assert.match(connect, /^HTTP\/1\.1 405 Method Not Allowed\r\n/);
+    assert.match(connect, /\r\nAllow: GET, HEAD\r\n/i);
+    assert.match(connect, /\r\nX-Bdp-Development: non-attesting\r\n/i);
+    assert.match(connect, /\r\nContent-Length: 0\r\n/i);
+    assert.equal(connect.indexOf("\r\n\r\n"), connect.length - 4);
     const malformed = await wire("/acme/beads/%2e%2e/a");
     assert.equal(malformed.status, 400);
     assert.equal(

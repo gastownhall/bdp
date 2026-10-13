@@ -431,6 +431,7 @@ export async function startDevelopmentReferenceRuntime(
           response.writeHead(307, {
             location: result.target,
             "cache-control": "private, no-store",
+            "x-bdp-development": "non-attesting",
           });
           response.end();
         } else refused(response, "resource-not-found");
@@ -486,7 +487,7 @@ export async function startDevelopmentReferenceRuntime(
   if (transport !== undefined)
     server.on("connect", (_request, socket) => {
       socket.end(
-        "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, HEAD\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, HEAD\r\nContent-Length: 0\r\nX-Bdp-Development: non-attesting\r\nConnection: close\r\n\r\n",
       );
     });
   server.requestTimeout = 10_000;
