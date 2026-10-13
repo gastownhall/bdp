@@ -1,3 +1,4 @@
+import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
 import {
   notFound,
   invalidParameter,
@@ -235,15 +236,6 @@ interface NodeHttpRequestOptions {
   readonly headers?: Headers;
 }
 
-interface NodeHttpDisconnectSource {
-  once(event: "aborted", listener: () => void): unknown;
-}
-
-interface NodeHttpResponseCloseSource {
-  readonly writableFinished: boolean;
-  once(event: "close", listener: () => void): unknown;
-}
-
 export interface ReadServer {
   readonly scope: AbsoluteHttpUrl;
   /** Validated alias table (relative alias path -> canonical Bead URL); undefined when the authority serves no aliases. */
@@ -438,20 +430,6 @@ function nodeRequestHeaders(rawHeaders: readonly string[]): Headers {
     if (name !== undefined && value !== undefined) headers.append(name, value);
   }
   return headers;
-}
-
-/** Propagates either Node-side disconnect signal into one Web AbortSignal. */
-function createNodeHttpDisconnectSignal(
-  incoming: NodeHttpDisconnectSource,
-  outgoing: NodeHttpResponseCloseSource,
-): AbortSignal {
-  const controller = new AbortController();
-  const abort = (): void => controller.abort(new Error("client disconnected"));
-  incoming.once("aborted", abort);
-  outgoing.once("close", () => {
-    if (!outgoing.writableFinished) abort();
-  });
-  return controller.signal;
 }
 
 /**

@@ -1244,3 +1244,70 @@ normalization cases pin exact serialized literals as well as the factor-seven bo
 These changes strengthen observations only; no store, runtime or Event implementation
 changed in this follow-up. The default E256 refusal is still not directly observed;
 actual refusal tests use the lowered evaluator cap described above.
+
+## Private changefeed SSE (G2a)
+
+The changefeed route now selects finite JSON or `text/event-stream` using the
+shared HTTP media parser. JSON remains the default and wins equal-quality ties.
+Routing, authentication and same-owner cursor/minimum observations precede
+negotiation refusal and conditional shortcuts. Scope and Resource **Event
+Sources** still refuse SSE-only negotiation with 406; this section supersedes
+only the earlier finite-changefeed SSE limitation.
+
+Every change-group frame uses the same `stringifyJsonValue` serialization as
+finite JSON, with its checkpoint in `id`, `event: change-group`, and a complete
+JSON group in `data`. A `1.0e2` request literal produces the same admitted numeric
+value 100 in both representations; lexical spelling is not retained. The existing
+finite envelope bound 186,334,744 plus 512 framing bytes remains below the pinned
+Node 24 string ceiling. This is arithmetic over the installed M32/E256 limits,
+not a large-allocation or RSS measurement and not a new post-commit refusal.
+
+The URL must still supply exactly `after` or `start=now`. Selected SSE with an
+explicit `after` uses a single `Last-Event-ID` as its effective checkpoint,
+including `genesis`; owner validation sees that effective checkpoint only.
+Finite JSON ignores the header, including malformed/repeated values. A
+header-only request remains 400. The `start=now` plus reconnect-header combination
+remains an explicit private gap, not an inferred new protocol rule. Initial
+`start=now` is captured once through any minimum wait.
+
+A source-private service registry owns cancellable stream lifetimes separately
+from finite accepted work. The private installed defaults are one live stream,
+100 ms polling and 5 s heartbeat comments. They join the runtime configuration hash.
+One complete frame is written at a time; `write(false)` stops further owner reads
+and comments until drain, close, abort or error. Accepting bytes into Node is not
+a durable replica acknowledgement. Client disconnect releases the stream slot;
+shutdown cancels streams, drains accepted finite work, then closes the owner.
+HEAD/304/412 perform the same initial decisions without registering a stream.
+Post-header failure closes the transport rather than appending another HTTP
+response or inventing an error Event.
+
+The existing Node disconnect bridge is shared privately with this runtime.
+Changes/Events minimum waits now receive actual disconnect cancellation. Point
+and receipt waiting behavior is unchanged by this slice. All four transport
+settings remain requestTimeout 10000, headersTimeout 10000, socket timeout 10000 and
+keepAliveTimeout 1000 ms. A closed, own-data **test-only** transport seam permits
+bounded lifecycle observations and suppresses configuration attestation; it is
+not an installed launch option.
+
+`transaction-sse.test.ts` covers actual replay/live/no-op/reconnect traffic,
+minimum anchoring, effective-cursor errors, conditional/HEAD/capacity behavior,
+a real raw response truncated before frame completion, finite minimum disconnect,
+and post-header owner failure. Its shared replica oracle stages owned-Link/source
+agreement and checkpoint publication atomically, including failed publication
+and duplicate replay. Synthetic sink tests distinguish stalled transport from
+SQLite work and verify one pending frame with no queued heartbeat/read-ahead.
+
+`transactional-sse-installed.test.ts` launches the actual selected installed
+module, validates fresh configuration binding, and uses a separate bounded raw
+socket recorder. Its 25 s observation/45 s cohort/10 s cleanup budgets are independent
+of the unchanged finite 5 s executor. It observes at least 15 seconds of continuous
+idle service, comments without IDs, then a later actual mutation. The report
+retains source/payload/configuration identity, exact response bytes/hash, complete
+frame boundaries, Node version and observed timing. Preliminary dirty-source
+runs and final clean tarball evidence remain distinct in the external report.
+This deliberately cut live observation is not labeled a completed finite reply.
+
+Event Source SSE, mutable-view/erasure fencing, set HTTP admission, remaining
+required consistency/discovery work and full profile qualification remain open.
+No public export, schema, catalog credit, profile advertisement or historical
+Read evidence label changes in G2a. `claimEligible` remains false.

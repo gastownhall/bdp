@@ -552,3 +552,40 @@ it("binds credentials through the versioned credential domain without asserting 
   // claim; installed evidence must generate credentials with a CSPRNG.
   expect((await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(200);
 });
+
+it("hashes actual stream defaults and all four transport timers; timing seams remain unattestable", async () => {
+  const options = fixture(),
+    captured = captureTransactionRuntimeConfiguration(options);
+  expect(captured.settings.changefeedStream).toEqual({
+    pollMilliseconds: 100,
+    heartbeatMilliseconds: 5000,
+    maximumStreams: 1,
+  });
+  expect(captured.settings.transport).toMatchObject({
+    requestTimeout: 10000,
+    headersTimeout: 10000,
+    timeout: 10000,
+    keepAliveTimeout: 1000,
+  });
+  expect(Object.isFrozen(captured.settings.changefeedStream)).toBe(true);
+  const runtime = await startTransactionRuntime(options, { transport: { timeout: 100 } });
+  cleanup.push(() => runtime.close());
+  expect(runtime.configurationMetadata).toBeUndefined();
+  for (const transport of [
+    { timeout: 0 },
+    { timeout: undefined },
+    { headersTimeout: 20000 },
+    { unknown: 1 },
+  ])
+    expect(() =>
+      captureTransactionRuntimeConfiguration(options, { transport } as TransactionRuntimeTestSeams),
+    ).toThrow();
+  const getter = {
+    get timeout(): number {
+      throw Error("executed getter");
+    },
+  };
+  expect(() => captureTransactionRuntimeConfiguration(options, { transport: getter })).toThrow(
+    "own-data",
+  );
+});

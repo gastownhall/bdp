@@ -1,3 +1,4 @@
+import { TRANSACTION_SSE_DEFAULTS } from "./transaction-sse.js";
 /** Private captured runtime inputs. No installed launcher or profile admission. */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
@@ -108,6 +109,7 @@ export const TRANSACTION_RUNTIME_DEFAULTS = freeze({
   receiptDetailMs: TRANSACTION_RECEIPT_DETAIL_MS,
   comparisonBudgetMs: 1000,
   minimumReadBudgetMs: 1000,
+  changefeedStream: TRANSACTION_SSE_DEFAULTS,
   transport: {
     host: "127.0.0.1",
     targetBytes: TRANSACTION_HTTP_TARGET_BYTES,
@@ -138,6 +140,7 @@ function captureSeams(value: unknown) {
     "minimumReads",
     "receiptMaximumItems",
     "maintenanceIntervalMs",
+    "transport",
   ]);
   const result: Record<string, unknown> = { ...own };
   for (const key of ["maximumOperations", "receiptMaximumItems", "maintenanceIntervalMs"]) {
@@ -165,6 +168,18 @@ function captureSeams(value: unknown) {
           throw new TypeError("invalid runtime wait callback");
       result[name] = Object.freeze(nested);
     }
+  }
+  if (own.transport !== undefined) {
+    const transport = fields(own.transport, [
+      "requestTimeout",
+      "headersTimeout",
+      "timeout",
+      "keepAliveTimeout",
+    ]);
+    for (const value of Object.values(transport))
+      if (!Number.isSafeInteger(value) || (value as number) < 1 || (value as number) > 2147483647)
+        throw new TypeError("invalid runtime transport seam");
+    result.transport = Object.freeze(transport);
   }
   if (own.scheduler !== undefined) {
     const scheduler = fields(own.scheduler, ["turn"], ["turn"]);
@@ -271,10 +286,13 @@ export function captureTransactionRuntimeConfiguration(
   freeze(types);
   const settings = freeze({
     ...TRANSACTION_RUNTIME_DEFAULTS,
+    transport: { ...TRANSACTION_RUNTIME_DEFAULTS.transport, ...seams.transport },
     receiptMaximumItems: transactionReceiptMaximum(seams.receiptMaximumItems),
     maintenanceIntervalMs:
       seams.maintenanceIntervalMs ?? TRANSACTION_RUNTIME_DEFAULTS.maintenanceIntervalMs,
   });
+  if (settings.transport.headersTimeout > settings.transport.requestTimeout)
+    throw new TypeError("headers timeout exceeds request timeout");
   const clock = seams.clock ?? Date.now;
   return Object.freeze({
     directory,
