@@ -2218,6 +2218,8 @@ function retainedRetryDiagnostic(
   const context = {
     expectedScenario: control.scenario,
     expectedAction: control.action,
+    observedClientExchanges: report.observations.length,
+    observedScenarios: report.result.scenarios.map((scenario) => scenario.id),
     state: row?.state,
     category: row?.category,
     exchanges: row?.exchanges?.map((exchange) => ({
@@ -2226,6 +2228,7 @@ function retainedRetryDiagnostic(
       failedAssertions: exchange.assertions.filter((a) => !a.passed).map((a) => a.id),
       transportCategory: exchange.transportError?.category,
       harnessCategory: exchange.harnessError?.category,
+      writeState: exchange.transportError?.writeState ?? exchange.harnessError?.writeState,
     })),
     actions: row?.actions?.map((action) => ({
       id: action.action.id,
@@ -2233,28 +2236,29 @@ function retainedRetryDiagnostic(
       executionCategory: action.executionError?.category,
     })),
     // Only the actual exact client's route/status projection, never its request or response body.
-    lastObservedRoute: last
+    lastObservedRoute: last?.observation?.route
       ? { method: last.observation.route.method, url: last.observation.route.url }
       : undefined,
-    lastObservedStatus: last?.observation.status,
+    lastObservedStatus: last?.observation?.status,
     cleanupComplete: report.cleanupComplete,
-    scenarioCleanupFailed: row?.cleanupError !== undefined,
+    scenarioCleanupFailed: row === undefined ? undefined : row.cleanupError !== undefined,
   };
   // These are the only credential values installed by this closed fixture. Redact them even
   // from a diagnostic route; field projection alone must not leak a secret embedded in a URL.
   return JSON.stringify(context)
-    .replaceAll(token, "[redacted]")
-    .replaceAll(wrongToken, "[redacted]");
+    .replaceAll(token, "<redacted>")
+    .replaceAll(wrongToken, "<redacted>");
 }
 
 it("retained retry diagnostics preserve failure position without credential or body output", () => {
+  const scenario = "read-update.idempotency.cross-carrier";
   const secret = "must-not-print-body-header-error";
   const report = {
     cleanupComplete: false,
     result: {
       scenarios: [
         {
-          id: retryRows[1],
+          id: scenario,
           state: "fail",
           category: "deadline",
           cleanupError: secret,
@@ -2264,7 +2268,12 @@ it("retained retry diagnostics preserve failure position without credential or b
               request: { id: "directory", headers: { authorization: secret } },
               response: { status: 503, headers: { authorization: secret } },
               assertions: [{ id: "status", passed: false, message: secret }],
-              transportError: { category: "connection", message: secret },
+              transportError: { category: "connection", message: secret, writeState: "complete" },
+              harnessError: {
+                category: "exact-observation",
+                message: secret,
+                writeState: "not-started",
+              },
             },
           ],
           actions: [
@@ -2293,12 +2302,14 @@ it("retained retry diagnostics preserve failure position without credential or b
     ],
   } as unknown as Parameters<typeof retainedRetryDiagnostic>[0];
   const diagnostic = retainedRetryDiagnostic(report, {
-    scenario: retryRows[1]!,
+    scenario: scenario,
     action: "g-replay",
   });
   expect(JSON.parse(diagnostic)).toEqual({
-    expectedScenario: retryRows[1],
+    expectedScenario: scenario,
     expectedAction: "g-replay",
+    observedClientExchanges: 1,
+    observedScenarios: [scenario],
     state: "fail",
     category: "deadline",
     exchanges: [
@@ -2307,12 +2318,14 @@ it("retained retry diagnostics preserve failure position without credential or b
         status: 503,
         failedAssertions: ["status"],
         transportCategory: "connection",
+        harnessCategory: "exact-observation",
+        writeState: "complete",
       },
     ],
     actions: [
       { id: "g-before-replay", failedAssertions: ["properties"], executionCategory: "execution" },
     ],
-    lastObservedRoute: { method: "POST", url: `${scope}[redacted]/[redacted]` },
+    lastObservedRoute: { method: "POST", url: `${scope}<redacted>/<redacted>` },
     lastObservedStatus: 500,
     cleanupComplete: false,
     scenarioCleanupFailed: true,
@@ -2329,15 +2342,54 @@ it("retained retry diagnostics preserve failure position without credential or b
             scenarios: [],
           },
         },
-        { scenario: retryRows[1]!, action: "g-replay" },
+        { scenario: scenario, action: "g-replay" },
       ),
     ),
   ).toEqual({
-    expectedScenario: retryRows[1],
+    expectedScenario: scenario,
     expectedAction: "g-replay",
+    observedClientExchanges: 0,
+    observedScenarios: [],
     cleanupComplete: false,
-    scenarioCleanupFailed: false,
   });
+  const noTransport = structuredClone(report);
+  const fixtureExchange = noTransport.result.scenarios[0]?.exchanges[0];
+  if (!fixtureExchange) throw Error("diagnostic fixture exchange absent");
+  delete (fixtureExchange as { transportError?: unknown }).transportError;
+  expect(
+    JSON.parse(
+      retainedRetryDiagnostic(noTransport, {
+        scenario: scenario,
+        action: "g-replay",
+      }),
+    ).exchanges[0],
+  ).toEqual({
+    id: "directory",
+    status: 503,
+    failedAssertions: ["status"],
+    harnessCategory: "exact-observation",
+    writeState: "not-started",
+  });
+  for (const observation of [
+    null,
+    {},
+    { observation: null },
+    { observation: {} },
+    { observation: { route: null } },
+  ]) {
+    const context = JSON.parse(
+      retainedRetryDiagnostic(
+        { ...report, observations: [observation] },
+        {
+          scenario: scenario,
+          action: "g-replay",
+        },
+      ),
+    );
+    expect(context.observedClientExchanges).toBe(1);
+    expect(context).not.toHaveProperty("lastObservedRoute");
+    expect(context).not.toHaveProperty("lastObservedStatus");
+  }
 });
 
 it.each(retryControls)(
