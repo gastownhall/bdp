@@ -170,6 +170,7 @@ it("exposes detached frozen exact capture without changing compiler identity and
   expect(compiled.identity).toBe(identity);
   const saved = JSON.parse(JSON.stringify(compiled.capture));
   present(input.schemas[0]).utf8Bytes.fill(0);
+  present(input.descriptors[0]).utf8Bytes.fill(0);
   input.limits.totalBytes = 1;
   input.descriptors.length = 0;
   expect(compiled.capture).toEqual(saved);
@@ -217,13 +218,13 @@ it("uses inherited schema for writes, atomic late failures and staged sets, reta
     "bad",
     prepareTransaction(scope, JSON.stringify({ operations: bad })),
   );
-  expect(retry).toMatchObject({ kind: "existing", receipt: failed });
+  expect(retry).toEqual({ kind: "existing", receipt: failed });
   const setRetry = f.owner.admit(
     "p",
     "set",
     prepareTransactionSetCore(scope, JSON.stringify({ operations: setOperations })),
   );
-  expect(setRetry).toMatchObject({ kind: "existing", receipt: set });
+  expect(setRetry).toEqual({ kind: "existing", receipt: set });
   const updated = f.run(
     [
       {
@@ -391,10 +392,8 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
     });
     return { status: response.status, value: await response.json() };
   };
-  expect(await request(base)).toMatchObject({
-    status: 200,
-    value: { id: base, propertiesSchema: schema },
-  });
+  const installedDescriptors = options.artifacts.descriptors.map(({ utf8 }) => JSON.parse(utf8));
+  expect(await request(base)).toEqual({ status: 200, value: installedDescriptors[0] });
   const typeUrl = new URL(new URL(base).pathname, runtime.listenUrl);
   const typeGet = await fetch(typeUrl, { headers: { authorization: `Bearer ${"a".repeat(32)}` } });
   const typeBytes = await typeGet.text();
@@ -407,10 +406,16 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
   expect(typeHead.headers.get("content-length")).toBe(typeGet.headers.get("content-length"));
   expect(Number(typeHead.headers.get("content-length"))).toBe(Buffer.byteLength(typeBytes));
   expect(await typeHead.text()).toBe("");
-  expect(await request("types/")).toMatchObject({
+  expect(JSON.parse(typeBytes)).toEqual(installedDescriptors[0]);
+  expect(await request("types/")).toEqual({
     status: 200,
-    value: { items: [{ id: base }, { id: type }], next: null },
+    value: {
+      items: installedDescriptors.map(({ id, name, describes }) => ({ id, name, describes })),
+      next: null,
+    },
   });
+  for (const descriptor of installedDescriptors)
+    expect(await request(descriptor.id)).toEqual({ status: 200, value: descriptor });
   const unknown = await request(
     "operations/create-bead",
     { id: "beads/unknown", type: `${scope}types/missing`, properties: { n: 1 } },
@@ -459,10 +464,7 @@ it("compiles plain runtime artifacts in emitted module and serves same-owner Typ
       "failure",
     ),
   ).toEqual(failure);
-  expect(await request(base)).toMatchObject({
-    status: 200,
-    value: { id: base, propertiesSchema: schema },
-  });
+  expect(await request(base)).toEqual({ status: 200, value: installedDescriptors[0] });
 });
 it("bounds runtime artifact input and requires explicit Scope before provisioning", async () => {
   const contracts = compileDevelopmentContracts(bundle());
