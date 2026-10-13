@@ -2,6 +2,7 @@ import {
   createTransactionalObservations,
   TRANSACTIONAL_EXCHANGE_FIELDS,
   TransactionalHarnessError,
+  TransactionalReceiptFailure,
   type TransactionalRunContext,
   type TransactionalExchangeFields,
 } from "./transactional-observation.js";
@@ -723,7 +724,10 @@ async function runScenario(
         exchanges,
         error.category,
       );
-    else if (error instanceof ScenarioObservationFailure)
+    else if (
+      error instanceof ScenarioObservationFailure ||
+      error instanceof TransactionalReceiptFailure
+    )
       runResult = result(metadata, scenario, "fail", error.message, exchanges);
     else if (error instanceof ScenarioObservationLimitError)
       runResult = result(
@@ -951,7 +955,7 @@ async function runScenarioAction(
               body.id !== source.receipt ||
               (body.status === "completed" && body.next !== null))
           )
-            throw new Error("retained receipt schema or identity mismatch");
+            throw new TransactionalReceiptFailure("retained receipt schema or identity mismatch");
           projection = {
             status: response.status,
             headers: normalizeHeaders(response.headers),
@@ -1069,7 +1073,9 @@ async function runProgrammaticAction(
       ? new ScenarioActionExecutionFailure("action execution was aborted", { cause: error })
       : deadline.signal.aborted
         ? new ScenarioDeadlineError("action execution timed out", { cause: error })
-        : error instanceof ScenarioDeadlineError || error instanceof TransactionalHarnessError
+        : error instanceof ScenarioDeadlineError ||
+            error instanceof TransactionalHarnessError ||
+            error instanceof TransactionalReceiptFailure
           ? error
           : new ScenarioActionExecutionFailure("action execution failed", { cause: error });
     actions[actions.length - 1] = {
@@ -1488,11 +1494,6 @@ async function runRequest(
     }
     bindings.set(capture.binding, captureValue(capture, assertionResponse, bodyObservation, scope));
   }
-  if (served)
-    exchanges[exchanges.length - 1] = {
-      ...exchanges[exchanges.length - 1]!,
-      servedSession: served,
-    };
   observe?.({ ...response, headers: responseHeaders });
   priorResponses.set(request.id, {
     status: response.status,

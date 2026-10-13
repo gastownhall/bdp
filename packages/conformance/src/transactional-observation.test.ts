@@ -1,6 +1,8 @@
 import { expect, it } from "vitest";
 import {
   createTransactionalObservations,
+  TransactionalHarnessError,
+  TransactionalReceiptFailure,
   validateReceiptWire,
   type TransactionalRunContext,
   type TransactionalSessionBinding,
@@ -200,4 +202,46 @@ it("refuses a session whose recorded response bounds differ from the supported t
     } as unknown as TransactionalSessionBinding["responseLimits"],
   });
   expect(() => f.observations.session()).toThrow("response limits mismatch");
+});
+
+it("distinguishes evidence self-disagreement from invalid target receipt facts", () => {
+  const f = fixture();
+  expect(() => f.register({ ...response(), headers: {} })).toThrow(TransactionalHarnessError);
+  expect(() =>
+    f.register(response({ ...body, unexpected: true }), { ...body, unexpected: true }),
+  ).toThrow(TransactionalReceiptFailure);
+  f.register();
+  expect(() =>
+    f.observations
+      .resolve("receipt", id)
+      .validate(response({ ...body, requiredPosition: "pos-9" }), "GET"),
+  ).toThrow(TransactionalReceiptFailure);
+});
+it("does not regrant receipt authority from a retained receipt GET", () => {
+  const f = fixture();
+  f.register();
+  f.register({ ...response(), url: id }, body, "/id", { method: "GET", url: id });
+  expect(() => f.observations.resolve("receipt", id)).toThrow("not authorized");
+});
+
+it("allows changed serving headers while retaining original receipt JSON facts", () => {
+  const f = fixture();
+  f.register();
+  const original = response();
+  const headers = { ...original.headers, "bdp-scope-position": "pos-9" };
+  const later = {
+    ...original,
+    headers,
+    wireResponseBytes: Buffer.from(
+      `HTTP/1.1 200 OK\r\n${Object.entries(headers)
+        .map(([k, v]) => `${k}: ${v}\r\n`)
+        .join("")}\r\n${original.bodyText}`,
+    ),
+  };
+  expect(() => f.observations.resolve("receipt", id).validate(later, "GET")).not.toThrow();
+});
+it("classifies a real schema-valid but foreign receipt identity as target failure", () => {
+  const f = fixture(),
+    foreign = { ...body, id: "https://other.invalid/receipts/r1" };
+  expect(() => f.register(response(foreign), foreign)).toThrow(TransactionalReceiptFailure);
 });

@@ -428,4 +428,49 @@ describe("configured exact HTTP sessions", () => {
     await expect(target.close()).rejects.toMatchObject({ category: "abort" });
     await expect(target.execute(request())).rejects.toThrow("outside a prepared fixture");
   });
+  it.each([undefined, 200])(
+    "uses explicit cleanup lifecycle bound %s independently of request timeout",
+    async (cleanupTimeoutMs) => {
+      let completed = false;
+      const target = createRawHttpScenarioTarget(
+        async () => ({
+          dialRoute: { transport: "plain", host: "127.0.0.1", port: 1 },
+          capabilities: [],
+          close: async (signal) =>
+            new Promise<void>((resolve, reject) => {
+              const timer = setTimeout(() => {
+                signal.removeEventListener("abort", abort);
+                completed = true;
+                resolve();
+              }, 30);
+              const abort = () => {
+                clearTimeout(timer);
+                reject(signal.reason);
+              };
+              if (signal.aborted) abort();
+              else signal.addEventListener("abort", abort, { once: true });
+            }),
+        }),
+        { requestTimeoutMs: 5, ...(cleanupTimeoutMs === undefined ? {} : { cleanupTimeoutMs }) },
+      );
+      await prepare(target);
+      if (cleanupTimeoutMs === undefined)
+        await expect(target.close()).rejects.toMatchObject({ category: "abort" });
+      else await target.close();
+      expect(completed).toBe(cleanupTimeoutMs !== undefined);
+    },
+  );
+  it.each([0, -1, NaN, 2147483648])(
+    "rejects invalid explicit cleanup bound %s",
+    (cleanupTimeoutMs) => {
+      expect(() =>
+        createRawHttpScenarioTarget(
+          async () => {
+            throw Error("must not start");
+          },
+          { requestTimeoutMs: 5, cleanupTimeoutMs },
+        ),
+      ).toThrow("cleanupTimeoutMs");
+    },
+  );
 });

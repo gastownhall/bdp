@@ -185,6 +185,7 @@ export function createTransactionalExecutionBinding(options: {
     {
       exactMode: options.exactMode,
       requestTimeoutMs: 5000,
+      cleanupTimeoutMs: 10000,
       maximumHeaderBytes: 65536,
       maximumBodyBytes: 1048576,
     },

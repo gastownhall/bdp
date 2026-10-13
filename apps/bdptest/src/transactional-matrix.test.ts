@@ -136,6 +136,7 @@ async function observe(control?: {
       }
     | undefined;
   let failure: unknown;
+  const cleanupFailures: unknown[] = [];
   try {
     const bootstrap = await launchInstalledTransaction(entry, configuration, signal);
     control?.children?.push(bootstrap.child);
@@ -220,7 +221,17 @@ async function observe(control?: {
           },
           configuration: target.target.exactConfiguration!,
         },
-        harness: target.target.harness,
+        harness: {
+          ...target.target.harness,
+          cleanup: async (...args) => {
+            try {
+              await target!.target.harness.cleanup(...args);
+            } catch (error) {
+              cleanupFailures.push(error);
+              throw error;
+            }
+          },
+        },
         schemaValidator: createJsonSchemaValidator(schema),
         declaredTargetLabel: "private-installed-transactional-partial",
         prepareTimeoutMs: 10000,
@@ -233,17 +244,21 @@ async function observe(control?: {
   } catch (error) {
     failure = error;
   } finally {
+    // The runner can report abort as row state; retain the cohort's original
+    // reason before a subsequent child/session cleanup failure is aggregated.
+    if (failure === undefined && signal.aborted) failure = signal.reason;
     try {
       await target?.target.close();
     } catch (cleanup) {
-      failure =
-        failure === undefined
-          ? cleanup
-          : new AggregateError([failure, cleanup], "installed cohort cleanup failed");
+      cleanupFailures.push(cleanup);
     } finally {
       clearTimeout(timer);
       rmSync(directory, { recursive: true, force: true });
     }
+  }
+  if (cleanupFailures.length) {
+    const causes = [...new Set([...(failure === undefined ? [] : [failure]), ...cleanupFailures])];
+    throw new AggregateError(causes, "installed cohort cleanup failed");
   }
   if (failure !== undefined) throw failure;
   signal.throwIfAborted();
@@ -672,3 +687,38 @@ it("records dynamic source/session configuration even when actual receipt HTTP r
   expect(exchange.request.exact?.writeState).toBe("complete");
   expect(exchange.assertions.find((a) => a.id === "actual-status")?.passed).toBe(false);
 }, 30000);
+
+it("retains original cohort abort alongside an actual failed child cleanup", async () => {
+  const controller = new AbortController(),
+    original = new Error("cohort deadline control"),
+    children: ChildProcess[] = [];
+  const observed = await observe({
+    signal: controller.signal,
+    children,
+    afterExchange: async () => {
+      children.at(-1)!.kill("SIGKILL");
+      controller.abort(original);
+      throw original;
+    },
+  }).catch((error: unknown) => error);
+  expect(observed).toBeInstanceOf(AggregateError);
+  const seen = new Set<unknown>();
+  const visit = (value: unknown) => {
+    if (seen.has(value)) return;
+    seen.add(value);
+    if (value instanceof AggregateError) for (const cause of value.errors) visit(cause);
+    if (value instanceof Error && value.cause !== undefined) visit(value.cause);
+  };
+  visit(observed);
+  expect(seen.has(original)).toBe(true);
+  expect(
+    [...seen].some(
+      (value) =>
+        value instanceof Error &&
+        value.message === "installed transaction child did not close cleanly",
+    ),
+  ).toBe(true);
+  expect(children.every((child) => child.exitCode !== null || child.signalCode !== null)).toBe(
+    true,
+  );
+}, 20000);

@@ -1,3 +1,7 @@
+import { createServer } from "node:http";
+import { createRawHttpExchangeExecutor } from "./http-executor.js";
+import { createJsonSchemaValidator } from "./schema-validator.js";
+import schema from "../../../schemas/bdp-v0.schema.json" with { type: "json" };
 import { createTransactionalObservations } from "./transactional-observation.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -486,3 +490,153 @@ it("uses preparation rather than HTTP timeout for private reopen lifecycle", asy
   expect(result.scenarios.find((s) => s.id === row.id)).toMatchObject({ state: "pass" });
   expect(generation).toBe(2);
 });
+
+it.each([
+  ["wire", "harness-error", "receipt wire headers mismatch"],
+  ["validator", "harness-error", "source receipt validator unavailable"],
+  ["source-schema", "fail", "source receipt schema invalid"],
+  ["retained", "fail", "retained receipt differs from original wire facts"],
+] as const)(
+  "retains safe %s receipt reason with correct attribution over raw HTTP",
+  async (kind, state, reason) => {
+    const scope = fixture.scope,
+      id = `${scope}receipts/r1`;
+    const body = {
+      id,
+      status: "completed",
+      detail: "available",
+      idempotencyKey: "key",
+      scopeEpoch: "epoch",
+      authorizationView: "view",
+      transaction: "tx",
+      requiredPosition: "pos-0",
+      results: [{ operationIndex: 0, outcome: "matched", count: 0 }],
+      next: null,
+      expiresAt: "2030-01-01T00:00:00Z",
+    };
+    let reads = 0;
+    const server = createServer((request, response) => {
+      request.resume();
+      if (request.method === "GET") reads++;
+      const text = JSON.stringify(
+        kind === "source-schema"
+          ? { ...body, unexpected: "private-target-body" }
+          : kind === "retained" && request.method === "GET"
+            ? { ...body, requiredPosition: "pos-1" }
+            : body,
+      );
+      response.writeHead(200, {
+        "content-type": "application/json",
+        "content-length": Buffer.byteLength(text),
+        connection: "close",
+      });
+      response.end(text);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw Error("missing address");
+    const dialRoute = { transport: "plain" as const, host: "127.0.0.1", port: address.port };
+    const mode = {
+      scope,
+      profile: "transactional" as const,
+      routes: [{ method: "POST" as const, url: fixture.bindings.batch }],
+      maximumRequestHeaderBytes: 16384,
+      maximumRequestBodyBytes: 65536,
+      defaultCredentialRef: "operator",
+      credentialHandles: [{ id: "operator", headerNames: [] }],
+      resolveCredentials: () => ({}),
+    };
+    const raw = createRawHttpExchangeExecutor(dialRoute, {
+      exactMode: mode,
+      requestTimeoutMs: 5000,
+    });
+    const { resolveCredentials: _resolver, ...configuration } = mode;
+    const row = {
+      ...manifest.scenarios[0],
+      actions: [
+        {
+          id: "source",
+          family: "http",
+          method: "POST",
+          target: { binding: "batch" },
+          raw: { headerLines: [], body: { encoding: "utf8", value: "{}" } },
+          captures: [{ binding: "receipt", from: { kind: "json-pointer", pointer: "/id" } }],
+          assertions: [{ id: "status", kind: "status", equals: 200 }],
+        },
+        {
+          id: "read",
+          family: "client",
+          operation: "transactional.receipt-read",
+          input: { binding: "receipt", method: "GET" },
+          captures: [],
+          assertions: [
+            { id: "status", kind: "json-pointer", pointer: "/status", exists: true, equals: 200 },
+          ],
+        },
+      ],
+    };
+    try {
+      const result = await runCumulativeTransactionalMatrix(
+        {
+          ...options(),
+          artifactBundle: createCumulativeTransactionalArtifactBundle(selected, {
+            fixture: inputs().fixture,
+            manifest: source({ ...manifest, scenarios: [row] }),
+          }),
+          harness: {
+            prepare: async () => ({
+              capabilities: fixture.capabilities,
+              bindings: fixture.bindings,
+            }),
+            cleanup: async () => {},
+          },
+          ...(kind === "validator" ? {} : { schemaValidator: createJsonSchemaValidator(schema) }),
+          exactExecution: {
+            configuration,
+            execute: async (request) => {
+              const observed = await raw(request);
+              return kind === "wire"
+                ? {
+                    ...observed,
+                    headers: { ...observed.headers, "x-self-mismatch": "not-on-wire" },
+                  }
+                : observed;
+            },
+          },
+        },
+        {
+          current: (scenario) => ({
+            binding: {
+              scenario,
+              generation: 1,
+              listenUrl: `http://127.0.0.1:${address.port}/`,
+              runtimeConfigurationIdentity: "a".repeat(64),
+              configurationDigest: "b".repeat(64),
+              responseLimits: { headerBytes: 65536, bodyBytes: 1048576, wireBytes: 2097152 },
+            },
+            dialRoute,
+            signal: new AbortController().signal,
+            resolveCredentials: () => ({}),
+            register: (p) => p,
+          }),
+          reopen: async () => {
+            throw Error("must not reopen");
+          },
+        },
+      );
+      const actual = result.scenarios.find((s) => s.id === row.id)!;
+      expect(actual).toMatchObject({ state, reason });
+      expect(JSON.stringify(actual)).not.toContain("private-target-body");
+      expect(reads).toBe(kind === "retained" ? 1 : 0);
+      if (kind === "retained") {
+        expect(actual.actions?.at(-1)?.executionError?.message).toBe(reason);
+        expect(actual.exchanges.at(-1)?.dynamicExactConfiguration).toBeDefined();
+      }
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  },
+);
