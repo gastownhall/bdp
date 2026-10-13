@@ -7236,8 +7236,8 @@
     {
       "id": "read-update.singleton.no-local-bindings",
       "status": "bounded-observation",
-      "wholeContract": false,
-      "reason": "Installed singleton rejection and same-key correction across seven sequence-capable reference slots (nine bare/pinned forms), four durable-grammar companions, opaque pin echo and metadata string positive. Pending independent selected-clause review; no public conformance credit.",
+      "wholeContract": true,
+      "reason": "Reviewed whole coverage of the selected singleton clause: actual installed HTTP rejects bare and pinned @name in every admitted reference slot as malformed-request before observable effects; complete afterstate, same-key corrections, opaque pin echoes and ordinary metadata strings distinguish reference syntax from valid inputs. Coverage is row-local; no public profile qualification.",
       "bindings": [
         {
           "scenario": "read-update.singleton.no-local-bindings",
@@ -8581,8 +8581,8 @@
     {
       "id": "read-update.alias.non-canonical-target",
       "status": "bounded-observation",
-      "wholeContract": false,
-      "reason": "Installed alias target-category and Link-endpoint category corpus with full fixture diagnostic Problems, retained identity/conflict controls and reached-member/independent-tail observations. Pending independent selected-clause review; no general validation, retention-period or public conformance credit. In-row successful seed operations also admit an absolute canonical in-Scope Bead alias target and an opaque pinned Bead Link endpoint, with complete result facts and immediate alias/Resource readback. Diagnostic cause identifies the invalid canonical/in-Scope-Bead target condition; distinct prose for each disallowed category is not required. This remains a bounded observation, not whole-contract credit.",
+      "wholeContract": true,
+      "reason": "Reviewed whole coverage of all selected clauses: actual installed HTTP rejects local/absolute alias and Link targets plus external alias targets with complete independent validation-failed Problems and the canonical-Bead diagnostic cause; both Link endpoint slots reject bare/pinned Link references. Row-local positives admit an absolute canonical in-Scope Bead alias target and both opaque pinned and bare Bead endpoints, with independent result/readback and corruption controls. Complete afterstate and retained failure/conflict controls corroborate the observations. No unknown-subject, general retention, authorization or public profile qualification.",
       "bindings": [
         {
           "scenario": "read-update.alias.non-canonical-target",
