@@ -9,12 +9,15 @@ import {
   stringifyJsonValue,
   readProblem,
   parseReadUpdateProblem,
+  parseCanonicalScope,
+  parseReadUpdateOperationDirectory,
+  type ReadUpdateOperationDirectory,
   type ReadProblemCode,
   type ReadUpdateOperation,
 } from "@bdp/protocol";
 import { applyReadHttpSemantics, resourceRevisionEtag, acceptsJson } from "./read-http.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
-import type { HttpResponse } from "./index.js";
+import type { HttpResponse, HttpHandler } from "./index.js";
 import { DEVELOPMENT_LIMITS, openDevelopmentAuthority } from "./development-authority.js";
 import type { LifecycleScheduler } from "./sequence-executor.js";
 
@@ -35,6 +38,16 @@ const operations: Readonly<Record<string, ReadUpdateOperation>> = Object.freeze(
   "put-alias": "putAlias",
   "delete-alias": "deleteAlias",
 });
+/** Private value seam; ordinary exported development startup never supplies it.
+ * Canonical discovery construction lives solely in source test support.
+ */
+export interface DevelopmentHttpComposition {
+  readonly scopePath: string;
+  createReadRoute(
+    authority: Awaited<ReturnType<typeof openDevelopmentAuthority>>,
+    directory: ReadUpdateOperationDirectory,
+  ): HttpHandler;
+}
 class ReceivingError extends Error {
   constructor(readonly code: ReadProblemCode | "unsupported-media-type") {
     super("development request refused");
@@ -132,6 +145,7 @@ export async function startDevelopmentReferenceRuntime(
   options: DevelopmentServerOptions,
   scheduler?: LifecycleScheduler,
   clock?: () => number,
+  composition?: DevelopmentHttpComposition,
 ) {
   if (!path.isAbsolute(options.directory) || typeof options.create !== "boolean")
     throw new TypeError("explicit absolute store directory and provisioning choice required");
@@ -139,6 +153,21 @@ export async function startDevelopmentReferenceRuntime(
     throw new TypeError("invalid development port");
   if (!/^[A-Za-z0-9_-]{32,256}$/.test(options.token))
     throw new TypeError("development token must have 32-256 base64url characters");
+  const scopePath = composition?.scopePath ?? "/";
+  if (
+    parseCanonicalScope(`http://127.0.0.1${scopePath}`) !== `http://127.0.0.1${scopePath}` ||
+    !scopePath.startsWith("/") ||
+    scopePath.startsWith("//") ||
+    (composition !== undefined && typeof composition.createReadRoute !== "function")
+  )
+    throw new TypeError("invalid private HTTP composition");
+  const directory = parseReadUpdateOperationDirectory({
+    ...Object.fromEntries(
+      Object.entries(operations).map(([target, operation]) => [operation, target]),
+    ),
+    sequence: "sequence",
+  });
+  let composedRead: HttpHandler | undefined;
   const credential = Buffer.from(`Bearer ${options.token}`);
   let authority: Awaited<ReturnType<typeof openDevelopmentAuthority>> | undefined;
   let closing = false;
@@ -162,13 +191,34 @@ export async function startDevelopmentReferenceRuntime(
         throw new ReceivingError("malformed-request");
       const url = new URL(rawUrl, scope);
       if (url.origin !== new URL(scope).origin) throw new ReceivingError("malformed-request");
-      const name = rawUrl.startsWith("/development/") ? rawUrl.slice(13) : "";
+      const targetRoot = composition === undefined ? "/development/" : `${scopePath}operations/`;
+      const name = rawUrl.startsWith(targetRoot) ? rawUrl.slice(targetRoot.length) : "";
       const operation = Object.hasOwn(operations, name) ? operations[name] : undefined;
       const mutationTarget = operation !== undefined || name === "sequence";
-      if (rawUrl.startsWith("/development/") && !mutationTarget)
+      if (rawUrl.startsWith(targetRoot) && rawUrl !== targetRoot && !mutationTarget)
         throw new ReceivingError("resource-not-found");
       if (request.method !== "POST" && mutationTarget) {
         empty(response, 405, "POST");
+        return;
+      }
+      if (composedRead && !mutationTarget) {
+        // The trusted receiver's credential, Origin and raw-target gates already ran.
+        // No request body, database handle or mutation callback is routed by this seam.
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          empty(response, 405, "GET, HEAD");
+          return;
+        }
+        const headers = new Headers();
+        for (let i = 0; i < request.rawHeaders.length; i += 2)
+          headers.append(request.rawHeaders[i] ?? "", request.rawHeaders[i + 1] ?? "");
+        const input = new Request(url, { method: request.method, headers });
+        const selected = applyReadHttpSemantics(input, await composedRead(input));
+        selected.headers.set("x-bdp-development", "non-attesting");
+        const bytes = selected.body === undefined ? undefined : stringifyJsonValue(selected.body);
+        if (bytes !== undefined)
+          selected.headers.set("content-length", String(Buffer.byteLength(bytes)));
+        response.writeHead(selected.status, Object.fromEntries(selected.headers));
+        response.end(bytes);
         return;
       }
       if (request.method === "GET" || request.method === "HEAD") {
@@ -276,7 +326,7 @@ export async function startDevelopmentReferenceRuntime(
     });
     const address = server.address();
     if (address === null || typeof address === "string") throw new Error("no development address");
-    scope = `http://127.0.0.1:${address.port}/`;
+    scope = `http://127.0.0.1:${address.port}${scopePath}`;
     authority = await openDevelopmentAuthority({
       scope,
       directory: options.directory,
@@ -284,8 +334,13 @@ export async function startDevelopmentReferenceRuntime(
       ...(scheduler === undefined ? {} : { scheduler }),
       ...(clock === undefined ? {} : { clock }),
     });
+    if (composition !== undefined) {
+      composedRead = composition.createReadRoute(authority, directory);
+      if (typeof composedRead !== "function") throw new TypeError("invalid private Read route");
+    }
   } catch (error) {
     if (server.listening) await closeListener();
+    await authority?.close();
     throw error;
   }
   let completion: Promise<void> | undefined;
