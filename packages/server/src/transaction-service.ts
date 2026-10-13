@@ -215,6 +215,20 @@ export function createTransactionService(owner: Owner, options: TransactionServi
       };
       return Object.freeze(guarded);
     },
+    events(
+      source: string,
+      after?: string,
+      supplied?: TransactionMinimum | "unsupported",
+      signal?: AbortSignal,
+    ) {
+      return run(() =>
+        waitForTransactionMinimum(
+          () => owner.readEvents(source, after, supplied),
+          minimumReads,
+          signal,
+        ),
+      );
+    },
     receiptPage(
       access:
         | { readonly kind: "unauthenticated" }

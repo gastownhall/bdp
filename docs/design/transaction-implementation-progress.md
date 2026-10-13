@@ -65,8 +65,8 @@ live revision. A Link emits its created/deleted fact followed by source and targ
 linked/unlinked facts for in-Scope endpoints. A graph fact's subject and subject
 Type are the Link;
 `data.endpoint` selects the incidence. The group Events use the Scope `events/`
-Event Source. Future Resource views must project them with the serving Bead or
-Link's `?view=events` Source URL; no Resource Event view is implemented here.
+Event Source. The finite serving slice below projects them with the serving Bead
+or Link's `?view=events` Source URL.
 A self-Link emits both endpoint facts in that order without versioning the Bead.
 Opaque external endpoints generate no endpoint fact; pinned references remain
 byte-identical in Link and graph fact data.
@@ -982,3 +982,41 @@ HTTP set admission, Snapshot/changefeed, schema hosting, public profile or evide
 claim follows. The actual service still has fixed all-visible policy and empty
 aggregate policy. Retained variable-grant projection, mutated-Resource accounting
 and receipt/group byte materialization remain separate work.
+
+
+## Private finite Event serving
+
+The same authority owner now serves finite Scope, Link and Bead Event pages.
+The owner reads committed groups one at a time in one synchronous entry and
+captures the current Scope context there. No live SQLite iterator escapes that
+entry. Event data and ordinals are unchanged; each Source receives stable opaque
+IDs bound to epoch, Authorization View, source URL, committed position and ordinal.
+The Scope projection uses the same rendering helper intended for the future
+changefeed. Raw storage Event IDs are not serving IDs.
+
+Link views contain lifecycle facts. Bead views contain their own lifecycle facts,
+endpoint-specific incidence facts, and incident Link property updates. Endpoint
+lookup uses only that group's final Link postimages, creation facts and incidence
+facts. Update then delete, and create then update then delete, remain projectable
+after restart without consulting current Links or retaining preimage bodies.
+The metadata-only incident Link case remains a named private development gap
+pending the specification disposition; Scope and Link views support that fact.
+
+Finite pages may split groups. They preserve ordinals, bound the complete encoded
+page to 4 MiB, and return an exclusive continuation after the last returned Event.
+Cursor context tags are not authentication or proof of prior issuance: a matching
+context must also identify a retained Event in that Source. Malformed and
+never-member cursors return `invalid-parameter` as a local reference convention.
+A known Resource identity remains an Event Source after deletion; an unknown
+source returns nondisclosing 404 before minimum checks, also a local reference
+ordering choice. Receipt detail expiry does not prune Events.
+
+HTTP authentication and Origin/Host/raw-target checks precede Event access. The
+existing finite minimum wait releases the owner entry between attempts, reports
+catch-up timeout rather than older success, and completes before conditional
+processing. Successful GET/HEAD carry the current context, no validators, and
+normal JSON negotiation and HEAD body suppression. Service facet AbortSignal
+cancellation is supported; disconnected HTTP sockets may drain the bounded wait
+budget rather than cancel immediately. The private fixed all-visible/no-pruning
+composition does not implement SSE, mutable views, erasure, Snapshot or changefeed
+serving, and does not advertise a public Transactional profile.
