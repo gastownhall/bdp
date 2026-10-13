@@ -133,7 +133,7 @@ interface Row {
   dependency: string | null;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-receipt-pages-6";
+const format = "bdp-private-transaction-set-core-7";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
 const identityPolicy = "transaction-revision-provenance-4";
@@ -880,6 +880,15 @@ export function openTransactionStore(options: TransactionStoreOptions) {
             return fn();
           }
           const tx: TransactionMutationContext = {
+            resources: (kind) =>
+              scoped(() =>
+                Object.freeze(
+                  db
+                    .prepare("SELECT id FROM resources WHERE kind=?")
+                    .all(kind)
+                    .map((row) => Object.freeze(requiredResource(String(row.id)))),
+                ),
+              ),
             resource: (id) => scoped(() => resource(id)),
             incidentLinks: (id) =>
               scoped(() =>

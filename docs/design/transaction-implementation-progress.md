@@ -709,3 +709,38 @@ its bounded loopback behavior is not a production concurrency or load qualificat
 This implements paging for existing explicit mutations, not the catalog's large-set
 expansion witness. Sets, installed-contract integration, variable-view/erasure
 projection, replication and truthful full Transactional discovery remain open.
+
+
+### Private valid-set core, with serving admission still closed
+
+A source-private preparation seam now admits valid bounded updateWhere/deleteWhere
+records to the existing Transactional owner for core testing. The normal batch,
+singleton and HTTP preparation paths still refuse sets. Selector grammar/complexity
+error timing remains an explicit development gap, pending normative review; this
+core is not a second wire parser or a completed set-serving claim.
+
+The staged collection facade reads the active owner's transaction, expires at the
+end of that turn and freezes returned stored rows. Selection uses canonical records
+and the existing Selector evaluator at the operation turn. The selected set is
+fixed before expansion, sorted in canonical ID order, and applies the same Resource
+mutation/fact path used by ordinary members. Cardinality failure and late Resource
+failure roll back the complete transaction while retaining its failed receipt.
+Matched entries, no-op results, intermediate postimages, final group state,
+provenance and metadata retain their existing meanings. Receipt pages persist the
+complete flat set result, including the matched entry, without recomputing selection.
+
+The private authority now enforces a total 4,096 induced-Event bound across ordinary
+members and set expansion. Exceeding it yields an atomic transaction-wide failed
+receipt with limit-exceeded; an evaluator-only test seam can lower but never raise
+that bound. It is not a new public configuration or protocol maximum. Selection and
+complete result materialization remain linear in collection/population size.
+
+Private format set-core-7 protects the expanded durable witness vocabulary; the
+identity codec is unchanged. No migration or reseed is provided. Core tests cover
+same-version recovery/replay and an external probe uses the actual prior paging
+writer to establish byte-identical incompatible-format refusal. Paging crash-recovery
+review fixes are being integrated separately before this slice is frozen.
+
+The supported installation remains all-visible, schema-free and unowned. Installed
+contract/policy composition, owned-source fanout, full set HTTP admission, remaining
+consistency routes, replication and truthful Transactional discovery remain open.

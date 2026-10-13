@@ -216,6 +216,10 @@ async function installPackedWorkspace() {
       "semantic-identity.d.ts.map",
       "semantic-identity.js",
       "semantic-identity.js.map",
+      "transaction-set.d.ts",
+      "transaction-set.d.ts.map",
+      "transaction-set.js",
+      "transaction-set.js.map",
       "transaction-batch.d.ts",
       "transaction-batch.d.ts.map",
       "transaction-batch.js",
@@ -369,7 +373,9 @@ async function installPackedWorkspace() {
       "snapshotTransactionMinimum" in publicServer ||
       "waitForTransactionMinimum" in publicServer ||
       "checkTransactionMinimum" in publicServer ||
-      "transactionReceiptMaximum" in publicServer
+      "transactionReceiptMaximum" in publicServer ||
+      "prepareTransactionSetCore" in publicServer ||
+      "prepareSetCore" in publicServer
     )
       throw new Error("packed root exposes private transaction service");
     if ("createContextualReadPagination" in publicServer)

@@ -1,9 +1,24 @@
+import {
+  prepareSetCore,
+  transactionInputText as losslessText,
+  TransactionDevelopmentLimitError,
+  TRANSACTION_SELECTOR_LIMITS,
+  type PreparedTransactionSet,
+} from "./transaction-set.js";
+import { selectReadResources } from "./read-selector.js";
+export { TransactionDevelopmentLimitError } from "./transaction-set.js";
 export const TRANSACTION_MAXIMUM_OPERATIONS = 32;
+const maximumInducedEvents = 4096;
+class EventExpansionLimit extends Error {}
 /** Private first Transactional slice. No transport or profile admission. */
 import { snapshotReadUpdateRuntimeLimits } from "./read-update-runtime-limits.js";
 import { memberNumericDiagnosticBudget } from "./member-numeric-diagnostics.js";
 import {
   JsonNumberLiteral,
+  admitJsonNumbers,
+  compareCanonicalIds,
+  parseCanonicalScope,
+  type UnadmittedReadUpdateOperation,
   decodeJsonDocument,
   prepareReadUpdateSequence,
   prepareReadUpdateSingleton,
@@ -48,10 +63,10 @@ export const TRANSACTION_RUNTIME_LIMITS = Object.freeze({
 });
 snapshotReadUpdateRuntimeLimits(TRANSACTION_RUNTIME_LIMITS);
 
-/** An unsupported private composition is not a protocol syntax ruling. */
-export class TransactionDevelopmentLimitError extends Error {}
 export interface PreparedTransaction {
-  readonly carrier: PreparedReadUpdateCarrier;
+  readonly carrier: Omit<PreparedReadUpdateCarrier, "operations"> & {
+    readonly operations: readonly (UnadmittedReadUpdateOperation | PreparedTransactionSet)[];
+  };
 }
 const prepared = new WeakSet<object>();
 function assertResourceOperation(operation: unknown): asserts operation is ResourceOperation {
@@ -77,16 +92,6 @@ function object(value: LosslessJsonValue | undefined): Record<string, LosslessJs
     throw new TypeError("expected object");
   return value as Record<string, LosslessJsonValue>;
 }
-function losslessText(value: LosslessJsonValue, depth = 0): string {
-  if (depth > 32) throw new TransactionDevelopmentLimitError("development batch depth limit");
-  if (value instanceof JsonNumberLiteral) return value.literal;
-  if (Array.isArray(value)) return `[${value.map((v) => losslessText(v, depth + 1)).join(",")}]`;
-  if (value && typeof value === "object")
-    return `{${Object.entries(value)
-      .map(([k, v]) => `${JSON.stringify(k)}:${losslessText(v, depth + 1)}`)
-      .join(",")}}`;
-  return JSON.stringify(value);
-}
 /** Whole-carrier syntax/Scope checks happen before consulting any durable key.
  * Reuses RU parsing, not RU admission or identity: synthetic member keys never
  * enter storage. This bounded owner accepts the six singleton Resource operation kinds. */
@@ -107,6 +112,49 @@ export function prepareTransaction(scope: string, text: string): PreparedTransac
     return { ...op, idempotencyKey: `internal-${index}` };
   });
   return prepareCarrier(prepareReadUpdateSequence(scope, losslessText({ operations })));
+}
+/** Experimental source-private core only. HTTP preparation deliberately does not
+ * call this seam until negative Selector admission semantics are resolved. */
+export function prepareTransactionSetCore(
+  scope: string,
+  text: string,
+  singleton = false,
+): PreparedTransaction {
+  if (Buffer.byteLength(text) > TRANSACTION_RUNTIME_LIMITS.requestBodyBytes)
+    throw new RangeError("development batch byte limit");
+  const root = object(decodeJsonDocument(text));
+  losslessText(root);
+  if (Object.keys(root).length !== 1 || !Array.isArray(root.operations) || !root.operations.length)
+    throw new TypeError("expected nonempty batch operations");
+  if (singleton && root.operations.length !== 1) throw new TypeError("expected one core operation");
+  const canonicalScope = parseCanonicalScope(scope);
+  const raw = root.operations.map(object);
+  const resourceInputs = raw.filter(
+    (op) => op.operation !== "updateWhere" && op.operation !== "deleteWhere",
+  );
+  // Existing parser owns reference syntax, label order/kind/uniqueness and brands.
+  // Removing sets preserves relative Resource order; sets cannot declare labels.
+  const resources = resourceInputs.length
+    ? prepareTransaction(scope, losslessText({ operations: resourceInputs })).carrier.operations
+    : [];
+  let index = 0;
+  const operations = raw.map((op) => {
+    if (op.operation !== "updateWhere" && op.operation !== "deleteWhere") {
+      const resource = resources[index++];
+      if (!resource) throw new Error("missing prepared Resource operation");
+      return resource;
+    }
+    const { operation, ...input } = op;
+    return prepareSetCore(canonicalScope, operation, Object.freeze(input));
+  });
+  return prepareCarrier(
+    Object.freeze({
+      scope: canonicalScope,
+      kind: singleton ? "singleton" : "sequence",
+      operations: Object.freeze(operations),
+      keys: Object.freeze([]),
+    }),
+  );
 }
 /** A singleton is the same one-operation Transactional request, not a RU
  * execution. Its raw record excludes the discriminator, label and body key.
@@ -213,7 +261,7 @@ export function assertPreparedTransactionSequence(
   if (!sequences.has(sequence) || sequence.scope !== scope)
     throw new TypeError("expected prepared transaction sequence for this Scope");
 }
-function prepareCarrier(carrier: PreparedReadUpdateCarrier): PreparedTransaction {
+function prepareCarrier(carrier: PreparedTransaction["carrier"]): PreparedTransaction {
   const result = Object.freeze({ carrier });
   prepared.add(result);
   return result;
@@ -222,13 +270,15 @@ export function assertPreparedTransaction(batch: PreparedTransaction, scope: str
   if (!prepared.has(batch) || batch.carrier.scope !== scope)
     throw new TypeError("expected prepared transaction for this Scope");
 }
-function aliasFields(operation: ReadUpdateOperation): readonly string[] {
+function aliasFields(
+  operation: ReadUpdateOperation | PreparedTransactionSet["operation"],
+): readonly string[] {
   if (operation === "createLink") return ["source", "target"];
   if (operation === "updateBead" || operation === "deleteBead") return ["bead"];
   return [];
 }
 interface OperationWitnesses {
-  readonly operation: ReadUpdateOperation;
+  readonly operation: ReadUpdateOperation | PreparedTransactionSet["operation"];
   readonly aliases: readonly { readonly locator: string; readonly target: string | null }[];
 }
 const witnessFormat = "transaction-alias-witnesses-1";
@@ -259,9 +309,14 @@ function parseWitnesses(text: string, scope: string): readonly OperationWitnesse
     const entry = object(value);
     if (Object.keys(entry).length !== 2 || !Array.isArray(entry.aliases))
       throw new TypeError("invalid transaction operation witnesses");
-    if (entry.operation !== "putAlias" && entry.operation !== "deleteAlias")
+    if (
+      entry.operation !== "putAlias" &&
+      entry.operation !== "deleteAlias" &&
+      entry.operation !== "updateWhere" &&
+      entry.operation !== "deleteWhere"
+    )
       assertResourceOperation(entry.operation);
-    const operation = entry.operation as ReadUpdateOperation;
+    const operation = entry.operation as OperationWitnesses["operation"];
     if (entry.aliases.length > aliasFields(operation).length)
       throw new TypeError("invalid transaction alias witness count");
     const seen = new Set<string>();
@@ -400,14 +455,22 @@ export type BatchEvaluation =
     }
   | {
       readonly ok: false;
-      readonly problem: ReadUpdateProblem & {
-        readonly operationIndex: number;
+      readonly problem: Omit<ReadUpdateProblem, "code"> & {
+        readonly code: ReadUpdateProblem["code"] | "cardinality-violated";
+        readonly operationIndex?: number;
         readonly operationName?: string;
       };
     };
-export type TransactionMutationContext = ResourceTransaction & AliasTransaction;
+export type TransactionMutationContext = ResourceTransaction &
+  AliasTransaction & {
+    resources(
+      kind: "bead" | "link",
+    ): readonly NonNullable<ReturnType<ResourceTransaction["resource"]>>[];
+  };
 export interface TransactionEvaluationOptions extends ResourceEvaluationOptions {
   readonly aliasPolicy: AliasEvaluationOptions["policy"];
+  /** Evaluator-only test seam; cannot raise the private authority cap. */
+  readonly maximumInducedEvents?: number;
 }
 export function evaluateTransaction(
   normalized: NormalizedTransaction,
@@ -420,12 +483,20 @@ export function evaluateTransaction(
   const state = normalizedState.get(normalized);
   if (!state || state.batch.carrier.scope !== options.scope)
     throw new TypeError("expected normalized transaction for this Scope");
+  const eventMaximum = options.maximumInducedEvents ?? maximumInducedEvents;
+  if (
+    !Number.isSafeInteger(eventMaximum) ||
+    eventMaximum < 1 ||
+    eventMaximum > maximumInducedEvents
+  )
+    throw new TypeError("invalid evaluator Event bound");
   const batch = state.batch;
   const bindings = new Map<string, string>();
   const results: unknown[] = [],
     events: TransactionEvent[] = [];
   const changes = new Map<string, TransactionStateChange>();
   function scopeEvent(subject: ResourceRecord, type: TransactionEvent["type"], data: unknown) {
+    if (events.length >= eventMaximum) throw new EventExpansionLimit();
     const ordinal = events.length;
     events.push({
       id: `${position}-${ordinal}`,
@@ -441,83 +512,12 @@ export function evaluateTransaction(
       data,
     });
   }
-  for (const [operationIndex, op] of batch.carrier.operations.entries()) {
-    if ([...state.references.values()].includes(UNBOUND_SEMANTIC_REFERENCE))
-      return {
-        ok: false,
-        problem: {
-          type: "https://github.com/gastownhall/bdp/problems/request",
-          status: 400,
-          code: "binding-unavailable",
-          retry: "never",
-          operationIndex,
-        },
-      };
-    const admitted = admitReadUpdateOperationNumbers(
-      op,
-      memberNumericDiagnosticBudget(op.operation, {
-        diagnostics: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
-        diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
-        diagnostic: ({ pointer }) => ({
-          message:
-            pointer.startsWith("/propertiesChange/") || pointer.startsWith("/metadataChange/")
-              ? `unsupported number at request location ${pointer}`
-              : "unsupported number",
-        }),
-      }),
-    );
-    if (!admitted.ok)
-      return {
-        ok: false,
-        problem: {
-          type: "https://github.com/gastownhall/bdp/problems/validation",
-          status: 422,
-          code: "validation-failed",
-          retry: "never",
-          diagnostics: admitted.diagnostics,
-          ...(admitted.diagnosticsTruncated ? { diagnosticsTruncated: true } : {}),
-          operationIndex,
-          ...(op.name ? { operationName: op.name } : {}),
-        },
-      };
-    const input: Record<string, unknown> = { ...admitted.input };
-    if (operationIndex === 0)
-      for (const [field, value] of state.references) {
-        const prior = input[field];
-        input[field] = typeof prior === "string" ? value : { ...(prior as object), uri: value };
-      }
-    if (op.operation === "putAlias" || op.operation === "deleteAlias") {
-      // Alias singletons and sequence members share this one-operation owner.
-      // Locator effects have
-      // a durable receipt but deliberately no Resource Event or Scope position.
-      if (batch.carrier.kind !== "singleton" || batch.carrier.operations.length !== 1)
-        throw new Error("alias operation escaped singleton admission");
-      const result = evaluateAliasMutation(
-        tx,
-        { operation: op.operation, input } as AliasMutation,
-        { scope: options.scope, policy: options.aliasPolicy, limits: options.limits },
-      );
-      if (result.effect === "failure")
-        return { ok: false, problem: { ...result.outcome, operationIndex } };
-      results.push({ operationIndex, ...result.outcome });
-      continue;
-    }
-    const aliases = state.aliases[operationIndex];
-    if (!aliases) throw new Error("missing admitted operation witnesses");
-    for (const field of ["source", "target", "bead", "link"]) {
-      const ref = input[field] as string | { uri: string; revision: string } | undefined;
-      if (ref === undefined) continue;
-      const uri = referenceUri(ref);
-      if (uri.startsWith("@")) {
-        const id = bindings.get(uri.slice(1));
-        if (!id) throw new Error("validated binding missing");
-        input[field] = typeof ref === "string" ? id : { ...ref, uri: id };
-      } else if (aliasFields(op.operation).includes(field)) {
-        const target = aliases.get(canonicalReference(options.scope, uri));
-        if (target != null)
-          input[field] = typeof ref === "string" ? target : { ...ref, uri: target };
-      }
-    }
+  function applyResource(
+    op: { readonly operation: ResourceOperation; readonly name?: string },
+    input: Record<string, unknown>,
+    operationIndex: number,
+    aliases: ReadonlyMap<string, string | null>,
+  ): Extract<BatchEvaluation, { ok: false }> | undefined {
     const locator = input.bead ?? input.link;
     const beforeRow =
       typeof locator === "string"
@@ -557,7 +557,7 @@ export function evaluateTransaction(
     const resource = outcome.resource;
     if (op.name && outcome.outcome === "created" && resource) bindings.set(op.name, resource.id);
     // A retained revision is an observed no-op, not a committed transition.
-    if (result.changed.length === 0 && result.deleted.length === 0) continue;
+    if (result.changed.length === 0 && result.deleted.length === 0) return;
     const subject = resource ?? before;
     if (!subject) throw new Error("successful transition lacks Resource state");
     changes.set(
@@ -608,7 +608,186 @@ export function evaluateTransaction(
         });
       }
     }
+    return undefined;
   }
+  try {
+    for (const [operationIndex, op] of batch.carrier.operations.entries()) {
+      if ([...state.references.values()].includes(UNBOUND_SEMANTIC_REFERENCE))
+        return {
+          ok: false,
+          problem: {
+            type: "https://github.com/gastownhall/bdp/problems/request",
+            status: 400,
+            code: "binding-unavailable",
+            retry: "never",
+            operationIndex,
+          },
+        };
+      if (op.operation === "updateWhere" || op.operation === "deleteWhere") {
+        const admitted = admitJsonNumbers(op.input, {
+          diagnostics: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
+          diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
+          diagnostic: ({ pointer }) => ({
+            message: `unsupported number at request location ${pointer}`,
+          }),
+        });
+        if (!admitted.ok)
+          return {
+            ok: false,
+            problem: {
+              type: "https://github.com/gastownhall/bdp/problems/validation",
+              status: 422,
+              code: "validation-failed",
+              retry: "never",
+              operationIndex,
+              diagnostics: admitted.diagnostics,
+              ...(admitted.diagnosticsTruncated ? { diagnosticsTruncated: true } : {}),
+            },
+          };
+        const input = admitted.value as Record<string, unknown>;
+        const selected = selectReadResources(
+          input.selector as string,
+          TRANSACTION_SELECTOR_LIMITS,
+          tx
+            .resources(input.collection === "beads" ? "bead" : "link")
+            .map((row) => {
+              if (!row) throw new Error("staged collection contains missing Resource");
+              return readStoredResource(row, options.scope);
+            })
+            .filter((record) => options.policy.canRead(record)),
+        )
+          .slice()
+          .sort((a, b) => compareCanonicalIds(a.id, b.id));
+        const cardinality = input.cardinality as { min?: number; max?: number } | undefined;
+        if (
+          (cardinality?.min !== undefined && selected.length < cardinality.min) ||
+          (cardinality?.max !== undefined && selected.length > cardinality.max)
+        )
+          return {
+            ok: false,
+            problem: {
+              type: "https://github.com/gastownhall/bdp/problems/conflict",
+              status: 409,
+              code: "cardinality-violated",
+              retry: "after-state-change",
+              operationIndex,
+            },
+          };
+        results.push({ operationIndex, outcome: "matched", count: selected.length });
+        for (const resource of selected) {
+          const bead = input.collection === "beads";
+          const failure = applyResource(
+            {
+              operation:
+                op.operation === "updateWhere"
+                  ? bead
+                    ? "updateBead"
+                    : "updateLink"
+                  : bead
+                    ? "deleteBead"
+                    : "deleteLink",
+            },
+            {
+              [bead ? "bead" : "link"]: resource.id,
+              ...(op.operation === "updateWhere" ? { propertiesChange: input.change } : {}),
+              ...(input.revisionProvenance === undefined
+                ? {}
+                : { revisionProvenance: input.revisionProvenance }),
+            },
+            operationIndex,
+            new Map(),
+          );
+          if (failure) return failure;
+        }
+        continue;
+      }
+      const admitted = admitReadUpdateOperationNumbers(
+        op as UnadmittedReadUpdateOperation,
+        memberNumericDiagnosticBudget(op.operation, {
+          diagnostics: TRANSACTION_RUNTIME_LIMITS.diagnosticCount,
+          diagnosticBytes: TRANSACTION_RUNTIME_LIMITS.diagnosticBytes,
+          diagnostic: ({ pointer }) => ({
+            message:
+              pointer.startsWith("/propertiesChange/") || pointer.startsWith("/metadataChange/")
+                ? `unsupported number at request location ${pointer}`
+                : "unsupported number",
+          }),
+        }),
+      );
+      if (!admitted.ok)
+        return {
+          ok: false,
+          problem: {
+            type: "https://github.com/gastownhall/bdp/problems/validation",
+            status: 422,
+            code: "validation-failed",
+            retry: "never",
+            diagnostics: admitted.diagnostics,
+            ...(admitted.diagnosticsTruncated ? { diagnosticsTruncated: true } : {}),
+            operationIndex,
+            ...(op.name ? { operationName: op.name } : {}),
+          },
+        };
+      const input: Record<string, unknown> = { ...admitted.input };
+      if (operationIndex === 0)
+        for (const [field, value] of state.references) {
+          const prior = input[field];
+          input[field] = typeof prior === "string" ? value : { ...(prior as object), uri: value };
+        }
+      if (op.operation === "putAlias" || op.operation === "deleteAlias") {
+        // Alias singletons and sequence members share this one-operation owner.
+        // Locator effects have
+        // a durable receipt but deliberately no Resource Event or Scope position.
+        if (batch.carrier.kind !== "singleton" || batch.carrier.operations.length !== 1)
+          throw new Error("alias operation escaped singleton admission");
+        const result = evaluateAliasMutation(
+          tx,
+          { operation: op.operation, input } as AliasMutation,
+          { scope: options.scope, policy: options.aliasPolicy, limits: options.limits },
+        );
+        if (result.effect === "failure")
+          return { ok: false, problem: { ...result.outcome, operationIndex } };
+        results.push({ operationIndex, ...result.outcome });
+        continue;
+      }
+      const aliases = state.aliases[operationIndex];
+      if (!aliases) throw new Error("missing admitted operation witnesses");
+      for (const field of ["source", "target", "bead", "link"]) {
+        const ref = input[field] as string | { uri: string; revision: string } | undefined;
+        if (ref === undefined) continue;
+        const uri = referenceUri(ref);
+        if (uri.startsWith("@")) {
+          const id = bindings.get(uri.slice(1));
+          if (!id) throw new Error("validated binding missing");
+          input[field] = typeof ref === "string" ? id : { ...ref, uri: id };
+        } else if (aliasFields(op.operation).includes(field)) {
+          const target = aliases.get(canonicalReference(options.scope, uri));
+          if (target != null)
+            input[field] = typeof ref === "string" ? target : { ...ref, uri: target };
+        }
+      }
+      const failure = applyResource(
+        { operation: op.operation as ResourceOperation, ...(op.name ? { name: op.name } : {}) },
+        input,
+        operationIndex,
+        aliases,
+      );
+      if (failure) return failure;
+    }
+  } catch (error) {
+    if (!(error instanceof EventExpansionLimit)) throw error;
+    return {
+      ok: false,
+      problem: {
+        type: "https://github.com/gastownhall/bdp/problems/size",
+        status: 413,
+        code: "limit-exceeded",
+        retry: "never",
+        limit: "transaction.inducedEvents",
+      },
+    };
+  }
+
   return { ok: true, results, changes: [...changes.values()], events };
 }
 export function transactionStorageText(value: unknown): string {
