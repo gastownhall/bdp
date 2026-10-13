@@ -16,10 +16,13 @@ conventions, not new normative precedence laws.
 Creation preflight and capture share the same resource validation, bounded
 record/index construction and page packing. Preflight uses fixed-width,
 nonissued layout witnesses and writes no identity, captured body or page. It
-checks the actual projected page/manifest sizes. HTTP applies existing Accept,
-conditional and HEAD semantics to that decision before allocation; GET capture
-then rechecks in its own owner entry. This is a decision, not a reservation or a
-constant-time operation. Legitimate expiry maintenance can run before it.
+checks the actual projected page/manifest sizes. A pure successful-JSON header
+candidate selects direct capture only for GETs that would return200. Capture
+still performs authoritative capacity/integrity checks and supplies actual
+same-entry context. HEAD and possible304/412/406 run full preflight before
+applying the existing HTTP decision; no owner-free predicted response is served.
+This is a decision, not a reservation or a constant-time operation. Legitimate
+expiry maintenance can run before it.
 Retained capture inserts its sealed parent last inside one non-reentrant atomic
 transaction, after all ranges exist; the intermediate orphan detail is never
 committed or exposed to an integrity reentry.
@@ -30,6 +33,9 @@ commit and delivery failures propagate to native bodyless500. Postcommit deliver
 failure never compensates by deleting an undisclosed committed handle. Temporary
 capacity response Retry-After uses the actual owner guidance. Fixed-view handles
 are readable by another authenticated principal, including a read-only one.
+Read-only principals can also create a Snapshot through safe GET. Empty-live
+retry arithmetic returns finite zero if a future capacity tuple admits that
+branch; the current32MiB-per-capture/64MiB-live tuple cannot reach it.
 
 Every supplied Scope epoch, authorization view or minimum-position field remains
 an explicit unsupported branch, before retained lookup/allocation and before
@@ -49,7 +55,16 @@ corrupt promised data, actual eight-handle503, and HTTP413 after valid offline
 qualification. Whole byte/65,536-handle HTTP stress remains untested; those are
 core owner witnesses. Capacity-at-ceiling with owned topology likewise remains
 unqualified, and ledger/detail scans have nonconstant cost under the owner lock.
-External Node26 timings are not promoted to a pinned-runtime guarantee.
+Repeated nonallocating decisions cost one full bounded pass each under the
+exclusive owner entry, consume no live handle, and are not metered by the
+eight-handle capacity refusal. No rate or connection policy is introduced. A
+pinned Node24 test records eight such HTTP decisions over a disclosed offline
+4,000-Bead fixture with1,024 padding bytes per record and independently checks
+that retained state is unchanged. This is a measured unowned shape, not mutation
+admission, ceiling-owned heap qualification or a throughput guarantee. External
+Node26 timings and its inherited RangeError expectation failure remain separate
+from pinned evidence. Continuations on both streams are schema-validated; the
+9→10 and99→100 page-boundary witnesses also run nonallocating preflight.
 
 Default compiled configuration metadata is tested separately from clocked
 nonattesting route fixtures. The owner-observed Snapshot tuple/settings identity

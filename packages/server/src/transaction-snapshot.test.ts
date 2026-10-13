@@ -775,6 +775,13 @@ it.each([9, 99])(
       }
       db.exec("COMMIT");
     });
+    const beforePreflight = f.owner.inspect();
+    expect(f.owner.observeSnapshot({ kind: "preflight" }).kind).toBe("eligible");
+    expect(f.owner.inspect()).toEqual(beforePreflight);
+    f.offline((db) => {
+      for (const table of ["snapshots", "snapshot_records", "snapshot_pages"])
+        expect(db.prepare(`SELECT count(*) AS n FROM ${table}`).get()?.n).toBe(0);
+    });
     const manifest = f.owner.captureSnapshot().manifest;
     const expected = Array.from(
       { length: count },

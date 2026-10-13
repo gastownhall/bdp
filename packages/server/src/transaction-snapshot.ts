@@ -618,13 +618,17 @@ export function transactionSnapshotStorage(
     ).get()!;
     if (Number(totals.count) > limits.resources || Number(totals.bytes) > limits.recordBytes)
       throw new TransactionSnapshotFailure("limit-exceeded");
+    // Empty-live pressure cannot occur with the current recordBytes < liveRecordBytes
+    // tuple, but a future retuning must never emit Retry-After: Infinity.
     if (
       live.length >= limits.liveHandles ||
       live.reduce((n, row) => n + row.d.bytes, 0) + Number(totals.bytes) > limits.liveRecordBytes
     ) {
       throw new TransactionSnapshotFailure(
         "temporarily-unavailable",
-        Math.max(0, Math.ceil((Math.min(...live.map((row) => row.d.expires)) - now) / 1000)),
+        live.length === 0
+          ? 0
+          : Math.max(0, Math.ceil((Math.min(...live.map((row) => row.d.expires)) - now) / 1000)),
       );
     }
     integrity(Number(totals.idBytes) <= limits.recordBytes, "authority identity bytes");
@@ -686,7 +690,9 @@ export function transactionSnapshotStorage(
     if (live.reduce((n, row) => n + row.d.bytes, 0) + totalBytes > limits.liveRecordBytes)
       throw new TransactionSnapshotFailure(
         "temporarily-unavailable",
-        Math.max(0, Math.ceil((Math.min(...live.map((row) => row.d.expires)) - now) / 1000)),
+        live.length === 0
+          ? 0
+          : Math.max(0, Math.ceil((Math.min(...live.map((row) => row.d.expires)) - now) / 1000)),
       );
     const ranges: PageRange[] = [];
     for (const [index, kind] of (["bead", "link"] as const).entries()) {

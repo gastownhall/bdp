@@ -359,9 +359,18 @@ export function createTransactionHttpHandler(
         return context(jsonResponse(result.body), result.context);
       }
       if (target.kind === "create") {
-        const eligible = snapshotResponse(await service.snapshot({ kind: "preflight" }));
-        const decision = applyReadHttpSemantics(request, eligible);
-        if (decision.status !== 200 || request.method === "HEAD") return decision;
+        // A pure successful-JSON candidate may select direct capture, but never
+        // authorizes an owner-free response. Nonallocating decisions still need
+        // authoritative capacity/integrity checks and same-entry context.
+        const candidate = applyReadHttpSemantics(request, {
+          status: 200,
+          headers: new Headers({ "content-type": "application/json" }),
+        });
+        if (request.method === "HEAD" || candidate.status !== 200) {
+          const eligible = snapshotResponse(await service.snapshot({ kind: "preflight" }));
+          const decision = applyReadHttpSemantics(request, eligible);
+          if (decision.status !== 200 || request.method === "HEAD") return decision;
+        }
       }
       return snapshotResponse(await service.snapshot(target));
     }

@@ -5,7 +5,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { request as httpRequest } from "node:http";
 import type { TransactionChangefeedPage } from "./transaction-changefeed.js";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { isJsonSchemaUri, isJsonSchemaDateTime, parseTypeDescriptor } from "@bdp/protocol";
 import { CONTRACT_ARTIFACT_CEILINGS } from "./installed-contract-artifact.js";
@@ -55,6 +55,10 @@ const schema = JSON.parse(
 );
 ajv.addSchema(schema);
 const manifestSchema = ajv.compile({ $ref: `${schema.$id}#/$defs/snapshotManifest` });
+const pageSchemas = {
+  bead: ajv.compile({ $ref: `${schema.$id}#/$defs/beadCollection` }),
+  link: ajv.compile({ $ref: `${schema.$id}#/$defs/linkCollection` }),
+};
 const problemSchema = ajv.compile({ $ref: `${schema.$id}#/$defs/transactionalProblem` });
 const create = (id: string) => ({
   operation: "createBead",
@@ -180,7 +184,11 @@ async function checkedProblem(response: Response, status: number, code: string) 
   expect(response.headers.get("x-bdp-development")).toBe("non-attesting");
   return value;
 }
-async function collect(f: Awaited<ReturnType<typeof fixture>>, first: TransactionSnapshotPage) {
+async function collect(
+  f: Awaited<ReturnType<typeof fixture>>,
+  first: TransactionSnapshotPage,
+  kind: "bead" | "link",
+) {
   let page = first;
   const rows = [...page.items],
     urls: string[] = [];
@@ -189,6 +197,7 @@ async function collect(f: Awaited<ReturnType<typeof fixture>>, first: Transactio
     const response = await f.get(page.next);
     expect(response.status).toBe(200);
     page = (await response.json()) as TransactionSnapshotPage;
+    expect(pageSchemas[kind](page), JSON.stringify(pageSchemas[kind].errors)).toBe(true);
     rows.push(...page.items);
   }
   return { rows, urls };
@@ -216,8 +225,8 @@ it("captures real complete owned streams, retains literal bodies across mutation
   const snapshot = await f.capture();
   expect(snapshot.scopePosition).toBe("pos-4");
   expect(snapshot.checkpoint).not.toBe("genesis");
-  const beads = await collect(f, snapshot.beads),
-    links = await collect(f, snapshot.links);
+  const beads = await collect(f, snapshot.beads, "bead"),
+    links = await collect(f, snapshot.links, "link");
   expect(beads.rows.map((r) => r.id)).toEqual(names.map((n) => `${scope}beads/${n}`));
   expect(links.rows.map((r) => r.id)).toEqual(edges.map((r) => `${scope}${r.id}`));
   for (const [i, row] of beads.rows.entries())
@@ -594,4 +603,111 @@ it("current graph-integrity failure is observed by HEAD/preconditions before any
     expect(await response.text()).toBe("");
   }
   expect(await f.state()).toEqual(before);
+});
+
+it("uses one authority body pass for successful GET and preserves full nonallocating decisions", async () => {
+  let bodyReads = 0;
+  const restores: (() => void)[] = [];
+  const original = DatabaseSync.prototype.prepare;
+  const spy = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (
+    this: DatabaseSync,
+    sql: string,
+  ) {
+    const statement = original.call(this, sql);
+    if (sql === "SELECT * FROM resources WHERE id=? AND kind=?") {
+      const get = statement.get.bind(statement);
+      const observed = vi.spyOn(statement, "get").mockImplementation((...args) => {
+        bodyReads++;
+        return get(...args);
+      });
+      restores.push(() => observed.mockRestore());
+    }
+    return statement;
+  });
+  try {
+    const f = await fixture();
+    await f.write([create("a")]);
+    bodyReads = 0;
+    const created = await f.capture();
+    expect(bodyReads).toBe(1); // Old unconditional preflight + capture performs two.
+    for (const [status, init] of [
+      [200, { method: "HEAD" }],
+      [304, { headers: { "if-none-match": "*" } }],
+      [412, { headers: { "if-match": '"missing"' } }],
+      [406, { headers: { accept: "text/plain" } }],
+    ] as [number, RequestInit][]) {
+      bodyReads = 0;
+      const response = await f.get(undefined, init);
+      expect(response.status).toBe(status);
+      expect(await response.text()).toBe("");
+      expect(bodyReads).toBe(1);
+    }
+    expect((await f.state()).snapshots).toHaveLength(1);
+    expect(await (await f.get(created.id)).json()).toEqual(created);
+  } finally {
+    for (const restore of restores.reverse()) restore();
+    spy.mockRestore();
+  }
+});
+
+it("allows read-only principals to create and use a safe Snapshot", async () => {
+  const f = await fixture();
+  await f.write([create("reader")]);
+  const response = await f.get(undefined, { headers: { authorization: `Bearer ${reader}` } });
+  expect(response.status).toBe(200);
+  const manifest = (await response.json()) as TransactionSnapshotManifest;
+  expect(manifestSchema(manifest), JSON.stringify(manifestSchema.errors)).toBe(true);
+  const retained = await f.get(manifest.id, { headers: { authorization: `Bearer ${reader}` } });
+  expect(retained.status).toBe(200);
+  expect(await retained.json()).toEqual(manifest);
+});
+
+it("measures repeated nonallocating full passes on a disclosed offline 4000-record fixture", async () => {
+  const f = await fixture();
+  await f.offline((db) => {
+    db.exec("BEGIN");
+    const insert = db.prepare("INSERT INTO resources VALUES(?,?,'bead',NULL,NULL)");
+    for (let n = 0; n < 4000; n++) {
+      const id = `beads/b${String(n).padStart(4, "0")}`;
+      insert.run(
+        id,
+        JSON.stringify({
+          id: `${scope}${id}`,
+          type: bead,
+          revision: "offline-valid",
+          properties: { padding: "x".repeat(1024) },
+          metadata: {},
+          ownedLinks: { [link]: [] },
+        }),
+      );
+    }
+    db.exec("COMMIT");
+  });
+  const before = await f.state();
+  const observations: { status: number; elapsedMs: number }[] = [];
+  for (let repeat = 0; repeat < 2; repeat++)
+    for (const [status, init] of [
+      [200, { method: "HEAD" }],
+      [304, { headers: { "if-none-match": "*" } }],
+      [412, { headers: { "if-match": '"missing"' } }],
+      [406, { headers: { accept: "text/plain" } }],
+    ] as [number, RequestInit][]) {
+      const start = performance.now();
+      const response = await f.get(undefined, init);
+      expect(response.status).toBe(status);
+      expect(await response.text()).toBe("");
+      observations.push({ status, elapsedMs: Math.round(performance.now() - start) });
+    }
+  expect(await f.state()).toEqual(before);
+  console.info(
+    JSON.stringify({
+      witness: "repeated-nonallocating-snapshot",
+      node: process.version,
+      records: 4000,
+      paddingBytesPerRecord: 1024,
+      mutationAdmission: false,
+      ceilingOwned: false,
+      observations,
+    }),
+  );
 });
