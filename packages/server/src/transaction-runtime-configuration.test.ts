@@ -130,6 +130,7 @@ it("serves a real default compiled canonical runtime and detaches inputs and sea
     history: false,
     claimEligible: false,
     scope,
+    authorityMode: "canonical",
   });
   expect(metadata.runtimeConfigurationIdentity).toMatch(/^[a-f0-9]{64}$/);
   expect(metadata.artifactIdentity).toMatch(/^development-schema5-[a-f0-9]{64}$/);
@@ -153,7 +154,15 @@ it("serves a real default compiled canonical runtime and detaches inputs and sea
 
 it("separates all four authority cases, nondefault ports and request default-port refusal", async () => {
   const canonical = await start(fixture());
-  for (const host of [new URL(canonical.listenUrl).host, "foreign.test", "canonical.test:443"]) {
+  // This private receiver deliberately requires the canonical Host bytes exactly;
+  // it does not yet claim complete HTTP hostname-equivalence handling.
+  for (const host of [
+    new URL(canonical.listenUrl).host,
+    "foreign.test",
+    "canonical.test:443",
+    "Canonical.Test",
+    "canonical.test.",
+  ]) {
     expect(
       (
         await wire(canonical.listenUrl, host, "/acme/operations/batch", {
@@ -169,6 +178,15 @@ it("separates all four authority cases, nondefault ports and request default-por
   const options = fixture();
   options.authorityMode = "listener";
   const listener = await start(options);
+  const canonicalMetadata = present(canonical.configurationMetadata),
+    listenerMetadata = present(listener.configurationMetadata);
+  expect(canonicalMetadata.authorityMode).toBe("canonical");
+  expect(listenerMetadata.authorityMode).toBe("listener");
+  expect(listenerMetadata.runtimeConfigurationIdentity).not.toBe(
+    canonicalMetadata.runtimeConfigurationIdentity,
+  );
+  for (const field of ["artifactIdentity", "policyIdentity", "authenticationIdentity"] as const)
+    expect(listenerMetadata[field]).toBe(canonicalMetadata[field]);
   expect((await wire(listener.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(400);
   expect(
     (await wire(listener.listenUrl, new URL(listener.listenUrl).host, "/acme/types/item")).status,
@@ -446,4 +464,42 @@ it("refuses invalid numeric seams before store provisioning", async () => {
     await expect(startTransactionRuntime(options, seam)).rejects.toThrow();
     expect(existsSync(path.join(options.directory, "transaction.sqlite"))).toBe(false);
   }
+});
+
+it("refuses unused scheduler keys before provisioning while preserving the turn-only seam", async () => {
+  const options = fixture();
+  const turn = () => () => {};
+  expect(() =>
+    captureTransactionRuntimeConfiguration(options, { scheduler: { turn } }),
+  ).not.toThrow();
+  for (const delay of [undefined, () => () => {}]) {
+    const scheduler = { turn, delay };
+    await expect(startTransactionRuntime(options, { scheduler })).rejects.toThrow(
+      "closed own-data runtime configuration required",
+    );
+    expect(existsSync(path.join(options.directory, "transaction.sqlite"))).toBe(false);
+  }
+});
+
+it("binds credentials through the versioned credential domain without asserting entropy", async () => {
+  const runtime = await start(fixture());
+  const associations = [
+    { token, principal: "same", canMutate: true },
+    { token: readToken, principal: "same", canMutate: false },
+  ]
+    .map(({ token, ...rest }) => ({
+      tokenDigest: transactionRuntimeDigest({ revision: "transaction-credential-1", token }),
+      ...rest,
+    }))
+    .sort((a, b) => (a.tokenDigest < b.tokenDigest ? -1 : a.tokenDigest > b.tokenDigest ? 1 : 0));
+  expect(present(runtime.configurationMetadata).authenticationIdentity).toBe(
+    transactionRuntimeDigest({
+      revision: "transaction-authentication-1",
+      scheme: "bearer",
+      associations,
+    }),
+  );
+  // The predictable fixture tokens intentionally demonstrate no entropy-provenance
+  // claim; installed evidence must generate credentials with a CSPRNG.
+  expect((await wire(runtime.listenUrl, "canonical.test", "/acme/types/item")).status).toBe(200);
 });
