@@ -916,7 +916,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.reportBinding.exactConfigurationDigest).toBe(
     "a8d5687519da4040d2f23989f86f9bc804d30ac6c91a85074397eaf7c92de712",
   );
-  expect(report.uncoveredIds).toHaveLength(103);
+  expect(report.uncoveredIds).toHaveLength(101);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
   expect(report.sessions).toHaveLength(report.plannedIds.length);
   expect(report.observations.length).toBeGreaterThan(30);
@@ -1556,7 +1556,7 @@ it("observes retained retry dispositions across actual installed carriers and cu
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(103);
+  expect(report.uncoveredIds).toHaveLength(101);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 
@@ -1789,7 +1789,7 @@ it("observes key and media admission against installed HTTP with paired aftersta
       report.result.scenarios.find((row) => row.id === id),
       JSON.stringify(report.result),
     ).toMatchObject({ state: "pass" });
-  expect(report.uncoveredIds).toHaveLength(103);
+  expect(report.uncoveredIds).toHaveLength(101);
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
 

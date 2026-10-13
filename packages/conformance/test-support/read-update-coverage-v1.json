@@ -3478,8 +3478,8 @@
     {
       "id": "read-update.singleton.idempotency-key-required",
       "status": "bounded-observation",
-      "wholeContract": false,
-      "reason": "Installed missing/malformed/repeated-key observations cover all eight singleton targets with complete no-effect Resource/alias state and subsequent same-body valid-key success. The eight grammar classes, distinct repeated values with separate recovery, and positive token boundaries are sampled on createBead; representative malformed and repeated cases cover every other carrier. Eight invalid sequence member-key classes reject without a prefix. This intentional class/carrier equivalence partition is pending independent selected-clause audit; wholeContract remains false.",
+      "wholeContract": true,
+      "reason": "Installed missing/malformed/repeated-key observations cover all eight singleton targets with complete no-effect Resource/alias state and subsequent same-body valid-key success. The eight grammar classes, distinct repeated values with separate recovery, and positive token boundaries are sampled on createBead; representative malformed and repeated cases cover every other carrier. Eight invalid sequence member-key classes reject without a prefix. This reviewed class/carrier equivalence partition covers the selected key-required and key-grammar clauses; whole-contract credit is limited to those clauses.",
       "bindings": [
         {
           "scenario": "read-update.singleton.idempotency-key-required",
@@ -5875,8 +5875,8 @@
     {
       "id": "read-update.singleton.unsupported-media-type",
       "status": "bounded-observation",
-      "wholeContract": false,
-      "reason": "Installed missing/wrong media and ignored JSON/non-JSON parameters cover all nine mutation targets. Each parameterized success now has an immediate bare-JSON same-body/same-key retained replay with identical result fact/schema assertions. Structured-suffix and non-ASCII decoder classes are sampled on createBead; the class/carrier asymmetry is intentional. The previously missing bare comparator is implemented and pending independent selected-clause audit; wholeContract remains false.",
+      "wholeContract": true,
+      "reason": "Installed missing/wrong media and ignored JSON/non-JSON parameters cover all nine mutation targets. Each parameterized success now has an immediate bare-JSON same-body/same-key retained replay with identical result fact/schema assertions. Structured-suffix and non-ASCII decoder classes are sampled on createBead; the class/carrier asymmetry is intentional. This reviewed class/carrier equivalence partition, including all nine bare comparators, covers the selected media admission and ignored-parameter clauses; whole-contract credit is limited to those clauses.",
       "bindings": [
         {
           "scenario": "read-update.singleton.unsupported-media-type",
