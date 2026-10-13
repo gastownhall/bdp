@@ -106,6 +106,13 @@ type W2Counterfactual =
   | "corrected-conflict"
   | "link-name"
   | "alias-index";
+type PatchControl =
+  | "link-result"
+  | "link-get"
+  | "refusal-get"
+  | "diagnostic-document"
+  | "diagnostic-type"
+  | "problem-tuple";
 async function run(
   manifestValue?: unknown,
   selectedIds?: string[],
@@ -116,6 +123,7 @@ async function run(
   w1bCounterfactual?: W1bCounterfactual,
   w2Counterfactual?: W2Counterfactual,
   signal?: AbortSignal,
+  patchControl?: PatchControl,
 ) {
   const selection = loadProfileContractSelection("read-update");
   const fixtureSource =
@@ -280,10 +288,12 @@ async function run(
   let counterfactualApplications = 0;
   let aliasPutObserved = false;
   let sequenceCalls = 0;
+  let lastPatchKey = "";
   const target = createRawHttpScenarioTarget(
     async (scenario, _scope, _seed, fixture, signal) => {
       currentScenario = scenario.id;
       sequenceCalls = 0;
+      lastPatchKey = "";
       const configuration = helpers.referenceConfiguration(
         path.join(directory, scenario.id),
         port,
@@ -351,6 +361,61 @@ async function run(
           targetBinding?: string;
           idempotencyKey?: string;
         };
+        if (w1Input.method === "POST") lastPatchKey = w1Input.idempotencyKey ?? "";
+        const patchMerge = currentScenario === "read-update.singleton.document-patch-merge-replace";
+        const patchValidation =
+          currentScenario === "read-update.singleton.document-patch-validation";
+        const patchHit =
+          (patchMerge &&
+            patchControl === "link-result" &&
+            w1Input.idempotencyKey === "link-merge-replace") ||
+          (patchMerge &&
+            patchControl === "link-get" &&
+            w1Input.method === "GET" &&
+            lastPatchKey === "link-merge-replace") ||
+          (patchValidation &&
+            patchControl === "refusal-get" &&
+            w1Input.method === "GET" &&
+            lastPatchKey === "bead-metadata-array") ||
+          (patchValidation &&
+            ["diagnostic-document", "diagnostic-type", "problem-tuple"].includes(
+              patchControl ?? "",
+            ) &&
+            w1Input.idempotencyKey === "bead-metadata-array");
+        if (patchControl && patchHit && counterfactualApplications === 0) {
+          // Actual serializer observation was captured above; alter only the assertion input.
+          const changed = structuredClone(actual) as {
+            status: number;
+            body: {
+              resource: { properties: Record<string, unknown> };
+              properties: Record<string, unknown>;
+              diagnostics: Record<string, unknown>[];
+            };
+          };
+          counterfactualApplications++;
+          if (patchControl === "link-result") changed.body.resource.properties.keep = "corrupt";
+          if (patchControl === "link-get") changed.body.properties.keep = "corrupt";
+          if (patchControl === "refusal-get") changed.body.properties.n = 9;
+          if (patchControl === "diagnostic-document")
+            changed.body.diagnostics[0]!.document = "properties";
+          if (patchControl === "diagnostic-type")
+            Object.assign(changed.body.diagnostics[0]!, {
+              type: `${scope}types/task`,
+              schemaLocation: `${scope}schemas/artificial#/type`,
+            });
+          if (patchControl === "problem-tuple")
+            return {
+              ...changed,
+              status: 404,
+              body: {
+                type: "https://github.com/gastownhall/bdp/problems/not-found",
+                code: "resource-not-found",
+                status: 404,
+                retry: "after-state-change",
+              },
+            };
+          return changed;
+        }
         if (w1Input.method === "POST" && w1Input.targetBinding === "sequence") sequenceCalls++;
         const memberControl = [
           "index",
@@ -632,7 +697,7 @@ async function run(
 }
 
 it("executes the partial cumulative RU matrix against actual installed factory HTTP and afterstate", async () => {
-  // One aggregate job starts 40 isolated authorities; Linux CI exceeded 30s.
+  // One aggregate job starts 41 isolated authorities; Linux CI exceeded 30s.
   // Abort cooperatively before the outer ceiling so existing finally blocks close stores.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(Error("cumulative run budget exceeded")), 90000);
@@ -716,7 +781,7 @@ it("executes the partial cumulative RU matrix against actual installed factory H
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "89d471885903a3e1dda4939f54993a88696e1b8c336dfef287a0c28966c47d0a",
+    "be0e83fb1663e2fd91b6c5b90b5b18e3ba0b65887b18479b880d9edec88290f9",
   );
   expect(report.uncoveredIds).toHaveLength(101);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
@@ -1033,7 +1098,7 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "89d471885903a3e1dda4939f54993a88696e1b8c336dfef287a0c28966c47d0a",
+    "be0e83fb1663e2fd91b6c5b90b5b18e3ba0b65887b18479b880d9edec88290f9",
   );
 }, 30000);
 
@@ -1090,7 +1155,7 @@ it.each([
 );
 
 it.each(["wrong-status", "wrong-code", "below-count-boundary", "base64"])(
-  "detects W2 raw carrier %s control",
+  "checks W2 raw carrier %s refusal sensitivity or encoding equivalence",
   async (control) => {
     const manifest = JSON.parse(
       source("packages/conformance/matrices/read-update-v1.json").bytes.toString(),
@@ -1199,3 +1264,49 @@ it("stops the aggregate runner on cancellation without awarding a scenario pass"
   expect(report.result.scenarios[0]?.state).not.toBe("pass");
   expect(report.result.claimEligible).toBe(false);
 }, 30000);
+
+it.each([
+  ["link-result", "merge-replace", "link-merge-replace", ["properties"]],
+  ["link-get", "merge-replace", "link-read-patched", ["postimage"]],
+  ["refusal-get", "validation", "after-bead-metadata-array", ["unchanged"]],
+  ["diagnostic-document", "validation", "bead-metadata-array", ["document"]],
+  [
+    "diagnostic-type",
+    "validation",
+    "bead-metadata-array",
+    ["diagnostic-type", "diagnostic-schema"],
+  ],
+  [
+    "problem-tuple",
+    "validation",
+    "bead-metadata-array",
+    ["status", "problem", "problem-status", "problem-type", "retry", "document-root", "document"],
+  ],
+] as const)(
+  "detects document patch %s after actual HTTP",
+  async (control, suffix, actionId, failures) => {
+    const id = `read-update.singleton.document-patch-${suffix}`;
+    const report = await run(
+      undefined,
+      [id],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    const row = report.result.scenarios.find((row) => row.id === id);
+    expect(row?.state).toBe("fail");
+    expect(
+      row?.actions
+        ?.find((action) => action.action.id === actionId)
+        ?.assertions.filter((assertion) => !assertion.passed)
+        .map((assertion) => assertion.id),
+    ).toEqual(failures);
+  },
+  30000,
+);
