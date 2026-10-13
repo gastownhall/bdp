@@ -18,6 +18,7 @@ import {
   planProfileExecution,
 } from "@bdp/conformance/testing";
 import { expect, it } from "vitest";
+import { withSchemaCohort } from "../test-support/installed-schema-cohort.js";
 import { installedObservationSchema } from "../test-support/installed-body-schema.js";
 import { installedContractsDigest } from "../test-support/installed-contract-identity.js";
 import { createInstalledExactClient } from "../test-support/read-update-exact-client.js";
@@ -57,6 +58,7 @@ const entry = process.env.BDP_CUMULATIVE_INSTALLED_ENTRY ?? defaultEntry;
 const configModule = (await import(
   pathToFileURL(path.join(path.dirname(entry), "installed-reference-configuration.js")).href
 )) as {
+  referenceTypeArtifacts(scope: string): import("@bdp/protocol").TypeDescriptor[];
   captureInstalledReferenceConfiguration(input: unknown): {
     identity: string;
     artifactIdentity: string;
@@ -66,6 +68,12 @@ const configModule = (await import(
     history: false;
   };
 };
+function cohortConfiguration(directory: string, port: number, token: string, scope: string) {
+  return withSchemaCohort(
+    helpers.referenceConfiguration(directory, port, token, scope),
+    configModule.referenceTypeArtifacts(scope),
+  );
+}
 type W1Counterfactual =
   | "patch-array"
   | "noop-provenance"
@@ -107,6 +115,14 @@ type W2Counterfactual =
   | "link-name"
   | "alias-index";
 type PatchControl =
+  | "schema-document"
+  | "schema-contract-code"
+  | "schema-type"
+  | "schema-keyword"
+  | "schema-pointer"
+  | "schema-afterstate"
+  | "schema-metadata"
+  | "schema-open"
   | "link-order"
   | "link-clear"
   | "link-result"
@@ -243,7 +259,7 @@ async function run(
       fixture: fixtureSource,
     });
   }
-  const bootstrapConfig = helpers.referenceConfiguration(
+  const bootstrapConfig = cohortConfiguration(
     path.join(directory, "bootstrap"),
     port,
     token,
@@ -296,7 +312,7 @@ async function run(
       currentScenario = scenario.id;
       sequenceCalls = 0;
       lastPatchKey = "";
-      const configuration = helpers.referenceConfiguration(
+      const configuration = cohortConfiguration(
         path.join(directory, scenario.id),
         port,
         token,
@@ -368,6 +384,24 @@ async function run(
         const patchValidation =
           currentScenario === "read-update.singleton.document-patch-validation";
         const patchHit =
+          (currentScenario === "read-update.validation.type-contract" &&
+            patchControl === "schema-contract-code" &&
+            w1Input.idempotencyKey === "schema-contract-bead-uninstalled") ||
+          (currentScenario === "read-update.validation.diagnostics" &&
+            ["schema-type", "schema-keyword", "schema-pointer", "schema-document"].includes(
+              patchControl ?? "",
+            ) &&
+            w1Input.idempotencyKey === "schema-diagnostics-bead-base") ||
+          (patchValidation &&
+            patchControl === "schema-afterstate" &&
+            w1Input.method === "GET" &&
+            lastPatchKey === "schema-validation-link-base") ||
+          (patchValidation &&
+            patchControl === "schema-metadata" &&
+            w1Input.idempotencyKey === "schema-validation-link-metadata") ||
+          (patchValidation &&
+            patchControl === "schema-open" &&
+            w1Input.idempotencyKey === "schema-validation-bead-combined") ||
           (patchMerge &&
             patchControl === "link-order" &&
             w1Input.idempotencyKey === "link-merge-replace") ||
@@ -395,12 +429,31 @@ async function run(
           const changed = structuredClone(actual) as {
             status: number;
             body: {
-              resource: { properties: Record<string, unknown> };
+              code?: string;
+              resource: { properties: Record<string, unknown>; metadata: Record<string, unknown> };
               properties: Record<string, unknown>;
               diagnostics: Record<string, unknown>[];
             };
           };
           counterfactualApplications++;
+          if (patchControl === "schema-contract-code")
+            Object.assign(changed.body, {
+              code: "validation-failed",
+              retry: "never",
+              diagnostics: [{ message: "counterfactual validation refusal" }],
+            });
+          if (patchControl === "schema-document")
+            changed.body.diagnostics[0]!.document = "metadata";
+          if (patchControl === "schema-type")
+            changed.body.diagnostics[0]!.type = `${scope}types/schema-bead-child`;
+          if (patchControl === "schema-keyword")
+            changed.body.diagnostics[0]!.schemaLocation = `${scope}schemas/schema-bead-base#/type`;
+          if (patchControl === "schema-pointer")
+            changed.body.diagnostics[0]!.instanceLocation = "/propertiesChange/0/value";
+          if (patchControl === "schema-afterstate") changed.body.properties.n = 9;
+          if (patchControl === "schema-metadata") changed.body.resource.metadata.n = 999;
+          if (patchControl === "schema-open")
+            changed.body.resource.properties.opaque = { untouched: false };
           if (patchControl === "link-order") changed.body.resource.properties.ordered = "first";
           if (patchControl === "link-clear") changed.body.resource.properties.resurrected = true;
           if (patchControl === "link-result") changed.body.resource.properties.keep = "corrupt";
@@ -788,11 +841,39 @@ it("executes the partial cumulative RU matrix against actual installed factory H
       carrier.actions.find((action) => action.id === "body-size")!.raw!.body!.value,
     ),
   ).toBeGreaterThan(65536);
+  // Supplementary actual observation bounds; the diagnostics row remains partial.
+  const diagnosticObservations = (
+    report.observations as {
+      scenario: string;
+      observation: {
+        request: { targetBinding: string };
+        body?: {
+          limits?: { validation: { diagnostics: number; diagnosticBytes: number } };
+          diagnostics?: unknown[];
+        };
+      };
+    }[]
+  ).filter((item) => item.scenario === "read-update.validation.diagnostics");
+  const observedLimits = diagnosticObservations.find(
+    (item) => item.observation.request.targetBinding === "service-desc",
+  )?.observation.body?.limits?.validation;
+  expect(observedLimits).toMatchObject({ diagnostics: 32, diagnosticBytes: 524288 });
+  const lists = diagnosticObservations.flatMap((item) =>
+    item.observation.body?.diagnostics ? [item.observation.body.diagnostics] : [],
+  );
+  expect(lists).toHaveLength(4);
+  for (const list of lists) {
+    expect(list.length).toBeGreaterThan(0);
+    expect(list.length).toBeLessThanOrEqual(observedLimits!.diagnostics);
+    expect(Buffer.byteLength(JSON.stringify(list))).toBeLessThanOrEqual(
+      observedLimits!.diagnosticBytes,
+    );
+  }
   expect(report.result.claimEligible).toBe(false);
   expect(report.plannedManifestDigest).toBe(report.reportBinding.artifacts.manifestDigest);
   // Pin the existing runner projection; credential identity is bound separately in configuration.
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "be0e83fb1663e2fd91b6c5b90b5b18e3ba0b65887b18479b880d9edec88290f9",
+    "bdffd6f957401222f6e5ffc928c7769d23976e8a8a8d5eb16dfa1bb7ce836a07",
   );
   expect(report.uncoveredIds).toHaveLength(103);
   expect(report.uncoveredIds).toContain("read-update.singleton.update-bead");
@@ -1109,7 +1190,7 @@ it("does not admit an unused fixture binding as a fixed client GET route", async
     report.result.scenarios.find((row) => row.id === "read-update.singleton.create-bead")?.state,
   ).toBe("pass");
   expect(report.reportBinding.exactConfigurationDigest).toBe(
-    "be0e83fb1663e2fd91b6c5b90b5b18e3ba0b65887b18479b880d9edec88290f9",
+    "bdffd6f957401222f6e5ffc928c7769d23976e8a8a8d5eb16dfa1bb7ce836a07",
   );
 }, 30000);
 
@@ -1342,3 +1423,81 @@ it.each([
     }),
   ).rejects.toThrow();
 });
+
+it.each([
+  [
+    "schema-document",
+    "read-update.validation.diagnostics",
+    "schema-diagnostics-bead-base",
+    "document",
+  ],
+  [
+    "schema-contract-code",
+    "read-update.validation.type-contract",
+    "schema-contract-bead-uninstalled",
+    "problem-code",
+  ],
+  [
+    "schema-type",
+    "read-update.validation.diagnostics",
+    "schema-diagnostics-bead-base",
+    "diagnostic-type",
+  ],
+  [
+    "schema-keyword",
+    "read-update.validation.diagnostics",
+    "schema-diagnostics-bead-base",
+    "keyword",
+  ],
+  [
+    "schema-pointer",
+    "read-update.validation.diagnostics",
+    "schema-diagnostics-bead-base",
+    "instance",
+  ],
+  [
+    "schema-afterstate",
+    "read-update.singleton.document-patch-validation",
+    "after-schema-validation-link-base",
+    "properties",
+  ],
+  [
+    "schema-metadata",
+    "read-update.singleton.document-patch-validation",
+    "schema-validation-link-metadata",
+    "metadata",
+  ],
+  [
+    "schema-open",
+    "read-update.singleton.document-patch-validation",
+    "schema-validation-bead-combined",
+    "properties",
+  ],
+] as const)(
+  "detects effective schema %s assertion-input corruption after actual HTTP",
+  async (control, id, action, assertion) => {
+    const report = await run(
+      undefined,
+      [id],
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      control,
+    );
+    expect(report.counterfactualApplications).toBe(1);
+    const row = report.result.scenarios.find((row) => row.id === id);
+    expect(row?.state).toBe("fail");
+    const failures = row?.actions
+      ?.find((a) => a.action.id === action)
+      ?.assertions.filter((a) => !a.passed)
+      .map((a) => a.id);
+    expect(failures).toEqual(
+      control === "schema-afterstate" ? ["postimage", "properties"] : [assertion],
+    );
+  },
+  30000,
+);
