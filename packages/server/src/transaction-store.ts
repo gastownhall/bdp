@@ -1,4 +1,10 @@
 import {
+  TRANSACTION_SNAPSHOT_LIMITS,
+  TRANSACTION_SNAPSHOT_TOKEN_POLICY,
+  transactionSnapshotSchema,
+  transactionSnapshotStorage,
+} from "./transaction-snapshot.js";
+import {
   checkpointPosition,
   transactionCheckpoint,
   TransactionChangefeedParameterError,
@@ -143,7 +149,9 @@ export interface TransactionStoreOptions {
       | "before-maintenance-commit"
       | "after-sequence-reservation"
       | "after-sequence-admission"
-      | "after-dependency-resolution",
+      | "after-dependency-resolution"
+      | "after-snapshot-copy"
+      | "after-snapshot-commit",
   ) => void;
 }
 interface Row {
@@ -156,7 +164,7 @@ interface Row {
   dependency: string | null;
 }
 const day = 86400000;
-const format = "bdp-private-transaction-contracts-8";
+const format = "bdp-private-transaction-snapshot-9";
 // Identity equality changed without changing the value codec. Retained keys
 // require both the current identity policy and the alias-aware store format.
 const identityPolicy = "transaction-revision-provenance-4";
@@ -170,6 +178,7 @@ CREATE TABLE receipt_pages(receipt TEXT PRIMARY KEY, principal TEXT NOT NULL, ke
 CREATE TABLE receipt_page_ranges(token TEXT PRIMARY KEY, receipt TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, UNIQUE(receipt,start)) STRICT;
 CREATE TABLE creator_facts(attempt TEXT NOT NULL, member INTEGER NOT NULL, fact TEXT, PRIMARY KEY(attempt,member)) STRICT;
 CREATE TABLE groups(position INTEGER PRIMARY KEY, body TEXT NOT NULL) STRICT;
+${transactionSnapshotSchema}
 `;
 /** Shared private page bound, validated before provisioning or recovery. */
 export function transactionReceiptMaximum(value: number = TRANSACTION_MAXIMUM_OPERATIONS): number {
@@ -232,6 +241,8 @@ export function openTransactionStore(options: TransactionStoreOptions) {
   const configuration = json({
     format,
     receiptMaximumItems,
+    snapshotLimits: TRANSACTION_SNAPSHOT_LIMITS,
+    snapshotTokenPolicy: TRANSACTION_SNAPSHOT_TOKEN_POLICY,
     identityPolicy,
     contractIdentity: compiled?.identity ?? null,
     runtimeLimits: TRANSACTION_RUNTIME_LIMITS,
@@ -445,7 +456,13 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     );
     return { row: { ...stored, receipt: receiptText }, change: "completedExpired" };
   }
+  const snapshots = transactionSnapshotStorage(db, scope, descriptors);
   function sweep(now: number) {
+    snapshots.expire(now, {
+      scopeEpoch: metadata("epoch"),
+      authorizationView: "development-all-visible",
+      scopePosition: `pos-${metadata("position")}`,
+    });
     const counts = { completedExpired: 0, failedForgotten: 0 };
     // This private composition has no population/workload qualification. Keep
     // only rows whose detail can expire in the scan; compact receipts stay bound.
@@ -1266,6 +1283,40 @@ export function openTransactionStore(options: TransactionStoreOptions) {
     scopeEpoch: epoch,
     recoveredPending,
     withRead,
+    /** Owner-only capture. HTTP creation preflight and retained minimum controls
+     * are deliberately not supplied by this private storage seam. */
+    captureSnapshot() {
+      return enter(() => {
+        const context = readContext(),
+          now = instant();
+        atomic(() => snapshots.expire(now, context));
+        const captured = atomic(() => {
+          const manifest = snapshots.capture(now, context);
+          options.fault?.("after-snapshot-copy");
+          return Object.freeze({ manifest, context });
+        });
+        // Failure to deliver an already committed identity never compensates by
+        // deleting its durable promise or freeing permanent issuance capacity.
+        options.fault?.("after-snapshot-commit");
+        return captured;
+      });
+    },
+    readSnapshot(id: string) {
+      return enter(() => {
+        const now = instant(),
+          context = readContext();
+        atomic(() => snapshots.expire(now, context));
+        return Object.freeze({ manifest: snapshots.manifest(id, now, context), context });
+      });
+    },
+    readSnapshotPage(id: string, kind: "bead" | "link", token: string) {
+      return enter(() => {
+        const now = instant(),
+          context = readContext();
+        atomic(() => snapshots.expire(now, context));
+        return Object.freeze({ page: snapshots.page(id, kind, token, now, context), context });
+      });
+    },
     /** Fixed-view finite Event observation. Group rows are consumed one at a time;
      * no reader/SQLite iterator or mutable capability escapes this owner entry. */
     readEvents(
