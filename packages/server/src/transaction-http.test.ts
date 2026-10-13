@@ -91,6 +91,18 @@ async function fixture(seams: TransactionRuntimeTestSeams = {}) {
     get runtime() {
       return runtime;
     },
+    async retainedReceipts() {
+      await runtime.close();
+      const db = new DatabaseSync(path.join(directory, "transaction.sqlite"), { readOnly: true });
+      try {
+        return db
+          .prepare("SELECT receipt FROM receipts ORDER BY key")
+          .all()
+          .map((row) => JSON.parse(String(row.receipt)));
+      } finally {
+        db.close();
+      }
+    },
     async receiptRows(key: string) {
       const port = Number(new URL(runtime.scope).port);
       await runtime.close();
@@ -1193,6 +1205,8 @@ it("orders page nondisclosure, minimum waits, expiry and representation using ac
     expect(unsupported.status).toBe(principal === token ? 500 : 404);
     if (principal === token)
       expect(unsupported.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+    for (const header of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+      expect(unsupported.headers.has(header)).toBe(false);
   }
   expect((await f.get(`${id(receipt)}/pages`)).status).toBe(404);
   for (const method of ["GET", "HEAD"]) {
@@ -1294,4 +1308,37 @@ it("checks a stored failed receipt minimum before read-triggered retention dispo
   expect(checkedProblem(await body(result)).code).toBe("catch-up-timeout");
   expect(result.headers.get("bdp-scope-position")).toBe("pos-0");
   expect((await f.get(id(failed))).status).toBe(404);
+});
+
+it("refuses unsupported root controls after nondisclosure but before read-triggered retention", async () => {
+  const f = await fixture();
+  const completed = await body(await f.post());
+  const failed = await body(
+    await f.post(batch([{ operation: "deleteBead", bead: "beads/missing" }]), "failed"),
+  );
+  f.setTime(86401001);
+  for (const receipt of [completed, failed]) {
+    for (const method of ["GET", "HEAD"]) {
+      for (const [credential, status] of [
+        [token, 500],
+        [otherToken, 404],
+      ] as const) {
+        const response = await f.get(id(receipt), {
+          method,
+          headers: {
+            authorization: `Bearer ${credential}`,
+            "bdp-minimum-scope-position": "unknown",
+          },
+        });
+        expect(response.status).toBe(status);
+        if (status === 500)
+          expect(response.headers.get("x-bdp-development-limit")).toBe("minimum-position");
+        for (const header of ["bdp-scope-epoch", "bdp-authorization-view", "bdp-scope-position"])
+          expect(response.headers.has(header)).toBe(false);
+        if (status === 500 || method === "HEAD") expect(await response.text()).toBe("");
+      }
+    }
+  }
+  // Inspect after closing, without reopening (startup maintenance may legitimately expire them).
+  expect(await f.retainedReceipts()).toEqual([failed, completed]);
 });

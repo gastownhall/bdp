@@ -8,7 +8,15 @@
     "link.demo-b-a": "links/read-a",
     "http.resource": "beads/read-a",
     "http.link": "links/read-a",
-    "http.absent": "beads/http-never-created"
+    "http.absent": "beads/http-never-created",
+    "w1.a": "beads/w1-a",
+    "w1.b": "beads/w1-b",
+    "w1.l": "links/w1-l",
+    "w1.local-pin": "links/w1-local-pin",
+    "w1.external-pin": "links/w1-external-pin",
+    "w1.missing-link": "links/w1-missing",
+    "w1.alias": "alias/w1-locator",
+    "w1.unknown-alias": "alias/w1-unknown"
   },
   "oracles": {
     "collections": {

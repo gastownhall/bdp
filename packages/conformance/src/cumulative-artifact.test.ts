@@ -159,9 +159,17 @@ it("pins cumulative source digest map, catalog order and every coverage binding"
     "read.http.method-405",
     "read.http.cache-cors",
     "read-update.singleton.create-bead",
+    "read-update.singleton.document-patch-merge-replace",
+    "read-update.singleton.document-patch-atomicity",
     "read-update.singleton.delete-bead",
+    "read-update.singleton.create-link",
+    "read-update.singleton.delete-link",
     "read-update.singleton.expected-revision",
     "read-update.singleton.idempotency-conflict",
+    "read-update.singleton.result-headers",
+    "read-update.alias.put-creates",
+    "read-update.alias.put-repoints",
+    "read-update.alias.no-version-minted",
   ]);
   expect(inventory.rows.map((row) => row.id)).toEqual(selected.required.map((row) => row.id));
   for (const row of inventory.rows) {
