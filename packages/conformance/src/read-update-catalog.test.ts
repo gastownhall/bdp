@@ -69,30 +69,67 @@ describe("draft Read+Update catalog", () => {
     for (const id of ids) expect(readIds.has(id), id).toBe(false);
   });
 
-  it("binds only the explicit partial version 2 RU manifest, preserving the sealed Read matrix", () => {
+  const approvedRuManifests = ["read-update-v1.json", "read-update-reference-continuation-v1.json"];
+  const assertManifestBinding = (
+    entry: string,
+    manifest: ReturnType<typeof loadExecutableScenarioManifestJson>,
+  ): void => {
+    if (approvedRuManifests.includes(entry)) {
+      expect(manifest.catalogId).toBe("read-update-v1");
+      expect(manifest.manifestVersion).toBe(2);
+      const cumulativeIds = loadProfileContractSelection("read-update").required.map(
+        (row) => row.id,
+      );
+      expect(manifest.scenarios.length).toBeLessThan(cumulativeIds.length);
+      for (const row of manifest.scenarios) expect(cumulativeIds).toContain(row.id);
+      return;
+    }
+    expect(manifest.catalogId, entry).not.toBe("read-update-v1");
+    const bound = new Set(manifest.scenarios.map(({ id }) => id));
+    for (const id of ids) expect(bound.has(id), `${entry} binds ${id}`).toBe(false);
+  };
+
+  it("binds only the approved partial version 2 RU shards, preserving the sealed Read matrix", () => {
+    // This explicit reviewed list is not derived from a manifest's profile or catalog tag.
+    expect(
+      JSON.parse(readText("packages/conformance/test-support/read-update-artifact-set-v1.json")),
+    ).toEqual({
+      version: 1,
+      shards: [
+        { id: "baseline", source: `matrices/${approvedRuManifests[0]}` },
+        { id: "reference-continuation", source: `matrices/${approvedRuManifests[1]}` },
+      ],
+    });
     const manifests = readdirSync(path.resolve(root, MATRICES_DIRECTORY)).filter((entry) =>
       entry.endsWith(".json"),
     );
-    expect(manifests.length).toBeGreaterThan(0);
-    for (const entry of manifests) {
-      const manifest = loadExecutableScenarioManifestJson(
-        readText(path.join(MATRICES_DIRECTORY, entry)),
+    for (const entry of approvedRuManifests) expect(manifests).toContain(entry);
+    for (const entry of manifests)
+      assertManifestBinding(
         entry,
+        loadExecutableScenarioManifestJson(readText(path.join(MATRICES_DIRECTORY, entry)), entry),
       );
-      if (entry === "read-update-v1.json") {
-        expect(manifest.catalogId).toBe("read-update-v1");
-        expect(manifest.manifestVersion).toBe(2);
-        const cumulativeIds = loadProfileContractSelection("read-update").required.map(
-          (row) => row.id,
-        );
-        expect(manifest.scenarios.length).toBeLessThan(cumulativeIds.length);
-        for (const row of manifest.scenarios) expect(cumulativeIds).toContain(row.id);
-        continue;
-      }
-      expect(manifest.catalogId, entry).not.toBe("read-update-v1");
-      const bound = new Set(manifest.scenarios.map(({ id }) => id));
-      for (const id of ids) expect(bound.has(id), `${entry} binds ${id}`).toBe(false);
-    }
+  });
+
+  it("rejects RU bindings outside the approved shard filenames even with another catalog tag", () => {
+    const manifest = loadExecutableScenarioManifestJson(
+      readText(path.join(MATRICES_DIRECTORY, approvedRuManifests[1]!)),
+      approvedRuManifests[1],
+    );
+    expect(() => assertManifestBinding("unapproved-ru.json", manifest)).toThrow(
+      /unapproved-ru.json/,
+    );
+    const unknownSubject = manifest.scenarios.filter(
+      (row) => row.id === "read-update.alias.unknown-subject",
+    );
+    expect(unknownSubject).toHaveLength(1);
+    expect(() =>
+      assertManifestBinding("read-v1.json", {
+        ...manifest,
+        catalogId: "read-v1",
+        scenarios: unknownSubject,
+      }),
+    ).toThrow(/read-v1.json binds read-update.alias.unknown-subject/);
   });
 
   it("mirrors the specification's Read+Update conformance rows exactly and in order", () => {
