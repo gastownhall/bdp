@@ -35,7 +35,7 @@ function nonnegativeInteger(value: LosslessJsonValue): boolean {
   const trailing = digits.length - digits.replace(/0+$/, "").length;
   return BigInt(match[4] ?? "0") - BigInt((match[3] ?? "").length) + BigInt(trailing) >= 0n;
 }
-export function prepareSetCore(
+export function prepareSetShape(
   scope: string,
   operation: TransactionSetOperation,
   input: Readonly<Record<string, LosslessJsonValue>>,
@@ -92,8 +92,12 @@ export function prepareSetCore(
     }),
     "internal-set-syntax",
   );
+  return Object.freeze({ operation, input });
+}
+/** Candidate-independent supported-subset check, after all carrier shape checks. */
+export function validateSetSelector(prepared: PreparedTransactionSet): void {
   try {
-    selectReadResources(input.selector, TRANSACTION_SELECTOR_LIMITS, []);
+    selectReadResources(prepared.input.selector as string, TRANSACTION_SELECTOR_LIMITS, []);
   } catch (error) {
     if (error instanceof ReadSelectorError)
       throw new TransactionDevelopmentLimitError(
@@ -102,5 +106,4 @@ export function prepareSetCore(
       );
     throw error;
   }
-  return Object.freeze({ operation, input });
 }

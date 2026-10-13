@@ -164,9 +164,9 @@ function context(response: Response) {
 }
 
 describe("source-private actual Transactional HTTP", () => {
-  it("serves canonical routes without advertising missing discovery, directory or set support", async () => {
+  it("serves canonical routes without advertising missing discovery or directory", async () => {
     const f = await fixture();
-    expect(Object.keys(f.runtime.targets)).toHaveLength(10);
+    expect(Object.keys(f.runtime.targets)).toHaveLength(12);
     for (const relative of ["", "bdp.json", "operations/"]) {
       const result = await f.get(new URL(relative, f.runtime.scope).href);
       expect(result.status).toBe(500);
@@ -174,7 +174,7 @@ describe("source-private actual Transactional HTTP", () => {
       expect(result.headers.has("link")).toBe(false);
       expect(await result.text()).toBe("");
     }
-    expect((await f.get(`${f.runtime.scope}operations/update-where`)).status).toBe(404);
+    expect((await f.get(`${f.runtime.scope}operations/update-where`)).status).toBe(405);
     const result = await f.post();
     expect(result.status).toBe(200);
     expect(result.headers.get("x-bdp-development")).toBe("non-attesting");
@@ -841,7 +841,13 @@ it("refuses command minimum controls before every carrier can capture keys or ef
 
 it("does not invent a Read method table for unrouted or noncanonical operation URLs", async () => {
   const f = await fixture();
-  for (const target of ["update-where", "delete-where", "unknown", "%62atch", "batch?x=1"]) {
+  for (const target of [
+    "unknown",
+    "%62atch",
+    "batch?x=1",
+    "update-where?x=1",
+    "delete-where?x=1",
+  ]) {
     for (const method of ["GET", "POST", "DELETE"]) {
       const response = await f.get(`${f.runtime.scope}operations/${target}`, {
         method,
@@ -1373,4 +1379,285 @@ it("keeps failed parent rows unchanged for nonexistent page reads with any contr
     }
   }
   expect(await f.retainedReceipts()).toEqual([failed]);
+});
+
+it("serves both set targets with method/auth/shape precedence and no unsupported-key capture", async () => {
+  const f = await fixture();
+  for (const target of ["updateWhere", "deleteWhere"] as const) {
+    for (const method of ["GET", "HEAD", "DELETE"]) {
+      const wrong = await f.get(f.runtime.targets[target], {
+        method,
+        headers: { authorization: "" },
+      });
+      expect(wrong.status).toBe(405);
+      expect(wrong.headers.get("allow")).toBe("POST");
+      expect(await wrong.text()).toBe("");
+    }
+    const input = {
+      collection: "beads",
+      selector: "$..*",
+      ...(target === "updateWhere" ? { change: [{ op: "add", path: "/x", value: 1 }] } : {}),
+    };
+    for (const carrier of [target, "batch"] as const) {
+      const text = JSON.stringify(
+        carrier === "batch"
+          ? { operations: [{ operation: target, ...input }, create("late")] }
+          : input,
+      );
+      for (const [authorization, status] of [
+        ["", 401],
+        [`Bearer ${readToken}`, 403],
+      ] as const) {
+        const key = `${target}_${carrier}_${status}`;
+        const response = await f.post(text, key, carrier, { authorization });
+        expect(response.status).toBe(status);
+        expect(response.headers.has("x-bdp-development-limit")).toBe(false);
+        expect(await f.receiptRows(key)).toEqual([]);
+        expect((await f.get(`${f.runtime.scope}beads/late`)).status).toBe(404);
+        expect((await f.post(batch([create(key)]), key)).status).toBe(200);
+      }
+      const gapKey = `${target}_${carrier}_gap`;
+      const gap = await f.post(text, gapKey, carrier);
+      expect(gap.status).toBe(500);
+      expect(gap.headers.get("x-bdp-development-limit")).toBe(
+        "unsupported-transaction-composition",
+      );
+      expect(await gap.text()).toBe("");
+      expect(await f.receiptRows(gapKey)).toEqual([]);
+    }
+    const malformed = await f.post(
+      JSON.stringify({ ...input, operation: target }),
+      `${target}_malformed`,
+      target,
+      { authorization: "" },
+    );
+    expect(malformed.status).toBe(400);
+    expect(await f.receiptRows(`${target}_malformed`)).toEqual([]);
+  }
+  const lateMalformed = await f.post(
+    batch([
+      { operation: "deleteWhere", collection: "beads", selector: "$..*" },
+      {
+        operation: "updateWhere",
+        collection: "beads",
+        selector: "$[?@.id]",
+        change: [],
+        cardinality: {},
+      },
+    ]),
+    "later_bad",
+    "batch",
+    { authorization: "" },
+  );
+  expect(lateMalformed.status).toBe(400);
+  expect(await f.receiptRows("later_bad")).toEqual([]);
+});
+
+it("shares set singleton/batch receipts and preserves original numeric pointers on actual wire", async () => {
+  const f = await fixture();
+  await f.post();
+  const input = {
+    collection: "beads",
+    selector: "$[?@.id]",
+    change: [{ op: "add", path: "/n", value: 1 }],
+  };
+  const first = await body(await f.post(JSON.stringify(input), "set", "updateWhere"));
+  expect(first).toMatchObject({
+    status: "completed",
+    results: [
+      { outcome: "matched", count: 1 },
+      { outcome: "updated", resource: { properties: { title: "a", n: 1 } } },
+    ],
+  });
+  await f.post(batch([create("later")]), "later");
+  expect(await body(await f.post(batch([{ operation: "updateWhere", ...input }]), "set"))).toEqual(
+    first,
+  );
+  expect((await body(await f.get(`${f.runtime.scope}beads/later`))).properties).toEqual({
+    title: "later",
+  });
+  const raw = '{"collection":"beads","selector":"$[?@.id]","cardinality":{"min":9007199254740993}}';
+  const failed = await f.post(raw, "numeric", "deleteWhere");
+  expect(failed.status).toBe(200);
+  const receipt = await body(failed);
+  expect(receipt).toMatchObject({
+    status: "failed",
+    problem: {
+      status: 422,
+      code: "validation-failed",
+      operationIndex: 0,
+      pointer: "/cardinality/min",
+    },
+  });
+  expect(
+    await body(
+      await f.post(`{"operations":[{"operation":"deleteWhere",${raw.slice(1)}]}`, "numeric"),
+    ),
+  ).toEqual(receipt);
+  const conflict = await f.post(
+    raw.replace("9007199254740993", "9007199254740994"),
+    "numeric",
+    "deleteWhere",
+    { accept: "text/plain" },
+  );
+  expect(conflict.status).toBe(409);
+  expect((await f.post(raw, "numeric", "deleteWhere", { accept: "text/plain" })).status).toBe(406);
+});
+
+it("evaluates each served set against staged state and rolls back a late failed patch", async () => {
+  const f = await fixture();
+  const update = (selector: string, value: number) => ({
+    operation: "updateWhere",
+    collection: "beads",
+    selector,
+    change: [{ op: "add", path: "/n", value }],
+  });
+  const result = await body(
+    await f.post(
+      batch([
+        create("a"),
+        update('$[?@.properties.title == "a"]', 1),
+        update("$[?@.properties.n == 1]", 2),
+      ]),
+    ),
+  );
+  expect(result).toMatchObject({
+    status: "completed",
+    results: [
+      { outcome: "created" },
+      { outcome: "matched", count: 1 },
+      { outcome: "updated", resource: { properties: { n: 1 } } },
+      { outcome: "matched", count: 1 },
+      { outcome: "updated", resource: { properties: { n: 2 } } },
+    ],
+  });
+  const before = await body(await f.get(`${f.runtime.scope}beads/a`));
+  const failed = await body(
+    await f.post(
+      batch([
+        create("tentative"),
+        update("$[?@.id]", 3),
+        {
+          operation: "updateWhere",
+          collection: "beads",
+          selector: "$[?@.id]",
+          change: [{ op: "remove", path: "/missing" }],
+        },
+      ]),
+      "rollback",
+    ),
+  );
+  expect(failed).toMatchObject({
+    status: "failed",
+    problem: {
+      code: "validation-failed",
+      operationIndex: 2,
+      pointer: "/operations/2/change/0/path",
+    },
+  });
+  expect(await body(await f.get(`${f.runtime.scope}beads/a`))).toEqual(before);
+  expect((await f.get(`${f.runtime.scope}beads/tentative`)).status).toBe(404);
+});
+
+it("does not implicitly match pinned endpoints and atomically rolls back the incomplete cascade", async () => {
+  const f = await fixture();
+  await f.post(batch([create("a"), create("b")]));
+  const a = await body(await f.get(`${f.runtime.scope}beads/a`));
+  const linkInput = { operation: "createLink", type: link, target: "beads/b" };
+  const seeded = await f.post(
+    batch([
+      { ...linkInput, id: "links/bare", source: "beads/a" },
+      { ...linkInput, id: "links/pinned", source: { uri: "beads/a", revision: a.revision } },
+    ]),
+    "links",
+  );
+  const beforeContext = context(seeded);
+  expect(await body(seeded)).toMatchObject({ status: "completed" });
+  const bare = await body(await f.get(`${f.runtime.scope}links/bare`));
+  const pinned = await body(await f.get(`${f.runtime.scope}links/pinned`));
+  // Exact stored-value semantics select only the bare endpoint, not its pinned peer.
+  const selector = `$[?@.source == "${f.runtime.scope}beads/a"]`;
+  const failed = await f.post(
+    batch([
+      { operation: "deleteWhere", collection: "links", selector, cardinality: { min: 1, max: 1 } },
+      { operation: "deleteBead", bead: "beads/a", expectedRevision: a.revision },
+    ]),
+    "cascade",
+  );
+  expect(context(failed)).toEqual(beforeContext);
+  expect(await body(failed)).toMatchObject({
+    status: "failed",
+    problem: { code: "incident-links-exist", operationIndex: 1 },
+  });
+  expect(await body(await f.get(`${f.runtime.scope}links/bare`))).toEqual(bare);
+  expect(await body(await f.get(`${f.runtime.scope}links/pinned`))).toEqual(pinned);
+  expect(await body(await f.get(`${f.runtime.scope}beads/a`))).toEqual(a);
+});
+
+it("finishes an admitted set after actual client disconnect and replays it after reopen", async () => {
+  let armed = false,
+    request: ReturnType<typeof httpRequest> | undefined;
+  const f = await fixture();
+  await f.post();
+  const exec = DatabaseSync.prototype.exec;
+  let cancelledPending = false;
+  vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+    this: DatabaseSync,
+    sql: string,
+  ) {
+    exec.call(this, sql);
+    if (armed && sql === "COMMIT") {
+      const row = this.prepare("SELECT receipt FROM receipts WHERE key=?").get("disconnected_set");
+      if (row && JSON.parse(String(row.receipt)).status === "pending") {
+        armed = false;
+        cancelledPending = true;
+        request?.destroy();
+      }
+    }
+  });
+  const input = {
+    collection: "beads",
+    selector: "$[?@.id]",
+    change: [{ op: "add", path: "/n", value: 1 }],
+  };
+  armed = true;
+  request = httpRequest(f.runtime.targets.updateWhere, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      "idempotency-key": "disconnected_set",
+    },
+  });
+  request.on("error", () => {}); // Expected ECONNRESET from our actual client-side cancellation.
+  const closed = new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("set disconnect did not close")), 5000);
+    request!.once("close", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+  request.end(JSON.stringify(input));
+  await closed;
+  expect(cancelledPending).toBe(true);
+  armed = false;
+  await f.reopen();
+  const replay = await body(
+    await f.post(batch([{ operation: "updateWhere", ...input }]), "disconnected_set"),
+  );
+  expect(replay).toMatchObject({
+    status: "completed",
+    effectPosition: "pos-2",
+    results: [
+      { outcome: "matched", count: 1 },
+      { outcome: "updated", resource: { properties: { title: "a", n: 1 } } },
+    ],
+  });
+  expect(
+    await body(await f.post(JSON.stringify(input), "disconnected_set", "updateWhere")),
+  ).toEqual(replay);
+  expect((await body(await f.get(`${f.runtime.scope}beads/a`))).properties).toEqual({
+    title: "a",
+    n: 1,
+  });
 });

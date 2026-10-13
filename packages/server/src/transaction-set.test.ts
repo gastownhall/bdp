@@ -365,11 +365,9 @@ it("enforces one total Event cap across ordinary and set facts, with atomic reta
   expect(f.owner.inspect().groups).toEqual(before.groups);
   expect(f.admit(operations, "over")).toMatchObject({ kind: "existing", receipt });
 });
-it("keeps unresolved negative Selector inputs a development gap and served preparation closed", () => {
+it("keeps unresolved negative Selector inputs a development gap while valid carriers share preparation", () => {
   const text = JSON.stringify({ operations: [update()] });
-  expect(() => batch.prepareTransaction(scope, text)).toThrow(
-    batch.TransactionDevelopmentLimitError,
-  );
+  expect(() => batch.prepareTransaction(scope, text)).not.toThrow();
   expect(() =>
     batch.prepareTransactionSetCore(scope, JSON.stringify({ operations: [update("$..*")] })),
   ).toThrow(batch.TransactionDevelopmentLimitError);
