@@ -132,6 +132,8 @@ export function createTransactionService(owner: Owner, options: TransactionServi
     readonly context: TransactionReadContext;
   }): ReceiptObservation {
     const results = observed.receipt.results;
+    // URL prefixes are construction-guaranteed by this store; retain these
+    // checks as defense in depth alongside the independent result bounds.
     if (
       observed.receipt.status === "completed" &&
       observed.receipt.detail === "available" &&
@@ -238,6 +240,7 @@ export function createTransactionService(owner: Owner, options: TransactionServi
               : snapshotTransactionMinimum(supplied);
         return waitForTransactionMinimum(() => {
           const result = owner.readReceiptPage(principal, id, minimum);
+          // Prefix checking is defense in depth, not an independent plan witness.
           if (
             result.kind === "page" &&
             (result.page.results.length < 1 ||

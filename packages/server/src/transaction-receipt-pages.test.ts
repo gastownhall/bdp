@@ -278,3 +278,13 @@ it("keeps intermediate postimages and deletion facts in recorded pages", () => {
   });
   expect(f.owner.inspect().resources).toEqual([]);
 });
+
+it("refuses page parents outside the receipt namespace before plan lookup", () => {
+  const f = fixture();
+  const prepare = vi.spyOn(DatabaseSync.prototype, "prepare");
+  for (const url of [`${scope}other/x/pages/token`, `${scope}receipts/pages/token`]) {
+    for (const controls of [undefined, "unsupported"] as const)
+      expect(f.owner.readReceiptPage("p", url, controls)).toEqual({ kind: "missing" });
+  }
+  expect(prepare.mock.calls.some(([sql]) => sql.includes("FROM receipt_pages"))).toBe(false);
+});
