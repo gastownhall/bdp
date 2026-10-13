@@ -47,7 +47,7 @@ export function applyReadHttpSemantics(request: Request, response: HttpResponse)
   return selected;
 }
 
-function conditionalReadStatus(headers: Headers, etag: string | null): 200 | 304 | 412 {
+export function conditionalReadStatus(headers: Headers, etag: string | null): 200 | 304 | 412 {
   const match = headers.get("if-match");
   if (match !== null && !tagListMatches(match, etag, true)) return 412;
   const noneMatch = headers.get("if-none-match");
@@ -88,31 +88,45 @@ const QUOTED = /^"(?:[\t\x20\x21\x23-\x5b\x5d-\x7e\x80-\xff]|\\[\t\x20-\x7e\x80-
 const QUALITY = /^(?:0(?:\.\d{0,3})?|1(?:\.0{0,3})?)$/;
 
 export function acceptsJson(value: string | null): boolean {
-  if (value === null) return true;
+  return mediaQuality(value, "application/json") > 0;
+}
+
+/** Source-private representation selection; JSON wins ties and missing Accept. */
+export function selectChangefeedMedia(value: string | null): "json" | "sse" | undefined {
+  const json = mediaQuality(value, "application/json");
+  const sse = mediaQuality(value, "text/event-stream");
+  return json > 0 && json >= sse ? "json" : sse > 0 ? "sse" : undefined;
+}
+
+function mediaQuality(value: string | null, target: string): number {
+  if (value === null) return 1;
   const ranges = splitQuoted(value, ",");
-  if (ranges === undefined) return false;
+  if (ranges === undefined) return 0;
   let specificity = -1;
   let quality = 0;
   for (const range of ranges) {
-    const parsed = jsonRange(range);
+    const parsed = mediaRange(range, target);
     if (parsed === undefined) continue;
     if (parsed.specificity > specificity) {
       specificity = parsed.specificity;
       quality = parsed.quality;
     } else if (parsed.specificity === specificity) quality = Math.max(quality, parsed.quality);
   }
-  return quality > 0;
+  return quality;
 }
 
 /** Unsupported media parameters cannot match our parameter-free JSON. Malformed
  * ranges are not candidates; no BDP error code is invented for header recovery.
  */
-function jsonRange(value: string): { specificity: number; quality: number } | undefined {
+function mediaRange(
+  value: string,
+  target: string,
+): { specificity: number; quality: number } | undefined {
   const parts = splitQuoted(value, ";");
   if (parts === undefined) return undefined;
   const media = parts.shift()?.trim().toLowerCase();
   const specificity =
-    media === "application/json" ? 2 : media === "application/*" ? 1 : media === "*/*" ? 0 : -1;
+    media === target ? 2 : media === `${target.split("/")[0]}/*` ? 1 : media === "*/*" ? 0 : -1;
   if (specificity < 0) return undefined;
   let quality = 1;
   let hasWeight = false;

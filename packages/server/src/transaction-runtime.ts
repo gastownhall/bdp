@@ -1,5 +1,8 @@
 /** Source-private loopback fixture. Never selected by installed config/profile
  * admission. It exposes actual routes, not an incomplete BDP discovery claim. */
+import { createNodeHttpDisconnectSignal } from "./node-http-disconnect.js";
+import { pumpTransactionChanges } from "./transaction-sse.js";
+import { ScopeServerOperationAbortedError } from "./read-request.js";
 import { createServer, type IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { Socket } from "node:net";
@@ -11,7 +14,11 @@ import type { HttpResponse } from "./index.js";
 import { normalizationSafeRawRequestPath } from "./node-http-target.js";
 import { openTransactionStore } from "./transaction-store.js";
 import { TRANSACTION_RUNTIME_LIMITS } from "./transaction-batch.js";
-import { createTransactionService, type TransactionServiceOptions } from "./transaction-service.js";
+import {
+  createTransactionService,
+  TransactionStreamCapacityError,
+  type TransactionServiceOptions,
+} from "./transaction-service.js";
 import {
   createTransactionHttpHandler,
   transactionHttpProblem,
@@ -49,6 +56,10 @@ export interface TransactionRuntimeTestSeams {
   readonly receiptMaximumItems?: number;
   /** Store timer isolation for clock-advancing HTTP tests; default unchanged. */
   readonly maintenanceIntervalMs?: number;
+  /** Source-only deadline observations. Any supplied seam suppresses metadata. */
+  readonly transport?: Partial<
+    Record<"requestTimeout" | "headersTimeout" | "timeout" | "keepAliveTimeout", number>
+  >;
 }
 async function receive(request: IncomingMessage): Promise<TransactionReceivedBody> {
   const length = request.headers["content-length"];
@@ -93,7 +104,11 @@ export async function startTransactionRuntime(
   let scope = "",
     closing = false;
   const pending = new Set<Promise<void>>();
+  // Retain only the first unexpected live fault. Wire cancellation remains
+  // silent; close surfaces the original cause through existing aggregation.
+  let firstStreamFault: { readonly cause: unknown } | undefined;
   const handle = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    let signal: AbortSignal | undefined;
     try {
       if (closing || !handler) {
         deliver(response, transactionHttpProblem("temporarily-unavailable"));
@@ -127,7 +142,12 @@ export async function startTransactionRuntime(
         headers.append(request.rawHeaders[i] ?? "", request.rawHeaders[i + 1] ?? "");
       const supplied = Buffer.from(headers.get("authorization") ?? "");
       const authorization = captured.authenticate(supplied);
-      const input = new Request(url, { method: request.method ?? "GET", headers });
+      signal = createNodeHttpDisconnectSignal(request, response);
+      const input = new Request(url, { method: request.method ?? "GET", headers, signal });
+      const lastEventIds: string[] = [];
+      for (let i = 0; i < request.rawHeaders.length; i += 2)
+        if (request.rawHeaders[i]?.toLowerCase() === "last-event-id")
+          lastEventIds.push(request.rawHeaders[i + 1] ?? "");
       const body = request.method === "POST" ? await receive(request) : { text: "" };
       if (closing || response.destroyed) {
         deliver(response, transactionHttpProblem("temporarily-unavailable"));
@@ -140,11 +160,62 @@ export async function startTransactionRuntime(
         return;
       }
       if ("failure" in body) response.setHeader("connection", "close");
-      await handler
-        .handle(input, authorization, body)
-        .then((selected) => deliver(response, selected));
-    } catch {
-      if (!response.destroyed) {
+      const selected = await handler.handle(input, authorization, body, lastEventIds);
+      if (selected.kind === "finite") deliver(response, selected);
+      else {
+        if (!captured.liveStreamsAvailable) {
+          deliver(response, {
+            status: 500,
+            headers: new Headers({
+              "cache-control": "private, no-store",
+              "x-bdp-development-limit": "stream-transport-timing",
+            }),
+          });
+          return;
+        }
+        const activeService = service!;
+        await activeService.stream(async (streamSignal) => {
+          try {
+            streamSignal.throwIfAborted();
+            response.writeHead(selected.status, Object.fromEntries(selected.headers));
+            response.flushHeaders();
+            await pumpTransactionChanges(
+              response,
+              selected.page,
+              async (after, nextSignal) => {
+                const observed = await activeService.changes({ after }, undefined, nextSignal);
+                if (observed.kind !== "page")
+                  throw new Error("changefeed stream lost serving entry");
+                return observed.page;
+              },
+              streamSignal,
+              settings.changefeedStream,
+            );
+          } catch (error) {
+            // Capture before destroy() turns a genuine fault into a disconnect.
+            if (
+              response.headersSent &&
+              !streamSignal.aborted &&
+              !response.destroyed &&
+              !firstStreamFault
+            )
+              firstStreamFault = { cause: error };
+            throw error;
+          } finally {
+            response.destroy();
+          }
+        }, signal);
+      }
+    } catch (error) {
+      if (
+        signal?.aborted ||
+        response.headersSent ||
+        error instanceof ScopeServerOperationAbortedError
+      ) {
+        response.destroy();
+      } else if (error instanceof TransactionStreamCapacityError) {
+        deliver(response, transactionHttpProblem("temporarily-unavailable"));
+      } else if (!response.destroyed) {
         response.writeHead(500, {
           "content-length": "0",
           "cache-control": "private, no-store",
@@ -222,6 +293,7 @@ export async function startTransactionRuntime(
     });
     service = createTransactionService(owner, {
       ownerLifetime: "service",
+      maximumStreams: settings.changefeedStream.maximumStreams,
       ...(capturedSeams.scheduler ? { scheduler: capturedSeams.scheduler } : {}),
       comparison: { budgetMs: settings.comparisonBudgetMs, ...capturedSeams.comparison },
       minimumReads: { budgetMs: settings.minimumReadBudgetMs, ...capturedSeams.minimumReads },
@@ -269,6 +341,7 @@ export async function startTransactionRuntime(
           } catch (error) {
             failures.push(error);
           }
+          if (firstStreamFault) failures.unshift(firstStreamFault.cause);
           if (failures.length)
             throw new AggregateError(failures, "transaction runtime shutdown failed");
         })();

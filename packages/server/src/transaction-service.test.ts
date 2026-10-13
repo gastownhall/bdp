@@ -900,3 +900,37 @@ it("drains admitted finite Snapshot observation and refuses new work while closi
   await expect(service.closed).resolves.toBeUndefined();
   expect(() => f.owner.inspect()).toThrow("closed");
 });
+
+it("cancels separate streams on shutdown, drains admitted finite work and refuses stale registration", async () => {
+  const f = fixture();
+  const scheduler = manualScheduler();
+  const service = f.open({ scheduler });
+  const before = new AbortController();
+  before.abort(new Error("pre-aborted"));
+  let started = false;
+  await expect(
+    service.stream(async () => {
+      started = true;
+    }, before.signal),
+  ).rejects.toThrow("pre-aborted");
+  expect(started).toBe(false);
+  const controller = new AbortController();
+  const streaming = service.stream(
+    (signal) =>
+      new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true }),
+      ),
+    controller.signal,
+  );
+  expect(() => service.stream(async () => {}, new AbortController().signal)).toThrow("capacity");
+  const admitted = service.sequence("p", sequence());
+  const closed = service.close();
+  await streaming;
+  await scheduler.tick();
+  await scheduler.tick();
+  await admitted;
+  await closed;
+  expect(() => service.stream(async () => {}, new AbortController().signal)).toThrow("closing");
+  const reopened = f.reopen();
+  expect(reopened.inspect().groups).toHaveLength(2);
+});
